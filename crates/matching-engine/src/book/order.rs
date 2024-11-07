@@ -115,13 +115,11 @@ impl<'a, 'b> OrderContainer<'a, 'b> {
             Self::AMM(_) => panic!("This should never happen"),
             Self::BookOrder(o) => {
                 let newo = (**o).clone();
-                newo.try_map_inner(|f| Ok(f.fill(filled_quantity.to())))
-                    .unwrap()
+                newo.try_map_inner(|f| Ok(f.fill(filled_quantity))).unwrap()
             }
             Self::BookOrderFragment(o) => {
                 let newo = (**o).clone();
-                newo.try_map_inner(|f| Ok(f.fill(filled_quantity.to())))
-                    .unwrap()
+                newo.try_map_inner(|f| Ok(f.fill(filled_quantity))).unwrap()
             }
         }
     }
@@ -160,12 +158,12 @@ impl<'a> Order<'a> {
     pub fn quantity(&self, limit_price: OrderPrice) -> OrderVolume {
         match self {
             Self::Flash(lo) => match lo {
-                FlashVariants::Exact(e) => U256::from(e.amount),
-                FlashVariants::Partial(p) => U256::from(p.max_amount_in)
+                FlashVariants::Exact(e) => e.amount,
+                FlashVariants::Partial(p) => p.max_amount_in
             },
             Self::Standing(lo) => match lo {
-                StandingVariants::Exact(e) => U256::from(e.amount),
-                StandingVariants::Partial(p) => U256::from(p.max_amount_in)
+                StandingVariants::Exact(e) => e.amount,
+                StandingVariants::Partial(p) => p.max_amount_in
             },
             Self::AMM(ammo) => ammo.quantity(limit_price).0
         }

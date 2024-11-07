@@ -311,13 +311,13 @@ impl UserOrder {
     ) -> eyre::Result<Self> {
         let order_quantities = match order.order {
             GroupedVanillaOrder::KillOrFill(_) => {
-                OrderQuantities::Exact { quantity: order.quantity().to() }
+                OrderQuantities::Exact { quantity: order.quantity() }
             }
             GroupedVanillaOrder::Standing(_) => {
-                let max_quantity_in: u128 = order.quantity().to();
+                let max_quantity_in: u128 = order.quantity();
                 let filled_quantity = match outcome.outcome {
                     OrderFillState::CompleteFill => max_quantity_in,
-                    OrderFillState::PartialFill(fill) => fill.to(),
+                    OrderFillState::PartialFill(fill) => fill,
                     _ => 0
                 };
                 OrderQuantities::Partial { min_quantity_in: 0, max_quantity_in, filled_quantity }
@@ -361,28 +361,20 @@ impl UserOrder {
     ) -> Self {
         let order_quantities = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(_) => {
-                    OrderQuantities::Exact { quantity: order.quantity().to() }
-                }
-                FlashVariants::Partial(_) => OrderQuantities::Partial {
-                    min_quantity_in: 0,
-                    max_quantity_in: order.quantity().to(),
-                    filled_quantity: 0
+                FlashVariants::Exact(_) => OrderQuantities::Exact { quantity: order.quantity() },
+                FlashVariants::Partial(p_o) => OrderQuantities::Partial {
+                    min_quantity_in: p_o.min_amount_in,
+                    max_quantity_in: p_o.max_amount_in,
+                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
                 }
             },
             GroupedVanillaOrder::Standing(o) => match o {
-                StandingVariants::Exact(_) => {
-                    OrderQuantities::Exact { quantity: order.quantity().to() }
-                }
-                StandingVariants::Partial(_) => {
-                    let max_quantity_in = order.quantity().to();
-                    let filled_quantity = match outcome.outcome {
-                        OrderFillState::CompleteFill => max_quantity_in,
-                        OrderFillState::PartialFill(fill) => fill.to(),
-                        _ => 0
-                    };
+                StandingVariants::Exact(_) => OrderQuantities::Exact { quantity: order.quantity() },
+                StandingVariants::Partial(p_o) => {
+                    let max_quantity_in = p_o.max_amount_in;
+                    let filled_quantity = outcome.fill_amount(p_o.max_amount_in);
                     OrderQuantities::Partial {
-                        min_quantity_in: 0,
+                        min_quantity_in: p_o.min_amount_in,
                         max_quantity_in,
                         filled_quantity
                     }
@@ -741,9 +733,9 @@ impl AngstromBundle {
                 };
                 // Calculate the price of this order given the amount filled and the UCP
                 let quantity_in = if order.is_bid {
-                    Ray::from(ucp).mul_quantity(quantity_out)
+                    Ray::from(ucp).mul_quantity(U256::from(quantity_out))
                 } else {
-                    Ray::from(ucp).inverse_quantity(quantity_out)
+                    Ray::from(ucp).inverse_quantity(U256::from(quantity_out))
                 };
                 // Account for our user order
                 let (asset_in, asset_out) = if order.is_bid { (*t1, *t0) } else { (*t0, *t1) };
@@ -752,7 +744,7 @@ impl AngstromBundle {
                     asset_in,
                     asset_out,
                     quantity_in.to(),
-                    quantity_out.to()
+                    quantity_out
                 );
                 user_orders.push(UserOrder::from_internal_order_max_gas(
                     order,
@@ -981,16 +973,10 @@ impl AngstromBundle {
                 .zip(order_list.iter())
                 .filter(|(outcome, _)| outcome.is_filled())
             {
-                let quantity_out = match outcome.outcome {
-                    OrderFillState::PartialFill(p) => p,
-                    _ => order.quantity()
-                };
-                // Calculate the price of this order given the amount filled and the UCP
-                let quantity_in = if order.is_bid {
-                    Ray::from(ucp).mul_quantity(quantity_out)
-                } else {
-                    Ray::from(ucp).inverse_quantity(quantity_out)
-                };
+                let t0_moving = U256::from(outcome.fill_amount(order.quantity()));
+                let t1_moving = Ray::from(ucp).mul_quantity(t0_moving);
+                let (quantity_in, quantity_out) =
+                    if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
                 // Account for our user order
                 let (asset_in, asset_out) = if order.is_bid { (*t1, *t0) } else { (*t0, *t1) };
                 asset_builder.external_swap(

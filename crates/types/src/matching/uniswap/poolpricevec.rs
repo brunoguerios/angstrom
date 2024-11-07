@@ -370,38 +370,43 @@ impl<'a> PoolPriceVec<'a> {
         self.start_bound.price < self.end_bound.price
     }
 
-    /// Returns `(quantity, price)`
-    pub fn quantity(&self, target_price: OrderPrice) -> (U256, U256) {
+    /// Returns `(d_t0, d_t1, price)`
+    pub fn quantity(&self, target_price: OrderPrice) -> (u128, u128, OrderPrice) {
         let t: SqrtPriceX96 = Ray::from(*target_price).into();
 
         // If our target price is past our end bound, our quantity is the entire range
         if (self.is_buy() && t > self.end_bound.price) || t < self.end_bound.price {
-            return (self.d_t0, self.d_t1);
+            return (self.d_t0.to(), self.d_t1.to(), OrderPrice::from(self.end_bound.price));
         }
 
-        let (quantity, price) =
+        let (d_t0, d_t1) =
             Self::delta_to_price(self.start_bound.price, t, self.start_bound.liquidity());
-        (quantity, price)
+        (d_t0.to(), d_t1.to(), target_price)
     }
 
     // Maybe it's OK that I don't check the price again here because in the matching
     // algo I've only offered a quantity bounded by the price, so we should
     // always be OK?
-    pub fn fill(&self, quantity: U256) -> Self {
+    pub fn fill(&self, quantity: u128) -> Self {
         let liquidity = self.start_bound.liquidity();
         let end_sqrt_price = if self.is_buy() {
             get_next_sqrt_price_from_output(
                 self.start_bound.price.into(),
                 liquidity,
-                quantity,
+                U256::from(quantity),
                 true
             )
             .map(SqrtPriceX96::from)
             .unwrap()
         } else {
-            get_next_sqrt_price_from_input(self.start_bound.price.into(), liquidity, quantity, true)
-                .map(SqrtPriceX96::from)
-                .unwrap()
+            get_next_sqrt_price_from_input(
+                self.start_bound.price.into(),
+                liquidity,
+                U256::from(quantity),
+                true
+            )
+            .map(SqrtPriceX96::from)
+            .unwrap()
         };
         let (d_t0, d_t1) = Self::delta_to_price(self.start_bound.price, end_sqrt_price, liquidity);
         let mut end_bound = self.start_bound.clone();

@@ -173,7 +173,7 @@ impl<'a> VolumeFillMatcher<'a> {
 
                 // If either quantity is zero maybe we should break here? (could be a
                 // replacement for price cross checking if we implement that)
-                if ask_q == U256::ZERO || bid_q == U256::ZERO {
+                if ask_q == 0 || bid_q == 0 {
                     return VolumeFillMatchEndReason::ZeroQuantity
                 }
 
