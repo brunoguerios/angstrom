@@ -735,7 +735,7 @@ impl AngstromBundle {
                 let quantity_in = if order.is_bid {
                     Ray::from(ucp).mul_quantity(U256::from(quantity_out))
                 } else {
-                    Ray::from(ucp).inverse_quantity(U256::from(quantity_out))
+                    U256::from(Ray::from(ucp).inverse_quantity(quantity_out, true))
                 };
                 // Account for our user order
                 let (asset_in, asset_out) = if order.is_bid { (*t1, *t0) } else { (*t0, *t1) };

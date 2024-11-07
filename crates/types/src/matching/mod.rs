@@ -5,7 +5,12 @@ use std::{
 
 use alloy::primitives::U256;
 
+mod composite;
+pub use composite::CompositeOrder;
+mod debt;
+pub use debt::{Debt, DebtType};
 pub mod match_estimate_response;
+mod math;
 mod ray;
 mod sqrtprice;
 mod tokens;
@@ -26,6 +31,16 @@ fn const_1e27() -> &'static Natural {
 fn const_2_192() -> &'static Natural {
     static ONENINETWO: OnceLock<Natural> = OnceLock::new();
     ONENINETWO.get_or_init(|| Natural::power_of_2(192))
+}
+
+fn const_2_96() -> &'static Natural {
+    static ONENINETWO: OnceLock<Natural> = OnceLock::new();
+    ONENINETWO.get_or_init(|| Natural::power_of_2(96))
+}
+
+pub enum BookSide {
+    Bid,
+    Ask
 }
 
 /// Internal price representation used in the matching engine.
