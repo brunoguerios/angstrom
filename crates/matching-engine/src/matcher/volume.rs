@@ -11,7 +11,7 @@ use angstrom_types::{
 };
 
 use super::Solution;
-use crate::book::{order::OrderContainer, OrderBook};
+use crate::book::{order::OrderContainer, BookOrder, OrderBook};
 
 pub enum VolumeFillMatchEndReason {
     NoMoreBids,
@@ -30,7 +30,7 @@ pub struct VolumeFillMatcher<'a> {
     pub ask_outcomes: Vec<OrderFillState>,
     amm_price:        Option<PoolPrice<'a>>,
     amm_outcome:      Option<NetAmmOrder>,
-    current_partial:  Option<OrderWithStorageData<GroupedVanillaOrder>>,
+    current_partial:  Option<BookOrder>,
     results:          Solution,
     // A checkpoint should never have a checkpoint stored within itself, otherwise this gets gnarly
     checkpoint:       Option<Box<Self>>
@@ -253,7 +253,7 @@ impl<'a> VolumeFillMatcher<'a> {
     fn next_order_from_book<'b>(
         is_bid: bool,
         index: &Cell<usize>,
-        book: &'a [OrderWithStorageData<GroupedVanillaOrder>],
+        book: &'a [BookOrder],
         fill_state: &[OrderFillState],
         amm: Option<&PoolPrice<'a>>
     ) -> Option<OrderContainer<'a, 'b>> {
@@ -321,7 +321,7 @@ mod tests {
     use testing_tools::type_generator::orders::UserOrderBuilder;
 
     use super::VolumeFillMatcher;
-    use crate::book::OrderBook;
+    use crate::book::{BookOrder, OrderBook};
 
     #[test]
     fn runs_cleanly_on_empty_book() {
@@ -398,7 +398,7 @@ mod tests {
         count: usize,
         target_price: Ray,
         price_step: usize
-    ) -> Vec<OrderWithStorageData<GroupedVanillaOrder>> {
+    ) -> Vec<BookOrder> {
         (0..count)
             .map(|i| {
                 UserOrderBuilder::new()

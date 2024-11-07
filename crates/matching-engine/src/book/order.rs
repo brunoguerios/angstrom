@@ -6,14 +6,16 @@ use angstrom_types::{
     }
 };
 
+use super::BookOrder;
+
 /// Definition of the various types of order that we can serve, as well as the
 /// outcomes we're able to have for them
 #[derive(Clone, Debug)]
 pub enum OrderContainer<'a, 'b> {
     /// A complete order from our book
-    BookOrder(&'a OrderWithStorageData<GroupedVanillaOrder>),
+    BookOrder(&'a BookOrder),
     /// A fragment of an order from our book yet to be filled
-    BookOrderFragment(&'b OrderWithStorageData<GroupedVanillaOrder>),
+    BookOrderFragment(&'b BookOrder),
     /// An order constructed from the current state of our AMM
     AMM(PoolPriceVec<'a>)
 }
@@ -72,7 +74,7 @@ impl<'a, 'b> OrderContainer<'a, 'b> {
 
     /// Produce a new order representing the remainder of the current order
     /// after the fill operation has been performed
-    pub fn fill(&self, filled_quantity: OrderVolume) -> OrderWithStorageData<GroupedVanillaOrder> {
+    pub fn fill(&self, filled_quantity: OrderVolume) -> BookOrder {
         match self {
             Self::AMM(_) => panic!("This should never happen"),
             Self::BookOrder(o) => {

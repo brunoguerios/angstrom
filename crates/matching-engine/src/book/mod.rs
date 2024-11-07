@@ -7,6 +7,8 @@ use angstrom_types::{
 
 use self::sort::SortStrategy;
 
+pub type BookOrder = OrderWithStorageData<GroupedVanillaOrder>;
+
 pub mod order;
 pub mod sort;
 
@@ -14,16 +16,16 @@ pub mod sort;
 pub struct OrderBook {
     id:   PoolId,
     amm:  Option<PoolSnapshot>,
-    bids: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
-    asks: Vec<OrderWithStorageData<GroupedVanillaOrder>>
+    bids: Vec<BookOrder>,
+    asks: Vec<BookOrder>
 }
 
 impl OrderBook {
     pub fn new(
         id: PoolId,
         amm: Option<PoolSnapshot>,
-        mut bids: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
-        mut asks: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+        mut bids: Vec<BookOrder>,
+        mut asks: Vec<BookOrder>,
         sort: Option<SortStrategy>
     ) -> Self {
         // Use our sorting strategy to sort our bids and asks
@@ -37,11 +39,11 @@ impl OrderBook {
         self.id
     }
 
-    pub fn bids(&self) -> &Vec<OrderWithStorageData<GroupedVanillaOrder>> {
+    pub fn bids(&self) -> &Vec<BookOrder> {
         &self.bids
     }
 
-    pub fn asks(&self) -> &Vec<OrderWithStorageData<GroupedVanillaOrder>> {
+    pub fn asks(&self) -> &Vec<BookOrder> {
         &self.asks
     }
 
