@@ -1,8 +1,6 @@
-use alloy_primitives::U256;
 use angstrom_types::{
     matching::uniswap::PoolPriceVec,
     orders::{OrderID, OrderId, OrderPrice, OrderVolume},
-    primitive::PoolId,
     sol_bindings::grouped_orders::{
         FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
     }
@@ -10,42 +8,6 @@ use angstrom_types::{
 
 /// Definition of the various types of order that we can serve, as well as the
 /// outcomes we're able to have for them
-
-#[derive(Clone, Debug)]
-pub struct OrderCoordinate {
-    pub book:  PoolId,
-    pub order: OrderId
-}
-
-#[derive(Clone, Debug)]
-pub enum OrderExclusion {
-    Live(usize),
-    Dead(usize)
-}
-
-impl OrderExclusion {
-    pub fn flip(&self) -> Self {
-        match self {
-            Self::Live(ttl) => Self::Dead(ttl + 1),
-            Self::Dead(ttl) => Self::Live(ttl + 1)
-        }
-    }
-
-    pub fn ttl(&self) -> usize {
-        match self {
-            Self::Live(ttl) | Self::Dead(ttl) => *ttl
-        }
-    }
-
-    pub fn is_live(&self) -> bool {
-        matches!(self, Self::Live(_))
-    }
-
-    pub fn is_dead(&self) -> bool {
-        matches!(self, Self::Dead(_))
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum OrderContainer<'a, 'b> {
     /// A complete order from our book
@@ -142,14 +104,6 @@ impl<'a> Order<'a> {
         match self {
             Self::Flash(_) => Some(0),
             Self::Standing(_) => Some(0),
-            _ => None
-        }
-    }
-
-    pub fn related(&self) -> Option<&Vec<OrderCoordinate>> {
-        match self {
-            Self::Flash(_) => None,
-            Self::Standing(_) => None,
             _ => None
         }
     }

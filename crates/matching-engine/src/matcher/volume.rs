@@ -11,12 +11,7 @@ use angstrom_types::{
 };
 
 use super::Solution;
-use crate::book::{
-    order::{OrderContainer, OrderExclusion},
-    OrderBook
-};
-
-type CrossPoolExclusions = Option<(Vec<Option<OrderExclusion>>, Vec<Option<OrderExclusion>>)>;
+use crate::book::{order::OrderContainer, OrderBook};
 
 pub enum VolumeFillMatchEndReason {
     NoMoreBids,
@@ -31,10 +26,8 @@ pub struct VolumeFillMatcher<'a> {
     book:             &'a OrderBook,
     bid_idx:          Cell<usize>,
     pub bid_outcomes: Vec<OrderFillState>,
-    bid_xpool:        Vec<Option<OrderExclusion>>,
     ask_idx:          Cell<usize>,
     pub ask_outcomes: Vec<OrderFillState>,
-    ask_xpool:        Vec<Option<OrderExclusion>>,
     amm_price:        Option<PoolPrice<'a>>,
     amm_outcome:      Option<NetAmmOrder>,
     current_partial:  Option<OrderWithStorageData<GroupedVanillaOrder>>,
@@ -45,32 +38,24 @@ pub struct VolumeFillMatcher<'a> {
 
 impl<'a> VolumeFillMatcher<'a> {
     pub fn new(book: &'a OrderBook) -> Self {
-        let mut new_element = Self::with_related(book, None);
-        // We can checkpoint our initial state as valid
-        new_element.save_checkpoint();
-        new_element
-    }
-
-    fn with_related(book: &'a OrderBook, xpool: CrossPoolExclusions) -> Self {
-        let (bid_xpool, ask_xpool) =
-            xpool.unwrap_or_else(|| (vec![None; book.bids().len()], vec![None; book.asks().len()]));
         let bid_outcomes = vec![OrderFillState::Unfilled; book.bids().len()];
         let ask_outcomes = vec![OrderFillState::Unfilled; book.asks().len()];
         let amm_price = book.amm().map(|a| a.current_price());
-        Self {
+        let mut new_element = Self {
             book,
             bid_idx: Cell::new(0),
             bid_outcomes,
-            bid_xpool,
             ask_idx: Cell::new(0),
             ask_outcomes,
-            ask_xpool,
             amm_price,
             amm_outcome: None,
             current_partial: None,
             results: Solution::default(),
             checkpoint: None
-        }
+        };
+        // We can checkpoint our initial state as valid
+        new_element.save_checkpoint();
+        new_element
     }
 
     pub fn results(&self) -> &Solution {
@@ -83,10 +68,8 @@ impl<'a> VolumeFillMatcher<'a> {
             book:            self.book,
             bid_idx:         self.bid_idx.clone(),
             bid_outcomes:    self.bid_outcomes.clone(),
-            bid_xpool:       self.bid_xpool.clone(),
             ask_idx:         self.ask_idx.clone(),
             ask_outcomes:    self.ask_outcomes.clone(),
-            ask_xpool:       self.ask_xpool.clone(),
             amm_price:       self.amm_price.clone(),
             amm_outcome:     self.amm_outcome.clone(),
             current_partial: self.current_partial.clone(),
