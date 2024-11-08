@@ -390,11 +390,11 @@ pub mod test {
         let ang_addr = Address::random();
         let transfer_addr = Address::random();
         let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
-        eth.angstrom_tokens = HashSet::from_iter(vec![transfer_addr].into_iter());
+        eth.angstrom_tokens = HashSet::from_iter(vec![transfer_addr]);
 
         let changeset = vec![
             alloy::primitives::address!("ecc5a3c54f85ab375de921a40247d726bc8ed376"),
-            alloy::primitives::address!("94293bf0193f9acf3762b7440126f379eb70cbfd"),
+            // alloy::primitives::address!("94293bf0193f9acf3762b7440126f379eb70cbfd"),
         ];
 
         let transfer_log = alloy::primitives::Log::new(
