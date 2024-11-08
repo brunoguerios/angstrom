@@ -257,7 +257,8 @@ impl ChainExt for Chain {
 #[cfg(test)]
 pub mod test {
     use alloy::{
-        primitives::{TxKind, U256},
+        hex,
+        primitives::{b256, TxKind, U256},
         signers::local::PrivateKeySigner
     };
     use angstrom_types::{
@@ -370,11 +371,6 @@ pub mod test {
         );
 
         let mut mock_tx = TransactionSigned::default();
-        let e = angstrom_bundle_with_orders.pade_encode();
-        let mut s = e.as_slice();
-        println!("trying to decode");
-        let d = AngstromBundle::pade_decode(&mut s, None).unwrap();
-        println!("decoded and encoded angstrom bundle. should be chillin");
 
         if let Transaction::Legacy(leg) = &mut mock_tx.transaction {
             leg.to = TxKind::Call(angstrom_address);
@@ -386,6 +382,40 @@ pub mod test {
 
         for order_hash in order_hashes {
             assert!(filled_set.contains(&order_hash));
+        }
+    }
+
+    #[test]
+    fn test_fetch_eoa_balance_approval_changes() {
+        let ang_addr = Address::random();
+        let transfer_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.angstrom_tokens = HashSet::from_iter(vec![transfer_addr].into_iter());
+
+        let changeset = vec![
+            alloy::primitives::address!("ecc5a3c54f85ab375de921a40247d726bc8ed376"),
+            alloy::primitives::address!("94293bf0193f9acf3762b7440126f379eb70cbfd"),
+        ];
+
+        let transfer_log = alloy::primitives::Log::new(
+            transfer_addr,
+            vec![
+                b256!("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+                b256!("000000000000000000000000ecc5a3c54f85ab375de921a40247d726bc8ed376"),
+                b256!("00000000000000000000000094293bf0193f9acf3762b7440126f379eb70cbfd"),
+            ],
+            hex!("00000000000000000000000000000000000000000000000001166b47e1c20000").into()
+        )
+        .unwrap();
+
+        let mock_recip = Receipt { logs: vec![transfer_log], ..Default::default() };
+
+        let mock_chain =
+            Arc::new(MockChain { receipts: Some(vec![&mock_recip]), ..Default::default() });
+        let filled_set = eth.get_eoa(mock_chain);
+
+        for change in changeset {
+            assert!(filled_set.contains(&change));
         }
     }
 }
