@@ -114,7 +114,7 @@ impl AngstromTestnetNodeInternals {
         // tokio::spawn(async move { uniswap_pool_manager.watch_state_changes().await
         // });
 
-        let uniswap_pools = HashMap::new();
+        let uniswap_pools = Arc::new(HashMap::new());
 
         let token_conversion = TokenPriceGenerator::new(
             state_provider.provider().provider().into(),
