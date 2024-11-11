@@ -78,10 +78,10 @@ where
 impl<K: PartialEq + Eq + Hash + Clone, F: Future + Send + Sync, TP: ThreadPool + Send + Sync> Stream
     for KeySplitThreadpool<K, F, TP>
 where
-    K: Send + Unpin + 'static,
-    F: Send + 'static + Unpin,
+    K: Send + Sync + Unpin + 'static,
+    F: Send + Sync + 'static + Unpin,
     TP: Clone,
-    <F as Future>::Output: Send + 'static + Unpin
+    <F as Future>::Output: Send + Sync + 'static + Unpin
 {
     type Item = F::Output;
 
