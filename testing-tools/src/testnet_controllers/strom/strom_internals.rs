@@ -74,7 +74,7 @@ impl AngstromTestnetNodeInternals {
         //     tickSpacing: Signed::<24, 1>::from_limbs([5]),
         //     hooks:       addresses.hooks
         // }];
-        let pools = vec![];
+        // let pools = vec![];
 
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
