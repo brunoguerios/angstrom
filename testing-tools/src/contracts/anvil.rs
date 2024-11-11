@@ -1,11 +1,11 @@
 use alloy::{
     network::{Ethereum, EthereumWallet},
-    node_bindings::Anvil,
+    node_bindings::{Anvil, AnvilInstance},
     providers::{
         builder,
         ext::AnvilApi,
         fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
-        Identity, RootProvider
+        Identity, IpcConnect, RootProvider
     },
     pubsub::PubSubFrontend,
     signers::local::PrivateKeySigner,
@@ -37,6 +37,28 @@ pub type AnvilWalletRpc = FillProvider<
     >,
     RootProvider<PubSubFrontend>,
     PubSubFrontend,
+    Ethereum
+>;
+
+pub type LocalAnvilRpc = alloy::providers::fillers::FillProvider<
+    alloy::providers::fillers::JoinFill<
+        alloy::providers::fillers::JoinFill<
+            alloy::providers::Identity,
+            alloy::providers::fillers::JoinFill<
+                alloy::providers::fillers::GasFiller,
+                alloy::providers::fillers::JoinFill<
+                    alloy::providers::fillers::BlobGasFiller,
+                    alloy::providers::fillers::JoinFill<
+                        alloy::providers::fillers::NonceFiller,
+                        alloy::providers::fillers::ChainIdFiller
+                    >
+                >
+            >
+        >,
+        alloy::providers::fillers::WalletFiller<EthereumWallet>
+    >,
+    RootProvider<Http<Client>>,
+    Http<Client>,
     Ethereum
 >;
 
@@ -88,4 +110,30 @@ pub(crate) async fn angstrom_address_with_state(
     let state = provider.provider().anvil_dump_state().await?;
 
     Ok((angstrom_env.angstrom(), state))
+}
+
+pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, AnvilWalletRpc)> {
+    let anvil = Anvil::new()
+        .chain_id(1)
+        .arg("--ipc")
+        .arg("--code-size-limit")
+        .arg("393216")
+        .arg("--disable-block-gas-limit")
+        .try_spawn()?;
+
+    let endpoint = "/tmp/anvil.ipc";
+    tracing::info!(?endpoint);
+    let ipc = IpcConnect::new(endpoint.to_string());
+    let sk: PrivateKeySigner = anvil.keys()[anvil_key].clone().into();
+
+    let wallet = EthereumWallet::new(sk);
+    let rpc = builder::<Ethereum>()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_ipc(ipc)
+        .await?;
+
+    tracing::info!("connected to anvil");
+
+    Ok((anvil, rpc))
 }

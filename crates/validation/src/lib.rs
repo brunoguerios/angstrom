@@ -5,13 +5,14 @@ pub mod validator;
 use std::{
     fmt::Debug,
     path::Path,
+    pin::Pin,
     sync::{atomic::AtomicU64, Arc}
 };
 
 use alloy::primitives::Address;
 use angstrom_types::pair_with_price::PairsWithPrice;
 use angstrom_utils::key_split_threadpool::KeySplitThreadpool;
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use matching_engine::cfmm::uniswap::pool_manager::SyncedUniswapPools;
 use order::state::{db_state_utils::StateFetchUtils, pools::PoolsTracker};
 use reth_provider::CanonStateNotificationStream;
@@ -66,11 +67,10 @@ where
         let sim = SimValidation::new(revm_lru.clone(), angstrom_address);
 
         // load price update stream;
-        let update_stream = PairsWithPrice::into_price_update_stream(
+        let update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
             angstrom_address.unwrap_or_default(),
             state_notification
-        )
-        .boxed();
+        ));
 
         let order_validator = rt.block_on(OrderValidator::new(
             sim,
@@ -113,12 +113,11 @@ where
     let task_db = revm_lru.clone();
 
     // load price update stream;
-    let update_stream = PairsWithPrice::into_price_update_stream(
+    let update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
         // TODO: set later.
         Default::default(),
         state_notification
-    )
-    .boxed();
+    ));
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()

@@ -126,10 +126,12 @@ mod tests {
 
     use super::{AngstromEnv, DebugTransaction};
     use crate::{
+        anvil_state_provider::AnvilStateProviderWrapper,
         contracts::environment::{
             uniswap::{TestUniswapEnv, UniswapEnv},
             LocalAnvil, SpawnedAnvil, TestAnvilEnvironment
         },
+        testnet_controllers::AngstromTestnetConfig,
         type_generator::{
             amm::AMMSnapshotBuilder,
             consensus::{pool::Pool, proposal::ProposalBuilder},

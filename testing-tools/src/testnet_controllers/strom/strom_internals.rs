@@ -1,33 +1,27 @@
 use std::sync::Arc;
 
-use alloy::{
-    eips::{BlockId, BlockNumberOrTag},
-    network::Network,
-    primitives::{aliases::U24, Signed},
-    providers::Provider,
-    pubsub::PubSubFrontend,
-    transports::Transport
-};
-use alloy_primitives::{Address, BlockNumber};
+use alloy::{providers::Provider, pubsub::PubSubFrontend};
+use alloy_primitives::{Address, Bytes};
+use alloy_rpc_types::Transaction;
 use angstrom::cli::StromHandles;
 use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
-    contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
-    primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry},
+    primitive::UniswapPoolRegistry,
     sol_bindings::testnet::TestnetHub
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, Signer};
+use consensus::{AngstromValidator, ConsensusManager};
 use futures::{StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::cfmm::uniswap::pool_manager::SyncedUniswapPools;
+use matching_engine::configure_uniswap_manager;
 use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
 use secp256k1::SecretKey;
+use tokio_stream::wrappers::BroadcastStream;
 use validation::order::state::token_pricing::TokenPriceGenerator;
 
 use crate::{
@@ -73,14 +67,14 @@ impl AngstromTestnetNodeInternals {
         // let rewards_env =
         // MockRewardEnv::with_anvil(state_provider.provider()).await?;
 
-        let angstrom_addr = addresses.contract;
-        let pools = vec![PoolKey {
-            currency0:   addresses.token0,
-            currency1:   addresses.token1,
-            fee:         U24::from(0),
-            tickSpacing: Signed::<24, 1>::from_limbs([5]),
-            hooks:       addresses.hooks
-        }];
+        // let pools = vec![PoolKey {
+        //     currency0:   addresses.token0,
+        //     currency1:   addresses.token1,
+        //     fee:         U24::from(0),
+        //     tickSpacing: Signed::<24, 1>::from_limbs([5]),
+        //     hooks:       addresses.hooks
+        // }];
+        let pools = vec![];
 
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
@@ -128,10 +122,10 @@ impl AngstromTestnetNodeInternals {
         .expect("failed to start price generator");
 
         let token_price_update_stream = state_provider.provider().canonical_state_stream();
-        let token_price_update_stream =
-            PairsWithPrice::into_price_update_stream(Address::default(), token_price_update_stream)
-                .boxed();
-
+        let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
+            Address::default(),
+            token_price_update_stream
+        ));
         let validator = TestOrderValidator::new(
             state_provider.provider(),
             uniswap_pools.clone(),
@@ -174,12 +168,12 @@ impl AngstromTestnetNodeInternals {
         let testnet_hub = TestnetHub::new(angstrom_addr, state_provider.provider().provider());
 
         // let consensus = if config.is_state_machine() {
-        let block_number = state_provider
-            .provider()
-            .provider()
-            .get_block_number()
-            .await
-            .unwrap();
+        // let block_number = state_provider
+        //     .provider()
+        //     .provider()
+        //     .get_block_number()
+        //     .await
+        //     .unwrap();
         // let pool_config_store = AngstromPoolConfigStore::load_from_chain(
         //     angstrom_addr,
         //     BlockId::Number(BlockNumberOrTag::Number(block_number)),
@@ -188,23 +182,26 @@ impl AngstromTestnetNodeInternals {
         // .await
         // .unwrap();
 
-        let pool_config_store = AngstromPoolConfigStore::default();
-        let pool_registry = UniswapAngstromRegistry::new(pools.into(), pool_config_store);
+        // let pool_config_store = AngstromPoolConfigStore::default();
+        //let pool_registry = UniswapAngstromRegistry::new(pools.into(),
+        // pool_config_store);
 
-        let consensus = Some(ConsensusManager::new(
-            ManagerNetworkDeps::new(
-                strom_network_handle.clone(),
-                state_provider.provider().subscribe_to_canonical_state(),
-                strom_handles.consensus_rx_op
-            ),
-            Signer::new(secret_key),
-            initial_validators,
-            order_storage.clone(),
-            block_number + 1,
-            pool_registry,
-            uni_pools,
-            state_provider.provider().provider()
-        ));
+        // let consensus = Some(ConsensusManager::new(
+        //     ManagerNetworkDeps::new(
+        //         strom_network_handle.clone(),
+        //         state_provider.provider().subscribe_to_canonical_state(),
+        //         strom_handles.consensus_rx_op
+        //     ),
+        //     Signer::new(secret_key),
+        //     initial_validators,
+        //     order_storage.clone(),
+        //     block_number + 1,
+        //     pool_registry,
+        //     uni_pools,
+        //     state_provider.provider().provider()
+        // ));
+
+        let consensus = None;
         // } else {
         //     None
         // };

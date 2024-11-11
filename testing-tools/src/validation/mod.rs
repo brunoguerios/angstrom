@@ -55,7 +55,7 @@ where
         db: DB,
         uniswap_pools: SyncedUniswapPools,
         token_conversion: TokenPriceGenerator,
-        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + 'static>>
+        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>
     ) -> Self {
         let (tx, rx) = unbounded_channel();
         let config_path = Path::new("./state_config.toml");
