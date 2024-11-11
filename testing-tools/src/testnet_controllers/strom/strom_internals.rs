@@ -102,21 +102,20 @@ impl AngstromTestnetNodeInternals {
             .await
             .unwrap();
 
-        // let uniswap_registry: UniswapPoolRegistry = pools.into();
+        let uniswap_registry: UniswapPoolRegistry = pools.into();
 
-        // let uniswap_pool_manager = configure_uniswap_manager(
-        //     state_provider.provider().provider().into(),
-        //     state_provider.provider().subscribe_to_canonical_state(),
-        //     uniswap_registry.clone(),
-        //     block_id
-        // )
-        // .await;
+        let uniswap_pool_manager = configure_uniswap_manager(
+            state_provider.provider().provider().into(),
+            state_provider.provider().subscribe_to_canonical_state(),
+            uniswap_registry.clone(),
+            block_id
+        )
+        .await;
 
-        // let uniswap_pools = uniswap_pool_manager.pools();
-        // tokio::spawn(async move { uniswap_pool_manager.watch_state_changes().await
-        // });
+        let uniswap_pools = uniswap_pool_manager.pools();
+        tokio::spawn(async move { uniswap_pool_manager.watch_state_changes().await });
 
-        let uniswap_pools = Arc::new(HashMap::new());
+        //let uniswap_pools = Arc::new(HashMap::new());
 
         let token_conversion = TokenPriceGenerator::new(
             state_provider.provider().provider().into(),
