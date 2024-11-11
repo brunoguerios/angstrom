@@ -208,7 +208,6 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let eth_handle = EthDataCleanser::spawn(
         angstrom_address.unwrap_or(node_config.angstrom_address),
         node.provider.subscribe_to_canonical_state(),
-        node.provider.clone(),
         executor.clone(),
         handles.eth_tx,
         handles.eth_rx,

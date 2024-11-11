@@ -47,7 +47,7 @@ macro_rules! prim_decode {
                 where
                     Self: Sized
                 {
-                    const BYTES: usize  = <$x>::BITS as usize / 8usize;
+                    const BYTES: usize = <$x>::BITS as usize / 8usize;
 
                     // item size in bytes vs given rep.
                     let padding_offset = BYTES - size;
@@ -172,6 +172,10 @@ impl PadeDecode for Signature {
     where
         Self: Sized
     {
+        if buf.len() < 65 {
+            return Err(PadeDecodeError::InvalidSize)
+        }
+
         let bytes = &buf[0..65];
         let v = bytes[0];
         let r = U256::from_be_slice(&bytes[1..33]);
@@ -199,10 +203,11 @@ impl PadeDecode for FixedBytes<32> {
     where
         Self: Sized
     {
-        let res: Vec<u8> = PadeDecode::pade_decode(buf, None)?;
-        if res.len() != 32 {
+        if buf.len() < 32 {
             return Err(PadeDecodeError::InvalidSize)
         }
+
+        let res: [u8; 32] = PadeDecode::pade_decode(buf, None)?;
         Ok(FixedBytes::from_slice(&res))
     }
 

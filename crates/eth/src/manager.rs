@@ -5,7 +5,7 @@ use std::{
 };
 
 use alloy::{
-    primitives::{Address, B256},
+    primitives::{Address, BlockHash, BlockNumber, B256},
     sol_types::SolEvent
 };
 use angstrom_types::{
@@ -14,7 +14,8 @@ use angstrom_types::{
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
 use pade::PadeDecode;
-use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain, StateProviderFactory};
+use reth_primitives::{Receipt, TransactionSigned};
+use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain};
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
@@ -28,7 +29,7 @@ alloy::sol!(
 
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
-pub struct EthDataCleanser<DB> {
+pub struct EthDataCleanser {
     angstrom_address: Address,
     /// our command receiver
     commander:        ReceiverStream<EthCommand>,
@@ -37,20 +38,13 @@ pub struct EthDataCleanser<DB> {
 
     /// Notifications for Canonical Block updates
     canonical_updates: BroadcastStream<CanonStateNotification>,
-    angstrom_tokens:   HashSet<Address>,
-    /// used to fetch data from db
-    #[allow(dead_code)]
-    db:                DB
+    angstrom_tokens:   HashSet<Address>
 }
 
-impl<DB> EthDataCleanser<DB>
-where
-    DB: StateProviderFactory + Send + Sync + Unpin + 'static
-{
+impl EthDataCleanser {
     pub fn spawn<TP: TaskSpawner>(
         angstrom_address: Address,
         canonical_updates: CanonStateNotifications,
-        db: DB,
         tp: TP,
         tx: Sender<EthCommand>,
         rx: Receiver<EthCommand>,
@@ -63,8 +57,7 @@ where
             canonical_updates: BroadcastStream::new(canonical_updates),
             commander: stream,
             event_listeners: Vec::new(),
-            angstrom_tokens,
-            db
+            angstrom_tokens
         };
         tp.spawn_critical("eth handle", this.boxed());
 
@@ -91,7 +84,7 @@ where
         }
     }
 
-    fn handle_reorg(&mut self, old: Arc<Chain>, new: Arc<Chain>) {
+    fn handle_reorg(&mut self, old: Arc<impl ChainExt>, new: Arc<impl ChainExt>) {
         let mut eoas = self.get_eoa(old.clone());
         eoas.extend(self.get_eoa(new.clone()));
 
@@ -103,7 +96,7 @@ where
         let reorged_orders = EthEvent::ReorgedOrders(difference);
 
         let transitions = EthEvent::NewBlockTransitions {
-            block_number:      new.tip().number,
+            block_number:      new.tip_number(),
             filled_orders:     new_filled.into_iter().collect(),
             address_changeset: eoas
         };
@@ -111,7 +104,7 @@ where
         self.send_events(reorged_orders);
     }
 
-    fn handle_commit(&mut self, new: Arc<Chain>) {
+    fn handle_commit(&mut self, new: Arc<impl ChainExt>) {
         // handle this first so the newest state is the first available
         self.handle_new_pools(new.clone());
 
@@ -120,14 +113,14 @@ where
         let eoas = self.get_eoa(new.clone());
 
         let transitions = EthEvent::NewBlockTransitions {
-            block_number: new.tip().number,
+            block_number: new.tip_number(),
             filled_orders,
             address_changeset: eoas
         };
         self.send_events(transitions);
     }
 
-    fn handle_new_pools(&mut self, chain: Arc<Chain>) {
+    fn handle_new_pools(&mut self, chain: Arc<impl ChainExt>) {
         Self::get_new_pools(&chain)
             .inspect(|pool| {
                 let token_0 = pool.currency_in;
@@ -145,27 +138,30 @@ where
 
     /// TODO: check contract for state change. if there is change. fetch the
     /// transaction on Angstrom and process call-data to pull order-hashes.
-    fn fetch_filled_order<'a>(&'a self, chain: &'a Chain) -> impl Iterator<Item = B256> + 'a {
+    fn fetch_filled_order<'a>(
+        &'a self,
+        chain: &'a impl ChainExt
+    ) -> impl Iterator<Item = B256> + 'a {
         chain
-            .tip()
-            .transactions()
+            .tip_transactions()
             .filter(|tx| tx.transaction.to() == Some(self.angstrom_address))
             .filter_map(|transaction| {
                 let mut input: &[u8] = transaction.input();
                 AngstromBundle::pade_decode(&mut input, None).ok()
             })
-            .flat_map(move |bundle| bundle.get_order_hashes().collect::<Vec<_>>())
+            .flat_map(move |bundle| {
+                bundle
+                    .get_order_hashes(chain.tip_number())
+                    .collect::<Vec<_>>()
+            })
     }
 
     /// fetches all eoa addresses touched
-    fn get_eoa(&self, chain: Arc<Chain>) -> Vec<Address> {
-        let tip = chain.tip().number;
-
+    fn get_eoa(&self, chain: Arc<impl ChainExt>) -> Vec<Address> {
         chain
-            .execution_outcome()
-            .receipts_by_block(tip)
-            .iter()
-            .flatten()
+            .receipts_by_block_hash(chain.tip_hash())
+            .unwrap()
+            .into_iter()
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| self.angstrom_tokens.contains(&log.address))
             .flat_map(|logs| {
@@ -178,9 +174,9 @@ where
 
     /// gets any newly initialized pools in this block
     /// do we want to use logs here?
-    fn get_new_pools(chain: &Chain) -> impl Iterator<Item = NewInitializedPool> + '_ {
+    fn get_new_pools(chain: &impl ChainExt) -> impl Iterator<Item = NewInitializedPool> + '_ {
         chain
-            .receipts_by_block_hash(chain.tip().hash())
+            .receipts_by_block_hash(chain.tip_hash())
             .unwrap()
             .into_iter()
             .flat_map(|receipt| {
@@ -193,10 +189,7 @@ where
     }
 }
 
-impl<DB> Future for EthDataCleanser<DB>
-where
-    DB: StateProviderFactory + Send + Sync + Unpin + 'static
-{
+impl Future for EthDataCleanser {
     type Output = ();
 
     fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -233,4 +226,194 @@ pub enum EthEvent {
     ReorgedOrders(Vec<B256>),
     FinalizedBlock(u64),
     NewPool(NewInitializedPool)
+}
+
+#[auto_impl::auto_impl(&,Arc)]
+pub trait ChainExt {
+    fn tip_number(&self) -> BlockNumber;
+    fn tip_hash(&self) -> BlockHash;
+    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>>;
+    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_;
+}
+
+impl ChainExt for Chain {
+    fn tip_hash(&self) -> BlockHash {
+        self.tip().hash()
+    }
+
+    fn tip_number(&self) -> BlockNumber {
+        self.tip().number
+    }
+
+    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>> {
+        self.receipts_by_block_hash(block_hash)
+    }
+
+    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
+        self.tip().transactions()
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use alloy::{
+        hex,
+        primitives::{b256, TxKind, U256},
+        signers::local::PrivateKeySigner
+    };
+    use angstrom_types::{
+        contract_payloads::{
+            angstrom::{TopOfBlockOrder, UserOrder},
+            Asset, Pair
+        },
+        orders::OrderOutcome,
+        primitive::ANGSTROM_DOMAIN,
+        sol_bindings::grouped_orders::OrderWithStorageData
+    };
+    use pade::PadeEncode;
+    use reth_primitives::Transaction;
+    use testing_tools::type_generator::orders::{SigningInfo, ToBOrderBuilder, UserOrderBuilder};
+
+    use super::*;
+
+    #[derive(Default)]
+    pub struct MockChain<'a> {
+        pub hash:         BlockHash,
+        pub number:       BlockNumber,
+        pub transactions: Vec<TransactionSigned>,
+        pub receipts:     Option<Vec<&'a Receipt>>
+    }
+
+    impl ChainExt for MockChain<'_> {
+        fn tip_hash(&self) -> BlockHash {
+            self.hash
+        }
+
+        fn tip_number(&self) -> BlockNumber {
+            self.number
+        }
+
+        fn receipts_by_block_hash(&self, _: BlockHash) -> Option<Vec<&Receipt>> {
+            self.receipts.clone()
+        }
+
+        fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
+            self.transactions.iter()
+        }
+    }
+
+    fn setup_non_subscription_eth_manager(angstrom_address: Option<Address>) -> EthDataCleanser {
+        let (_command_tx, command_rx) = tokio::sync::mpsc::channel(3);
+        let (_cannon_tx, cannon_rx) = tokio::sync::broadcast::channel(3);
+        EthDataCleanser {
+            commander:         ReceiverStream::new(command_rx),
+            event_listeners:   vec![],
+            angstrom_tokens:   HashSet::default(),
+            angstrom_address:  angstrom_address.unwrap_or_default(),
+            canonical_updates: BroadcastStream::new(cannon_rx)
+        }
+    }
+
+    fn setup_signing_info() -> SigningInfo {
+        // let mut rand = rand::rng();
+        let wallet = PrivateKeySigner::random();
+        let addr = wallet.address();
+        let key = wallet.credential().clone();
+        SigningInfo { domain: ANGSTROM_DOMAIN, address: addr, key }
+    }
+
+    #[test]
+    fn test_fetch_filled_orders() {
+        let signing_info = setup_signing_info();
+        let angstrom_address = Address::random();
+        let eth = setup_non_subscription_eth_manager(Some(angstrom_address));
+
+        let top_of_block_order = ToBOrderBuilder::new()
+            .signing_key(Some(signing_info.clone()))
+            .build();
+        let t = OrderWithStorageData { order: top_of_block_order, ..Default::default() };
+        let user_order = UserOrderBuilder::new()
+            .signing_key(Some(signing_info.clone()))
+            .with_storage()
+            .build();
+
+        let outcome = OrderOutcome {
+            id:      user_order.order_id,
+            outcome: angstrom_types::orders::OrderFillState::CompleteFill
+        };
+        let pair = Pair {
+            index0:       0,
+            index1:       1,
+            store_index:  0,
+            price_1over0: U256::default()
+        };
+
+        let asset0 = Asset { addr: t.asset_out, ..Default::default() };
+        let asset1 = Asset { addr: t.asset_in, ..Default::default() };
+
+        let pair = vec![pair];
+        let assets = vec![asset0, asset1];
+
+        let finalized_user_order = UserOrder::from_internal_order(&user_order, &outcome, 0);
+        let finalized_tob = TopOfBlockOrder::of(&t, 0);
+
+        let order_hashes = vec![
+            finalized_user_order.order_hash(&pair, &assets, 0),
+            finalized_tob.order_hash(&pair, &assets, 0),
+        ];
+
+        let angstrom_bundle_with_orders = AngstromBundle::new(
+            assets,
+            pair,
+            vec![],
+            vec![finalized_tob],
+            vec![finalized_user_order]
+        );
+
+        let mut mock_tx = TransactionSigned::default();
+
+        if let Transaction::Legacy(leg) = &mut mock_tx.transaction {
+            leg.to = TxKind::Call(angstrom_address);
+            leg.input = angstrom_bundle_with_orders.pade_encode().into();
+        }
+
+        let mock_chain = MockChain { transactions: vec![mock_tx], ..Default::default() };
+        let filled_set = eth.fetch_filled_order(&mock_chain).collect::<HashSet<_>>();
+
+        for order_hash in order_hashes {
+            assert!(filled_set.contains(&order_hash));
+        }
+    }
+
+    #[test]
+    fn test_fetch_eoa_balance_approval_changes() {
+        let ang_addr = Address::random();
+        let transfer_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.angstrom_tokens = HashSet::from_iter(vec![transfer_addr]);
+
+        let changeset =
+            vec![alloy::primitives::address!("ecc5a3c54f85ab375de921a40247d726bc8ed376")];
+
+        let transfer_log = alloy::primitives::Log::new(
+            transfer_addr,
+            vec![
+                b256!("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+                b256!("000000000000000000000000ecc5a3c54f85ab375de921a40247d726bc8ed376"),
+                b256!("00000000000000000000000094293bf0193f9acf3762b7440126f379eb70cbfd"),
+            ],
+            hex!("00000000000000000000000000000000000000000000000001166b47e1c20000").into()
+        )
+        .unwrap();
+
+        let mock_recip = Receipt { logs: vec![transfer_log], ..Default::default() };
+
+        let mock_chain =
+            Arc::new(MockChain { receipts: Some(vec![&mock_recip]), ..Default::default() });
+        let filled_set = eth.get_eoa(mock_chain);
+
+        for change in changeset {
+            assert!(filled_set.contains(&change));
+        }
+    }
 }

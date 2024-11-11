@@ -96,7 +96,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
             return
         };
 
-        let hashes = bundle.get_order_hashes().collect::<Vec<_>>();
+        let hashes = bundle.get_order_hashes(bn).collect::<Vec<_>>();
 
         let addresses = vec![];
         tracing::debug!("found angstrom tx with orders filled {:#?}", hashes);
