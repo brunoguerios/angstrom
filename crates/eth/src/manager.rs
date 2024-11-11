@@ -280,8 +280,8 @@ pub mod test {
     pub struct MockChain<'a> {
         pub hash:         BlockHash,
         pub number:       BlockNumber,
-        pub receipts:     Option<Vec<&'a Receipt>>,
-        pub transactions: Vec<TransactionSigned>
+        pub transactions: Vec<TransactionSigned>,
+        pub receipts:     Option<Vec<&'a Receipt>>
     }
 
     impl ChainExt for MockChain<'_> {
