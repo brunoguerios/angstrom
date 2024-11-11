@@ -22,7 +22,9 @@ use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
 use secp256k1::SecretKey;
 use tokio_stream::wrappers::BroadcastStream;
-use validation::order::state::token_pricing::TokenPriceGenerator;
+use validation::order::{
+    order_validator::OrderValidator, state::token_pricing::TokenPriceGenerator
+};
 
 use crate::{
     anvil_state_provider::{
@@ -133,7 +135,8 @@ impl AngstromTestnetNodeInternals {
             state_provider.provider(),
             uniswap_pools.clone(),
             token_conversion,
-            token_price_update_stream
+            token_price_update_stream,
+            Some(angstrom_addr)
         )
         .await;
 

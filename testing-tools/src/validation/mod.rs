@@ -55,11 +55,12 @@ where
         db: DB,
         uniswap_pools: SyncedUniswapPools,
         token_conversion: TokenPriceGenerator,
-        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>
+        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>,
+        angstrom_address: Option<Address>
     ) -> Self {
         let (tx, rx) = unbounded_channel();
         let config_path = Path::new("./state_config.toml");
-        let validation_config = load_validation_config(config_path).unwrap_or_default();
+        let validation_config = load_validation_config(config_path).unwrap();
 
         tracing::debug!(?validation_config);
         let current_block =
@@ -72,7 +73,7 @@ where
         let handle = tokio::runtime::Handle::current();
         let thread_pool =
             KeySplitThreadpool::new(handle, validation_config.max_validation_per_user);
-        let sim = SimValidation::new(db.clone(), None);
+        let sim = SimValidation::new(db.clone(), angstrom_address);
 
         // fill stream
 
