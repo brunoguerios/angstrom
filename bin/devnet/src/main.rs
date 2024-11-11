@@ -1,11 +1,10 @@
+use devnet::cli::Cli;
 use reth_provider::test_utils::NoopProvider;
 use testing_tools::{
     testnet_controllers::AngstromTestnet,
     types::{actions::WithAction, checked_actions::WithCheckedAction, checks::WithCheck}
 };
 use tracing::{debug, info};
-
-use crate::cli::Cli;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
