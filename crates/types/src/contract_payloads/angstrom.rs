@@ -8,7 +8,7 @@ use alloy::{
     sol_types::SolValue,
     transports::Transport
 };
-use pade::PadeDecode;
+use pade::{PadeDecode, PadeEncode};
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -217,11 +217,7 @@ impl AngstromBundle {
         self.top_of_block_orders
             .iter()
             .map(move |order| order.order_hash(&self.pairs, &self.assets, block_number))
-            .chain(
-                self.user_orders
-                    .iter()
-                    .map(move |order| order.order_hash(&self.pairs, &self.assets, block_number))
-            )
+            .chain(self.user_orders.iter().map(move |order| order.order_hash()))
     }
 
     pub fn build_dummy_for_tob_gas(
