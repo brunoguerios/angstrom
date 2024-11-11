@@ -1,29 +1,11 @@
-use reth_provider::test_utils::NoopProvider;
-use testing_tools::{
-    testnet_controllers::AngstromTestnet,
-    types::{actions::WithAction, checked_actions::WithCheckedAction, checks::WithCheck}
-};
-use testnet::cli::Cli;
-use tracing::{debug, info};
+// We use jemalloc for performance reasons
+#[cfg(all(feature = "jemalloc", unix))]
+#[global_allocator]
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-#[tokio::main]
-async fn main() -> eyre::Result<()> {
-    let config = Cli::build_config();
-
-    let mut testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config)
-        .await?
-        .as_state_machine();
-
-    info!("deployed state machine");
-
-    testnet.check_block(4);
-    testnet.advance_block();
-    testnet.check_block(5);
-    testnet.send_pooled_orders(vec![]);
-    debug!("added pooled orders to state machine");
-    // testnet.send_prepropose(vec![]);
-
-    testnet.run().await;
-
-    Ok(())
+fn main() {
+    // if let Err(err) = testnet::run() {
+    //     eprintln!("Error: {err:?}");
+    //     std::process::exit(1);
+    // }
 }
