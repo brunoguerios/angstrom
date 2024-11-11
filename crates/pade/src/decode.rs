@@ -51,7 +51,7 @@ impl<T: PadeDecode> PadeDecode for Option<T> {
             v != 0
         } else {
             if buf.is_empty() {
-                return Err(PadeDecodeError::InvalidSize);
+                return Err(PadeDecodeError::InvalidSize)
             }
             let result = buf[0] != 0;
             *buf = &buf[1..];
@@ -74,7 +74,7 @@ impl<T: PadeDecode> PadeDecode for Option<T> {
             v != 0
         } else {
             if buf.is_empty() {
-                return Err(PadeDecodeError::InvalidSize);
+                return Err(PadeDecodeError::InvalidSize)
             }
             let result = buf[0] != 0;
             *buf = &buf[1..];
