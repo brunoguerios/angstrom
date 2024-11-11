@@ -59,7 +59,7 @@ where
     ) -> Self {
         let (tx, rx) = unbounded_channel();
         let config_path = Path::new("./state_config.toml");
-        let validation_config = load_validation_config(config_path).unwrap();
+        let validation_config = load_validation_config(config_path).unwrap_or_default();
 
         tracing::debug!(?validation_config);
         let current_block =
