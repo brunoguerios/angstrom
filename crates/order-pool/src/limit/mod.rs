@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 
+use alloy::primitives::B256;
 use angstrom_types::{
-    orders::OrderId,
+    orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
     sol_bindings::grouped_orders::{
         GroupedComposableOrder, GroupedUserOrder, GroupedVanillaOrder, OrderWithStorageData
@@ -51,6 +52,10 @@ impl LimitOrderPool {
                             .ok()
                     })
             })
+    }
+
+    pub fn get_order_status(&self, order_hash: B256) -> Option<OrderStatus> {
+        self.limit_orders.get_order_status(order_hash)
     }
 
     pub fn add_composable_order(

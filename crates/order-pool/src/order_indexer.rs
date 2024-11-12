@@ -8,7 +8,7 @@ use std::{
 
 use alloy::primitives::{Address, BlockNumber, B256, U256};
 use angstrom_types::{
-    orders::{OrderId, OrderOrigin, OrderSet},
+    orders::{OrderId, OrderOrigin, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::{
         grouped_orders::{AllOrders, OrderWithStorageData, *},
@@ -123,6 +123,10 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         orders
     }
 
+    pub fn order_status(&self, order_hash: B256) -> Option<OrderStatus> {
+        self.order_storage.fetch_status_of_order(order_hash)
+    }
+
     fn is_missing(&self, order_hash: &B256) -> bool {
         !self.order_hash_to_order_id.contains_key(order_hash)
     }
@@ -174,12 +178,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 + MAX_NEW_ORDER_DELAY_PROPAGATION * ETH_BLOCK_TIME.as_secs();
             self.insert_cancel_request_with_deadline(from, &order_hash, Some(U256::from(deadline)));
             self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder(order_hash));
-            return true;
+            return true
         }
 
         let order_id = self.order_hash_to_order_id.get(&order_hash).unwrap();
         if order_id.address != from {
-            return false;
+            return false
         }
 
         let removed = self.order_storage.cancel_order(order_id);
@@ -390,7 +394,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
                     self.seen_invalid_orders.insert(hash);
                     let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
-                    return Ok(PoolInnerEvent::BadOrderMessages(peers));
+                    return Ok(PoolInnerEvent::BadOrderMessages(peers))
                 }
 
                 self.notify_order_subscribers(PoolManagerUpdate::NewOrder(valid.order.clone()));

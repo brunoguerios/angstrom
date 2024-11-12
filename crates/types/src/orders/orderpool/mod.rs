@@ -9,6 +9,13 @@ use crate::{
     sol_bindings::{ext::RespendAvoidanceMethod, RawPoolOrder}
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OrderStatus {
+    Filled,
+    Pending,
+    Blocked
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct OrderId {
     pub address:         Address,

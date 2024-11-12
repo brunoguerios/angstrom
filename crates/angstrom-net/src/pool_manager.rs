@@ -9,7 +9,9 @@ use std::{
 use alloy::primitives::{Address, B256};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
-    orders::OrderOrigin, primitive::PeerId, sol_bindings::grouped_orders::AllOrders
+    orders::{OrderOrigin, OrderStatus},
+    primitive::PeerId,
+    sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
 use order_pool::{
@@ -43,7 +45,8 @@ pub enum OrderCommand {
     // new orders
     NewOrder(OrderOrigin, AllOrders, tokio::sync::oneshot::Sender<OrderValidationResults>),
     CancelOrder(Address, B256, tokio::sync::oneshot::Sender<bool>),
-    PendingOrders(Address, tokio::sync::oneshot::Sender<Vec<AllOrders>>)
+    PendingOrders(Address, tokio::sync::oneshot::Sender<Vec<AllOrders>>),
+    OrderStatus(B256, tokio::sync::oneshot::Sender<Option<OrderStatus>>)
 }
 
 impl PoolHandle {
@@ -70,6 +73,18 @@ impl OrderPoolHandle for PoolHandle {
 
     fn subscribe_orders(&self) -> Receiver<PoolManagerUpdate> {
         self.pool_manager_tx.subscribe()
+    }
+
+    fn fetch_order_status(
+        &self,
+        order_hash: B256
+    ) -> impl Future<Output = Option<OrderStatus>> + Send {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let _ = self
+            .manager_tx
+            .send(OrderCommand::OrderStatus(order_hash, tx));
+
+        rx.map(|v| v.ok().flatten())
     }
 
     fn pending_orders(&self, sender: Address) -> impl Future<Output = Vec<AllOrders>> + Send {
@@ -260,6 +275,10 @@ where
             OrderCommand::PendingOrders(from, receiver) => {
                 let res = self.order_indexer.pending_orders_for_address(from);
                 let _ = receiver.send(res.into_iter().map(|o| o.order).collect());
+            }
+            OrderCommand::OrderStatus(order_hash, tx) => {
+                let res = self.order_indexer.order_status(order_hash);
+                let _ = tx.send(res);
             }
         }
     }

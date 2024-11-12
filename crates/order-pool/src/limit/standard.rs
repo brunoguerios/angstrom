@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use alloy::primitives::B256;
 use angstrom_metrics::VanillaLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
-    orders::OrderId,
+    orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
@@ -28,6 +29,23 @@ impl LimitPool {
             pending_orders: pending,
             metrics:        VanillaLimitOrderPoolMetricsWrapper::new()
         }
+    }
+
+    pub fn get_order_status(&self, order_hash: B256) -> Option<OrderStatus> {
+        self.pending_orders
+            .values()
+            .find_map(|pool| {
+                let _ = pool.get_order(order_hash)?;
+                // found order return some pending
+                Some(OrderStatus::Pending)
+            })
+            .or_else(|| {
+                self.parked_orders.values().find_map(|pool| {
+                    let _ = pool.get_order(order_hash)?;
+                    // found order return some pending
+                    Some(OrderStatus::Blocked)
+                })
+            })
     }
 
     pub fn get_order(

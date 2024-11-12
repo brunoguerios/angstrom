@@ -1,5 +1,6 @@
 use alloy_primitives::{Address, B256};
 use angstrom_types::{
+    orders::OrderStatus,
     primitive::Signature,
     sol_bindings::{
         grouped_orders::AllOrders,
@@ -48,6 +49,9 @@ pub trait OrderApi {
 
     #[method(name = "cancelOrder")]
     async fn cancel_order(&self, request: CancelOrderRequest) -> RpcResult<bool>;
+
+    #[method(name = "orderStatus")]
+    async fn order_status(&self, order_hash: B256) -> RpcResult<Option<OrderStatus>>;
 
     #[subscription(
         name = "subscribeOrders",
