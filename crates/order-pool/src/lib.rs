@@ -11,7 +11,10 @@ mod validator;
 use std::future::Future;
 
 use alloy::primitives::{Address, B256};
-use angstrom_types::{orders::OrderOrigin, sol_bindings::grouped_orders::AllOrders};
+use angstrom_types::{
+    orders::{OrderOrigin, OrderStatus},
+    sol_bindings::grouped_orders::AllOrders
+};
 pub use angstrom_utils::*;
 pub use config::PoolConfig;
 pub use order_indexer::*;
@@ -31,7 +34,15 @@ pub enum PoolManagerUpdate {
 pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
     fn new_order(&self, origin: OrderOrigin, order: AllOrders)
         -> impl Future<Output = bool> + Send;
+
     fn subscribe_orders(&self) -> Receiver<PoolManagerUpdate>;
+
     fn pending_orders(&self, sender: Address) -> impl Future<Output = Vec<AllOrders>> + Send;
+
     fn cancel_order(&self, sender: Address, order_hash: B256) -> impl Future<Output = bool> + Send;
+
+    fn fetch_order_status(
+        &self,
+        order_hash: B256
+    ) -> impl Future<Output = Option<OrderStatus>> + Send;
 }

@@ -9,7 +9,7 @@ use std::{
 use alloy::primitives::{BlockNumber, FixedBytes, B256};
 use angstrom_metrics::OrderStorageMetricsWrapper;
 use angstrom_types::{
-    orders::{OrderId, OrderLocation, OrderSet},
+    orders::{OrderId, OrderLocation, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
     sol_bindings::{
         grouped_orders::{AllOrders, GroupedUserOrder, GroupedVanillaOrder, OrderWithStorageData},
@@ -83,6 +83,36 @@ impl OrderStorage {
         self.storage_notifications.subscribe()
     }
 
+    pub fn fetch_status_of_order(&self, order: B256) -> Option<OrderStatus> {
+        if self
+            .filled_orders
+            .lock()
+            .expect("poisoned")
+            .contains_key(&order)
+            && self
+                .pending_finalization_orders
+                .lock()
+                .expect("poisoned")
+                .has_order(&order)
+        {
+            return Some(OrderStatus::Filled)
+        }
+
+        if self
+            .searcher_orders
+            .lock()
+            .expect("poisoned")
+            .has_order(order)
+        {
+            return Some(OrderStatus::Pending)
+        }
+
+        self.limit_orders
+            .lock()
+            .expect("poisoned")
+            .get_order_status(order)
+    }
+
     // unfortunately, any other solution is just as ugly
     // this needs to be revisited once composable orders are in place
     pub fn log_cancel_order(&self, order: &AllOrders) {
@@ -100,7 +130,7 @@ impl OrderStorage {
             .expect("poisoned")
             .has_order(&order_id.hash)
         {
-            return None;
+            return None
         }
 
         match order_id.location {

@@ -1,6 +1,6 @@
-use alloy_primitives::Address;
+use alloy_primitives::{Address, B256};
 use angstrom_types::{
-    orders::OrderOrigin,
+    orders::{OrderOrigin, OrderStatus},
     sol_bindings::{
         grouped_orders::{AllOrders, FlashVariants, StandingVariants},
         rpc_orders::{
@@ -73,6 +73,10 @@ where
             .map_err(|_| SignatureRecoveryError)?;
 
         Ok(self.pool.cancel_order(sender, request.hash).await)
+    }
+
+    async fn order_status(&self, order_hash: B256) -> RpcResult<Option<OrderStatus>> {
+        Ok(self.pool.fetch_order_status(order_hash).await)
     }
 
     async fn subscribe_orders(
@@ -312,6 +316,10 @@ mod tests {
                 .send(OrderCommand::PendingOrders(address, tx))
                 .is_ok();
             rx.map(|res| res.unwrap_or_default())
+        }
+
+        fn fetch_order_status(&self, _: B256) -> impl Future<Output = Option<OrderStatus>> + Send {
+            future::ready(None)
         }
     }
 }

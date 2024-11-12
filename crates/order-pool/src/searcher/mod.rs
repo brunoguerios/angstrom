@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use alloy::primitives::B256;
 use angstrom_metrics::SearcherOrderPoolMetricsWrapper;
 use angstrom_types::{
     orders::OrderId,
@@ -33,6 +34,14 @@ impl SearcherPool {
             size: SizeTracker { max: max_size, current: 0 },
             metrics: SearcherOrderPoolMetricsWrapper::default()
         }
+    }
+
+    pub fn has_order(&self, order_hash: B256) -> bool {
+        self.searcher_orders
+            .values()
+            .find_map(|pool| pool.get_order(order_hash))
+            .map(|_| true)
+            .unwrap_or_default()
     }
 
     pub fn get_order(

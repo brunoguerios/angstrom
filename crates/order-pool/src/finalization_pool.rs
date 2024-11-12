@@ -44,7 +44,7 @@ impl FinalizationPool {
         self.metrics.incr_blocks_tracked();
     }
 
-    pub fn has_order(&mut self, order: &FixedBytes<32>) -> bool {
+    pub fn has_order(&self, order: &FixedBytes<32>) -> bool {
         self.id_to_orders.contains_key(order)
     }
 
