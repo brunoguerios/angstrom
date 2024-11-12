@@ -8,6 +8,7 @@ use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
+    contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
@@ -31,8 +32,9 @@ use crate::{
         utils::StromContractInstance, AnvilEthDataCleanser, AnvilStateProvider,
         AnvilStateProviderWrapper
     },
+    contracts::environment::{angstrom::AngstromEnv, uniswap::UniswapEnv},
     testnet_controllers::AngstromTestnetConfig,
-    types::SendingStromHandles,
+    types::{initial_state::InitialTestnetState, SendingStromHandles},
     validation::TestOrderValidator
 };
 
@@ -55,28 +57,14 @@ impl AngstromTestnetNodeInternals {
         config: AngstromTestnetConfig,
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
-        angstrom_addr_state: (Address, Bytes)
+        inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(Self, Option<ConsensusManager<PubSubFrontend>>)> {
-        let (angstrom_addr, initial_state) = angstrom_addr_state;
         tracing::debug!("connecting to state provider");
         let state_provider = AnvilStateProviderWrapper::spawn_new(config, testnet_node_id).await?;
-        state_provider.set_state(initial_state).await?;
+        state_provider
+            .set_state(inital_angstrom_state.state)
+            .await?;
         tracing::info!("connected to state provider");
-
-        //  tracing::debug!("deploying contracts to anvil");
-        // let uni_env = UniswapEnv::with_anvil(state_provider.provider()).await?;
-        // let angstrom_env = AngstromEnv::new(uni_env).await?;
-        // let rewards_env =
-        // MockRewardEnv::with_anvil(state_provider.provider()).await?;
-
-        // let pools = vec![PoolKey {
-        //     currency0:   addresses.token0,
-        //     currency1:   addresses.token1,
-        //     fee:         U24::from(0),
-        //     tickSpacing: Signed::<24, 1>::from_limbs([5]),
-        //     hooks:       addresses.hooks
-        // }];
-        let pools = vec![];
 
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
@@ -87,7 +75,7 @@ impl AngstromTestnetNodeInternals {
         let eth_handle = AnvilEthDataCleanser::spawn(
             testnet_node_id,
             executor.clone(),
-            angstrom_addr,
+            inital_angstrom_state.angstrom_addr,
             strom_handles.eth_tx,
             strom_handles.eth_rx,
             block_rx.into_stream().map(|v| v.unwrap()),
@@ -102,7 +90,7 @@ impl AngstromTestnetNodeInternals {
             .await
             .unwrap();
 
-        let uniswap_registry: UniswapPoolRegistry = pools.into();
+        let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.provider().provider().into(),
@@ -114,8 +102,6 @@ impl AngstromTestnetNodeInternals {
 
         let uniswap_pools = uniswap_pool_manager.pools();
         tokio::spawn(async move { uniswap_pool_manager.watch_state_changes().await });
-
-        //let uniswap_pools = Arc::new(HashMap::new());
 
         let token_conversion = TokenPriceGenerator::new(
             state_provider.provider().provider().into(),
@@ -135,7 +121,7 @@ impl AngstromTestnetNodeInternals {
             uniswap_pools.clone(),
             token_conversion,
             token_price_update_stream,
-            Some(angstrom_addr)
+            Some(inital_angstrom_state.angstrom_addr)
         )
         .await;
 
@@ -170,7 +156,10 @@ impl AngstromTestnetNodeInternals {
             let _ = server_handle.stopped().await;
         });
 
-        let testnet_hub = TestnetHub::new(angstrom_addr, state_provider.provider().provider());
+        let testnet_hub = TestnetHub::new(
+            inital_angstrom_state.angstrom_addr,
+            state_provider.provider().provider()
+        );
 
         // let consensus = if config.is_state_machine() {
         // let block_number = state_provider

@@ -11,14 +11,23 @@ use alloy::{
     signers::local::PrivateKeySigner,
     transports::http::{Client, Http}
 };
-use alloy_primitives::{Address, Bytes};
+use alloy_primitives::{
+    aliases::{I24, U24},
+    Address, Bytes
+};
+use angstrom_types::contract_bindings::angstrom::Angstrom::{AngstromInstance, PoolKey};
 use tokio::sync::broadcast;
 
 use crate::{
     anvil_state_provider::AnvilStateProvider,
-    contracts::environment::{angstrom::AngstromEnv, uniswap::UniswapEnv},
+    contracts::{
+        deploy::tokens::mint_token_pair,
+        environment::{angstrom::AngstromEnv, uniswap::UniswapEnv, TestAnvilEnvironment},
+        DebugTransaction
+    },
     mocks::canon_state::AnvilConsensusCanonStateNotification,
-    testnet_controllers::AngstromTestnetConfig
+    testnet_controllers::AngstromTestnetConfig,
+    types::initial_state::InitialTestnetState
 };
 
 pub type AnvilWalletRpc = FillProvider<
@@ -64,7 +73,7 @@ pub type LocalAnvilRpc = alloy::providers::fillers::FillProvider<
 
 pub(crate) async fn angstrom_address_with_state(
     config: AngstromTestnetConfig
-) -> eyre::Result<(Address, Bytes)> {
+) -> eyre::Result<InitialTestnetState> {
     let mut anvil_builder = Anvil::new()
         .block_time(2)
         .chain_id(1)
@@ -86,6 +95,7 @@ pub(crate) async fn angstrom_address_with_state(
     tracing::info!(?endpoint);
     let ipc = alloy::providers::IpcConnect::new(endpoint.to_string());
     let sk: PrivateKeySigner = anvil.keys()[7].clone().into();
+    let controller = anvil.addresses()[7];
 
     let wallet = EthereumWallet::new(sk);
     let rpc = builder::<Ethereum>()
@@ -102,14 +112,38 @@ pub(crate) async fn angstrom_address_with_state(
         canon_state:    AnvilConsensusCanonStateNotification::new()
     };
 
+    let (token0, token1) = mint_token_pair(&provider.provider).await;
+
     let uni_env = UniswapEnv::with_anvil(provider.clone()).await?;
     let angstrom_env = AngstromEnv::new(uni_env).await?;
+    let angstrom = AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider());
+
+    let pool = PoolKey {
+        currency0:   token0,
+        currency1:   token1,
+        fee:         U24::ZERO,
+        tickSpacing: I24::unchecked_from(10),
+        hooks:       Address::default()
+    };
+
+    angstrom
+        .configurePool(
+            pool.currency0,
+            pool.currency1,
+            pool.tickSpacing.try_into().unwrap(),
+            pool.fee
+        )
+        .from(controller)
+        .run_safe()
+        .await
+        .unwrap();
 
     tracing::debug!("deploying contracts to anvil");
 
-    let state = provider.provider().anvil_dump_state().await?;
+    let state_bytes = provider.provider().anvil_dump_state().await?;
+    let mut inital_state = InitialTestnetState::new(angstrom_env.angstrom(), state_bytes);
 
-    Ok((angstrom_env.angstrom(), state))
+    Ok(inital_state)
 }
 
 pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, AnvilWalletRpc)> {

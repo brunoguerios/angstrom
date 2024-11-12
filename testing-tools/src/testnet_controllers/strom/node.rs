@@ -31,7 +31,8 @@ use super::strom_internals::AngstromTestnetNodeInternals;
 use crate::{
     anvil_state_provider::AnvilStateProviderWrapper,
     network::{EthPeerPool, TestnetNodeNetwork},
-    testnet_controllers::{AngstromTestnetConfig, TestnetStateFutureLock}
+    testnet_controllers::{AngstromTestnetConfig, TestnetStateFutureLock},
+    types::initial_state::InitialTestnetState
 };
 
 pub struct TestnetNode<C> {
@@ -60,7 +61,7 @@ where
         config: AngstromTestnetConfig,
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
-        angstrom_addr_state: (Address, Bytes)
+        inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<Self> {
         let (strom, consensus) = AngstromTestnetNodeInternals::new(
             testnet_node_id,
@@ -70,7 +71,7 @@ where
             config,
             initial_validators,
             block_rx,
-            angstrom_addr_state
+            inital_angstrom_state
         )
         .await?;
 

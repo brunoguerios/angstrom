@@ -27,7 +27,8 @@ use crate::{
     anvil_state_provider::{utils::async_to_sync, TestnetBlockProvider},
     contracts::anvil::angstrom_address_with_state,
     network::TestnetNodeNetwork,
-    testnet_controllers::{strom::TestnetNode, AngstromTestnetConfig}
+    testnet_controllers::{strom::TestnetNode, AngstromTestnetConfig},
+    types::initial_state::InitialTestnetState
 };
 
 pub struct AngstromTestnet<C> {
@@ -50,7 +51,7 @@ where
         + 'static
 {
     pub async fn spawn_testnet(c: C, config: AngstromTestnetConfig) -> eyre::Result<Self> {
-        let angstrom_addr_state = angstrom_address_with_state(config).await?;
+        let inital_angstrom_state = angstrom_address_with_state(config).await?;
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
             peers: Default::default(),
@@ -62,7 +63,7 @@ where
         };
 
         tracing::info!("initializing testnet with {} nodes", config.intial_node_count);
-        this.spawn_new_nodes(c, angstrom_addr_state, config.intial_node_count)
+        this.spawn_new_nodes(c, inital_angstrom_state, config.intial_node_count)
             .await?;
         tracing::info!("INITIALIZED testnet with {} nodes", config.intial_node_count);
 
@@ -76,7 +77,7 @@ where
     async fn spawn_new_nodes(
         &mut self,
         c: C,
-        angstrom_addr_state: (Address, Bytes),
+        inital_angstrom_state: InitialTestnetState,
         number_nodes: u64
     ) -> eyre::Result<()> {
         let keys = generate_node_keys(number_nodes);
@@ -93,7 +94,7 @@ where
                 pk,
                 sk,
                 initial_validators.clone(),
-                angstrom_addr_state.clone()
+                inital_angstrom_state.clone()
             )
             .await?;
         }
@@ -101,7 +102,7 @@ where
         Ok(())
     }
 
-    #[instrument(name = "node", skip(self, node_id, c, pk, sk, initial_validators, angstrom_addr_state), fields(id = node_id))]
+    #[instrument(name = "node", skip(self, node_id, c, pk, sk, initial_validators, inital_angstrom_state), fields(id = node_id))]
     async fn initialize_new_node(
         &mut self,
         c: C,
@@ -109,7 +110,7 @@ where
         pk: PublicKey,
         sk: SecretKey,
         initial_validators: Vec<AngstromValidator>,
-        angstrom_addr_state: (Address, Bytes)
+        inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<PeerId> {
         tracing::info!("spawning node");
         let strom_handles = initialize_strom_handles();
@@ -132,7 +133,7 @@ where
             self.config,
             initial_validators,
             self.block_provider.subscribe_to_new_blocks(),
-            angstrom_addr_state
+            inital_angstrom_state
         )
         .await?;
         node.connect_to_all_peers(&mut self.peers).await;
