@@ -9,7 +9,7 @@ use alloy::{
     transports::Transport
 };
 use dashmap::DashMap;
-use pade::PadeDecode;
+use pade::{PadeDecode, PadeEncode};
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
