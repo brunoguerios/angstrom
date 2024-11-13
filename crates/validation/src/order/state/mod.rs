@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256};
-use angstrom_types::{
-    primitive::NewInitializedPool,
-    sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders}
-};
+use angstrom_types::sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders};
 use db_state_utils::StateFetchUtils;
 use matching_engine::cfmm::uniswap::{
     pool_manager::SyncedUniswapPools,
@@ -118,9 +115,5 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             }
             _ => unreachable!()
         }
-    }
-
-    pub fn index_new_pool(&mut self, pool: NewInitializedPool) {
-        self.pool_tacker.write().index_new_pool(pool);
     }
 }

@@ -22,9 +22,9 @@ use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
 use secp256k1::SecretKey;
-use tokio_stream::wrappers::BroadcastStream;
-use validation::order::{
-    order_validator::OrderValidator, state::token_pricing::TokenPriceGenerator
+use validation::{
+    order::state::{pools::AngstromPoolsTracker, token_pricing::TokenPriceGenerator},
+    validator::ValidationClient
 };
 
 use crate::{
@@ -70,7 +70,36 @@ impl AngstromTestnetNodeInternals {
         let executor: TokioTaskExecutor = Default::default();
         let tx_strom_handles = (&strom_handles).into();
 
-        let order_api = OrderApi::new(pool.clone(), executor.clone());
+        let rpc_w = state_provider.provider();
+        let state_stream = state_provider
+            .provider()
+            .provider()
+            .subscribe_blocks()
+            .await?
+            .into_stream()
+            .map(move |block| {
+                let cloned_block = block.clone();
+                let rpc = rpc_w.clone();
+                async move {
+                    let number = cloned_block.header.number;
+                    let mut res = vec![];
+                    for hash in cloned_block.transactions.hashes() {
+                        let Ok(Some(tx)) = rpc.provider().get_transaction_by_hash(hash).await
+                        else {
+                            continue
+                        };
+                        res.push(tx);
+                    }
+                    (number, res)
+                }
+            })
+            .buffer_unordered(10);
+
+        let order_api = OrderApi::new(
+            pool.clone(),
+            executor.clone(),
+            ValidationClient(strom_handles.validator_tx)
+        );
 
         let eth_handle = AnvilEthDataCleanser::spawn(
             testnet_node_id,
@@ -112,16 +141,27 @@ impl AngstromTestnetNodeInternals {
         .expect("failed to start price generator");
 
         let token_price_update_stream = state_provider.provider().canonical_state_stream();
-        let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
-            Address::default(),
-            token_price_update_stream
-        ));
+        let token_price_update_stream =
+            PairsWithPrice::into_price_update_stream(Address::default(), token_price_update_stream)
+                .boxed();
+
+        let pool_config_store = Arc::new(
+            AngstromPoolConfigStore::load_from_chain(
+                angstrom_addr,
+                BlockId::Number(BlockNumberOrTag::Number(block_id)),
+                &state_provider.provider().provider()
+            )
+            .await
+            .unwrap()
+        );
+
         let validator = TestOrderValidator::new(
             state_provider.provider(),
+            angstrom_addr,
             uniswap_pools.clone(),
             token_conversion,
             token_price_update_stream,
-            Some(inital_angstrom_state.angstrom_addr)
+            pool_config_store.clone()
         )
         .await;
 
@@ -140,6 +180,7 @@ impl AngstromTestnetNodeInternals {
             executor.clone(),
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
+            AngstromPoolsTracker::new(angstrom_addr, pool_config_store.clone()),
             strom_handles.pool_manager_tx
         );
 
@@ -156,8 +197,26 @@ impl AngstromTestnetNodeInternals {
             let _ = server_handle.stopped().await;
         });
 
-        let testnet_hub = TestnetHub::new(
-            inital_angstrom_state.angstrom_addr,
+        let testnet_hub = TestnetHub::new(angstrom_addr, state_provider.provider().provider());
+
+        let pool_registry = UniswapAngstromRegistry::new(uniswap_registry, pool_config_store);
+
+        let consensus_handle = ConsensusManager::new(
+            ManagerNetworkDeps::new(
+                strom_network_handle.clone(),
+                state_provider.provider().subscribe_to_canonical_state(),
+                strom_handles.consensus_rx_op
+            ),
+            Signer::new(secret_key),
+            initial_validators,
+            order_storage.clone(),
+            state_provider
+                .provider()
+                .provider()
+                .get_block_number()
+                .await?,
+            pool_registry,
+            uniswap_pools.clone(),
             state_provider.provider().provider()
         );
 

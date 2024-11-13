@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy_primitives::B256;
+use alloy_primitives::{Address, FixedBytes, B256};
 use angstrom_types::{
     consensus::*, contract_bindings::angstrom::Angstrom::PoolKey,
     sol_bindings::grouped_orders::AllOrders
@@ -31,7 +31,7 @@ pub enum ConsensusSubscriptionResult {
     Proposal(Arc<Proposal>)
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub enum OrderSubscriptionKind {
@@ -45,12 +45,27 @@ pub enum OrderSubscriptionKind {
     CancelledOrders
 }
 
+#[derive(
+    Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub enum OrderSubscriptionFilter {
+    /// only returns subscription updates on a singluar pair
+    ByPair(FixedBytes<32>),
+    /// only returns subscription updates related to a address
+    ByAddress(Address),
+    /// returns all subscription updates
+    #[default]
+    None
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub enum OrderSubscriptionResult {
     NewOrder(AllOrders),
-    FilledOrder((u64, AllOrders)),
+    FilledOrder(u64, AllOrders),
     UnfilledOrder(AllOrders),
     CancelledOrder(B256)
 }

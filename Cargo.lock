@@ -1522,6 +1522,7 @@ dependencies = [
  "strum",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "tower 0.4.13",
  "tower-http",
  "tracing",
@@ -1541,6 +1542,7 @@ dependencies = [
  "bitmaps",
  "bytes",
  "convert_case 0.6.0",
+ "dashmap 6.1.0",
  "derive_more 0.99.18",
  "eyre",
  "foldhash",
@@ -6048,6 +6050,7 @@ dependencies = [
  "async-trait",
  "auto_impl",
  "bitflags 2.6.0",
+ "dashmap 6.1.0",
  "eyre",
  "futures",
  "futures-util",
@@ -6120,6 +6123,7 @@ dependencies = [
 [[package]]
 name = "pade"
 version = "0.1.0"
+source = "git+https://github.com/SorellaLabs/pade#8807ca6f82063e06b76a38f6ed93f74d5f0a9cbb"
 dependencies = [
  "alloy 0.4.2",
  "bitvec",
@@ -6131,10 +6135,9 @@ dependencies = [
 [[package]]
 name = "pade-macro"
 version = "0.1.0"
+source = "git+https://github.com/SorellaLabs/pade#8807ca6f82063e06b76a38f6ed93f74d5f0a9cbb"
 dependencies = [
- "alloy 0.4.2",
  "itertools 0.13.0",
- "pade",
  "proc-macro2",
  "quote",
  "syn 2.0.85",

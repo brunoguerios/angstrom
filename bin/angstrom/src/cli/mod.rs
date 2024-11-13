@@ -52,7 +52,11 @@ use reth_cli_util::get_secret_key;
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
 use reth_network_peers::pk2id;
 use reth_node_ethereum::{node::EthereumAddOns, EthereumNode};
-use validation::init_validation;
+use validation::{
+    init_validation,
+    order::state::pools::AngstromPoolsTracker,
+    validator::{ValidationClient, ValidationRequest}
+};
 
 use crate::cli::network_builder::AngstromNetworkBuilder;
 
@@ -79,8 +83,7 @@ pub fn run() -> eyre::Result<()> {
         // for rpc
         let pool = channels.get_pool_handle();
         let executor_clone = executor.clone();
-        // let consensus = channels.get_consensus_handle();
-
+        let validation_client = ValidationClient(channels.validator_tx.clone());
         let NodeHandle { node, node_exit_future } = builder
             .with_types::<EthereumNode>()
             .with_components(
@@ -90,16 +93,8 @@ pub fn run() -> eyre::Result<()> {
             )
             .with_add_ons::<EthereumAddOns>(Default::default())
             .extend_rpc_modules(move |rpc_context| {
-                let order_api = OrderApi::new(pool.clone(), executor_clone);
-                // let quotes_api = QuotesApi { pool: pool.clone() };
-                // let consensus_api = ConsensusApi { consensus: consensus.clone() };
+                let order_api = OrderApi::new(pool.clone(), executor_clone, validation_client);
                 rpc_context.modules.merge_configured(order_api.into_rpc())?;
-                // rpc_context
-                //     .modules
-                //     .merge_configured(quotes_api.into_rpc())?;
-                // rpc_context
-                //     .modules
-                //     .merge_configured(consensus_api.into_rpc())?;
 
                 Ok(())
             })
@@ -151,6 +146,9 @@ pub struct StromHandles {
     pub orderpool_tx: UnboundedSender<DefaultOrderCommand>,
     pub orderpool_rx: UnboundedReceiver<DefaultOrderCommand>,
 
+    pub validator_tx: UnboundedSender<ValidationRequest>,
+    pub validator_rx: UnboundedReceiver<ValidationRequest>,
+
     pub pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
 
     pub consensus_tx_op: UnboundedMeteredSender<StromConsensusEvent>,
@@ -164,10 +162,6 @@ impl StromHandles {
             pool_manager_tx: self.pool_manager_tx.clone()
         }
     }
-
-    // pub fn get_consensus_handle(&self) -> ConsensusHandle {
-    //     ConsensusHandle { sender: self.consensus_tx.clone() }
-    // }
 }
 
 pub fn initialize_strom_handles() -> StromHandles {
@@ -175,6 +169,7 @@ pub fn initialize_strom_handles() -> StromHandles {
     let (pool_manager_tx, _) = tokio::sync::broadcast::channel(100);
     let (pool_tx, pool_rx) = reth_metrics::common::mpsc::metered_unbounded_channel("orderpool");
     let (orderpool_tx, orderpool_rx) = unbounded_channel();
+    let (validator_tx, validator_rx) = unbounded_channel();
     let (consensus_tx_op, consensus_rx_op) =
         reth_metrics::common::mpsc::metered_unbounded_channel("orderpool");
 
@@ -184,8 +179,10 @@ pub fn initialize_strom_handles() -> StromHandles {
         pool_tx,
         pool_rx,
         orderpool_tx,
-        pool_manager_tx,
         orderpool_rx,
+        validator_tx,
+        validator_rx,
+        pool_manager_tx,
         consensus_tx_op,
         consensus_rx_op
     }
@@ -201,15 +198,6 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     executor: &TaskExecutor
 ) {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
-    let eth_handle = EthDataCleanser::spawn(
-        angstrom_address.unwrap_or(node_config.angstrom_address),
-        node.provider.subscribe_to_canonical_state(),
-        executor.clone(),
-        handles.eth_tx,
-        handles.eth_rx,
-        HashSet::new()
-    )
-    .unwrap();
 
     // I am sure there is a prettier way of doing this
     let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
@@ -223,17 +211,19 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         .into();
 
     let block_id = provider.get_block_number().await.unwrap();
-    let pool_config_store = AngstromPoolConfigStore::load_from_chain(
-        node_config.angstrom_address,
-        BlockId::Number(BlockNumberOrTag::Number(block_id)),
-        &provider
-    )
-    .await
-    .unwrap();
+    let pool_config_store = Arc::new(
+        AngstromPoolConfigStore::load_from_chain(
+            node_config.angstrom_address,
+            BlockId::Number(BlockNumberOrTag::Number(block_id)),
+            &provider
+        )
+        .await
+        .unwrap()
+    );
 
     let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
     let uni_ang_registry =
-        UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store);
+        UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
     let uniswap_pool_manager = configure_uniswap_manager(
         provider.clone(),
         node.provider.subscribe_to_canonical_state(),
@@ -249,20 +239,21 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
             .expect("watch for uniswap pool changes");
     }));
 
-    // build token_price_generator
     let price_generator =
         TokenPriceGenerator::new(provider.clone(), block_id, uniswap_pools.clone())
             .await
             .expect("failed to start token price generator");
 
     let block_height = node.provider.best_block_number().unwrap();
-    let validator = init_validation(
+    init_validation(
         RethDbWrapper::new(node.provider.clone()),
         block_height,
         angstrom_address,
         node.provider.canonical_state_stream(),
         uniswap_pools.clone(),
-        price_generator
+        price_generator,
+        pool_config_store.clone(),
+        handles.validator_rx
     );
 
     let network_handle = network_builder
@@ -270,16 +261,26 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         .with_consensus_manager(handles.consensus_tx_op)
         .build_handle(executor.clone(), node.provider.clone());
 
-    // Create our pool config
     let pool_config = PoolConfig::default();
-
-    // Create order storage based on that config
     let order_storage = Arc::new(OrderStorage::new(&pool_config));
+    let angstrom_pool_tracker =
+        AngstromPoolsTracker::new(node_config.angstrom_address, pool_config_store.clone());
 
     // Build our PoolManager using the PoolConfig and OrderStorage we've already
     // created
+    let eth_handle = EthDataCleanser::spawn(
+        angstrom_address.unwrap_or(node_config.angstrom_address),
+        node.provider.subscribe_to_canonical_state(),
+        executor.clone(),
+        handles.eth_tx,
+        handles.eth_rx,
+        HashSet::new(),
+        pool_config_store.clone()
+    )
+    .unwrap();
+
     let _pool_handle = PoolManagerBuilder::new(
-        validator.clone(),
+        ValidationClient(handles.validator_tx.clone()),
         Some(order_storage.clone()),
         network_handle.clone(),
         eth_handle.subscribe_network(),
@@ -290,13 +291,13 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         executor.clone(),
         handles.orderpool_tx,
         handles.orderpool_rx,
+        angstrom_pool_tracker,
         handles.pool_manager_tx
     );
 
     let signer = Signer::new(secret_key);
 
     // TODO load the stakes from Eigen using node.provider
-    // list of PeerIds will be known upfront on the first version
     let validators = vec![
         AngstromValidator::new(PeerId::default(), 100),
         AngstromValidator::new(PeerId::default(), 200),

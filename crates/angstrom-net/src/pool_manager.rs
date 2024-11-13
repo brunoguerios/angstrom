@@ -6,10 +6,12 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::primitives::{Address, B256};
+use alloy::primitives::{Address, FixedBytes, B256};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
-    orders::OrderOrigin, primitive::PeerId, sol_bindings::grouped_orders::AllOrders
+    orders::{OrderLocation, OrderOrigin, OrderStatus},
+    primitive::PeerId,
+    sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
 use order_pool::{
@@ -20,11 +22,12 @@ use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_tasks::TaskSpawner;
 use tokio::sync::{
     broadcast,
-    broadcast::Receiver,
     mpsc::{error::SendError, unbounded_channel, UnboundedReceiver, UnboundedSender}
 };
-use tokio_stream::wrappers::UnboundedReceiverStream;
-use validation::order::{OrderValidationResults, OrderValidatorHandle};
+use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
+use validation::order::{
+    state::pools::AngstromPoolsTracker, OrderValidationResults, OrderValidatorHandle
+};
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};
 
@@ -43,7 +46,9 @@ pub enum OrderCommand {
     // new orders
     NewOrder(OrderOrigin, AllOrders, tokio::sync::oneshot::Sender<OrderValidationResults>),
     CancelOrder(Address, B256, tokio::sync::oneshot::Sender<bool>),
-    PendingOrders(Address, tokio::sync::oneshot::Sender<Vec<AllOrders>>)
+    PendingOrders(Address, tokio::sync::oneshot::Sender<Vec<AllOrders>>),
+    OrdersByPool(FixedBytes<32>, OrderLocation, tokio::sync::oneshot::Sender<Vec<AllOrders>>),
+    OrderStatus(B256, tokio::sync::oneshot::Sender<Option<OrderStatus>>)
 }
 
 impl PoolHandle {
@@ -68,8 +73,34 @@ impl OrderPoolHandle for PoolHandle {
         })
     }
 
-    fn subscribe_orders(&self) -> Receiver<PoolManagerUpdate> {
-        self.pool_manager_tx.subscribe()
+    fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {
+        BroadcastStream::new(self.pool_manager_tx.subscribe())
+    }
+
+    fn fetch_orders_from_pool(
+        &self,
+        pool_id: FixedBytes<32>,
+        location: OrderLocation
+    ) -> impl Future<Output = Vec<AllOrders>> + Send {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+
+        let _ = self
+            .manager_tx
+            .send(OrderCommand::OrdersByPool(pool_id, location, tx));
+
+        rx.map(|v| v.unwrap_or_default())
+    }
+
+    fn fetch_order_status(
+        &self,
+        order_hash: B256
+    ) -> impl Future<Output = Option<OrderStatus>> + Send {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let _ = self
+            .manager_tx
+            .send(OrderCommand::OrderStatus(order_hash, tx));
+
+        rx.map(|v| v.ok().flatten())
     }
 
     fn pending_orders(&self, sender: Address) -> impl Future<Output = Vec<AllOrders>> + Send {
@@ -135,6 +166,7 @@ where
         task_spawner: TP,
         tx: UnboundedSender<OrderCommand>,
         rx: UnboundedReceiver<OrderCommand>,
+        pool_storage: AngstromPoolsTracker,
         pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
     ) -> PoolHandle {
         let rx = UnboundedReceiverStream::new(rx);
@@ -147,7 +179,8 @@ where
             self.validator.clone(),
             order_storage.clone(),
             0,
-            pool_manager_tx.clone()
+            pool_manager_tx.clone(),
+            pool_storage
         );
 
         task_spawner.spawn_critical(
@@ -166,7 +199,11 @@ where
         handle
     }
 
-    pub fn build<TP: TaskSpawner>(self, task_spawner: TP) -> PoolHandle {
+    pub fn build<TP: TaskSpawner>(
+        self,
+        pool_storage: AngstromPoolsTracker,
+        task_spawner: TP
+    ) -> PoolHandle {
         let (tx, rx) = unbounded_channel();
         let rx = UnboundedReceiverStream::new(rx);
         let order_storage = self
@@ -179,7 +216,8 @@ where
             self.validator.clone(),
             order_storage.clone(),
             0,
-            pool_manager_tx.clone()
+            pool_manager_tx.clone(),
+            pool_storage
         );
 
         task_spawner.spawn_critical(
@@ -260,6 +298,15 @@ where
             OrderCommand::PendingOrders(from, receiver) => {
                 let res = self.order_indexer.pending_orders_for_address(from);
                 let _ = receiver.send(res.into_iter().map(|o| o.order).collect());
+            }
+            OrderCommand::OrderStatus(order_hash, tx) => {
+                let res = self.order_indexer.order_status(order_hash);
+                let _ = tx.send(res);
+            }
+
+            OrderCommand::OrdersByPool(pool_id, location, tx) => {
+                let res = self.order_indexer.orders_by_pool(pool_id, location);
+                let _ = tx.send(res);
             }
         }
     }
