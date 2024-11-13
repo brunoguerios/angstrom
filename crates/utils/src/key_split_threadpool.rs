@@ -14,11 +14,7 @@ use crate::{sync_pipeline::ThreadPool, PollExt};
 
 type PendingFut<F> = Pin<Box<dyn Future<Output = <F as Future>::Output> + Send + Sync>>;
 
-pub struct KeySplitThreadpool<
-    K: PartialEq + Eq + Hash + Clone,
-    F: Future + Send + Sync,
-    TP: ThreadPool
-> {
+pub struct KeySplitThreadpool<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> {
     tp:              TP,
     pending_results: FuturesUnordered<PendingFut<F>>,
     permit_size:     usize,
@@ -26,14 +22,12 @@ pub struct KeySplitThreadpool<
     waker:           Option<Waker>
 }
 
-impl<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool + Send + Sync>
-    KeySplitThreadpool<K, F, TP>
+impl<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> KeySplitThreadpool<K, F, TP>
 where
     K: Send + Unpin + 'static,
     F: Send + Sync + 'static + Unpin,
-    F::Output: Send + Sync + 'static + Unpin,
-    TP: Clone + Send + 'static + Unpin,
-    <F as Future>::Output: Send + 'static + Unpin
+    TP: Clone + Send + Sync + 'static + Unpin,
+    <F as Future>::Output: Send + Sync + 'static + Unpin
 {
     pub fn new(theadpool: TP, permit_size: usize) -> Self {
         Self {
@@ -75,10 +69,10 @@ where
     }
 }
 
-impl<K: PartialEq + Eq + Hash + Clone, F: Future + Send + Sync, TP: ThreadPool + Send + Sync> Stream
+impl<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> Stream
     for KeySplitThreadpool<K, F, TP>
 where
-    K: Send + Sync + Unpin + 'static,
+    K: Send + Unpin + 'static,
     F: Send + Sync + 'static + Unpin,
     TP: Clone,
     <F as Future>::Output: Send + Sync + 'static + Unpin

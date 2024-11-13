@@ -55,7 +55,7 @@ where
         angstrom_address: Address,
         uniswap_pools: SyncedUniswapPools,
         token_conversion: TokenPriceGenerator,
-        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + 'static>>,
+        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>,
         pool_store: Arc<AngstromPoolConfigStore>
     ) -> Self {
         let (tx, rx) = unbounded_channel();
