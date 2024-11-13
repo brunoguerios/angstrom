@@ -3,6 +3,7 @@ use angstrom_types::{
     orders::{OrderLocation, OrderOrigin, OrderStatus},
     sol_bindings::grouped_orders::AllOrders
 };
+use futures::StreamExt;
 use jsonrpsee::{core::RpcResult, PendingSubscriptionSink, SubscriptionMessage};
 use order_pool::{OrderPoolHandle, PoolManagerUpdate};
 use reth_tasks::TaskSpawner;
@@ -10,7 +11,7 @@ use validation::order::OrderValidatorHandle;
 
 use crate::{
     api::{CancelOrderRequest, GasEstimateResponse, OrderApiServer},
-    types::{OrderSubscriptionKind, OrderSubscriptionResult},
+    types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult},
     OrderApiError::{GasEstimationError, SignatureRecoveryError}
 };
 
@@ -75,19 +76,22 @@ where
     async fn subscribe_orders(
         &self,
         pending: PendingSubscriptionSink,
-        kind: OrderSubscriptionKind
+        kind: OrderSubscriptionKind,
+        filter: OrderSubscriptionFilter
     ) -> jsonrpsee::core::SubscriptionResult {
         let sink = pending.accept().await?;
-        let mut subscription = self.pool.subscribe_orders();
+        let mut subscription = self
+            .pool
+            .subscribe_orders()
+            .map(move |update| update.map(move |value| value.filter_out_order(kind, filter)));
 
         self.task_spawner.spawn(Box::pin(async move {
-            while let Ok(order) = subscription.recv().await {
+            while let Some(Ok(order)) = subscription.next().await {
                 if sink.is_closed() {
                     break
                 }
 
-                let msg = Self::return_order(&kind, order);
-                if let Some(result) = msg {
+                if let Some(result) = order {
                     match SubscriptionMessage::from_json(&result) {
                         Ok(message) => {
                             if sink.send(message).await.is_err() {
@@ -145,44 +149,80 @@ pub fn rpc_err(
     )
 }
 
-impl<OrderPool, Spawner, Validator> OrderApi<OrderPool, Spawner, Validator>
-where
-    OrderPool: OrderPoolHandle,
-    Validator: OrderValidatorHandle,
-    Spawner: 'static + TaskSpawner
-{
-    fn return_order(
-        kind: &OrderSubscriptionKind,
-        order: PoolManagerUpdate
+trait OrderFilterMatching {
+    fn filter_out_order(
+        self,
+        kind: OrderSubscriptionKind,
+        filter: OrderSubscriptionFilter
+    ) -> Option<OrderSubscriptionResult>;
+}
+
+impl OrderFilterMatching for PoolManagerUpdate {
+    fn filter_out_order(
+        self,
+        kind: OrderSubscriptionKind,
+        filter: OrderSubscriptionFilter
     ) -> Option<OrderSubscriptionResult> {
-        match (&kind, order) {
-            (OrderSubscriptionKind::NewOrders, PoolManagerUpdate::NewOrder(order_update)) => {
-                Some(OrderSubscriptionResult::NewOrder(order_update))
+        match self {
+            PoolManagerUpdate::NewOrder(order) if kind == OrderSubscriptionKind::NewOrders => {
+                match filter {
+                    OrderSubscriptionFilter::None => {
+                        Some(OrderSubscriptionResult::NewOrder(order.order))
+                    }
+                    OrderSubscriptionFilter::ByPair(pair) => Some(order)
+                        .filter(|order| order.pool_id == pair)
+                        .map(|o| OrderSubscriptionResult::NewOrder(o.order)),
+                    OrderSubscriptionFilter::ByAddress(address) => Some(order)
+                        .filter(|o| o.from() == address)
+                        .map(|o| OrderSubscriptionResult::NewOrder(o.order))
+                }
             }
-            (
-                OrderSubscriptionKind::FilledOrders,
-                PoolManagerUpdate::FilledOrder((block_number, filled_order))
-            ) => Some(OrderSubscriptionResult::FilledOrder((block_number, filled_order))),
-            (
-                OrderSubscriptionKind::UnfilleOrders,
-                PoolManagerUpdate::UnfilledOrders(unfilled_order)
-            ) => Some(OrderSubscriptionResult::UnfilledOrder(unfilled_order)),
-            (
-                OrderSubscriptionKind::CancelledOrders,
-                PoolManagerUpdate::CancelledOrder(order_hash)
-            ) => Some(OrderSubscriptionResult::CancelledOrder(order_hash)),
-            (OrderSubscriptionKind::NewOrders, PoolManagerUpdate::FilledOrder(_)) => None,
-            (OrderSubscriptionKind::NewOrders, PoolManagerUpdate::UnfilledOrders(_)) => None,
-            (OrderSubscriptionKind::FilledOrders, PoolManagerUpdate::NewOrder(_)) => None,
-            (OrderSubscriptionKind::FilledOrders, PoolManagerUpdate::UnfilledOrders(_)) => None,
-            (OrderSubscriptionKind::UnfilleOrders, PoolManagerUpdate::NewOrder(_)) => None,
-            (OrderSubscriptionKind::UnfilleOrders, PoolManagerUpdate::FilledOrder(_)) => None,
-            (OrderSubscriptionKind::NewOrders, PoolManagerUpdate::CancelledOrder(_)) => None,
-            (OrderSubscriptionKind::FilledOrders, PoolManagerUpdate::CancelledOrder(_)) => None,
-            (OrderSubscriptionKind::UnfilleOrders, PoolManagerUpdate::CancelledOrder(_)) => None,
-            (OrderSubscriptionKind::CancelledOrders, PoolManagerUpdate::NewOrder(_)) => None,
-            (OrderSubscriptionKind::CancelledOrders, PoolManagerUpdate::FilledOrder(_)) => None,
-            (OrderSubscriptionKind::CancelledOrders, PoolManagerUpdate::UnfilledOrders(_)) => None
+            PoolManagerUpdate::FilledOrder(block, order)
+                if kind == OrderSubscriptionKind::FilledOrders =>
+            {
+                match filter {
+                    OrderSubscriptionFilter::None => {
+                        Some(OrderSubscriptionResult::FilledOrder(block, order.order))
+                    }
+                    OrderSubscriptionFilter::ByPair(pair) => Some(order)
+                        .filter(|order| order.pool_id == pair)
+                        .map(|o| OrderSubscriptionResult::FilledOrder(block, o.order)),
+                    OrderSubscriptionFilter::ByAddress(address) => Some(order)
+                        .filter(|o| o.from() == address)
+                        .map(|o| OrderSubscriptionResult::FilledOrder(block, o.order))
+                }
+            }
+            PoolManagerUpdate::UnfilledOrders(order)
+                if kind == OrderSubscriptionKind::UnfilleOrders =>
+            {
+                match filter {
+                    OrderSubscriptionFilter::None => {
+                        Some(OrderSubscriptionResult::UnfilledOrder(order.order))
+                    }
+                    OrderSubscriptionFilter::ByPair(pair) => Some(order)
+                        .filter(|order| order.pool_id == pair)
+                        .map(|o| OrderSubscriptionResult::UnfilledOrder(o.order)),
+                    OrderSubscriptionFilter::ByAddress(address) => Some(order)
+                        .filter(|o| o.from() == address)
+                        .map(|o| OrderSubscriptionResult::UnfilledOrder(o.order))
+                }
+            }
+            PoolManagerUpdate::CancelledOrder { order_hash, user, pool_id }
+                if kind == OrderSubscriptionKind::CancelledOrders =>
+            {
+                match filter {
+                    OrderSubscriptionFilter::None => {
+                        Some(OrderSubscriptionResult::CancelledOrder(order_hash))
+                    }
+                    OrderSubscriptionFilter::ByPair(pair) => Some(order_hash)
+                        .filter(|_| pool_id == pair)
+                        .map(OrderSubscriptionResult::CancelledOrder),
+                    OrderSubscriptionFilter::ByAddress(address) => Some(order_hash)
+                        .filter(|_| user == address)
+                        .map(OrderSubscriptionResult::CancelledOrder)
+                }
+            }
+            _ => None
         }
     }
 }
@@ -200,10 +240,8 @@ mod tests {
     use futures::FutureExt;
     use order_pool::PoolManagerUpdate;
     use reth_tasks::TokioTaskExecutor;
-    use tokio::sync::{
-        broadcast::Receiver,
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender}
-    };
+    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+    use tokio_stream::wrappers::BroadcastStream;
     use validation::order::{GasEstimationFuture, ValidationFuture};
 
     use super::*;
@@ -291,7 +329,7 @@ mod tests {
             future::ready(true)
         }
 
-        fn subscribe_orders(&self) -> Receiver<PoolManagerUpdate> {
+        fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {
             unimplemented!("Not needed for this test")
         }
 

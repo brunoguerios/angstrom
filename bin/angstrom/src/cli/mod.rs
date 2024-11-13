@@ -58,6 +58,7 @@ use reth_network_peers::pk2id;
 use reth_node_ethereum::{node::EthereumAddOns, EthereumNode};
 use validation::{
     init_validation,
+    order::state::pools::AngstromPoolsTracker,
     validator::{ValidationClient, ValidationRequest}
 };
 
@@ -97,15 +98,7 @@ pub fn run() -> eyre::Result<()> {
             .with_add_ons::<EthereumAddOns>(Default::default())
             .extend_rpc_modules(move |rpc_context| {
                 let order_api = OrderApi::new(pool.clone(), executor_clone, validation_client);
-                // let quotes_api = QuotesApi { pool: pool.clone() };
-                // let consensus_api = ConsensusApi { consensus: consensus.clone() };
                 rpc_context.modules.merge_configured(order_api.into_rpc())?;
-                // rpc_context
-                //     .modules
-                //     .merge_configured(quotes_api.into_rpc())?;
-                // rpc_context
-                //     .modules
-                //     .merge_configured(consensus_api.into_rpc())?;
 
                 Ok(())
             })
@@ -209,15 +202,6 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     executor: &TaskExecutor
 ) {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
-    let eth_handle = EthDataCleanser::spawn(
-        angstrom_address.unwrap_or(node_config.angstrom_address),
-        node.provider.subscribe_to_canonical_state(),
-        executor.clone(),
-        handles.eth_tx,
-        handles.eth_rx,
-        HashSet::new()
-    )
-    .unwrap();
 
     // I am sure there is a prettier way of doing this
     let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
@@ -231,17 +215,19 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         .into();
 
     let block_id = provider.get_block_number().await.unwrap();
-    let pool_config_store = AngstromPoolConfigStore::load_from_chain(
-        node_config.angstrom_address,
-        BlockId::Number(BlockNumberOrTag::Number(block_id)),
-        &provider
-    )
-    .await
-    .unwrap();
+    let pool_config_store = Arc::new(
+        AngstromPoolConfigStore::load_from_chain(
+            node_config.angstrom_address,
+            BlockId::Number(BlockNumberOrTag::Number(block_id)),
+            &provider
+        )
+        .await
+        .unwrap()
+    );
 
     let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
     let uni_ang_registry =
-        UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store);
+        UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
     let uniswap_pool_manager = configure_uniswap_manager(
         provider.clone(),
         node.provider.subscribe_to_canonical_state(),
@@ -270,6 +256,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         node.provider.canonical_state_stream(),
         uniswap_pools.clone(),
         price_generator,
+        pool_config_store.clone(),
         handles.validator_rx
     );
 
@@ -280,6 +267,22 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
 
     let pool_config = PoolConfig::default();
     let order_storage = Arc::new(OrderStorage::new(&pool_config));
+    let angstrom_pool_tracker =
+        AngstromPoolsTracker::new(node_config.angstrom_address, pool_config_store.clone());
+
+    // Build our PoolManager using the PoolConfig and OrderStorage we've already
+    // created
+    let eth_handle = EthDataCleanser::spawn(
+        angstrom_address.unwrap_or(node_config.angstrom_address),
+        node.provider.subscribe_to_canonical_state(),
+        executor.clone(),
+        handles.eth_tx,
+        handles.eth_rx,
+        HashSet::new(),
+        pool_config_store.clone()
+    )
+    .unwrap();
+
     let _pool_handle = PoolManagerBuilder::new(
         ValidationClient(handles.validator_tx.clone()),
         Some(order_storage.clone()),
@@ -292,6 +295,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         executor.clone(),
         handles.orderpool_tx,
         handles.orderpool_rx,
+        angstrom_pool_tracker,
         handles.pool_manager_tx
     );
 

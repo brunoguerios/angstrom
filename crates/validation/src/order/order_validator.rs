@@ -5,7 +5,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, BlockNumber, B256};
-use angstrom_types::{pair_with_price::PairsWithPrice, primitive::NewInitializedPool};
+use angstrom_types::pair_with_price::PairsWithPrice;
 use angstrom_utils::key_split_threadpool::KeySplitThreadpool;
 use futures::{Future, Stream, StreamExt};
 use matching_engine::cfmm::uniswap::pool_manager::SyncedUniswapPools;
@@ -97,10 +97,6 @@ where
                 }
             })
         );
-    }
-
-    pub fn index_new_pool(&mut self, pool: NewInitializedPool) {
-        self.state.index_new_pool(pool);
     }
 }
 

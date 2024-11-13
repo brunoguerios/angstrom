@@ -31,7 +31,10 @@ use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::{CanonStateNotifications, CanonStateSubscriptions};
 use reth_tasks::TokioTaskExecutor;
 use secp256k1::SecretKey;
-use validation::{order::state::token_pricing::TokenPriceGenerator, validator::ValidationClient};
+use validation::{
+    order::state::{pools::AngstromPoolsTracker, token_pricing::TokenPriceGenerator},
+    validator::ValidationClient
+};
 
 use crate::{
     anvil_state_provider::{
@@ -165,11 +168,23 @@ impl AngstromTestnetNodeInternals {
             PairsWithPrice::into_price_update_stream(Address::default(), token_price_update_stream)
                 .boxed();
 
+        let pool_config_store = Arc::new(
+            AngstromPoolConfigStore::load_from_chain(
+                angstrom_addr,
+                BlockId::Number(BlockNumberOrTag::Number(block_id)),
+                &state_provider.provider().provider()
+            )
+            .await
+            .unwrap()
+        );
+
         let validator = TestOrderValidator::new(
             state_provider.provider(),
+            angstrom_addr,
             uniswap_pools.clone(),
             token_conversion,
-            token_price_update_stream
+            token_price_update_stream,
+            pool_config_store.clone()
         )
         .await;
 
@@ -188,6 +203,7 @@ impl AngstromTestnetNodeInternals {
             executor.clone(),
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
+            AngstromPoolsTracker::new(angstrom_addr, pool_config_store.clone()),
             strom_handles.pool_manager_tx
         );
 
@@ -205,13 +221,6 @@ impl AngstromTestnetNodeInternals {
         });
 
         let testnet_hub = TestnetHub::new(angstrom_addr, state_provider.provider().provider());
-        let pool_config_store = AngstromPoolConfigStore::load_from_chain(
-            angstrom_addr,
-            BlockId::Number(BlockNumberOrTag::Number(block_id)),
-            &state_provider.provider().provider()
-        )
-        .await
-        .unwrap();
 
         let pool_registry = UniswapAngstromRegistry::new(uniswap_registry, pool_config_store);
 

@@ -10,7 +10,7 @@ use jsonrpsee::{
 };
 use serde::Deserialize;
 
-use crate::types::OrderSubscriptionKind;
+use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CancelOrderRequest {
@@ -58,6 +58,7 @@ pub trait OrderApi {
     )]
     async fn subscribe_orders(
         &self,
-        kind: OrderSubscriptionKind
+        kind: OrderSubscriptionKind,
+        filters: OrderSubscriptionFilter
     ) -> jsonrpsee::core::SubscriptionResult;
 }
