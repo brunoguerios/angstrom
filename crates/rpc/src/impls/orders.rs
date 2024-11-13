@@ -38,7 +38,7 @@ where
         Ok(self.pool.new_order(OrderOrigin::External, order).await)
     }
 
-    async fn pending_orders(&self, from: Address) -> RpcResult<Vec<AllOrders>> {
+    async fn pending_order(&self, from: Address) -> RpcResult<Vec<AllOrders>> {
         Ok(self.pool.pending_orders(from).await)
     }
 
