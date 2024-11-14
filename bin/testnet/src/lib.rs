@@ -100,7 +100,7 @@
 //             let order_api = OrderApi::new(pool.clone(), executor_clone);
 //             // let quotes_api = QuotesApi { pool: pool.clone() };
 //             // let consensus_api = ConsensusApi { consensus:
-// consensus.clone() };             
+// consensus.clone() };
 // rpc_context.modules.merge_configured(order_api.into_rpc())?;             //
 // rpc_context             //     .modules
 //             //     .merge_configured(quotes_api.into_rpc())?;
@@ -232,7 +232,7 @@
 //     let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
 //         .with_recommended_fillers()
 //         .wallet(EthereumWallet::from(
-//             
+//
 // LocalSigner::<SigningKey>::from_bytes(&secret_key.secret_bytes().into()).
 // unwrap()         ))
 //         .on_builtin(node.rpc_server_handles.rpc.http_url().unwrap().as_str())
