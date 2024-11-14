@@ -3,7 +3,7 @@ use std::{collections::HashMap, hash::Hash, sync::Arc};
 use alloy::{
     eips::BlockId,
     network::Network,
-    primitives::{aliases::U40, keccak256, Address, Bytes, B256, U256},
+    primitives::{keccak256, Address, Bytes, B256, U256},
     providers::Provider,
     sol_types::SolValue,
     transports::Transport
