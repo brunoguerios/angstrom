@@ -48,7 +48,8 @@ impl AnvilTestnetIntializer {
     pub async fn new(config: AngstromTestnetConfig) -> eyre::Result<Self> {
         let anvil = config
             .configure_anvil(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT)
-            .try_spawn()?;
+            .try_spawn()
+            .unwrap();
 
         let ipc = alloy::providers::IpcConnect::new(format!(
             "/tmp/{ANVIL_TESTNET_DEPLOYMENT_ENDPOINT}.ipc"
@@ -65,8 +66,8 @@ impl AnvilTestnetIntializer {
 
         let wallet_provider = AnvilWallet::new(rpc, controller_address, sk);
 
-        let uniswap_env = UniswapEnv::new(wallet_provider.clone()).await?;
-        let angstrom_env = AngstromEnv::new(uniswap_env).await?;
+        let uniswap_env = UniswapEnv::new(wallet_provider.clone()).await.unwrap();
+        let angstrom_env = AngstromEnv::new(uniswap_env).await.unwrap();
         let angstrom =
             AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
         let pool_gate =
