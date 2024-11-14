@@ -145,20 +145,20 @@ impl UserOrder {
     ) -> Self {
         let order_quantities = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(exact_order) => {
+                FlashVariants::Exact(_) => {
                     OrderQuantities::Exact { quantity: order.quantity().to() }
                 }
-                FlashVariants::Partial(partial_order) => OrderQuantities::Partial {
+                FlashVariants::Partial(_) => OrderQuantities::Partial {
                     min_quantity_in: 0,
                     max_quantity_in: order.quantity().to(),
                     filled_quantity: 0
                 }
             },
             GroupedVanillaOrder::Standing(o) => match o {
-                StandingVariants::Exact(exact_order) => {
+                StandingVariants::Exact(_) => {
                     OrderQuantities::Exact { quantity: order.quantity().to() }
                 }
-                StandingVariants::Partial(partial_order) => {
+                StandingVariants::Partial(_) => {
                     let max_quantity_in = order.quantity().to();
                     let filled_quantity = match outcome.outcome {
                         OrderFillState::CompleteFill => max_quantity_in,
