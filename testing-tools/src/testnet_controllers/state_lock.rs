@@ -99,8 +99,9 @@ where
 
     pub(crate) fn set_consensus(&self, running: bool, checked: bool) {
         if checked {
-            if let Some(c) = self.strom_consensus
-                .as_ref() { c.lock.store(running, Ordering::Relaxed) }
+            if let Some(c) = self.strom_consensus.as_ref() {
+                c.lock.store(running, Ordering::Relaxed)
+            }
         } else {
             self.strom_consensus
                 .as_ref()

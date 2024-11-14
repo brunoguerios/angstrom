@@ -19,7 +19,6 @@ use alloy::{
 use alloy_primitives::Address;
 use alloy_sol_types::SolCall;
 
-
 pub type AnvilWalletRpc = FillProvider<
     JoinFill<
         JoinFill<
