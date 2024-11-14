@@ -18,7 +18,7 @@ use super::{
     TestAnvilEnvironment
 };
 use crate::{
-    anvil_state_provider::AnvilStateProvider,
+    anvil_state_provider::{AnvilStateProvider, AnvilWallet},
     contracts::{
         deploy::{mockreward::deploy_mock_rewards_manager, tokens::mint_token_pair},
         DebugTransaction
@@ -133,8 +133,8 @@ where
     }
 }
 
-impl MockRewardEnv<UniswapEnv<AnvilStateProvider>> {
-    pub async fn with_anvil(anvil: AnvilStateProvider) -> eyre::Result<Self> {
+impl MockRewardEnv<UniswapEnv<AnvilWallet>> {
+    pub async fn with_anvil(anvil: AnvilWallet) -> eyre::Result<Self> {
         let inner = UniswapEnv::with_anvil(anvil).await?;
         Self::new(inner).await
     }
@@ -205,7 +205,7 @@ mod tests {
         let anvil = AnvilStateProviderWrapper::spawn_new_isolated()
             .await
             .unwrap();
-        let uniswap = UniswapEnv::new(anvil.provider()).await.unwrap();
+        let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
         MockRewardEnv::new(uniswap).await.unwrap();
     }
 }

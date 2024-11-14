@@ -57,7 +57,8 @@ impl AngstromTestnetNodeInternals {
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(Self, Option<ConsensusManager<PubSubFrontend>>)> {
         tracing::debug!("connecting to state provider");
-        let state_provider = AnvilStateProviderWrapper::spawn_new(config, testnet_node_id).await?;
+        let state_provider =
+            AnvilStateProviderWrapper::spawn_new(config.clone(), testnet_node_id).await?;
         state_provider
             .set_state(inital_angstrom_state.state)
             .await?;
@@ -85,8 +86,7 @@ impl AngstromTestnetNodeInternals {
         .await?;
 
         let block_id = state_provider
-            .provider()
-            .provider()
+            .rpc_provider()
             .get_block_number()
             .await
             .unwrap();
@@ -94,8 +94,10 @@ impl AngstromTestnetNodeInternals {
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
         let uniswap_pool_manager = configure_uniswap_manager(
-            state_provider.provider().provider().into(),
-            state_provider.provider().subscribe_to_canonical_state(),
+            state_provider.rpc_provider().into(),
+            state_provider
+                .state_provider()
+                .subscribe_to_canonical_state(),
             uniswap_registry.clone(),
             block_id
         )
@@ -105,14 +107,14 @@ impl AngstromTestnetNodeInternals {
         tokio::spawn(async move { uniswap_pool_manager.watch_state_changes().await });
 
         let token_conversion = TokenPriceGenerator::new(
-            state_provider.provider().provider().into(),
+            state_provider.state_provider().provider().into(),
             block_id,
             uniswap_pools.clone()
         )
         .await
         .expect("failed to start price generator");
 
-        let token_price_update_stream = state_provider.provider().canonical_state_stream();
+        let token_price_update_stream = state_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
             Address::default(),
             token_price_update_stream
@@ -122,14 +124,14 @@ impl AngstromTestnetNodeInternals {
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
                 BlockId::latest(),
-                &state_provider.provider().provider()
+                &state_provider.rpc_provider()
             )
             .await
             .map_err(|e| eyre::eyre!("{e}"))?
         );
 
         let validator = TestOrderValidator::new(
-            state_provider.provider(),
+            state_provider.state_provider(),
             inital_angstrom_state.angstrom_addr,
             uniswap_pools.clone(),
             token_conversion,
@@ -173,10 +175,8 @@ impl AngstromTestnetNodeInternals {
             let _ = server_handle.stopped().await;
         });
 
-        let testnet_hub = TestnetHub::new(
-            inital_angstrom_state.angstrom_addr,
-            state_provider.provider().provider()
-        );
+        let testnet_hub =
+            TestnetHub::new(inital_angstrom_state.angstrom_addr, state_provider.rpc_provider());
 
         // let consensus = if config.is_state_machine() {
         // let block_number = state_provider

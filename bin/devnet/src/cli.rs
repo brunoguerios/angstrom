@@ -21,6 +21,12 @@ pub struct Cli {
     /// the secret key/address to use as the controller
     #[clap(short, long, default_value = "7")]
     pub anvil_key:               u16,
+    /// starting block to fork
+    #[clap(short = 's', long)]
+    pub fork_block:              Option<u64>,
+    /// fork url
+    #[clap(long, requires = "fork_block")]
+    pub fork_url:                Option<String>,
     /// Set the minimum log level.
     ///
     /// -v      Errors

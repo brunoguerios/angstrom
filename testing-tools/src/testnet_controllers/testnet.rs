@@ -24,8 +24,7 @@ use tracing::{instrument, span, Instrument, Level};
 
 use super::{utils::generate_node_keys, StateMachineTestnet};
 use crate::{
-    anvil_state_provider::{utils::async_to_sync, TestnetBlockProvider},
-    contracts::anvil::angstrom_address_with_state,
+    anvil_state_provider::{utils::async_to_sync, AnvilTestnetIntializer, TestnetBlockProvider},
     network::TestnetNodeNetwork,
     testnet_controllers::{strom::TestnetNode, AngstromTestnetConfig},
     types::initial_state::InitialTestnetState
@@ -51,14 +50,18 @@ where
         + 'static
 {
     pub async fn spawn_testnet(c: C, config: AngstromTestnetConfig) -> eyre::Result<Self> {
-        let inital_angstrom_state = angstrom_address_with_state(config).await?;
+        let inital_angstrom_state = AnvilTestnetIntializer::new(config.clone())
+            .await?
+            .initialize()
+            .await?;
+
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
             peers: Default::default(),
             _disconnected_peers: HashSet::new(),
             _dropped_peers: HashSet::new(),
             current_max_peer_id: 0,
-            config,
+            config: config.clone(),
             block_provider
         };
 
@@ -130,7 +133,7 @@ where
             strom_network_manager,
             eth_peer,
             strom_handles,
-            self.config,
+            self.config.clone(),
             initial_validators,
             self.block_provider.subscribe_to_new_blocks(),
             inital_angstrom_state
@@ -391,8 +394,7 @@ where
         let f = self.peers.iter().map(|(_, peer)| {
             let id = peer.testnet_node_id();
             peer.state_provider()
-                .provider()
-                .provider()
+                .rpc_provider()
                 .get_block_number()
                 .and_then(move |r| async move { Ok((id, r)) })
         });

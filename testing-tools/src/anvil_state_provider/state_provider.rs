@@ -18,7 +18,7 @@ use reth_revm::primitives::Bytecode;
 use tokio::sync::broadcast;
 use validation::common::db::BlockStateProviderFactory;
 
-use super::{rpc_provider::RpcStateProvider, utils::AnvilWalletRpc};
+use super::{rpc_provider::RpcStateProvider, utils::AnvilWalletRpc, AnvilWallet};
 use crate::{
     anvil_state_provider::utils::async_to_sync, contracts::environment::TestAnvilEnvironment,
     mocks::canon_state::AnvilConsensusCanonStateNotification,
@@ -38,8 +38,9 @@ impl AnvilStateProviderWrapper {
         tracing::info!(?endpoint);
         let ipc = alloy::providers::IpcConnect::new(endpoint.to_string());
         let sk: PrivateKeySigner = anvil.keys()[config.anvil_key].clone().into();
+        let controller_address = anvil.addresses()[config.anvil_key];
 
-        let wallet = EthereumWallet::new(sk);
+        let wallet = EthereumWallet::new(sk.clone());
         let rpc = builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
@@ -50,15 +51,13 @@ impl AnvilStateProviderWrapper {
 
         let (tx, _) = broadcast::channel(1000);
 
-        Ok(Self {
-            provider:  AnvilStateProvider {
-                provider:       rpc,
-                controller:     anvil.addresses()[config.anvil_key],
-                canon_state_tx: tx,
-                canon_state:    AnvilConsensusCanonStateNotification::new()
-            },
-            _instance: anvil
-        })
+        let provider = AnvilStateProvider {
+            provider:       AnvilWallet::new(rpc, controller_address, sk),
+            canon_state_tx: tx,
+            canon_state:    AnvilConsensusCanonStateNotification::new()
+        };
+
+        Ok(Self { provider, _instance: anvil })
     }
 
     pub async fn spawn_new_isolated() -> eyre::Result<Self> {
@@ -75,8 +74,9 @@ impl AnvilStateProviderWrapper {
         tracing::info!(?endpoint);
         let ipc = alloy::providers::IpcConnect::new(endpoint.to_string());
         let sk: PrivateKeySigner = anvil.keys()[7].clone().into();
+        let controller_address = anvil.addresses()[7];
 
-        let wallet = EthereumWallet::new(sk);
+        let wallet = EthereumWallet::new(sk.clone());
         let rpc = builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
@@ -89,8 +89,7 @@ impl AnvilStateProviderWrapper {
 
         Ok(Self {
             provider:  AnvilStateProvider {
-                provider:       rpc,
-                controller:     anvil.addresses()[7],
+                provider:       AnvilWallet::new(rpc, controller_address, sk),
                 canon_state_tx: tx,
                 canon_state:    AnvilConsensusCanonStateNotification::new()
             },
@@ -98,22 +97,30 @@ impl AnvilStateProviderWrapper {
         })
     }
 
-    pub fn provider(&self) -> AnvilStateProvider {
+    pub fn state_provider(&self) -> AnvilStateProvider {
         self.provider.clone()
+    }
+
+    pub fn wallet_provider(&self) -> AnvilWallet {
+        self.provider.provider.clone()
+    }
+
+    pub fn rpc_provider(&self) -> AnvilWalletRpc {
+        self.provider.provider().clone()
     }
 
     pub async fn execute_and_return_state(&self) -> eyre::Result<(Bytes, Block)> {
         let block = self.mine_block().await?;
 
-        Ok((self.provider.provider.anvil_dump_state().await?, block))
+        Ok((self.provider.provider().anvil_dump_state().await?, block))
     }
 
     pub async fn return_state(&self) -> eyre::Result<Bytes> {
-        Ok(self.provider.provider.anvil_dump_state().await?)
+        Ok(self.provider.provider().anvil_dump_state().await?)
     }
 
     pub async fn set_state(&self, state: Bytes) -> eyre::Result<()> {
-        self.provider.provider.anvil_load_state(state).await?;
+        self.provider.provider().anvil_load_state(state).await?;
 
         Ok(())
     }
@@ -121,7 +128,7 @@ impl AnvilStateProviderWrapper {
     pub async fn mine_block(&self) -> eyre::Result<Block> {
         let mined = self
             .provider
-            .provider
+            .provider()
             .anvil_mine_detailed(Some(MineOptions::Options { timestamp: None, blocks: Some(1) }))
             .await?
             .first()
@@ -134,30 +141,29 @@ impl AnvilStateProviderWrapper {
     }
 }
 
-impl TestAnvilEnvironment for AnvilStateProviderWrapper {
-    type P = AnvilWalletRpc;
-    type T = PubSubFrontend;
+// impl TestAnvilEnvironment for AnvilStateProviderWrapper {
+//     type P = AnvilWalletRpc;
+//     type T = PubSubFrontend;
 
-    fn provider(&self) -> &AnvilWalletRpc {
-        &self.provider.provider
-    }
+//     fn provider(&self) -> &AnvilWalletRpc {
+//         self.provider.provider.provider_ref()
+//     }
 
-    fn controller(&self) -> Address {
-        self.provider.controller
-    }
-}
+//     fn controller(&self) -> Address {
+//         self.provider.provider.controller_address
+//     }
+// }
 
 #[derive(Debug, Clone)]
 pub struct AnvilStateProvider {
-    pub(crate) provider:       AnvilWalletRpc,
-    pub(crate) controller:     Address,
-    pub(crate) canon_state:    AnvilConsensusCanonStateNotification,
-    pub(crate) canon_state_tx: broadcast::Sender<CanonStateNotification>
+    provider:       AnvilWallet,
+    canon_state:    AnvilConsensusCanonStateNotification,
+    canon_state_tx: broadcast::Sender<CanonStateNotification>
 }
 
 impl AnvilStateProvider {
     pub fn provider(&self) -> AnvilWalletRpc {
-        self.provider.clone()
+        self.provider.provider.clone()
     }
 
     fn update_canon_chain(&self, new_block: &Block) -> eyre::Result<()> {
@@ -180,8 +186,8 @@ impl reth_revm::DatabaseRef for AnvilStateProvider {
         &self,
         address: Address
     ) -> Result<Option<reth_revm::primitives::AccountInfo>, Self::Error> {
-        let acc = async_to_sync(self.provider.get_account(address).latest().into_future())?;
-        let code = async_to_sync(self.provider.get_code_at(address).latest().into_future())?;
+        let acc = async_to_sync(self.provider().get_account(address).latest().into_future())?;
+        let code = async_to_sync(self.provider().get_code_at(address).latest().into_future())?;
         let code = Some(Bytecode::new_raw(code));
 
         Ok(Some(reth_revm::primitives::AccountInfo {
@@ -193,13 +199,13 @@ impl reth_revm::DatabaseRef for AnvilStateProvider {
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        let acc = async_to_sync(self.provider.get_storage_at(address, index).into_future())?;
+        let acc = async_to_sync(self.provider().get_storage_at(address, index).into_future())?;
         Ok(acc)
     }
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
         let acc = async_to_sync(
-            self.provider
+            self.provider()
                 .get_block_by_number(reth_primitives::BlockNumberOrTag::Number(number), false)
                 .into_future()
         )?;
@@ -229,11 +235,11 @@ impl BlockNumReader for AnvilStateProvider {
     }
 
     fn best_block_number(&self) -> ProviderResult<BlockNumber> {
-        Ok(async_to_sync(self.provider.get_block_number().into_future()).unwrap())
+        Ok(async_to_sync(self.provider().get_block_number().into_future()).unwrap())
     }
 
     fn last_block_number(&self) -> ProviderResult<BlockNumber> {
-        Ok(async_to_sync(self.provider.get_block_number().into_future()).unwrap())
+        Ok(async_to_sync(self.provider().get_block_number().into_future()).unwrap())
     }
 
     fn convert_hash_or_number(
@@ -268,11 +274,11 @@ impl BlockStateProviderFactory for AnvilStateProvider {
     type Provider = RpcStateProvider;
 
     fn state_by_block(&self, block: u64) -> ProviderResult<Self::Provider> {
-        Ok(RpcStateProvider::new(block, self.provider.clone()))
+        Ok(RpcStateProvider::new(block, self.provider()))
     }
 
     fn best_block_number(&self) -> ProviderResult<BlockNumber> {
-        async_to_sync(self.provider.get_block_number())
+        async_to_sync(self.provider().get_block_number())
             .map_err(|_| ProviderError::BestBlockNotFound)
     }
 }
@@ -280,19 +286,6 @@ impl BlockStateProviderFactory for AnvilStateProvider {
 impl CanonStateSubscriptions for AnvilStateProvider {
     fn subscribe_to_canonical_state(&self) -> CanonStateNotifications {
         self.canon_state_tx.subscribe()
-    }
-}
-
-impl TestAnvilEnvironment for AnvilStateProvider {
-    type P = AnvilWalletRpc;
-    type T = PubSubFrontend;
-
-    fn provider(&self) -> &AnvilWalletRpc {
-        &self.provider
-    }
-
-    fn controller(&self) -> Address {
-        self.controller
     }
 }
 

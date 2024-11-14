@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use alloy::node_bindings::Anvil;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct AngstromTestnetConfig {
     pub anvil_key:               usize,
     pub intial_node_count:       u64,
@@ -31,7 +33,7 @@ impl AngstromTestnetConfig {
     }
 
     pub fn state_machine_config(&self) -> Option<StateMachineConfig> {
-        match self.testnet_kind {
+        match self.testnet_kind.clone() {
             TestnetKind::StateMachine(c) => Some(c),
             _ => None
         }
@@ -41,7 +43,7 @@ impl AngstromTestnetConfig {
         matches!(self.testnet_kind, TestnetKind::StateMachine(..))
     }
 
-    pub fn configure_anvil(&self, id: u64) -> Anvil {
+    pub fn configure_anvil(&self, id: impl Display) -> Anvil {
         let mut anvil_builder = Anvil::new()
             .chain_id(1)
             .arg("--ipc")
@@ -53,8 +55,9 @@ impl AngstromTestnetConfig {
         if let Some(config) = self.state_machine_config() {
             anvil_builder = anvil_builder.arg("--no-mining");
 
-            if let Some(start_block) = config.start_block {
+            if let Some((start_block, fork_url)) = config.fork_config() {
                 anvil_builder = anvil_builder
+                    .fork(fork_url)
                     .arg("--fork-block-number")
                     .arg(format!("{}", start_block));
             }
@@ -81,7 +84,7 @@ impl Default for AngstromTestnetConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub enum TestnetKind {
     StateMachine(StateMachineConfig),
     #[default]
@@ -93,13 +96,19 @@ impl TestnetKind {
         Self::Raw
     }
 
-    pub fn new_state_machine(start_block: Option<u64>, end_block: Option<u64>) -> Self {
-        Self::StateMachine(StateMachineConfig { start_block, end_block })
+    pub fn new_state_machine(start_block: Option<u64>, fork_url: Option<String>) -> Self {
+        Self::StateMachine(StateMachineConfig { start_block, fork_url })
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct StateMachineConfig {
     pub start_block: Option<u64>,
-    pub end_block:   Option<u64>
+    pub fork_url:    Option<String>
+}
+
+impl StateMachineConfig {
+    fn fork_config(&self) -> Option<(u64, String)> {
+        self.start_block.zip(self.fork_url.clone())
+    }
 }

@@ -144,7 +144,7 @@ mod tests {
         let anvil = AnvilStateProviderWrapper::spawn_new(AngstromTestnetConfig::default(), 0)
             .await
             .unwrap();
-        let uniswap = UniswapEnv::new(anvil.provider()).await.unwrap();
+        let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
         AngstromEnv::new(uniswap).await.unwrap();
     }
 
