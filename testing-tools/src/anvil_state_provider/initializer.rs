@@ -62,7 +62,8 @@ impl AnvilTestnetIntializer {
             .with_recommended_fillers()
             .wallet(wallet)
             .on_ipc(ipc)
-            .await?;
+            .await
+            .unwrap();
 
         let wallet_provider = AnvilWallet::new(rpc, controller_address, sk);
 
