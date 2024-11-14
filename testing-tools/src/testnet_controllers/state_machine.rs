@@ -29,7 +29,17 @@ where
         let hooks = std::mem::take(&mut self.hooks);
 
         for (i, (name, hook)) in hooks.into_iter().enumerate() {
-            Self::run_hook(unsafe { std::mem::transmute(&mut self.testnet) }, i, name, hook).await;
+            Self::run_hook(
+                unsafe {
+                    std::mem::transmute::<&mut AngstromTestnet<C>, &mut AngstromTestnet<C>>(
+                        &mut self.testnet
+                    )
+                },
+                i,
+                name,
+                hook
+            )
+            .await;
         }
     }
 

@@ -59,10 +59,7 @@ impl HookResult for eyre::Result<()> {
 
 impl HookResult for eyre::Result<bool> {
     fn is_pass(&self) -> bool {
-        match self.as_ref() {
-            Ok(true) => true,
-            _ => false
-        }
+        matches!(self.as_ref(), Ok(true))
     }
 
     fn error(&self) -> Option<&eyre::ErrReport> {

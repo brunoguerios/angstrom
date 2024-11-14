@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 #![feature(associated_type_defaults)]
 
 /// mocks utils for different modules
