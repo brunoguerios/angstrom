@@ -50,9 +50,9 @@ impl AngstromTestnetNodeInternals {
         testnet_node_id: u64,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
-        secret_key: SecretKey,
+        _secret_key: SecretKey,
         config: AngstromTestnetConfig,
-        initial_validators: Vec<AngstromValidator>,
+        _initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(Self, Option<ConsensusManager<PubSubFrontend>>)> {

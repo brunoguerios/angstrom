@@ -19,7 +19,7 @@ use validation::common::db::BlockStateProviderFactory;
 
 use super::{rpc_provider::RpcStateProvider, utils::AnvilWalletRpc, AnvilWallet};
 use crate::{
-    anvil_state_provider::utils::async_to_sync, contracts::environment::TestAnvilEnvironment,
+    anvil_state_provider::utils::async_to_sync,
     mocks::canon_state::AnvilConsensusCanonStateNotification,
     testnet_controllers::AngstromTestnetConfig
 };

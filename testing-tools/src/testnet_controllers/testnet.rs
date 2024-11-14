@@ -34,7 +34,7 @@ pub struct AngstromTestnet<C> {
     peers:               HashMap<u64, TestnetNode<C>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
-    initializer:         AnvilTestnetIntializer,
+    _initializer:        AnvilTestnetIntializer,
     current_max_peer_id: u64,
     config:              AngstromTestnetConfig
 }
@@ -62,7 +62,7 @@ where
             current_max_peer_id: 0,
             config: config.clone(),
             block_provider,
-            initializer
+            _initializer: initializer
         };
 
         tracing::info!("initializing testnet with {} nodes", config.intial_node_count);
