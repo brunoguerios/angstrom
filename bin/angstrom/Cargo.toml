@@ -52,7 +52,7 @@ secp256k1 = { workspace = true, features = ["serde"] }
 clap = "4.4.8"
 eyre = "0.6.9"
 revm-inspectors = "=0.5.5"
-toml = "0.8.19"
+toml.workspace = true
 
 
 [target.'cfg(unix)'.dependencies]

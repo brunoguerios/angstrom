@@ -2,19 +2,13 @@ use std::time::Duration;
 
 use angstrom_network::StromMessage;
 use reth_provider::test_utils::NoopProvider;
-use testing_tools::testnet_controllers::{AngstromTestnet, AngstromTestnetConfig, TestnetKind};
+use testing_tools::testnet_controllers::{AngstromTestnet, AngstromTestnetConfig};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 5)]
 #[serial_test::serial]
 async fn test_broadcast_order_propagation() {
     reth_tracing::init_test_tracing();
-    let config = AngstromTestnetConfig {
-        anvil_key:               7,
-        intial_node_count:       3,
-        initial_rpc_port:        5000,
-        testnet_block_time_secs: 12,
-        testnet_kind:            TestnetKind::new_raw()
-    };
+    let config = AngstromTestnetConfig::default();
     let mut testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config)
         .await
         .unwrap();
@@ -61,13 +55,7 @@ async fn test_broadcast_order_propagation() {
 #[serial_test::serial]
 async fn test_singular_order_propagation() {
     reth_tracing::init_test_tracing();
-    let config = AngstromTestnetConfig {
-        anvil_key:               7,
-        intial_node_count:       3,
-        initial_rpc_port:        5000,
-        testnet_block_time_secs: 12,
-        testnet_kind:            TestnetKind::new_raw()
-    };
+    let config = AngstromTestnetConfig::default();
 
     // connect all peers
     //

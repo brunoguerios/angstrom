@@ -31,3 +31,6 @@ pub use cache::*;
 
 pub mod swarm;
 pub use swarm::*;
+
+pub mod eth_network_builder;
+pub use eth_network_builder::*;

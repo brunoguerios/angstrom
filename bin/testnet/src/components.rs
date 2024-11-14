@@ -1,5 +1,4 @@
-//! CLI definition and entrypoint to executable
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, net::IpAddr, path::PathBuf, sync::Arc};
 
 use alloy::{
     eips::{BlockId, BlockNumberOrTag},
@@ -46,6 +45,7 @@ use reth_network_peers::pk2id;
 use reth_node_builder::{FullNode, NodeHandle};
 use reth_node_ethereum::{node::EthereumAddOns, EthereumNode};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use testing_tools::testnet_controllers::AngstromTestnetConfig;
 use tokio::sync::mpsc::{
     channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender
 };
@@ -55,61 +55,7 @@ use validation::{
     validator::{ValidationClient, ValidationRequest}
 };
 
-/// Convenience function for parsing CLI options, set up logging and run the
-/// chosen command.
-#[inline]
-pub fn run() -> eyre::Result<()> {
-    Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, args| async move {
-        let executor = builder.task_executor().clone();
-
-        if args.metrics {
-            executor.spawn_critical("metrics", init_metrics(args.metrics_port));
-            METRICS_ENABLED.set(true).unwrap();
-        } else {
-            METRICS_ENABLED.set(false).unwrap();
-        }
-
-        let secret_key = get_secret_key(&args.secret_key_location)?;
-
-        let mut network = init_network_builder(secret_key)?;
-        let protocol_handle = network.build_protocol_handler();
-        let channels = initialize_strom_handles();
-
-        // for rpc
-        let pool = channels.get_pool_handle();
-        let executor_clone = executor.clone();
-        let validation_client = ValidationClient(channels.validator_tx.clone());
-        let NodeHandle { node, node_exit_future } = builder
-            .with_types::<EthereumNode>()
-            .with_components(
-                EthereumNode::default()
-                    .components_builder()
-                    .network(AngstromNetworkBuilder::new(protocol_handle))
-            )
-            .with_add_ons::<EthereumAddOns>(Default::default())
-            .extend_rpc_modules(move |rpc_context| {
-                let order_api = OrderApi::new(pool.clone(), executor_clone, validation_client);
-                rpc_context.modules.merge_configured(order_api.into_rpc())?;
-
-                Ok(())
-            })
-            .launch()
-            .await?;
-
-        initialize_strom_components(
-            args.angstrom_addr,
-            args,
-            secret_key,
-            channels,
-            network,
-            node,
-            &executor
-        )
-        .await;
-
-        node_exit_future.await
-    })
-}
+use crate::config::AngstromTestnetCli;
 
 pub fn init_network_builder(secret_key: SecretKey) -> eyre::Result<StromNetworkBuilder> {
     let public_key = PublicKey::from_secret_key(&Secp256k1::new(), &secret_key);
@@ -185,14 +131,15 @@ pub fn initialize_strom_handles() -> StromHandles {
 
 pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeAddOns<Node>>(
     angstrom_address: Option<Address>,
-    config: AngstromConfig,
+    cli: AngstromTestnetCli,
     secret_key: SecretKey,
     handles: StromHandles,
     network_builder: StromNetworkBuilder,
     node: FullNode<Node, AddOns>,
     executor: &TaskExecutor
 ) {
-    let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
+    let angstrom_address = Address::default();
+    let node_config = AngstromTestnetConfig::load_from_config(Some(cli.node_config)).unwrap();
 
     // I am sure there is a prettier way of doing this
     let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
@@ -208,7 +155,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let block_id = provider.get_block_number().await.unwrap();
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
-            node_config.angstrom_address,
+            angstrom_address,
             BlockId::Number(BlockNumberOrTag::Number(block_id)),
             &provider
         )
@@ -243,7 +190,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     init_validation(
         RethDbWrapper::new(node.provider.clone()),
         block_height,
-        angstrom_address,
+        Some(angstrom_address),
         node.provider.canonical_state_stream(),
         uniswap_pools.clone(),
         price_generator,
@@ -259,12 +206,12 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let pool_config = PoolConfig::default();
     let order_storage = Arc::new(OrderStorage::new(&pool_config));
     let angstrom_pool_tracker =
-        AngstromPoolsTracker::new(node_config.angstrom_address, pool_config_store.clone());
+        AngstromPoolsTracker::new(angstrom_address, pool_config_store.clone());
 
     // Build our PoolManager using the PoolConfig and OrderStorage we've already
     // created
     let eth_handle = EthDataCleanser::spawn(
-        angstrom_address.unwrap_or(node_config.angstrom_address),
+        angstrom_address,
         node.provider.subscribe_to_canonical_state(),
         executor.clone(),
         handles.eth_tx,
@@ -314,54 +261,4 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         provider
     );
     let _consensus_handle = executor.spawn_critical("consensus", Box::pin(manager));
-}
-
-#[derive(Debug, Clone, Default, clap::Args)]
-pub struct AngstromConfig {
-    #[clap(long)]
-    pub mev_guard:           bool,
-    #[clap(long)]
-    pub secret_key_location: PathBuf,
-    #[clap(long)]
-    pub angstrom_addr:       Option<Address>,
-    #[clap(long)]
-    pub node_config:         PathBuf,
-    /// enables the metrics
-    #[clap(long, default_value = "false", global = true)]
-    pub metrics:             bool,
-    /// spawns the prometheus metrics exporter at the specified port
-    /// Default: 6969
-    #[clap(long, default_value = "6969", global = true)]
-    pub metrics_port:        u16
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct NodeConfig {
-    pub secret_key:       String,
-    pub angstrom_address: Address,
-    pub pools:            Vec<PoolKey>
-}
-
-impl NodeConfig {
-    pub fn load_from_config(config: Option<PathBuf>) -> Result<Self, eyre::Report> {
-        let config_path = config.ok_or_else(|| eyre::eyre!("Config path not provided"))?;
-
-        if !config_path.exists() {
-            return Err(eyre::eyre!("Config file does not exist at {:?}", config_path))
-        }
-
-        let toml_content = std::fs::read_to_string(&config_path)
-            .wrap_err_with(|| format!("Could not read config file {:?}", config_path))?;
-
-        let node_config: NodeConfig = toml::from_str(&toml_content)
-            .wrap_err_with(|| format!("Could not deserialize config file {:?}", config_path))?;
-
-        Ok(node_config)
-    }
-}
-
-async fn init_metrics(metrics_port: u16) {
-    let _ = initialize_prometheus_metrics(metrics_port)
-        .await
-        .inspect_err(|e| eprintln!("failed to start metrics endpoint - {:?}", e));
 }
