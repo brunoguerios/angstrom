@@ -27,7 +27,7 @@ async fn properly_communicates_tob_to_contract() -> eyre::Result<()> {
     let anvil = AnvilStateProviderWrapper::spawn_new_isolated()
         .await
         .unwrap();
-    let env = MockRewardEnv::with_anvil(anvil.rpc_provider())
+    let env = MockRewardEnv::with_anvil(anvil.wallet_provider())
         .await
         .unwrap();
 
