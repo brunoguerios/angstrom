@@ -68,7 +68,7 @@ impl AngstromTestnetConfig {
     }
 
     pub fn fork_block_number(&self) -> Option<u64> {
-        self.state_machine_config().map(|s| s.start_block).flatten()
+        self.state_machine_config().and_then(|s| s.start_block)
     }
 }
 

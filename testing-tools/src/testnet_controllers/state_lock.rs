@@ -99,9 +99,8 @@ where
 
     pub(crate) fn set_consensus(&self, running: bool, checked: bool) {
         if checked {
-            self.strom_consensus
-                .as_ref()
-                .map(|c| c.lock.store(running, Ordering::Relaxed));
+            if let Some(c) = self.strom_consensus
+                .as_ref() { c.lock.store(running, Ordering::Relaxed) }
         } else {
             self.strom_consensus
                 .as_ref()
@@ -206,10 +205,8 @@ where
         let span = span!(Level::TRACE, "node", id = this.node_id);
         let e = span.enter();
 
-        if this.lock.load(Ordering::Relaxed) {
-            if this.inner.lock_arc().poll_unpin(cx).is_ready() {
-                return Poll::Ready(())
-            }
+        if this.lock.load(Ordering::Relaxed) && this.inner.lock_arc().poll_unpin(cx).is_ready() {
+            return Poll::Ready(())
         }
 
         drop(e);

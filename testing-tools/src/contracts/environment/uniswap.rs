@@ -7,7 +7,7 @@ use tracing::debug;
 
 use super::TestAnvilEnvironment;
 use crate::{
-    anvil_state_provider::{AnvilStateProvider, AnvilWallet},
+    anvil_state_provider::AnvilWallet,
     contracts::DebugTransaction
 };
 

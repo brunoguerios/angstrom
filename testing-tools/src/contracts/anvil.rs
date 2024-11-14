@@ -6,7 +6,6 @@ use alloy::{
     node_bindings::{Anvil, AnvilInstance},
     providers::{
         builder,
-        ext::AnvilApi,
         fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
         Identity, IpcConnect, PendingTransaction, Provider, RootProvider
     },
@@ -17,25 +16,9 @@ use alloy::{
         Transport
     }
 };
-use alloy_primitives::{
-    aliases::{I24, U24},
-    Address, Bytes
-};
+use alloy_primitives::Address;
 use alloy_sol_types::SolCall;
-use angstrom_types::contract_bindings::angstrom::Angstrom::{AngstromInstance, PoolKey};
-use tokio::sync::broadcast;
 
-use crate::{
-    anvil_state_provider::AnvilStateProvider,
-    contracts::{
-        deploy::tokens::mint_token_pair,
-        environment::{angstrom::AngstromEnv, uniswap::UniswapEnv, TestAnvilEnvironment},
-        DebugTransaction
-    },
-    mocks::canon_state::AnvilConsensusCanonStateNotification,
-    testnet_controllers::AngstromTestnetConfig,
-    types::initial_state::InitialTestnetState
-};
 
 pub type AnvilWalletRpc = FillProvider<
     JoinFill<

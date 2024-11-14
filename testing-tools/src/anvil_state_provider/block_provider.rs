@@ -6,6 +6,12 @@ pub struct TestnetBlockProvider {
     tx: broadcast::Sender<(u64, Vec<Transaction>)>
 }
 
+impl Default for TestnetBlockProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestnetBlockProvider {
     pub fn new() -> Self {
         let (tx, _) = broadcast::channel(1000);

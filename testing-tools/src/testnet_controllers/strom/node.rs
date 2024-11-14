@@ -6,7 +6,7 @@ use std::{
 };
 
 use alloy::pubsub::PubSubFrontend;
-use alloy_primitives::{Address, Bytes};
+use alloy_primitives::Address;
 use alloy_rpc_types::Transaction;
 use angstrom::cli::StromHandles;
 use angstrom_network::{
@@ -67,7 +67,7 @@ where
             testnet_node_id,
             strom_handles,
             network.strom_handle.network_handle().clone(),
-            network.secret_key.clone(),
+            network.secret_key,
             config,
             initial_validators,
             block_rx,

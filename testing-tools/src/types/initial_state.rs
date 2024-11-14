@@ -20,6 +20,12 @@ pub struct PendingDeployedPools {
     pool_keys:   Vec<PoolKey>
 }
 
+impl Default for PendingDeployedPools {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PendingDeployedPools {
     pub fn new() -> Self {
         Self { pending_txs: Vec::new(), pool_keys: Vec::new() }

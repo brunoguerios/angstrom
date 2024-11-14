@@ -4,7 +4,6 @@ use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
     providers::{builder, ext::AnvilApi, Provider},
-    pubsub::PubSubFrontend,
     rpc::types::{anvil::MineOptions, Block},
     signers::local::PrivateKeySigner
 };
@@ -70,7 +69,7 @@ impl AnvilStateProviderWrapper {
             .arg("--disable-block-gas-limit")
             .try_spawn()?;
 
-        let endpoint = format!("/tmp/anvil.ipc");
+        let endpoint = "/tmp/anvil.ipc".to_string();
         tracing::info!(?endpoint);
         let ipc = alloy::providers::IpcConnect::new(endpoint.to_string());
         let sk: PrivateKeySigner = anvil.keys()[7].clone().into();

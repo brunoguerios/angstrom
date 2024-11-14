@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use alloy_primitives::Address;
-use alloy_rpc_types::{BlockId, BlockNumberOrTag, Transaction};
+use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::cli::StromHandles;
 use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};

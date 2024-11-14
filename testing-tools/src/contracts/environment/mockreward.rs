@@ -18,7 +18,7 @@ use super::{
     TestAnvilEnvironment
 };
 use crate::{
-    anvil_state_provider::{AnvilStateProvider, AnvilWallet},
+    anvil_state_provider::AnvilWallet,
     contracts::{
         deploy::{mockreward::deploy_mock_rewards_manager, tokens::mint_token_pair},
         DebugTransaction

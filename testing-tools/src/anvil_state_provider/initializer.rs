@@ -32,7 +32,7 @@ use crate::{
     types::initial_state::{InitialTestnetState, PendingDeployedPools}
 };
 
-const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &'static str = "anvil_temp_deploy";
+const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "anvil_temp_deploy";
 
 pub struct AnvilTestnetIntializer {
     provider:      AnvilWallet,
@@ -82,7 +82,7 @@ impl AnvilTestnetIntializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let mut pending_state = PendingDeployedPools::new();
+        let pending_state = PendingDeployedPools::new();
 
         Ok(Self {
             provider: wallet_provider,

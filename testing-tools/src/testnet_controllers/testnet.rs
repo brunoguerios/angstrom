@@ -4,7 +4,6 @@ use std::{
 };
 
 use alloy::providers::Provider;
-use alloy_primitives::{Address, Bytes};
 use angstrom::cli::initialize_strom_handles;
 use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
@@ -392,7 +391,7 @@ where
 
     /// checks the current block number on all peers matches the expected
     pub(crate) fn check_block_numbers(&self, expected_block_num: u64) -> eyre::Result<bool> {
-        let f = self.peers.iter().map(|(_, peer)| {
+        let f = self.peers.values().map(|peer| {
             let id = peer.testnet_node_id();
             peer.state_provider()
                 .rpc_provider()
