@@ -35,6 +35,7 @@ pub struct AngstromTestnet<C> {
     peers:               HashMap<u64, TestnetNode<C>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
+    initializer:         AnvilTestnetIntializer,
     current_max_peer_id: u64,
     config:              AngstromTestnetConfig
 }
@@ -50,10 +51,9 @@ where
         + 'static
 {
     pub async fn spawn_testnet(c: C, config: AngstromTestnetConfig) -> eyre::Result<Self> {
-        let inital_angstrom_state = AnvilTestnetIntializer::new(config.clone())
-            .await?
-            .initialize()
-            .await?;
+        let mut initializer = AnvilTestnetIntializer::new(config.clone()).await?;
+        initializer.deploy_pool_full().await?;
+        let initial_state = initializer.initialize_state().await?;
 
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
@@ -62,11 +62,12 @@ where
             _dropped_peers: HashSet::new(),
             current_max_peer_id: 0,
             config: config.clone(),
-            block_provider
+            block_provider,
+            initializer
         };
 
         tracing::info!("initializing testnet with {} nodes", config.intial_node_count);
-        this.spawn_new_nodes(c, inital_angstrom_state, config.intial_node_count)
+        this.spawn_new_nodes(c, initial_state, config.intial_node_count)
             .await?;
         tracing::info!("INITIALIZED testnet with {} nodes", config.intial_node_count);
 

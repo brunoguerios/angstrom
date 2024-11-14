@@ -1,20 +1,27 @@
+use std::future::Future;
+
 use alloy::{
-    network::{Ethereum, EthereumWallet},
+    contract::{RawCallBuilder, SolCallBuilder},
+    network::{Ethereum, EthereumWallet, Network},
     node_bindings::{Anvil, AnvilInstance},
     providers::{
         builder,
         ext::AnvilApi,
         fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
-        Identity, IpcConnect, RootProvider
+        Identity, IpcConnect, PendingTransaction, Provider, RootProvider
     },
     pubsub::PubSubFrontend,
     signers::local::PrivateKeySigner,
-    transports::http::{Client, Http}
+    transports::{
+        http::{Client, Http},
+        Transport
+    }
 };
 use alloy_primitives::{
     aliases::{I24, U24},
     Address, Bytes
 };
+use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom::{AngstromInstance, PoolKey};
 use tokio::sync::broadcast;
 
@@ -95,4 +102,66 @@ pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, Anvil
     tracing::info!("connected to anvil");
 
     Ok((anvil, rpc))
+}
+
+pub(crate) trait SafeDeployPending {
+    fn deploy_pending(self) -> impl Future<Output = eyre::Result<PendingTransaction>> + Send;
+
+    fn deploy_pending_creation(
+        self,
+        nonce: u64,
+        from: Address
+    ) -> impl Future<Output = eyre::Result<(PendingTransaction, Address)>> + Send;
+}
+
+impl<T, P, N> SafeDeployPending for RawCallBuilder<T, P, N>
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    N: Network
+{
+    async fn deploy_pending(self) -> eyre::Result<PendingTransaction> {
+        Ok(self.gas(50_000_000_u64).send().await?.register().await?)
+    }
+
+    async fn deploy_pending_creation(
+        mut self,
+        nonce: u64,
+        from: Address
+    ) -> eyre::Result<(PendingTransaction, Address)> {
+        self = self.nonce(nonce).from(from);
+        let address = self
+            .calculate_create_address()
+            .expect("transaction is not a contract deployment");
+
+        let pending = self.deploy_pending().await?;
+
+        Ok((pending, address))
+    }
+}
+
+impl<T, P, C, N> SafeDeployPending for SolCallBuilder<T, P, C, N>
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    C: SolCall + Send + Sync,
+    N: Network
+{
+    async fn deploy_pending(self) -> eyre::Result<PendingTransaction> {
+        Ok(self.gas(50_000_000_u64).send().await?.register().await?)
+    }
+
+    async fn deploy_pending_creation(
+        mut self,
+        nonce: u64,
+        from: Address
+    ) -> eyre::Result<(PendingTransaction, Address)> {
+        self = self.nonce(nonce).from(from);
+        let address = self
+            .calculate_create_address()
+            .expect("transaction is not a contract deployment");
+        let pending = self.deploy_pending().await?;
+
+        Ok((pending, address))
+    }
 }
