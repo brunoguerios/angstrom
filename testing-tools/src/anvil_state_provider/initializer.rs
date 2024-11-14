@@ -25,8 +25,7 @@ use crate::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
             TestAnvilEnvironment
-        },
-        DebugTransaction
+        }
     },
     testnet_controllers::AngstromTestnetConfig,
     type_generator::amm::AMMSnapshotBuilder,
@@ -48,11 +47,10 @@ impl AnvilTestnetIntializer {
     pub async fn new(config: AngstromTestnetConfig) -> eyre::Result<Self> {
         let anvil = config
             .configure_anvil(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT)
-            .try_spawn()
-            .unwrap();
+            .try_spawn()?;
 
         let ipc = alloy::providers::IpcConnect::new(format!(
-            "/tmp/{ANVIL_TESTNET_DEPLOYMENT_ENDPOINT}.ipc"
+            "/tmp/anvil_{ANVIL_TESTNET_DEPLOYMENT_ENDPOINT}.ipc"
         ));
         let sk: PrivateKeySigner = anvil.keys()[config.anvil_key].clone().into();
         let controller_address = anvil.addresses()[config.anvil_key];
@@ -62,13 +60,12 @@ impl AnvilTestnetIntializer {
             .with_recommended_fillers()
             .wallet(wallet)
             .on_ipc(ipc)
-            .await
-            .unwrap();
+            .await?;
 
         let wallet_provider = AnvilWallet::new(rpc, controller_address, sk);
 
-        let uniswap_env = UniswapEnv::new(wallet_provider.clone()).await.unwrap();
-        let angstrom_env = AngstromEnv::new(uniswap_env).await.unwrap();
+        let uniswap_env = UniswapEnv::new(wallet_provider.clone()).await?;
+        let angstrom_env = AngstromEnv::new(uniswap_env).await?;
         let angstrom =
             AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
         let pool_gate =
