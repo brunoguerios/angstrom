@@ -14,7 +14,8 @@ use angstrom_network::{
 };
 use angstrom_types::{
     primitive::PeerId,
-    sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues}
+    sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
+    testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager};
 use parking_lot::RwLock;
@@ -27,18 +28,17 @@ use reth_network::{
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 
-use super::strom_internals::AngstromTestnetNodeInternals;
+use super::strom_internals::AngstromDevnetNodeInternals;
 use crate::{
     anvil_state_provider::AnvilStateProviderWrapper,
-    network::{EthPeerPool, TestnetNodeNetwork},
-    testnet_controllers::{AngstromTestnetConfig, TestnetStateFutureLock},
-    types::initial_state::InitialTestnetState
+    controllers::{devnet::DevnetConfig, TestnetStateFutureLock},
+    network::{EthPeerPool, TestnetNodeNetwork}
 };
 
 pub struct TestnetNode<C> {
-    testnet_node_id: u64,
+    testnet_node_id: Option<u64>,
     network:         TestnetNodeNetwork,
-    strom:           AngstromTestnetNodeInternals,
+    strom:           AngstromDevnetNodeInternals,
     state_lock:      TestnetStateFutureLock<C, PubSubFrontend>
 }
 
@@ -53,17 +53,17 @@ where
         + 'static
 {
     pub async fn new(
-        testnet_node_id: u64,
+        testnet_node_id: Option<u64>,
         network: TestnetNodeNetwork,
         strom_network_manager: StromNetworkManager<C>,
         eth_peer: Peer<C>,
         strom_handles: StromHandles,
-        config: AngstromTestnetConfig,
+        config: DevnetConfig,
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<Self> {
-        let (strom, consensus) = AngstromTestnetNodeInternals::new(
+        let (strom, consensus) = AngstromDevnetNodeInternals::new(
             testnet_node_id,
             strom_handles,
             network.strom_handle.network_handle().clone(),
@@ -78,7 +78,7 @@ where
         tracing::debug!("created strom internals");
 
         let state_lock = TestnetStateFutureLock::new(
-            testnet_node_id,
+            testnet_node_id.unwrap_or_default(),
             eth_peer,
             strom_network_manager,
             consensus
@@ -90,7 +90,7 @@ where
     /// General
     /// -------------------------------------
 
-    pub fn testnet_node_id(&self) -> u64 {
+    pub fn testnet_node_id(&self) -> Option<u64> {
         self.testnet_node_id
     }
 
@@ -255,7 +255,8 @@ where
         });
 
         let connections_expected = other_peers.len();
-        self.initialize_connections(connections_expected).await;
+        self.initialize_internal_connections(connections_expected)
+            .await;
     }
 
     pub fn pre_post_network_event_channel_swap<E>(
@@ -308,7 +309,7 @@ where
     //     Ok(())
     // }
 
-    pub(crate) async fn initialize_connections(&mut self, connections_needed: usize) {
+    pub(crate) async fn initialize_internal_connections(&mut self, connections_needed: usize) {
         tracing::debug!(pubkey = ?self.network.pubkey, "attempting connections to {connections_needed} peers");
         let mut last_peer_count = 0;
         std::future::poll_fn(|cx| loop {

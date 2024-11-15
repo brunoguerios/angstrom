@@ -3,7 +3,6 @@ mod strom_peer;
 use std::{collections::HashSet, sync::Arc};
 
 use alloy_chains::Chain;
-use alloy_primitives::Address;
 use angstrom_network::{
     manager::StromConsensusEvent, state::StromState, NetworkOrderEvent, StatusState,
     StromNetworkManager, StromProtocolHandler, StromSessionManager, Swarm, VerificationSidecar
@@ -64,8 +63,7 @@ impl TestnetNodeNetwork {
             secret_key:   sk
         };
 
-        let validators: HashSet<Address> = HashSet::default();
-        let validators = Arc::new(RwLock::new(validators));
+        let validators = Arc::new(RwLock::new(HashSet::default()));
 
         let protocol = StromProtocolHandler::new(
             MeteredPollSender::new(PollSender::new(session_manager_tx), "session manager"),
@@ -83,6 +81,7 @@ impl TestnetNodeNetwork {
         eth_peer.network_mut().add_rlpx_sub_protocol(protocol);
 
         let strom_handle = StromNetworkPeer::new(&strom_network);
+
         let eth_handle = EthNetworkPeer::new(&eth_peer);
 
         (

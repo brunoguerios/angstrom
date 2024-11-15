@@ -1,7 +1,7 @@
 use devnet::cli::Cli;
 use reth_provider::test_utils::NoopProvider;
 use testing_tools::{
-    testnet_controllers::AngstromTestnet,
+    controllers::AngstromDevnet,
     types::{actions::WithAction, checked_actions::WithCheckedAction, checks::WithCheck}
 };
 use tracing::{debug, info};
@@ -10,7 +10,7 @@ use tracing::{debug, info};
 async fn main() -> eyre::Result<()> {
     let config = Cli::build_config();
 
-    let mut testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config)
+    let mut testnet = AngstromDevnet::spawn_devnet(NoopProvider::default(), config)
         .await?
         .as_state_machine();
 

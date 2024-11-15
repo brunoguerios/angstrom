@@ -19,9 +19,8 @@ use validation::common::db::BlockStateProviderFactory;
 
 use super::{rpc_provider::RpcStateProvider, utils::AnvilWalletRpc, AnvilWallet};
 use crate::{
-    anvil_state_provider::utils::async_to_sync,
-    mocks::canon_state::AnvilConsensusCanonStateNotification,
-    testnet_controllers::AngstromTestnetConfig
+    anvil_state_provider::utils::async_to_sync, controllers::devnet::DevnetConfig,
+    mocks::canon_state::AnvilConsensusCanonStateNotification
 };
 
 #[derive(Debug)]
@@ -30,12 +29,12 @@ pub struct AnvilStateProviderWrapper {
     _instance: AnvilInstance
 }
 impl AnvilStateProviderWrapper {
-    pub async fn spawn_new(config: AngstromTestnetConfig, id: u64) -> eyre::Result<Self> {
+    pub async fn spawn_new(config: DevnetConfig, id: Option<u64>) -> eyre::Result<Self> {
         let anvil = config.configure_anvil(id).try_spawn()?;
 
-        let endpoint = format!("/tmp/anvil_{id}.ipc");
+        let endpoint = config.anvil_endpoint(id);
         tracing::info!(?endpoint);
-        let ipc = alloy::providers::IpcConnect::new(endpoint.to_string());
+        let ipc = alloy::providers::IpcConnect::new(endpoint);
         let sk: PrivateKeySigner = anvil.keys()[config.anvil_key].clone().into();
         let controller_address = anvil.addresses()[config.anvil_key];
 
@@ -69,9 +68,7 @@ impl AnvilStateProviderWrapper {
             .arg("--disable-block-gas-limit")
             .try_spawn()?;
 
-        let endpoint = "/tmp/anvil.ipc".to_string();
-        tracing::info!(?endpoint);
-        let ipc = alloy::providers::IpcConnect::new(endpoint.to_string());
+        let ipc = alloy::providers::IpcConnect::new("/tmp/anvil.ipc".to_string());
         let sk: PrivateKeySigner = anvil.keys()[7].clone().into();
         let controller_address = anvil.addresses()[7];
 

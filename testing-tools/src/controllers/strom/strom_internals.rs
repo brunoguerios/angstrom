@@ -9,7 +9,8 @@ use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetwor
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
     contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice,
-    primitive::UniswapPoolRegistry, sol_bindings::testnet::TestnetHub
+    primitive::UniswapPoolRegistry, sol_bindings::testnet::TestnetHub,
+    testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager};
 use futures::{StreamExt, TryStreamExt};
@@ -30,12 +31,12 @@ use crate::{
         utils::StromContractInstance, AnvilEthDataCleanser, AnvilStateProvider,
         AnvilStateProviderWrapper
     },
-    testnet_controllers::AngstromTestnetConfig,
-    types::{initial_state::InitialTestnetState, SendingStromHandles},
+    controllers::devnet::DevnetConfig,
+    types::SendingStromHandles,
     validation::TestOrderValidator
 };
 
-pub struct AngstromTestnetNodeInternals {
+pub struct AngstromDevnetNodeInternals {
     pub rpc_port:         u64,
     pub state_provider:   AnvilStateProviderWrapper,
     pub order_storage:    Arc<OrderStorage>,
@@ -45,13 +46,13 @@ pub struct AngstromTestnetNodeInternals {
     pub validator:        TestOrderValidator<AnvilStateProvider>
 }
 
-impl AngstromTestnetNodeInternals {
+impl AngstromDevnetNodeInternals {
     pub async fn new(
-        testnet_node_id: u64,
+        testnet_node_id: Option<u64>,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
         _secret_key: SecretKey,
-        config: AngstromTestnetConfig,
+        config: DevnetConfig,
         _initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState

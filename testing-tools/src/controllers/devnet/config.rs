@@ -3,7 +3,7 @@ use std::fmt::Display;
 use alloy::node_bindings::Anvil;
 
 #[derive(Debug, Clone)]
-pub struct AngstromTestnetConfig {
+pub struct DevnetConfig {
     pub anvil_key:         usize,
     pub intial_node_count: u64,
     pub initial_rpc_port:  u16,
@@ -12,7 +12,7 @@ pub struct AngstromTestnetConfig {
     pub fork_url:          Option<String>
 }
 
-impl AngstromTestnetConfig {
+impl DevnetConfig {
     pub fn new(
         anvil_key: usize,
         intial_node_count: u64,
@@ -24,8 +24,12 @@ impl AngstromTestnetConfig {
         Self { anvil_key, intial_node_count, initial_rpc_port, testnet_kind, start_block, fork_url }
     }
 
-    pub fn rpc_port_with_node_id(&self, node_id: u64) -> u64 {
-        self.initial_rpc_port as u64 + node_id
+    pub fn rpc_port_with_node_id(&self, node_id: Option<u64>) -> u64 {
+        if let Some(id) = node_id {
+            self.initial_rpc_port as u64 + id
+        } else {
+            self.initial_rpc_port as u64
+        }
     }
 
     pub fn is_devnet(&self) -> bool {
@@ -33,24 +37,37 @@ impl AngstromTestnetConfig {
     }
 
     pub fn is_testnet(&self) -> bool {
-        matches!(self.testnet_kind, TestnetKind::Testnet)
+        matches!(self.testnet_kind, TestnetKind::Testnet { .. })
     }
 
-    pub fn configure_anvil(&self, id: impl Display) -> Anvil {
+    pub fn anvil_endpoint(&self, node_id: Option<impl Display>) -> String {
+        if self.is_devnet() {
+            format!("/tmp/anvil_{}.ipc", node_id.unwrap())
+        } else {
+            format!("/tmp/anvil.ipc")
+        }
+    }
+
+    pub fn configure_anvil(&self, node_id: Option<impl Display>) -> Anvil {
         let mut anvil_builder = Anvil::new()
             .chain_id(1)
             .arg("--ipc")
-            .arg(format!("/tmp/anvil_{id}.ipc"))
+            .arg(self.anvil_endpoint(node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            .arg("--disable-block-gas-limit")
-            .arg("--no-mining");
+            .arg("--disable-block-gas-limit");
+
+        if self.is_devnet() {
+            anvil_builder = anvil_builder.arg("--no-mining");
+        }
 
         if let Some((start_block, fork_url)) = self.fork_config() {
             anvil_builder = anvil_builder
                 .fork(fork_url)
                 .arg("--fork-block-number")
                 .arg(format!("{}", start_block));
+        } else if self.is_testnet() {
+            panic!("fork url and start block must be specified in testnet mode")
         }
 
         anvil_builder
@@ -65,7 +82,7 @@ impl AngstromTestnetConfig {
     }
 }
 
-impl Default for AngstromTestnetConfig {
+impl Default for DevnetConfig {
     fn default() -> Self {
         Self {
             anvil_key:         7,
@@ -82,7 +99,9 @@ impl Default for AngstromTestnetConfig {
 pub enum TestnetKind {
     #[default]
     Devnet,
-    Testnet
+    Testnet {
+        is_leader: bool
+    }
 }
 
 impl TestnetKind {
@@ -90,7 +109,7 @@ impl TestnetKind {
         Self::Devnet
     }
 
-    pub fn new_testnet() -> Self {
-        Self::Testnet
+    pub fn new_testnet(is_leader: bool) -> Self {
+        Self::Testnet { is_leader }
     }
 }

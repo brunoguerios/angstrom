@@ -1,16 +1,18 @@
+mod config;
 use std::{
     collections::{HashMap, HashSet},
     future::Future
 };
-
+mod state_machine;
 use alloy::providers::Provider;
 use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
-use angstrom_types::{primitive::PeerId, sol_bindings::grouped_orders::AllOrders};
+use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
+pub use config::*;
 use consensus::AngstromValidator;
-use futures::{StreamExt, TryFutureExt};
+use futures::{FutureExt, StreamExt, TryFutureExt};
 use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
@@ -19,27 +21,27 @@ use reth_metrics::common::mpsc::{
 use reth_network_peers::pk2id;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use secp256k1::{PublicKey, SecretKey};
+pub use state_machine::*;
 use tracing::{instrument, span, Instrument, Level};
 
-use super::{utils::generate_node_keys, StateMachineTestnet};
+use super::utils::generate_node_keys;
 use crate::{
     anvil_state_provider::{utils::async_to_sync, AnvilTestnetIntializer, TestnetBlockProvider},
-    network::TestnetNodeNetwork,
-    testnet_controllers::{strom::TestnetNode, AngstromTestnetConfig},
-    types::initial_state::InitialTestnetState
+    controllers::strom::TestnetNode,
+    network::TestnetNodeNetwork
 };
 
-pub struct AngstromTestnet<C> {
+pub struct AngstromDevnet<C> {
     block_provider:      TestnetBlockProvider,
     peers:               HashMap<u64, TestnetNode<C>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
     _initializer:        AnvilTestnetIntializer,
     current_max_peer_id: u64,
-    config:              AngstromTestnetConfig
+    config:              DevnetConfig
 }
 
-impl<C> AngstromTestnet<C>
+impl<C> AngstromDevnet<C>
 where
     C: BlockReader
         + HeaderProvider
@@ -49,7 +51,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    pub async fn spawn_testnet(c: C, config: AngstromTestnetConfig) -> eyre::Result<Self> {
+    pub async fn spawn_devnet(c: C, config: DevnetConfig) -> eyre::Result<Self> {
         let mut initializer = AnvilTestnetIntializer::new(config.clone()).await?;
         initializer.deploy_pool_full().await?;
         let initial_state = initializer.initialize_state().await?;
@@ -73,8 +75,8 @@ where
         Ok(this)
     }
 
-    pub fn as_state_machine<'a>(self) -> StateMachineTestnet<'a, C> {
-        StateMachineTestnet::new(self)
+    pub fn as_state_machine<'a>(self) -> DevnetStateMachine<'a, C> {
+        DevnetStateMachine::new(self)
     }
 
     async fn spawn_new_nodes(
@@ -91,33 +93,43 @@ where
 
         for (pk, sk) in keys {
             let node_id = self.incr_peer_id();
-            self.initialize_new_node(
-                c.clone(),
-                node_id,
-                pk,
-                sk,
-                initial_validators.clone(),
-                inital_angstrom_state.clone()
-            )
-            .await?;
+            let mut node = self
+                .initialize_new_node(
+                    c.clone(),
+                    Some(node_id),
+                    pk,
+                    sk,
+                    initial_validators.clone(),
+                    inital_angstrom_state.clone()
+                )
+                .await?;
+
+            node.connect_to_all_peers(&mut self.peers).await;
+            tracing::debug!("connected to all peers");
+
+            self.peers.insert(node_id, node);
+
+            if node_id != 0 {
+                self.single_peer_update_state(0, node_id).await?;
+            }
         }
 
         Ok(())
     }
 
     #[instrument(name = "node", skip(self, node_id, c, pk, sk, initial_validators, inital_angstrom_state), fields(id = node_id))]
-    async fn initialize_new_node(
+    pub async fn initialize_new_node(
         &mut self,
         c: C,
-        node_id: u64,
+        node_id: Option<u64>,
         pk: PublicKey,
         sk: SecretKey,
         initial_validators: Vec<AngstromValidator>,
         inital_angstrom_state: InitialTestnetState
-    ) -> eyre::Result<PeerId> {
+    ) -> eyre::Result<TestnetNode<C>> {
         tracing::info!("spawning node");
         let strom_handles = initialize_strom_handles();
-        let (strom_network, eth_peer, strom_network_manager) =
+        let (strom_network, mut eth_peer, mut strom_network_manager) =
             TestnetNodeNetwork::new_fully_configed(
                 c,
                 pk,
@@ -127,7 +139,31 @@ where
             )
             .await;
 
-        let mut node = TestnetNode::new(
+        if self.config.is_testnet() {
+            let connections_needed = initial_validators.len();
+            tracing::debug!(pubkey = ?strom_network.pubkey(), "attempting connections to {connections_needed} peers");
+            let mut last_peer_count = 0;
+            std::future::poll_fn(|cx| loop {
+                if eth_peer.poll_unpin(cx).is_ready()
+                    || strom_network_manager.poll_unpin(cx).is_ready()
+                {
+                    panic!("peer connection failed");
+                }
+
+                let peer_cnt = strom_network.strom_handle.peer_count();
+                if last_peer_count != peer_cnt {
+                    tracing::trace!("connected to {peer_cnt}/{connections_needed} peers");
+                    last_peer_count = peer_cnt;
+                }
+
+                if connections_needed == peer_cnt {
+                    return std::task::Poll::Ready(())
+                }
+            })
+            .await;
+        }
+
+        Ok(TestnetNode::new(
             node_id,
             strom_network,
             strom_network_manager,
@@ -138,20 +174,7 @@ where
             self.block_provider.subscribe_to_new_blocks(),
             inital_angstrom_state
         )
-        .await?;
-        node.connect_to_all_peers(&mut self.peers).await;
-
-        tracing::debug!("connected to all peers");
-
-        let peer_id = node.peer_id();
-
-        self.peers.insert(node_id, node);
-
-        if node_id != 0 {
-            self.single_peer_update_state(0, node_id).await?;
-        }
-
-        Ok(peer_id)
+        .await?)
     }
 
     /// increments the `current_max_peer_id` and returns the previous value
@@ -392,7 +415,7 @@ where
     /// checks the current block number on all peers matches the expected
     pub(crate) fn check_block_numbers(&self, expected_block_num: u64) -> eyre::Result<bool> {
         let f = self.peers.values().map(|peer| {
-            let id = peer.testnet_node_id();
+            let id = peer.testnet_node_id().unwrap();
             peer.state_provider()
                 .rpc_provider()
                 .get_block_number()
@@ -406,24 +429,3 @@ where
         Ok(blocks.into_iter().all(|(_, b)| b == expected_block_num))
     }
 }
-
-/*
-
-
-Protocol Description
-The consensus mechanism operates in two primary rounds:
-Round 1 (Bid Submission):
-Before time T1, each validator: a) Signs the highest top-of-block (ToB) bid they've received. b) signs the set of all rest-of-bundle (RoB) transactions they've seen. c) Gossips both the signed ToB bid and the signed set of RoB transactions to all other validators.
-Round 2 (Bid Aggregation and Selection):
-Before time T2 (can be done immediately after T1), each validator: a) Reviews all signed ToB bids received before T1. b) Selects the transaction with the highest ToB bribe. c) Creates a de-duplicated set of all RoB transactions that execute at the batch uniform clearing price. d) Sends this aggregated information to the designated leader.
-Leader Action:
-Upon receiving 2f+1 (two-thirds majority plus one) Round 2 messages, the leader: a) Selects the highest ToB bid among all received messages. b) Finalizes the RoB transaction set based on the uniform clearing price algorithm. c) Constructs the final bundle combining the winning ToB bid and the RoB transaction set.
-Post-Consensus Verification:
-Asynchronously, after the main consensus rounds: a) Validators gossip a complete list of all bids and transactions they observed during Round 1. b) This information is used to verify the integrity of the process and detect any violations.
-Faults
-The protocol defines several fault conditions that can result in penalties for validators:
-Equivocation Fault:
-Occurs when a validator sends conflicting ToB bids or RoB transaction sets to different validators in Round 1.
-Easily provable and subject to severe penalties, potentially including full stake slashing.
-
-*/

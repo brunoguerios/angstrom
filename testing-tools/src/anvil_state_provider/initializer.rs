@@ -15,7 +15,8 @@ use angstrom_types::{
         mintable_mock_erc_20::MintableMockERC20,
         pool_gate::PoolGate::PoolGateInstance
     },
-    matching::SqrtPriceX96
+    matching::SqrtPriceX96,
+    testnet::InitialTestnetState
 };
 
 use super::{utils::AnvilWalletRpc, AnvilWallet};
@@ -28,8 +29,8 @@ use crate::{
             TestAnvilEnvironment
         }
     },
-    testnet_controllers::AngstromTestnetConfig,
-    types::initial_state::{InitialTestnetState, PendingDeployedPools}
+    controllers::devnet::DevnetConfig,
+    types::initial_state::PendingDeployedPools
 };
 
 const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "anvil_temp_deploy";
@@ -45,14 +46,14 @@ pub struct AnvilTestnetIntializer {
 }
 
 impl AnvilTestnetIntializer {
-    pub async fn new(config: AngstromTestnetConfig) -> eyre::Result<Self> {
+    pub async fn new(config: DevnetConfig) -> eyre::Result<Self> {
         let anvil = config
-            .configure_anvil(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT)
+            .configure_anvil(Some(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT))
             .try_spawn()?;
 
-        let ipc = alloy::providers::IpcConnect::new(format!(
-            "/tmp/anvil_{ANVIL_TESTNET_DEPLOYMENT_ENDPOINT}.ipc"
-        ));
+        let ipc = alloy::providers::IpcConnect::new(
+            config.anvil_endpoint(Some(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT))
+        );
         let sk: PrivateKeySigner = anvil.keys()[config.anvil_key].clone().into();
         let controller_address = anvil.addresses()[config.anvil_key];
 
@@ -183,7 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_can_deploy() {
-        let config = AngstromTestnetConfig::default();
+        let config = DevnetConfig::default();
         let mut initializer = AnvilTestnetIntializer::new(config).await.unwrap();
         initializer.deploy_pool_full().await.unwrap();
 

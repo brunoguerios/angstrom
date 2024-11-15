@@ -3,15 +3,15 @@ use std::{future::Future, pin::Pin};
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
-use super::AngstromTestnet;
+use super::AngstromDevnet;
 use crate::types::{HookResult, StateMachineHook};
 
-pub struct StateMachineTestnet<'a, C> {
-    pub(crate) testnet: AngstromTestnet<C>,
+pub struct DevnetStateMachine<'a, C> {
+    pub(crate) testnet: AngstromDevnet<C>,
     pub(crate) hooks:   Vec<(&'static str, StateMachineHook<'a, C>)>
 }
 
-impl<'a, C> StateMachineTestnet<'a, C>
+impl<'a, C> DevnetStateMachine<'a, C>
 where
     C: BlockReader
         + HeaderProvider
@@ -21,7 +21,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    pub(crate) fn new(testnet: AngstromTestnet<C>) -> Self {
+    pub(crate) fn new(testnet: AngstromDevnet<C>) -> Self {
         Self { testnet, hooks: Vec::new() }
     }
 
@@ -31,7 +31,7 @@ where
         for (i, (name, hook)) in hooks.into_iter().enumerate() {
             Self::run_hook(
                 unsafe {
-                    std::mem::transmute::<&mut AngstromTestnet<C>, &mut AngstromTestnet<C>>(
+                    std::mem::transmute::<&mut AngstromDevnet<C>, &mut AngstromDevnet<C>>(
                         &mut self.testnet
                     )
                 },
@@ -44,7 +44,7 @@ where
     }
 
     async fn run_hook(
-        testnet: &'a mut AngstromTestnet<C>,
+        testnet: &'a mut AngstromDevnet<C>,
         i: usize,
         name: &'static str,
         hook: StateMachineHook<'a, C>
@@ -60,7 +60,7 @@ where
 
     pub(crate) fn add_check<F>(&mut self, check_name: &'static str, check: F)
     where
-        F: Fn(&mut AngstromTestnet<C>) -> eyre::Result<bool> + 'static
+        F: Fn(&mut AngstromDevnet<C>) -> eyre::Result<bool> + 'static
     {
         self.hooks
             .push((check_name, StateMachineHook::Check(Box::new(check))))
@@ -69,7 +69,7 @@ where
     pub(crate) fn add_action<F>(&mut self, action_name: &'static str, action: F)
     where
         F: FnOnce(
-                &'a mut AngstromTestnet<C>
+                &'a mut AngstromDevnet<C>
             ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
             + 'static
     {
@@ -83,7 +83,7 @@ where
         checked_action: F
     ) where
         F: FnOnce(
-                &'a mut AngstromTestnet<C>
+                &'a mut AngstromDevnet<C>
             )
                 -> Pin<Box<dyn Future<Output = eyre::Result<bool>> + Send + Sync + 'a>>
             + 'static

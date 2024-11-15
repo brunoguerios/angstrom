@@ -9,3 +9,5 @@ pub mod pair_with_price;
 pub mod primitive;
 pub mod reth_db_wrapper;
 pub mod sol_bindings;
+#[cfg(feature = "testnet")]
+pub mod testnet;

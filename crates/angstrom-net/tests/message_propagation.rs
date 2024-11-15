@@ -2,14 +2,14 @@ use std::time::Duration;
 
 use angstrom_network::StromMessage;
 use reth_provider::test_utils::NoopProvider;
-use testing_tools::testnet_controllers::{AngstromTestnet, AngstromTestnetConfig};
+use testing_tools::controllers::{AngstromDevnet, DevnetConfig};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 5)]
 #[serial_test::serial]
 async fn test_broadcast_order_propagation() {
     reth_tracing::init_test_tracing();
-    let config = AngstromTestnetConfig::default();
-    let mut testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config)
+    let config = DevnetConfig::default();
+    let mut testnet = AngstromDevnet::spawn_devnet(NoopProvider::default(), config)
         .await
         .unwrap();
 
@@ -55,13 +55,13 @@ async fn test_broadcast_order_propagation() {
 #[serial_test::serial]
 async fn test_singular_order_propagation() {
     reth_tracing::init_test_tracing();
-    let config = AngstromTestnetConfig::default();
+    let config = DevnetConfig::default();
 
     // connect all peers
     //
     let testnet = tokio::time::timeout(
         Duration::from_secs(30),
-        AngstromTestnet::spawn_testnet(NoopProvider::default(), config)
+        AngstromDevnet::spawn_devnet(NoopProvider::default(), config)
     )
     .await;
     assert!(matches!(testnet, Ok(Ok(_))), "failed to connect all peers within 30 seconds");

@@ -10,7 +10,7 @@ exclude.workspace = true
 
 [dependencies]
 consensus.workspace = true
-angstrom-types.workspace = true
+angstrom-types = { workspace = true, features = ["testnet"] }
 angstrom-utils.workspace = true
 angstrom-network.workspace = true
 angstrom-eth.workspace = true

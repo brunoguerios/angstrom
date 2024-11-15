@@ -9,7 +9,7 @@ use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use crate::{
-    testnet_controllers::{AngstromTestnet, StateMachineTestnet},
+    controllers::devnet::{AngstromDevnet, DevnetStateMachine},
     types::StateMachineCheckedActionHookFn
 };
 
@@ -32,7 +32,7 @@ where
     fn send_prepropose(&mut self, preproposal: PreProposal);
 }
 
-impl<'a, C> WithCheckedAction<'a, C> for StateMachineTestnet<'a, C>
+impl<'a, C> WithCheckedAction<'a, C> for DevnetStateMachine<'a, C>
 where
     C: BlockReader
         + HeaderProvider
@@ -43,7 +43,7 @@ where
         + 'static
 {
     fn send_pooled_orders(&mut self, orders: Vec<AllOrders>) {
-        let f = |testnet: &'a mut AngstromTestnet<C>| {
+        let f = |testnet: &'a mut AngstromDevnet<C>| {
             pin_action(testnet.broadcast_orders_message(
                 None,
                 StromMessage::PropagatePooledOrders(orders.clone()),
@@ -54,7 +54,7 @@ where
     }
 
     fn send_propose(&mut self, proposal: Proposal) {
-        let f = |testnet: &'a mut AngstromTestnet<C>| {
+        let f = |testnet: &'a mut AngstromDevnet<C>| {
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::Propose(proposal.clone()),
@@ -65,7 +65,7 @@ where
     }
 
     fn send_prepropose(&mut self, preproposal: PreProposal) {
-        let f = |testnet: &'a mut AngstromTestnet<C>| {
+        let f = |testnet: &'a mut AngstromDevnet<C>| {
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::PrePropose(preproposal.clone()),

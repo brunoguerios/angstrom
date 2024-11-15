@@ -2,7 +2,7 @@ use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use crate::{
-    testnet_controllers::{AngstromTestnet, StateMachineTestnet},
+    controllers::devnet::{AngstromDevnet, DevnetStateMachine},
     types::StateMachineCheckHookFn
 };
 
@@ -21,7 +21,7 @@ where
     fn check_block(&mut self, block_number: u64);
 }
 
-impl<'a, C> WithCheck<C> for StateMachineTestnet<'a, C>
+impl<'a, C> WithCheck<C> for DevnetStateMachine<'a, C>
 where
     C: BlockReader
         + HeaderProvider
@@ -32,7 +32,7 @@ where
         + 'static
 {
     fn check_block(&mut self, block_number: u64) {
-        let f = move |testnet: &mut AngstromTestnet<C>| testnet.check_block_numbers(block_number);
+        let f = move |testnet: &mut AngstromDevnet<C>| testnet.check_block_numbers(block_number);
         self.add_check("check block", f);
     }
 }

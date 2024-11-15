@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser};
-use testing_tools::testnet_controllers::{AngstromTestnetConfig, TestnetKind};
+use testing_tools::controllers::{DevnetConfig, TestnetKind};
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
@@ -39,17 +39,18 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn build_config() -> AngstromTestnetConfig {
+    pub fn build_config() -> DevnetConfig {
         let this = Self::parse();
         this.init_tracing();
 
-        AngstromTestnetConfig {
-            anvil_key:               this.anvil_key as usize,
-            intial_node_count:       this.nodes_in_network,
-            initial_rpc_port:        this.starting_port,
-            testnet_block_time_secs: this.testnet_block_time_secs,
-            testnet_kind:            TestnetKind::new_state_machine(None, None)
-        }
+        DevnetConfig::new(
+            this.anvil_key as usize,
+            this.nodes_in_network,
+            this.starting_port,
+            TestnetKind::new_devnet(),
+            None,
+            None
+        )
     }
 
     fn init_tracing(&self) {

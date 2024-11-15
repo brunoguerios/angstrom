@@ -4,7 +4,7 @@ use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use crate::{
-    testnet_controllers::{AngstromTestnet, StateMachineTestnet},
+    controllers::devnet::{AngstromDevnet, DevnetStateMachine},
     types::StateMachineActionHookFn
 };
 
@@ -23,7 +23,7 @@ where
     fn advance_block(&mut self);
 }
 
-impl<'a, C> WithAction<'a, C> for StateMachineTestnet<'a, C>
+impl<'a, C> WithAction<'a, C> for DevnetStateMachine<'a, C>
 where
     C: BlockReader
         + HeaderProvider
@@ -34,7 +34,7 @@ where
         + 'static
 {
     fn advance_block(&mut self) {
-        let f = |testnet: &'a mut AngstromTestnet<C>| pin_action(testnet.all_peers_update_state(0));
+        let f = |testnet: &'a mut AngstromDevnet<C>| pin_action(testnet.all_peers_update_state(0));
         self.add_action("advance block", f);
     }
 }

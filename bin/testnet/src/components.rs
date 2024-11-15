@@ -1,4 +1,4 @@
-use std::{collections::HashSet, net::IpAddr, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
 use alloy::{
     eips::{BlockId, BlockNumberOrTag},
@@ -7,45 +7,35 @@ use alloy::{
     signers::{k256::ecdsa::SigningKey, local::LocalSigner}
 };
 use alloy_chains::Chain;
-use alloy_primitives::{private::serde::Deserialize, Address};
+use alloy_primitives::Address;
 use angstrom_eth::{
     handle::{Eth, EthCommand},
     manager::EthDataCleanser
 };
-use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
 use angstrom_network::{
     manager::StromConsensusEvent,
     pool_manager::{OrderCommand, PoolHandle},
-    AngstromNetworkBuilder, NetworkBuilder as StromNetworkBuilder, NetworkOrderEvent,
-    PoolManagerBuilder, StatusState, VerificationSidecar
+    NetworkBuilder as StromNetworkBuilder, NetworkOrderEvent, PoolManagerBuilder, StatusState,
+    VerificationSidecar
 };
-use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
-    contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     primitive::{PeerId, UniswapPoolRegistry},
     reth_db_wrapper::RethDbWrapper
 };
-use clap::Parser;
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, Signer};
-use eyre::Context;
 use matching_engine::{self, configure_uniswap_manager};
 use order_pool::{order_storage::OrderStorage, PoolConfig, PoolManagerUpdate};
 use reth::{
     api::NodeAddOns,
-    builder::{FullNodeComponents, Node},
-    chainspec::EthereumChainSpecParser,
-    cli::Cli,
+    builder::FullNodeComponents,
     providers::{BlockNumReader, CanonStateSubscriptions},
     tasks::TaskExecutor
 };
-use reth_cli_util::get_secret_key;
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
 use reth_network_peers::pk2id;
-use reth_node_builder::{FullNode, NodeHandle};
-use reth_node_ethereum::{node::EthereumAddOns, EthereumNode};
+use reth_node_builder::FullNode;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
-use testing_tools::testnet_controllers::AngstromTestnetConfig;
 use tokio::sync::mpsc::{
     channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender
 };
@@ -55,7 +45,7 @@ use validation::{
     validator::{ValidationClient, ValidationRequest}
 };
 
-use crate::config::AngstromTestnetCli;
+use crate::config::{AngstromDevnetCli, FullTestnetNodeConfig};
 
 pub fn init_network_builder(secret_key: SecretKey) -> eyre::Result<StromNetworkBuilder> {
     let public_key = PublicKey::from_secret_key(&Secp256k1::new(), &secret_key);
@@ -130,8 +120,7 @@ pub fn initialize_strom_handles() -> StromHandles {
 }
 
 pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeAddOns<Node>>(
-    angstrom_address: Option<Address>,
-    cli: AngstromTestnetCli,
+    cli: AngstromDevnetCli,
     secret_key: SecretKey,
     handles: StromHandles,
     network_builder: StromNetworkBuilder,
@@ -139,7 +128,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     executor: &TaskExecutor
 ) {
     let angstrom_address = Address::default();
-    let node_config = AngstromTestnetConfig::load_from_config(Some(cli.node_config)).unwrap();
+    let node_config = FullTestnetNodeConfig::load_from_config(Some(cli.node_config)).unwrap();
 
     // I am sure there is a prettier way of doing this
     let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()

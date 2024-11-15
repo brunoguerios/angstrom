@@ -6,7 +6,7 @@ use eyre::Context;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Default, clap::Parser)]
-pub struct AngstromTestnetCli {
+pub struct AngstromDevnetCli {
     #[clap(long)]
     pub mev_guard:    bool,
     #[clap(long)]
@@ -20,8 +20,8 @@ pub struct AngstromTestnetCli {
     pub metrics_port: u16
 }
 
-impl AngstromTestnetCli {
-    pub async fn init_metrics(&self) {
+impl AngstromDevnetCli {
+    pub async fn init_metrics(self) {
         if self.metrics
             && initialize_prometheus_metrics(self.metrics_port)
                 .await
@@ -38,13 +38,13 @@ impl AngstromTestnetCli {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AngstromTestnetConfig {
-    pub nodes: Vec<TestnetNodeConfig>,
-    pub pools: Vec<PoolKey>
+pub(crate) struct FullTestnetNodeConfig {
+    pub(crate) nodes: Vec<TestnetNodeConfig>,
+    pub(crate) pools: Vec<PoolKey>
 }
 
-impl AngstromTestnetConfig {
-    pub fn load_from_config(config: Option<PathBuf>) -> Result<Self, eyre::Report> {
+impl FullTestnetNodeConfig {
+    pub(crate) fn load_from_config(config: Option<PathBuf>) -> Result<Self, eyre::Report> {
         let config_path = config.ok_or_else(|| eyre::eyre!("Config path not provided"))?;
 
         if !config_path.exists() {
@@ -54,7 +54,7 @@ impl AngstromTestnetConfig {
         let toml_content = std::fs::read_to_string(&config_path)
             .wrap_err_with(|| format!("Could not read config file {:?}", config_path))?;
 
-        let node_config: AngstromTestnetConfig = toml::from_str(&toml_content)
+        let node_config: Self = toml::from_str(&toml_content)
             .wrap_err_with(|| format!("Could not deserialize config file {:?}", config_path))?;
 
         Ok(node_config)
@@ -62,8 +62,8 @@ impl AngstromTestnetConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct TestnetNodeConfig {
-    pub node_id:   usize,
-    pub ip:        IpAddr,
-    pub is_leader: bool
+pub(crate) struct TestnetNodeConfig {
+    pub(crate) node_id:   usize,
+    pub(crate) ip:        IpAddr,
+    pub(crate) is_leader: bool
 }
