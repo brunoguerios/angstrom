@@ -1,4 +1,4 @@
-use std::future::IntoFuture;
+use std::{fmt::Display, future::IntoFuture};
 
 use alloy::{
     network::{Ethereum, EthereumWallet},
@@ -19,38 +19,26 @@ use validation::common::db::BlockStateProviderFactory;
 
 use super::{rpc_provider::RpcStateProvider, utils::AnvilWalletRpc, AnvilWallet};
 use crate::{
-    anvil_state_provider::utils::async_to_sync, controllers::devnet::DevnetConfig,
-    mocks::canon_state::AnvilConsensusCanonStateNotification
+    anvil_state_provider::utils::async_to_sync,
+    mocks::canon_state::AnvilConsensusCanonStateNotification, types::TestingConfig
 };
 
 #[derive(Debug)]
 pub struct AnvilStateProviderWrapper {
     provider:  AnvilStateProvider,
-    _instance: AnvilInstance
+    _instance: Option<AnvilInstance>
 }
 impl AnvilStateProviderWrapper {
-    pub async fn spawn_new(config: DevnetConfig, id: Option<u64>) -> eyre::Result<Self> {
-        let anvil = config.configure_anvil(id).try_spawn()?;
-
-        let endpoint = config.anvil_endpoint(id);
-        tracing::info!(?endpoint);
-        let ipc = alloy::providers::IpcConnect::new(endpoint);
-        let sk: PrivateKeySigner = anvil.keys()[config.anvil_key].clone().into();
-        let controller_address = anvil.addresses()[config.anvil_key];
-
-        let wallet = EthereumWallet::new(sk.clone());
-        let rpc = builder::<Ethereum>()
-            .with_recommended_fillers()
-            .wallet(wallet)
-            .on_ipc(ipc)
-            .await?;
-
-        tracing::info!("connected to anvil");
+    pub async fn spawn_new(
+        config: impl TestingConfig,
+        id: impl Display + Copy
+    ) -> eyre::Result<Self> {
+        let (rpc, anvil) = config.spawn_rpc(id).await?;
 
         let (tx, _) = broadcast::channel(1000);
 
         let provider = AnvilStateProvider {
-            provider:       AnvilWallet::new(rpc, controller_address, sk),
+            provider:       rpc,
             canon_state_tx: tx,
             canon_state:    AnvilConsensusCanonStateNotification::new()
         };
@@ -89,7 +77,7 @@ impl AnvilStateProviderWrapper {
                 canon_state_tx: tx,
                 canon_state:    AnvilConsensusCanonStateNotification::new()
             },
-            _instance: anvil
+            _instance: Some(anvil)
         })
     }
 

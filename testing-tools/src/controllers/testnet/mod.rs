@@ -1,3 +1,4 @@
+mod config;
 use std::{
     collections::{HashMap, HashSet},
     future::Future
@@ -9,6 +10,7 @@ use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
 use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
+pub use config::*;
 use consensus::AngstromValidator;
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use rand::Rng;
@@ -31,6 +33,31 @@ use crate::{
 pub struct AngstromTestnet<C> {
     block_provider: TestnetBlockProvider,
     node:           TestnetNode<C>,
-    _initializer:   AnvilTestnetIntializer,
-    config:         ()
+    leader_handle:  Option<AnvilTestnetIntializer>,
+    config:         TestnetConfig
+}
+
+impl<C> AngstromTestnet<C>
+where
+    C: BlockReader
+        + HeaderProvider
+        + ChainSpecProvider
+        + Unpin
+        + Clone
+        + ChainSpecProvider<ChainSpec: Hardforks>
+        + 'static
+{
+    pub async fn spawn_devnet(
+        c: C,
+        config: TestnetConfig,
+        initial_validators: Vec<AngstromValidator>
+    ) -> eyre::Result<Self> {
+        // let mut initializer = AnvilTestnetIntializer::new(config.clone()).await?;
+        // initializer.deploy_pool_full().await?;
+        // let initial_state = initializer.initialize_state().await?;
+
+        let block_provider = TestnetBlockProvider::new();
+
+        Ok(this)
+    }
 }

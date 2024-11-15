@@ -27,7 +27,7 @@ use tracing::{instrument, span, Instrument, Level};
 use super::utils::generate_node_keys;
 use crate::{
     anvil_state_provider::{utils::async_to_sync, AnvilTestnetIntializer, TestnetBlockProvider},
-    controllers::strom::TestnetNode,
+    controllers::strom::{initialize_new_node, TestnetNode},
     network::TestnetNodeNetwork
 };
 
@@ -93,16 +93,17 @@ where
 
         for (pk, sk) in keys {
             let node_id = self.incr_peer_id();
-            let mut node = self
-                .initialize_new_node(
-                    c.clone(),
-                    Some(node_id),
-                    pk,
-                    sk,
-                    initial_validators.clone(),
-                    inital_angstrom_state.clone()
-                )
-                .await?;
+            let mut node = initialize_new_node(
+                c.clone(),
+                Some(node_id),
+                pk,
+                sk,
+                initial_validators.clone(),
+                inital_angstrom_state.clone(),
+                self.config.clone(),
+                self.block_provider.subscribe_to_new_blocks()
+            )
+            .await?;
 
             node.connect_to_all_peers(&mut self.peers).await;
             tracing::debug!("connected to all peers");
@@ -115,66 +116,6 @@ where
         }
 
         Ok(())
-    }
-
-    #[instrument(name = "node", skip(self, node_id, c, pk, sk, initial_validators, inital_angstrom_state), fields(id = node_id))]
-    pub async fn initialize_new_node(
-        &mut self,
-        c: C,
-        node_id: Option<u64>,
-        pk: PublicKey,
-        sk: SecretKey,
-        initial_validators: Vec<AngstromValidator>,
-        inital_angstrom_state: InitialTestnetState
-    ) -> eyre::Result<TestnetNode<C>> {
-        tracing::info!("spawning node");
-        let strom_handles = initialize_strom_handles();
-        let (strom_network, mut eth_peer, mut strom_network_manager) =
-            TestnetNodeNetwork::new_fully_configed(
-                c,
-                pk,
-                sk,
-                Some(strom_handles.pool_tx.clone()),
-                Some(strom_handles.consensus_tx_op.clone())
-            )
-            .await;
-
-        if self.config.is_testnet() {
-            let connections_needed = initial_validators.len();
-            tracing::debug!(pubkey = ?strom_network.pubkey(), "attempting connections to {connections_needed} peers");
-            let mut last_peer_count = 0;
-            std::future::poll_fn(|cx| loop {
-                if eth_peer.poll_unpin(cx).is_ready()
-                    || strom_network_manager.poll_unpin(cx).is_ready()
-                {
-                    panic!("peer connection failed");
-                }
-
-                let peer_cnt = strom_network.strom_handle.peer_count();
-                if last_peer_count != peer_cnt {
-                    tracing::trace!("connected to {peer_cnt}/{connections_needed} peers");
-                    last_peer_count = peer_cnt;
-                }
-
-                if connections_needed == peer_cnt {
-                    return std::task::Poll::Ready(())
-                }
-            })
-            .await;
-        }
-
-        Ok(TestnetNode::new(
-            node_id,
-            strom_network,
-            strom_network_manager,
-            eth_peer,
-            strom_handles,
-            self.config.clone(),
-            initial_validators,
-            self.block_provider.subscribe_to_new_blocks(),
-            inital_angstrom_state
-        )
-        .await?)
     }
 
     /// increments the `current_max_peer_id` and returns the previous value

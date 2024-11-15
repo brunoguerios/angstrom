@@ -1,13 +1,19 @@
 use std::fmt::Display;
 
-use alloy::node_bindings::Anvil;
+use alloy::{
+    network::{Ethereum, EthereumWallet},
+    node_bindings::{Anvil, AnvilInstance},
+    providers::builder,
+    signers::local::PrivateKeySigner
+};
+
+use crate::{anvil_state_provider::AnvilWallet, types::TestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct DevnetConfig {
     pub anvil_key:         usize,
     pub intial_node_count: u64,
     pub initial_rpc_port:  u16,
-    pub testnet_kind:      TestnetKind,
     pub start_block:       Option<u64>,
     pub fork_url:          Option<String>
 }
@@ -17,11 +23,10 @@ impl DevnetConfig {
         anvil_key: usize,
         intial_node_count: u64,
         initial_rpc_port: u16,
-        testnet_kind: TestnetKind,
         start_block: Option<u64>,
         fork_url: Option<String>
     ) -> Self {
-        Self { anvil_key, intial_node_count, initial_rpc_port, testnet_kind, start_block, fork_url }
+        Self { anvil_key, intial_node_count, initial_rpc_port, start_block, fork_url }
     }
 
     pub fn rpc_port_with_node_id(&self, node_id: Option<u64>) -> u64 {
@@ -30,47 +35,6 @@ impl DevnetConfig {
         } else {
             self.initial_rpc_port as u64
         }
-    }
-
-    pub fn is_devnet(&self) -> bool {
-        matches!(self.testnet_kind, TestnetKind::Devnet)
-    }
-
-    pub fn is_testnet(&self) -> bool {
-        matches!(self.testnet_kind, TestnetKind::Testnet { .. })
-    }
-
-    pub fn anvil_endpoint(&self, node_id: Option<impl Display>) -> String {
-        if self.is_devnet() {
-            format!("/tmp/anvil_{}.ipc", node_id.unwrap())
-        } else {
-            format!("/tmp/anvil.ipc")
-        }
-    }
-
-    pub fn configure_anvil(&self, node_id: Option<impl Display>) -> Anvil {
-        let mut anvil_builder = Anvil::new()
-            .chain_id(1)
-            .arg("--ipc")
-            .arg(self.anvil_endpoint(node_id))
-            .arg("--code-size-limit")
-            .arg("393216")
-            .arg("--disable-block-gas-limit");
-
-        if self.is_devnet() {
-            anvil_builder = anvil_builder.arg("--no-mining");
-        }
-
-        if let Some((start_block, fork_url)) = self.fork_config() {
-            anvil_builder = anvil_builder
-                .fork(fork_url)
-                .arg("--fork-block-number")
-                .arg(format!("{}", start_block));
-        } else if self.is_testnet() {
-            panic!("fork url and start block must be specified in testnet mode")
-        }
-
-        anvil_builder
     }
 
     pub fn fork_block_number(&self) -> Option<u64> {
@@ -88,28 +52,61 @@ impl Default for DevnetConfig {
             anvil_key:         7,
             intial_node_count: 2,
             initial_rpc_port:  4200,
-            testnet_kind:      TestnetKind::new_devnet(),
             start_block:       None,
             fork_url:          None
         }
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub enum TestnetKind {
-    #[default]
-    Devnet,
-    Testnet {
-        is_leader: bool
-    }
-}
+impl TestingConfig for DevnetConfig {
+    fn configure_anvil(&self, id: impl Display) -> Anvil {
+        let mut anvil_builder = Anvil::new()
+            .chain_id(1)
+            .arg("--ipc")
+            .arg(self.anvil_endpoint(id))
+            .arg("--code-size-limit")
+            .arg("393216")
+            .arg("--disable-block-gas-limit");
 
-impl TestnetKind {
-    pub fn new_devnet() -> Self {
-        Self::Devnet
+        if let Some((start_block, fork_url)) = self.fork_config() {
+            anvil_builder = anvil_builder
+                .fork(fork_url)
+                .arg("--fork-block-number")
+                .arg(format!("{}", start_block));
+        }
+
+        anvil_builder
     }
 
-    pub fn new_testnet(is_leader: bool) -> Self {
-        Self::Testnet { is_leader }
+    async fn spawn_rpc(
+        &self,
+        id: impl Display + Clone
+    ) -> eyre::Result<(AnvilWallet, Option<AnvilInstance>)> {
+        let anvil = self.configure_anvil(id.clone()).try_spawn()?;
+
+        let endpoint = self.anvil_endpoint(id);
+        tracing::info!(?endpoint);
+        let ipc = alloy::providers::IpcConnect::new(endpoint);
+        let sk: PrivateKeySigner = anvil.keys()[self.anvil_key].clone().into();
+        let controller_address = anvil.addresses()[self.anvil_key];
+
+        let wallet = EthereumWallet::new(sk.clone());
+        let rpc = builder::<Ethereum>()
+            .with_recommended_fillers()
+            .wallet(wallet)
+            .on_ipc(ipc)
+            .await?;
+
+        tracing::info!("connected to anvil");
+
+        Ok((AnvilWallet::new(rpc, controller_address, sk), Some(anvil)))
+    }
+
+    fn rpc_port(&self, node_id: Option<u64>) -> u64 {
+        self.initial_rpc_port as u64 + node_id.expect("node id must be set")
+    }
+
+    fn anvil_endpoint(&self, id: impl Display) -> String {
+        format!("/tmp/anvil_{}.ipc", id)
     }
 }

@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Display,
     net::SocketAddr,
     sync::Arc,
     task::Poll
@@ -32,7 +33,8 @@ use super::strom_internals::AngstromDevnetNodeInternals;
 use crate::{
     anvil_state_provider::AnvilStateProviderWrapper,
     controllers::{devnet::DevnetConfig, TestnetStateFutureLock},
-    network::{EthPeerPool, TestnetNodeNetwork}
+    network::{EthPeerPool, TestnetNodeNetwork},
+    types::TestingConfig
 };
 
 pub struct TestnetNode<C> {
@@ -58,7 +60,7 @@ where
         strom_network_manager: StromNetworkManager<C>,
         eth_peer: Peer<C>,
         strom_handles: StromHandles,
-        config: DevnetConfig,
+        config: impl TestingConfig,
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState

@@ -141,7 +141,7 @@ mod tests {
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilStateProviderWrapper::spawn_new(DevnetConfig::default(), None)
+        let anvil = AnvilStateProviderWrapper::spawn_new(DevnetConfig::default(), 0)
             .await
             .unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();

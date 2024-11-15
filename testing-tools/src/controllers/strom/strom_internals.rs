@@ -32,7 +32,7 @@ use crate::{
         AnvilStateProviderWrapper
     },
     controllers::devnet::DevnetConfig,
-    types::SendingStromHandles,
+    types::{SendingStromHandles, TestingConfig},
     validation::TestOrderValidator
 };
 
@@ -52,14 +52,17 @@ impl AngstromDevnetNodeInternals {
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
         _secret_key: SecretKey,
-        config: DevnetConfig,
+        config: impl TestingConfig,
         _initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(Self, Option<ConsensusManager<PubSubFrontend>>)> {
         tracing::debug!("connecting to state provider");
-        let state_provider =
-            AnvilStateProviderWrapper::spawn_new(config.clone(), testnet_node_id).await?;
+        let state_provider = AnvilStateProviderWrapper::spawn_new(
+            config.clone(),
+            testnet_node_id.unwrap_or_default()
+        )
+        .await?;
         state_provider
             .set_state(inital_angstrom_state.state)
             .await?;
@@ -163,7 +166,7 @@ impl AngstromDevnetNodeInternals {
             strom_handles.pool_manager_tx
         );
 
-        let rpc_port = config.rpc_port_with_node_id(testnet_node_id);
+        let rpc_port = config.rpc_port(testnet_node_id);
         let server = ServerBuilder::default()
             .build(format!("127.0.0.1:{}", rpc_port))
             .await?;

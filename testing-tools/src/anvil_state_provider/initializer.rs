@@ -1,9 +1,7 @@
 use alloy::{
-    network::{Ethereum, EthereumWallet},
     node_bindings::AnvilInstance,
     providers::{ext::AnvilApi, Provider},
-    pubsub::PubSubFrontend,
-    signers::local::PrivateKeySigner
+    pubsub::PubSubFrontend
 };
 use alloy_primitives::{
     aliases::{I24, U24},
@@ -29,11 +27,10 @@ use crate::{
             TestAnvilEnvironment
         }
     },
-    controllers::devnet::DevnetConfig,
-    types::initial_state::PendingDeployedPools
+    types::{initial_state::PendingDeployedPools, TestingConfig}
 };
 
-const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "anvil_temp_deploy";
+const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
 
 pub struct AnvilTestnetIntializer {
     provider:      AnvilWallet,
@@ -46,29 +43,8 @@ pub struct AnvilTestnetIntializer {
 }
 
 impl AnvilTestnetIntializer {
-    pub async fn new(config: DevnetConfig) -> eyre::Result<Self> {
-        let anvil = config
-            .configure_anvil(Some(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT))
-            .try_spawn()?;
-
-        let ipc = alloy::providers::IpcConnect::new(
-            config.anvil_endpoint(Some(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT))
-        );
-        let sk: PrivateKeySigner = anvil.keys()[config.anvil_key].clone().into();
-        let controller_address = anvil.addresses()[config.anvil_key];
-
-        tracing::debug!("deploying initialization anvil");
-
-        let wallet = EthereumWallet::new(sk.clone());
-        let rpc = alloy::providers::builder::<Ethereum>()
-            .with_recommended_fillers()
-            .wallet(wallet)
-            .on_ipc(ipc)
-            .await?;
-
-        tracing::info!("connected to initialization anvil");
-
-        let wallet_provider = AnvilWallet::new(rpc, controller_address, sk);
+    pub async fn new(config: impl TestingConfig) -> eyre::Result<Self> {
+        let (wallet_provider, anvil) = config.spawn_rpc(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT).await?;
 
         tracing::debug!("deploying UniV4 enviroment");
         let uniswap_env = UniswapEnv::new(wallet_provider.clone()).await?;
@@ -92,7 +68,7 @@ impl AnvilTestnetIntializer {
             angstrom,
             pool_gate,
             pending_state,
-            _instance: anvil
+            _instance: anvil.unwrap()
         })
     }
 
@@ -177,6 +153,7 @@ mod tests {
     use alloy::providers::Provider;
 
     use super::*;
+    use crate::controllers::devnet::DevnetConfig;
 
     async fn get_block(provider: &AnvilWallet) -> eyre::Result<u64> {
         Ok(provider.provider.get_block_number().await?)
