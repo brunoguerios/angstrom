@@ -10,10 +10,8 @@ use alloy::{
 };
 use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId};
 use futures::StreamExt;
-use matching_engine::cfmm::uniswap::{
-    pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools
-};
 use tracing::warn;
+use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
 
 const BLOCKS_TO_AVG_PRICE: u64 = 5;
 pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
@@ -46,7 +44,7 @@ impl TokenPriceGenerator {
     {
         let mut pair_to_pool = HashMap::default();
         for (key, pool) in uni.iter() {
-            let pool = pool.read().await;
+            let pool = pool.read().unwrap();
             pair_to_pool.insert((pool.token_a, pool.token_b), *key);
         }
 
@@ -58,13 +56,20 @@ impl TokenPriceGenerator {
 
                 async move {
                     let mut queue = VecDeque::new();
-                    let pool_read = pool.read().await;
+                    // scoping
+                    let data_loader = {
+                        let pool_read = pool.read().unwrap();
+                        let data_loader = pool_read.data_loader();
+                        drop(pool_read);
+                        data_loader
+                    };
 
                     for block_number in current_block - BLOCKS_TO_AVG_PRICE..=current_block {
-                        let pool_data = pool_read
-                            .pool_data_for_block(block_number, provider.clone())
+                        let pool_data = data_loader
+                            .load_pool_data(Some(block_number), provider.clone())
                             .await
                             .expect("failed to load historical price for token price conversion");
+
                         let price = pool_data.get_raw_price();
 
                         queue.push_back(PairsWithPrice {
@@ -86,6 +91,21 @@ impl TokenPriceGenerator {
             .await;
 
         Ok(Self { prev_prices: pools, cur_block: current_block, pair_to_pool })
+    }
+
+    pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), U256> {
+        self.pair_to_pool
+            .keys()
+            .filter_map(|(mut token0, mut token1)| {
+                if token1 < token0 {
+                    std::mem::swap(&mut token0, &mut token1)
+                };
+
+                let price = self.get_eth_conversion_price(token0, token1)?;
+
+                Some(((token0, token1), price))
+            })
+            .collect()
     }
 
     pub fn apply_update(&mut self, updates: Vec<PairsWithPrice>) {
