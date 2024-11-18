@@ -1,24 +1,25 @@
 use std::{
     collections::VecDeque,
+    ops::RangeToInclusive,
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc, Mutex, RwLock
+        Arc, RwLock
     }
 };
 
 use dashmap::DashMap;
 
-/// The global block sync is a global syncing mechanism. every module
-/// that interacts with blocks and or other modules that are block sensitive
-/// are registered with the global block sync. The global block number will only
-/// increase when all modules that are registered mark the global sync as ready
-/// to increment. Unlike progressing. Any one module is able to abort the
-/// process (aborts due to reorgs)
+/// The global block sync is a global syncing mechanism.
+///
+/// every module that interacts with blocks and or other modules that are block
+/// sensitive are registered with the global block sync. The global block number
+/// will only increase when all modules that are registered mark the global sync
+/// as ready to increment. Unlike progressing. Any one module is able to abort
+/// the process (aborts due to reorgs)
 #[derive(Debug, Clone)]
 pub struct GlobalBlockSync {
-    cur_state:          Arc<RwLock<GlobalBlockState>>,
     /// state that we are waiting on all sign offs for
-    pending_state:      Arc<Mutex<VecDeque<GlobalBlockState>>>,
+    pending_state:      Arc<RwLock<VecDeque<GlobalBlockState>>>,
     /// the block number
     block_number:       Arc<AtomicU64>,
     /// the modules with there current sign off state for the transition of
@@ -30,15 +31,30 @@ impl GlobalBlockSync {
     pub fn new(block_number: u64) -> Self {
         Self {
             block_number:       Arc::new(AtomicU64::new(block_number)),
-            cur_state:          Arc::new(RwLock::new(GlobalBlockState::Processing)),
-            pending_state:      Arc::new(Mutex::new(VecDeque::with_capacity(2))),
+            pending_state:      Arc::new(RwLock::new(VecDeque::with_capacity(2))),
             registered_modules: DashMap::default()
         }
     }
 
+    pub fn new_block(&self, block_number: u64) {
+        // add to pending state. this will trigger everyone to stop and start dealing
+        // with new blocks
+        self.pending_state
+            .write()
+            .unwrap()
+            .push_back(GlobalBlockState::PendingProgression(block_number));
+    }
+
+    pub fn reorg(&self, reorg_range: RangeToInclusive<u64>) {
+        self.pending_state
+            .write()
+            .unwrap()
+            .push_back(GlobalBlockState::PendingReorg(reorg_range));
+    }
+
     pub fn sign_off_reorg(&self, module: &'static str, block_number: u64) {
         // check to see if there is pending state
-        if self.pending_state.lock().unwrap().is_empty() {
+        if self.pending_state.read().unwrap().is_empty() {
             panic!("someone tried to sign off on a proposal that didn't exist");
         }
         // ensure the block number is cur_block + 1
@@ -61,14 +77,13 @@ impl GlobalBlockSync {
 
         if transition {
             // was last sign off, pending state -> cur state
-            // if self.rem_sign_offs.fetch_sub(1, Ordering::SeqCst) == 1 {
-            let mut lock = self.pending_state.lock().unwrap();
+            let mut lock = self.pending_state.write().unwrap();
             let new_state = lock
                 .pop_front()
                 .expect("everyone signed off on a transition proposal that didn't exist");
             drop(lock);
 
-            *self.cur_state.write().unwrap() = new_state;
+            tracing::info!(handled_state=?new_state, "detected reorg has been handled successfully");
 
             // reset sign off state
             self.registered_modules.iter_mut().for_each(|mut v| {
@@ -81,7 +96,7 @@ impl GlobalBlockSync {
 
     pub fn sign_off_on_block(&self, module: &'static str, block_number: u64) {
         // check to see if there is pending state
-        if self.pending_state.lock().unwrap().is_empty() {
+        if self.pending_state.read().unwrap().is_empty() {
             panic!("someone tried to sign off on a proposal that didn't exist");
         }
         // ensure the block number is cur_block + 1
@@ -103,15 +118,13 @@ impl GlobalBlockSync {
         });
 
         if transition {
-            // was last sign off, pending state -> cur state
-            // if self.rem_sign_offs.fetch_sub(1, Ordering::SeqCst) == 1 {
-            let mut lock = self.pending_state.lock().unwrap();
+            let mut lock = self.pending_state.write().unwrap();
             let new_state = lock
                 .pop_front()
                 .expect("everyone signed off on a transition proposal that didn't exist");
             drop(lock);
 
-            *self.cur_state.write().unwrap() = new_state;
+            tracing::info!(handled_state=?new_state, "new block has been handled successfully");
 
             // reset sign off state
             self.registered_modules.iter_mut().for_each(|mut v| {
@@ -122,16 +135,19 @@ impl GlobalBlockSync {
         }
     }
 
+    #[inline(always)]
     pub fn can_operate(&self) -> bool {
-        matches!(*self.cur_state.read().unwrap(), GlobalBlockState::Processing)
+        !self.has_proposal()
     }
 
+    #[inline(always)]
     pub fn current_block_number(&self) -> u64 {
         self.block_number.load(Ordering::SeqCst)
     }
 
+    #[inline(always)]
     pub fn has_proposal(&self) -> bool {
-        !self.pending_state.lock().unwrap().is_empty()
+        !self.pending_state.read().unwrap().is_empty()
     }
 
     pub fn register(&self, module_name: &'static str) {
@@ -145,18 +161,25 @@ impl GlobalBlockSync {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GlobalBlockState {
-    Processing,
-    PendingReorg,
-    #[default]
-    PendingProgression
+    /// current block number processing
+    Processing(u64),
+    /// a block that we need to deal with the reorg for
+    PendingReorg(RangeToInclusive<u64>),
+    /// a new block that all modules need to index
+    PendingProgression(u64)
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum SignOffState {
+    /// no sign off has occured yet
     #[default]
     Pending,
+    /// module has registered that there is a new block and made sure it is up
+    /// to date
     ReadyForNextBlock(u64),
+    /// module has registered that there was a reorg and has appropritaly
+    /// handled it and is ready to continue processing
     HandledReorg(u64)
 }
