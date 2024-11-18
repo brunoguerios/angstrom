@@ -210,9 +210,6 @@ impl AngstromDevnetNodeInternals {
         // ));
 
         let consensus = None;
-        // } else {
-        //     None
-        // };
 
         Ok((
             Self {

@@ -21,7 +21,6 @@ async fn main() -> eyre::Result<()> {
     testnet.check_block(5);
     testnet.send_pooled_orders(vec![]);
     debug!("added pooled orders to state machine");
-    // testnet.send_prepropose(vec![]);
 
     testnet.run().await;
 
