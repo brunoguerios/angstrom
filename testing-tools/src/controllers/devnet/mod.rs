@@ -5,14 +5,13 @@ use std::{
 };
 mod state_machine;
 use alloy::providers::Provider;
-use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
 use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
 pub use config::*;
 use consensus::AngstromValidator;
-use futures::{FutureExt, StreamExt, TryFutureExt};
+use futures::{StreamExt, TryFutureExt};
 use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
@@ -20,15 +19,13 @@ use reth_metrics::common::mpsc::{
 };
 use reth_network_peers::pk2id;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
-use secp256k1::{PublicKey, SecretKey};
 pub use state_machine::*;
-use tracing::{instrument, span, Instrument, Level};
+use tracing::{span, Instrument, Level};
 
 use super::utils::generate_node_keys;
 use crate::{
-    anvil_state_provider::{utils::async_to_sync, AnvilTestnetIntializer, TestnetBlockProvider},
-    controllers::strom::{initialize_new_node, TestnetNode},
-    network::TestnetNodeNetwork
+    anvil_state_provider::{utils::async_to_sync, AnvilInitializer, TestnetBlockProvider},
+    controllers::strom::{initialize_new_node, TestnetNode}
 };
 
 pub struct AngstromDevnet<C> {
@@ -36,7 +33,7 @@ pub struct AngstromDevnet<C> {
     peers:               HashMap<u64, TestnetNode<C>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
-    _initializer:        AnvilTestnetIntializer,
+    _initializer:        AnvilInitializer,
     current_max_peer_id: u64,
     config:              DevnetConfig
 }
@@ -52,7 +49,7 @@ where
         + 'static
 {
     pub async fn spawn_devnet(c: C, config: DevnetConfig) -> eyre::Result<Self> {
-        let mut initializer = AnvilTestnetIntializer::new(config.clone()).await?;
+        let mut initializer = AnvilInitializer::new(config.clone()).await?;
         initializer.deploy_pool_full().await?;
         let initial_state = initializer.initialize_state().await?;
 

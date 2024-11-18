@@ -7,18 +7,23 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::Address;
-use enr::k256::ecdsa::SigningKey;
+use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
+use secp256k1::{PublicKey, SecretKey};
 
-use crate::{anvil_state_provider::AnvilWallet, types::TestingConfig};
+use crate::{anvil_state_provider::WalletProvider, types::TestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct TestnetConfig {
-    pub anvil_key:     usize,
-    pub node_count:    u64,
-    pub leader_ws_url: String,
-    pub address:       Address,
-    pub sk:            PrivateKeySigner,
-    pub leader_config: Option<TestnetLeaderConfig>
+    pub anvil_key:        usize,
+    pub node_count:       u64,
+    pub leader_ws_url:    String,
+    pub address:          Address,
+    pub pk:               PublicKey,
+    pub signing_key:      PrivateKeySigner,
+    pub secret_key:       SecretKey,
+    pub pool_keys:        Vec<PoolKey>,
+    pub angstrom_address: Address,
+    pub leader_config:    Option<TestnetLeaderConfig>
 }
 
 impl TestnetConfig {
@@ -27,10 +32,25 @@ impl TestnetConfig {
         node_count: u64,
         leader_ws_url: String,
         address: Address,
-        sk: PrivateKeySigner,
+        pk: PublicKey,
+        signing_key: PrivateKeySigner,
+        secret_key: SecretKey,
+        pool_keys: Vec<PoolKey>,
+        angstrom_address: Address,
         leader_config: Option<TestnetLeaderConfig>
     ) -> Self {
-        Self { anvil_key, address, sk, node_count, leader_ws_url, leader_config }
+        Self {
+            anvil_key,
+            address,
+            pk,
+            signing_key,
+            secret_key,
+            node_count,
+            leader_ws_url,
+            angstrom_address,
+            pool_keys,
+            leader_config
+        }
     }
 
     pub fn is_leader(&self) -> bool {
@@ -58,8 +78,8 @@ impl TestingConfig for TestnetConfig {
     async fn spawn_rpc(
         &self,
         id: impl Display + Clone
-    ) -> eyre::Result<(AnvilWallet, Option<AnvilInstance>)> {
-        let sk = self.sk.clone();
+    ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
+        let sk = self.signing_key.clone();
         let wallet = EthereumWallet::new(sk.clone());
 
         if self.is_leader() {
@@ -76,7 +96,7 @@ impl TestingConfig for TestnetConfig {
 
             tracing::info!("connected to anvil");
 
-            Ok((AnvilWallet::new(rpc, self.address, sk), Some(anvil)))
+            Ok((WalletProvider::new(rpc, self.address, sk), Some(anvil)))
         } else {
             let rpc = builder::<Ethereum>()
                 .with_recommended_fillers()
@@ -84,7 +104,7 @@ impl TestingConfig for TestnetConfig {
                 .on_ws(WsConnect::new(self.leader_ws_url.clone()))
                 .await?;
 
-            Ok((AnvilWallet::new(rpc, self.address, sk), None))
+            Ok((WalletProvider::new(rpc, self.address, sk), None))
         }
     }
 

@@ -17,7 +17,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 
-use super::{utils::AnvilWalletRpc, AnvilWallet};
+use super::{utils::WalletProviderRpc, WalletProvider};
 use crate::{
     contracts::{
         anvil::SafeDeployPending,
@@ -32,17 +32,17 @@ use crate::{
 
 const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
 
-pub struct AnvilTestnetIntializer {
-    provider:      AnvilWallet,
-    // uniswap_env:  UniswapEnv<AnvilWallet>,
-    angstrom_env:  AngstromEnv<UniswapEnv<AnvilWallet>>,
-    angstrom:      AngstromInstance<PubSubFrontend, AnvilWalletRpc>,
-    pool_gate:     PoolGateInstance<PubSubFrontend, AnvilWalletRpc>,
+pub struct AnvilInitializer {
+    provider:      WalletProvider,
+    // uniswap_env:  UniswapEnv<WalletProvider>,
+    angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
+    angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
+    pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
     pending_state: PendingDeployedPools,
     _instance:     AnvilInstance
 }
 
-impl AnvilTestnetIntializer {
+impl AnvilInitializer {
     pub async fn new(config: impl TestingConfig) -> eyre::Result<Self> {
         let (wallet_provider, anvil) = config.spawn_rpc(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT).await?;
 
@@ -144,7 +144,7 @@ impl AnvilTestnetIntializer {
     pub async fn initialize_state(&mut self) -> eyre::Result<InitialTestnetState> {
         let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
         let state_bytes = self.provider.provider_ref().anvil_dump_state().await?;
-        Ok(InitialTestnetState::new(self.angstrom_env.angstrom(), state_bytes, pool_keys))
+        Ok(InitialTestnetState::new(self.angstrom_env.angstrom(), Some(state_bytes), pool_keys))
     }
 }
 
@@ -155,14 +155,14 @@ mod tests {
     use super::*;
     use crate::controllers::devnet::DevnetConfig;
 
-    async fn get_block(provider: &AnvilWallet) -> eyre::Result<u64> {
+    async fn get_block(provider: &WalletProvider) -> eyre::Result<u64> {
         Ok(provider.provider.get_block_number().await?)
     }
 
     #[tokio::test]
     async fn test_can_deploy() {
         let config = DevnetConfig::default();
-        let mut initializer = AnvilTestnetIntializer::new(config).await.unwrap();
+        let mut initializer = AnvilInitializer::new(config).await.unwrap();
         initializer.deploy_pool_full().await.unwrap();
 
         let current_block = get_block(&initializer.provider).await.unwrap();

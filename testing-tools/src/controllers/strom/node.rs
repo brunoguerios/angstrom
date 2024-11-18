@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Display,
     net::SocketAddr,
     sync::Arc,
     task::Poll
@@ -32,7 +31,7 @@ use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use super::strom_internals::AngstromDevnetNodeInternals;
 use crate::{
     anvil_state_provider::AnvilStateProviderWrapper,
-    controllers::{devnet::DevnetConfig, TestnetStateFutureLock},
+    controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
     types::TestingConfig
 };

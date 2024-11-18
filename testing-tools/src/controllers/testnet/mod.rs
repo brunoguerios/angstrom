@@ -1,39 +1,21 @@
 mod config;
-use std::{
-    collections::{HashMap, HashSet},
-    future::Future
-};
 
-use alloy::providers::Provider;
-use angstrom::components::initialize_strom_handles;
-use angstrom_network::{
-    manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
-};
-use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
+use angstrom_types::testnet::InitialTestnetState;
 pub use config::*;
 use consensus::AngstromValidator;
-use futures::{FutureExt, StreamExt, TryFutureExt};
-use rand::Rng;
 use reth_chainspec::Hardforks;
-use reth_metrics::common::mpsc::{
-    metered_unbounded_channel, UnboundedMeteredReceiver, UnboundedMeteredSender
-};
-use reth_network_peers::pk2id;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
-use secp256k1::{PublicKey, SecretKey};
-use tracing::{instrument, span, Instrument, Level};
 
-use super::utils::generate_node_keys;
+use super::strom::initialize_new_node;
 use crate::{
-    anvil_state_provider::{AnvilTestnetIntializer, TestnetBlockProvider},
-    controllers::strom::TestnetNode,
-    network::TestnetNodeNetwork
+    anvil_state_provider::{AnvilInitializer, TestnetBlockProvider},
+    controllers::strom::TestnetNode
 };
 
 pub struct AngstromTestnet<C> {
     block_provider: TestnetBlockProvider,
     node:           TestnetNode<C>,
-    leader_handle:  Option<AnvilTestnetIntializer>,
+    leader_handle:  Option<AnvilInitializer>,
     config:         TestnetConfig
 }
 
@@ -47,17 +29,41 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    pub async fn spawn_devnet(
+    pub async fn spawn_testnet(
         c: C,
         config: TestnetConfig,
         initial_validators: Vec<AngstromValidator>
     ) -> eyre::Result<Self> {
-        // let mut initializer = AnvilTestnetIntializer::new(config.clone()).await?;
+        // let mut initializer = AnvilInitializer::new(config.clone()).await?;
         // initializer.deploy_pool_full().await?;
         // let initial_state = initializer.initialize_state().await?;
 
         let block_provider = TestnetBlockProvider::new();
+        let (leader_handle, inital_angstrom_state) = if config.is_leader() {
+            let mut initializer = AnvilInitializer::new(config.clone()).await?;
+            initializer.deploy_pool_full().await?;
 
-        Ok(this)
+            let init_state = initializer.initialize_state().await?;
+
+            (Some(initializer), init_state)
+        } else {
+            let init_state =
+                InitialTestnetState::new(config.angstrom_address, None, config.pool_keys.clone());
+            (None, init_state)
+        };
+
+        let node = initialize_new_node(
+            c,
+            None,
+            config.pk,
+            config.secret_key.clone(),
+            initial_validators,
+            inital_angstrom_state,
+            config.clone(),
+            block_provider.subscribe_to_new_blocks()
+        )
+        .await?;
+
+        Ok(Self { block_provider, node, leader_handle, config })
     }
 }

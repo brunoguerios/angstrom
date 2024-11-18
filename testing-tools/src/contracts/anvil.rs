@@ -19,7 +19,7 @@ use alloy::{
 use alloy_primitives::Address;
 use alloy_sol_types::SolCall;
 
-pub type AnvilWalletRpc = FillProvider<
+pub type WalletProviderRpc = FillProvider<
     JoinFill<
         JoinFill<
             Identity,
@@ -60,7 +60,7 @@ pub type LocalAnvilRpc = alloy::providers::fillers::FillProvider<
     Ethereum
 >;
 
-pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, AnvilWalletRpc)> {
+pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, WalletProviderRpc)> {
     let anvil = Anvil::new()
         .chain_id(1)
         .arg("--ipc")

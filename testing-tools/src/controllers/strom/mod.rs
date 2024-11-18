@@ -1,16 +1,13 @@
 mod node;
-use alloy_rpc_types::Transaction;
 use angstrom::components::initialize_strom_handles;
 use angstrom_types::testnet::InitialTestnetState;
 use consensus::AngstromValidator;
 pub use node::*;
 mod strom_internals;
 use reth_chainspec::Hardforks;
-use reth_network::config::SecretKey;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
-use secp256k1::PublicKey;
+use secp256k1::{PublicKey, SecretKey};
 pub use strom_internals::*;
-use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::instrument;
 
@@ -37,39 +34,14 @@ where
 {
     tracing::info!("spawning node");
     let strom_handles = initialize_strom_handles();
-    let (strom_network, mut eth_peer, mut strom_network_manager) =
-        TestnetNodeNetwork::new_fully_configed(
-            c,
-            pk,
-            sk,
-            Some(strom_handles.pool_tx.clone()),
-            Some(strom_handles.consensus_tx_op.clone())
-        )
-        .await;
-
-    // if self.config.is_testnet() {
-    //     let connections_needed = initial_validators.len();
-    //     tracing::debug!(pubkey = ?strom_network.pubkey(), "attempting connections
-    // to {connections_needed} peers");     let mut last_peer_count = 0;
-    //     std::future::poll_fn(|cx| loop {
-    //         if eth_peer.poll_unpin(cx).is_ready()
-    //             || strom_network_manager.poll_unpin(cx).is_ready()
-    //         {
-    //             panic!("peer connection failed");
-    //         }
-
-    //         let peer_cnt = strom_network.strom_handle.peer_count();
-    //         if last_peer_count != peer_cnt {
-    //             tracing::trace!("connected to {peer_cnt}/{connections_needed}
-    // peers");             last_peer_count = peer_cnt;
-    //         }
-
-    //         if connections_needed == peer_cnt {
-    //             return std::task::Poll::Ready(())
-    //         }
-    //     })
-    //     .await;
-    // }
+    let (strom_network, eth_peer, strom_network_manager) = TestnetNodeNetwork::new_fully_configed(
+        c,
+        pk,
+        sk,
+        Some(strom_handles.pool_tx.clone()),
+        Some(strom_handles.consensus_tx_op.clone())
+    )
+    .await;
 
     Ok(TestnetNode::new(
         node_id,

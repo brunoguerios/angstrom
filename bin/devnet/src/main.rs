@@ -1,7 +1,7 @@
 use devnet::cli::Cli;
 use reth_provider::test_utils::NoopProvider;
 use testing_tools::{
-    controllers::AngstromDevnet,
+    controllers::devnet::AngstromDevnet,
     types::{actions::WithAction, checked_actions::WithCheckedAction, checks::WithCheck}
 };
 use tracing::{debug, info};

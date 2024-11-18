@@ -11,16 +11,16 @@ use reth_provider::{ProviderError, ProviderResult};
 use reth_revm::primitives::Bytecode;
 use validation::common::db::{BlockStateProvider, BlockStateProviderFactory};
 
-use super::utils::{async_to_sync, AnvilWalletRpc};
+use super::utils::{async_to_sync, WalletProviderRpc};
 
 #[derive(Clone, Debug)]
 pub struct RpcStateProvider {
     block:    u64,
-    provider: AnvilWalletRpc
+    provider: WalletProviderRpc
 }
 
 impl RpcStateProvider {
-    pub fn new(block: u64, provider: AnvilWalletRpc) -> Self {
+    pub fn new(block: u64, provider: WalletProviderRpc) -> Self {
         Self { block, provider }
     }
 
@@ -70,11 +70,11 @@ impl BlockStateProvider for RpcStateProvider {
 
 #[derive(Clone, Debug)]
 pub struct RpcStateProviderFactory {
-    pub provider: AnvilWalletRpc
+    pub provider: WalletProviderRpc
 }
 
 impl RpcStateProviderFactory {
-    pub fn new(provider: AnvilWalletRpc) -> eyre::Result<Self> {
+    pub fn new(provider: WalletProviderRpc) -> eyre::Result<Self> {
         Ok(Self { provider })
     }
 }

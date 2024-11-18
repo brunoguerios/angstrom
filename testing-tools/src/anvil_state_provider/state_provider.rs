@@ -17,7 +17,7 @@ use reth_revm::primitives::Bytecode;
 use tokio::sync::broadcast;
 use validation::common::db::BlockStateProviderFactory;
 
-use super::{rpc_provider::RpcStateProvider, utils::AnvilWalletRpc, AnvilWallet};
+use super::{rpc_provider::RpcStateProvider, utils::WalletProviderRpc, WalletProvider};
 use crate::{
     anvil_state_provider::utils::async_to_sync,
     mocks::canon_state::AnvilConsensusCanonStateNotification, types::TestingConfig
@@ -73,7 +73,7 @@ impl AnvilStateProviderWrapper {
 
         Ok(Self {
             provider:  AnvilStateProvider {
-                provider:       AnvilWallet::new(rpc, controller_address, sk),
+                provider:       WalletProvider::new(rpc, controller_address, sk),
                 canon_state_tx: tx,
                 canon_state:    AnvilConsensusCanonStateNotification::new()
             },
@@ -85,11 +85,11 @@ impl AnvilStateProviderWrapper {
         self.provider.clone()
     }
 
-    pub fn wallet_provider(&self) -> AnvilWallet {
+    pub fn wallet_provider(&self) -> WalletProvider {
         self.provider.provider.clone()
     }
 
-    pub fn rpc_provider(&self) -> AnvilWalletRpc {
+    pub fn rpc_provider(&self) -> WalletProviderRpc {
         self.provider.provider().clone()
     }
 
@@ -126,10 +126,10 @@ impl AnvilStateProviderWrapper {
 }
 
 // impl TestAnvilEnvironment for AnvilStateProviderWrapper {
-//     type P = AnvilWalletRpc;
+//     type P = WalletProviderRpc;
 //     type T = PubSubFrontend;
 
-//     fn provider(&self) -> &AnvilWalletRpc {
+//     fn provider(&self) -> &WalletProviderRpc {
 //         self.provider.provider.provider_ref()
 //     }
 
@@ -140,13 +140,13 @@ impl AnvilStateProviderWrapper {
 
 #[derive(Debug, Clone)]
 pub struct AnvilStateProvider {
-    provider:       AnvilWallet,
+    provider:       WalletProvider,
     canon_state:    AnvilConsensusCanonStateNotification,
     canon_state_tx: broadcast::Sender<CanonStateNotification>
 }
 
 impl AnvilStateProvider {
-    pub fn provider(&self) -> AnvilWalletRpc {
+    pub fn provider(&self) -> WalletProviderRpc {
         self.provider.provider.clone()
     }
 

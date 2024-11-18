@@ -16,7 +16,7 @@ use angstrom_types::sol_bindings::testnet::{MockERC20, PoolManagerDeployer, Test
 use eyre::eyre;
 use futures::Future;
 
-use crate::anvil_state_provider::utils::AnvilWalletRpc;
+use crate::anvil_state_provider::utils::WalletProviderRpc;
 pub mod anvil;
 pub mod deploy;
 pub mod environment;
@@ -79,7 +79,7 @@ pub struct AngstromDevnetAddresses {
 /// deploys the angstrom testhub contract along with two tokens, under the
 /// secret key
 pub async fn deploy_contract_and_create_pool(
-    provider: AnvilWalletRpc
+    provider: WalletProviderRpc
 ) -> eyre::Result<AngstromDevnetAddresses> {
     provider
         .anvil_impersonate_account(get_or_set_signer(provider.default_signer_address()))
@@ -160,7 +160,7 @@ pub async fn deploy_contract_and_create_pool(
 // between transactions while avoiding race conditions
 pub async fn anvil_mine_delay<F0: Future + Unpin>(
     f0: F0,
-    provider: &AnvilWalletRpc,
+    provider: &WalletProviderRpc,
     delay: Duration
 ) -> F0::Output {
     let mut pinned = pin!(f0);

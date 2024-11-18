@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser};
-use testing_tools::controllers::{DevnetConfig, TestnetKind};
+use testing_tools::controllers::devnet::DevnetConfig;
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
@@ -47,9 +47,8 @@ impl Cli {
             this.anvil_key as usize,
             this.nodes_in_network,
             this.starting_port,
-            TestnetKind::new_devnet(),
-            None,
-            None
+            this.fork_block,
+            this.fork_url
         )
     }
 

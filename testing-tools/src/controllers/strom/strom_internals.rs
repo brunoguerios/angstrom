@@ -31,7 +31,6 @@ use crate::{
         utils::StromContractInstance, AnvilEthDataCleanser, AnvilStateProvider,
         AnvilStateProviderWrapper
     },
-    controllers::devnet::DevnetConfig,
     types::{SendingStromHandles, TestingConfig},
     validation::TestOrderValidator
 };
@@ -63,9 +62,11 @@ impl AngstromDevnetNodeInternals {
             testnet_node_id.unwrap_or_default()
         )
         .await?;
-        state_provider
-            .set_state(inital_angstrom_state.state)
-            .await?;
+
+        if let Some(state) = inital_angstrom_state.state {
+            state_provider.set_state(state).await?;
+        }
+
         tracing::info!("connected to state provider");
 
         let pool = strom_handles.get_pool_handle();

@@ -7,7 +7,7 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 
-use crate::{anvil_state_provider::AnvilWallet, types::TestingConfig};
+use crate::{anvil_state_provider::WalletProvider, types::TestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct DevnetConfig {
@@ -81,7 +81,7 @@ impl TestingConfig for DevnetConfig {
     async fn spawn_rpc(
         &self,
         id: impl Display + Clone
-    ) -> eyre::Result<(AnvilWallet, Option<AnvilInstance>)> {
+    ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
         let anvil = self.configure_anvil(id.clone()).try_spawn()?;
 
         let endpoint = self.anvil_endpoint(id);
@@ -99,7 +99,7 @@ impl TestingConfig for DevnetConfig {
 
         tracing::info!("connected to anvil");
 
-        Ok((AnvilWallet::new(rpc, controller_address, sk), Some(anvil)))
+        Ok((WalletProvider::new(rpc, controller_address, sk), Some(anvil)))
     }
 
     fn rpc_port(&self, node_id: Option<u64>) -> u64 {

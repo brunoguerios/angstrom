@@ -31,7 +31,7 @@ pub type StromContractInstance = TestnetHubInstance<
     >
 >;
 
-pub type AnvilWalletRpc = FillProvider<
+pub type WalletProviderRpc = FillProvider<
     JoinFill<
         JoinFill<
             Identity,
