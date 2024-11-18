@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicU64, AtomicU8, Ordering},
-    Arc, Mutex, RwLock
+use std::{
+    collections::VecDeque,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex, RwLock
+    }
 };
 
 use dashmap::DashMap;
@@ -15,7 +18,7 @@ use dashmap::DashMap;
 pub struct GlobalBlockSync {
     cur_state:          Arc<RwLock<GlobalBlockState>>,
     /// state that we are waiting on all sign offs for
-    pending_state:      Arc<Mutex<Option<GlobalBlockState>>>,
+    pending_state:      Arc<Mutex<VecDeque<GlobalBlockState>>>,
     /// the block number
     block_number:       Arc<AtomicU64>,
     /// the modules with there current sign off state for the transition of
@@ -28,14 +31,14 @@ impl GlobalBlockSync {
         Self {
             block_number:       Arc::new(AtomicU64::new(block_number)),
             cur_state:          Arc::new(RwLock::new(GlobalBlockState::Processing)),
-            pending_state:      Arc::new(Mutex::new(None)),
+            pending_state:      Arc::new(Mutex::new(VecDeque::with_capacity(2))),
             registered_modules: DashMap::default()
         }
     }
 
     pub fn sign_off_reorg(&self, module: &'static str, block_number: u64) {
         // check to see if there is pending state
-        if self.pending_state.lock().unwrap().is_none() {
+        if self.pending_state.lock().unwrap().is_empty() {
             panic!("someone tried to sign off on a proposal that didn't exist");
         }
         // ensure the block number is cur_block + 1
@@ -61,7 +64,7 @@ impl GlobalBlockSync {
             // if self.rem_sign_offs.fetch_sub(1, Ordering::SeqCst) == 1 {
             let mut lock = self.pending_state.lock().unwrap();
             let new_state = lock
-                .take()
+                .pop_front()
                 .expect("everyone signed off on a transition proposal that didn't exist");
             drop(lock);
 
@@ -78,7 +81,7 @@ impl GlobalBlockSync {
 
     pub fn sign_off_on_block(&self, module: &'static str, block_number: u64) {
         // check to see if there is pending state
-        if self.pending_state.lock().unwrap().is_none() {
+        if self.pending_state.lock().unwrap().is_empty() {
             panic!("someone tried to sign off on a proposal that didn't exist");
         }
         // ensure the block number is cur_block + 1
@@ -104,7 +107,7 @@ impl GlobalBlockSync {
             // if self.rem_sign_offs.fetch_sub(1, Ordering::SeqCst) == 1 {
             let mut lock = self.pending_state.lock().unwrap();
             let new_state = lock
-                .take()
+                .pop_front()
                 .expect("everyone signed off on a transition proposal that didn't exist");
             drop(lock);
 
@@ -128,7 +131,7 @@ impl GlobalBlockSync {
     }
 
     pub fn has_proposal(&self) -> bool {
-        self.pending_state.lock().unwrap().is_some()
+        !self.pending_state.lock().unwrap().is_empty()
     }
 
     pub fn register(&self, module_name: &'static str) {
