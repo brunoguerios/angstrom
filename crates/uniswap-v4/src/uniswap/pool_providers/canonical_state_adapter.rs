@@ -51,7 +51,7 @@ impl PoolManagerProvider for CanonicalStateAdapter {
                             // search 30 blocks back;
                             let start = tip - 30;
 
-                            let mut range = old
+                            let range = old
                                 .blocks_iter()
                                 .filter(|b| b.block.number >= start)
                                 .zip(new.blocks_iter().filter(|b| b.block.number >= start))
@@ -60,24 +60,25 @@ impl PoolManagerProvider for CanonicalStateAdapter {
                                 .collect::<Vec<_>>();
 
                             let range = match range.len() {
-                                0 => None,
-                                1 => {
-                                    let r = range.remove(0);
-                                    Some(r..=r)
-                                }
+                                0 => tip..=tip,
                                 _ => {
                                     let start = *range.first().unwrap();
                                     let end = *range.last().unwrap();
-                                    Some(start..=end)
+                                    start..=end
                                 }
                             };
-                            let range = range.unwrap_or(0..=0);
 
                             let block = new.tip();
-                            let logs: Vec<Log> = new
-                                .execution_outcome()
-                                .logs(block.number)
-                                .map_or_else(Vec::new, |logs| logs.cloned().collect());
+                            let mut logs = Vec::new();
+
+                            for block in range.clone() {
+                                logs.extend(
+                                    new.execution_outcome()
+                                        .logs(block)
+                                        .map_or_else(Vec::new, |logs| logs.cloned().collect())
+                                );
+                            }
+
                             *last_log_write = logs;
                             self.last_block_number.store(block.number, Ordering::SeqCst);
                             Some(Some(PoolMangerBlocks::Reorg(block.number, range)))
