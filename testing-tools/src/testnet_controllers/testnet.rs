@@ -4,7 +4,7 @@ use std::{
 };
 
 use alloy::providers::Provider;
-use angstrom::cli::initialize_strom_handles;
+use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
@@ -406,24 +406,3 @@ where
         Ok(blocks.into_iter().all(|(_, b)| b == expected_block_num))
     }
 }
-
-/*
-
-
-Protocol Description
-The consensus mechanism operates in two primary rounds:
-Round 1 (Bid Submission):
-Before time T1, each validator: a) Signs the highest top-of-block (ToB) bid they've received. b) signs the set of all rest-of-bundle (RoB) transactions they've seen. c) Gossips both the signed ToB bid and the signed set of RoB transactions to all other validators.
-Round 2 (Bid Aggregation and Selection):
-Before time T2 (can be done immediately after T1), each validator: a) Reviews all signed ToB bids received before T1. b) Selects the transaction with the highest ToB bribe. c) Creates a de-duplicated set of all RoB transactions that execute at the batch uniform clearing price. d) Sends this aggregated information to the designated leader.
-Leader Action:
-Upon receiving 2f+1 (two-thirds majority plus one) Round 2 messages, the leader: a) Selects the highest ToB bid among all received messages. b) Finalizes the RoB transaction set based on the uniform clearing price algorithm. c) Constructs the final bundle combining the winning ToB bid and the RoB transaction set.
-Post-Consensus Verification:
-Asynchronously, after the main consensus rounds: a) Validators gossip a complete list of all bids and transactions they observed during Round 1. b) This information is used to verify the integrity of the process and detect any violations.
-Faults
-The protocol defines several fault conditions that can result in penalties for validators:
-Equivocation Fault:
-Occurs when a validator sends conflicting ToB bids or RoB transaction sets to different validators in Round 1.
-Easily provable and subject to severe penalties, potentially including full stake slashing.
-
-*/
