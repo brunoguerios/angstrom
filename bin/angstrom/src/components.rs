@@ -22,6 +22,7 @@ use angstrom_network::{
     VerificationSidecar
 };
 use angstrom_types::{
+    block_sync::GlobalBlockSync,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     primitive::{PeerId, PoolId as AngstromPoolId, UniswapPoolRegistry},
     reth_db_wrapper::RethDbWrapper
@@ -155,6 +156,9 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         .into();
 
     let block_id = provider.get_block_number().await.unwrap();
+
+    let global_block_sync = GlobalBlockSync::new(block_id);
+
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
             node_config.angstrom_address,
@@ -168,13 +172,29 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
+
+    // Build our PoolManager using the PoolConfig and OrderStorage we've already
+    // created
+    let eth_handle = EthDataCleanser::spawn(
+        angstrom_address.unwrap_or(node_config.angstrom_address),
+        node.provider.subscribe_to_canonical_state(),
+        executor.clone(),
+        handles.eth_tx,
+        handles.eth_rx,
+        HashSet::new(),
+        pool_config_store.clone(),
+        global_block_sync.clone()
+    )
+    .unwrap();
     let uniswap_pool_manager = configure_uniswap_manager(
         provider.clone(),
-        node.provider.subscribe_to_canonical_state(),
+        eth_handle.subscribe_cannon_state_notifications().await,
         uniswap_registry,
-        block_id
+        block_id,
+        global_block_sync.clone()
     )
     .await;
+
     let uniswap_pools = uniswap_pool_manager.pools();
     executor.spawn(Box::pin(async move {
         uniswap_pool_manager
@@ -195,6 +215,8 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         block_height,
         angstrom_address,
         node_address,
+        // Because this is incapsulated under the orderpool syncer. this is the only case
+        // we can use the raw stream.
         node.provider.canonical_state_stream(),
         uniswap_pools.clone(),
         price_generator,
@@ -214,25 +236,13 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let angstrom_pool_tracker =
         AngstromPoolsTracker::new(node_config.angstrom_address, pool_config_store.clone());
 
-    // Build our PoolManager using the PoolConfig and OrderStorage we've already
-    // created
-    let eth_handle = EthDataCleanser::spawn(
-        angstrom_address.unwrap_or(node_config.angstrom_address),
-        node.provider.subscribe_to_canonical_state(),
-        executor.clone(),
-        handles.eth_tx,
-        handles.eth_rx,
-        HashSet::new(),
-        pool_config_store.clone()
-    )
-    .unwrap();
-
     let _pool_handle = PoolManagerBuilder::new(
         validation_handle.clone(),
         Some(order_storage.clone()),
         network_handle.clone(),
         eth_handle.subscribe_network(),
-        handles.pool_rx
+        handles.pool_rx,
+        global_block_sync.clone()
     )
     .with_config(pool_config)
     .build_with_channels(
@@ -258,7 +268,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let manager = ConsensusManager::new(
         ManagerNetworkDeps::new(
             network_handle.clone(),
-            node.provider.subscribe_to_canonical_state(),
+            eth_handle.subscribe_cannon_state_notifications().await,
             handles.consensus_rx_op
         ),
         signer,
@@ -268,7 +278,8 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         uni_ang_registry,
         uniswap_pools.clone(),
         provider,
-        matching_handle
+        matching_handle,
+        global_block_sync.clone()
     );
 
     let _consensus_handle = executor.spawn_critical("consensus", Box::pin(manager));
@@ -278,8 +289,14 @@ async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
     provider: Arc<impl Provider<T, N>>,
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
-    current_block: BlockNumber
-) -> UniswapPoolManager<CanonicalStateAdapter, DataLoader<AngstromPoolId>, AngstromPoolId> {
+    current_block: BlockNumber,
+    block_sync: GlobalBlockSync
+) -> UniswapPoolManager<
+    CanonicalStateAdapter,
+    GlobalBlockSync,
+    DataLoader<AngstromPoolId>,
+    AngstromPoolId
+> {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
         .keys()
@@ -303,6 +320,7 @@ async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
         uniswap_pools,
         current_block,
         state_change_buffer,
-        Arc::new(CanonicalStateAdapter::new(state_notification))
+        Arc::new(CanonicalStateAdapter::new(state_notification)),
+        block_sync
     )
 }

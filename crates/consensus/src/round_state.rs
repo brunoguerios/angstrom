@@ -27,14 +27,13 @@ use angstrom_types::{
 };
 use angstrom_utils::timer::async_time_fn;
 use eyre::Report;
-use futures::{future::BoxFuture, Future, Stream, StreamExt};
+use futures::{future::BoxFuture, Future, Stream};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
-use order_pool::order_storage::{OrderStorage, OrderStorageNotification};
+use order_pool::order_storage::OrderStorage;
 use pade::PadeEncode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{AngstromValidator, Signer};
@@ -53,8 +52,7 @@ pub struct RoundStateMachine<T, Matching> {
     signer:            Signer,
     round_leader:      PeerId,
     validators:        Vec<AngstromValidator>,
-    order_storage:     Arc<OrderStorage>,
-    order_storage_rx:  BroadcastStream<OrderStorageNotification>,
+    _order_storage:    Arc<OrderStorage>,
     metrics:           ConsensusMetricsWrapper,
     transition_future: Option<BoxFuture<'static, Result<ConsensusState, RoundStateMachineError>>>,
     waker:             Option<Waker>,
@@ -83,10 +81,9 @@ where
     ) -> Self {
         Self {
             current_state: Self::initial_state(block_height),
-            order_storage_rx: BroadcastStream::new(order_storage.subscribe_notifications()),
             round_leader,
             validators,
-            order_storage,
+            _order_storage: order_storage,
             pool_registry,
             uniswap_pools,
             signer,
@@ -235,33 +232,12 @@ where
         None
     }
 
-    pub fn on_storage_notification(&mut self, notification: OrderStorageNotification) {
-        match notification {
-            OrderStorageNotification::FinalizationComplete(previous_block) => {
-                if !matches!(self.current_state, ConsensusState::PreProposalSubmission(_)) {
-                    return
-                };
-
-                let current_state_block = self.current_state.block_height();
-                if previous_block + 1 != current_state_block {
-                    tracing::warn!(%previous_block, %current_state_block, "got order storage finalization for unexpected block");
-                    // reorg? something else went wrong? wait for the timeout
-                    return
-                }
-                let block_height = current_state_block;
-                let pre_proposals = self.current_state.pre_proposals();
-                let bid_aggregation = self.generate_bid_aggregation(block_height, pre_proposals);
-                self.force_transition(ConsensusState::PreProposalAggregation(bid_aggregation));
-            }
-        }
-    }
-
-    fn generate_bid_aggregation(
+    fn _generate_bid_aggregation(
         &self,
         block_height: BlockNumber,
         pre_proposals: &HashSet<PreProposal>
     ) -> PreProposalAggregation {
-        let OrderSet { limit, searcher } = self.order_storage.get_all_orders();
+        let OrderSet { limit, searcher } = self._order_storage.get_all_orders();
         let mut pre_proposals = pre_proposals.clone();
 
         let pre_proposal = Self::generate_our_merged_pre_proposal(
@@ -446,10 +422,6 @@ where
                 Poll::Ready(result) => Poll::Ready(Some(result)),
                 Poll::Pending => Poll::Pending
             }
-        }
-
-        if let Poll::Ready(Some(Ok(msg))) = this.order_storage_rx.poll_next_unpin(cx) {
-            this.on_storage_notification(msg);
         }
 
         Poll::Pending

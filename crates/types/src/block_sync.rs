@@ -1,14 +1,45 @@
-use core::panic;
 use std::{
     collections::VecDeque,
+    fmt::Debug,
     ops::RangeInclusive,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, RwLock
-    }
+    },
+    task::Waker
 };
 
 use dashmap::DashMap;
+
+/// Producer to block syncing events
+pub trait BlockSyncProducer: Debug + Clone + Send + Sync + Unpin + 'static {
+    /// when a new block is produced. starts new block process
+    /// always assume truthful values are passed
+    fn new_block(&self, block_number: u64);
+
+    /// when a reorg happens, starts syncing process
+    /// always assume truthful values are passed
+    fn reorg(&self, reorg_range: RangeInclusive<u64>);
+}
+
+/// Consumer to block sync producer
+pub trait BlockSyncConsumer: Debug + Clone + Send + Sync + Unpin + 'static {
+    fn sign_off_reorg(
+        &self,
+        module: &'static str,
+        block_range: RangeInclusive<u64>,
+        waker: Option<Waker>
+    );
+    fn sign_off_on_block(&self, module: &'static str, block_number: u64, waker: Option<Waker>);
+    fn current_block_number(&self) -> u64;
+    fn has_proposal(&self) -> bool;
+    fn fetch_current_proposal(&self) -> Option<GlobalBlockState>;
+    fn register(&self, module_name: &'static str);
+
+    fn can_operate(&self) -> bool {
+        !self.has_proposal()
+    }
+}
 
 /// The global block sync is a global syncing mechanism.
 ///
@@ -37,8 +68,12 @@ impl GlobalBlockSync {
         }
     }
 
-    /// always assume truthful values are passed
-    pub fn new_block(&self, block_number: u64) {
+    fn proper_proposal(&self, proposal: &GlobalBlockState) -> bool {
+        self.pending_state.read().unwrap().front() == Some(proposal)
+    }
+}
+impl BlockSyncProducer for GlobalBlockSync {
+    fn new_block(&self, block_number: u64) {
         // add to pending state. this will trigger everyone to stop and start dealing
         // with new blocks
         if self.block_number.load(Ordering::SeqCst) + 1 != block_number {
@@ -51,19 +86,21 @@ impl GlobalBlockSync {
             .push_back(GlobalBlockState::PendingProgression(block_number));
     }
 
-    /// always assume truthful values are passed
-    pub fn reorg(&self, reorg_range: RangeInclusive<u64>) {
+    fn reorg(&self, reorg_range: RangeInclusive<u64>) {
         self.pending_state
             .write()
             .unwrap()
             .push_back(GlobalBlockState::PendingReorg(reorg_range));
     }
+}
 
-    fn proper_proposal(&self, proposal: &GlobalBlockState) -> bool {
-        self.pending_state.read().unwrap().front() == Some(proposal)
-    }
-
-    pub fn sign_off_reorg(&self, module: &'static str, block_range: RangeInclusive<u64>) {
+impl BlockSyncConsumer for GlobalBlockSync {
+    fn sign_off_reorg(
+        &self,
+        module: &'static str,
+        block_range: RangeInclusive<u64>,
+        waker: Option<Waker>
+    ) {
         // check to see if there is pending state
         if self.pending_state.read().unwrap().is_empty() {
             panic!("{} tried to sign off on a proposal that didn't exist", module);
@@ -73,7 +110,7 @@ impl GlobalBlockSync {
             panic!("{} tried to sign off on a incorrect proposal", module);
         }
 
-        let check = SignOffState::HandledReorg(block_range.clone());
+        let check = SignOffState::HandledReorg(block_range.clone(), waker);
 
         self.registered_modules
             .entry(module)
@@ -98,12 +135,15 @@ impl GlobalBlockSync {
 
             // reset sign off state
             self.registered_modules.iter_mut().for_each(|mut v| {
-                *v.value_mut() = Default::default();
+                let val = v.value_mut();
+                val.try_wake_task();
+
+                *val = Default::default();
             });
         }
     }
 
-    pub fn sign_off_on_block(&self, module: &'static str, block_number: u64) {
+    fn sign_off_on_block(&self, module: &'static str, block_number: u64, waker: Option<Waker>) {
         // check to see if there is pending state
         if self.pending_state.read().unwrap().is_empty() {
             panic!("{} tried to sign off on a proposal that didn't exist", module);
@@ -117,7 +157,7 @@ impl GlobalBlockSync {
             panic!("module: {} current_block_number + 1 != block_number", module);
         }
 
-        let check = SignOffState::ReadyForNextBlock(block_number);
+        let check = SignOffState::ReadyForNextBlock(block_number, waker);
 
         self.registered_modules
             .entry(module)
@@ -138,37 +178,39 @@ impl GlobalBlockSync {
             drop(lock);
 
             tracing::info!(handled_state=?new_state, "new block has been handled successfully");
+            self.block_number.fetch_add(1, Ordering::SeqCst);
 
             // reset sign off state
             self.registered_modules.iter_mut().for_each(|mut v| {
-                *v.value_mut() = Default::default();
-            });
+                let val = v.value_mut();
+                val.try_wake_task();
 
-            self.block_number.fetch_add(1, Ordering::SeqCst);
+                *val = Default::default();
+            });
         }
     }
 
     #[inline(always)]
-    pub fn can_operate(&self) -> bool {
+    fn can_operate(&self) -> bool {
         !self.has_proposal()
     }
 
     #[inline(always)]
-    pub fn current_block_number(&self) -> u64 {
+    fn current_block_number(&self) -> u64 {
         self.block_number.load(Ordering::SeqCst)
     }
 
     #[inline(always)]
-    pub fn has_proposal(&self) -> bool {
+    fn has_proposal(&self) -> bool {
         !self.pending_state.read().unwrap().is_empty()
     }
 
     #[inline(always)]
-    pub fn fetch_current_proposal(&self) -> Option<GlobalBlockState> {
+    fn fetch_current_proposal(&self) -> Option<GlobalBlockState> {
         self.pending_state.read().unwrap().front().cloned()
     }
 
-    pub fn register(&self, module_name: &'static str) {
+    fn register(&self, module_name: &'static str) {
         if self
             .registered_modules
             .insert(module_name, SignOffState::default())
@@ -189,22 +231,49 @@ pub enum GlobalBlockState {
     PendingProgression(u64)
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub enum SignOffState {
     /// no sign off has occurred yet
     #[default]
     Pending,
     /// module has registered that there is a new block and made sure it is up
     /// to date
-    ReadyForNextBlock(u64),
+    ReadyForNextBlock(u64, Option<Waker>),
     /// module has registered that there was a reorg and has appropriately
     /// handled it and is ready to continue processing
-    HandledReorg(RangeInclusive<u64>)
+    HandledReorg(RangeInclusive<u64>, Option<Waker>)
 }
+
+impl SignOffState {
+    pub fn try_wake_task(&self) {
+        match self {
+            Self::ReadyForNextBlock(_, waker) => {
+                waker.as_ref().inspect(|w| w.wake_by_ref());
+            }
+            Self::HandledReorg(_, waker) => {
+                waker.as_ref().inspect(|w| w.wake_by_ref());
+            }
+            _ => {}
+        }
+    }
+}
+
+impl PartialEq for SignOffState {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Pending, Self::Pending) => true,
+            (Self::ReadyForNextBlock(b, _), Self::ReadyForNextBlock(b2, _)) => b == b2,
+            (Self::HandledReorg(r, _), Self::HandledReorg(r2, _)) => r == r2,
+            _ => false
+        }
+    }
+}
+
+impl Eq for SignOffState {}
 
 #[cfg(test)]
 pub mod test {
-    use super::GlobalBlockSync;
+    use crate::block_sync::{BlockSyncConsumer, BlockSyncProducer, GlobalBlockSync};
 
     const MOD1: &str = "Sick Module";
     const MOD2: &str = "Sick Module Two";
@@ -225,13 +294,13 @@ pub mod test {
         assert!(!global_sync.can_operate());
         assert!(global_sync.has_proposal());
 
-        global_sync.sign_off_on_block(MOD1, 11);
+        global_sync.sign_off_on_block(MOD1, 11, None);
 
         assert!(!global_sync.can_operate());
         assert!(global_sync.has_proposal());
         assert!(global_sync.current_block_number() == 10);
 
-        global_sync.sign_off_on_block(MOD2, 11);
+        global_sync.sign_off_on_block(MOD2, 11, None);
 
         assert!(global_sync.can_operate());
         assert!(!global_sync.has_proposal());
@@ -256,13 +325,13 @@ pub mod test {
         assert!(!global_sync.can_operate());
         assert!(global_sync.has_proposal());
 
-        global_sync.sign_off_reorg(MOD1, reorg_range.clone());
+        global_sync.sign_off_reorg(MOD1, reorg_range.clone(), None);
 
         assert!(!global_sync.can_operate());
         assert!(global_sync.has_proposal());
         assert!(global_sync.current_block_number() == 10);
 
-        global_sync.sign_off_reorg(MOD2, reorg_range.clone());
+        global_sync.sign_off_reorg(MOD2, reorg_range.clone(), None);
 
         assert!(global_sync.can_operate());
         assert!(!global_sync.has_proposal());
@@ -286,7 +355,7 @@ pub mod test {
         assert!(!global_sync.can_operate());
         assert!(global_sync.has_proposal());
 
-        global_sync.sign_off_on_block(MOD1, 12);
+        global_sync.sign_off_on_block(MOD1, 12, None);
     }
 
     #[test]
@@ -306,6 +375,6 @@ pub mod test {
         assert!(!global_sync.can_operate());
         assert!(global_sync.has_proposal());
 
-        global_sync.sign_off_reorg(MOD1, 10..=12u64);
+        global_sync.sign_off_reorg(MOD1, 10..=12u64, None);
     }
 }
