@@ -39,7 +39,7 @@ pub struct AnvilInitializer {
     angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
     pending_state: PendingDeployedPools,
-    _instance:     AnvilInstance
+    // _instance:     AnvilInstance
 }
 
 impl AnvilInitializer {
@@ -68,7 +68,7 @@ impl AnvilInitializer {
             angstrom,
             pool_gate,
             pending_state,
-            _instance: anvil.unwrap()
+            // _instance: anvil.unwrap()
         })
     }
 
@@ -142,7 +142,10 @@ impl AnvilInitializer {
     }
 
     pub async fn initialize_state(&mut self) -> eyre::Result<InitialTestnetState> {
-        let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
+        let (pool_keys, txs) = self.pending_state.finalize_pending_txs().await?;
+        for tx in  txs {
+            println!("tx {:?}", tx);
+        }
         let state_bytes = self.provider.provider_ref().anvil_dump_state().await?;
         Ok(InitialTestnetState::new(self.angstrom_env.angstrom(), Some(state_bytes), pool_keys))
     }

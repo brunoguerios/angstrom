@@ -1,12 +1,6 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
-use alloy::{
-    primitives::{address, aliases::I24, Address, BlockNumber, U256},
-    providers::{Network, Provider},
-    sol,
-    sol_types::{SolEvent, SolType},
-    transports::Transport
-};
+use alloy::{primitives::{address, aliases::I24, Address, BlockNumber, U256}, providers::{Network, Provider}, sol, sol_types::{SolEvent, SolType}, transports::Transport};
 use alloy_primitives::{Log, B256, I256};
 use angstrom_types::primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry};
 use itertools::Itertools;
@@ -286,7 +280,8 @@ impl DataLoader<Address> {
 
 impl DataLoader<AngstromPoolId> {
     fn pool_manager(&self) -> Address {
-        address!("88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
+        // TODO: this needs to be configurable
+        address!("ef11D1c2aA48826D4c41e54ab82D1Ff5Ad8A64Ca")
     }
 
     pub fn new_with_registry(address: AngstromPoolId, registry: UniswapPoolRegistry) -> Self {
@@ -307,6 +302,13 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             .get(&self.address())
             .unwrap()
             .clone();
+
+        
+        // TODO: remove the print
+        tracing::info!("currency0 {}", pool_key.currency0);
+        // TODO: remove the print
+        tracing::info!("currency1 {}", pool_key.currency1);
+
         let deployer = IGetUniswapV4PoolDataBatchRequest::deploy_builder(
             provider,
             self.address(),
@@ -314,13 +316,14 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             pool_key.currency0,
             pool_key.currency1
         );
-        let res = if let Some(block_number) = block_number {
-            deployer.block(block_number.into()).call_raw().await?
-        } else {
-            deployer.call_raw().await?
+
+        tracing::info!("call_data {}", deployer.calldata());
+        let data = match block_number {
+            Some(number) => deployer.block(number.into()).call_raw().await?,
+            None => deployer.call_raw().await?
         };
 
-        let pool_data_v4 = PoolDataV4::abi_decode(&res, true)?;
+        let pool_data_v4 = PoolDataV4::abi_decode(&data, true)?;
 
         Ok(PoolData {
             tokenA:         pool_key.currency0,
@@ -355,6 +358,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             tick_spacing
         );
 
+        tracing::info!("call_data {}", deployer.calldata());
         let data = match block_number {
             Some(number) => deployer.block(number.into()).call_raw().await?,
             None => deployer.call_raw().await?
