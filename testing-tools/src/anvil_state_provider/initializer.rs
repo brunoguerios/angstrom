@@ -167,9 +167,7 @@ mod tests {
 
         let current_block = get_block(&initializer.provider).await.unwrap();
 
-        let block_mine = initializer.provider.provider.evm_mine(None).await.unwrap();
-
-        println!("BLOCK MINED: {block_mine}");
+        let _ = initializer.provider.provider.evm_mine(None).await.unwrap();
 
         assert_eq!(current_block + 1, get_block(&initializer.provider).await.unwrap());
 
