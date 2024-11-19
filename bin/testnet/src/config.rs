@@ -36,6 +36,10 @@ impl AngstromDevnetCli {
             METRICS_ENABLED.set(false).unwrap();
         }
     }
+
+    pub(crate) fn load_config(&self) -> eyre::Result<FullTestnetNodeConfig> {
+        FullTestnetNodeConfig::load_from_config(&self.node_config)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -45,9 +49,7 @@ pub(crate) struct FullTestnetNodeConfig {
 }
 
 impl FullTestnetNodeConfig {
-    pub(crate) fn load_from_config(config: Option<PathBuf>) -> Result<Self, eyre::Report> {
-        let config_path = config.ok_or_else(|| eyre::eyre!("Config path not provided"))?;
-
+    fn load_from_config(config_path: &PathBuf) -> eyre::Result<Self> {
         if !config_path.exists() {
             return Err(eyre::eyre!("Config file does not exist at {:?}", config_path))
         }
@@ -59,6 +61,10 @@ impl FullTestnetNodeConfig {
             .wrap_err_with(|| format!("Could not deserialize config file {:?}", config_path))?;
 
         Ok(node_config)
+    }
+
+    pub(crate) fn my_node_config(&self) -> TestnetNodeConfig {
+        todo!()
     }
 }
 

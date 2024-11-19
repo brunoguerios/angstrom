@@ -1,6 +1,7 @@
 //! CLI definition and entrypoint to executable
 pub mod components;
 pub mod config;
+pub(crate) mod utils;
 
 use clap::Parser;
 use config::AngstromDevnetCli;
@@ -18,17 +19,18 @@ async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
     let cli = AngstromDevnetCli::parse();
     executor.spawn_critical("metrics", cli.clone().init_metrics());
 
-    let secret_key = SecretKey::new(&mut rand::thread_rng());
-    let pub_key = secret_key.public_key(&Secp256k1::default());
+    let config = cli.load_config()?;
 
-    let mut network = init_network_builder(secret_key)?;
-    let protocol_handle = network.build_protocol_handler();
-    let channels = initialize_strom_handles();
+    // let pub_key = secret_key.public_key(&Secp256k1::default());
 
-    // for rpc
-    let pool = channels.get_pool_handle();
-    let executor_clone = executor.clone();
-    let validation_client = ValidationClient(channels.validator_tx.clone());
+    // let mut network = init_network_builder(secret_key)?;
+    // let protocol_handle = network.build_protocol_handler();
+    // let channels = initialize_strom_handles();
+
+    // // for rpc
+    // let pool = channels.get_pool_handle();
+    // let executor_clone = executor.clone();
+    // let validation_client = ValidationClient(channels.validator_tx.clone());
 
     // let config = TestnetConfig::new(
     //     7,
