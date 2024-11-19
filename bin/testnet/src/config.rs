@@ -63,8 +63,13 @@ impl FullTestnetNodeConfig {
         Ok(node_config)
     }
 
-    pub(crate) fn my_node_config(&self) -> TestnetNodeConfig {
-        todo!()
+    pub(crate) fn my_node_config(&self) -> eyre::Result<TestnetNodeConfig> {
+        let my_ip = local_ip_address::local_ip()?;
+
+        self.nodes
+            .iter()
+            .find(|node| node.ip == my_ip)
+            .ok_or(eyre::eyre!("no node found for IP: {my_ip:?}"))
     }
 }
 
