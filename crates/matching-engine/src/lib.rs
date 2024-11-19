@@ -1,11 +1,15 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc
+};
 
 use alloy::{
     providers::{Network, Provider},
     transports::Transport
 };
-use alloy_primitives::BlockNumber;
+use alloy_primitives::{Address, BlockNumber};
 use angstrom_types::{
+    block_sync::BlockSyncConsumer,
     consensus::PreProposal,
     contract_payloads::angstrom::BundleGasDetails,
     matching::uniswap::PoolSnapshot,
@@ -14,12 +18,12 @@ use angstrom_types::{
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use book::OrderBook;
-use cfmm::uniswap::{
+use futures_util::future::BoxFuture;
+use reth_provider::CanonStateNotifications;
+use uniswap_v4::uniswap::{
     pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
     pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
-use futures_util::future::BoxFuture;
-use reth_provider::CanonStateNotifications;
 
 pub mod book;
 pub mod manager;
@@ -47,12 +51,17 @@ pub fn build_book(
     OrderBook::new(id, amm, bids, asks, Some(book::sort::SortStrategy::ByPriceByVolume))
 }
 
-pub async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
+pub async fn configure_uniswap_manager<
+    T: Transport + Clone,
+    N: Network,
+    BlockSync: BlockSyncConsumer
+>(
     provider: Arc<impl Provider<T, N>>,
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
-    current_block: BlockNumber
-) -> UniswapPoolManager<CanonicalStateAdapter, DataLoader<PoolId>, PoolId> {
+    current_block: BlockNumber,
+    block_sync: BlockSync
+) -> UniswapPoolManager<CanonicalStateAdapter, BlockSync, DataLoader<PoolId>, PoolId> {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
         .keys()
@@ -76,6 +85,7 @@ pub async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
         uniswap_pools,
         current_block,
         state_change_buffer,
-        Arc::new(CanonicalStateAdapter::new(state_notification))
+        Arc::new(CanonicalStateAdapter::new(state_notification)),
+        block_sync
     )
 }

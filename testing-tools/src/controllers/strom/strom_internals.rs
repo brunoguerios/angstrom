@@ -8,9 +8,9 @@ use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
-    contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice,
-    primitive::UniswapPoolRegistry, sol_bindings::testnet::TestnetHub,
-    testnet::InitialTestnetState
+    block_sync::GlobalBlockSync, contract_payloads::angstrom::AngstromPoolConfigStore,
+    pair_with_price::PairsWithPrice, primitive::UniswapPoolRegistry,
+    sol_bindings::testnet::TestnetHub, testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager};
 use futures::{StreamExt, TryStreamExt};
@@ -22,7 +22,7 @@ use reth_tasks::TokioTaskExecutor;
 use secp256k1::SecretKey;
 use tokio_stream::wrappers::BroadcastStream;
 use validation::{
-    order::state::{pools::AngstromPoolsTracker, token_pricing::TokenPriceGenerator},
+    common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
 };
 
@@ -46,7 +46,7 @@ pub struct AngstromDevnetNodeInternals {
 }
 
 impl AngstromDevnetNodeInternals {
-    pub async fn new(
+    pub async fn new<Matching, BlockSync>(
         testnet_node_id: Option<u64>,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
@@ -55,7 +55,7 @@ impl AngstromDevnetNodeInternals {
         _initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
-    ) -> eyre::Result<(Self, Option<ConsensusManager<PubSubFrontend>>)> {
+    ) -> eyre::Result<(Self, Option<ConsensusManager<PubSubFrontend, Matching, BlockSync>>)> {
         tracing::debug!("connecting to state provider");
         let state_provider = AnvilStateProviderWrapper::spawn_new(
             config.clone(),
@@ -95,6 +95,7 @@ impl AngstromDevnetNodeInternals {
             .get_block_number()
             .await
             .unwrap();
+        let block_sync = GlobalBlockSync::new(block_id);
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
@@ -104,7 +105,8 @@ impl AngstromDevnetNodeInternals {
                 .state_provider()
                 .subscribe_to_canonical_state(),
             uniswap_registry.clone(),
-            block_id
+            block_id,
+            block_sync.clone()
         )
         .await;
 
@@ -154,7 +156,8 @@ impl AngstromDevnetNodeInternals {
             Some(order_storage.clone()),
             strom_network_handle.clone(),
             eth_handle.subscribe_network(),
-            strom_handles.pool_rx
+            strom_handles.pool_rx,
+            block_sync
         )
         .with_config(pool_config)
         .build_with_channels(

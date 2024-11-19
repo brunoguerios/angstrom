@@ -41,7 +41,7 @@ use tokio::sync::mpsc::{
 };
 use validation::{
     init_validation,
-    order::state::{pools::AngstromPoolsTracker, token_pricing::TokenPriceGenerator},
+    order::state::pools::AngstromPoolsTracker,
     validator::{ValidationClient, ValidationRequest}
 };
 
@@ -119,135 +119,138 @@ pub fn initialize_strom_handles() -> StromHandles {
     }
 }
 
-pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeAddOns<Node>>(
-    cli: AngstromDevnetCli,
-    secret_key: SecretKey,
-    handles: StromHandles,
-    network_builder: StromNetworkBuilder,
-    node: FullNode<Node, AddOns>,
-    executor: &TaskExecutor
-) {
-    let angstrom_address = Address::default();
-    let node_config = FullTestnetNodeConfig::load_from_config(Some(cli.node_config)).unwrap();
+// pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns:
+// NodeAddOns<Node>>(     cli: AngstromDevnetCli,
+//     secret_key: SecretKey,
+//     handles: StromHandles,
+//     network_builder: StromNetworkBuilder,
+//     node: FullNode<Node, AddOns>,
+//     executor: &TaskExecutor
+// ) {
+//     let angstrom_address = Address::default();
+//     let node_config =
+// FullTestnetNodeConfig::load_from_config(Some(cli.node_config)).unwrap();
 
-    // I am sure there is a prettier way of doing this
-    let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
-        .with_recommended_fillers()
-        .wallet(EthereumWallet::from(
-            LocalSigner::<SigningKey>::from_bytes(&secret_key.secret_bytes().into()).unwrap()
-        ))
-        .on_builtin(node.rpc_server_handles.rpc.http_url().unwrap().as_str())
-        .await
-        .unwrap()
-        .into();
+//     // I am sure there is a prettier way of doing this
+//     let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
+//         .with_recommended_fillers()
+//         .wallet(EthereumWallet::from(
+//             
+// LocalSigner::<SigningKey>::from_bytes(&secret_key.secret_bytes().into()).
+// unwrap()         ))
+//         .on_builtin(node.rpc_server_handles.rpc.http_url().unwrap().as_str())
+//         .await
+//         .unwrap()
+//         .into();
 
-    let block_id = provider.get_block_number().await.unwrap();
-    let pool_config_store = Arc::new(
-        AngstromPoolConfigStore::load_from_chain(
-            angstrom_address,
-            BlockId::Number(BlockNumberOrTag::Number(block_id)),
-            &provider
-        )
-        .await
-        .unwrap()
-    );
+//     let block_id = provider.get_block_number().await.unwrap();
+//     let pool_config_store = Arc::new(
+//         AngstromPoolConfigStore::load_from_chain(
+//             angstrom_address,
+//             BlockId::Number(BlockNumberOrTag::Number(block_id)),
+//             &provider
+//         )
+//         .await
+//         .unwrap()
+//     );
 
-    let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
-    let uni_ang_registry =
-        UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
-    let uniswap_pool_manager = configure_uniswap_manager(
-        provider.clone(),
-        node.provider.subscribe_to_canonical_state(),
-        uniswap_registry,
-        block_id
-    )
-    .await;
-    let uniswap_pools = uniswap_pool_manager.pools();
-    executor.spawn(Box::pin(async move {
-        uniswap_pool_manager
-            .watch_state_changes()
-            .await
-            .expect("watch for uniswap pool changes");
-    }));
+//     let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
+//     let uni_ang_registry =
+//         UniswapAngstromRegistry::new(uniswap_registry.clone(),
+// pool_config_store.clone());     let uniswap_pool_manager =
+// configure_uniswap_manager(         provider.clone(),
+//         node.provider.subscribe_to_canonical_state(),
+//         uniswap_registry,
+//         block_id
+//     )
+//     .await;
+//     let uniswap_pools = uniswap_pool_manager.pools();
+//     executor.spawn(Box::pin(async move {
+//         uniswap_pool_manager
+//             .watch_state_changes()
+//             .await
+//             .expect("watch for uniswap pool changes");
+//     }));
 
-    let price_generator =
-        TokenPriceGenerator::new(provider.clone(), block_id, uniswap_pools.clone())
-            .await
-            .expect("failed to start token price generator");
+//     let price_generator =
+//         TokenPriceGenerator::new(provider.clone(), block_id,
+// uniswap_pools.clone())             .await
+//             .expect("failed to start token price generator");
 
-    let block_height = node.provider.best_block_number().unwrap();
-    init_validation(
-        RethDbWrapper::new(node.provider.clone()),
-        block_height,
-        Some(angstrom_address),
-        node.provider.canonical_state_stream(),
-        uniswap_pools.clone(),
-        price_generator,
-        pool_config_store.clone(),
-        handles.validator_rx
-    );
+//     let block_height = node.provider.best_block_number().unwrap();
+//     init_validation(
+//         RethDbWrapper::new(node.provider.clone()),
+//         block_height,
+//         Some(angstrom_address),
+//         node.provider.canonical_state_stream(),
+//         uniswap_pools.clone(),
+//         price_generator,
+//         pool_config_store.clone(),
+//         handles.validator_rx
+//     );
 
-    let network_handle = network_builder
-        .with_pool_manager(handles.pool_tx)
-        .with_consensus_manager(handles.consensus_tx_op)
-        .build_handle(executor.clone(), node.provider.clone());
+//     let network_handle = network_builder
+//         .with_pool_manager(handles.pool_tx)
+//         .with_consensus_manager(handles.consensus_tx_op)
+//         .build_handle(executor.clone(), node.provider.clone());
 
-    let pool_config = PoolConfig::default();
-    let order_storage = Arc::new(OrderStorage::new(&pool_config));
-    let angstrom_pool_tracker =
-        AngstromPoolsTracker::new(angstrom_address, pool_config_store.clone());
+//     let pool_config = PoolConfig::default();
+//     let order_storage = Arc::new(OrderStorage::new(&pool_config));
+//     let angstrom_pool_tracker =
+//         AngstromPoolsTracker::new(angstrom_address,
+// pool_config_store.clone());
 
-    // Build our PoolManager using the PoolConfig and OrderStorage we've already
-    // created
-    let eth_handle = EthDataCleanser::spawn(
-        angstrom_address,
-        node.provider.subscribe_to_canonical_state(),
-        executor.clone(),
-        handles.eth_tx,
-        handles.eth_rx,
-        HashSet::new(),
-        pool_config_store.clone()
-    )
-    .unwrap();
+//     // Build our PoolManager using the PoolConfig and OrderStorage we've
+// already     // created
+//     let eth_handle = EthDataCleanser::spawn(
+//         angstrom_address,
+//         node.provider.subscribe_to_canonical_state(),
+//         executor.clone(),
+//         handles.eth_tx,
+//         handles.eth_rx,
+//         HashSet::new(),
+//         pool_config_store.clone()
+//     )
+//     .unwrap();
 
-    let _pool_handle = PoolManagerBuilder::new(
-        ValidationClient(handles.validator_tx.clone()),
-        Some(order_storage.clone()),
-        network_handle.clone(),
-        eth_handle.subscribe_network(),
-        handles.pool_rx
-    )
-    .with_config(pool_config)
-    .build_with_channels(
-        executor.clone(),
-        handles.orderpool_tx,
-        handles.orderpool_rx,
-        angstrom_pool_tracker,
-        handles.pool_manager_tx
-    );
+//     let _pool_handle = PoolManagerBuilder::new(
+//         ValidationClient(handles.validator_tx.clone()),
+//         Some(order_storage.clone()),
+//         network_handle.clone(),
+//         eth_handle.subscribe_network(),
+//         handles.pool_rx
+//     )
+//     .with_config(pool_config)
+//     .build_with_channels(
+//         executor.clone(),
+//         handles.orderpool_tx,
+//         handles.orderpool_rx,
+//         angstrom_pool_tracker,
+//         handles.pool_manager_tx
+//     );
 
-    let signer = Signer::new(secret_key);
+//     let signer = Signer::new(secret_key);
 
-    // TODO load the stakes from Eigen using node.provider
-    let validators = vec![
-        AngstromValidator::new(PeerId::default(), 100),
-        AngstromValidator::new(PeerId::default(), 200),
-        AngstromValidator::new(PeerId::default(), 300),
-    ];
+//     // TODO load the stakes from Eigen using node.provider
+//     let validators = vec![
+//         AngstromValidator::new(PeerId::default(), 100),
+//         AngstromValidator::new(PeerId::default(), 200),
+//         AngstromValidator::new(PeerId::default(), 300),
+//     ];
 
-    let manager = ConsensusManager::new(
-        ManagerNetworkDeps::new(
-            network_handle.clone(),
-            node.provider.subscribe_to_canonical_state(),
-            handles.consensus_rx_op
-        ),
-        signer,
-        validators,
-        order_storage.clone(),
-        block_height,
-        uni_ang_registry,
-        uniswap_pools.clone(),
-        provider
-    );
-    let _consensus_handle = executor.spawn_critical("consensus", Box::pin(manager));
-}
+//     let manager = ConsensusManager::new(
+//         ManagerNetworkDeps::new(
+//             network_handle.clone(),
+//             node.provider.subscribe_to_canonical_state(),
+//             handles.consensus_rx_op
+//         ),
+//         signer,
+//         validators,
+//         order_storage.clone(),
+//         block_height,
+//         uni_ang_registry,
+//         uniswap_pools.clone(),
+//         provider
+//     );
+//     let _consensus_handle = executor.spawn_critical("consensus",
+// Box::pin(manager)); }

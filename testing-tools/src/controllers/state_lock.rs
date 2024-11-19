@@ -10,8 +10,10 @@ use std::{
 
 use alloy::transports::Transport;
 use angstrom_network::StromNetworkManager;
+use angstrom_types::block_sync::GlobalBlockSync;
 use consensus::ConsensusManager;
 use futures::FutureExt;
+use matching_engine::manager::MatcherHandle;
 use parking_lot::Mutex;
 use reth_network::test_utils::Peer;
 use reth_provider::BlockReader;
@@ -21,7 +23,7 @@ use tracing::{span, Level};
 pub(crate) struct TestnetStateFutureLock<C, T> {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C>>,
-    strom_consensus:       Option<StateLockInner<ConsensusManager<T>>>
+    strom_consensus: Option<StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>>
 }
 
 impl<C, T> TestnetStateFutureLock<C, T>
@@ -33,7 +35,7 @@ where
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C>,
-        consensus: Option<ConsensusManager<T>>
+        consensus: Option<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>
     ) -> Self {
         Self {
             eth_peer:              StateLockInner::new(node_id, eth_peer),
@@ -72,7 +74,7 @@ where
 
     pub(crate) fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T>) -> R
+        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus
             .as_ref()
@@ -82,7 +84,7 @@ where
 
     pub(crate) fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T>) -> R
+        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus
             .as_ref()

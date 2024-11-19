@@ -15,7 +15,6 @@ use angstrom_types::{
 use angstrom_utils::key_split_threadpool::KeySplitThreadpool;
 use bundle::BundleValidator;
 use common::SharedTools;
-use futures::StreamExt;
 use reth_provider::CanonStateNotificationStream;
 use tokio::sync::mpsc::UnboundedReceiver;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;

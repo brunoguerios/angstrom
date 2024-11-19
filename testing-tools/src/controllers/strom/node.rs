@@ -13,11 +13,13 @@ use angstrom_network::{
     NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkManager
 };
 use angstrom_types::{
+    block_sync::GlobalBlockSync,
     primitive::PeerId,
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager};
+use matching_engine::manager::MatcherHandle;
 use parking_lot::RwLock;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
@@ -211,14 +213,14 @@ where
     /// -------------------------------------
     pub fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<PubSubFrontend>) -> R
+        F: FnOnce(&ConsensusManager<PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.state_lock.strom_consensus(f)
     }
 
     pub fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<PubSubFrontend>) -> R
+        F: FnOnce(&mut ConsensusManager<PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.state_lock.strom_consensus_mut(f)
     }
