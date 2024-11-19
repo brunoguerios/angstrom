@@ -22,10 +22,7 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
     leader_selection::WeightedRoundRobin,
-    round_state::{
-        ConsensusState, Finalization, PreProposalAggregation, PreProposalSubmission,
-        RoundStateMachine
-    },
+    round_state::{ConsensusState, Finalization, PreProposalAggregation, RoundStateMachine},
     AngstromValidator, Signer
 };
 
@@ -34,7 +31,7 @@ const MODULE_NAME: &str = "Consensus";
 pub struct ConsensusManager<T, Matching, BlockSync> {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    state_transition:       RoundStateMachine<T, Matching>,
+    consensus_round_state:  RoundStateMachine<T, Matching>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
@@ -71,7 +68,7 @@ where
             strom_consensus_event,
             current_height,
             leader_selection,
-            state_transition: RoundStateMachine::new(
+            consensus_round_state: RoundStateMachine::new(
                 current_height,
                 order_storage,
                 signer,
@@ -97,7 +94,8 @@ where
             .leader_selection
             .choose_proposer(self.current_height)
             .unwrap();
-        self.state_transition
+
+        self.consensus_round_state
             .reset_round(self.current_height, round_leader);
         self.broadcasted_messages.clear();
 

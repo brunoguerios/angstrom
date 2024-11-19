@@ -3,7 +3,8 @@ use std::{
     hash::Hash,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
+    time::Duration
 };
 
 use alloy::{
@@ -43,8 +44,12 @@ pub enum RoundStateMachineError {
     #[error("Failed to build proposal: {0}")]
     ProposalBuildError(Report),
     #[error("Transaction submission failed")]
-    TransactionError
+    TransactionError,
+    #[error("Tried to generate a transition that was invalid")]
+    InvalidTransition
 }
+
+type TransitionFuture = BoxFuture<'static, Result<ConsensusState, RoundStateMachineError>>;
 
 pub struct RoundStateMachine<T, Matching> {
     current_state:     ConsensusState,
@@ -54,7 +59,7 @@ pub struct RoundStateMachine<T, Matching> {
     validators:        Vec<AngstromValidator>,
     _order_storage:    Arc<OrderStorage>,
     metrics:           ConsensusMetricsWrapper,
-    transition_future: Option<BoxFuture<'static, Result<ConsensusState, RoundStateMachineError>>>,
+    transition_future: Option<TransitionFuture>,
     waker:             Option<Waker>,
     pool_registry:     UniswapAngstromRegistry,
     uniswap_pools:     SyncedUniswapPools,
@@ -111,17 +116,37 @@ where
         voters > (self.validators.len() * 2) / 3
     }
 
-    pub fn reset_round(&mut self, block: BlockNumber, leader: PeerId) {
+    pub fn reset_round(
+        &mut self,
+        block: BlockNumber,
+        leader: PeerId,
+        transition_timeout: Duration
+    ) {
         self.round_leader = leader;
         self.current_state = Self::initial_state(block);
-        self.transition_future = None;
+        self.transition_future = Some(
+            self.into_pre_proposal_propagation(transition_timeout)
+                .expect("should never panic")
+        );
+        self.waker.as_ref().inspect(|waker| waker.wake_by_ref());
+    }
+
+    pub fn into_pre_proposal_propagation(
+        &mut self,
+        timeout_duration: Duration
+    ) -> Result<TransitionFuture, RoundStateMachineError> {
+        if !matches!(self.current_state, ConsensusState::OrderPropagation(_)) {
+            return Err(RoundStateMachineError::InvalidTransition)
+        }
+
+        async move {
+            tokio::time::sleep(timeout_duration).await;
+            ConsensusState::PreProposalAggregation()
+        }
     }
 
     pub fn initial_state(block_height: BlockNumber) -> ConsensusState {
-        ConsensusState::PreProposalSubmission(PreProposalSubmission {
-            block_height,
-            ..Default::default()
-        })
+        ConsensusState::OrderPropagation(block_height)
     }
 
     pub fn my_pre_proposal(&self, pre_proposals: &HashSet<PreProposal>) -> Option<StromMessage> {
@@ -429,10 +454,16 @@ where
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PreProposalCollector {
+    block_number:        BlockNumber,
+    my_pre_proposal:     PreProposal,
+    other_pre_proposals: HashSet<PreProposal>
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PreProposalSubmission {
-    pub block_height:  BlockNumber,
-    // this is used mostly for early messages
-    pub pre_proposals: HashSet<PreProposal>
+    pub block_height:    BlockNumber,
+    pub my_pre_proposal: PreProposal
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -450,8 +481,14 @@ pub struct Finalization {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ConsensusState {
+    /// In this state. Consensus is idling waiting for the timeout trigger
+    /// to start propagating
+    OrderPropagation(BlockNumber),
+    /// In this state. We have propagated our PreProposal and are collecting
+    /// Other PreProposals.
     PreProposalSubmission(PreProposalSubmission),
-    PreProposalAggregation(PreProposalAggregation),
+    /// This
+    PreProposalPropagationAndAggregation(PreProposalAggregation),
     Finalization(Finalization)
 }
 

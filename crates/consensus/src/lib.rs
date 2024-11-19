@@ -11,6 +11,7 @@ pub use leader_selection::AngstromValidator;
 pub use manager::*;
 pub use round_state::ConsensusState;
 pub use signer::*;
+pub mod rounds;
 
 #[derive(Debug, Clone)]
 pub enum ConsensusMessage {

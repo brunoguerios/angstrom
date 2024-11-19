@@ -15,7 +15,7 @@ const PENALTY_FACTOR: f64 = 1.125;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AngstromValidator {
-    peer_id:      PeerId,
+    pub peer_id:  PeerId,
     voting_power: u64,
     priority:     f64
 }

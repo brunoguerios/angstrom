@@ -107,12 +107,13 @@ impl PreProposal {
         Self::generate_pre_proposal(ethereum_height, source, limit, searcher, sk)
     }
 
-    pub fn is_valid(&self) -> bool {
+    /// ensures block height is correct as-well as validates the signature.
+    pub fn is_valid(&self, block_height: &BlockNumber) -> bool {
         let hash = keccak256(self.payload());
         let Ok(source) = self.signature.recover_signer_full_public_key(hash) else {
             return false;
         };
-        source == self.source
+        source == self.source && &self.block_height == block_height
     }
 
     fn serialize_payload(
