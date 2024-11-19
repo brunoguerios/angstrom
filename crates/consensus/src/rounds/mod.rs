@@ -96,6 +96,7 @@ where
 }
 
 pub struct Consensus<T, Matching> {
+    block_height:    BlockNumber,
     matching_engine: Matching,
     signer:          Signer,
     round_leader:    PeerId,
@@ -109,6 +110,7 @@ pub struct Consensus<T, Matching> {
     messages:        VecDeque<ConsensusTransitionMessage>
 }
 
+// contains shared impls
 impl<T, Matching> Consensus<T, Matching> {
     fn propagate_message(&mut self, message: ConsensusTransitionMessage) {
         self.messages.push_back(message);
@@ -116,6 +118,35 @@ impl<T, Matching> Consensus<T, Matching> {
 
     fn i_am_leader(&self) -> bool {
         self.round_leader == self.signer.my_id
+    }
+
+    fn handle_pre_proposal(
+        &mut self,
+        peer_id: PeerId,
+        pre_proposal: PreProposal,
+        pre_proposal_set: &mut HashSet<PreProposal>
+    ) {
+        if !self.validators.iter().map(|v| v.peer_id).contains(&peer_id) {
+            tracing::warn!(peer=?peer_id,"got a pre_proposal from a invalid peer");
+            return
+        }
+
+        // ensure pre_proposal is valid
+        if !pre_proposal.is_valid(&self.block_height) {
+            tracing::info!(peer=?peer_id,"got a invalid pre_proposal");
+            return
+        }
+
+        // if  we don't have the pre_proposal, propagate it and then store it.
+        // else log a message
+        if !pre_proposal_set.contains(&pre_proposal) {
+            self.propagate_message(ConsensusTransitionMessage::PropagatePreProposal(
+                pre_proposal.clone()
+            ));
+            pre_proposal_set.insert(pre_proposal);
+        } else {
+            tracing::info!(peer=?peer_id,"got a duplicate pre_proposal");
+        }
     }
 }
 
