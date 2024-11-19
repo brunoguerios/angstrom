@@ -17,8 +17,10 @@ use parking_lot::Mutex;
 use tokio::task::JoinHandle;
 use tracing::{span, Level};
 
+use crate::types::MockBlockSync;
+
 pub(crate) struct TestnetConsensusFuture<T, Matching> {
-    _consensus: Arc<Mutex<ConsensusManager<T, Matching>>>,
+    _consensus: Arc<Mutex<ConsensusManager<T, Matching, MockBlockSync>>>,
     /// JoinHandle for the _consensus future
     fut:        JoinHandle<()>
 }
@@ -30,7 +32,7 @@ where
 {
     pub(crate) fn new(
         testnet_node_id: u64,
-        _consensus: ConsensusManager<T, Matching>,
+        _consensus: ConsensusManager<T, Matching, MockBlockSync>,
         running: Arc<AtomicBool>
     ) -> Self {
         let _consensus = Arc::new(Mutex::new(_consensus));
@@ -42,7 +44,7 @@ where
     #[allow(dead_code)]
     pub(crate) fn consensus_manager<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T, Matching>) -> R
+        F: FnOnce(&ConsensusManager<T, Matching, MockBlockSync>) -> R
     {
         f(&self._consensus.lock())
     }
@@ -50,7 +52,7 @@ where
     #[allow(dead_code)]
     pub(crate) fn consensus_manager_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T, Matching>) -> R
+        F: FnOnce(&mut ConsensusManager<T, Matching, MockBlockSync>) -> R
     {
         f(&mut self._consensus.lock())
     }
@@ -58,7 +60,7 @@ where
 
 struct TestnetConsensusFutureInternals<T, Matching> {
     testnet_node_id: u64,
-    _consensus:      Arc<Mutex<ConsensusManager<T, Matching>>>,
+    _consensus:      Arc<Mutex<ConsensusManager<T, Matching, MockBlockSync>>>,
     running:         Arc<AtomicBool>
 }
 
@@ -69,7 +71,7 @@ where
 {
     fn new(
         testnet_node_id: u64,
-        _consensus: Arc<Mutex<ConsensusManager<T, Matching>>>,
+        _consensus: Arc<Mutex<ConsensusManager<T, Matching, MockBlockSync>>>,
         running: Arc<AtomicBool>
     ) -> Self {
         Self { testnet_node_id, _consensus, running }

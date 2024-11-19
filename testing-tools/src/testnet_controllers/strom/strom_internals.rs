@@ -46,7 +46,7 @@ use crate::{
     contracts::deploy_contract_and_create_pool,
     network::TestnetConsensusFuture,
     testnet_controllers::AngstromTestnetConfig,
-    types::SendingStromHandles,
+    types::{MockBlockSync, SendingStromHandles},
     validation::TestOrderValidator
 };
 
@@ -136,6 +136,7 @@ impl AngstromTestnetNodeInternals {
             7
         )
         .await?;
+        let block_sync = MockBlockSync;
 
         let block_id = state_provider
             .provider()
@@ -150,7 +151,8 @@ impl AngstromTestnetNodeInternals {
             state_provider.provider().provider().into(),
             state_provider.provider().subscribe_to_canonical_state(),
             uniswap_registry.clone(),
-            block_id
+            block_id,
+            block_sync
         )
         .await;
 
@@ -201,7 +203,8 @@ impl AngstromTestnetNodeInternals {
             Some(order_storage.clone()),
             strom_network_handle.clone(),
             eth_handle.subscribe_network(),
-            strom_handles.pool_rx
+            strom_handles.pool_rx,
+            block_sync
         )
         .with_config(pool_config)
         .build_with_channels(
@@ -249,7 +252,8 @@ impl AngstromTestnetNodeInternals {
             pool_registry,
             uniswap_pools.clone(),
             state_provider.provider().provider(),
-            matching_handle.clone()
+            matching_handle.clone(),
+            block_sync
         );
 
         let _consensus_running = Arc::new(AtomicBool::new(true));
@@ -279,8 +283,14 @@ async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
     provider: Arc<impl Provider<T, N>>,
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
-    current_block: BlockNumber
-) -> UniswapPoolManager<CanonicalStateAdapter, DataLoader<AngstromPoolId>, AngstromPoolId> {
+    current_block: BlockNumber,
+    block_sync: MockBlockSync
+) -> UniswapPoolManager<
+    CanonicalStateAdapter,
+    MockBlockSync,
+    DataLoader<AngstromPoolId>,
+    AngstromPoolId
+> {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
         .keys()
@@ -304,6 +314,7 @@ async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
         uniswap_pools,
         current_block,
         state_change_buffer,
-        Arc::new(CanonicalStateAdapter::new(state_notification))
+        Arc::new(CanonicalStateAdapter::new(state_notification)),
+        block_sync
     )
 }

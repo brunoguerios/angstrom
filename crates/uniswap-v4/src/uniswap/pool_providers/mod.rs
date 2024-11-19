@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, ops::RangeInclusive};
 
 use alloy::rpc::types::eth::Filter;
 use alloy_primitives::Log;
@@ -9,9 +9,15 @@ pub mod mock_block_stream;
 pub mod provider_adapter;
 
 pub trait PoolManagerProvider: Send + Sync {
-    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<u64>>;
+    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>>;
     fn get_logs(
         &self,
         filter: &Filter
     ) -> impl Future<Output = Result<Vec<Log>, PoolManagerError>> + Send;
+}
+
+#[derive(Debug, Clone)]
+pub enum PoolMangerBlocks {
+    NewBlock(u64),
+    Reorg(u64, RangeInclusive<u64>)
 }

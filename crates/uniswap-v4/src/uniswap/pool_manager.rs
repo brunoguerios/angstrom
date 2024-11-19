@@ -14,7 +14,9 @@ use alloy::{
     transports::{RpcError, TransportErrorKind}
 };
 use alloy_primitives::Log;
-use angstrom_types::{matching::uniswap::PoolSnapshot, primitive::PoolId};
+use angstrom_types::{
+    block_sync::BlockSyncConsumer, matching::uniswap::PoolSnapshot, primitive::PoolId
+};
 use arraydeque::ArrayDeque;
 use futures_util::{stream::BoxStream, StreamExt};
 use thiserror::Error;
@@ -23,7 +25,7 @@ use tokio::{
     task::JoinHandle
 };
 
-use super::pool::PoolError;
+use super::{pool::PoolError, pool_providers::PoolMangerBlocks};
 use crate::uniswap::{
     pool::EnhancedUniswapPool,
     pool_data_loader::{DataLoader, PoolDataLoader},
@@ -34,8 +36,10 @@ pub type StateChangeCache<Loader, A> = HashMap<A, ArrayDeque<StateChange<Loader,
 pub type SyncedUniswapPools<A = PoolId, Loader = DataLoader<A>> =
     Arc<HashMap<A, RwLock<EnhancedUniswapPool<Loader, A>>>>;
 
+const MODULE_NAME: &str = "UniswapV4";
+
 #[derive(Default)]
-pub struct UniswapPoolManager<P, Loader: PoolDataLoader<A>, A = Address>
+pub struct UniswapPoolManager<P, BlockSync, Loader: PoolDataLoader<A>, A = Address>
 where
     A: Debug + Copy
 {
@@ -44,21 +48,26 @@ where
     state_change_buffer: usize,
     state_change_cache:  Arc<RwLock<StateChangeCache<Loader, A>>>,
     provider:            Arc<P>,
+    block_sync:          BlockSync,
     sync_started:        AtomicBool
 }
 
-impl<P, Loader, A> UniswapPoolManager<P, Loader, A>
+impl<P, BlockSync, Loader, A> UniswapPoolManager<P, BlockSync, Loader, A>
 where
     A: Eq + Hash + Debug + Default + Copy + Sync + Send + 'static,
     Loader: PoolDataLoader<A> + Default + Clone + Send + Sync + 'static,
+    BlockSync: BlockSyncConsumer,
     P: PoolManagerProvider + Send + Sync + 'static
 {
     pub fn new(
         pools: Vec<EnhancedUniswapPool<Loader, A>>,
         latest_synced_block: BlockNumber,
         state_change_buffer: usize,
-        provider: Arc<P>
+        provider: Arc<P>,
+        block_sync: BlockSync
     ) -> Self {
+        block_sync.register(MODULE_NAME);
+
         let rwlock_pools = pools
             .into_iter()
             .map(|pool| (pool.address(), RwLock::new(pool)))
@@ -69,7 +78,8 @@ where
             state_change_buffer,
             state_change_cache: Arc::new(RwLock::new(HashMap::new())),
             provider,
-            sync_started: AtomicBool::new(false)
+            sync_started: AtomicBool::new(false),
+            block_sync
         }
     }
 
@@ -153,36 +163,37 @@ where
         let provider = Arc::clone(&self.provider);
         let filter = self.filter();
         let state_change_cache = Arc::clone(&self.state_change_cache);
+        let block_sync = self.block_sync.clone();
+
         let updated_pool_handle = tokio::spawn(async move {
-            let mut block_stream: BoxStream<Option<u64>> = provider.subscribe_blocks();
-            while let Some(block_number) = block_stream.next().await {
-                let chain_head_block_number =
-                    block_number.ok_or(PoolManagerError::EmptyBlockNumberFromStream)?;
+            let mut block_stream: BoxStream<Option<_>> = provider.subscribe_blocks();
+            while let Some(Some(block_number)) = block_stream.next().await {
                 // If there is a reorg, unwind state changes from last_synced block to the
                 // chain head block number
-                let mut reorg = false;
-                if chain_head_block_number <= last_synced_block {
-                    tracing::trace!(
-                        chain_head_block_number,
-                        last_synced_block,
-                        "reorg detected, unwinding state changes"
-                    );
-                    reorg = true;
-                    // set the last synced block to the head block number
-                    last_synced_block = chain_head_block_number - 1;
-                }
+
+                let (chain_head_block_number, block_range, is_reorg) = match block_number {
+                    PoolMangerBlocks::NewBlock(block) => (block, None, false),
+                    PoolMangerBlocks::Reorg(tip, range) => {
+                        last_synced_block = tip - range.end();
+                        tracing::trace!(
+                            tip,
+                            last_synced_block,
+                            "reorg detected, unwinding state changes"
+                        );
+                        (tip, Some(range), true)
+                    }
+                };
 
                 let logs = provider
                     .get_logs(
                         &filter
                             .clone()
-                            // last_synced_block + 1 == chain_head_block_number (always)
                             .from_block(last_synced_block + 1)
                             .to_block(chain_head_block_number)
                     )
                     .await?;
 
-                if reorg {
+                if is_reorg {
                     // scope for locks
                     let mut state_change_cache = state_change_cache.write().unwrap();
                     for pool in pools.values() {
@@ -228,6 +239,12 @@ where
                 }
 
                 last_synced_block = chain_head_block_number;
+
+                if is_reorg {
+                    block_sync.sign_off_reorg(MODULE_NAME, block_range.unwrap(), None);
+                } else {
+                    block_sync.sign_off_on_block(MODULE_NAME, last_synced_block, None);
+                }
             }
 
             Ok(())

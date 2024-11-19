@@ -9,6 +9,7 @@ use futures_util::StreamExt;
 use reth_provider::CanonStateNotification;
 use tokio::sync::{broadcast, RwLock};
 
+use super::PoolMangerBlocks;
 use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
 
 pub struct CanonicalStateAdapter {
@@ -28,15 +29,14 @@ impl CanonicalStateAdapter {
 }
 
 impl PoolManagerProvider for CanonicalStateAdapter {
-    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<u64>> {
+    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>> {
         futures_util::stream::unfold(
             self.canon_state_notifications.resubscribe(),
             move |mut notifications| async move {
                 if let Ok(notification) = notifications.recv().await {
                     let mut last_log_write = self.last_logs.write().await;
                     let block = match notification {
-                        CanonStateNotification::Commit { new }
-                        | CanonStateNotification::Reorg { new, .. } => {
+                        CanonStateNotification::Commit { new } => {
                             let block = new.tip();
                             let logs: Vec<Log> = new
                                 .execution_outcome()
@@ -44,7 +44,44 @@ impl PoolManagerProvider for CanonicalStateAdapter {
                                 .map_or_else(Vec::new, |logs| logs.cloned().collect());
                             *last_log_write = logs;
                             self.last_block_number.store(block.number, Ordering::SeqCst);
-                            Some(Some(block.number))
+                            Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
+                        }
+                        CanonStateNotification::Reorg { old, new } => {
+                            let tip = new.tip().block.number;
+                            // search 30 blocks back;
+                            let start = tip - 30;
+
+                            let range = old
+                                .blocks_iter()
+                                .filter(|b| b.block.number >= start)
+                                .zip(new.blocks_iter().filter(|b| b.block.number >= start))
+                                .filter(|&(old, new)| (old.block.hash() != new.block.hash()))
+                                .map(|(_, new)| new.block.number)
+                                .collect::<Vec<_>>();
+
+                            let range = match range.len() {
+                                0 => tip..=tip,
+                                _ => {
+                                    let start = *range.first().unwrap();
+                                    let end = *range.last().unwrap();
+                                    start..=end
+                                }
+                            };
+
+                            let block = new.tip();
+                            let mut logs = Vec::new();
+
+                            for block in range.clone() {
+                                logs.extend(
+                                    new.execution_outcome()
+                                        .logs(block)
+                                        .map_or_else(Vec::new, |logs| logs.cloned().collect())
+                                );
+                            }
+
+                            *last_log_write = logs;
+                            self.last_block_number.store(block.number, Ordering::SeqCst);
+                            Some(Some(PoolMangerBlocks::Reorg(block.number, range)))
                         }
                     };
                     Some((block, notifications))
@@ -87,7 +124,7 @@ impl CanonicalStateAdapter {
             });
 
             if !from_equal_block_range || !to_equal_to_block_range {
-                return Err(PoolManagerError::InvalidBlockRange);
+                return Err(PoolManagerError::InvalidBlockRange)
             }
         }
         Ok(())
