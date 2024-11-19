@@ -1,5 +1,5 @@
 extern crate arraydeque;
-use std::sync::Arc;
+use std::{ops::RangeInclusive, sync::Arc, task::Waker};
 
 use alloy::{
     network::Ethereum,
@@ -7,11 +7,12 @@ use alloy::{
     providers::{ProviderBuilder, RootProvider, WsConnect},
     pubsub::PubSubFrontend
 };
-use matching_engine::cfmm::uniswap::{
+use angstrom_types::block_sync::GlobalBlockState;
+use tokio::signal::unix::{signal, SignalKind};
+use uniswap_v4::uniswap::{
     pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
     pool_providers::mock_block_stream::MockBlockStream
 };
-use tokio::signal::unix::{signal, SignalKind};
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -40,8 +41,11 @@ async fn main() -> eyre::Result<()> {
 
     let mock_block_stream = Arc::new(MockBlockStream::new(provider.clone(), from_block, to_block));
     let pools = vec![pool];
+
+    let sync = MockBlockSync;
+
     let uniswap_pool_manager =
-        UniswapPoolManager::new(pools, block_number, state_change_buffer, mock_block_stream);
+        UniswapPoolManager::new(pools, block_number, state_change_buffer, mock_block_stream, sync);
 
     let (mut rx, _join_handles) = uniswap_pool_manager.subscribe_state_changes().await?;
 
@@ -54,10 +58,10 @@ async fn main() -> eyre::Result<()> {
             _ = sigint.recv() => break,
             state_changes = rx.recv() => {
                 if let Some((address, changes_block_number)) = state_changes {
-                   let pool_guard = uniswap_pool_manager.pool(&address).await.unwrap();
                     let mut fresh_pool = EnhancedUniswapPool::new(DataLoader::new(address), ticks_per_side);
                     fresh_pool.initialize(Some(changes_block_number), provider.clone()).await?;
 
+                   let pool_guard = uniswap_pool_manager.pool(&address).unwrap();
                     // Compare the new pool with the old pool
                     compare_pools(&pool_guard, &fresh_pool, changes_block_number);
                 } else {
@@ -220,4 +224,29 @@ fn compare_pools(old: &EnhancedUniswapPool, new: &EnhancedUniswapPool, block_num
     } else {
         tracing::info!(block_number=block_number, address=?old.address(), "pools are the same");
     }
+}
+
+use angstrom_types::block_sync::BlockSyncConsumer;
+
+#[derive(Debug, Clone, Copy)]
+pub struct MockBlockSync;
+
+impl BlockSyncConsumer for MockBlockSync {
+    fn sign_off_reorg(&self, _: &'static str, _: RangeInclusive<u64>, _: Option<Waker>) {}
+
+    fn sign_off_on_block(&self, _: &'static str, _: u64, _: Option<Waker>) {}
+
+    fn current_block_number(&self) -> u64 {
+        0
+    }
+
+    fn has_proposal(&self) -> bool {
+        false
+    }
+
+    fn fetch_current_proposal(&self) -> Option<GlobalBlockState> {
+        None
+    }
+
+    fn register(&self, _: &'static str) {}
 }

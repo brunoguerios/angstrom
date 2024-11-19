@@ -1,5 +1,6 @@
 use std::{net::IpAddr, path::PathBuf};
 
+use alloy_primitives::Address;
 use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
 use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
 use eyre::Context;
@@ -64,6 +65,7 @@ impl FullTestnetNodeConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct TestnetNodeConfig {
     pub(crate) node_id:   usize,
+    pub(crate) address: Address,
     pub(crate) ip:        IpAddr,
     pub(crate) is_leader: bool
 }

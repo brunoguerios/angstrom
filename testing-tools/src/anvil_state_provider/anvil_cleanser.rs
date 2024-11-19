@@ -60,7 +60,8 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
 
     fn on_command(&mut self, command: EthCommand) {
         match command {
-            EthCommand::SubscribeEthNetworkEvents(tx) => self.event_listeners.push(tx)
+            EthCommand::SubscribeEthNetworkEvents(tx) => self.event_listeners.push(tx),
+            EthCommand::SubscribeCannon(_) => panic!("should never be called")
         }
     }
 

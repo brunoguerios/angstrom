@@ -9,7 +9,8 @@ use alloy::{
 use alloy_primitives::Log;
 use futures_util::{FutureExt, StreamExt};
 
-use crate::cfmm::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
+use super::PoolMangerBlocks;
+use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
 
 pub struct ProviderAdapter<P, T, N>
 where
@@ -38,11 +39,11 @@ where
     T: Transport + Clone + Send + Sync,
     N: Network + Send + Sync
 {
-    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<u64>> {
+    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>> {
         let provider = self.inner.clone();
         async move { provider.subscribe_blocks().await.unwrap().into_stream() }
             .flatten_stream()
-            .map(|b| Some(b.header().number()))
+            .map(|b| Some(PoolMangerBlocks::NewBlock(b.header().number())))
             .boxed()
     }
 

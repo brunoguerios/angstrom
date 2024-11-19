@@ -603,6 +603,7 @@ where
 pub enum PoolInnerEvent {
     Propagation(AllOrders),
     BadOrderMessages(Vec<PeerId>),
+    HasTransitionedToNewBlock(u64),
     None
 }
 

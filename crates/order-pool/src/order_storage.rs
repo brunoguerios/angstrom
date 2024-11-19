@@ -16,7 +16,6 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use tokio::sync::broadcast::{Receiver, Sender};
 
 use crate::{
     finalization_pool::FinalizationPool,
@@ -24,17 +23,6 @@ use crate::{
     searcher::{SearcherPool, SearcherPoolError},
     PoolConfig
 };
-
-#[derive(Clone, Debug)]
-pub enum OrderStorageNotification {
-    FinalizationComplete(BlockNumber)
-}
-
-impl Default for OrderStorageNotification {
-    fn default() -> Self {
-        OrderStorageNotification::FinalizationComplete(0)
-    }
-}
 
 /// The Storage of all verified orders.
 #[derive(Clone)]
@@ -45,9 +33,7 @@ pub struct OrderStorage {
     /// we store filled order hashes until they are expired time wise to ensure
     /// we don't waste processing power in the validator.
     pub filled_orders:               Arc<Mutex<HashMap<B256, Instant>>>,
-    pub metrics:                     OrderStorageMetricsWrapper,
-    /// used to tell subscribers about events in the storage
-    pub storage_notifications:       Sender<OrderStorageNotification>
+    pub metrics:                     OrderStorageMetricsWrapper
 }
 
 impl Debug for OrderStorage {
@@ -68,19 +54,13 @@ impl OrderStorage {
             Some(config.s_pending_limit.max_size)
         )));
         let pending_finalization_orders = Arc::new(Mutex::new(FinalizationPool::new()));
-        let (storage_notification_tx, _) = tokio::sync::broadcast::channel(1);
         Self {
             filled_orders: Arc::new(Mutex::new(HashMap::default())),
             limit_orders,
             searcher_orders,
             pending_finalization_orders,
-            storage_notifications: storage_notification_tx,
             metrics: OrderStorageMetricsWrapper::default()
         }
-    }
-
-    pub fn subscribe_notifications(&self) -> Receiver<OrderStorageNotification> {
-        self.storage_notifications.subscribe()
     }
 
     pub fn fetch_status_of_order(&self, order: B256) -> Option<OrderStatus> {
@@ -275,15 +255,7 @@ impl OrderStorage {
             .expect("poisoned")
             .finalized(block_number);
 
-        self.notify_subscribers(OrderStorageNotification::FinalizationComplete(block_number));
-
         self.metrics.decr_pending_finalization_orders(orders.len());
-    }
-
-    fn notify_subscribers(&self, notification: OrderStorageNotification) {
-        if let Err(err) = self.storage_notifications.send(notification.clone()) {
-            tracing::error!(?notification, ?err, "could not send to subscribers")
-        }
     }
 
     pub fn reorg(&self, order_hashes: Vec<FixedBytes<32>>) -> Vec<OrderWithStorageData<AllOrders>> {

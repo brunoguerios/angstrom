@@ -13,9 +13,9 @@ use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use validation::order::state::pools::AngstromPoolsTracker;
 
-use crate::mocks::validator::MockValidator;
+use crate::{mocks::validator::MockValidator, types::MockBlockSync};
 
-type DefaultMockPoolManager = PoolManager<MockValidator>;
+type DefaultMockPoolManager = PoolManager<MockValidator, MockBlockSync>;
 
 type OrderPoolOperation<T> =
     dyn FnOnce(TestnetOrderPool, T) -> Pin<Box<dyn Future<Output = (TestnetOrderPool, T)>>>;
@@ -55,6 +55,7 @@ impl TestnetOrderPool {
                 network_handle,
                 strom_network_events,
                 eth_network_events,
+                MockBlockSync,
                 tx,
                 rx,
                 order_events,
