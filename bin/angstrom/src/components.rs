@@ -22,7 +22,7 @@ use angstrom_network::{
     VerificationSidecar
 };
 use angstrom_types::{
-    block_sync::GlobalBlockSync,
+    block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     primitive::{PeerId, PoolId as AngstromPoolId, UniswapPoolRegistry},
     reth_db_wrapper::RethDbWrapper
@@ -54,6 +54,8 @@ use validation::{
     validator::{ValidationClient, ValidationRequest}
 };
 
+use crate::{cli::NodeConfig, AngstromConfig};
+
 pub fn init_network_builder(secret_key: SecretKey) -> eyre::Result<StromNetworkBuilder> {
     let public_key = PublicKey::from_secret_key(&Secp256k1::new(), &secret_key);
 
@@ -69,7 +71,7 @@ pub fn init_network_builder(secret_key: SecretKey) -> eyre::Result<StromNetworkB
 
     Ok(StromNetworkBuilder::new(verification))
 }
-use crate::{cli::NodeConfig, AngstromConfig};
+
 pub type DefaultPoolHandle = PoolHandle;
 type DefaultOrderCommand = OrderCommand;
 
@@ -154,6 +156,19 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         .await
         .unwrap()
         .into();
+
+    tracing::info!(target: "angstrom::startup-sequence", "waiting for the next block to continue startup sequence. \
+        this is done to ensure all modules start on the same state and we don't hit the rare  \
+        condition of a block while starting modules");
+
+    let _ = node
+        .provider
+        .subscribe_to_canonical_state()
+        .recv()
+        .await
+        .expect("startup sequence failed");
+
+    tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
     let block_id = provider.get_block_number().await.unwrap();
 
@@ -283,6 +298,8 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     );
 
     let _consensus_handle = executor.spawn_critical("consensus", Box::pin(manager));
+    // ensure no more modules can be added to block sync.
+    global_block_sync.finalize_modules();
 }
 
 async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
