@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    ops::RangeInclusive,
     sync::Arc,
     task::{Context, Poll}
 };
@@ -9,6 +10,7 @@ use alloy::{
     sol_types::SolEvent
 };
 use angstrom_types::{
+    block_sync::BlockSyncProducer,
     contract_bindings,
     contract_payloads::angstrom::{AngstromBundle, AngstromPoolConfigStore},
     primitive::NewInitializedPool
@@ -16,7 +18,7 @@ use angstrom_types::{
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
 use pade::PadeDecode;
-use reth_primitives::{Receipt, TransactionSigned};
+use reth_primitives::{Receipt, SealedBlockWithSenders, TransactionSigned};
 use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain};
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
@@ -29,18 +31,25 @@ alloy::sol!(
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 );
 
+const MAX_REORG_DEPTH: u64 = 30;
+
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
-pub struct EthDataCleanser {
+pub struct EthDataCleanser<Sync> {
     angstrom_address: Address,
     /// our command receiver
     commander:        ReceiverStream<EthCommand>,
     /// people listening to events
     event_listeners:  Vec<UnboundedSender<EthEvent>>,
 
+    /// for rebroadcasting
+    cannon_sender: tokio::sync::broadcast::Sender<CanonStateNotification>,
+
     /// Notifications for Canonical Block updates
     canonical_updates: BroadcastStream<CanonStateNotification>,
     angstrom_tokens:   HashSet<Address>,
+    /// handles syncing of blocks.
+    block_sync:        Sync,
 
     /// TODO: Once the periphery contracts are finished. we will add a watcher
     /// on the contract that every time a new pair is added, we update the
@@ -48,7 +57,10 @@ pub struct EthDataCleanser {
     _pool_store: Arc<AngstromPoolConfigStore>
 }
 
-impl EthDataCleanser {
+impl<Sync> EthDataCleanser<Sync>
+where
+    Sync: BlockSyncProducer
+{
     pub fn spawn<TP: TaskSpawner>(
         angstrom_address: Address,
         canonical_updates: CanonStateNotifications,
@@ -56,9 +68,11 @@ impl EthDataCleanser {
         tx: Sender<EthCommand>,
         rx: Receiver<EthCommand>,
         angstrom_tokens: HashSet<Address>,
-        pool_store: Arc<AngstromPoolConfigStore>
+        pool_store: Arc<AngstromPoolConfigStore>,
+        sync: Sync
     ) -> anyhow::Result<EthHandle> {
         let stream = ReceiverStream::new(rx);
+        let (cannon_tx, _) = tokio::sync::broadcast::channel(1000);
 
         let this = Self {
             angstrom_address,
@@ -66,6 +80,8 @@ impl EthDataCleanser {
             commander: stream,
             event_listeners: Vec::new(),
             angstrom_tokens,
+            cannon_sender: cannon_tx,
+            block_sync: sync,
             _pool_store: pool_store
         };
         tp.spawn_critical("eth handle", this.boxed());
@@ -75,6 +91,12 @@ impl EthDataCleanser {
         Ok(handle)
     }
 
+    fn subscribe_cannon_notifications(
+        &self
+    ) -> tokio::sync::broadcast::Receiver<CanonStateNotification> {
+        self.cannon_sender.subscribe()
+    }
+
     fn send_events(&mut self, event: EthEvent) {
         self.event_listeners
             .retain(|e| e.send(event.clone()).is_ok());
@@ -82,18 +104,28 @@ impl EthDataCleanser {
 
     fn on_command(&mut self, command: EthCommand) {
         match command {
-            EthCommand::SubscribeEthNetworkEvents(tx) => self.event_listeners.push(tx)
+            EthCommand::SubscribeEthNetworkEvents(tx) => self.event_listeners.push(tx),
+            EthCommand::SubscribeCannon(tx) => {
+                let _ = tx.send(self.subscribe_cannon_notifications());
+            }
         }
     }
 
     fn on_canon_update(&mut self, canonical_updates: CanonStateNotification) {
-        match canonical_updates {
+        match canonical_updates.clone() {
             CanonStateNotification::Reorg { old, new } => self.handle_reorg(old, new),
             CanonStateNotification::Commit { new } => self.handle_commit(new)
         }
+        let _ = self.cannon_sender.send(canonical_updates);
     }
 
     fn handle_reorg(&mut self, old: Arc<impl ChainExt>, new: Arc<impl ChainExt>) {
+        // notify producer of reorg if one happened. NOTE: reth also calls this
+        // on reverts
+        let tip = new.tip_number();
+        let reorg = old.reorged_range(&new).unwrap_or(tip..=tip);
+        self.block_sync.reorg(reorg.clone());
+
         let mut eoas = self.get_eoa(old.clone());
         eoas.extend(self.get_eoa(new.clone()));
 
@@ -102,7 +134,7 @@ impl EthDataCleanser {
         let new_filled: HashSet<_> = self.fetch_filled_order(&new).collect();
 
         let difference: Vec<_> = old_filled.difference(&new_filled).copied().collect();
-        let reorged_orders = EthEvent::ReorgedOrders(difference);
+        let reorged_orders = EthEvent::ReorgedOrders(difference, reorg);
 
         let transitions = EthEvent::NewBlockTransitions {
             block_number:      new.tip_number(),
@@ -114,6 +146,9 @@ impl EthDataCleanser {
     }
 
     fn handle_commit(&mut self, new: Arc<impl ChainExt>) {
+        let tip = new.tip_number();
+        self.block_sync.new_block(tip);
+
         // handle this first so the newest state is the first available
         self.handle_new_pools(new.clone());
 
@@ -198,7 +233,10 @@ impl EthDataCleanser {
     }
 }
 
-impl Future for EthDataCleanser {
+impl<Sync> Future for EthDataCleanser<Sync>
+where
+    Sync: BlockSyncProducer
+{
     type Output = ();
 
     fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -232,7 +270,7 @@ pub enum EthEvent {
         filled_orders:     Vec<B256>,
         address_changeset: Vec<Address>
     },
-    ReorgedOrders(Vec<B256>),
+    ReorgedOrders(Vec<B256>, RangeInclusive<u64>),
     FinalizedBlock(u64),
     NewPool(NewInitializedPool)
 }
@@ -243,11 +281,44 @@ pub trait ChainExt {
     fn tip_hash(&self) -> BlockHash;
     fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>>;
     fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_;
+    fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>>;
+    fn blocks_iter(&self) -> impl Iterator<Item = &SealedBlockWithSenders> + '_;
 }
 
 impl ChainExt for Chain {
     fn tip_hash(&self) -> BlockHash {
         self.tip().hash()
+    }
+
+    fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>> {
+        let tip = new.tip_number();
+        // search 30 blocks back;
+        let start = tip - MAX_REORG_DEPTH;
+
+        let mut range = self
+            .blocks_iter()
+            .filter(|b| b.block.number >= start)
+            .zip(new.blocks_iter().filter(|b| b.block.number >= start))
+            .filter(|&(old, new)| (old.block.hash() != new.block.hash()))
+            .map(|(_, new)| new.block.number)
+            .collect::<Vec<_>>();
+
+        match range.len() {
+            0 => None,
+            1 => {
+                let r = range.remove(0);
+                Some(r..=r)
+            }
+            _ => {
+                let start = *range.first().unwrap();
+                let end = *range.last().unwrap();
+                Some(start..=end)
+            }
+        }
+    }
+
+    fn blocks_iter(&self) -> impl Iterator<Item = &SealedBlockWithSenders> + '_ {
+        self.blocks_iter()
     }
 
     fn tip_number(&self) -> BlockNumber {
@@ -271,6 +342,7 @@ pub mod test {
         signers::local::PrivateKeySigner
     };
     use angstrom_types::{
+        block_sync::*,
         contract_payloads::{
             angstrom::{TopOfBlockOrder, UserOrder},
             Asset, Pair
@@ -298,6 +370,10 @@ pub mod test {
             self.hash
         }
 
+        fn blocks_iter(&self) -> impl Iterator<Item = &SealedBlockWithSenders> + '_ {
+            vec![].into_iter()
+        }
+
         fn tip_number(&self) -> BlockNumber {
             self.number
         }
@@ -309,17 +385,26 @@ pub mod test {
         fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
             self.transactions.iter()
         }
+
+        fn reorged_range(&self, _: impl ChainExt) -> Option<RangeInclusive<u64>> {
+            None
+        }
     }
 
-    fn setup_non_subscription_eth_manager(angstrom_address: Option<Address>) -> EthDataCleanser {
+    fn setup_non_subscription_eth_manager(
+        angstrom_address: Option<Address>
+    ) -> EthDataCleanser<GlobalBlockSync> {
         let (_command_tx, command_rx) = tokio::sync::mpsc::channel(3);
         let (_cannon_tx, cannon_rx) = tokio::sync::broadcast::channel(3);
+        let (tx, _) = tokio::sync::broadcast::channel(3);
         EthDataCleanser {
             commander:         ReceiverStream::new(command_rx),
             event_listeners:   vec![],
             angstrom_tokens:   HashSet::default(),
             angstrom_address:  angstrom_address.unwrap_or_default(),
             canonical_updates: BroadcastStream::new(cannon_rx),
+            block_sync:        GlobalBlockSync::new(1),
+            cannon_sender:     tx,
             _pool_store:       Default::default()
         }
     }
@@ -364,8 +449,8 @@ pub mod test {
         let pair = vec![pair];
         let assets = vec![asset0, asset1];
 
-        let finalized_user_order = UserOrder::from_internal_order(&user_order, &outcome, 0);
-        let finalized_tob = TopOfBlockOrder::of(&t, 0);
+        let finalized_user_order = UserOrder::from_internal_order_max_gas(&user_order, &outcome, 0);
+        let finalized_tob = TopOfBlockOrder::of_max_gas(&t, 0);
 
         let order_hashes =
             vec![finalized_user_order.order_hash(), finalized_tob.order_hash(&pair, &assets, 0)];

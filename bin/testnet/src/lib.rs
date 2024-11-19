@@ -1,10 +1,15 @@
 //! CLI definition and entrypoint to executable
 pub mod components;
 pub mod config;
+use alloy::signers::local::PrivateKeySigner;
+use alloy_primitives::Address;
 use clap::Parser;
 use config::AngstromDevnetCli;
+use enr::k256::ecdsa::SigningKey;
+use rand::rngs::ThreadRng;
 use reth::{tasks::TaskExecutor, CliRunner};
 use secp256k1::{Secp256k1, SecretKey};
+use testing_tools::controllers::testnet::{TestnetConfig, TestnetLeaderConfig};
 use validation::validator::ValidationClient;
 
 use crate::components::{init_network_builder, initialize_strom_handles};
@@ -29,8 +34,18 @@ async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
     let executor_clone = executor.clone();
     let validation_client = ValidationClient(channels.validator_tx.clone());
 
-    //initialize_strom_components(cli, secret_key, channels, network,
-    // executor).await;
+    // let config = TestnetConfig::new(
+    //     7,
+    //     1,
+    //     "ws://localhost:8545",
+    //     Address::random(),
+    //     pub_key,
+    //     secret_key,
+    //     secret_key,
+    //     vec![],
+    //     angstrom_address,
+    //     Some(TestnetLeaderConfig::new(20000000, "ws://35.245.117.24:8546"))
+    // );
 
     Ok(())
 }

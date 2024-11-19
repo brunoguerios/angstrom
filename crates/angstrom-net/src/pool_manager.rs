@@ -3,12 +3,13 @@ use std::{
     num::NonZeroUsize,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll}
+    task::{Context, Poll, Waker}
 };
 
 use alloy::primitives::{Address, FixedBytes, B256};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
+    block_sync::BlockSyncConsumer,
     orders::{OrderLocation, OrderOrigin, OrderStatus},
     primitive::PeerId,
     sol_bindings::grouped_orders::AllOrders
@@ -30,6 +31,8 @@ use validation::order::{
 };
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};
+
+const MODULE_NAME: &str = "Order Pool";
 
 /// Cache limit of transactions to keep track of for a single peer.
 const PEER_ORDER_CACHE_LIMIT: usize = 1024 * 10;
@@ -116,11 +119,13 @@ impl OrderPoolHandle for PoolHandle {
     }
 }
 
-pub struct PoolManagerBuilder<V>
+pub struct PoolManagerBuilder<V, GlobalSync>
 where
-    V: OrderValidatorHandle
+    V: OrderValidatorHandle,
+    GlobalSync: BlockSyncConsumer
 {
     validator:            V,
+    global_sync:          GlobalSync,
     order_storage:        Option<Arc<OrderStorage>>,
     network_handle:       StromNetworkHandle,
     strom_network_events: UnboundedReceiverStream<StromNetworkEvent>,
@@ -129,19 +134,22 @@ where
     config:               PoolConfig
 }
 
-impl<V> PoolManagerBuilder<V>
+impl<V, GlobalSync> PoolManagerBuilder<V, GlobalSync>
 where
-    V: OrderValidatorHandle<Order = AllOrders> + Unpin
+    V: OrderValidatorHandle<Order = AllOrders> + Unpin,
+    GlobalSync: BlockSyncConsumer
 {
     pub fn new(
         validator: V,
         order_storage: Option<Arc<OrderStorage>>,
         network_handle: StromNetworkHandle,
         eth_network_events: UnboundedReceiverStream<EthEvent>,
-        order_events: UnboundedMeteredReceiver<NetworkOrderEvent>
+        order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
+        global_sync: GlobalSync
     ) -> Self {
         Self {
             order_events,
+            global_sync,
             eth_network_events,
             strom_network_events: network_handle.subscribe_network_events(),
             network_handle,
@@ -192,7 +200,8 @@ where
                 peer_to_info:         HashMap::default(),
                 order_indexer:        inner,
                 network:              self.network_handle,
-                command_rx:           rx
+                command_rx:           rx,
+                global_sync:          self.global_sync
             })
         );
 
@@ -229,7 +238,8 @@ where
                 peer_to_info:         HashMap::default(),
                 order_indexer:        inner,
                 network:              self.network_handle,
-                command_rx:           rx
+                command_rx:           rx,
+                global_sync:          self.global_sync
             })
         );
 
@@ -237,12 +247,14 @@ where
     }
 }
 
-pub struct PoolManager<V>
+pub struct PoolManager<V, GlobalSync>
 where
-    V: OrderValidatorHandle
+    V: OrderValidatorHandle,
+    GlobalSync: BlockSyncConsumer
 {
     /// access to validation and sorted storage of orders.
     order_indexer:        OrderIndexer<V>,
+    global_sync:          GlobalSync,
     /// Network access.
     network:              StromNetworkHandle,
     /// Subscriptions to all the strom-network related events.
@@ -260,9 +272,10 @@ where
     peer_to_info:         HashMap<PeerId, StromPeer>
 }
 
-impl<V> PoolManager<V>
+impl<V, GlobalSync> PoolManager<V, GlobalSync>
 where
-    V: OrderValidatorHandle<Order = AllOrders>
+    V: OrderValidatorHandle<Order = AllOrders>,
+    GlobalSync: BlockSyncConsumer
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -270,6 +283,7 @@ where
         network: StromNetworkHandle,
         strom_network_events: UnboundedReceiverStream<StromNetworkEvent>,
         eth_network_events: UnboundedReceiverStream<EthEvent>,
+        global_sync: GlobalSync,
         _command_tx: UnboundedSender<OrderCommand>,
         command_rx: UnboundedReceiverStream<OrderCommand>,
         order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
@@ -282,7 +296,8 @@ where
             peer_to_info: HashMap::new(),
             order_events,
             command_rx,
-            eth_network_events
+            eth_network_events,
+            global_sync
         }
     }
 
@@ -311,7 +326,7 @@ where
         }
     }
 
-    fn on_eth_event(&mut self, eth: EthEvent) {
+    fn on_eth_event(&mut self, eth: EthEvent, waker: impl FnOnce() -> Waker) {
         match eth {
             EthEvent::NewBlockTransitions { block_number, filled_orders, address_changeset } => {
                 self.order_indexer.start_new_block_processing(
@@ -320,8 +335,10 @@ where
                     address_changeset
                 );
             }
-            EthEvent::ReorgedOrders(orders) => {
+            EthEvent::ReorgedOrders(orders, range) => {
                 self.order_indexer.reorg(orders);
+                self.global_sync
+                    .sign_off_reorg(MODULE_NAME, range, Some(waker()))
             }
             EthEvent::FinalizedBlock(block) => {
                 self.order_indexer.finalized_block(block);
@@ -379,7 +396,7 @@ where
         }
     }
 
-    fn on_pool_events(&mut self, orders: Vec<PoolInnerEvent>) {
+    fn on_pool_events(&mut self, orders: Vec<PoolInnerEvent>, waker: impl Fn() -> Waker) {
         let valid_orders = orders
             .into_iter()
             .filter_map(|order| match order {
@@ -391,6 +408,11 @@ where
                             crate::ReputationChangeKind::InvalidOrder
                         );
                     });
+                    None
+                }
+                PoolInnerEvent::HasTransitionedToNewBlock(block) => {
+                    self.global_sync
+                        .sign_off_on_block(MODULE_NAME, block, Some(waker()));
                     None
                 }
                 PoolInnerEvent::None => None
@@ -416,9 +438,10 @@ where
     }
 }
 
-impl<V> Future for PoolManager<V>
+impl<V, GlobalSync> Future for PoolManager<V, GlobalSync>
 where
-    V: OrderValidatorHandle<Order = AllOrders> + Unpin
+    V: OrderValidatorHandle<Order = AllOrders> + Unpin,
+    GlobalSync: BlockSyncConsumer
 {
     type Output = ();
 
@@ -427,7 +450,7 @@ where
 
         // pull all eth events
         while let Poll::Ready(Some(eth)) = this.eth_network_events.poll_next_unpin(cx) {
-            this.on_eth_event(eth);
+            this.on_eth_event(eth, || cx.waker().clone());
         }
 
         // drain network/peer related events
@@ -435,20 +458,23 @@ where
             this.on_network_event(event);
         }
 
-        // drain commands
-        while let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
-            tracing::debug!(?cmd, "that was a command");
-            this.on_command(cmd);
-        }
-
-        // drain incoming transaction events
-        while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
-            this.on_network_order_event(event);
-        }
-
         // poll underlying pool. This is the validation process that's being polled
         while let Poll::Ready(Some(orders)) = this.order_indexer.poll_next_unpin(cx) {
-            this.on_pool_events(orders);
+            this.on_pool_events(orders, || cx.waker().clone());
+        }
+
+        // halt dealing with these till we have synced
+        if this.global_sync.can_operate() {
+            // drain commands
+            while let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
+                tracing::debug!(?cmd, "that was a command");
+                this.on_command(cmd);
+            }
+
+            // drain incoming transaction events
+            while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
+                this.on_network_order_event(event);
+            }
         }
 
         Poll::Pending

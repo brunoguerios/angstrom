@@ -30,7 +30,7 @@ impl TestnetConfig {
     pub fn new(
         anvil_key: usize,
         node_count: u64,
-        leader_ws_url: String,
+        leader_ws_url: impl ToString,
         address: Address,
         pk: PublicKey,
         signing_key: PrivateKeySigner,
@@ -46,7 +46,7 @@ impl TestnetConfig {
             signing_key,
             secret_key,
             node_count,
-            leader_ws_url,
+            leader_ws_url: leader_ws_url.to_string(),
             angstrom_address,
             pool_keys,
             leader_config
@@ -124,7 +124,7 @@ pub struct TestnetLeaderConfig {
 }
 
 impl TestnetLeaderConfig {
-    pub fn new(fork_block: u64, eth_fork_url: String) -> Self {
-        Self { fork_block, eth_fork_url }
+    pub fn new(fork_block: u64, eth_fork_url: impl ToString) -> Self {
+        Self { fork_block, eth_fork_url: eth_fork_url.to_string() }
     }
 }

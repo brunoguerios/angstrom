@@ -8,6 +8,8 @@ use alloy::{
     transports::Transport
 };
 use alloy_primitives::Log;
+use angstrom_types::matching::uniswap::{LiqRange, PoolSnapshot};
+use itertools::Itertools;
 use thiserror::Error;
 use uniswap_v3_math::{
     error::UniswapV3MathError,
@@ -15,7 +17,7 @@ use uniswap_v3_math::{
 };
 
 use super::pool_data_loader::PoolData;
-use crate::cfmm::uniswap::{
+use crate::uniswap::{
     i32_to_i24,
     pool_data_loader::{DataLoader, ModifyPositionEvent, PoolDataLoader, TickData},
     ConversionError
@@ -76,6 +78,10 @@ where
         }
     }
 
+    pub fn data_loader(&self) -> Loader {
+        self.data_loader.clone()
+    }
+
     pub async fn pool_data_for_block<T: Transport + Clone, N: Network>(
         &self,
         block_number: BlockNumber,
@@ -84,6 +90,26 @@ where
         self.data_loader
             .load_pool_data(Some(block_number), provider)
             .await
+    }
+
+    pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, PoolSnapshot), PoolError> {
+        if !self.data_is_populated() {
+            return Err(PoolError::PoolNotInitialized)
+        }
+
+        let liq_ranges = self
+            .ticks
+            .iter()
+            .sorted_unstable_by(|a, b| a.0.cmp(b.0))
+            .map_windows(|[(tick_lower, _), (tick_upper, tick_inner_upper)]| {
+                // ensure everything is spaced properly
+                assert_eq!(**tick_upper - **tick_lower, self.tick_spacing);
+                LiqRange::new(**tick_lower, **tick_upper, tick_inner_upper.liquidity_net as u128)
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        Ok((self.token_a, self.token_b, PoolSnapshot::new(liq_ranges, self.sqrt_price.into())?))
     }
 
     pub async fn initialize<T: Transport + Clone, N: Network>(
@@ -614,6 +640,8 @@ pub enum PoolError {
     SwapSimulationFailed,
     #[error("Pool already initialized")]
     PoolAlreadyInitialized,
+    #[error("Pool is not initialized")]
+    PoolNotInitialized,
     #[error(transparent)]
     SwapSimulationError(#[from] SwapSimulationError),
     #[error(transparent)]
@@ -621,5 +649,7 @@ pub enum PoolError {
     #[error(transparent)]
     AlloySolTypeError(#[from] alloy::sol_types::Error),
     #[error(transparent)]
-    ConversionError(#[from] ConversionError)
+    ConversionError(#[from] ConversionError),
+    #[error(transparent)]
+    Eyre(#[from] eyre::Error)
 }

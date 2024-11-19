@@ -6,34 +6,34 @@ use angstrom_types::primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry};
 use itertools::Itertools;
 use malachite::{num::conversion::traits::RoundingInto, Natural, Rational};
 
-use crate::cfmm::uniswap::{i128_to_i256, i256_to_i128, pool::PoolError};
+use crate::uniswap::{i128_to_i256, i256_to_i128, pool::PoolError};
 
 sol! {
     #[allow(missing_docs)]
     #[sol(rpc)]
     IGetUniswapV3TickDataBatchRequest,
-    "src/cfmm/uniswap/loaders/GetUniswapV3TickData.json"
+    "src/uniswap/loaders/GetUniswapV3TickData.json"
 }
 
 sol! {
     #[allow(missing_docs)]
     #[sol(rpc)]
     IGetUniswapV3PoolDataBatchRequest,
-    "src/cfmm/uniswap/loaders/GetUniswapV3PoolData.json"
+    "src/uniswap/loaders/GetUniswapV3PoolData.json"
 }
 
 sol! {
     #[allow(missing_docs)]
     #[sol(rpc)]
     IGetUniswapV4TickDataBatchRequest,
-    "src/cfmm/uniswap/loaders/GetUniswapV4TickData.json"
+    "src/uniswap/loaders/GetUniswapV4TickData.json"
 }
 
 sol! {
     #[allow(missing_docs)]
     #[sol(rpc)]
     IGetUniswapV4PoolDataBatchRequest,
-    "src/cfmm/uniswap/loaders/GetUniswapV4PoolData.json"
+    "src/uniswap/loaders/GetUniswapV4PoolData.json"
 }
 
 sol! {
@@ -137,7 +137,7 @@ pub struct DataLoader<A> {
     pool_registry: Option<UniswapPoolRegistry>
 }
 
-pub trait PoolDataLoader<A> {
+pub trait PoolDataLoader<A>: Clone {
     fn load_tick_data<P: Provider<T, N>, T: Transport + Clone, N: Network>(
         &self,
         current_tick: I24,

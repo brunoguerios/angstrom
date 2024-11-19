@@ -4,7 +4,8 @@ use alloy::{network::Network, providers::Provider, rpc::types::Filter, transport
 use alloy_primitives::Log;
 use futures_util::StreamExt;
 
-use crate::cfmm::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
+use super::PoolMangerBlocks;
+use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
 
 #[derive(Debug, Clone)]
 pub struct MockBlockStream<P, T, N> {
@@ -31,12 +32,12 @@ where
     T: Transport + Clone,
     N: Network
 {
-    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<u64>> {
+    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>> {
         futures::stream::iter(self.from_block..=self.to_block)
             .then(|block| async move {
                 // yield to sym async call
                 tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
-                Some(block)
+                Some(PoolMangerBlocks::NewBlock(block))
             })
             .boxed()
     }
