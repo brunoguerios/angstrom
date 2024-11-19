@@ -78,7 +78,7 @@ impl TestingConfig for TestnetConfig {
         let sk = self.signing_key.clone();
         let wallet = EthereumWallet::new(sk.clone());
 
-        if self.is_leader() {
+        if self.is_leader {
             let anvil = self.configure_anvil(id.clone()).try_spawn()?;
 
             let endpoint = self.anvil_endpoint(id);
