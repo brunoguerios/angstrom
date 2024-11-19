@@ -34,18 +34,18 @@ async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
     let executor_clone = executor.clone();
     let validation_client = ValidationClient(channels.validator_tx.clone());
 
-    let config = TestnetConfig::new(
-        7,
-        1,
-        "ws://localhost:8545",
-        Address::random(),
-        pub_key,
-        secret_key,
-        secret_key,
-        vec![],
-        angstrom_address,
-        Some(TestnetLeaderConfig::new(20000000, "ws://35.245.117.24:8546"))
-    );
+    // let config = TestnetConfig::new(
+    //     7,
+    //     1,
+    //     "ws://localhost:8545",
+    //     Address::random(),
+    //     pub_key,
+    //     secret_key,
+    //     secret_key,
+    //     vec![],
+    //     angstrom_address,
+    //     Some(TestnetLeaderConfig::new(20000000, "ws://35.245.117.24:8546"))
+    // );
 
     Ok(())
 }
