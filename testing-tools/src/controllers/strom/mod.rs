@@ -3,11 +3,11 @@ use angstrom::components::initialize_strom_handles;
 use angstrom_types::testnet::InitialTestnetState;
 use consensus::AngstromValidator;
 pub use node::*;
-mod strom_internals;
+mod internals;
+pub use internals::*;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use secp256k1::{PublicKey, SecretKey};
-pub use strom_internals::*;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::instrument;
 
