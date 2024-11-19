@@ -23,7 +23,7 @@ pub struct TestnetConfig {
     pub secret_key:       SecretKey,
     pub pool_keys:        Vec<PoolKey>,
     pub angstrom_address: Address,
-    pub leader_config:    Option<TestnetLeaderConfig>
+    pub is_leader:        bool
 }
 
 impl TestnetConfig {
@@ -37,7 +37,7 @@ impl TestnetConfig {
         secret_key: SecretKey,
         pool_keys: Vec<PoolKey>,
         angstrom_address: Address,
-        leader_config: Option<TestnetLeaderConfig>
+        is_leader: bool
     ) -> Self {
         Self {
             anvil_key,
@@ -49,20 +49,16 @@ impl TestnetConfig {
             leader_ws_url: leader_ws_url.to_string(),
             angstrom_address,
             pool_keys,
-            leader_config
+            is_leader
         }
-    }
-
-    pub fn is_leader(&self) -> bool {
-        self.leader_config.is_some()
     }
 }
 
 impl TestingConfig for TestnetConfig {
     fn configure_anvil(&self, id: impl Display) -> Anvil {
-        let Some(config) = self.leader_config.clone() else {
+        if !self.is_leader {
             panic!("only the leader can call this!")
-        };
+        }
 
         Anvil::new()
             .chain_id(1)
@@ -114,17 +110,5 @@ impl TestingConfig for TestnetConfig {
 
     fn anvil_endpoint(&self, _: impl Display) -> String {
         format!("/tmp/anvil.ipc")
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TestnetLeaderConfig {
-    pub fork_block:   u64,
-    pub eth_fork_url: String
-}
-
-impl TestnetLeaderConfig {
-    pub fn new(fork_block: u64, eth_fork_url: impl ToString) -> Self {
-        Self { fork_block, eth_fork_url: eth_fork_url.to_string() }
     }
 }

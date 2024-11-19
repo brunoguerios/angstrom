@@ -1,9 +1,12 @@
-use std::{net::IpAddr, path::PathBuf};
+use std::{net::IpAddr, path::PathBuf, str::FromStr};
 
+use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{Address, Bytes};
 use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
 use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
+use enr::k256::ecdsa::SigningKey;
 use eyre::Context;
+use secp256k1::SecretKey;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Default, clap::Parser)]
@@ -37,18 +40,98 @@ impl AngstromDevnetCli {
         }
     }
 
-    pub(crate) fn load_config(&self) -> eyre::Result<FullTestnetNodeConfig> {
+    pub fn load_config(&self) -> eyre::Result<FullTestnetNodeConfig> {
         FullTestnetNodeConfig::load_from_config(&self.node_config)
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub(crate) struct FullTestnetNodeConfig {
-    pub(crate) nodes: Vec<TestnetNodeConfig>,
-    pub(crate) pools: Vec<PoolKey>
+    pub nodes:  Vec<TestnetNodeConfig>,
+    pub leader: LeaderNodeConfig,
+    pub pools:  Vec<PoolKey>
 }
 
 impl FullTestnetNodeConfig {
+    fn load_from_config(config_path: &PathBuf) -> eyre::Result<Self> {
+        FullTestnetNodeConfigInner::load_from_config(config_path)?.try_into()
+    }
+
+    pub fn my_node_config(&self) -> eyre::Result<TestnetNodeConfig> {
+        let my_ip = local_ip_address::local_ip()?;
+
+        self.nodes
+            .iter()
+            .find(|node| node.ip == my_ip)
+            .cloned()
+            .ok_or(eyre::eyre!("no node found for IP: {my_ip:?}"))
+    }
+
+    pub fn leader_node_config(&self) -> eyre::Result<TestnetNodeConfig> {
+        self.nodes
+            .iter()
+            .find(|node| node.is_leader)
+            .cloned()
+            .ok_or(eyre::eyre!("no leader node found"))
+    }
+}
+
+impl TryFrom<FullTestnetNodeConfigInner> for FullTestnetNodeConfig {
+    type Error = eyre::ErrReport;
+
+    fn try_from(value: FullTestnetNodeConfigInner) -> Result<Self, Self::Error> {
+        Ok(FullTestnetNodeConfig {
+            nodes:  value
+                .nodes
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<_>, _>>()?,
+            pools:  value.pools,
+            leader: value.leader
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TestnetNodeConfig {
+    pub node_id:     usize,
+    pub address:     Address,
+    pub ip:          IpAddr,
+    pub is_leader:   bool,
+    pub signing_key: PrivateKeySigner,
+    pub secret_key:  SecretKey
+}
+
+impl TryFrom<TestnetNodeConfigInner> for TestnetNodeConfig {
+    type Error = eyre::ErrReport;
+
+    fn try_from(value: TestnetNodeConfigInner) -> Result<Self, Self::Error> {
+        let ip = IpAddr::from_str(&value.ip)?;
+        let signing_key = PrivateKeySigner::from_signing_key(SigningKey::from_slice(
+            &Bytes::from_str(&value.signing_key)?.0.to_vec()
+        )?);
+        let address = signing_key.address();
+        let secret_key = SecretKey::from_slice(&Bytes::from_str(&value.secret_key)?.0.to_vec())?;
+
+        Ok(TestnetNodeConfig {
+            node_id: value.node_id,
+            address,
+            ip,
+            is_leader: value.is_leader,
+            signing_key,
+            secret_key
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct FullTestnetNodeConfigInner {
+    nodes:  Vec<TestnetNodeConfigInner>,
+    pools:  Vec<PoolKey>,
+    leader: LeaderNodeConfig
+}
+
+impl FullTestnetNodeConfigInner {
     fn load_from_config(config_path: &PathBuf) -> eyre::Result<Self> {
         if !config_path.exists() {
             return Err(eyre::eyre!("Config file does not exist at {:?}", config_path))
@@ -62,22 +145,25 @@ impl FullTestnetNodeConfig {
 
         Ok(node_config)
     }
-
-    pub(crate) fn my_node_config(&self) -> eyre::Result<TestnetNodeConfig> {
-        let my_ip = local_ip_address::local_ip()?;
-
-        self.nodes
-            .iter()
-            .find(|node| node.ip == my_ip)
-            .ok_or(eyre::eyre!("no node found for IP: {my_ip:?}"))
-    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct TestnetNodeConfig {
-    pub(crate) node_id:    usize,
-    pub(crate) address:    Address,
-    pub(crate) ip:         IpAddr,
-    pub(crate) is_leader:  bool,
-    pub(crate) secret_key: Bytes
+struct TestnetNodeConfigInner {
+    node_id:     usize,
+    ip:          String,
+    is_leader:   bool,
+    signing_key: String,
+    secret_key:  String
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct LeaderNodeConfig {
+    ip_or_domain: String,
+    port:         u64
+}
+
+impl LeaderNodeConfig {
+    pub(crate) fn ws_url(&self) -> String {
+        format!("ws://{}:{}", self.ip_or_domain, self.port)
+    }
 }
