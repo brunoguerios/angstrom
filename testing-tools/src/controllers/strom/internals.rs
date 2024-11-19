@@ -15,7 +15,7 @@ use angstrom_types::{
 use consensus::{AngstromValidator, ConsensusManager};
 use futures::{StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::configure_uniswap_manager;
+use matching_engine::{configure_uniswap_manager, manager::MatcherHandle};
 use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
@@ -46,7 +46,7 @@ pub struct AngstromDevnetNodeInternals {
 }
 
 impl AngstromDevnetNodeInternals {
-    pub async fn new<Matching, BlockSync>(
+    pub async fn new(
         testnet_node_id: Option<u64>,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
@@ -55,7 +55,10 @@ impl AngstromDevnetNodeInternals {
         _initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
-    ) -> eyre::Result<(Self, Option<ConsensusManager<PubSubFrontend, Matching, BlockSync>>)> {
+    ) -> eyre::Result<(
+        Self,
+        Option<ConsensusManager<PubSubFrontend, MatcherHandle, GlobalBlockSync>>
+    )> {
         tracing::debug!("connecting to state provider");
         let state_provider = AnvilStateProviderWrapper::spawn_new(
             config.clone(),

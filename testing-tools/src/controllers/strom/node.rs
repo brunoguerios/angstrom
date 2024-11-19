@@ -30,7 +30,7 @@ use reth_network::{
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 
-use super::strom_internals::AngstromDevnetNodeInternals;
+use super::internals::AngstromDevnetNodeInternals;
 use crate::{
     anvil_state_provider::AnvilStateProviderWrapper,
     controllers::TestnetStateFutureLock,

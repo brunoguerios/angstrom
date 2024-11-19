@@ -1,15 +1,11 @@
 //! CLI definition and entrypoint to executable
 pub mod components;
 pub mod config;
-use alloy::signers::local::PrivateKeySigner;
-use alloy_primitives::Address;
+
 use clap::Parser;
 use config::AngstromDevnetCli;
-use enr::k256::ecdsa::SigningKey;
-use rand::rngs::ThreadRng;
 use reth::{tasks::TaskExecutor, CliRunner};
 use secp256k1::{Secp256k1, SecretKey};
-use testing_tools::controllers::testnet::{TestnetConfig, TestnetLeaderConfig};
 use validation::validator::ValidationClient;
 
 use crate::components::{init_network_builder, initialize_strom_handles};
