@@ -16,7 +16,7 @@ use serde::Deserialize;
 pub struct AngstromDevnetCli {
     #[clap(long)]
     pub mev_guard:    bool,
-    #[clap(long)]
+    #[clap(long, default_value = "./testnet_config.toml")]
     pub node_config:  PathBuf,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
@@ -93,7 +93,7 @@ impl TryFrom<FullTestnetNodeConfigInner> for FullTestnetNodeConfig {
                 .into_iter()
                 .map(TryInto::try_into)
                 .collect::<Result<Vec<_>, _>>()?,
-            pools_keys:       value.pools_keys,
+            pools_keys:       value.pools_keys.unwrap_or_default(),
             angstrom_address: Address::from_str(&value.angstrom_address)?
         })
     }
@@ -134,7 +134,7 @@ impl Into<AngstromValidator> for TestnetNodeConfig {
 #[derive(Debug, Clone, Deserialize)]
 struct FullTestnetNodeConfigInner {
     nodes:            Vec<TestnetNodeConfigInner>,
-    pools_keys:       Vec<PoolKey>,
+    pools_keys:       Option<Vec<PoolKey>>,
     angstrom_address: String
 }
 
@@ -156,8 +156,21 @@ impl FullTestnetNodeConfigInner {
 
 #[derive(Debug, Clone, Deserialize)]
 struct TestnetNodeConfigInner {
-    node_id:    usize,
     ip:         String,
     is_leader:  bool,
     secret_key: String
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read_config() {
+        let path = PathBuf::from_str("./testnet_config.toml").unwrap();
+        println!("{:?}", path);
+
+        let config = FullTestnetNodeConfigInner::load_from_config(&path);
+        config.as_ref().unwrap();
+        assert!(config.is_ok());
+    }
 }

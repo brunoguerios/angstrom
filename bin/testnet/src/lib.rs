@@ -1,5 +1,4 @@
 //! CLI definition and entrypoint to executable
-pub mod components;
 pub mod config;
 pub(crate) mod utils;
 
