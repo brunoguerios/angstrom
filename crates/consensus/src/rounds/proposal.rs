@@ -8,9 +8,31 @@ use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::consensus::{PreProposal, PreProposalAggregation};
 use matching_engine::MatchingEngineHandle;
 
-use super::{Consensus, ConsensusState};
+use super::{pre_proposal_aggregation, Consensus, ConsensusState};
 use crate::rounds::ConsensusTransitionMessage;
+
+/// Proposal State.
+///
+/// We only transition to Proposal state if we are the leader.
+/// In this state we build the proposal, submit it on chain and then propagate
+/// it once its landed on chain. We only submit after it has landed on chain as
+/// in the case of inclusion games. the preoposal will just be dropped and there
+/// is no need for others to verify.
 pub struct ProposalState {}
+
+impl ProposalState {
+    pub fn new<T, Matching>(
+        pre_proposal_aggregation: HashSet<PreProposalAggregation>,
+        handles: &mut Consensus<T, Matching>,
+        waker: Waker
+    ) -> Self
+    where
+        T: Transport + Clone,
+        Matching: MatchingEngineHandle
+    {
+        todo!()
+    }
+}
 
 impl<T, Matching> ConsensusState<T, Matching> for ProposalState
 where
@@ -33,7 +55,7 @@ where
         &mut self,
         handles: &mut Consensus<T, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Box<dyn ConsensusState<T, Matching>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
         todo!()
     }
 }

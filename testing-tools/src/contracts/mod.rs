@@ -57,6 +57,7 @@ where
             let result = provider
                 .debug_trace_transaction(receipt.transaction_hash, call_options)
                 .await?;
+
             println!("TRACE: {result:?}");
             // We can make this do a cool backtrace later
             Err(eyre!("Transaction with hash {} failed", receipt.transaction_hash))
