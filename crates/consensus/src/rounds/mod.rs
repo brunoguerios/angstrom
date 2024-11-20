@@ -3,41 +3,28 @@ use std::{
     hash::Hash,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker},
-    time::Duration
+    task::{Context, Poll, Waker}
 };
 
 use alloy::{
-    network::TransactionBuilder,
     primitives::{Address, BlockNumber, FixedBytes},
     providers::Provider,
-    rpc::types::TransactionRequest,
     transports::Transport
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
-use angstrom_network::{manager::StromConsensusEvent, StromMessage};
+use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails, UniswapAngstromRegistry},
+    contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     matching::uniswap::PoolSnapshot,
-    orders::{OrderSet, PoolSolution},
+    orders::PoolSolution,
     primitive::PeerId,
-    sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder
-    }
+    sol_bindings::grouped_orders::OrderWithStorageData
 };
-use angstrom_utils::timer::async_time_fn;
-use eyre::Report;
-use futures::FutureExt;
-/// Represents the state of the current consensus mech.
-use futures::{future::BoxFuture, Future, Stream, StreamExt};
+use futures::{future::BoxFuture, Future, FutureExt, Stream};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
-use pade::PadeEncode;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{AngstromValidator, Signer};
@@ -132,7 +119,7 @@ where
     }
 
     fn two_thirds_of_validation_set(&self) -> usize {
-        (2 * self.validators.len() / 3) + 1
+        (2 * self.validators.len()).div_ceil(3)
     }
 
     fn fetch_pool_snapshot(

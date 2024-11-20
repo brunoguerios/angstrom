@@ -1,24 +1,17 @@
 use std::{
     collections::HashSet,
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
+    time::Duration
 };
 
-use alloy::{
-    network::TransactionBuilder,
-    primitives::{Address, BlockNumber, FixedBytes},
-    providers::Provider,
-    rpc::types::TransactionRequest,
-    transports::Transport
-};
+use alloy::{network::TransactionBuilder, rpc::types::TransactionRequest, transports::Transport};
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
-    consensus::{PreProposal, PreProposalAggregation, Proposal},
+    consensus::{PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution
 };
-use futures::{future::BoxFuture, FutureExt};
+use futures::{future::BoxFuture, FutureExt, StreamExt};
 use matching_engine::MatchingEngineHandle;
 use pade::PadeEncode;
 
@@ -35,8 +28,9 @@ use crate::rounds::ConsensusTransitionMessage;
 pub struct ProposalState {
     matching_engine_future:
         Option<BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>>,
-    submission_future:      Option<()>,
+    submission_future:      Option<BoxFuture<'static, bool>>,
     pre_proposal_aggs:      Vec<PreProposalAggregation>,
+    proposal:               Option<Proposal>,
     waker:                  Waker
 }
 
@@ -59,12 +53,13 @@ impl ProposalState {
             ),
             pre_proposal_aggs: pre_proposal_aggregation.into_iter().collect::<Vec<_>>(),
             submission_future: None,
+            proposal: None,
             waker
         }
     }
 
     fn try_build_proposal<T, Matching>(
-        &self,
+        &mut self,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
         handles: &mut Consensus<T, Matching>
     ) -> bool
@@ -84,6 +79,7 @@ impl ProposalState {
             pool_solution,
             &handles.signer.key
         );
+        self.proposal = Some(proposal.clone());
         let snapshot = handles.fetch_pool_snapshot();
 
         let Ok(bundle) = AngstromBundle::from_proposal(&proposal, gas_info, &snapshot) else {
@@ -93,18 +89,35 @@ impl ProposalState {
 
         let tx = TransactionRequest::default()
             .with_to(handles.angstrom_address)
+            .with_from(handles.signer.address())
             .with_input(bundle.pade_encode());
+        let provider = handles.provider.clone();
 
-        let submitted_tx = provider
-            .send_transaction(tx)
-            .await
-            .map_err(|_| RoundStateMachineError::TransactionError)?;
-        let _receipt = submitted_tx
-            .get_receipt()
-            .await
-            .map_err(|_| RoundStateMachineError::TransactionError)?;
+        let submission_future = async move {
+            let submitted_tx = provider.send_transaction(tx).await.unwrap();
+            // wait for next block. then see if transaction landed
+            provider
+                .watch_blocks()
+                .await
+                .unwrap()
+                .with_poll_interval(Duration::from_millis(10))
+                .into_stream()
+                .next()
+                .await;
 
-        todo!()
+            let hash = submitted_tx.tx_hash();
+            provider
+                .get_transaction_by_hash(*hash)
+                .await
+                .unwrap()
+                .is_some()
+        }
+        .boxed();
+
+        self.waker.wake_by_ref();
+        self.submission_future = Some(submission_future);
+
+        true
     }
 }
 
@@ -123,18 +136,34 @@ where
         handles: &mut Consensus<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
-        if let Some(b_fut) = self.matching_engine_future.take() {
+        if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
-                Poll::Ready(state) => {}
-                Poll::Pending => self.building_future = Some(b_fut)
+                Poll::Ready(state) => {
+                    if !self.try_build_proposal(state, handles) {
+                        // failed to build. we end here.
+                        return Poll::Ready(None)
+                    }
+                }
+                Poll::Pending => self.matching_engine_future = Some(b_fut)
             }
         }
 
-        // if let Some(b_fut) = self.submission_future.take() {
-        //     match b_fut.poll_unpin(cx) {
-        //         Poll::Ready(_) => {}
-        //         Poll::Pending => self.building_future = Some(b_fut)
-        //     }
-        // }
+        if let Some(mut b_fut) = self.submission_future.take() {
+            match b_fut.poll_unpin(cx) {
+                Poll::Ready(transaction_landed) => {
+                    if transaction_landed {
+                        let proposal = self.proposal.take().unwrap();
+                        handles
+                            .messages
+                            .push_back(ConsensusTransitionMessage::PropagateProposal(proposal));
+                        cx.waker().wake_by_ref();
+                    }
+                    return Poll::Ready(None)
+                }
+                Poll::Pending => self.submission_future = Some(b_fut)
+            }
+        }
+
+        Poll::Pending
     }
 }

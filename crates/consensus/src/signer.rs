@@ -1,6 +1,6 @@
-use alloy::primitives::{BlockNumber, FixedBytes};
+use alloy::primitives::{Address, BlockNumber, FixedBytes};
 use angstrom_types::{
-    consensus::{PreProposal, Proposal},
+    consensus::{PreProposalAggregation, Proposal},
     orders::PoolSolution,
     primitive::PeerId
 };
@@ -28,10 +28,14 @@ impl Signer {
         Self { key: secret_key, my_id }
     }
 
+    pub fn address(&self) -> Address {
+        Address::from_slice(&self.my_id[44..])
+    }
+
     pub fn sign_proposal(
         &self,
         ethereum_block: BlockNumber,
-        preproposals: Vec<PreProposal>,
+        preproposals: Vec<PreProposalAggregation>,
         solutions: Vec<PoolSolution>
     ) -> Proposal {
         Proposal::generate_proposal(ethereum_block, self.my_id, preproposals, solutions, &self.key)
