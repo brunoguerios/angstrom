@@ -94,6 +94,7 @@ impl TestingConfig for DevnetConfig {
             .wallet(wallet)
             .on_ipc(ipc)
             .await?;
+        
 
         tracing::info!("connected to anvil");
 

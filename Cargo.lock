@@ -10735,6 +10735,7 @@ dependencies = [
  "alloy-chains",
  "alloy-primitives 0.8.9",
  "alloy-rpc-types 0.4.2",
+ "alloy-signer-local",
  "angstrom",
  "angstrom-eth",
  "angstrom-metrics",

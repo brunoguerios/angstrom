@@ -34,23 +34,23 @@ where
         config: TestnetConfig,
         initial_validators: Vec<AngstromValidator>
     ) -> eyre::Result<Self> {
-        // let mut initializer = AnvilInitializer::new(config.clone()).await?;
-        // initializer.deploy_pool_full().await?;
-        // let initial_state = initializer.initialize_state().await?;
-
-        let block_provider = TestnetBlockProvider::new();
-        let (leader_handle, inital_angstrom_state) = if config.is_leader() {
-            let mut initializer = AnvilInitializer::new(config.clone()).await?;
-            initializer.deploy_pool_full().await?;
-
-            let init_state = initializer.initialize_state().await?;
-
-            (Some(initializer), init_state)
+        if config.is_leader {
+            Self::spawn_testnet_leader(c, config, initial_validators).await
         } else {
-            let init_state =
-                InitialTestnetState::new(config.angstrom_address, None, config.pool_keys.clone());
-            (None, init_state)
-        };
+            Self::spawn_testnet_follower(c, config, initial_validators).await
+        }
+    }
+
+    async fn spawn_testnet_leader(
+        c: C,
+        config: TestnetConfig,
+        initial_validators: Vec<AngstromValidator>
+    ) -> eyre::Result<Self> {
+        let block_provider = TestnetBlockProvider::new();
+        let mut initializer = AnvilInitializer::new(config.clone()).await?;
+        initializer.deploy_pool_full().await?;
+
+        let inital_angstrom_state = initializer.initialize_state().await?;
 
         let node = initialize_new_node(
             c,
@@ -64,6 +64,30 @@ where
         )
         .await?;
 
-        Ok(Self { block_provider, node, leader_handle, config })
+        Ok(Self { block_provider, node, leader_handle: Some(initializer), config })
+    }
+
+    async fn spawn_testnet_follower(
+        c: C,
+        config: TestnetConfig,
+        initial_validators: Vec<AngstromValidator>
+    ) -> eyre::Result<Self> {
+        let block_provider = TestnetBlockProvider::new();
+        let inital_angstrom_state =
+            InitialTestnetState::new(config.angstrom_address, None, config.pool_keys.clone());
+
+        let node = initialize_new_node(
+            c,
+            None,
+            config.pk,
+            config.secret_key.clone(),
+            initial_validators,
+            inital_angstrom_state,
+            config.clone(),
+            block_provider.subscribe_to_new_blocks()
+        )
+        .await?;
+
+        Ok(Self { block_provider, node, leader_handle: None, config })
     }
 }

@@ -2,11 +2,14 @@ use std::{net::IpAddr, path::PathBuf, str::FromStr};
 
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{Address, Bytes};
+use alloy_signer_local::LocalSigner;
 use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
 use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
+use consensus::AngstromValidator;
 use enr::k256::ecdsa::SigningKey;
 use eyre::Context;
-use secp256k1::SecretKey;
+use reth_network_peers::pk2id;
+use secp256k1::{Secp256k1, SecretKey};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Default, clap::Parser)]
@@ -40,16 +43,16 @@ impl AngstromDevnetCli {
         }
     }
 
-    pub fn load_config(&self) -> eyre::Result<FullTestnetNodeConfig> {
+    pub(crate) fn load_config(&self) -> eyre::Result<FullTestnetNodeConfig> {
         FullTestnetNodeConfig::load_from_config(&self.node_config)
     }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct FullTestnetNodeConfig {
-    pub nodes:  Vec<TestnetNodeConfig>,
-    pub leader: LeaderNodeConfig,
-    pub pools:  Vec<PoolKey>
+    pub nodes:            Vec<TestnetNodeConfig>,
+    pub angstrom_address: Address,
+    pub pools_keys:       Vec<PoolKey>
 }
 
 impl FullTestnetNodeConfig {
@@ -67,12 +70,16 @@ impl FullTestnetNodeConfig {
             .ok_or(eyre::eyre!("no node found for IP: {my_ip:?}"))
     }
 
-    pub fn leader_node_config(&self) -> eyre::Result<TestnetNodeConfig> {
+    pub fn leader_ws_url(&self) -> eyre::Result<String> {
         self.nodes
             .iter()
             .find(|node| node.is_leader)
-            .cloned()
+            .map(|node| format!("ws://{}:8545", node.ip))
             .ok_or(eyre::eyre!("no leader node found"))
+    }
+
+    pub fn initial_validators(&self) -> Vec<AngstromValidator> {
+        self.nodes.iter().map(|node| node.clone().into()).collect()
     }
 }
 
@@ -81,20 +88,19 @@ impl TryFrom<FullTestnetNodeConfigInner> for FullTestnetNodeConfig {
 
     fn try_from(value: FullTestnetNodeConfigInner) -> Result<Self, Self::Error> {
         Ok(FullTestnetNodeConfig {
-            nodes:  value
+            nodes:            value
                 .nodes
                 .into_iter()
                 .map(TryInto::try_into)
                 .collect::<Result<Vec<_>, _>>()?,
-            pools:  value.pools,
-            leader: value.leader
+            pools_keys:       value.pools_keys,
+            angstrom_address: Address::from_str(&value.angstrom_address)?
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct TestnetNodeConfig {
-    pub node_id:     usize,
     pub address:     Address,
     pub ip:          IpAddr,
     pub is_leader:   bool,
@@ -107,28 +113,29 @@ impl TryFrom<TestnetNodeConfigInner> for TestnetNodeConfig {
 
     fn try_from(value: TestnetNodeConfigInner) -> Result<Self, Self::Error> {
         let ip = IpAddr::from_str(&value.ip)?;
-        let signing_key = PrivateKeySigner::from_signing_key(SigningKey::from_slice(
-            &Bytes::from_str(&value.signing_key)?.0.to_vec()
-        )?);
-        let address = signing_key.address();
         let secret_key = SecretKey::from_slice(&Bytes::from_str(&value.secret_key)?.0.to_vec())?;
+        let signing_key =
+            LocalSigner::<SigningKey>::from_bytes(&secret_key.secret_bytes().into()).unwrap();
 
-        Ok(TestnetNodeConfig {
-            node_id: value.node_id,
-            address,
-            ip,
-            is_leader: value.is_leader,
-            signing_key,
-            secret_key
-        })
+        let address = signing_key.address();
+
+        Ok(TestnetNodeConfig { address, ip, is_leader: value.is_leader, signing_key, secret_key })
+    }
+}
+
+impl Into<AngstromValidator> for TestnetNodeConfig {
+    fn into(self) -> AngstromValidator {
+        let pub_key = self.secret_key.public_key(&Secp256k1::default());
+
+        AngstromValidator::new(pk2id(&pub_key), 1)
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct FullTestnetNodeConfigInner {
-    nodes:  Vec<TestnetNodeConfigInner>,
-    pools:  Vec<PoolKey>,
-    leader: LeaderNodeConfig
+    nodes:            Vec<TestnetNodeConfigInner>,
+    pools_keys:       Vec<PoolKey>,
+    angstrom_address: String
 }
 
 impl FullTestnetNodeConfigInner {
@@ -149,21 +156,8 @@ impl FullTestnetNodeConfigInner {
 
 #[derive(Debug, Clone, Deserialize)]
 struct TestnetNodeConfigInner {
-    node_id:     usize,
-    ip:          String,
-    is_leader:   bool,
-    signing_key: String,
-    secret_key:  String
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct LeaderNodeConfig {
-    ip_or_domain: String,
-    port:         u64
-}
-
-impl LeaderNodeConfig {
-    pub(crate) fn ws_url(&self) -> String {
-        format!("ws://{}:{}", self.ip_or_domain, self.port)
-    }
+    node_id:    usize,
+    ip:         String,
+    is_leader:  bool,
+    secret_key: String
 }

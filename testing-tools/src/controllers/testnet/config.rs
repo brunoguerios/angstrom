@@ -23,6 +23,8 @@ pub struct TestnetConfig {
     pub secret_key:       SecretKey,
     pub pool_keys:        Vec<PoolKey>,
     pub angstrom_address: Address,
+    /// only the leader can have this
+    pub eth_ws_url:       Option<String>,
     pub is_leader:        bool
 }
 
@@ -37,6 +39,7 @@ impl TestnetConfig {
         secret_key: SecretKey,
         pool_keys: Vec<PoolKey>,
         angstrom_address: Address,
+        eth_ws_url: Option<impl ToString>,
         is_leader: bool
     ) -> Self {
         Self {
@@ -49,6 +52,7 @@ impl TestnetConfig {
             leader_ws_url: leader_ws_url.to_string(),
             angstrom_address,
             pool_keys,
+            eth_ws_url: eth_ws_url.map(|w| w.to_string()),
             is_leader
         }
     }
@@ -62,13 +66,10 @@ impl TestingConfig for TestnetConfig {
 
         Anvil::new()
             .chain_id(1)
-            .fork(config.eth_fork_url)
-            .fork_block_number(config.fork_block)
+            .fork(self.eth_ws_url.as_ref().unwrap())
             .arg("--ipc")
             .arg(self.anvil_endpoint(id))
-            .arg("--code-size-limit")
-            .arg("393216")
-            .arg("--disable-block-gas-limit")
+            .block_time(12)
     }
 
     async fn spawn_rpc(
