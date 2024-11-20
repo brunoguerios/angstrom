@@ -9,7 +9,7 @@ use std::{
 
 use alloy::{
     network::TransactionBuilder,
-    primitives::{Address, BlockNumber},
+    primitives::{Address, BlockNumber, FixedBytes},
     providers::Provider,
     rpc::types::TransactionRequest,
     transports::Transport
@@ -19,6 +19,7 @@ use angstrom_network::{manager::StromConsensusEvent, StromMessage};
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails, UniswapAngstromRegistry},
+    matching::uniswap::PoolSnapshot,
     orders::{OrderSet, PoolSolution},
     primitive::PeerId,
     sol_bindings::{
@@ -28,6 +29,7 @@ use angstrom_types::{
 };
 use angstrom_utils::timer::async_time_fn;
 use eyre::Report;
+use futures::FutureExt;
 /// Represents the state of the current consensus mech.
 use futures::{future::BoxFuture, Future, Stream, StreamExt};
 use itertools::Itertools;
@@ -100,18 +102,19 @@ where
 }
 
 pub struct Consensus<T, Matching> {
-    block_height:    BlockNumber,
-    matching_engine: Matching,
-    signer:          Signer,
-    round_leader:    PeerId,
-    validators:      Vec<AngstromValidator>,
-    order_storage:   Arc<OrderStorage>,
-    metrics:         ConsensusMetricsWrapper,
-    waker:           Option<Waker>,
-    pool_registry:   UniswapAngstromRegistry,
-    uniswap_pools:   SyncedUniswapPools,
-    provider:        Arc<Pin<Box<dyn Provider<T>>>>,
-    messages:        VecDeque<ConsensusTransitionMessage>
+    block_height:     BlockNumber,
+    angstrom_address: Address,
+    matching_engine:  Matching,
+    signer:           Signer,
+    round_leader:     PeerId,
+    validators:       Vec<AngstromValidator>,
+    order_storage:    Arc<OrderStorage>,
+    metrics:          ConsensusMetricsWrapper,
+    waker:            Option<Waker>,
+    pool_registry:    UniswapAngstromRegistry,
+    uniswap_pools:    SyncedUniswapPools,
+    provider:         Arc<Pin<Box<dyn Provider<T>>>>,
+    messages:         VecDeque<ConsensusTransitionMessage>
 }
 
 // contains shared impls
@@ -132,7 +135,22 @@ where
         (2 * self.validators.len() / 3) + 1
     }
 
-    fn build_bundle(
+    fn fetch_pool_snapshot(
+        &self
+    ) -> HashMap<FixedBytes<32>, (Address, Address, PoolSnapshot, u16)> {
+        self.uniswap_pools
+            .iter()
+            .filter_map(|(key, pool)| {
+                let (token_a, token_b, snapshot) =
+                    pool.read().unwrap().fetch_pool_snapshot().ok()?;
+                let entry = self.pool_registry.get_ang_entry(key)?;
+
+                Some((*key, (token_a, token_b, snapshot, entry.store_index as u16)))
+            })
+            .collect::<HashMap<_, _>>()
+    }
+
+    fn matching_engine_output(
         &self,
         pre_proposal_aggregation: HashSet<PreProposalAggregation>
     ) -> BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>> {
@@ -149,21 +167,11 @@ where
 
         let limit = self.filter_quorum_orders(limit);
         let searcher = self.filter_quorum_orders(searcher);
+        let pool_snapshots = self.fetch_pool_snapshot();
 
-        let pool_snapshots = self
-            .uniswap_pools
-            .iter()
-            .filter_map(|(key, pool)| {
-                let (token_a, token_b, snapshot) =
-                    pool.read().unwrap().fetch_pool_snapshot().ok()?;
-                let entry = self.pool_registry.get_ang_entry(key)?;
+        let matcher = self.matching_engine.clone();
 
-                Some((*key, (token_a, token_b, snapshot, entry.store_index as u16)))
-            })
-            .collect::<HashMap<_, _>>();
-
-        self.matching_engine
-            .solve_pools(limit, searcher, pool_snapshots)
+        async move { matcher.solve_pools(limit, searcher, pool_snapshots).await }.boxed()
     }
 
     fn filter_quorum_orders<O: Hash + Eq + Clone>(
