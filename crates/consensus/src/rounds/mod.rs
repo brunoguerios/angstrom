@@ -18,8 +18,8 @@ use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{manager::StromConsensusEvent, StromMessage};
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
-    contract_payloads::angstrom::{AngstromBundle, UniswapAngstromRegistry},
-    orders::OrderSet,
+    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails, UniswapAngstromRegistry},
+    orders::{OrderSet, PoolSolution},
     primitive::PeerId,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
@@ -115,7 +115,11 @@ pub struct Consensus<T, Matching> {
 }
 
 // contains shared impls
-impl<T, Matching> Consensus<T, Matching> {
+impl<T, Matching> Consensus<T, Matching>
+where
+    T: Transport + Clone,
+    Matching: MatchingEngineHandle
+{
     fn propagate_message(&mut self, message: ConsensusTransitionMessage) {
         self.messages.push_back(message);
     }
@@ -126,6 +130,57 @@ impl<T, Matching> Consensus<T, Matching> {
 
     fn two_thirds_of_validation_set(&self) -> usize {
         (2 * self.validators.len() / 3) + 1
+    }
+
+    fn build_bundle(
+        &self,
+        pre_proposal_aggregation: HashSet<PreProposalAggregation>
+    ) -> BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>> {
+        // fetch
+        let mut limit = Vec::new();
+        let mut searcher = Vec::new();
+
+        for pre_proposal_agg in pre_proposal_aggregation {
+            pre_proposal_agg.pre_proposals.into_iter().for_each(|pre| {
+                limit.extend(pre.limit);
+                searcher.extend(pre.searcher);
+            });
+        }
+
+        let limit = self.filter_quorum_orders(limit);
+        let searcher = self.filter_quorum_orders(searcher);
+
+        let pool_snapshots = self
+            .uniswap_pools
+            .iter()
+            .filter_map(|(key, pool)| {
+                let (token_a, token_b, snapshot) =
+                    pool.read().unwrap().fetch_pool_snapshot().ok()?;
+                let entry = self.pool_registry.get_ang_entry(key)?;
+
+                Some((*key, (token_a, token_b, snapshot, entry.store_index as u16)))
+            })
+            .collect::<HashMap<_, _>>();
+
+        self.matching_engine
+            .solve_pools(limit, searcher, pool_snapshots)
+    }
+
+    fn filter_quorum_orders<O: Hash + Eq + Clone>(
+        &self,
+        input: Vec<OrderWithStorageData<O>>
+    ) -> Vec<OrderWithStorageData<O>> {
+        let two_thirds = self.two_thirds_of_validation_set();
+        input
+            .into_iter()
+            .fold(HashMap::new(), |mut acc, order| {
+                *acc.entry(order).or_insert(0) += 1;
+                acc
+            })
+            .into_iter()
+            .filter(|(_, count)| *count >= two_thirds)
+            .map(|(order, _)| order)
+            .collect()
     }
 
     fn handle_pre_proposal_aggregation(
