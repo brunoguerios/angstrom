@@ -52,7 +52,7 @@ where
 
         let inital_angstrom_state = initializer.initialize_state().await?;
 
-        let node = initialize_new_node(
+        let mut node = initialize_new_node(
             c,
             None,
             config.pk,
@@ -63,6 +63,11 @@ where
             block_provider.subscribe_to_new_blocks()
         )
         .await?;
+
+        node.start_network_and_consensus();
+
+        node.initialize_internal_connections((config.node_count - 1) as usize)
+            .await;
 
         Ok(Self { block_provider, node, leader_handle: Some(initializer), config })
     }
@@ -76,7 +81,7 @@ where
         let inital_angstrom_state =
             InitialTestnetState::new(config.angstrom_address, None, config.pool_keys.clone());
 
-        let node = initialize_new_node(
+        let mut node = initialize_new_node(
             c,
             None,
             config.pk,
@@ -87,6 +92,11 @@ where
             block_provider.subscribe_to_new_blocks()
         )
         .await?;
+
+        node.start_network_and_consensus();
+
+        node.initialize_internal_connections((config.node_count - 1) as usize)
+            .await;
 
         Ok(Self { block_provider, node, leader_handle: None, config })
     }
