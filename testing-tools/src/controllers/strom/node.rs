@@ -336,4 +336,9 @@ where
         })
         .await
     }
+
+    pub(crate) async fn testnet_future(self) {
+        self.start_network_and_consensus();
+        self.state_lock.await;
+    }
 }

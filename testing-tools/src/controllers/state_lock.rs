@@ -15,8 +15,9 @@ use consensus::ConsensusManager;
 use futures::FutureExt;
 use matching_engine::manager::MatcherHandle;
 use parking_lot::Mutex;
+use reth_chainspec::Hardforks;
 use reth_network::test_utils::Peer;
-use reth_provider::BlockReader;
+use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use tokio::task::JoinHandle;
 use tracing::{span, Level};
 
@@ -145,6 +146,38 @@ where
         } else {
             Poll::Pending
         }
+    }
+}
+
+impl<C, T> Future for TestnetStateFutureLock<C, T>
+where
+    C: BlockReader
+        + HeaderProvider
+        + Unpin
+        + Clone
+        + ChainSpecProvider<ChainSpec: Hardforks>
+        + 'static
+{
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+
+        if this.eth_peer.fut.poll_unpin(cx).is_ready() {
+            return Poll::Ready(())
+        }
+
+        if this.strom_network_manager.fut.poll_unpin(cx).is_ready() {
+            return Poll::Ready(())
+        }
+
+        if let Some(strom_consensus) = this.strom_consensus.as_mut() {
+            if strom_consensus.fut.poll_unpin(cx).is_ready() {
+                return Poll::Ready(())
+            }
+        }
+
+        Poll::Pending
     }
 }
 
