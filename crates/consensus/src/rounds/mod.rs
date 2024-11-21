@@ -310,10 +310,10 @@ where
     }
 }
 
+/// These messages will only be broadcasted to the peer network if our consensus
+/// contracts don't currently contain them.
 #[derive(Debug, Clone)]
 pub enum ConsensusMessage {
-    /// Either our or another nodes PreProposal. The PreProposal will only be
-    /// shared here if it is new to this nodes consensus outlook
     PropagatePreProposal(PreProposal),
     PropagatePreProposalAgg(PreProposalAggregation),
     PropagateProposal(Proposal)
