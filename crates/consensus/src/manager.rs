@@ -161,11 +161,11 @@ where
         }
 
         if this.block_sync.can_operate() {
-            if let Poll::Ready(Some(msg)) = this.strom_consensus_event.poll_next_unpin(cx) {
+            while let Poll::Ready(Some(msg)) = this.strom_consensus_event.poll_next_unpin(cx) {
                 this.on_network_event(msg);
             }
 
-            if let Poll::Ready(Some(msg)) = this.consensus_round_state.poll_next_unpin(cx) {
+            while let Poll::Ready(Some(msg)) = this.consensus_round_state.poll_next_unpin(cx) {
                 this.on_round_event(msg);
             }
         }

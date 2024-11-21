@@ -111,6 +111,7 @@ where
         {
             this.current_state = transitioned_state;
         }
+
         if let Some(message) = this.consensus_arguments.messages.pop_front() {
             return Poll::Ready(Some(message))
         }
