@@ -12,6 +12,7 @@ use alloy::{
         GethDefaultTracingOptions
     }
 };
+use alloy_primitives::TxHash;
 use angstrom_types::sol_bindings::testnet::{MockERC20, PoolManagerDeployer, TestnetHub};
 use eyre::eyre;
 use futures::Future;
@@ -27,7 +28,7 @@ pub mod environment;
 /// for our local contract runs.
 pub trait DebugTransaction {
     #[allow(async_fn_in_trait)] // OK because this is not for public consumption
-    async fn run_safe(self) -> eyre::Result<()>;
+    async fn run_safe(self) -> eyre::Result<TxHash>;
 }
 
 impl<T, P, D> DebugTransaction for CallBuilder<T, P, D>
@@ -36,11 +37,11 @@ where
     P: alloy::providers::Provider<T> + Clone,
     D: alloy::contract::CallDecoder
 {
-    async fn run_safe(self) -> eyre::Result<()> {
+    async fn run_safe(self) -> eyre::Result<TxHash> {
         let provider = self.provider.clone();
         let receipt = self.gas(50_000_000_u64).send().await?.get_receipt().await?;
         if receipt.inner.status() {
-            Ok(())
+            Ok(receipt.transaction_hash)
         } else {
             let default_options = GethDebugTracingOptions::default();
             let _call_options = GethDebugTracingOptions {
@@ -70,11 +71,12 @@ fn get_or_set_signer(my_address: Address) -> Address {
     *CREATE_SIGNER.get_or_init(|| my_address)
 }
 
-pub struct AngstromDevnetAddresses {
-    pub contract: Address,
-    pub token0:   Address,
-    pub token1:   Address,
-    pub hooks:    Address
+pub struct AngstromTestnetAddresses {
+    pub contract:     Address,
+    pub pool_manager: Address,
+    pub token0:       Address,
+    pub token1:       Address,
+    pub hooks:        Address
 }
 /// deploys the angstrom testhub contract along with two tokens, under the
 /// secret key
@@ -149,6 +151,7 @@ pub async fn deploy_contract_and_create_pool(
 
     Ok(AngstromDevnetAddresses {
         contract: angstrom_address,
+        pool_manager: v4_address,
         token0,
         token1,
         hooks: Address::default()
