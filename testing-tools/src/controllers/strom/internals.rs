@@ -8,14 +8,17 @@ use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
-    block_sync::GlobalBlockSync, contract_payloads::angstrom::AngstromPoolConfigStore,
-    pair_with_price::PairsWithPrice, primitive::UniswapPoolRegistry,
-    sol_bindings::testnet::TestnetHub, testnet::InitialTestnetState
+    block_sync::GlobalBlockSync,
+    contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
+    pair_with_price::PairsWithPrice,
+    primitive::UniswapPoolRegistry,
+    sol_bindings::testnet::TestnetHub,
+    testnet::InitialTestnetState
 };
-use consensus::{AngstromValidator, ConsensusManager};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, Signer};
 use futures::{StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::{configure_uniswap_manager, manager::MatcherHandle};
+use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
@@ -50,9 +53,9 @@ impl AngstromDevnetNodeInternals {
         testnet_node_id: Option<u64>,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
-        _secret_key: SecretKey,
+        secret_key: SecretKey,
         config: impl TestingConfig,
-        _initial_validators: Vec<AngstromValidator>,
+        initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(
@@ -76,11 +79,10 @@ impl AngstromDevnetNodeInternals {
         let executor: TokioTaskExecutor = Default::default();
         let tx_strom_handles = (&strom_handles).into();
 
-        let order_api = OrderApi::new(
-            pool.clone(),
-            executor.clone(),
-            ValidationClient(strom_handles.validator_tx)
-        );
+        let validation_client = ValidationClient(strom_handles.validator_tx);
+        let matching_handle = MatchingManager::spawn(executor.clone(), validation_client.clone());
+
+        let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client);
 
         let eth_handle = AnvilEthDataCleanser::spawn(
             testnet_node_id,
@@ -93,12 +95,12 @@ impl AngstromDevnetNodeInternals {
         )
         .await?;
 
-        let block_id = state_provider
+        let block_number = state_provider
             .rpc_provider()
             .get_block_number()
             .await
             .unwrap();
-        let block_sync = GlobalBlockSync::new(block_id);
+        let block_sync = GlobalBlockSync::new(block_number);
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
@@ -108,7 +110,7 @@ impl AngstromDevnetNodeInternals {
                 .state_provider()
                 .subscribe_to_canonical_state(),
             uniswap_registry.clone(),
-            block_id,
+            block_number,
             block_sync.clone(),
             Address::random()
         )
@@ -119,7 +121,7 @@ impl AngstromDevnetNodeInternals {
 
         let token_conversion = TokenPriceGenerator::new(
             state_provider.state_provider().provider().into(),
-            block_id,
+            block_number,
             uniswap_pools.clone(),
             None
         )
@@ -193,34 +195,27 @@ impl AngstromDevnetNodeInternals {
         let testnet_hub =
             TestnetHub::new(inital_angstrom_state.angstrom_addr, state_provider.rpc_provider());
 
-        // let consensus = if config.is_state_machine() {
-        // let block_number = state_provider
-        //     .provider()
-        //     .provider()
-        //     .get_block_number()
-        //     .await
-        //     .unwrap();
+        let pool_registry =
+            UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
-        // let pool_config_store = AngstromPoolConfigStore::default();
-        //let pool_registry = UniswapAngstromRegistry::new(pools.into(),
-        // pool_config_store);
-
-        // let consensus = Some(ConsensusManager::new(
-        //     ManagerNetworkDeps::new(
-        //         strom_network_handle.clone(),
-        //         state_provider.provider().subscribe_to_canonical_state(),
-        //         strom_handles.consensus_rx_op
-        //     ),
-        //     Signer::new(secret_key),
-        //     initial_validators,
-        //     order_storage.clone(),
-        //     block_number + 1,
-        //     pool_registry,
-        //     uni_pools,
-        //     state_provider.provider().provider()
-        // ));
-
-        let consensus = None;
+        let consensus = ConsensusManager::new(
+            ManagerNetworkDeps::new(
+                strom_network_handle.clone(),
+                state_provider
+                    .state_provider()
+                    .subscribe_to_canonical_state(),
+                strom_handles.consensus_rx_op
+            ),
+            Signer::new(secret_key),
+            initial_validators,
+            order_storage.clone(),
+            block_number,
+            pool_registry,
+            uniswap_pools,
+            state_provider.rpc_provider(),
+            matching_handle,
+            block_sync
+        );
 
         Ok((
             Self {
@@ -232,7 +227,7 @@ impl AngstromDevnetNodeInternals {
                 testnet_hub,
                 validator
             },
-            consensus
+            Some(consensus)
         ))
     }
 }
