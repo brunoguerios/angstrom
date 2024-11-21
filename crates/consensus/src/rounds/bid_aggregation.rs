@@ -38,7 +38,6 @@ pub struct BidAggregationState {
 impl BidAggregationState {
     pub fn new(transition_timeout: Duration) -> Self {
         let sleep = sleep(transition_timeout);
-        // ensures we queue the sleep timeout
 
         Self {
             received_pre_proposals:    HashSet::default(),
