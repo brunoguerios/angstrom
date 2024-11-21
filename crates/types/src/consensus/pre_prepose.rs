@@ -63,20 +63,6 @@ impl PreProposal {
     }
 }
 
-// impl Hash for PreProposal {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         self.content().hash(state);
-//     }
-// }
-//
-// impl PartialEq for PreProposal {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.content() == other.content()
-//     }
-// }
-//
-// impl Eq for PreProposal {}
-
 impl PreProposal {
     fn sign_payload(sk: &SecretKey, payload: Vec<u8>) -> Signature {
         let hash = keccak256(payload);
