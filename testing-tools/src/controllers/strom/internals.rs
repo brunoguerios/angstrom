@@ -165,7 +165,7 @@ impl AngstromDevnetNodeInternals {
             strom_network_handle.clone(),
             eth_handle.subscribe_network(),
             strom_handles.pool_rx,
-            block_sync
+            block_sync.clone()
         )
         .with_config(pool_config)
         .build_with_channels(
@@ -214,7 +214,7 @@ impl AngstromDevnetNodeInternals {
             uniswap_pools,
             state_provider.rpc_provider(),
             matching_handle,
-            block_sync
+            block_sync.clone()
         );
 
         Ok((
