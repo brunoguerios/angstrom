@@ -127,7 +127,7 @@ pub struct Consensus<T, Matching> {
     round_leader:     PeerId,
     validators:       Vec<AngstromValidator>,
     order_storage:    Arc<OrderStorage>,
-    metrics:          ConsensusMetricsWrapper,
+    _metrics:         ConsensusMetricsWrapper,
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
     provider:         Arc<Pin<Box<dyn Provider<T>>>>,
@@ -163,7 +163,7 @@ where
             pool_registry,
             uniswap_pools,
             signer,
-            metrics,
+            _metrics: metrics,
             matching_engine,
             messages: VecDeque::new(),
             provider: Arc::new(Box::pin(provider))

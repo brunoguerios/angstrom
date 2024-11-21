@@ -5,7 +5,7 @@ use std::{
 
 use alloy::transports::Transport;
 use angstrom_network::manager::StromConsensusEvent;
-use angstrom_types::consensus::{PreProposalAggregation, Proposal};
+use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
 use matching_engine::MatchingEngineHandle;
 
 use super::{Consensus, ConsensusState};
@@ -29,6 +29,7 @@ pub struct PreProposalAggregationState {
 
 impl PreProposalAggregationState {
     pub fn new<T, Matching>(
+        pre_proposals: HashSet<PreProposal>,
         mut pre_proposals_aggregation: HashSet<PreProposalAggregation>,
         handles: &mut Consensus<T, Matching>,
         waker: Waker
@@ -38,8 +39,12 @@ impl PreProposalAggregationState {
         Matching: MatchingEngineHandle
     {
         // generate my pre_proposal aggregation
-
-        let my_preproposal_aggregation = PreProposalAggregation::default();
+        let my_preproposal_aggregation = PreProposalAggregation::new(
+            handles.block_height,
+            &handles.signer.key,
+            handles.signer.my_id,
+            pre_proposals.into_iter().collect::<Vec<_>>()
+        );
 
         // propagate my pre_proposal
         handles.propagate_message(my_preproposal_aggregation.clone().into());
