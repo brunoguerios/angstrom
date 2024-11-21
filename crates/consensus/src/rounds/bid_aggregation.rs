@@ -26,21 +26,20 @@ pub struct BidAggregationState {
     pre_proposals_aggregation: HashSet<PreProposalAggregation>,
     proposal:                  Option<Proposal>,
     transition_timeout:        Pin<Box<Sleep>>,
-    waker:                     Waker
+    waker:                     Option<Waker>
 }
 
 impl BidAggregationState {
-    pub fn new(transition_timeout: Duration, waker: Waker) -> Self {
+    pub fn new(transition_timeout: Duration) -> Self {
         let sleep = sleep(transition_timeout);
         // ensures we queue the sleep timeout
-        waker.wake_by_ref();
 
         Self {
-            received_pre_proposals: HashSet::default(),
+            received_pre_proposals:    HashSet::default(),
             pre_proposals_aggregation: HashSet::default(),
-            transition_timeout: Box::pin(sleep),
-            proposal: None,
-            waker
+            transition_timeout:        Box::pin(sleep),
+            proposal:                  None,
+            waker:                     None
         }
     }
 }
@@ -74,7 +73,7 @@ where
                 if let Some(proposal) = handles.verify_proposal(peer_id, proposal) {
                     // given a proposal was seen. we will skip directly to verification
                     self.proposal = Some(proposal);
-                    self.waker.wake_by_ref();
+                    self.waker.as_ref().inspect(|w| w.wake_by_ref());
                 }
             }
         }
@@ -85,6 +84,7 @@ where
         handles: &mut Consensus<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
+        self.waker = Some(cx.waker().clone());
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization
             return Poll::Ready(Some(Box::new(FinalizationState::new(

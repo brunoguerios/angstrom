@@ -3,7 +3,8 @@ use std::{
     hash::Hash,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll},
+    time::Duration
 };
 
 use alloy::{
@@ -21,6 +22,7 @@ use angstrom_types::{
     primitive::PeerId,
     sol_bindings::grouped_orders::OrderWithStorageData
 };
+use bid_aggregation::BidAggregationState;
 use futures::{future::BoxFuture, Future, FutureExt, Stream};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
@@ -59,12 +61,45 @@ where
 }
 
 /// Holds and progresses the consensus state machine
-pub struct ConsensusRoundState<T, Matching> {
-    current_state:       Box<dyn ConsensusState<T, Matching>>,
-    consensus_arguments: Consensus<T, Matching>
+pub struct RoundStateMachine<T, Matching> {
+    current_state:           Box<dyn ConsensusState<T, Matching>>,
+    /// for consensus, on a new block we wait a duration of time before signing
+    /// our pre-proposal. this is the time
+    consensus_wait_duration: Duration,
+    consensus_arguments:     Consensus<T, Matching>
 }
 
-impl<T, Matching> Stream for ConsensusRoundState<T, Matching>
+impl<T, Matching> RoundStateMachine<T, Matching>
+where
+    T: Transport + Clone,
+    Matching: MatchingEngineHandle
+{
+    pub fn new(
+        consensus_wait_duration: Duration,
+        consensus_arguments: Consensus<T, Matching>
+    ) -> Self {
+        Self {
+            current_state: Box::new(BidAggregationState::new(consensus_wait_duration.clone())),
+            consensus_wait_duration,
+            consensus_arguments
+        }
+    }
+
+    pub fn reset_round(&mut self, new_block: u64, new_leader: PeerId) {
+        self.consensus_arguments.block_height = new_block;
+        self.consensus_arguments.round_leader = new_leader;
+
+        self.current_state =
+            Box::new(BidAggregationState::new(self.consensus_wait_duration.clone()));
+    }
+
+    pub fn handle_message(&mut self, event: StromConsensusEvent) {
+        self.current_state
+            .on_consensus_message(&mut self.consensus_arguments, event);
+    }
+}
+
+impl<T, Matching> Stream for RoundStateMachine<T, Matching>
 where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
@@ -97,7 +132,6 @@ pub struct Consensus<T, Matching> {
     validators:       Vec<AngstromValidator>,
     order_storage:    Arc<OrderStorage>,
     metrics:          ConsensusMetricsWrapper,
-    waker:            Option<Waker>,
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
     provider:         Arc<Pin<Box<dyn Provider<T>>>>,
@@ -110,6 +144,36 @@ where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        block_height: BlockNumber,
+        angstrom_address: Address,
+        order_storage: Arc<OrderStorage>,
+        signer: Signer,
+        round_leader: PeerId,
+        validators: Vec<AngstromValidator>,
+        metrics: ConsensusMetricsWrapper,
+        pool_registry: UniswapAngstromRegistry,
+        uniswap_pools: SyncedUniswapPools,
+        provider: impl Provider<T> + 'static,
+        matching_engine: Matching
+    ) -> Self {
+        Self {
+            block_height,
+            angstrom_address,
+            round_leader,
+            validators,
+            order_storage,
+            pool_registry,
+            uniswap_pools,
+            signer,
+            metrics,
+            matching_engine,
+            messages: VecDeque::new(),
+            provider: Arc::new(Box::pin(provider))
+        }
+    }
+
     fn propagate_message(&mut self, message: ConsensusTransitionMessage) {
         self.messages.push_back(message);
     }

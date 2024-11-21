@@ -68,7 +68,9 @@ impl ProposalState {
         Matching: MatchingEngineHandle
     {
         let Ok((pool_solution, gas_info)) = result else {
-            tracing::error!("Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :(");
+            tracing::error!(
+                "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
+            );
             return false
         };
 
@@ -83,7 +85,9 @@ impl ProposalState {
         let snapshot = handles.fetch_pool_snapshot();
 
         let Ok(bundle) = AngstromBundle::from_proposal(&proposal, gas_info, &snapshot) else {
-            tracing::error!("failed to encode angstrom bundle, THERE SHALL BE NO PROPOSAL THIS BLOCK :(");
+            tracing::error!(
+                "failed to encode angstrom bundle, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
+            );
             return false
         };
 
