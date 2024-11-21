@@ -19,12 +19,13 @@ use super::{ConsensusState, SharedRoundState};
 use crate::rounds::ConsensusMessage;
 
 type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
+
 /// Proposal State.
 ///
 /// We only transition to Proposal state if we are the leader.
 /// In this state we build the proposal, submit it on chain and then propagate
 /// it once its landed on chain. We only submit after it has landed on chain as
-/// in the case of inclusion games. the preoposal will just be dropped and there
+/// in the case of inclusion games. the proposal will just be dropped and there
 /// is no need for others to verify.
 pub struct ProposalState {
     matching_engine_future: Option<MatchingEngineFuture>,

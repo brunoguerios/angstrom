@@ -19,8 +19,7 @@ use crate::rounds::{
 /// This part of the consensus state machine initializes when the bid
 /// aggregation phase ends and we generate + propagate our pre_proposal. This
 /// part of the state machine transitions when we have hit 2/3 pre_proposals
-/// collected. we then
-/// transition to pre_proposals_aggregation_state which will
+/// collected. We then transition to pre_proposals_aggregation_state.
 #[derive(Debug)]
 pub struct PreProposalState {
     pre_proposals:             HashSet<PreProposal>,

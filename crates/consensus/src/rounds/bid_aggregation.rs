@@ -17,6 +17,11 @@ use super::{
     SharedRoundState
 };
 
+/// BidAggregationState
+///
+/// This is the first step in the state machine and is initialized on new
+/// blocks. It will wait till the transition timeout triggers and then we will
+/// go to pre_proposal.
 #[derive(Debug)]
 pub struct BidAggregationState {
     /// because the start is timeout based. We won't propagate our pre_proposal

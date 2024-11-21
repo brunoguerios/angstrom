@@ -96,11 +96,6 @@ where
         // if we aren't the leader. we wait for the proposal to then verify in the
         // finalization state.
         if let Some(proposal) = self.proposal.take() {
-            tracing::info!(
-                "got a proposal while in pre-proposal stage for the given block. Skipping to \
-                 finalization"
-            );
-
             return Poll::Ready(Some(Box::new(FinalizationState::new(
                 proposal,
                 handles,
