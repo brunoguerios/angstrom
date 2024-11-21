@@ -44,7 +44,7 @@ where
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         message: StromConsensusEvent
     );
 
@@ -52,7 +52,7 @@ where
     /// round is over
     fn poll_transition(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>>;
 }
@@ -63,7 +63,7 @@ pub struct RoundStateMachine<T, Matching> {
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: Duration,
-    consensus_arguments:     Consensus<T, Matching>
+    shared_state:            SharedRoundState<T, Matching>
 }
 
 impl<T, Matching> RoundStateMachine<T, Matching>
@@ -73,25 +73,25 @@ where
 {
     pub fn new(
         consensus_wait_duration: Duration,
-        consensus_arguments: Consensus<T, Matching>
+        shared_state: SharedRoundState<T, Matching>
     ) -> Self {
         Self {
             current_state: Box::new(BidAggregationState::new(consensus_wait_duration)),
             consensus_wait_duration,
-            consensus_arguments
+            shared_state
         }
     }
 
     pub fn reset_round(&mut self, new_block: u64, new_leader: PeerId) {
-        self.consensus_arguments.block_height = new_block;
-        self.consensus_arguments.round_leader = new_leader;
+        self.shared_state.block_height = new_block;
+        self.shared_state.round_leader = new_leader;
 
         self.current_state = Box::new(BidAggregationState::new(self.consensus_wait_duration));
     }
 
     pub fn handle_message(&mut self, event: StromConsensusEvent) {
         self.current_state
-            .on_consensus_message(&mut self.consensus_arguments, event);
+            .on_consensus_message(&mut self.shared_state, event);
     }
 }
 
@@ -100,19 +100,19 @@ where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
-    type Item = ConsensusTransitionMessage;
+    type Item = ConsensusMessage;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
 
         if let Poll::Ready(Some(transitioned_state)) = this
             .current_state
-            .poll_transition(&mut this.consensus_arguments, cx)
+            .poll_transition(&mut this.shared_state, cx)
         {
             this.current_state = transitioned_state;
         }
 
-        if let Some(message) = this.consensus_arguments.messages.pop_front() {
+        if let Some(message) = this.shared_state.messages.pop_front() {
             return Poll::Ready(Some(message))
         }
 
@@ -120,7 +120,7 @@ where
     }
 }
 
-pub struct Consensus<T, Matching> {
+pub struct SharedRoundState<T, Matching> {
     block_height:     BlockNumber,
     angstrom_address: Address,
     matching_engine:  Matching,
@@ -132,11 +132,11 @@ pub struct Consensus<T, Matching> {
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
     provider:         Arc<Pin<Box<dyn Provider<T>>>>,
-    messages:         VecDeque<ConsensusTransitionMessage>
+    messages:         VecDeque<ConsensusMessage>
 }
 
 // contains shared impls
-impl<T, Matching> Consensus<T, Matching>
+impl<T, Matching> SharedRoundState<T, Matching>
 where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
@@ -171,7 +171,7 @@ where
         }
     }
 
-    fn propagate_message(&mut self, message: ConsensusTransitionMessage) {
+    fn propagate_message(&mut self, message: ConsensusMessage) {
         self.messages.push_back(message);
     }
 
@@ -260,7 +260,7 @@ where
 
         proposal.is_valid(&self.block_height).then(|| {
             self.messages
-                .push_back(ConsensusTransitionMessage::PropagateProposal(proposal.clone()));
+                .push_back(ConsensusMessage::PropagateProposal(proposal.clone()));
 
             proposal
         })
@@ -287,7 +287,7 @@ where
         proposal_set: &mut HashSet<P>,
         valid: impl FnOnce(&P, &BlockNumber) -> bool
     ) where
-        P: Into<ConsensusTransitionMessage> + Eq + Hash + Clone
+        P: Into<ConsensusMessage> + Eq + Hash + Clone
     {
         if !self.validators.iter().map(|v| v.peer_id).contains(&peer_id) {
             tracing::warn!(peer=?peer_id,"got a consensus message from a invalid peer");
@@ -311,7 +311,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub enum ConsensusTransitionMessage {
+pub enum ConsensusMessage {
     /// Either our or another nodes PreProposal. The PreProposal will only be
     /// shared here if it is new to this nodes consensus outlook
     PropagatePreProposal(PreProposal),
@@ -319,13 +319,13 @@ pub enum ConsensusTransitionMessage {
     PropagateProposal(Proposal)
 }
 
-impl From<PreProposal> for ConsensusTransitionMessage {
+impl From<PreProposal> for ConsensusMessage {
     fn from(value: PreProposal) -> Self {
         Self::PropagatePreProposal(value)
     }
 }
 
-impl From<PreProposalAggregation> for ConsensusTransitionMessage {
+impl From<PreProposalAggregation> for ConsensusMessage {
     fn from(value: PreProposalAggregation) -> Self {
         Self::PropagatePreProposalAgg(value)
     }

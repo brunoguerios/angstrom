@@ -13,7 +13,8 @@ use matching_engine::MatchingEngineHandle;
 use tokio::time::{sleep, Sleep};
 
 use super::{
-    finalization::FinalizationState, pre_proposal::PreProposalState, Consensus, ConsensusState
+    finalization::FinalizationState, pre_proposal::PreProposalState, ConsensusState,
+    SharedRoundState
 };
 
 #[derive(Debug)]
@@ -51,7 +52,7 @@ where
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -81,7 +82,7 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
         self.waker = Some(cx.waker().clone());

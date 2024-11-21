@@ -8,10 +8,10 @@ use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
 use matching_engine::MatchingEngineHandle;
 
-use super::{Consensus, ConsensusState};
+use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{
     finalization::FinalizationState, pre_proposal_aggregation::PreProposalAggregationState,
-    ConsensusTransitionMessage
+    ConsensusMessage
 };
 
 /// PreProposalState
@@ -34,7 +34,7 @@ impl PreProposalState {
         block_height: BlockNumber,
         mut pre_proposals: HashSet<PreProposal>,
         pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         waker: Waker
     ) -> Self
     where
@@ -50,9 +50,7 @@ impl PreProposalState {
         );
 
         // propagate my pre_proposal
-        handles.propagate_message(ConsensusTransitionMessage::PropagatePreProposal(
-            my_preproposal.clone()
-        ));
+        handles.propagate_message(ConsensusMessage::PropagatePreProposal(my_preproposal.clone()));
 
         pre_proposals.insert(my_preproposal);
 
@@ -71,7 +69,7 @@ where
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -100,7 +98,7 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
         if let Some(proposal) = self.proposal.take() {

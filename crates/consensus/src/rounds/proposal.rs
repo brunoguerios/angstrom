@@ -15,8 +15,8 @@ use futures::{future::BoxFuture, FutureExt, StreamExt};
 use matching_engine::MatchingEngineHandle;
 use pade::PadeEncode;
 
-use super::{Consensus, ConsensusState};
-use crate::rounds::ConsensusTransitionMessage;
+use super::{ConsensusState, SharedRoundState};
+use crate::rounds::ConsensusMessage;
 
 type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 /// Proposal State.
@@ -37,7 +37,7 @@ pub struct ProposalState {
 impl ProposalState {
     pub fn new<T, Matching>(
         pre_proposal_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         waker: Waker
     ) -> Self
     where
@@ -61,7 +61,7 @@ impl ProposalState {
     fn try_build_proposal<T, Matching>(
         &mut self,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
-        handles: &mut Consensus<T, Matching>
+        handles: &mut SharedRoundState<T, Matching>
     ) -> bool
     where
         T: Transport + Clone,
@@ -130,14 +130,18 @@ where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
-    fn on_consensus_message(&mut self, _: &mut Consensus<T, Matching>, _: StromConsensusEvent) {
+    fn on_consensus_message(
+        &mut self,
+        _: &mut SharedRoundState<T, Matching>,
+        _: StromConsensusEvent
+    ) {
         // No messages at this point can effect the consensus round and thus are
         // ignored.
     }
 
     fn poll_transition(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
         if let Some(mut b_fut) = self.matching_engine_future.take() {
@@ -159,7 +163,7 @@ where
                         let proposal = self.proposal.take().unwrap();
                         handles
                             .messages
-                            .push_back(ConsensusTransitionMessage::PropagateProposal(proposal));
+                            .push_back(ConsensusMessage::PropagateProposal(proposal));
                         cx.waker().wake_by_ref();
                     }
                     return Poll::Ready(None)

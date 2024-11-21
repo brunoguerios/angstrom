@@ -27,7 +27,7 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
     leader_selection::WeightedRoundRobin,
-    rounds::{Consensus, ConsensusTransitionMessage, RoundStateMachine},
+    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
     AngstromValidator, Signer
 };
 
@@ -76,7 +76,7 @@ where
             leader_selection,
             consensus_round_state: RoundStateMachine::new(
                 Duration::new(8, 0),
-                Consensus::new(
+                SharedRoundState::new(
                     current_height,
                     angstrom_address,
                     order_storage,
@@ -127,15 +127,15 @@ where
         self.consensus_round_state.handle_message(event);
     }
 
-    fn on_round_event(&mut self, event: ConsensusTransitionMessage) {
+    fn on_round_event(&mut self, event: ConsensusMessage) {
         match event {
-            ConsensusTransitionMessage::PropagateProposal(p) => {
+            ConsensusMessage::PropagateProposal(p) => {
                 self.network.broadcast_message(StromMessage::Propose(p))
             }
-            ConsensusTransitionMessage::PropagatePreProposal(p) => {
+            ConsensusMessage::PropagatePreProposal(p) => {
                 self.network.broadcast_message(StromMessage::PrePropose(p))
             }
-            ConsensusTransitionMessage::PropagatePreProposalAgg(p) => self
+            ConsensusMessage::PropagatePreProposalAgg(p) => self
                 .network
                 .broadcast_message(StromMessage::PreProposeAgg(p))
         }

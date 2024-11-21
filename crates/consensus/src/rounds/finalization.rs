@@ -10,7 +10,7 @@ use angstrom_types::consensus::Proposal;
 use futures::{Future, FutureExt};
 use matching_engine::MatchingEngineHandle;
 
-use super::{Consensus, ConsensusState};
+use super::{ConsensusState, SharedRoundState};
 
 /// The finalization state.
 ///
@@ -27,7 +27,7 @@ pub struct FinalizationState {
 impl FinalizationState {
     pub fn new<T, Matching>(
         proposal: Proposal,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         waker: Waker
     ) -> Self
     where
@@ -77,14 +77,18 @@ where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
-    fn on_consensus_message(&mut self, _: &mut Consensus<T, Matching>, _: StromConsensusEvent) {
+    fn on_consensus_message(
+        &mut self,
+        _: &mut SharedRoundState<T, Matching>,
+        _: StromConsensusEvent
+    ) {
         // no messages consensus related matter at this point. is just waiting
         // to be reset.
     }
 
     fn poll_transition(
         &mut self,
-        _: &mut Consensus<T, Matching>,
+        _: &mut SharedRoundState<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
         if self.completed {

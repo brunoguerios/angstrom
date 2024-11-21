@@ -8,7 +8,7 @@ use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
 use matching_engine::MatchingEngineHandle;
 
-use super::{Consensus, ConsensusState};
+use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{finalization::FinalizationState, proposal::ProposalState};
 
 /// PreProposalAggregationState
@@ -31,7 +31,7 @@ impl PreProposalAggregationState {
     pub fn new<T, Matching>(
         pre_proposals: HashSet<PreProposal>,
         mut pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         waker: Waker
     ) -> Self
     where
@@ -66,7 +66,7 @@ where
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -90,7 +90,7 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        handles: &mut SharedRoundState<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
         // if we aren't the leader. we wait for the proposal to then verify in the
