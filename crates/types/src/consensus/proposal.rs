@@ -130,6 +130,6 @@ mod tests {
         let proposal =
             Proposal::generate_proposal(ethereum_height, source, preproposals, solutions, &sk);
 
-        assert!(proposal.is_valid(ethereum_height), "Unable to validate self");
+        assert!(proposal.is_valid(&ethereum_height), "Unable to validate self");
     }
 }
