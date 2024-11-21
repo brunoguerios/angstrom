@@ -3,7 +3,7 @@ pub mod config;
 pub(crate) mod utils;
 
 use clap::Parser;
-use config::AngstromDevnetCli;
+use config::AngstromTestnetCli;
 use reth::{tasks::TaskExecutor, CliRunner};
 use reth_provider::test_utils::NoopProvider;
 use secp256k1::Secp256k1;
@@ -14,7 +14,7 @@ pub fn run() -> eyre::Result<()> {
 }
 
 async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
-    let cli = AngstromDevnetCli::parse();
+    let cli = AngstromTestnetCli::parse();
     executor.spawn_critical("metrics", cli.clone().init_metrics());
 
     let testnet_config = cli.load_config()?;
@@ -27,7 +27,7 @@ async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
 
     let config = TestnetConfig::new(
         7,
-        1,
+        2,
         testnet_config.leader_ws_url()?,
         my_node_config.address,
         pub_key,
@@ -44,7 +44,7 @@ async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
 
     executor
         .spawn_critical_blocking("testnet", testnet.run())
-        .await;
+        .await?;
 
     Ok(())
 }

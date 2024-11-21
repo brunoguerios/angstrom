@@ -13,7 +13,7 @@ use secp256k1::{Secp256k1, SecretKey};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Default, clap::Parser)]
-pub struct AngstromDevnetCli {
+pub struct AngstromTestnetCli {
     #[clap(long)]
     pub mev_guard:    bool,
     #[clap(long, default_value = "./testnet_config.toml")]
@@ -27,7 +27,7 @@ pub struct AngstromDevnetCli {
     pub metrics_port: u16
 }
 
-impl AngstromDevnetCli {
+impl AngstromTestnetCli {
     pub async fn init_metrics(self) {
         if self.metrics
             && initialize_prometheus_metrics(self.metrics_port)
