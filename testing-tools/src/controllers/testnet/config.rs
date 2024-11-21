@@ -69,6 +69,8 @@ impl TestingConfig for TestnetConfig {
             .fork(self.eth_ws_url.as_ref().unwrap())
             .arg("--ipc")
             .arg(self.anvil_endpoint(id))
+            .arg("--code-size-limit")
+            .arg("393216")
             .block_time(12)
     }
 
