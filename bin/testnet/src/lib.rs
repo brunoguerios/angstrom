@@ -42,7 +42,9 @@ async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
     let testnet =
         AngstromTestnet::spawn_testnet(NoopProvider::default(), config, initial_validators).await?;
 
-    executor.spawn_critical_blocking("testnet", testnet).await;
+    executor
+        .spawn_critical_blocking("testnet", testnet.run())
+        .await;
 
     Ok(())
 }

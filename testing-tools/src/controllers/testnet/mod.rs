@@ -101,7 +101,7 @@ where
         Ok(Self { block_provider, node, leader_handle: None, config })
     }
 
-    async fn run(self) {
+    pub async fn run(self) {
         self.node.testnet_future().await;
     }
 }
