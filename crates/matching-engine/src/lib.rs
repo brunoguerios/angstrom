@@ -60,7 +60,8 @@ pub async fn configure_uniswap_manager<
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
     current_block: BlockNumber,
-    block_sync: BlockSync
+    block_sync: BlockSync,
+    pool_manager_address: Address
 ) -> UniswapPoolManager<CanonicalStateAdapter, BlockSync, DataLoader<PoolId>, PoolId> {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
@@ -68,7 +69,11 @@ pub async fn configure_uniswap_manager<
         .map(|pool_id| {
             let initial_ticks_per_side = 200;
             EnhancedUniswapPool::new(
-                DataLoader::new_with_registry(*pool_id, uniswap_pool_registry.clone()),
+                DataLoader::new_with_registry(
+                    *pool_id,
+                    uniswap_pool_registry.clone(),
+                    pool_manager_address
+                ),
                 initial_ticks_per_side
             )
         })

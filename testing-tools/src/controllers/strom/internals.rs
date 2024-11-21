@@ -144,6 +144,7 @@ impl AngstromDevnetNodeInternals {
             state_provider.state_provider(),
             inital_angstrom_state.angstrom_addr,
             Address::default(),
+            Address::default(),
             uniswap_pools.clone(),
             token_conversion,
             token_price_update_stream,
