@@ -71,7 +71,7 @@ fn get_or_set_signer(my_address: Address) -> Address {
     *CREATE_SIGNER.get_or_init(|| my_address)
 }
 
-pub struct AngstromTestnetAddresses {
+pub struct AngstromTestingAddresses {
     pub contract:     Address,
     pub pool_manager: Address,
     pub token0:       Address,
@@ -82,7 +82,7 @@ pub struct AngstromTestnetAddresses {
 /// secret key
 pub async fn deploy_contract_and_create_pool(
     provider: WalletProviderRpc
-) -> eyre::Result<AngstromDevnetAddresses> {
+) -> eyre::Result<AngstromTestingAddresses> {
     provider
         .anvil_impersonate_account(get_or_set_signer(provider.default_signer_address()))
         .await?;
@@ -149,7 +149,7 @@ pub async fn deploy_contract_and_create_pool(
         .anvil_stop_impersonating_account(get_or_set_signer(provider.default_signer_address()))
         .await?;
 
-    Ok(AngstromDevnetAddresses {
+    Ok(AngstromTestingAddresses {
         contract: angstrom_address,
         pool_manager: v4_address,
         token0,
