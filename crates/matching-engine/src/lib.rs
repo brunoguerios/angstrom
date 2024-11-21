@@ -2,12 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use alloy_primitives::Address;
 use angstrom_types::{
-    consensus::PreProposal,
     contract_payloads::angstrom::BundleGasDetails,
     matching::uniswap::PoolSnapshot,
     orders::PoolSolution,
     primitive::PoolId,
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::{
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use book::OrderBook;
 use futures_util::future::BoxFuture;
@@ -23,7 +25,8 @@ pub use manager::MatchingManager;
 pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
     fn solve_pools(
         &self,
-        preproposals: Vec<PreProposal>,
+        limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+        searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
         pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
     ) -> BoxFuture<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 }

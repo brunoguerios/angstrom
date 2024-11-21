@@ -253,6 +253,7 @@ impl AngstromTestnetNodeInternals {
                 .provider()
                 .get_block_number()
                 .await?,
+            angstrom_addr,
             pool_registry,
             uniswap_pools.clone(),
             state_provider.provider().provider(),

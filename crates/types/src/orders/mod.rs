@@ -104,3 +104,15 @@ pub struct PoolSolution {
     /// hashes here
     pub limit:        Vec<OrderOutcome>
 }
+
+impl PartialOrd for PoolSolution {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PoolSolution {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}

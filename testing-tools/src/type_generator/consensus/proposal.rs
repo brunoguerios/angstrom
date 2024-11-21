@@ -5,7 +5,7 @@ use alloy_primitives::{
     Address
 };
 use angstrom_types::{
-    consensus::{PreProposal, Proposal},
+    consensus::{PreProposalAggregation, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{uniswap::LiqRange, SqrtPriceX96},
     primitive::PoolId,
@@ -20,7 +20,7 @@ use reth_network_peers::pk2id;
 use reth_tasks::TokioTaskExecutor;
 use secp256k1::{Secp256k1, SecretKey as Secp256SecretKey};
 
-use super::{pool::Pool, preproposal::PreproposalBuilder};
+use super::{pool::Pool, pre_proposal_agg::PreProposalAggregationBuilder};
 use crate::{
     mocks::validator::MockValidator,
     type_generator::{amm::AMMSnapshotBuilder, orders::SigningInfo}
@@ -30,7 +30,7 @@ use crate::{
 pub struct ProposalBuilder {
     ethereum_height:   Option<u64>,
     order_count:       Option<usize>,
-    preproposals:      Option<Vec<PreProposal>>,
+    preproposals:      Option<Vec<PreProposalAggregation>>,
     preproposal_count: Option<usize>,
     block:             Option<u64>,
     pools:             Option<Vec<Pool>>,
@@ -47,7 +47,7 @@ impl ProposalBuilder {
         Self { order_count: Some(order_count), ..self }
     }
 
-    pub fn preproposals(self, preproposals: Vec<PreProposal>) -> Self {
+    pub fn preproposals(self, preproposals: Vec<PreProposalAggregation>) -> Self {
         Self { preproposals: Some(preproposals), ..self }
     }
 
@@ -110,7 +110,7 @@ impl ProposalBuilder {
         let preproposals = self.preproposals.unwrap_or_else(|| {
             (0..preproposal_count)
                 .map(|_| {
-                    PreproposalBuilder::new()
+                    PreProposalAggregationBuilder::new()
                         .for_block(block)
                         .order_count(count)
                         .for_pools(pools.clone())
@@ -119,12 +119,14 @@ impl ProposalBuilder {
                 })
                 .collect::<Vec<_>>()
         });
+
         let books = MatchingManager::<TokioTaskExecutor, MockValidator>::build_books(
-            &preproposals,
+            &preproposals[0].pre_proposals,
             &HashMap::default()
         );
         let searcher_orders: HashMap<PoolId, OrderWithStorageData<TopOfBlockOrder>> = preproposals
             .iter()
+            .flat_map(|p| p.pre_proposals.iter())
             .flat_map(|p| p.searcher.iter())
             .fold(HashMap::new(), |mut acc, order| {
                 acc.entry(order.pool_id).or_insert(order.clone());

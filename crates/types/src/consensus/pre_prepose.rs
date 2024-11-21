@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    hash::{Hash, Hasher}
+    hash::Hasher
 };
 
 use alloy::primitives::{keccak256, BlockNumber};
@@ -18,7 +18,7 @@ use crate::{
     }
 };
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct PreProposal {
     pub block_height: BlockNumber,
     pub source:       PeerId,
@@ -43,7 +43,7 @@ pub struct PreProposalContent {
 // deterministic. EdDSA ones are, but the below allows for one less footgun
 // If the struct switches to BLS, or any type of multisig or threshold
 // signature, then the implementation should be changed to include it
-impl Hash for PreProposalContent {
+impl std::hash::Hash for PreProposalContent {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.block_height.hash(state);
         self.source.hash(state);
@@ -62,20 +62,6 @@ impl PreProposal {
         }
     }
 }
-
-impl Hash for PreProposal {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.content().hash(state);
-    }
-}
-
-impl PartialEq for PreProposal {
-    fn eq(&self, other: &Self) -> bool {
-        self.content() == other.content()
-    }
-}
-
-impl Eq for PreProposal {}
 
 impl PreProposal {
     fn sign_payload(sk: &SecretKey, payload: Vec<u8>) -> Signature {
@@ -107,12 +93,13 @@ impl PreProposal {
         Self::generate_pre_proposal(ethereum_height, source, limit, searcher, sk)
     }
 
-    pub fn is_valid(&self) -> bool {
+    /// ensures block height is correct as-well as validates the signature.
+    pub fn is_valid(&self, block_height: &BlockNumber) -> bool {
         let hash = keccak256(self.payload());
         let Ok(source) = self.signature.recover_signer_full_public_key(hash) else {
             return false;
         };
-        source == self.source
+        source == self.source && &self.block_height == block_height
     }
 
     fn serialize_payload(
@@ -179,6 +166,6 @@ mod tests {
         let preproposal =
             PreProposal::generate_pre_proposal(ethereum_height, source, limit, searcher, &sk);
 
-        assert!(preproposal.is_valid(), "Unable to validate self");
+        assert!(preproposal.is_valid(&ethereum_height), "Unable to validate self");
     }
 }

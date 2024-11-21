@@ -1,10 +1,11 @@
 use alloy::primitives::BlockNumber;
 use alloy_primitives::keccak256;
 use bytes::Bytes;
+use itertools::Itertools;
 use secp256k1::SecretKey;
 use serde::{Deserialize, Serialize};
 
-use super::PreProposal;
+use super::{PreProposal, PreProposalAggregation};
 use crate::{
     orders::PoolSolution,
     primitive::{PeerId, Signature}
@@ -16,7 +17,7 @@ pub struct Proposal {
     pub block_height: BlockNumber,
     pub source:       PeerId,
     /// PreProposals sorted by source
-    pub preproposals: Vec<PreProposal>,
+    pub preproposals: Vec<PreProposalAggregation>,
     /// PoolSolutions sorted by PoolId
     pub solutions:    Vec<PoolSolution>,
     /// This signature is over (etheruem_block | hash(vanilla_bundle) |
@@ -28,7 +29,7 @@ impl Proposal {
     pub fn generate_proposal(
         ethereum_height: BlockNumber,
         source: PeerId,
-        preproposals: Vec<PreProposal>,
+        preproposals: Vec<PreProposalAggregation>,
         mut solutions: Vec<PoolSolution>,
         sk: &SecretKey
     ) -> Self {
@@ -54,13 +55,17 @@ impl Proposal {
         }
     }
 
-    pub fn preproposals(&self) -> &Vec<PreProposal> {
+    pub fn preproposals(&self) -> &Vec<PreProposalAggregation> {
         &self.preproposals
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_valid(&self, ethereum_height: &BlockNumber) -> bool {
         // All our preproposals have to be valid
-        if !self.preproposals.iter().all(|i| i.is_valid()) {
+        if !self
+            .preproposals
+            .iter()
+            .all(|i| i.is_valid(ethereum_height))
+        {
             return false
         }
         // Then our own signature has to be valid
@@ -79,6 +84,14 @@ impl Proposal {
         buf.extend(bincode::serialize(&self.solutions).unwrap());
 
         Bytes::from_iter(buf)
+    }
+
+    pub fn flattened_pre_proposals(&self) -> Vec<PreProposal> {
+        self.preproposals
+            .iter()
+            .flat_map(|preproposal| preproposal.pre_proposals.clone())
+            .unique_by(|proposal| proposal.source)
+            .collect::<Vec<_>>()
     }
 }
 
@@ -117,6 +130,6 @@ mod tests {
         let proposal =
             Proposal::generate_proposal(ethereum_height, source, preproposals, solutions, &sk);
 
-        assert!(proposal.is_valid(), "Unable to validate self");
+        assert!(proposal.is_valid(&ethereum_height), "Unable to validate self");
     }
 }
