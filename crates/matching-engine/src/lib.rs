@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use alloy::primitives::Address;
+use alloy_primitives::Address;
 use angstrom_types::{
     consensus::PreProposal,
     contract_payloads::angstrom::BundleGasDetails,

@@ -15,6 +15,8 @@ pub struct AngstromConfig {
     #[clap(long)]
     pub angstrom_addr:       Option<Address>,
     #[clap(long)]
+    pub pool_manager_addr:   Option<Address>,
+    #[clap(long)]
     pub node_config:         PathBuf,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
@@ -27,9 +29,10 @@ pub struct AngstromConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct NodeConfig {
-    pub secret_key:       String,
-    pub angstrom_address: Address,
-    pub pools:            Vec<PoolKey>
+    pub secret_key:           String,
+    pub angstrom_address:     Address,
+    pub pool_manager_address: Address,
+    pub pools:                Vec<PoolKey>
 }
 
 impl NodeConfig {
