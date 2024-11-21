@@ -18,6 +18,7 @@ use pade::PadeEncode;
 use super::{Consensus, ConsensusState};
 use crate::rounds::ConsensusTransitionMessage;
 
+type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 /// Proposal State.
 ///
 /// We only transition to Proposal state if we are the leader.
@@ -26,8 +27,7 @@ use crate::rounds::ConsensusTransitionMessage;
 /// in the case of inclusion games. the preoposal will just be dropped and there
 /// is no need for others to verify.
 pub struct ProposalState {
-    matching_engine_future:
-        Option<BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>>,
+    matching_engine_future: Option<MatchingEngineFuture>,
     submission_future:      Option<BoxFuture<'static, bool>>,
     pre_proposal_aggs:      Vec<PreProposalAggregation>,
     proposal:               Option<Proposal>,

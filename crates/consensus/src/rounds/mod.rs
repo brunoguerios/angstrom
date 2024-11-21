@@ -23,7 +23,7 @@ use angstrom_types::{
     sol_bindings::grouped_orders::OrderWithStorageData
 };
 use bid_aggregation::BidAggregationState;
-use futures::{future::BoxFuture, Future, FutureExt, Stream};
+use futures::{future::BoxFuture, FutureExt, Stream};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
@@ -37,10 +37,7 @@ mod pre_proposal;
 mod pre_proposal_aggregation;
 mod proposal;
 
-type TransitionFuture<T, Matching> =
-    Pin<Box<dyn Future<Output = Option<Box<dyn ConsensusState<T, Matching>>>> + Send + 'static>>;
-
-pub trait ConsensusState<T, Matching>
+pub trait ConsensusState<T, Matching>: Send
 where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
@@ -79,7 +76,7 @@ where
         consensus_arguments: Consensus<T, Matching>
     ) -> Self {
         Self {
-            current_state: Box::new(BidAggregationState::new(consensus_wait_duration.clone())),
+            current_state: Box::new(BidAggregationState::new(consensus_wait_duration)),
             consensus_wait_duration,
             consensus_arguments
         }
@@ -89,8 +86,7 @@ where
         self.consensus_arguments.block_height = new_block;
         self.consensus_arguments.round_leader = new_leader;
 
-        self.current_state =
-            Box::new(BidAggregationState::new(self.consensus_wait_duration.clone()));
+        self.current_state = Box::new(BidAggregationState::new(self.consensus_wait_duration));
     }
 
     pub fn handle_message(&mut self, event: StromConsensusEvent) {

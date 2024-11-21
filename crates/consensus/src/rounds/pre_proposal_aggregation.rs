@@ -3,24 +3,23 @@ use std::{
     task::{Context, Poll, Waker}
 };
 
-use alloy::{primitives::BlockNumber, transports::Transport};
+use alloy::transports::Transport;
 use angstrom_network::manager::StromConsensusEvent;
-use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
+use angstrom_types::consensus::{PreProposalAggregation, Proposal};
 use matching_engine::MatchingEngineHandle;
 
 use super::{Consensus, ConsensusState};
-use crate::rounds::{
-    finalization::FinalizationState, proposal::ProposalState, ConsensusTransitionMessage
-};
+use crate::rounds::{finalization::FinalizationState, proposal::ProposalState};
 
 /// PreProposalAggregationState
 ///
 /// The initialization of this state will take the 2/3 set of proposals this
 /// node has seen. sign over them and then submit them to the network. This will
 /// transition into finalization in two cases.
-/// 1) this node is the leader and receives 2/3 pre_proposals_aggregation ->
-/// proposal state 2) this node isn't leader and receives the proposal ->
-/// finalization
+/// 1)
+/// this node is the leader and receives 2/3 pre_proposals_aggregation ->
+/// proposal state
+/// 2) this node isn't leader and receives the proposal -> finalization
 #[derive(Debug)]
 pub struct PreProposalAggregationState {
     pre_proposals_aggregation: HashSet<PreProposalAggregation>,
@@ -30,8 +29,6 @@ pub struct PreProposalAggregationState {
 
 impl PreProposalAggregationState {
     pub fn new<T, Matching>(
-        block_height: BlockNumber,
-        pre_proposals: HashSet<PreProposal>,
         mut pre_proposals_aggregation: HashSet<PreProposalAggregation>,
         handles: &mut Consensus<T, Matching>,
         waker: Waker

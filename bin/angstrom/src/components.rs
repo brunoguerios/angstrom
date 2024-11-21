@@ -290,6 +290,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         validators,
         order_storage.clone(),
         block_height,
+        angstrom_address.expect("nah mate we not running today, wheres the angstrom address"),
         uni_ang_registry,
         uniswap_pools.clone(),
         provider,

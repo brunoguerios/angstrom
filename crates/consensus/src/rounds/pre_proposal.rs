@@ -114,8 +114,6 @@ where
 
         if self.pre_proposals.len() >= handles.two_thirds_of_validation_set() {
             return Poll::Ready(Some(Box::new(PreProposalAggregationState::new(
-                handles.block_height,
-                std::mem::take(&mut self.pre_proposals),
                 std::mem::take(&mut self.pre_proposals_aggregation),
                 handles,
                 cx.waker().clone()

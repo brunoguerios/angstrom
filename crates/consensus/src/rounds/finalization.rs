@@ -84,7 +84,7 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut Consensus<T, Matching>,
+        _: &mut Consensus<T, Matching>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>> {
         if self.completed {
