@@ -1,6 +1,11 @@
 use std::fmt::Display;
 
-use alloy::{hex, network::{Ethereum, EthereumWallet}, node_bindings::{Anvil, AnvilInstance}, providers::builder, signers::local::PrivateKeySigner};
+use alloy::{
+    network::{Ethereum, EthereumWallet},
+    node_bindings::{Anvil, AnvilInstance},
+    providers::builder,
+    signers::local::PrivateKeySigner
+};
 
 use crate::{anvil_state_provider::WalletProvider, types::TestingConfig};
 
@@ -83,8 +88,10 @@ impl TestingConfig for DevnetConfig {
         tracing::info!(?endpoint);
         let ipc = alloy::providers::IpcConnect::new(endpoint);
         // TODO: Revert after things are working
-        // let sk: PrivateKeySigner = "4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356".parse().unwrap();
-        // let controller_address = "0x14dc79964da2c08b23698b3d3cc7ca32193d9955".parse().unwrap();
+        // let sk: PrivateKeySigner =
+        // "4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356".parse().
+        // unwrap(); let controller_address =
+        // "0x14dc79964da2c08b23698b3d3cc7ca32193d9955".parse().unwrap();
         let sk: PrivateKeySigner = anvil.keys()[self.anvil_key].clone().into();
         let controller_address = anvil.addresses()[self.anvil_key];
 
@@ -94,11 +101,10 @@ impl TestingConfig for DevnetConfig {
             .wallet(wallet)
             .on_ipc(ipc)
             .await?;
-        
 
         tracing::info!("connected to anvil");
 
-        Ok((WalletProvider::new(rpc, controller_address, sk),Some(anvil)))
+        Ok((WalletProvider::new(rpc, controller_address, sk), Some(anvil)))
     }
 
     fn rpc_port(&self, node_id: Option<u64>) -> u64 {
