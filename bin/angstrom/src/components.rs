@@ -3,10 +3,10 @@
 use std::{collections::HashSet, sync::Arc};
 
 use alloy::{
+    self,
     eips::{BlockId, BlockNumberOrTag},
-    network::{EthereumWallet, Network},
+    network::Network,
     providers::{network::Ethereum, Provider, ProviderBuilder},
-    signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     transports::Transport
 };
 use alloy_chains::Chain;
@@ -24,10 +24,10 @@ use angstrom_network::{
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-    primitive::{PeerId, PoolId as AngstromPoolId, UniswapPoolRegistry},
+    primitive::{AngstromSigner, PeerId, PoolId as AngstromPoolId, UniswapPoolRegistry},
     reth_db_wrapper::RethDbWrapper
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, Signer};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use matching_engine::{manager::MatcherCommand, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig, PoolManagerUpdate};
 use reth::{
@@ -37,9 +37,7 @@ use reth::{
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
-use reth_network_peers::pk2id;
 use reth_node_builder::FullNode;
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use tokio::sync::mpsc::{
     channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender
 };
@@ -56,13 +54,13 @@ use validation::{
 
 use crate::{cli::NodeConfig, AngstromConfig};
 
-pub fn init_network_builder(secret_key: SecretKey) -> eyre::Result<StromNetworkBuilder> {
-    let public_key = PublicKey::from_secret_key(&Secp256k1::new(), &secret_key);
+pub fn init_network_builder(secret_key: AngstromSigner) -> eyre::Result<StromNetworkBuilder> {
+    let public_key = secret_key.id();
 
     let state = StatusState {
         version:   0,
         chain:     Chain::mainnet().id(),
-        peer:      pk2id(&public_key),
+        peer:      public_key,
         timestamp: 0
     };
 
@@ -136,7 +134,7 @@ pub fn initialize_strom_handles() -> StromHandles {
 
 pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeAddOns<Node>>(
     config: AngstromConfig,
-    secret_key: SecretKey,
+    signer: AngstromSigner,
     handles: StromHandles,
     network_builder: StromNetworkBuilder,
     node: FullNode<Node, AddOns>,
@@ -144,13 +142,12 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
 ) {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
 
-    let signer = LocalSigner::<SigningKey>::from_bytes(&secret_key.secret_bytes().into()).unwrap();
     let node_address = signer.address();
 
     // I am sure there is a prettier way of doing this
     let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
         .with_recommended_fillers()
-        .wallet(EthereumWallet::from(signer))
+        .wallet(signer.clone())
         .on_builtin(node.rpc_server_handles.rpc.http_url().unwrap().as_str())
         .await
         .unwrap()
@@ -267,8 +264,6 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         angstrom_pool_tracker,
         handles.pool_manager_tx
     );
-
-    let signer = Signer::new(secret_key);
 
     // TODO load the stakes from Eigen using node.provider
     let validators = vec![

@@ -2,13 +2,12 @@ use alloy_primitives::U256;
 use angstrom_types::{
     consensus::PreProposal,
     orders::OrderPriorityData,
+    primitive::AngstromSigner,
     sol_bindings::{
         grouped_orders::OrderWithStorageData, testnet::random::Randomizer, RawPoolOrder
     }
 };
 use rand::{thread_rng, Rng};
-use reth_network_peers::pk2id;
-use secp256k1::{Secp256k1, SecretKey as Secp256SecretKey};
 
 use super::pool::{Pool, PoolBuilder};
 use crate::type_generator::orders::{
@@ -20,7 +19,7 @@ pub struct PreproposalBuilder {
     order_count: Option<usize>,
     block:       Option<u64>,
     pools:       Option<Vec<Pool>>,
-    sk:          Option<Secp256SecretKey>,
+    sk:          Option<AngstromSigner>,
     order_key:   Option<SigningInfo>
 }
 
@@ -48,7 +47,7 @@ impl PreproposalBuilder {
         Self { pools: Some(pools), ..self }
     }
 
-    pub fn with_secret_key(self, sk: Secp256SecretKey) -> Self {
+    pub fn with_secret_key(self, sk: AngstromSigner) -> Self {
         Self { sk: Some(sk), ..self }
     }
 
@@ -65,11 +64,9 @@ impl PreproposalBuilder {
         //     .unwrap_or_default();
         let count = self.order_count.unwrap_or_default();
         let block = self.block.unwrap_or_default();
-        let sk = self
-            .sk
-            .unwrap_or_else(|| Secp256SecretKey::new(&mut thread_rng()));
+        let sk = self.sk.unwrap_or_else(|| AngstromSigner::random());
         // Build the source ID from the secret/public keypair
-        let source = pk2id(&sk.public_key(&Secp256k1::new()));
+        let source = sk.id();
 
         let limit = pools
             .iter()
@@ -140,7 +137,7 @@ impl PreproposalBuilder {
             })
             .collect();
 
-        PreProposal::generate_pre_proposal(block, source, limit, searcher, &sk)
+        PreProposal::generate_pre_proposal(block, &sk, limit, searcher)
     }
 }
 

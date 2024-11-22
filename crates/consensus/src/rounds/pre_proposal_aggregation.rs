@@ -41,8 +41,7 @@ impl PreProposalAggregationState {
         // generate my pre_proposal aggregation
         let my_preproposal_aggregation = PreProposalAggregation::new(
             handles.block_height,
-            &handles.signer.key,
-            handles.signer.my_id,
+            &handles.signer,
             pre_proposals.into_iter().collect::<Vec<_>>()
         );
 

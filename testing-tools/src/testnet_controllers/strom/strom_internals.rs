@@ -17,17 +17,16 @@ use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
-    primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry},
+    primitive::{AngstromSigner, PoolId as AngstromPoolId, UniswapPoolRegistry},
     sol_bindings::testnet::TestnetHub
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, Signer};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::StreamExt;
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{manager::MatcherHandle, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::{CanonStateNotifications, CanonStateSubscriptions};
 use reth_tasks::TokioTaskExecutor;
-use secp256k1::SecretKey;
 use uniswap_v4::uniswap::{
     pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
     pool_providers::canonical_state_adapter::CanonicalStateAdapter
@@ -68,7 +67,7 @@ impl AngstromTestnetNodeInternals {
         testnet_node_id: u64,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
-        secret_key: SecretKey,
+        secret_key: AngstromSigner,
         config: AngstromTestnetConfig,
         initial_validators: Vec<AngstromValidator>
     ) -> eyre::Result<Self> {
@@ -184,8 +183,7 @@ impl AngstromTestnetNodeInternals {
             .await
             .unwrap()
         );
-        let signer = Signer::new(secret_key);
-        let node_address = Address::from_slice(&signer.my_id[44..]);
+        let node_address = secret_key.address();
 
         let validator = TestOrderValidator::new(
             state_provider.provider(),
@@ -245,7 +243,7 @@ impl AngstromTestnetNodeInternals {
                 state_provider.provider().subscribe_to_canonical_state(),
                 strom_handles.consensus_rx_op
             ),
-            signer,
+            secret_key,
             initial_validators,
             order_storage.clone(),
             state_provider

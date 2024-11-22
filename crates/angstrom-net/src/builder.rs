@@ -2,14 +2,16 @@
 
 use std::{collections::HashSet, sync::Arc};
 
-use alloy::primitives::{Address, FixedBytes};
+use alloy::{
+    primitives::{Address, FixedBytes},
+    signers::{Signer, SignerSync}
+};
 use alloy_chains::Chain;
-use angstrom_types::primitive::PeerId;
+use angstrom_types::primitive::{AngstromSigner, PeerId};
 use futures::FutureExt;
 use parking_lot::RwLock;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
 use reth_tasks::TaskSpawner;
-use secp256k1::SecretKey;
 use tokio::sync::mpsc::Receiver;
 use tokio_util::sync::PollSender;
 
@@ -105,14 +107,14 @@ impl StatusBuilder {
 
     /// Consumes the type and creates the actual [`Status`] message, Signing the
     /// payload
-    pub fn build(mut self, key: SecretKey) -> Status {
+    pub fn build(mut self, key: &AngstromSigner) -> Status {
         // set state timestamp to now;
         self.state.timestamp_now();
 
         let message = self.state.to_message();
-        let sig = reth_primitives::sign_message(FixedBytes(key.secret_bytes()), message).unwrap();
+        let sig = key.sign_hash_sync(&message).unwrap();
 
-        Status { state: self.state, signature: angstrom_types::primitive::Signature(sig) }
+        Status { state: self.state, signature: sig }
     }
 
     /// Sets the protocol version.

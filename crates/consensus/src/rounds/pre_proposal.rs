@@ -41,12 +41,8 @@ impl PreProposalState {
         Matching: MatchingEngineHandle
     {
         // generate my pre_proposal
-        let my_preproposal = PreProposal::new(
-            block_height,
-            &handles.signer.key,
-            handles.signer.my_id,
-            handles.order_storage.get_all_orders()
-        );
+        let my_preproposal =
+            PreProposal::new(block_height, &handles.signer, handles.order_storage.get_all_orders());
 
         // propagate my pre_proposal
         handles.propagate_message(ConsensusMessage::PropagatePreProposal(my_preproposal.clone()));

@@ -2,13 +2,17 @@
 //!
 //! ## Feature Flags
 
+use std::path::PathBuf;
+
+use alloy::signers::local::PrivateKeySigner;
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
+use angstrom_types::primitive::AngstromSigner;
 use clap::Parser;
 use cli::AngstromConfig;
+use eyre::eyre;
 use network_builder::AngstromNetworkBuilder;
 use reth::{chainspec::EthereumChainSpecParser, cli::Cli};
-use reth_cli_util::get_secret_key;
 use reth_node_builder::{Node, NodeHandle};
 use reth_node_ethereum::{node::EthereumAddOns, EthereumNode};
 use validation::validator::ValidationClient;
@@ -37,7 +41,7 @@ pub fn run() -> eyre::Result<()> {
 
         let secret_key = get_secret_key(&args.secret_key_location)?;
 
-        let mut network = init_network_builder(secret_key)?;
+        let mut network = init_network_builder(secret_key.clone())?;
         let protocol_handle = network.build_protocol_handler();
         let channels = initialize_strom_handles();
 
@@ -66,4 +70,16 @@ pub fn run() -> eyre::Result<()> {
 
         node_exit_future.await
     })
+}
+
+fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
+    let exists = sk_path.try_exists();
+
+    match exists {
+        Ok(true) => {
+            let contents = std::fs::read_to_string(sk_path)?;
+            Ok(AngstromSigner::new(contents.as_str().parse::<PrivateKeySigner>()?))
+        }
+        _ => Err(eyre!("no secret_key was found at {:?}", sk_path))
+    }
 }

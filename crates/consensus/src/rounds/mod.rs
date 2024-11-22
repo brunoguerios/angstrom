@@ -19,7 +19,7 @@ use angstrom_types::{
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     matching::uniswap::PoolSnapshot,
     orders::PoolSolution,
-    primitive::PeerId,
+    primitive::{AngstromSigner, PeerId},
     sol_bindings::grouped_orders::OrderWithStorageData
 };
 use bid_aggregation::BidAggregationState;
@@ -29,7 +29,7 @@ use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-use crate::{AngstromValidator, Signer};
+use crate::AngstromValidator;
 
 mod bid_aggregation;
 mod finalization;
@@ -124,7 +124,7 @@ pub struct SharedRoundState<T, Matching> {
     block_height:     BlockNumber,
     angstrom_address: Address,
     matching_engine:  Matching,
-    signer:           Signer,
+    signer:           AngstromSigner,
     round_leader:     PeerId,
     validators:       Vec<AngstromValidator>,
     order_storage:    Arc<OrderStorage>,
@@ -146,7 +146,7 @@ where
         block_height: BlockNumber,
         angstrom_address: Address,
         order_storage: Arc<OrderStorage>,
-        signer: Signer,
+        signer: AngstromSigner,
         round_leader: PeerId,
         validators: Vec<AngstromValidator>,
         metrics: ConsensusMetricsWrapper,
@@ -176,7 +176,7 @@ where
     }
 
     fn i_am_leader(&self) -> bool {
-        self.round_leader == self.signer.my_id
+        self.round_leader == self.signer.id()
     }
 
     fn two_thirds_of_validation_set(&self) -> usize {

@@ -3,22 +3,25 @@ use std::{
     hash::Hasher
 };
 
-use alloy::primitives::{keccak256, BlockNumber};
+use alloy::{
+    primitives::{keccak256, BlockNumber},
+    signers::{Signature, SignerSync}
+};
+use alloy_primitives::{Parity, U256};
 use bytes::Bytes;
 use reth_network_peers::PeerId;
-use secp256k1::SecretKey;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     orders::OrderSet,
-    primitive::{PoolId, Signature},
+    primitive::{AngstromSigner, PoolId},
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct PreProposal {
     pub block_height: BlockNumber,
     pub source:       PeerId,
@@ -29,6 +32,18 @@ pub struct PreProposal {
     /// The signature is over the ethereum height as well as the limit and
     /// searcher sets
     pub signature:    Signature
+}
+
+impl Default for PreProposal {
+    fn default() -> Self {
+        Self {
+            signature:    Signature::new(U256::ZERO, U256::ZERO, Parity::default()),
+            block_height: Default::default(),
+            source:       Default::default(),
+            limit:        Default::default(),
+            searcher:     Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,41 +79,42 @@ impl PreProposal {
 }
 
 impl PreProposal {
-    fn sign_payload(sk: &SecretKey, payload: Vec<u8>) -> Signature {
+    fn sign_payload(sk: &AngstromSigner, payload: Vec<u8>) -> Signature {
         let hash = keccak256(payload);
-        let sig = reth_primitives::sign_message(sk.secret_bytes().into(), hash).unwrap();
-        Signature(sig)
+        let sig = sk.sign_hash_sync(&hash).unwrap();
+
+        sig
     }
 
     pub fn generate_pre_proposal(
         ethereum_height: BlockNumber,
-        source: PeerId,
+        sk: &AngstromSigner,
         limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
-        searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        sk: &SecretKey
+        searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>
     ) -> Self {
         let payload = Self::serialize_payload(&ethereum_height, &limit, &searcher);
         let signature = Self::sign_payload(sk, payload);
 
-        Self { limit, source, searcher, block_height: ethereum_height, signature }
+        Self { limit, source: sk.id(), searcher, block_height: ethereum_height, signature }
     }
 
     pub fn new(
         ethereum_height: u64,
-        sk: &SecretKey,
-        source: PeerId,
+        sk: &AngstromSigner,
         orders: OrderSet<GroupedVanillaOrder, TopOfBlockOrder>
     ) -> Self {
         let OrderSet { limit, searcher } = orders;
-        Self::generate_pre_proposal(ethereum_height, source, limit, searcher, sk)
+        Self::generate_pre_proposal(ethereum_height, sk, limit, searcher)
     }
 
     /// ensures block height is correct as-well as validates the signature.
     pub fn is_valid(&self, block_height: &BlockNumber) -> bool {
         let hash = keccak256(self.payload());
-        let Ok(source) = self.signature.recover_signer_full_public_key(hash) else {
+        let Ok(source) = self.signature.recover_from_prehash(&hash) else {
             return false;
         };
+        let source = AngstromSigner::public_key_to_peer_id(&source);
+
         source == self.source && &self.block_height == block_height
     }
 
@@ -140,6 +156,7 @@ mod tests {
     use secp256k1::Secp256k1;
 
     use super::{PreProposal, SecretKey};
+    use crate::primitive::AngstromSigner;
 
     #[test]
     fn can_be_constructed() {
@@ -147,8 +164,8 @@ mod tests {
         let limit = vec![];
         let searcher = vec![];
         let source = FixedBytes::<64>::default();
-        let sk = SecretKey::new(&mut rand::thread_rng());
-        PreProposal::generate_pre_proposal(ethereum_height, source, limit, searcher, &sk);
+        let sk = AngstromSigner::random();
+        PreProposal::generate_pre_proposal(ethereum_height, &sk, limit, searcher);
     }
 
     #[test]
@@ -158,13 +175,9 @@ mod tests {
         let searcher = vec![];
         // Generate crypto stuff
         let mut rng = thread_rng();
-        let sk = SecretKey::new(&mut rng);
-        let secp = Secp256k1::new();
-        let pk = sk.public_key(&secp);
-        // Grab the source ID from the secret/public keypair
-        let source = pk2id(&pk);
-        let preproposal =
-            PreProposal::generate_pre_proposal(ethereum_height, source, limit, searcher, &sk);
+        let sk = AngstromSigner::random();
+        let id = sk.id();
+        let preproposal = PreProposal::generate_pre_proposal(ethereum_height, &sk, limit, searcher);
 
         assert!(preproposal.is_valid(&ethereum_height), "Unable to validate self");
     }

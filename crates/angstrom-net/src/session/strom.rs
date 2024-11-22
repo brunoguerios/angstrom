@@ -7,7 +7,7 @@ use std::{
 };
 
 use alloy::rlp::{BytesMut, Encodable};
-use angstrom_types::primitive::PeerId;
+use angstrom_types::primitive::{AngstromSigner, PeerId};
 use angstrom_utils::{GenericExt, PollFlatten};
 use futures::{
     task::{Context, Poll},
@@ -15,7 +15,6 @@ use futures::{
 };
 use reth_eth_wire::multiplex::ProtocolConnection;
 use reth_metrics::common::mpsc::MeteredPollSender;
-use secp256k1::SecretKey;
 use tokio::time::Duration;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::PollSender;
@@ -34,7 +33,7 @@ const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;
 /// holds the state we need to verify the new peer
 #[derive(Clone)]
 pub struct VerificationSidecar {
-    pub secret_key:   SecretKey,
+    pub secret_key:   AngstromSigner,
     pub status:       StatusState,
     pub has_sent:     bool,
     pub has_received: bool
@@ -46,7 +45,7 @@ impl VerificationSidecar {
             panic!("can only send the status message once");
         }
 
-        StatusBuilder::from(self.status.with_peer(peer)).build(self.secret_key)
+        StatusBuilder::from(self.status.with_peer(peer)).build(&self.secret_key)
     }
 
     pub fn is_verified(&self) -> bool {
@@ -265,7 +264,12 @@ impl StromSession {
             .as_millis();
 
         let status_time = status.state.timestamp + STATUS_TIMESTAMP_TIMEOUT_MS;
-        current_time <= status_time && status.verify() == Ok(self.remote_peer_id)
+        let verification = status.verify();
+        if verification.is_err() {
+            return false
+        }
+
+        current_time <= status_time && verification.unwrap() == self.remote_peer_id
     }
 }
 
