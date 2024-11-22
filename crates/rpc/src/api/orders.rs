@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, FixedBytes, B256, U256};
+use alloy_primitives::{keccak256, Address, FixedBytes, Signature, B256, U256};
+use alloy_sol_types::SolValue;
 use angstrom_types::{
     orders::{OrderLocation, OrderStatus},
-    primitive::Signature,
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
@@ -17,8 +17,17 @@ use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CancelOrderRequest {
-    pub signature: Signature,
-    pub hash:      B256
+    pub signature:    Signature,
+    // if there's no salt to make this a unique signing hash. One can just
+    // copy the signature of the order and id and it will verify
+    pub user_address: Address,
+    pub order_id:     B256
+}
+
+impl CancelOrderRequest {
+    pub fn signing_payload(&self) -> FixedBytes<32> {
+        keccak256((self.user_address, self.order_id).abi_encode())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
