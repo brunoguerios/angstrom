@@ -24,7 +24,9 @@ use tracing::{span, Instrument, Level};
 
 use super::utils::generate_node_keys;
 use crate::{
-    anvil_state_provider::{utils::async_to_sync, AnvilInitializer, TestnetBlockProvider},
+    anvil_state_provider::{
+        utils::async_to_sync, AnvilInitializer, AnvilStateProviderWrapper, TestnetBlockProvider
+    },
     controllers::strom::{initialize_new_node, TestnetNode}
 };
 
@@ -90,9 +92,21 @@ where
 
         for (pk, sk) in keys {
             let node_id = self.incr_peer_id();
+
+            tracing::debug!("connecting to state provider");
+            let state_provider =
+                AnvilStateProviderWrapper::spawn_new(self.config.clone(), node_id).await?;
+
+            if let Some(state) = inital_angstrom_state.state.take() {
+                state_provider.set_state(state).await?;
+            }
+
+            tracing::info!("connected to state provider");
+
             let mut node = initialize_new_node(
                 c.clone(),
-                Some(node_id),
+                node_id,
+                state_provider,
                 pk,
                 sk,
                 initial_validators.clone(),
@@ -353,7 +367,7 @@ where
     /// checks the current block number on all peers matches the expected
     pub(crate) fn check_block_numbers(&self, expected_block_num: u64) -> eyre::Result<bool> {
         let f = self.peers.values().map(|peer| {
-            let id = peer.testnet_node_id().unwrap();
+            let id = peer.testnet_node_id();
             peer.state_provider()
                 .rpc_provider()
                 .get_block_number()

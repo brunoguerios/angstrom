@@ -28,7 +28,7 @@ pub struct AnvilEthDataCleanser<S: Stream<Item = (u64, Vec<Transaction>)>> {
 
 impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEthDataCleanser<S> {
     pub async fn spawn<TP: TaskSpawner>(
-        testnet_node_id: Option<u64>,
+        testnet_node_id: u64,
         tp: TP,
         angstrom_contract: Address,
         tx: Sender<EthCommand>,
@@ -38,7 +38,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
     ) -> eyre::Result<EthHandle> {
         let stream = ReceiverStream::new(rx);
         let this = Self {
-            testnet_node_id: testnet_node_id.unwrap_or_default(),
+            testnet_node_id,
             commander: stream,
             event_listeners: Vec::new(),
             block_subscription,

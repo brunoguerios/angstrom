@@ -30,7 +30,7 @@ use crate::{
     types::{initial_state::PendingDeployedPools, TestingConfig}
 };
 
-const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
+pub const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
 
 pub struct AnvilInitializer {
     provider:      WalletProvider,
@@ -143,11 +143,15 @@ impl AnvilInitializer {
 
     pub async fn initialize_state(&mut self) -> eyre::Result<InitialTestnetState> {
         let (pool_keys, txs) = self.pending_state.finalize_pending_txs().await?;
-        for tx in  txs {
+        for tx in txs {
             println!("tx {:?}", tx);
         }
         let state_bytes = self.provider.provider_ref().anvil_dump_state().await?;
         Ok(InitialTestnetState::new(self.angstrom_env.angstrom(), Some(state_bytes), pool_keys))
+    }
+
+    pub fn wallet_provider(&self) -> WalletProvider {
+        self.provider.clone()
     }
 }
 

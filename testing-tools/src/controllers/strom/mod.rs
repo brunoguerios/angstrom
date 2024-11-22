@@ -11,12 +11,17 @@ use secp256k1::{PublicKey, SecretKey};
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::instrument;
 
-use crate::{network::TestnetNodeNetwork, types::TestingConfig};
+use crate::{
+    anvil_state_provider::AnvilStateProviderWrapper,
+    network::TestnetNodeNetwork,
+    types::{TestingConfig, WithWalletProvider}
+};
 
-#[instrument(name = "node", skip( node_id, c, pk, sk, initial_validators, inital_angstrom_state, config, block_provider), fields(id = node_id))]
-pub async fn initialize_new_node<C>(
+#[instrument(name = "node", skip(testnet_node_id, c, state_provider, pk, sk, initial_validators, inital_angstrom_state, config, block_provider), fields(id = node_id))]
+pub async fn initialize_new_node<C, P>(
     c: C,
-    node_id: Option<u64>,
+    testnet_node_id: u64,
+    state_provider: AnvilStateProviderWrapper<P>,
     pk: PublicKey,
     sk: SecretKey,
     initial_validators: Vec<AngstromValidator>,
@@ -30,7 +35,8 @@ where
         + Unpin
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
-        + 'static
+        + 'static,
+    P: WithWalletProvider
 {
     tracing::info!("spawning node");
     let strom_handles = initialize_strom_handles();
@@ -44,7 +50,8 @@ where
     .await;
 
     Ok(TestnetNode::new(
-        node_id,
+        testnet_node_id,
+        state_provider,
         strom_network,
         strom_network_manager,
         eth_peer,
