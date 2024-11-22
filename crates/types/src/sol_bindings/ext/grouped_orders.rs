@@ -1,6 +1,9 @@
 use std::{hash::Hash, ops::Deref};
 
-use alloy::primitives::{Address, Bytes, FixedBytes, TxHash, U256};
+use alloy::{
+    primitives::{Address, Bytes, FixedBytes, TxHash, U256},
+    signers::Signature
+};
 use alloy_primitives::B256;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +11,7 @@ use super::{RawPoolOrder, RespendAvoidanceMethod};
 use crate::{
     matching::Ray,
     orders::{OrderId, OrderLocation, OrderPriorityData},
-    primitive::{PoolId, Signature, ANGSTROM_DOMAIN},
+    primitive::{PoolId, ANGSTROM_DOMAIN},
     sol_bindings::rpc_orders::{
         ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, PartialFlashOrder,
         PartialStandingOrder, TopOfBlockOrder
@@ -576,10 +579,12 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn is_valid_signature(&self) -> bool {
-        let Ok(sig) = Signature::new_from_bytes(&self.meta.signature) else { return false };
+        let s = self.meta.signature.to_vec();
+        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-        sig.recover_signer_full_public_key(hash)
-            .map(|pk| Address::from_raw_public_key(&*pk) == self.meta.from)
+
+        sig.recover_address_from_msg(hash)
+            .map(|addr| addr == self.meta.from)
             .unwrap_or_default()
     }
 
@@ -598,10 +603,12 @@ impl RawPoolOrder for PartialStandingOrder {
     }
 
     fn is_valid_signature(&self) -> bool {
-        let Ok(sig) = Signature::new_from_bytes(&self.meta.signature) else { return false };
+        let s = self.meta.signature.to_vec();
+        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-        sig.recover_signer_full_public_key(hash)
-            .map(|pk| Address::from_raw_public_key(&*pk) == self.meta.from)
+
+        sig.recover_address_from_msg(hash)
+            .map(|addr| addr == self.meta.from)
             .unwrap_or_default()
     }
 
@@ -665,10 +672,12 @@ impl RawPoolOrder for ExactStandingOrder {
     }
 
     fn is_valid_signature(&self) -> bool {
-        let Ok(sig) = Signature::new_from_bytes(&self.meta.signature) else { return false };
+        let s = self.meta.signature.to_vec();
+        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-        sig.recover_signer_full_public_key(hash)
-            .map(|pk| Address::from_raw_public_key(&*pk) == self.meta.from)
+
+        sig.recover_address_from_msg(hash)
+            .map(|addr| addr == self.meta.from)
             .unwrap_or_default()
     }
 
@@ -732,10 +741,12 @@ impl RawPoolOrder for PartialFlashOrder {
     }
 
     fn is_valid_signature(&self) -> bool {
-        let Ok(sig) = Signature::new_from_bytes(&self.meta.signature) else { return false };
+        let s = self.meta.signature.to_vec();
+        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-        sig.recover_signer_full_public_key(hash)
-            .map(|pk| Address::from_raw_public_key(&*pk) == self.meta.from)
+
+        sig.recover_address_from_msg(hash)
+            .map(|addr| addr == self.meta.from)
             .unwrap_or_default()
     }
 
@@ -799,10 +810,12 @@ impl RawPoolOrder for ExactFlashOrder {
     }
 
     fn is_valid_signature(&self) -> bool {
-        let Ok(sig) = Signature::new_from_bytes(&self.meta.signature) else { return false };
+        let s = self.meta.signature.to_vec();
+        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-        sig.recover_signer_full_public_key(hash)
-            .map(|pk| Address::from_raw_public_key(&*pk) == self.meta.from)
+
+        sig.recover_address_from_msg(hash)
+            .map(|addr| addr == self.meta.from)
             .unwrap_or_default()
     }
 

@@ -15,7 +15,8 @@ use alloy::{
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{manager::StromConsensusEvent, StromMessage, StromNetworkHandle};
 use angstrom_types::{
-    block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry
+    block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry,
+    primitive::AngstromSigner
 };
 use futures::StreamExt;
 use matching_engine::MatchingEngineHandle;
@@ -28,7 +29,7 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 use crate::{
     leader_selection::WeightedRoundRobin,
     rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
-    AngstromValidator, Signer
+    AngstromValidator
 };
 
 const MODULE_NAME: &str = "Consensus";
@@ -55,7 +56,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         netdeps: ManagerNetworkDeps,
-        signer: Signer,
+        signer: AngstromSigner,
         validators: Vec<AngstromValidator>,
         order_storage: Arc<OrderStorage>,
         current_height: BlockNumber,

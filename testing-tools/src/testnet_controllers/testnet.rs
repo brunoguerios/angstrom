@@ -7,17 +7,18 @@ use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
-use angstrom_types::{primitive::PeerId, sol_bindings::grouped_orders::AllOrders};
+use angstrom_types::{
+    primitive::{AngstromSigner, PeerId},
+    sol_bindings::grouped_orders::AllOrders
+};
 use consensus::AngstromValidator;
 use futures::StreamExt;
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
     metered_unbounded_channel, UnboundedMeteredReceiver, UnboundedMeteredSender
 };
-use reth_network_peers::pk2id;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use tracing::{instrument, span, Instrument, Level};
 
 use super::StateMachineTestnet;
@@ -67,12 +68,12 @@ where
         let keys = generate_node_keys(number_nodes);
         let initial_validators = keys
             .iter()
-            .map(|(pk, _)| AngstromValidator::new(pk2id(pk), 100))
+            .map(|k| AngstromValidator::new(k.id(), 100))
             .collect::<Vec<_>>();
 
-        for (pk, sk) in keys {
+        for sk in keys {
             let node_id = self.incr_peer_id();
-            self.initialize_new_node(c.clone(), node_id, pk, sk, initial_validators.clone())
+            self.initialize_new_node(c.clone(), node_id, sk, initial_validators.clone())
                 .await?;
         }
 
@@ -84,8 +85,7 @@ where
         &mut self,
         c: C,
         node_id: u64,
-        pk: PublicKey,
-        sk: SecretKey,
+        sk: AngstromSigner,
         initial_validators: Vec<AngstromValidator>
     ) -> eyre::Result<PeerId> {
         tracing::info!("spawning node");
@@ -93,7 +93,6 @@ where
         let network = TestnetNodeNetwork::new_fully_configed(
             node_id,
             c,
-            pk,
             sk,
             Some(strom_handles.pool_tx.clone()),
             Some(strom_handles.consensus_tx_op.clone())
@@ -351,16 +350,9 @@ where
     }
 }
 
-fn generate_node_keys(number_nodes: u64) -> Vec<(PublicKey, SecretKey)> {
-    let mut rng = thread_rng();
-
+fn generate_node_keys(number_nodes: u64) -> Vec<AngstromSigner> {
     (0..number_nodes)
-        .map(|_| {
-            let sk = SecretKey::new(&mut rng);
-            let secp = Secp256k1::default();
-            let pub_key = sk.public_key(&secp);
-            (pub_key, sk)
-        })
+        .map(|_| AngstromSigner::random())
         .collect()
 }
 

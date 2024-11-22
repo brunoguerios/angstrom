@@ -77,11 +77,11 @@ impl ProposalState {
 
         let proposal = Proposal::generate_proposal(
             handles.block_height,
-            handles.signer.my_id,
+            &handles.signer,
             self.pre_proposal_aggs.clone(),
-            pool_solution,
-            &handles.signer.key
+            pool_solution
         );
+
         self.proposal = Some(proposal.clone());
         let snapshot = handles.fetch_pool_snapshot();
 

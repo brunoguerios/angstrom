@@ -45,13 +45,17 @@ where
     }
 
     async fn cancel_order(&self, request: CancelOrderRequest) -> RpcResult<bool> {
+        let hash = request.signing_payload();
         let sender = request
             .signature
-            .recover_signer_full_public_key(request.hash)
-            .map(|s| Address::from_raw_public_key(&*s))
+            .recover_address_from_msg(hash)
             .map_err(|_| SignatureRecoveryError)?;
 
-        Ok(self.pool.cancel_order(sender, request.hash).await)
+        if sender != request.user_address {
+            return Ok(false)
+        }
+
+        Ok(self.pool.cancel_order(sender, request.order_id).await)
     }
 
     async fn estimate_gas(&self, order: AllOrders) -> RpcResult<GasEstimateResponse> {

@@ -1,12 +1,14 @@
-use alloy::primitives::{keccak256, BlockNumber};
+use alloy::{
+    primitives::{keccak256, BlockNumber, Parity, U256},
+    signers::{Signature, SignerSync}
+};
 use bytes::Bytes;
 use reth_network_peers::PeerId;
-use secp256k1::SecretKey;
 use serde::{Deserialize, Serialize};
 
-use crate::{consensus::PreProposal, primitive::Signature};
+use crate::{consensus::PreProposal, primitive::AngstromSigner};
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PreProposalAggregation {
     pub block_height:  BlockNumber,
     pub source:        PeerId,
@@ -14,22 +16,32 @@ pub struct PreProposalAggregation {
     pub signature:     Signature
 }
 
+impl Default for PreProposalAggregation {
+    fn default() -> Self {
+        Self {
+            block_height:  Default::default(),
+            source:        Default::default(),
+            pre_proposals: Default::default(),
+            signature:     Signature::new(U256::ZERO, U256::ZERO, Parity::default())
+        }
+    }
+}
+
 impl PreProposalAggregation {
     pub fn new(
         block_height: BlockNumber,
-        sk: &SecretKey,
-        source: PeerId,
+        sk: &AngstromSigner,
         pre_proposals: Vec<PreProposal>
     ) -> Self {
         let payload = Self::serialize_payload(&block_height, &pre_proposals);
         let signature = Self::sign_payload(sk, payload);
-        Self { block_height, source, pre_proposals, signature }
+        Self { block_height, source: sk.id(), pre_proposals, signature }
     }
 
-    fn sign_payload(sk: &SecretKey, payload: Vec<u8>) -> Signature {
+    fn sign_payload(sk: &AngstromSigner, payload: Vec<u8>) -> Signature {
         let hash = keccak256(payload);
-        let sig = reth_primitives::sign_message(sk.secret_bytes().into(), hash).unwrap();
-        Signature(sig)
+
+        sk.sign_hash_sync(&hash).unwrap()
     }
 
     fn serialize_payload(block_height: &BlockNumber, pre_proposals: &[PreProposal]) -> Vec<u8> {
@@ -52,9 +64,11 @@ impl PreProposalAggregation {
             return false
         }
         let hash = keccak256(self.payload());
-        let Ok(source) = self.signature.recover_signer_full_public_key(hash) else {
+        let Ok(source) = self.signature.recover_from_prehash(&hash) else {
             return false;
         };
+        let source = AngstromSigner::public_key_to_peer_id(&source);
+
         source == self.source
     }
 }

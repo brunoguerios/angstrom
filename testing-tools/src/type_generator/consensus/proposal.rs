@@ -8,17 +8,14 @@ use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{uniswap::LiqRange, SqrtPriceX96},
-    primitive::PoolId,
+    primitive::{AngstromSigner, PoolId},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use matching_engine::{
     strategy::{MatchingStrategy, SimpleCheckpointStrategy},
     MatchingManager
 };
-use rand::thread_rng;
-use reth_network_peers::pk2id;
 use reth_tasks::TokioTaskExecutor;
-use secp256k1::{Secp256k1, SecretKey as Secp256SecretKey};
 
 use super::{pool::Pool, pre_proposal_agg::PreProposalAggregationBuilder};
 use crate::{
@@ -34,7 +31,7 @@ pub struct ProposalBuilder {
     preproposal_count: Option<usize>,
     block:             Option<u64>,
     pools:             Option<Vec<Pool>>,
-    sk:                Option<Secp256SecretKey>,
+    sk:                Option<AngstromSigner>,
     order_key:         Option<SigningInfo>
 }
 
@@ -86,7 +83,7 @@ impl ProposalBuilder {
         Self { pools: Some(pools), ..self }
     }
 
-    pub fn with_secret_key(self, sk: Secp256SecretKey) -> Self {
+    pub fn with_secret_key(self, sk: AngstromSigner) -> Self {
         Self { sk: Some(sk), ..self }
     }
 
@@ -101,11 +98,8 @@ impl ProposalBuilder {
         let pools = self.pools.unwrap_or_default();
         let count = self.order_count.unwrap_or_default();
         let block = self.block.unwrap_or_default();
-        let sk = self
-            .sk
-            .unwrap_or_else(|| Secp256SecretKey::new(&mut thread_rng()));
+        let sk = self.sk.unwrap_or_else(AngstromSigner::random);
         // Build the source ID from the secret/public keypair
-        let source = pk2id(&sk.public_key(&Secp256k1::new()));
 
         let preproposals = self.preproposals.unwrap_or_else(|| {
             (0..preproposal_count)
@@ -141,6 +135,6 @@ impl ProposalBuilder {
                     .unwrap()
             })
             .collect::<Vec<_>>();
-        Proposal::generate_proposal(ethereum_height, source, preproposals, solutions, &sk)
+        Proposal::generate_proposal(ethereum_height, &sk, preproposals, solutions)
     }
 }

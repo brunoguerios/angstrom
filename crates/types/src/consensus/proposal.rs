@@ -1,17 +1,19 @@
-use alloy::primitives::BlockNumber;
-use alloy_primitives::keccak256;
+use alloy::{
+    primitives::{BlockNumber, U256},
+    signers::{Signature, SignerSync}
+};
+use alloy_primitives::{keccak256, Parity};
 use bytes::Bytes;
 use itertools::Itertools;
-use secp256k1::SecretKey;
 use serde::{Deserialize, Serialize};
 
 use super::{PreProposal, PreProposalAggregation};
 use crate::{
     orders::PoolSolution,
-    primitive::{PeerId, Signature}
+    primitive::{AngstromSigner, PeerId}
 };
 
-#[derive(Default, Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proposal {
     // Might not be necessary as this is encoded in all the proposals anyways
     pub block_height: BlockNumber,
@@ -25,13 +27,24 @@ pub struct Proposal {
     pub signature:    Signature
 }
 
+impl Default for Proposal {
+    fn default() -> Self {
+        Self {
+            block_height: Default::default(),
+            source:       Default::default(),
+            preproposals: Default::default(),
+            solutions:    Default::default(),
+            signature:    Signature::new(U256::ZERO, U256::ZERO, Parity::default())
+        }
+    }
+}
+
 impl Proposal {
     pub fn generate_proposal(
         ethereum_height: BlockNumber,
-        source: PeerId,
+        sk: &AngstromSigner,
         preproposals: Vec<PreProposalAggregation>,
-        mut solutions: Vec<PoolSolution>,
-        sk: &SecretKey
+        mut solutions: Vec<PoolSolution>
     ) -> Self {
         // Sort our solutions
         solutions.sort_by_key(|sol| sol.id);
@@ -39,19 +52,18 @@ impl Proposal {
         // Build our hash and sign
         let mut buf = Vec::new();
         buf.extend(bincode::serialize(&ethereum_height).unwrap());
-        buf.extend(*source);
+        buf.extend(&sk.id());
         buf.extend(bincode::serialize(&preproposals).unwrap());
         buf.extend(bincode::serialize(&solutions).unwrap());
-
         let hash = keccak256(buf);
-        let sig = reth_primitives::sign_message(sk.secret_bytes().into(), hash).unwrap();
+        let sig = sk.sign_hash_sync(&hash).unwrap();
 
         Self {
             block_height: ethereum_height,
-            source,
+            source: sk.id(),
             preproposals,
             solutions,
-            signature: Signature(sig)
+            signature: sig
         }
     }
 
@@ -70,9 +82,11 @@ impl Proposal {
         }
         // Then our own signature has to be valid
         let hash = keccak256(self.payload());
-        let Ok(source) = self.signature.recover_signer_full_public_key(hash) else {
+        let Ok(source) = self.signature.recover_from_prehash(&hash) else {
             return false;
         };
+        let source = AngstromSigner::public_key_to_peer_id(&source);
+
         source == self.source
     }
 
@@ -97,22 +111,16 @@ impl Proposal {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::FixedBytes;
-    use rand::thread_rng;
-    use reth_network_peers::pk2id;
-    use secp256k1::Secp256k1;
-
-    use super::{Proposal, SecretKey};
+    use super::Proposal;
+    use crate::primitive::AngstromSigner;
 
     #[test]
     fn can_be_constructed() {
         let ethereum_height = 100;
-        let source = FixedBytes::<64>::default();
         let preproposals = vec![];
         let solutions = vec![];
-        let mut rng = thread_rng();
-        let sk = SecretKey::new(&mut rng);
-        Proposal::generate_proposal(ethereum_height, source, preproposals, solutions, &sk);
+        let sk = AngstromSigner::random();
+        Proposal::generate_proposal(ethereum_height, &sk, preproposals, solutions);
     }
 
     #[test]
@@ -121,14 +129,8 @@ mod tests {
         let preproposals = vec![];
         let solutions = vec![];
         // Generate crypto stuff
-        let mut rng = thread_rng();
-        let sk = SecretKey::new(&mut rng);
-        let secp = Secp256k1::new();
-        let pk = sk.public_key(&secp);
-        // Grab the source ID from the secret/public keypair
-        let source = pk2id(&pk);
-        let proposal =
-            Proposal::generate_proposal(ethereum_height, source, preproposals, solutions, &sk);
+        let sk = AngstromSigner::random();
+        let proposal = Proposal::generate_proposal(ethereum_height, &sk, preproposals, solutions);
 
         assert!(proposal.is_valid(&ethereum_height), "Unable to validate self");
     }

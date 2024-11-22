@@ -5,9 +5,10 @@ use std::{
 
 use alloy::{
     primitives::{keccak256, FixedBytes},
-    rlp::{BufMut, BytesMut}
+    rlp::{BufMut, BytesMut},
+    signers::Signature
 };
-use angstrom_types::primitive::{PeerId, Signature};
+use angstrom_types::primitive::{AngstromSigner, PeerId};
 use serde::{Deserialize, Serialize};
 
 use crate::StatusBuilder;
@@ -30,9 +31,11 @@ impl Status {
     }
 
     /// returns true if the signature is valid
-    pub fn verify(self) -> Result<PeerId, secp256k1::Error> {
+    pub fn verify(self) -> Result<PeerId, alloy::signers::Error> {
         let message = self.state.to_message();
-        self.signature.recover_signer_full_public_key(message)
+        let key = self.signature.recover_from_msg(message)?;
+
+        Ok(AngstromSigner::public_key_to_peer_id(&key))
     }
 }
 
