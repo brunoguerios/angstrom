@@ -7,7 +7,7 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 
-use crate::{anvil_state_provider::WalletProvider, types::TestingConfig};
+use crate::{providers::WalletProvider, types::TestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct DevnetConfig {
@@ -59,7 +59,7 @@ impl Default for DevnetConfig {
 }
 
 impl TestingConfig for DevnetConfig {
-    fn configure_anvil(&self, id: impl Display) -> Anvil {
+    fn configure_anvil(&self, id: u64) -> Anvil {
         let mut anvil_builder = Anvil::new()
             .chain_id(1)
             .arg("--ipc")
@@ -78,10 +78,7 @@ impl TestingConfig for DevnetConfig {
         anvil_builder
     }
 
-    async fn spawn_rpc(
-        &self,
-        id: impl Display + Clone
-    ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
+    async fn spawn_rpc(&self, id: u64) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
         let anvil = self.configure_anvil(id.clone()).try_spawn()?;
 
         let endpoint = self.anvil_endpoint(id);
@@ -111,7 +108,7 @@ impl TestingConfig for DevnetConfig {
         self.initial_rpc_port as u64 + node_id.expect("node id must be set")
     }
 
-    fn anvil_endpoint(&self, id: impl Display) -> String {
+    fn anvil_endpoint(&self, id: u64) -> String {
         format!("/tmp/anvil_{}.ipc", id)
     }
 }

@@ -127,7 +127,7 @@ mod tests {
 
     use super::{AngstromEnv, DebugTransaction};
     use crate::{
-        anvil_state_provider::AnvilStateProviderWrapper,
+        providers::AnvilProvider,
         contracts::environment::{
             uniswap::{TestUniswapEnv, UniswapEnv},
             LocalAnvil, SpawnedAnvil, TestAnvilEnvironment
@@ -142,7 +142,7 @@ mod tests {
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilStateProviderWrapper::spawn_new(DevnetConfig::default(), 0)
+        let anvil = AnvilProvider::spawn_new(DevnetConfig::default(), 0)
             .await
             .unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();

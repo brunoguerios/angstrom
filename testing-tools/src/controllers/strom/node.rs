@@ -32,9 +32,9 @@ use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 
 use super::internals::AngstromDevnetNodeInternals;
 use crate::{
-    anvil_state_provider::AnvilStateProviderWrapper,
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
+    providers::AnvilProvider,
     types::TestingConfig
 };
 
@@ -57,7 +57,7 @@ where
 {
     pub async fn new(
         testnet_node_id: u64,
-        state_provider: AnvilStateProviderWrapper,
+        state_provider: AnvilProvider,
         network: TestnetNodeNetwork,
         strom_network_manager: StromNetworkManager<C>,
         eth_peer: Peer<C>,
@@ -103,7 +103,7 @@ where
         *self.eth_network_handle().peer_id()
     }
 
-    pub fn state_provider(&self) -> &AnvilStateProviderWrapper {
+    pub fn state_provider(&self) -> &AnvilProvider {
         &self.strom.state_provider
     }
 

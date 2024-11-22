@@ -13,7 +13,7 @@ pub mod type_generator;
 /// nuanced needs
 pub mod validation;
 
-pub mod anvil_state_provider;
+pub mod providers;
 
 /// Tools for contract deployment and testing
 pub mod contracts;

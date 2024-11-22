@@ -12,7 +12,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tracing::instrument;
 
 use crate::{
-    anvil_state_provider::AnvilStateProviderWrapper,
+    providers::AnvilProvider,
     network::TestnetNodeNetwork,
     types::{TestingConfig, WithWalletProvider}
 };
@@ -21,7 +21,7 @@ use crate::{
 pub async fn initialize_new_node<C, P>(
     c: C,
     testnet_node_id: u64,
-    state_provider: AnvilStateProviderWrapper<P>,
+    state_provider: AnvilProvider<P>,
     pk: PublicKey,
     sk: SecretKey,
     initial_validators: Vec<AngstromValidator>,

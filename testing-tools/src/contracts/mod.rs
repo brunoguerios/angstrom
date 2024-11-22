@@ -17,7 +17,7 @@ use angstrom_types::sol_bindings::testnet::{MockERC20, PoolManagerDeployer, Test
 use eyre::eyre;
 use futures::Future;
 
-use crate::anvil_state_provider::utils::WalletProviderRpc;
+use crate::providers::utils::WalletProviderRpc;
 pub mod anvil;
 pub mod deploy;
 pub mod environment;

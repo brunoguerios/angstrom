@@ -10,7 +10,7 @@ use alloy_primitives::Address;
 use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
 use secp256k1::{PublicKey, SecretKey};
 
-use crate::{anvil_state_provider::WalletProvider, types::TestingConfig};
+use crate::{providers::WalletProvider, types::TestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct TestnetConfig {

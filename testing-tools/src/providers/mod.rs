@@ -3,8 +3,10 @@ mod rpc_provider;
 
 use alloy_primitives::Address;
 pub use rpc_provider::*;
+mod anvil_provider;
 mod state_provider;
 pub use anvil_cleanser::*;
+pub use anvil_provider::*;
 pub use state_provider::*;
 mod block_provider;
 pub mod utils;

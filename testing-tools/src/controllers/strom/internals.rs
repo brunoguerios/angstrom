@@ -30,9 +30,8 @@ use validation::{
 };
 
 use crate::{
-    anvil_state_provider::{
-        utils::StromContractInstance, AnvilEthDataCleanser, AnvilStateProvider,
-        AnvilStateProviderWrapper
+    providers::{
+        utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider
     },
     types::{SendingStromHandles, TestingConfig},
     validation::TestOrderValidator
@@ -40,7 +39,7 @@ use crate::{
 
 pub struct AngstromDevnetNodeInternals {
     pub rpc_port:         u64,
-    pub state_provider:   AnvilStateProviderWrapper,
+    pub state_provider:   AnvilProvider,
     pub order_storage:    Arc<OrderStorage>,
     pub pool_handle:      PoolHandle,
     pub tx_strom_handles: SendingStromHandles,
@@ -51,7 +50,7 @@ pub struct AngstromDevnetNodeInternals {
 impl AngstromDevnetNodeInternals {
     pub async fn new(
         testnet_node_id: u64,
-        state_provider: AnvilStateProviderWrapper,
+        state_provider: AnvilProvider,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
         secret_key: SecretKey,

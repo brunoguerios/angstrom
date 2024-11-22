@@ -19,7 +19,7 @@ use super::{
     TestAnvilEnvironment
 };
 use crate::{
-    anvil_state_provider::WalletProvider,
+    providers::WalletProvider,
     contracts::{
         deploy::{mockreward::deploy_mock_rewards_manager, tokens::mint_token_pair},
         DebugTransaction
@@ -196,13 +196,13 @@ where
 mod tests {
     use super::MockRewardEnv;
     use crate::{
-        anvil_state_provider::AnvilStateProviderWrapper,
+        providers::AnvilProvider,
         contracts::environment::uniswap::UniswapEnv
     };
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilStateProviderWrapper::spawn_new_isolated()
+        let anvil = AnvilProvider::spawn_new_isolated()
             .await
             .unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();

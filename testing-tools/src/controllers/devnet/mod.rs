@@ -24,8 +24,8 @@ use tracing::{span, Instrument, Level};
 
 use super::utils::generate_node_keys;
 use crate::{
-    anvil_state_provider::{
-        utils::async_to_sync, AnvilInitializer, AnvilStateProviderWrapper, TestnetBlockProvider
+    providers::{
+        utils::async_to_sync, AnvilInitializer, AnvilProvider, TestnetBlockProvider
     },
     controllers::strom::{initialize_new_node, TestnetNode}
 };
@@ -95,7 +95,7 @@ where
 
             tracing::debug!("connecting to state provider");
             let state_provider =
-                AnvilStateProviderWrapper::spawn_new(self.config.clone(), node_id).await?;
+                AnvilProvider::spawn_new(self.config.clone(), node_id).await?;
 
             if let Some(state) = inital_angstrom_state.state.take() {
                 state_provider.set_state(state).await?;

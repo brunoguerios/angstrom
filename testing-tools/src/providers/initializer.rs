@@ -38,16 +38,13 @@ pub struct AnvilInitializer {
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
     angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
-    pending_state: PendingDeployedPools,
-    _instance:     AnvilInstance
+    pending_state: PendingDeployedPools
 }
 
 impl AnvilInitializer {
-    pub async fn new(config: impl TestingConfig) -> eyre::Result<Self> {
-        let (wallet_provider, anvil) = config.spawn_rpc(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT).await?;
-
+    pub async fn new(provider: WalletProvider) -> eyre::Result<Self> {
         tracing::debug!("deploying UniV4 enviroment");
-        let uniswap_env = UniswapEnv::new(wallet_provider.clone()).await?;
+        let uniswap_env = UniswapEnv::new(provider.clone()).await?;
         tracing::info!("deployed UniV4 enviroment");
 
         tracing::debug!("deploying Angstrom enviroment");
@@ -62,13 +59,12 @@ impl AnvilInitializer {
         let pending_state = PendingDeployedPools::new();
 
         Ok(Self {
-            provider: wallet_provider,
+            provider,
             //uniswap_env,
             angstrom_env,
             angstrom,
             pool_gate,
-            pending_state,
-            _instance: anvil.unwrap()
+            pending_state
         })
     }
 

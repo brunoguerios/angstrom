@@ -8,7 +8,9 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, BlockNumber, Bytes, B256, U256};
-use angstrom_types::contract_bindings::angstrom::Angstrom::AngstromInstance;
+use angstrom_types::contract_bindings::{
+    angstrom::Angstrom::AngstromInstance, pool_gate::PoolGate::PoolGateInstance
+};
 use eyre::bail;
 use reth_provider::{
     BlockHashReader, BlockNumReader, CanonStateNotification, CanonStateNotifications,
@@ -22,126 +24,15 @@ use super::{
     rpc_provider::RpcStateProvider, utils::WalletProviderRpc, AnvilInitializer, WalletProvider
 };
 use crate::{
-    anvil_state_provider::utils::async_to_sync,
-    contracts::environment::uniswap::UniswapEnv,
+    contracts::environment::{
+        angstrom::AngstromEnv,
+        uniswap::{TestUniswapEnv, UniswapEnv},
+        TestAnvilEnvironment
+    },
     mocks::canon_state::AnvilConsensusCanonStateNotification,
-    types::{TestingConfig, WithWalletProvider}
+    providers::{utils::async_to_sync, ANVIL_TESTNET_DEPLOYMENT_ENDPOINT},
+    types::{initial_state::PendingDeployedPools, TestingConfig, WithWalletProvider}
 };
-
-#[derive(Debug)]
-pub struct AnvilStateProviderWrapper<P> {
-    provider:  AnvilStateProvider<P>,
-    _instance: Option<AnvilInstance>
-}
-impl<P: WithWalletProvider> AnvilStateProviderWrapper<P> {
-    pub async fn spawn_new(
-        config: impl TestingConfig,
-        id: impl Display + Copy
-    ) -> eyre::Result<Self> {
-        let (rpc, anvil) = config.spawn_rpc(id).await?;
-
-        let (tx, _) = broadcast::channel(1000);
-
-        let provider = AnvilStateProvider {
-            provider:       rpc,
-            canon_state_tx: tx,
-            canon_state:    AnvilConsensusCanonStateNotification::new()
-        };
-
-        Ok(Self { provider, _instance: anvil })
-    }
-
-    pub async fn spawn_new_isolated() -> eyre::Result<Self> {
-        let anvil = Anvil::new()
-            .block_time(12)
-            .chain_id(1)
-            .arg("--ipc")
-            .arg("--code-size-limit")
-            .arg("393216")
-            .arg("--disable-block-gas-limit")
-            .try_spawn()?;
-
-        let ipc = alloy::providers::IpcConnect::new("/tmp/anvil.ipc".to_string());
-        let sk: PrivateKeySigner = anvil.keys()[7].clone().into();
-        let controller_address = anvil.addresses()[7];
-
-        let wallet = EthereumWallet::new(sk.clone());
-        let rpc = builder::<Ethereum>()
-            .with_recommended_fillers()
-            .wallet(wallet)
-            .on_ipc(ipc)
-            .await?;
-
-        tracing::info!("connected to anvil");
-
-        let (tx, _) = broadcast::channel(1000);
-
-        Ok(Self {
-            provider:  AnvilStateProvider {
-                provider:       WalletProvider::new(rpc, controller_address, sk),
-                canon_state_tx: tx,
-                canon_state:    AnvilConsensusCanonStateNotification::new()
-            },
-            _instance: Some(anvil)
-        })
-    }
-
-    pub fn state_provider(&self) -> AnvilStateProvider<P> {
-        self.provider.clone()
-    }
-
-    pub fn wallet_provider(&self) -> WalletProvider {
-        self.provider.provider.clone()
-    }
-
-    pub fn rpc_provider(&self) -> WalletProviderRpc {
-        self.provider.provider().clone()
-    }
-
-    pub async fn execute_and_return_state(&self) -> eyre::Result<(Bytes, Block)> {
-        let block = self.mine_block().await?;
-
-        Ok((self.provider.provider().anvil_dump_state().await?, block))
-    }
-
-    pub async fn return_state(&self) -> eyre::Result<Bytes> {
-        Ok(self.provider.provider().anvil_dump_state().await?)
-    }
-
-    pub async fn set_state(&self, state: Bytes) -> eyre::Result<()> {
-        self.provider.provider().anvil_load_state(state).await?;
-
-        Ok(())
-    }
-
-    pub async fn mine_block(&self) -> eyre::Result<Block> {
-        let mined = self
-            .provider
-            .provider()
-            .anvil_mine_detailed(Some(MineOptions::Options { timestamp: None, blocks: Some(1) }))
-            .await?
-            .first()
-            .cloned()
-            .unwrap();
-
-        self.provider.update_canon_chain(&mined)?;
-
-        Ok(mined)
-    }
-}
-
-// impl TestAnvilEnvironment for AnvilStateProviderWrapper {
-//     type P = WalletProviderRpc;
-//     type T = PubSubFrontend;
-
-//     fn provider(&self) -> &WalletProviderRpc {
-//         self.provider.provider.provider_ref()
-//     }
-
-//     fn controller(&self) -> Address {
-//         self.provider.provider.controller_address
-//     }
-// }
 
 #[derive(Debug, Clone)]
 pub struct AnvilStateProvider<P> {
@@ -176,20 +67,21 @@ impl WithWalletProvider for AnvilStateProvider<WalletProvider> {
 
     async fn initialize(
         node_id: u64,
-        config: impl TestingConfig
+        config: impl TestingConfig + Send
     ) -> eyre::Result<(Self, Option<AnvilInstance>)>
     where
         Self: Sized
     {
         let (rpc, anvil) = config.spawn_rpc(node_id).await?;
 
-        let (tx, _) = broadcast::channel(1000);
-
-        Ok(AnvilStateProvider {
-            provider:       rpc,
-            canon_state_tx: tx,
-            canon_state:    AnvilConsensusCanonStateNotification::new()
-        })
+        Ok((
+            Self {
+                provider:       rpc,
+                canon_state_tx: broadcast::channel(1000).0,
+                canon_state:    AnvilConsensusCanonStateNotification::new()
+            },
+            anvil
+        ))
     }
 }
 
@@ -204,37 +96,23 @@ impl WithWalletProvider for AnvilStateProvider<AnvilInitializer> {
 
     async fn initialize(
         node_id: u64,
-        config: impl TestingConfig
+        config: impl TestingConfig + Send
     ) -> eyre::Result<(Self, Option<AnvilInstance>)>
     where
         Self: Sized
     {
-        let (wallet_provider, anvil) = config.spawn_rpc(ANVIL_TESTNET_DEPLOYMENT_ENDPOINT).await?;
+        let (wallet_provider, anvil) = config.spawn_rpc(node_id).await?;
 
-        tracing::debug!("deploying UniV4 enviroment");
-        let uniswap_env = UniswapEnv::new(wallet_provider.clone()).await?;
-        tracing::info!("deployed UniV4 enviroment");
+        let initializer = AnvilInitializer::new(wallet_provider).await?;
 
-        tracing::debug!("deploying Angstrom enviroment");
-        let angstrom_env = AngstromEnv::new(uniswap_env).await?;
-        tracing::info!("deployed Angstrom enviroment");
-
-        let angstrom =
-            AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
-        let pool_gate =
-            PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
-
-        let pending_state = PendingDeployedPools::new();
-
-        Ok(Self {
-            provider: wallet_provider,
-            //uniswap_env,
-            angstrom_env,
-            angstrom,
-            pool_gate,
-            pending_state,
-            _instance: anvil.unwrap()
-        })
+        Ok((
+            Self {
+                provider:       initializer,
+                canon_state_tx: broadcast::channel(1000).0,
+                canon_state:    AnvilConsensusCanonStateNotification::new()
+            },
+            anvil
+        ))
     }
 }
 

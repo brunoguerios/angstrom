@@ -7,7 +7,7 @@ use angstrom_types::contract_bindings::{
 use tracing::debug;
 
 use super::TestAnvilEnvironment;
-use crate::{anvil_state_provider::WalletProvider, contracts::DebugTransaction};
+use crate::{providers::WalletProvider, contracts::DebugTransaction};
 
 pub trait TestUniswapEnv: TestAnvilEnvironment {
     fn pool_manager(&self) -> Address;
