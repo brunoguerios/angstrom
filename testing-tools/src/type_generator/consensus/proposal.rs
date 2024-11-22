@@ -98,9 +98,8 @@ impl ProposalBuilder {
         let pools = self.pools.unwrap_or_default();
         let count = self.order_count.unwrap_or_default();
         let block = self.block.unwrap_or_default();
-        let sk = self.sk.unwrap_or_else(|| AngstromSigner::random());
+        let sk = self.sk.unwrap_or_else(AngstromSigner::random);
         // Build the source ID from the secret/public keypair
-        let source = sk.id();
 
         let preproposals = self.preproposals.unwrap_or_else(|| {
             (0..preproposal_count)

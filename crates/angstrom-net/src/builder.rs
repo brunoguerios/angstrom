@@ -2,10 +2,7 @@
 
 use std::{collections::HashSet, sync::Arc};
 
-use alloy::{
-    primitives::{Address, FixedBytes},
-    signers::{Signer, SignerSync}
-};
+use alloy::{primitives::Address, signers::SignerSync};
 use alloy_chains::Chain;
 use angstrom_types::primitive::{AngstromSigner, PeerId};
 use futures::FutureExt;

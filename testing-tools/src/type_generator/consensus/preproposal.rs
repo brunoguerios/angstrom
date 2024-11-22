@@ -64,9 +64,8 @@ impl PreproposalBuilder {
         //     .unwrap_or_default();
         let count = self.order_count.unwrap_or_default();
         let block = self.block.unwrap_or_default();
-        let sk = self.sk.unwrap_or_else(|| AngstromSigner::random());
+        let sk = self.sk.unwrap_or_else(AngstromSigner::random);
         // Build the source ID from the secret/public keypair
-        let source = sk.id();
 
         let limit = pools
             .iter()

@@ -81,9 +81,8 @@ impl PreProposal {
 impl PreProposal {
     fn sign_payload(sk: &AngstromSigner, payload: Vec<u8>) -> Signature {
         let hash = keccak256(payload);
-        let sig = sk.sign_hash_sync(&hash).unwrap();
 
-        sig
+        sk.sign_hash_sync(&hash).unwrap()
     }
 
     pub fn generate_pre_proposal(
@@ -150,12 +149,8 @@ impl PreProposal {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::FixedBytes;
-    use rand::thread_rng;
-    use reth_network_peers::pk2id;
-    use secp256k1::Secp256k1;
 
-    use super::{PreProposal, SecretKey};
+    use super::PreProposal;
     use crate::primitive::AngstromSigner;
 
     #[test]
@@ -163,7 +158,6 @@ mod tests {
         let ethereum_height = 100;
         let limit = vec![];
         let searcher = vec![];
-        let source = FixedBytes::<64>::default();
         let sk = AngstromSigner::random();
         PreProposal::generate_pre_proposal(ethereum_height, &sk, limit, searcher);
     }
@@ -174,9 +168,7 @@ mod tests {
         let limit = vec![];
         let searcher = vec![];
         // Generate crypto stuff
-        let mut rng = thread_rng();
         let sk = AngstromSigner::random();
-        let id = sk.id();
         let preproposal = PreProposal::generate_pre_proposal(ethereum_height, &sk, limit, searcher);
 
         assert!(preproposal.is_valid(&ethereum_height), "Unable to validate self");

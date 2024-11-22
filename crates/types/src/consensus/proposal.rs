@@ -111,21 +111,14 @@ impl Proposal {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::FixedBytes;
-    use rand::thread_rng;
-    use reth_network_peers::pk2id;
-    use secp256k1::Secp256k1;
-
-    use super::{Proposal, SecretKey};
+    use super::Proposal;
     use crate::primitive::AngstromSigner;
 
     #[test]
     fn can_be_constructed() {
         let ethereum_height = 100;
-        let source = FixedBytes::<64>::default();
         let preproposals = vec![];
         let solutions = vec![];
-        let mut rng = thread_rng();
         let sk = AngstromSigner::random();
         Proposal::generate_proposal(ethereum_height, &sk, preproposals, solutions);
     }
@@ -136,7 +129,6 @@ mod tests {
         let preproposals = vec![];
         let solutions = vec![];
         // Generate crypto stuff
-        let mut rng = thread_rng();
         let sk = AngstromSigner::random();
         let proposal = Proposal::generate_proposal(ethereum_height, &sk, preproposals, solutions);
 

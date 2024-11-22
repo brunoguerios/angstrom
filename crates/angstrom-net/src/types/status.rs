@@ -9,7 +9,6 @@ use alloy::{
     signers::Signature
 };
 use angstrom_types::primitive::{AngstromSigner, PeerId};
-use k256::{ecdsa::VerifyingKey, elliptic_curve::sec1::ToEncodedPoint};
 use serde::{Deserialize, Serialize};
 
 use crate::StatusBuilder;
