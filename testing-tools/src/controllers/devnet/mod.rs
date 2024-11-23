@@ -1,4 +1,3 @@
-mod config;
 use std::{
     collections::{HashMap, HashSet},
     future::Future
@@ -9,7 +8,6 @@ use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
 use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
-pub use config::*;
 use consensus::AngstromValidator;
 use futures::{StreamExt, TryFutureExt};
 use rand::Rng;
@@ -24,10 +22,8 @@ use tracing::{span, Instrument, Level};
 
 use super::utils::generate_node_keys;
 use crate::{
-    providers::{
-        utils::async_to_sync, AnvilInitializer, AnvilProvider, TestnetBlockProvider
-    },
-    controllers::strom::{initialize_new_node, TestnetNode}
+    controllers::strom::{initialize_new_node, TestnetNode},
+    providers::{utils::async_to_sync, AnvilInitializer, AnvilProvider, TestnetBlockProvider}
 };
 
 pub struct AngstromDevnet<C> {
@@ -94,8 +90,7 @@ where
             let node_id = self.incr_peer_id();
 
             tracing::debug!("connecting to state provider");
-            let state_provider =
-                AnvilProvider::spawn_new(self.config.clone(), node_id).await?;
+            let state_provider = AnvilProvider::spawn_new(self.config.clone(), node_id).await?;
 
             if let Some(state) = inital_angstrom_state.state.take() {
                 state_provider.set_state(state).await?;

@@ -7,7 +7,7 @@ use angstrom_types::contract_bindings::{
 use tracing::debug;
 
 use super::TestAnvilEnvironment;
-use crate::{providers::WalletProvider, contracts::DebugTransaction};
+use crate::{contracts::DebugTransaction, providers::WalletProvider};
 
 pub trait TestUniswapEnv: TestAnvilEnvironment {
     fn pool_manager(&self) -> Address;
@@ -23,6 +23,7 @@ pub trait TestUniswapEnv: TestAnvilEnvironment {
     ) -> eyre::Result<TxHash>;
 }
 
+#[derive(Clone)]
 pub struct UniswapEnv<E: TestAnvilEnvironment> {
     inner:        E,
     pool_manager: Address,

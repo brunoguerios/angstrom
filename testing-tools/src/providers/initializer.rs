@@ -27,7 +27,10 @@ use crate::{
             TestAnvilEnvironment
         }
     },
-    types::{initial_state::PendingDeployedPools, TestingConfig}
+    types::{
+        config::TestingNodeConfig, initial_state::PendingDeployedPools, GlobalTestingConfig,
+        WithWalletProvider
+    }
 };
 
 pub const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
@@ -73,19 +76,19 @@ impl AnvilInitializer {
         let nonce = self
             .provider
             .provider
-            .get_account(self.provider.controller_address)
+            .get_account(self.provider.controller_address())
             .await?
             .nonce;
 
         let (first_token_tx, first_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce, self.provider.controller_address)
+                .deploy_pending_creation(nonce, self.provider.controller_address())
                 .await?;
         self.pending_state.add_pending_tx(first_token_tx);
 
         let (second_token_tx, second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce + 1, self.provider.controller_address)
+                .deploy_pending_creation(nonce + 1, self.provider.controller_address())
                 .await?;
         self.pending_state.add_pending_tx(second_token_tx);
 
@@ -127,7 +130,7 @@ impl AnvilInitializer {
                 U256::from(liquidity),
                 FixedBytes::<32>::default()
             )
-            .from(self.provider.controller_address)
+            .from(self.provider.controller_address())
             .nonce(nonce + 3)
             .deploy_pending()
             .await?;
@@ -151,12 +154,38 @@ impl AnvilInitializer {
     }
 }
 
+impl WithWalletProvider for AnvilInitializer {
+    async fn initialize<G: GlobalTestingConfig>(
+        config: TestingNodeConfig<G>
+    ) -> eyre::Result<(Self, Option<AnvilInstance>)>
+    where
+        Self: Sized
+    {
+        let (wallet_provider, anvil) = config.spawn_anvil_rpc().await?;
+
+        let this = AnvilInitializer::new(wallet_provider).await?;
+
+        Ok((this, anvil))
+    }
+
+    fn wallet_provider(&self) -> WalletProvider {
+        self.provider.clone()
+    }
+
+    fn rpc_provider(&self) -> WalletProviderRpc {
+        self.provider.provider.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloy::providers::Provider;
+    use enr::secp256k1::Secp256k1;
+    use rand::thread_rng;
+    use secp256k1::SecretKey;
 
     use super::*;
-    use crate::controllers::devnet::DevnetConfig;
+    use crate::types::config::DevnetConfig;
 
     async fn get_block(provider: &WalletProvider) -> eyre::Result<u64> {
         Ok(provider.provider.get_block_number().await?)
@@ -164,8 +193,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_can_deploy() {
-        let config = DevnetConfig::default();
-        let mut initializer = AnvilInitializer::new(config).await.unwrap();
+        let sk = SecretKey::new(&mut thread_rng());
+        let config = TestingNodeConfig {
+            node_id:       0,
+            global_config: DevnetConfig::default(),
+            pub_key:       sk.public_key(&Secp256k1::default()),
+            secret_key:    sk,
+            voting_power:  100
+        };
+        let (mut initializer, _) = AnvilInitializer::initialize(config).await.unwrap();
+
         initializer.deploy_pool_full().await.unwrap();
 
         let current_block = get_block(&initializer.provider).await.unwrap();

@@ -12,26 +12,26 @@ mod block_provider;
 pub mod utils;
 pub use block_provider::*;
 mod initializer;
-use alloy::pubsub::PubSubFrontend;
+use alloy::{
+    node_bindings::AnvilInstance, pubsub::PubSubFrontend, signers::local::PrivateKeySigner
+};
 pub use initializer::*;
 use utils::WalletProviderRpc;
 
-use crate::contracts::environment::TestAnvilEnvironment;
+use crate::{
+    contracts::environment::TestAnvilEnvironment,
+    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
+};
 
 #[derive(Debug, Clone)]
 pub struct WalletProvider {
     provider:                  WalletProviderRpc,
-    pub controller_address:    Address,
-    pub controller_secret_key: alloy::signers::local::PrivateKeySigner
+    pub controller_secret_key: PrivateKeySigner
 }
 
 impl WalletProvider {
-    pub fn new(
-        provider: WalletProviderRpc,
-        controller_address: Address,
-        controller_secret_key: alloy::signers::local::PrivateKeySigner
-    ) -> Self {
-        Self { provider, controller_address, controller_secret_key }
+    pub fn new(provider: WalletProviderRpc, controller_secret_key: PrivateKeySigner) -> Self {
+        Self { provider, controller_secret_key }
     }
 
     pub fn provider_ref(&self) -> &WalletProviderRpc {
@@ -52,6 +52,25 @@ impl TestAnvilEnvironment for WalletProvider {
     }
 
     fn controller(&self) -> Address {
-        self.controller_address
+        self.controller_secret_key.address()
+    }
+}
+
+impl WithWalletProvider for WalletProvider {
+    async fn initialize<G: GlobalTestingConfig>(
+        config: TestingNodeConfig<G>
+    ) -> eyre::Result<(Self, Option<AnvilInstance>)>
+    where
+        Self: Sized
+    {
+        Ok(config.spawn_anvil_rpc().await?)
+    }
+
+    fn wallet_provider(&self) -> WalletProvider {
+        self.clone()
+    }
+
+    fn rpc_provider(&self) -> WalletProviderRpc {
+        self.provider.clone()
     }
 }

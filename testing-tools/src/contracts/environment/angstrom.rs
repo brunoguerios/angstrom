@@ -10,6 +10,7 @@ pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
     fn angstrom(&self) -> Address;
 }
 
+#[derive(Clone)]
 pub struct AngstromEnv<E: TestUniswapEnv> {
     #[allow(dead_code)]
     inner:    E,
@@ -127,12 +128,12 @@ mod tests {
 
     use super::{AngstromEnv, DebugTransaction};
     use crate::{
-        providers::AnvilProvider,
         contracts::environment::{
             uniswap::{TestUniswapEnv, UniswapEnv},
             LocalAnvil, SpawnedAnvil, TestAnvilEnvironment
         },
         controllers::devnet::DevnetConfig,
+        providers::AnvilProvider,
         type_generator::{
             amm::AMMSnapshotBuilder,
             consensus::{pool::Pool, proposal::ProposalBuilder},

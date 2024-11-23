@@ -1,34 +1,30 @@
-use std::{
-    fmt::{Debug, Display},
-    future::Future
-};
+use std::{fmt::Debug, future::Future};
 
-use alloy::node_bindings::{Anvil, AnvilInstance};
+use alloy::node_bindings::AnvilInstance;
 
+use super::config::{TestingConfigKind, TestingNodeConfig};
 use crate::providers::{utils::WalletProviderRpc, WalletProvider};
-
-pub trait TestingConfig: Debug + Clone {
-    fn configure_anvil(&self, node_id: u64) -> Anvil;
-
-    fn spawn_rpc(
-        &self,
-        node_id: u64
-    ) -> impl Future<Output = eyre::Result<(WalletProvider, Option<AnvilInstance>)>> + Send;
-
-    fn anvil_endpoint(&self, id: u64) -> String;
-
-    fn rpc_port(&self, node_id: Option<u64>) -> u64;
-}
 
 pub trait WithWalletProvider: Send + Sync {
     fn wallet_provider(&self) -> WalletProvider;
 
-    fn provider(&self) -> WalletProviderRpc;
+    fn rpc_provider(&self) -> WalletProviderRpc;
 
-    fn initialize(
-        node_id: u64,
-        config: impl TestingConfig + Send
+    fn initialize<G: GlobalTestingConfig>(
+        config: TestingNodeConfig<G>
     ) -> impl Future<Output = eyre::Result<(Self, Option<AnvilInstance>)>> + Send
     where
         Self: Sized;
+}
+
+pub trait GlobalTestingConfig: Debug + Clone + Send + Sync {
+    fn eth_ws_url(&self) -> String;
+
+    fn fork_config(&self) -> Option<(u64, String)>;
+
+    fn config_type(&self) -> TestingConfigKind;
+
+    fn anvil_rpc_endpoint(&self, node_id: u64) -> String;
+
+    fn is_leader(&self, node_id: u64) -> bool;
 }

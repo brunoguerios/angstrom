@@ -19,17 +19,18 @@ use super::{
     TestAnvilEnvironment
 };
 use crate::{
-    providers::WalletProvider,
     contracts::{
         deploy::{mockreward::deploy_mock_rewards_manager, tokens::mint_token_pair},
         DebugTransaction
-    }
+    },
+    providers::WalletProvider
 };
 
 pub trait TestMockRewardEnv: TestAnvilEnvironment {
     fn mock_reward(&self) -> Address;
 }
 
+#[derive(Clone)]
 pub struct MockRewardEnv<E: TestUniswapEnv> {
     inner:       E,
     mock_reward: Address
@@ -195,16 +196,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::MockRewardEnv;
-    use crate::{
-        providers::AnvilProvider,
-        contracts::environment::uniswap::UniswapEnv
-    };
+    use crate::{contracts::environment::uniswap::UniswapEnv, providers::AnvilProvider};
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilProvider::spawn_new_isolated()
-            .await
-            .unwrap();
+        let anvil = AnvilProvider::spawn_new_isolated().await.unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
         MockRewardEnv::new(uniswap).await.unwrap();
     }

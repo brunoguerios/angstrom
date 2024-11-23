@@ -1,15 +1,12 @@
-mod config;
-
 use angstrom_types::testnet::InitialTestnetState;
-pub use config::*;
 use consensus::AngstromValidator;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use super::strom::initialize_new_node;
 use crate::{
-    providers::{AnvilInitializer, TestnetBlockProvider},
-    controllers::strom::TestnetNode
+    controllers::strom::TestnetNode,
+    providers::{AnvilInitializer, TestnetBlockProvider}
 };
 
 pub struct AngstromTestnet<C> {

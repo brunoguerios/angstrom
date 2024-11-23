@@ -31,30 +31,32 @@ use validation::{
 
 use crate::{
     providers::{
-        utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider
+        utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider,
+        WalletProvider
     },
-    types::{SendingStromHandles, TestingConfig},
+    types::{
+        config::TestingNodeConfig, GlobalTestingConfig, SendingStromHandles, WithWalletProvider
+    },
     validation::TestOrderValidator
 };
 
-pub struct AngstromDevnetNodeInternals {
+pub struct AngstromDevnetNodeInternals<P> {
     pub rpc_port:         u64,
-    pub state_provider:   AnvilProvider,
+    pub state_provider:   AnvilProvider<P>,
     pub order_storage:    Arc<OrderStorage>,
     pub pool_handle:      PoolHandle,
     pub tx_strom_handles: SendingStromHandles,
     pub testnet_hub:      StromContractInstance,
-    pub validator:        TestOrderValidator<AnvilStateProvider>
+    pub validator:        TestOrderValidator<AnvilStateProvider<WalletProvider>>
 }
 
-impl AngstromDevnetNodeInternals {
-    pub async fn new(
-        testnet_node_id: u64,
-        state_provider: AnvilProvider,
+impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
+    pub async fn new<G: GlobalTestingConfig>(
+        node_config: TestingNodeConfig<G>,
+        state_provider: AnvilProvider<P>,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
         secret_key: SecretKey,
-        config: impl TestingConfig,
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
@@ -72,7 +74,7 @@ impl AngstromDevnetNodeInternals {
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client);
 
         let eth_handle = AnvilEthDataCleanser::spawn(
-            testnet_node_id,
+            node_config.node_id,
             executor.clone(),
             inital_angstrom_state.angstrom_addr,
             strom_handles.eth_tx,
@@ -107,7 +109,7 @@ impl AngstromDevnetNodeInternals {
         tokio::spawn(async move { uniswap_pool_manager.watch_state_changes().await });
 
         let token_conversion = TokenPriceGenerator::new(
-            state_provider.state_provider().provider().into(),
+            Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
             None
@@ -166,7 +168,7 @@ impl AngstromDevnetNodeInternals {
             strom_handles.pool_manager_tx
         );
 
-        let rpc_port = config.rpc_port(Some(testnet_node_id));
+        let rpc_port = node_config.strom_rpc_port();
         let server = ServerBuilder::default()
             .build(format!("127.0.0.1:{}", rpc_port))
             .await?;
