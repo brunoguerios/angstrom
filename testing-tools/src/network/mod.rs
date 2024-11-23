@@ -18,7 +18,10 @@ use secp256k1::{PublicKey, SecretKey};
 pub use strom_peer::*;
 use tokio_util::sync::PollSender;
 
-use crate::network::StromNetworkPeer;
+use crate::{
+    network::StromNetworkPeer,
+    types::{config::TestingNodeConfig, GlobalTestingConfig}
+};
 
 pub struct TestnetNodeNetwork {
     // eth components
@@ -30,10 +33,9 @@ pub struct TestnetNodeNetwork {
 }
 
 impl TestnetNodeNetwork {
-    pub async fn new_fully_configed<C>(
+    pub async fn new<C, G>(
         c: C,
-        pub_key: PublicKey,
-        sk: SecretKey,
+        node_config: &TestingNodeConfig<G>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
         to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
     ) -> (Self, Peer<C>, StromNetworkManager<C>)
@@ -44,11 +46,13 @@ impl TestnetNodeNetwork {
             + Unpin
             + Clone
             + ChainSpecProvider<ChainSpec: Hardforks>
-            + 'static
+            + 'static,
+        G: GlobalTestingConfig
     {
-        let peer = PeerConfig::with_secret_key(c.clone(), sk);
+        let sk = node_config.secret_key.clone();
+        let peer = PeerConfig::with_secret_key(c.clone(), sk.clone());
 
-        let peer_id = pk2id(&pub_key);
+        let peer_id = pk2id(&node_config.pub_key);
         let state = StatusState {
             version:   0,
             chain:     Chain::mainnet().id(),
@@ -60,7 +64,7 @@ impl TestnetNodeNetwork {
             status:       state,
             has_sent:     false,
             has_received: false,
-            secret_key:   sk
+            secret_key:   sk.clone()
         };
 
         let validators = Arc::new(RwLock::new(HashSet::default()));
@@ -85,7 +89,7 @@ impl TestnetNodeNetwork {
         let eth_handle = EthNetworkPeer::new(&eth_peer);
 
         (
-            Self { strom_handle, secret_key: sk, pubkey: peer_id, eth_handle },
+            Self { strom_handle, secret_key: sk.clone(), pubkey: peer_id, eth_handle },
             eth_peer,
             strom_network
         )

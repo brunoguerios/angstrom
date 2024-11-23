@@ -132,7 +132,6 @@ mod tests {
             uniswap::{TestUniswapEnv, UniswapEnv},
             LocalAnvil, SpawnedAnvil, TestAnvilEnvironment
         },
-        controllers::devnet::DevnetConfig,
         providers::AnvilProvider,
         type_generator::{
             amm::AMMSnapshotBuilder,
@@ -143,9 +142,7 @@ mod tests {
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilProvider::spawn_new(DevnetConfig::default(), 0)
-            .await
-            .unwrap();
+        let anvil = AnvilProvider::spawn_new_isolated().await.unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
         AngstromEnv::new(uniswap).await.unwrap();
     }

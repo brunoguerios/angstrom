@@ -30,7 +30,16 @@ pub struct WalletProvider {
 }
 
 impl WalletProvider {
-    pub fn new(provider: WalletProviderRpc, controller_secret_key: PrivateKeySigner) -> Self {
+    pub async fn new<G: GlobalTestingConfig>(
+        config: TestingNodeConfig<G>
+    ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
+        Ok(config.spawn_anvil_rpc().await?)
+    }
+
+    pub(crate) fn new_with_provider(
+        provider: WalletProviderRpc,
+        controller_secret_key: PrivateKeySigner
+    ) -> Self {
         Self { provider, controller_secret_key }
     }
 
@@ -57,15 +66,6 @@ impl TestAnvilEnvironment for WalletProvider {
 }
 
 impl WithWalletProvider for WalletProvider {
-    async fn initialize<G: GlobalTestingConfig>(
-        config: TestingNodeConfig<G>
-    ) -> eyre::Result<(Self, Option<AnvilInstance>)>
-    where
-        Self: Sized
-    {
-        Ok(config.spawn_anvil_rpc().await?)
-    }
-
     fn wallet_provider(&self) -> WalletProvider {
         self.clone()
     }

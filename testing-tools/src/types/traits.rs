@@ -9,12 +9,6 @@ pub trait WithWalletProvider: Send + Sync {
     fn wallet_provider(&self) -> WalletProvider;
 
     fn rpc_provider(&self) -> WalletProviderRpc;
-
-    fn initialize<G: GlobalTestingConfig>(
-        config: TestingNodeConfig<G>
-    ) -> impl Future<Output = eyre::Result<(Self, Option<AnvilInstance>)>> + Send
-    where
-        Self: Sized;
 }
 
 pub trait GlobalTestingConfig: Debug + Clone + Send + Sync {
@@ -27,4 +21,6 @@ pub trait GlobalTestingConfig: Debug + Clone + Send + Sync {
     fn anvil_rpc_endpoint(&self, node_id: u64) -> String;
 
     fn is_leader(&self, node_id: u64) -> bool;
+
+    fn node_count(&self) -> u64;
 }

@@ -2,8 +2,9 @@ use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use crate::{
-    controllers::devnet::{AngstromDevnet, DevnetStateMachine},
-    types::StateMachineCheckHookFn
+    controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
+    providers::WalletProvider,
+    types::{config::DevnetConfig, StateMachineCheckHookFn}
 };
 
 pub trait WithCheck<C>
@@ -32,7 +33,9 @@ where
         + 'static
 {
     fn check_block(&mut self, block_number: u64) {
-        let f = move |testnet: &mut AngstromDevnet<C>| testnet.check_block_numbers(block_number);
+        let f = move |testnet: &mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+            testnet.check_block_numbers(block_number)
+        };
         self.add_check("check block", f);
     }
 }

@@ -1,17 +1,9 @@
-use crate::{
-    network::TestnetNodeNetwork,
-    providers::AnvilProvider,
-    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
-};
-
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
     sync::Arc,
     task::Poll
 };
-
-use crate::controllers::strom::initialize_strom_handles;
 
 use alloy::pubsub::PubSubFrontend;
 use alloy_primitives::Address;
@@ -37,11 +29,14 @@ use reth_network::{
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
+use tracing::instrument;
 
 use super::internals::AngstromDevnetNodeInternals;
 use crate::{
-    controllers::TestnetStateFutureLock,
-    network::{EthPeerPool}
+    controllers::{strom::initialize_strom_handles, TestnetStateFutureLock},
+    network::{EthPeerPool, TestnetNodeNetwork},
+    providers::AnvilProvider,
+    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
 };
 
 pub struct TestnetNode<C, P> {
@@ -60,9 +55,8 @@ where
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static,
-        P: WithWalletProvider
+    P: WithWalletProvider
 {
-
     #[instrument(name = "node", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider), fields(id = node_config.node_id))]
     pub async fn new<G: GlobalTestingConfig>(
         c: C,
@@ -72,33 +66,28 @@ where
         inital_angstrom_state: InitialTestnetState,
         block_provider: BroadcastStream<(u64, Vec<alloy_rpc_types::Transaction>)>
     ) -> eyre::Result<Self> {
-
         tracing::info!("spawning node");
 
         let strom_handles = initialize_strom_handles();
-        let (strom_network, eth_peer, strom_network_manager) = TestnetNodeNetwork::new_fully_configed(
+        let (strom_network, eth_peer, strom_network_manager) = TestnetNodeNetwork::new(
             c,
-            pk,
-            sk,
+            &node_config,
             Some(strom_handles.pool_tx.clone()),
             Some(strom_handles.consensus_tx_op.clone())
         )
         .await;
 
-
-
         let (strom, consensus) = AngstromDevnetNodeInternals::new(
             node_config.clone(),
             state_provider,
             strom_handles,
-            network.strom_handle.network_handle().clone(),
-            network.secret_key,
+            strom_network.strom_handle.network_handle().clone(),
+            strom_network.secret_key,
             initial_validators,
-            block_rx,
+            block_provider,
             inital_angstrom_state
         )
         .await?;
-
 
         tracing::info!("created strom internals");
 
@@ -109,7 +98,7 @@ where
             consensus
         );
 
-        Ok(Self { testnet_node_id: node_config.node_id,, network, strom, state_lock })
+        Ok(Self { testnet_node_id: node_config.node_id, network: strom_network, strom, state_lock })
     }
 
     /// General
@@ -271,7 +260,10 @@ where
         other.add_strom_validator(self.network.pubkey());
     }
 
-    pub async fn connect_to_all_peers(&mut self, other_peers: &mut HashMap<u64, Self>) {
+    pub async fn connect_to_all_peers(
+        &mut self,
+        other_peers: &mut HashMap<u64, TestnetNode<C, P>>
+    ) {
         self.start_network();
         other_peers.iter().for_each(|(_, peer)| {
             self.connect_to_eth_peer(peer.network.pubkey(), peer.eth_socket_addr());

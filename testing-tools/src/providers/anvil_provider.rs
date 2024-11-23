@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
@@ -19,12 +21,19 @@ impl<P> AnvilProvider<P>
 where
     P: WithWalletProvider
 {
-    pub async fn spawn_new<G: GlobalTestingConfig>(
-        config: TestingNodeConfig<G>
-    ) -> eyre::Result<Self> {
-        let (provider, anvil) = P::initialize(config).await?;
-
+    pub async fn new<F>(fut: F) -> eyre::Result<Self>
+    where
+        F: Future<Output = eyre::Result<(P, Option<AnvilInstance>)>>
+    {
+        let (provider, anvil) = fut.await?;
         Ok(Self { provider: AnvilStateProvider::new(provider), _instance: anvil })
+    }
+
+    pub fn into_state_provider(&mut self) -> AnvilProvider<WalletProvider> {
+        AnvilProvider {
+            provider:  self.provider.as_wallet_state_provider(),
+            _instance: self._instance.take()
+        }
     }
 
     pub fn state_provider(&self) -> AnvilStateProvider<WalletProvider> {
@@ -37,6 +46,14 @@ where
 
     pub fn rpc_provider(&self) -> WalletProviderRpc {
         self.provider.provider().rpc_provider()
+    }
+
+    pub fn provider(&self) -> &AnvilStateProvider<P> {
+        &self.provider
+    }
+
+    pub fn provider_mut(&mut self) -> &mut AnvilStateProvider<P> {
+        &mut self.provider
     }
 
     pub async fn execute_and_return_state(&self) -> eyre::Result<(Bytes, Block)> {
@@ -112,7 +129,7 @@ impl AnvilProvider<WalletProvider> {
         tracing::info!("connected to anvil");
 
         Ok(Self {
-            provider:  AnvilStateProvider::new(WalletProvider::new(rpc, sk)),
+            provider:  AnvilStateProvider::new(WalletProvider::new_with_provider(rpc, sk)),
             _instance: Some(anvil)
         })
     }

@@ -18,7 +18,7 @@ pub mod angstrom;
 pub mod mockreward;
 pub mod uniswap;
 
-pub trait TestAnvilEnvironment: Clone {
+pub trait TestAnvilEnvironment {
     type T: Clone + Send + Sync + alloy::transports::Transport;
     type P: alloy::providers::Provider<Self::T, Ethereum>;
 

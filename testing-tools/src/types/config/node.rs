@@ -4,7 +4,9 @@ use alloy::{
     providers::IpcConnect,
     signers::local::PrivateKeySigner
 };
-use secp256k1::{PublicKey, SecretKey};
+use consensus::AngstromValidator;
+use reth_network_peers::pk2id;
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
 use super::TestingConfigKind;
 use crate::{providers::WalletProvider, types::GlobalTestingConfig};
@@ -19,14 +21,14 @@ pub struct TestingNodeConfig<C> {
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
-    pub fn new(
-        node_id: u64,
-        global_config: C,
-        pub_key: PublicKey,
-        secret_key: SecretKey,
-        voting_power: u64
-    ) -> Self {
-        Self { node_id, global_config, pub_key, secret_key, voting_power }
+    pub fn new(node_id: u64, global_config: C, secret_key: SecretKey, voting_power: u64) -> Self {
+        Self {
+            node_id,
+            global_config,
+            pub_key: secret_key.public_key(&Secp256k1::default()),
+            secret_key,
+            voting_power
+        }
     }
 
     pub fn strom_rpc_port(&self) -> u64 {
@@ -35,6 +37,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     pub fn signing_key(&self) -> PrivateKeySigner {
         PrivateKeySigner::from_bytes(&self.secret_key.secret_bytes().into()).unwrap()
+    }
+
+    pub fn angstrom_validator(&self) -> AngstromValidator {
+        AngstromValidator::new(pk2id(&self.pub_key), self.voting_power)
     }
 
     pub fn configure_anvil(&self) -> Anvil {
@@ -46,7 +52,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     fn configure_testnet_leader_anvil(&self) -> Anvil {
-        if !self.is_leader() {
+        if !self.global_config.is_leader(self.node_id) {
             panic!("only the leader can call this!")
         }
 
@@ -54,7 +60,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .chain_id(1)
             .fork(self.global_config.eth_ws_url())
             .arg("--ipc")
-            .arg(self.anvil_rpc_endpoint())
+            .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
             .block_time(12)
@@ -64,7 +70,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let mut anvil_builder = Anvil::new()
             .chain_id(1)
             .arg("--ipc")
-            .arg(self.anvil_rpc_endpoint())
+            .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
             .arg("--disable-block-gas-limit");
@@ -110,7 +116,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
-        Ok((WalletProvider::new(rpc, sk), anvil))
+        Ok((WalletProvider::new_with_provider(rpc, sk), anvil))
     }
 
     async fn spawn_devnet_anvil_rpc(
@@ -133,6 +139,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
-        Ok((WalletProvider::new(rpc, sk), Some(anvil)))
+        Ok((WalletProvider::new_with_provider(rpc, sk), Some(anvil)))
     }
 }

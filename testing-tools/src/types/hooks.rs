@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
-use crate::controllers::devnet::AngstromDevnet;
+use super::config::DevnetConfig;
+use crate::{controllers::enviroments::AngstromTestnet, providers::WalletProvider};
 
 pub enum StateMachineHook<'a, C> {
     Action(StateMachineActionHookFn<'a, C>),
@@ -11,17 +12,18 @@ pub enum StateMachineHook<'a, C> {
 /// execute an action on the testnet
 pub type StateMachineActionHookFn<'a, C> = Box<
     dyn FnOnce(
-        &'a mut AngstromDevnet<C>
+        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
     ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
 >;
 
 /// check something on the testnet
-pub type StateMachineCheckHookFn<C> = Box<dyn FnOnce(&mut AngstromDevnet<C>) -> eyre::Result<bool>>;
+pub type StateMachineCheckHookFn<C> =
+    Box<dyn FnOnce(&mut AngstromTestnet<C, DevnetConfig, WalletProvider>) -> eyre::Result<bool>>;
 
 /// execute an action and check something on the testnet
 pub type StateMachineCheckedActionHookFn<'a, C> = Box<
     dyn FnOnce(
-        &'a mut AngstromDevnet<C>
+        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
     ) -> Pin<Box<dyn Future<Output = eyre::Result<bool>> + Send + Sync + 'a>>
 >;
 

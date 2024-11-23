@@ -9,8 +9,9 @@ use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use crate::{
-    controllers::devnet::{AngstromDevnet, DevnetStateMachine},
-    types::StateMachineCheckedActionHookFn
+    controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
+    providers::WalletProvider,
+    types::{config::DevnetConfig, StateMachineCheckedActionHookFn}
 };
 
 pub trait WithCheckedAction<'a, C>
@@ -43,7 +44,7 @@ where
         + 'static
 {
     fn send_pooled_orders(&mut self, orders: Vec<AllOrders>) {
-        let f = |testnet: &'a mut AngstromDevnet<C>| {
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             pin_action(testnet.broadcast_orders_message(
                 None,
                 StromMessage::PropagatePooledOrders(orders.clone()),
@@ -54,7 +55,7 @@ where
     }
 
     fn send_propose(&mut self, proposal: Proposal) {
-        let f = |testnet: &'a mut AngstromDevnet<C>| {
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::Propose(proposal.clone()),
@@ -65,7 +66,7 @@ where
     }
 
     fn send_prepropose(&mut self, preproposal: PreProposal) {
-        let f = |testnet: &'a mut AngstromDevnet<C>| {
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::PrePropose(preproposal.clone()),

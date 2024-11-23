@@ -37,4 +37,8 @@ impl GlobalTestingConfig for TestnetConfig {
     fn is_leader(&self, node_id: u64) -> bool {
         node_id == 0
     }
+
+    fn node_count(&self) -> u64 {
+        self.node_count
+    }
 }

@@ -1,4 +1,4 @@
-pub mod devnet;
+pub mod enviroments;
 pub mod strom;
 pub mod testnet;
 pub mod utils;

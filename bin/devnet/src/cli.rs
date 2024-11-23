@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser};
-use testing_tools::controllers::devnet::DevnetConfig;
+use testing_tools::types::config::DevnetConfig;
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
@@ -43,13 +43,7 @@ impl Cli {
         let this = Self::parse();
         this.init_tracing();
 
-        DevnetConfig::new(
-            this.anvil_key as usize,
-            this.nodes_in_network,
-            this.starting_port,
-            this.fork_block,
-            this.fork_url
-        )
+        DevnetConfig::new(this.nodes_in_network, this.starting_port, this.fork_block, this.fork_url)
     }
 
     fn init_tracing(&self) {
@@ -64,8 +58,8 @@ impl Cli {
         let filter = EnvFilter::builder()
             // .with_default_directive(format!("testnet={level}").parse().unwrap())
             .from_env_lossy();
-            // .add_directive(format!("angstrom={level}").parse().unwrap())
-            // .add_directive(format!("testing_tools={level}").parse().unwrap());
+        // .add_directive(format!("angstrom={level}").parse().unwrap())
+        // .add_directive(format!("testing_tools={level}").parse().unwrap());
 
         let layer = tracing_subscriber::fmt::layer()
             .with_ansi(true)

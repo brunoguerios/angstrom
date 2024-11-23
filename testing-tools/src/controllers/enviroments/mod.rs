@@ -1,42 +1,42 @@
+mod devnet;
+pub use devnet::*;
+mod state_machine;
 use std::{
     collections::{HashMap, HashSet},
     future::Future
 };
-mod state_machine;
+
 use alloy::providers::Provider;
 use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
-use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
-use consensus::AngstromValidator;
+use angstrom_types::sol_bindings::grouped_orders::AllOrders;
 use futures::{StreamExt, TryFutureExt};
 use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
     metered_unbounded_channel, UnboundedMeteredReceiver, UnboundedMeteredSender
 };
-use reth_network_peers::pk2id;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 pub use state_machine::*;
 use tracing::{span, Instrument, Level};
 
-use super::utils::generate_node_keys;
 use crate::{
-    controllers::strom::{initialize_new_node, TestnetNode},
-    providers::{utils::async_to_sync, AnvilInitializer, AnvilProvider, TestnetBlockProvider}
+    controllers::strom::TestnetNode,
+    providers::{utils::async_to_sync, TestnetBlockProvider},
+    types::{GlobalTestingConfig, WithWalletProvider}
 };
 
-pub struct AngstromDevnet<C> {
+pub struct AngstromTestnet<C, G, P> {
     block_provider:      TestnetBlockProvider,
-    peers:               HashMap<u64, TestnetNode<C>>,
+    peers:               HashMap<u64, TestnetNode<C, P>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
-    _initializer:        AnvilInitializer,
     current_max_peer_id: u64,
-    config:              DevnetConfig
+    config:              G
 }
 
-impl<C> AngstromDevnet<C>
+impl<C, G, P> AngstromTestnet<C, G, P>
 where
     C: BlockReader
         + HeaderProvider
@@ -44,86 +44,10 @@ where
         + Unpin
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
-        + 'static
+        + 'static,
+    G: GlobalTestingConfig,
+    P: WithWalletProvider
 {
-    pub async fn spawn_devnet(c: C, config: DevnetConfig) -> eyre::Result<Self> {
-        let mut initializer = AnvilInitializer::new(config.clone()).await?;
-        initializer.deploy_pool_full().await?;
-        let initial_state = initializer.initialize_state().await?;
-
-        let block_provider = TestnetBlockProvider::new();
-        let mut this = Self {
-            peers: Default::default(),
-            _disconnected_peers: HashSet::new(),
-            _dropped_peers: HashSet::new(),
-            current_max_peer_id: 0,
-            config: config.clone(),
-            block_provider,
-            _initializer: initializer
-        };
-
-        tracing::info!("initializing testnet with {} nodes", config.intial_node_count);
-        this.spawn_new_nodes(c, initial_state, config.intial_node_count)
-            .await?;
-        tracing::info!("INITIALIZED testnet with {} nodes", config.intial_node_count);
-
-        Ok(this)
-    }
-
-    pub fn as_state_machine<'a>(self) -> DevnetStateMachine<'a, C> {
-        DevnetStateMachine::new(self)
-    }
-
-    async fn spawn_new_nodes(
-        &mut self,
-        c: C,
-        inital_angstrom_state: InitialTestnetState,
-        number_nodes: u64
-    ) -> eyre::Result<()> {
-        let keys = generate_node_keys(number_nodes);
-        let initial_validators = keys
-            .iter()
-            .map(|(pk, _)| AngstromValidator::new(pk2id(pk), 100))
-            .collect::<Vec<_>>();
-
-        for (pk, sk) in keys {
-            let node_id = self.incr_peer_id();
-
-            tracing::debug!("connecting to state provider");
-            let state_provider = AnvilProvider::spawn_new(self.config.clone(), node_id).await?;
-
-            if let Some(state) = inital_angstrom_state.state.take() {
-                state_provider.set_state(state).await?;
-            }
-
-            tracing::info!("connected to state provider");
-
-            let mut node = initialize_new_node(
-                c.clone(),
-                node_id,
-                state_provider,
-                pk,
-                sk,
-                initial_validators.clone(),
-                inital_angstrom_state.clone(),
-                self.config.clone(),
-                self.block_provider.subscribe_to_new_blocks()
-            )
-            .await?;
-
-            node.connect_to_all_peers(&mut self.peers).await;
-            tracing::debug!("connected to all peers");
-
-            self.peers.insert(node_id, node);
-
-            if node_id != 0 {
-                self.single_peer_update_state(0, node_id).await?;
-            }
-        }
-
-        Ok(())
-    }
-
     /// increments the `current_max_peer_id` and returns the previous value
     fn incr_peer_id(&mut self) -> u64 {
         let prev_id = self.current_max_peer_id;
@@ -137,19 +61,19 @@ where
         ids[id_idx]
     }
 
-    pub fn get_peer(&self, id: u64) -> &TestnetNode<C> {
+    pub fn get_peer(&self, id: u64) -> &TestnetNode<C, P> {
         self.peers
             .get(&id)
             .unwrap_or_else(|| panic!("peer {id} not found"))
     }
 
-    fn get_peer_mut(&mut self, id: u64) -> &mut TestnetNode<C> {
+    fn get_peer_mut(&mut self, id: u64) -> &mut TestnetNode<C, P> {
         self.peers
             .get_mut(&id)
             .unwrap_or_else(|| panic!("peer {id} not found"))
     }
 
-    pub fn get_random_peer(&self, not_allowed_ids: Vec<u64>) -> &TestnetNode<C> {
+    pub fn get_random_peer(&self, not_allowed_ids: Vec<u64>) -> &TestnetNode<C, P> {
         assert!(!self.peers.is_empty());
 
         let peer_ids = self
@@ -287,7 +211,7 @@ where
     /// if id is None, then a random id is used
     async fn run_event<'a, F, O>(&'a self, id: Option<u64>, f: F) -> O::Output
     where
-        F: FnOnce(&'a TestnetNode<C>) -> O,
+        F: FnOnce(&'a TestnetNode<C, P>) -> O,
         O: Future + Send + Sync
     {
         let id = if let Some(i) = id {
@@ -310,19 +234,19 @@ where
 
     /// runs an event that uses the consensus or orderpool channels in the
     /// angstrom network and compares a expected result against all peers
-    async fn run_network_event_on_all_peers_with_exception<F, P, O, R, E>(
+    async fn run_network_event_on_all_peers_with_exception<F, K, O, R, E>(
         &mut self,
         exception_id: u64,
         network_f: F,
-        expected_f: P,
+        expected_f: K,
         channel_swap_f: impl Fn(
             &mut StromNetworkManager<C>,
             UnboundedMeteredSender<E>
         ) -> Option<UnboundedMeteredSender<E>>
     ) -> R::Output
     where
-        F: FnOnce(&TestnetNode<C>) -> O,
-        P: FnOnce(Vec<UnboundedMeteredReceiver<E>>, O::Output) -> R,
+        F: FnOnce(&TestnetNode<C, P>) -> O,
+        K: FnOnce(Vec<UnboundedMeteredReceiver<E>>, O::Output) -> R,
         O: Future + Send + Sync,
         R: Future + Send + Sync
     {

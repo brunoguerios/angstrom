@@ -4,8 +4,9 @@ use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use crate::{
-    controllers::devnet::{AngstromDevnet, DevnetStateMachine},
-    types::StateMachineActionHookFn
+    controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
+    providers::WalletProvider,
+    types::{config::DevnetConfig, StateMachineActionHookFn}
 };
 
 pub trait WithAction<'a, C>
@@ -34,7 +35,9 @@ where
         + 'static
 {
     fn advance_block(&mut self) {
-        let f = |testnet: &'a mut AngstromDevnet<C>| pin_action(testnet.all_peers_update_state(0));
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+            pin_action(testnet.all_peers_update_state(0))
+        };
         self.add_action("advance block", f);
     }
 }
