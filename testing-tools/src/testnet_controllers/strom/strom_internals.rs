@@ -5,7 +5,6 @@ use alloy::{
     network::Network,
     primitives::{aliases::U24, Signed},
     providers::Provider,
-    pubsub::PubSubFrontend,
     transports::Transport
 };
 use alloy_primitives::{Address, BlockNumber};
@@ -16,6 +15,7 @@ use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
+    mev_boost::MevBoostProvider,
     pair_with_price::PairsWithPrice,
     primitive::{AngstromSigner, PoolId as AngstromPoolId, UniswapPoolRegistry},
     sol_bindings::testnet::TestnetHub
@@ -39,7 +39,7 @@ use validation::{
 use crate::{
     anvil_state_provider::{
         state_provider_factory::{RpcStateProviderFactory, RpcStateProviderFactoryWrapper},
-        utils::StromContractInstance,
+        utils::{AnvilWalletRpc, StromContractInstance},
         AnvilEthDataCleanser
     },
     contracts::deploy_contract_and_create_pool,
@@ -58,7 +58,7 @@ pub struct AngstromTestnetNodeInternals {
     pub testnet_hub:      StromContractInstance,
     pub validator:        TestOrderValidator<RpcStateProviderFactory>,
     pub matching_handle:  MatcherHandle,
-    _consensus:           TestnetConsensusFuture<PubSubFrontend, MatcherHandle>,
+    _consensus:           TestnetConsensusFuture<AnvilWalletRpc, MatcherHandle>,
     _consensus_running:   Arc<AtomicBool>
 }
 
@@ -74,6 +74,7 @@ impl AngstromTestnetNodeInternals {
         tracing::debug!("connecting to state provider");
         let state_provider =
             RpcStateProviderFactoryWrapper::spawn_new(config, testnet_node_id).await?;
+
         tracing::info!("connected to state provider");
 
         tracing::debug!("deploying contracts to anvil");
@@ -254,7 +255,7 @@ impl AngstromTestnetNodeInternals {
             angstrom_addr,
             pool_registry,
             uniswap_pools.clone(),
-            state_provider.provider().provider(),
+            MevBoostProvider::new_from_urls(state_provider.provider().provider().into(), &[]),
             matching_handle.clone(),
             block_sync
         );

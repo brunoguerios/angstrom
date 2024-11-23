@@ -9,8 +9,7 @@ use std::{
 
 use alloy::{
     primitives::{Address, BlockNumber, FixedBytes},
-    providers::Provider,
-    transports::Transport
+    providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::manager::StromConsensusEvent;
@@ -18,6 +17,7 @@ use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     matching::uniswap::PoolSnapshot,
+    mev_boost::MevBoostProvider,
     orders::PoolSolution,
     primitive::{AngstromSigner, PeerId},
     sol_bindings::grouped_orders::OrderWithStorageData
@@ -37,14 +37,14 @@ mod pre_proposal;
 mod pre_proposal_aggregation;
 mod proposal;
 
-pub trait ConsensusState<T, Matching>: Send
+pub trait ConsensusState<P, Matching>: Send
 where
-    T: Transport + Clone,
+    P: Provider,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<T, Matching>,
+        handles: &mut SharedRoundState<P, Matching>,
         message: StromConsensusEvent
     );
 
@@ -52,28 +52,28 @@ where
     /// round is over
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<T, Matching>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<T, Matching>>>>;
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>>;
 }
 
 /// Holds and progresses the consensus state machine
-pub struct RoundStateMachine<T, Matching> {
-    current_state:           Box<dyn ConsensusState<T, Matching>>,
+pub struct RoundStateMachine<P, Matching> {
+    current_state:           Box<dyn ConsensusState<P, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: Duration,
-    shared_state:            SharedRoundState<T, Matching>
+    shared_state:            SharedRoundState<P, Matching>
 }
 
-impl<T, Matching> RoundStateMachine<T, Matching>
+impl<P, Matching> RoundStateMachine<P, Matching>
 where
-    T: Transport + Clone,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle
 {
     pub fn new(
         consensus_wait_duration: Duration,
-        shared_state: SharedRoundState<T, Matching>
+        shared_state: SharedRoundState<P, Matching>
     ) -> Self {
         Self {
             current_state: Box::new(BidAggregationState::new(consensus_wait_duration)),
@@ -95,9 +95,9 @@ where
     }
 }
 
-impl<T, Matching> Stream for RoundStateMachine<T, Matching>
+impl<P, Matching> Stream for RoundStateMachine<P, Matching>
 where
-    T: Transport + Clone,
+    P: Provider,
     Matching: MatchingEngineHandle
 {
     type Item = ConsensusMessage;
@@ -120,7 +120,7 @@ where
     }
 }
 
-pub struct SharedRoundState<T, Matching> {
+pub struct SharedRoundState<P, Matching> {
     block_height:     BlockNumber,
     angstrom_address: Address,
     matching_engine:  Matching,
@@ -131,14 +131,14 @@ pub struct SharedRoundState<T, Matching> {
     _metrics:         ConsensusMetricsWrapper,
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
-    provider:         Arc<Pin<Box<dyn Provider<T>>>>,
+    provider:         Arc<MevBoostProvider<P>>,
     messages:         VecDeque<ConsensusMessage>
 }
 
 // contains shared impls
-impl<T, Matching> SharedRoundState<T, Matching>
+impl<P, Matching> SharedRoundState<P, Matching>
 where
-    T: Transport + Clone,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
@@ -152,7 +152,7 @@ where
         metrics: ConsensusMetricsWrapper,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: impl Provider<T> + 'static,
+        provider: MevBoostProvider<P>,
         matching_engine: Matching
     ) -> Self {
         Self {
@@ -167,7 +167,7 @@ where
             _metrics: metrics,
             matching_engine,
             messages: VecDeque::new(),
-            provider: Arc::new(Box::pin(provider))
+            provider: Arc::new(provider)
         }
     }
 
@@ -280,14 +280,14 @@ where
         )
     }
 
-    fn handle_proposal_verification<P>(
+    fn handle_proposal_verification<Pro>(
         &mut self,
         peer_id: PeerId,
-        proposal: P,
-        proposal_set: &mut HashSet<P>,
-        valid: impl FnOnce(&P, &BlockNumber) -> bool
+        proposal: Pro,
+        proposal_set: &mut HashSet<Pro>,
+        valid: impl FnOnce(&Pro, &BlockNumber) -> bool
     ) where
-        P: Into<ConsensusMessage> + Eq + Hash + Clone
+        Pro: Into<ConsensusMessage> + Eq + Hash + Clone
     {
         if !self.validators.iter().map(|v| v.peer_id).contains(&peer_id) {
             tracing::warn!(peer=?peer_id,"got a consensus message from a invalid peer");

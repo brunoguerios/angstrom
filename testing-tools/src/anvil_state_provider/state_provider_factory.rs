@@ -26,8 +26,8 @@ use crate::{
 
 #[derive(Debug)]
 pub struct RpcStateProviderFactoryWrapper {
-    provider:  RpcStateProviderFactory,
-    _instance: AnvilInstance
+    provider:     RpcStateProviderFactory,
+    pub instance: AnvilInstance
 }
 impl RpcStateProviderFactoryWrapper {
     pub async fn spawn_new(config: AngstromTestnetConfig, id: u64) -> eyre::Result<Self> {
@@ -50,14 +50,13 @@ impl RpcStateProviderFactoryWrapper {
 
         let endpoint = format!("/tmp/anvil_{id}.ipc");
         tracing::info!(?endpoint);
-        let ipc = alloy::providers::IpcConnect::new(endpoint.to_string());
         let sk: PrivateKeySigner = anvil.keys()[0].clone().into();
 
         let wallet = EthereumWallet::new(sk);
         let rpc = builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_ipc(ipc)
+            .on_builtin(&endpoint)
             .await?;
 
         tracing::info!("connected to anvil");
@@ -65,12 +64,12 @@ impl RpcStateProviderFactoryWrapper {
         let (tx, _) = broadcast::channel(1000);
 
         Ok(Self {
-            provider:  RpcStateProviderFactory {
+            provider: RpcStateProviderFactory {
                 provider:       rpc,
                 canon_state_tx: tx,
                 canon_state:    AnvilConsensusCanonStateNotification::new()
             },
-            _instance: anvil
+            instance: anvil
         })
     }
 
@@ -158,7 +157,7 @@ impl reth_revm::DatabaseRef for RpcStateProviderFactory {
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
         let acc = async_to_sync(
             self.provider
-                .get_block_by_number(reth_primitives::BlockNumberOrTag::Number(number), false)
+                .get_block_by_number(alloy::eips::BlockNumberOrTag::Number(number), false)
                 .into_future()
         )?;
 
@@ -181,7 +180,7 @@ impl BlockNumReader for RpcStateProviderFactory {
 
     fn convert_number(
         &self,
-        _: alloy_rpc_types::BlockHashOrNumber
+        _: alloy::eips::eip1898::BlockHashOrNumber
     ) -> ProviderResult<Option<alloy_primitives::B256>> {
         panic!("never used");
     }
@@ -196,7 +195,7 @@ impl BlockNumReader for RpcStateProviderFactory {
 
     fn convert_hash_or_number(
         &self,
-        _: alloy_rpc_types::BlockHashOrNumber
+        _: alloy::eips::eip1898::BlockHashOrNumber
     ) -> ProviderResult<Option<BlockNumber>> {
         panic!("never used");
     }
@@ -208,7 +207,7 @@ impl BlockHashReader for RpcStateProviderFactory {
 
     fn convert_block_hash(
         &self,
-        _: alloy_rpc_types::BlockHashOrNumber
+        _: alloy::eips::BlockHashOrNumber
     ) -> ProviderResult<Option<alloy_primitives::B256>> {
         panic!("never used");
     }

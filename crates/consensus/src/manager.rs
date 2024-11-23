@@ -9,14 +9,13 @@ use std::{
 
 use alloy::{
     primitives::{Address, BlockNumber},
-    providers::Provider,
-    transports::Transport
+    providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{manager::StromConsensusEvent, StromMessage, StromNetworkHandle};
 use angstrom_types::{
     block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry,
-    primitive::AngstromSigner
+    mev_boost::MevBoostProvider, primitive::AngstromSigner
 };
 use futures::StreamExt;
 use matching_engine::MatchingEngineHandle;
@@ -34,10 +33,10 @@ use crate::{
 
 const MODULE_NAME: &str = "Consensus";
 
-pub struct ConsensusManager<T, Matching, BlockSync> {
+pub struct ConsensusManager<P, Matching, BlockSync> {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    consensus_round_state:  RoundStateMachine<T, Matching>,
+    consensus_round_state:  RoundStateMachine<P, Matching>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
@@ -47,9 +46,9 @@ pub struct ConsensusManager<T, Matching, BlockSync> {
     broadcasted_messages: HashSet<StromConsensusEvent>
 }
 
-impl<T, Matching, BlockSync> ConsensusManager<T, Matching, BlockSync>
+impl<P, Matching, BlockSync> ConsensusManager<P, Matching, BlockSync>
 where
-    T: Transport + Clone,
+    P: Provider + 'static,
     BlockSync: BlockSyncConsumer,
     Matching: MatchingEngineHandle
 {
@@ -63,7 +62,7 @@ where
         angstrom_address: Address,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: impl Provider<T> + 'static,
+        provider: MevBoostProvider<P>,
         matching_engine: Matching,
         block_sync: BlockSync
     ) -> Self {
@@ -143,9 +142,9 @@ where
     }
 }
 
-impl<T, Matching, BlockSync> Future for ConsensusManager<T, Matching, BlockSync>
+impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>
 where
-    T: Transport + Clone,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle,
     BlockSync: BlockSyncConsumer
 {
