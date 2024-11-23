@@ -56,8 +56,8 @@ impl GlobalTestingConfig for DevnetConfig {
         format!("/tmp/anvil_{node_id}.ipc")
     }
 
-    fn is_leader(&self, _: u64) -> bool {
-        false
+    fn is_leader(&self, 0: u64) -> bool {
+        node_id == 0
     }
 
     fn node_count(&self) -> u64 {
