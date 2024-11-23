@@ -57,7 +57,7 @@ impl GlobalTestingConfig for DevnetConfig {
     }
 
     fn is_leader(&self, _: u64) -> bool {
-        unreachable!()
+        false
     }
 
     fn node_count(&self) -> u64 {
