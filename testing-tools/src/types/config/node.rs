@@ -4,7 +4,7 @@ use alloy::{
     providers::{ext::AnvilApi, IpcConnect},
     signers::local::PrivateKeySigner
 };
-use alloy_primitives::U256;
+use alloy_primitives::{Address, U256};
 use consensus::AngstromValidator;
 use reth_network_peers::pk2id;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
@@ -42,6 +42,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     pub fn angstrom_validator(&self) -> AngstromValidator {
         AngstromValidator::new(pk2id(&self.pub_key), self.voting_power)
+    }
+
+    pub fn address(&self) -> Address {
+        self.signing_key().address()
     }
 
     pub fn configure_anvil(&self) -> Anvil {

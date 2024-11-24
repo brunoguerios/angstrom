@@ -101,7 +101,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_registry.clone(),
             block_number,
             block_sync.clone(),
-            Address::random()
+            inital_angstrom_state.pool_manager_addr
         )
         .await;
 
@@ -119,7 +119,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let token_price_update_stream = state_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
-            Address::default(),
+            inital_angstrom_state.angstrom_addr,
             token_price_update_stream
         ));
 
@@ -136,8 +136,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let validator = TestOrderValidator::new(
             state_provider.state_provider(),
             inital_angstrom_state.angstrom_addr,
-            Address::default(),
-            Address::default(),
+            inital_angstrom_state.pool_manager_addr,
+            node_config.address(),
             uniswap_pools.clone(),
             token_conversion,
             token_price_update_stream,

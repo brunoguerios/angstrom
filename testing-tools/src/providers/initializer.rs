@@ -37,7 +37,7 @@ pub const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
 
 pub struct AnvilInitializer {
     provider:      WalletProvider,
-    // uniswap_env:  UniswapEnv<WalletProvider>,
+    //uniswap_env:   UniswapEnv<WalletProvider>,
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
     angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
@@ -65,14 +65,7 @@ impl AnvilInitializer {
 
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self {
-            provider,
-            //uniswap_env,
-            angstrom_env,
-            angstrom,
-            pool_gate,
-            pending_state
-        };
+        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state };
 
         Ok((this, anvil))
     }
@@ -152,7 +145,12 @@ impl AnvilInitializer {
             println!("tx {:?}", tx);
         }
         let state_bytes = self.provider.provider_ref().anvil_dump_state().await?;
-        Ok(InitialTestnetState::new(self.angstrom_env.angstrom(), Some(state_bytes), pool_keys))
+        Ok(InitialTestnetState::new(
+            self.angstrom_env.angstrom(),
+            self.angstrom_env.pool_manager(),
+            Some(state_bytes),
+            pool_keys
+        ))
     }
 }
 
