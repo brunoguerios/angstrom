@@ -1,9 +1,10 @@
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
-    providers::IpcConnect,
+    providers::{ext::AnvilApi, IpcConnect},
     signers::local::PrivateKeySigner
 };
+use alloy_primitives::U256;
 use consensus::AngstromValidator;
 use reth_network_peers::pk2id;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
@@ -116,6 +117,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
+        rpc.anvil_set_balance(sk.address(), U256::from(1000000000000000000))?;
+
         Ok((WalletProvider::new_with_provider(rpc, sk), anvil))
     }
 
@@ -138,6 +141,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .await?;
 
         tracing::info!("connected to anvil");
+
+        rpc.anvil_set_balance(sk.address(), U256::from(1000000000000000000))?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), Some(anvil)))
     }
