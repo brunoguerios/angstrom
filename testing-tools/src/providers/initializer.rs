@@ -187,7 +187,7 @@ mod tests {
             secret_key:    sk,
             voting_power:  100
         };
-        let (mut initializer, _) = AnvilInitializer::new(config).await.unwrap();
+        let (mut initializer, _anvil) = AnvilInitializer::new(config).await.unwrap();
 
         initializer.deploy_pool_full().await.unwrap();
 
