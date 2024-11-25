@@ -93,6 +93,18 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
+        let pool_config_store = Arc::new(
+            AngstromPoolConfigStore::load_from_chain(
+                inital_angstrom_state.angstrom_addr,
+                BlockId::latest(),
+                &state_provider.rpc_provider()
+            )
+            .await
+            .map_err(|e| eyre::eyre!("{e}"))?
+        );
+
+        println!("{pool_config_store:?}");
+
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
             state_provider
@@ -123,18 +135,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             inital_angstrom_state.angstrom_addr,
             token_price_update_stream
         ));
-
-        let pool_config_store = Arc::new(
-            AngstromPoolConfigStore::load_from_chain(
-                inital_angstrom_state.angstrom_addr,
-                BlockId::latest(),
-                &state_provider.rpc_provider()
-            )
-            .await
-            .map_err(|e| eyre::eyre!("{e}"))?
-        );
-
-        println!("{pool_config_store:?}");
 
         let validator = TestOrderValidator::new(
             state_provider.state_provider(),
