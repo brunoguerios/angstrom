@@ -56,9 +56,9 @@ impl Cli {
         };
 
         let filter = EnvFilter::builder()
-            .with_default_directive(format!("testnet={level}").parse().unwrap())
-            .add_directive(format!("angstrom={level}").parse().unwrap())
-            .add_directive(format!("testing_tools={level}").parse().unwrap())
+            .with_default_directive(format!("devnet={level}").parse().unwrap())
+            // .add_directive(format!("angstrom={level}").parse().unwrap())
+            // .add_directive(format!("testing_tools={level}").parse().unwrap())
             .from_env_lossy();
 
         let layer = tracing_subscriber::fmt::layer()
