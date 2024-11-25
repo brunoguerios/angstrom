@@ -117,14 +117,14 @@ where
         block_number: Option<BlockNumber>,
         provider: Arc<impl Provider<T, N>>
     ) -> Result<(), PoolError> {
-        tracing::trace!(block_number, "populating pool data");
-        println!("block {block_number} - populating pool data");
+        tracing::trace!(?block_number, "populating pool data");
+        println!("block {block_number:?} - populating pool data");
         self.populate_data(block_number, provider.clone()).await?;
-        println!("block {block_number} - populated pool data");
-        tracing::trace!(block_number, "populated pool data");
+        println!("block {block_number:?} - populated pool data");
+        tracing::trace!(?block_number, "populated pool data");
         self.sync_ticks(block_number, provider.clone()).await?;
-        println!("block {block_number} - synced pool ticks");
-        tracing::trace!(block_number, "synced pool ticks");
+        println!("block {block_number:?} - synced pool ticks");
+        tracing::trace!(?block_number, "synced pool ticks");
         Ok(())
     }
 
