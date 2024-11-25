@@ -99,7 +99,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 .state_provider()
                 .subscribe_to_canonical_state(),
             uniswap_registry.clone(),
-            block_number + 1,
+            block_number,
             block_sync.clone(),
             inital_angstrom_state.pool_manager_addr,
             true
