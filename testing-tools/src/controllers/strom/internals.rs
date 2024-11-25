@@ -66,7 +66,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(
         Self,
-        Option<ConsensusManager<RootProvider<PubSubFrontend>, MatcherHandle, GlobalBlockSync>>
+        Option<ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>>
     )> {
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();

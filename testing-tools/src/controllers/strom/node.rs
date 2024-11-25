@@ -5,7 +5,7 @@ use std::{
     task::Poll
 };
 
-use alloy::{providers::RootProvider, pubsub::PubSubFrontend};
+use alloy::pubsub::PubSubFrontend;
 use alloy_primitives::Address;
 use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
@@ -43,7 +43,7 @@ pub struct TestnetNode<C, P> {
     testnet_node_id: u64,
     network:         TestnetNodeNetwork,
     strom:           AngstromDevnetNodeInternals<P>,
-    state_lock:      TestnetStateFutureLock<C, RootProvider<PubSubFrontend>>
+    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc>
 }
 
 impl<C, P> TestnetNode<C, P>
