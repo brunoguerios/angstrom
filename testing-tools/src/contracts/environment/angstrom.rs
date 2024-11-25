@@ -176,7 +176,6 @@ mod tests {
         default.meta.isEcdsa = true;
         default.meta.from = address;
         default.meta.signature = sig.pade_encode().into();
-        // (address, default)
 
         let user_order = OrderWithStorageData {
             order: GroupedVanillaOrder::Standing(StandingVariants::Exact(default)),
