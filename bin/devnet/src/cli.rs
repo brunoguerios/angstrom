@@ -59,8 +59,8 @@ impl Cli {
 
         let layers = vec![
             layer_builder(format!("devnet={level}")),
-            format!("angstrom={level}"),
-            format!("testing_tools={level}"),
+            layer_builder(format!("angstrom={level}")),
+            layer_builder(format!("testing_tools={level}")),
         ];
 
         tracing_subscriber::registry().with(layers).init();
