@@ -17,10 +17,10 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 
-use super::{utils::WalletProviderRpc, WalletProvider};
+use super::WalletProvider;
 use crate::{
     contracts::{
-        anvil::SafeDeployPending,
+        anvil::{SafeDeployPending, WalletProviderRpc},
         environment::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
@@ -177,14 +177,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_can_deploy() {
-        let sk = SecretKey::new(&mut thread_rng());
-        let config = TestingNodeConfig {
-            node_id:       0,
-            global_config: DevnetConfig::default(),
-            pub_key:       sk.public_key(&Secp256k1::default()),
-            secret_key:    sk,
-            voting_power:  100
-        };
+        let config = TestingNodeConfig::new(
+            0,
+            DevnetConfig::default(),
+            SecretKey::new(&mut thread_rng()),
+            100
+        );
+
         let (mut initializer, _anvil) = AnvilInitializer::new(config).await.unwrap();
 
         initializer.deploy_pool_full().await.unwrap();

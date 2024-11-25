@@ -9,12 +9,13 @@ use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
     block_sync::GlobalBlockSync,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
+    mev_boost::MevBoostProvider,
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
     sol_bindings::testnet::TestnetHub,
     testnet::InitialTestnetState
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, Signer};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::{StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
@@ -29,6 +30,7 @@ use validation::{
 };
 
 use crate::{
+    contracts::anvil::WalletProviderRpc,
     providers::{
         utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider,
         WalletProvider
@@ -61,7 +63,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(
         Self,
-        Option<ConsensusManager<PubSubFrontend, MatcherHandle, GlobalBlockSync>>
+        Option<ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>>
     )> {
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
@@ -191,6 +193,9 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let pool_registry =
             UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
+        let mev_boost_provider =
+            MevBoostProvider::new_from_urls(Arc::new(state_provider.rpc_provider()), &[]);
+
         let consensus = ConsensusManager::new(
             ManagerNetworkDeps::new(
                 strom_network_handle.clone(),
@@ -199,13 +204,14 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                     .subscribe_to_canonical_state(),
                 strom_handles.consensus_rx_op
             ),
-            Signer::new(secret_key),
+            node_config.angstrom_signer(),
             initial_validators,
             order_storage.clone(),
             block_number,
+            inital_angstrom_state.angstrom_addr,
             pool_registry,
             uniswap_pools,
-            state_provider.rpc_provider(),
+            mev_boost_provider,
             matching_handle,
             block_sync.clone()
         );

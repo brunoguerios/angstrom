@@ -6,7 +6,10 @@ use alloy::{
     node_bindings::{Anvil, AnvilInstance},
     providers::{
         builder,
-        fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
+        fillers::{
+            BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller,
+            WalletFiller
+        },
         Identity, IpcConnect, PendingTransaction, Provider, RootProvider
     },
     pubsub::PubSubFrontend,
@@ -23,13 +26,7 @@ pub type WalletProviderRpc = FillProvider<
     JoinFill<
         JoinFill<
             Identity,
-            JoinFill<
-                GasFiller,
-                JoinFill<
-                    alloy::providers::fillers::BlobGasFiller,
-                    JoinFill<NonceFiller, ChainIdFiller>
-                >
-            >
+            JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>
         >,
         WalletFiller<EthereumWallet>
     >,

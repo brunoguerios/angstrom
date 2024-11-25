@@ -9,10 +9,11 @@ use alloy::{
 };
 use alloy_primitives::{Address, BlockNumber};
 use angstrom_types::{
+    block_sync::BlockSyncConsumer,
     contract_payloads::angstrom::BundleGasDetails,
     matching::uniswap::PoolSnapshot,
     orders::PoolSolution,
-    primitive::PoolId,
+    primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder

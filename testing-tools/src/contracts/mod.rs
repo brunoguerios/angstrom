@@ -14,10 +14,10 @@ use alloy::{
 };
 use alloy_primitives::TxHash;
 use angstrom_types::sol_bindings::testnet::{MockERC20, PoolManagerDeployer, TestnetHub};
+use anvil::WalletProviderRpc;
 use eyre::eyre;
 use futures::Future;
 
-use crate::providers::utils::WalletProviderRpc;
 pub mod anvil;
 pub mod deploy;
 pub mod environment;

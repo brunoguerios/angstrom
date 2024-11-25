@@ -11,7 +11,8 @@ use reth_provider::{ProviderError, ProviderResult};
 use reth_revm::primitives::Bytecode;
 use validation::common::db::{BlockStateProvider, BlockStateProviderFactory};
 
-use super::utils::{async_to_sync, WalletProviderRpc};
+use super::utils::async_to_sync;
+use crate::contracts::anvil::WalletProviderRpc;
 
 #[derive(Clone, Debug)]
 pub struct RpcStateProvider {

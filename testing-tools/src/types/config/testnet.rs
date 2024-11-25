@@ -30,7 +30,7 @@ impl GlobalTestingConfig for TestnetConfig {
         TestingConfigKind::Testnet
     }
 
-    fn anvil_rpc_endpoint(&self, node_id: u64) -> String {
+    fn anvil_rpc_endpoint(&self, _: u64) -> String {
         format!("/tmp/testnet_anvil.ipc")
     }
 

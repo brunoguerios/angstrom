@@ -16,10 +16,9 @@ use alloy::{
     node_bindings::AnvilInstance, pubsub::PubSubFrontend, signers::local::PrivateKeySigner
 };
 pub use initializer::*;
-use utils::WalletProviderRpc;
 
 use crate::{
-    contracts::environment::TestAnvilEnvironment,
+    contracts::{anvil::WalletProviderRpc, environment::TestAnvilEnvironment},
     types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
 };
 

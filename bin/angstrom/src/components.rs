@@ -29,7 +29,7 @@ use angstrom_types::{
     reth_db_wrapper::RethDbWrapper
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use matching_engine::{manager::MatcherCommand, MatchingManager};
+use matching_engine::{configure_uniswap_manager, manager::MatcherCommand, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig, PoolManagerUpdate};
 use reth::{
     api::NodeAddOns,

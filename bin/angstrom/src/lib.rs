@@ -78,6 +78,6 @@ fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
             let contents = std::fs::read_to_string(sk_path)?;
             Ok(AngstromSigner::new(contents.as_str().parse::<PrivateKeySigner>()?))
         }
-        _ => Err(eyre!("no secret_key was found at {:?}", sk_path))
+        _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
     }
 }

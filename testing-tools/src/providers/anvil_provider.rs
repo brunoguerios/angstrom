@@ -9,8 +9,8 @@ use alloy::{
 };
 use alloy_primitives::Bytes;
 
-use super::{utils::WalletProviderRpc, AnvilStateProvider, WalletProvider};
-use crate::types::WithWalletProvider;
+use super::{AnvilStateProvider, WalletProvider};
+use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
 
 #[derive(Debug)]
 pub struct AnvilProvider<P> {

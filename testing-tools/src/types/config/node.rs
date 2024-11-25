@@ -5,6 +5,7 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, U256};
+use angstrom_types::primitive::AngstromSigner;
 use consensus::AngstromValidator;
 use reth_network_peers::pk2id;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
@@ -27,8 +28,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             node_id,
             global_config,
             pub_key: secret_key.public_key(&Secp256k1::default()),
-            secret_key,
-            voting_power
+            voting_power,
+            secret_key
         }
     }
 
@@ -38,6 +39,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     pub fn signing_key(&self) -> PrivateKeySigner {
         PrivateKeySigner::from_bytes(&self.secret_key.secret_bytes().into()).unwrap()
+    }
+
+    pub fn angstrom_signer(&self) -> AngstromSigner {
+        AngstromSigner::new(self.signing_key())
     }
 
     pub fn angstrom_validator(&self) -> AngstromValidator {
