@@ -1,7 +1,9 @@
 use clap::{ArgAction, Parser};
 use testing_tools::types::config::DevnetConfig;
 use tracing::Level;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
+use tracing_subscriber::{
+    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
+};
 
 #[derive(Parser)]
 pub struct Cli {
@@ -55,18 +57,24 @@ impl Cli {
             _ => Level::TRACE
         };
 
-        let filter = EnvFilter::builder()
-            .with_default_directive(format!("devnet={level}").parse().unwrap())
-            // .add_directive(format!("angstrom={level}").parse().unwrap())
-            // .add_directive(format!("testing_tools={level}").parse().unwrap())
-            .from_env_lossy();
+        let layers = vec![
+            layer_builder(format!("devnet={level}")),
+            format!("angstrom={level}"),
+            format!("testing_tools={level}"),
+        ];
 
-        let layer = tracing_subscriber::fmt::layer()
-            .with_ansi(true)
-            .with_target(true)
-            .with_filter(filter)
-            .boxed();
-
-        tracing_subscriber::registry().with(vec![layer]).init();
+        tracing_subscriber::registry().with(layers).init();
     }
+}
+
+fn layer_builder(filter_str: String) -> Box<dyn Layer<Registry> + Send + Sync> {
+    let filter = EnvFilter::builder()
+        .with_default_directive(filter_str.parse().unwrap())
+        .from_env_lossy();
+
+    tracing_subscriber::fmt::layer()
+        .with_ansi(true)
+        .with_target(true)
+        .with_filter(filter)
+        .boxed()
 }
