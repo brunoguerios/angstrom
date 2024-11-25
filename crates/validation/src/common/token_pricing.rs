@@ -71,6 +71,7 @@ impl TokenPriceGenerator {
                         current_block.saturating_sub(blocks_to_avg_price)..=current_block
                     {
                         tracing::debug!(block_number, ?pool_key, "loading pool");
+                        println!("block {block_number} - pool {pool_key:?}");
                         let pool_data = data_loader
                             .load_pool_data(Some(block_number), provider.clone())
                             .await
