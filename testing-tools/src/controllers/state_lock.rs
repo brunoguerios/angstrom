@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::{providers::Provider, transports::Transport};
+use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use angstrom_network::StromNetworkManager;
 use angstrom_types::block_sync::GlobalBlockSync;
 use consensus::ConsensusManager;
@@ -24,24 +24,25 @@ use tracing::{span, Level};
 pub(crate) struct TestnetStateFutureLock<C, T> {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C>>,
-    strom_consensus: Option<StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>>
+    strom_consensus:
+        StateLockInner<ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>>
 }
 
 impl<C, T> TestnetStateFutureLock<C, T>
 where
     C: Unpin + BlockReader + 'static,
-    T: Provider + 'static
+    T: Provider<PubSubFrontend> + 'static
 {
     pub(crate) fn new(
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C>,
-        consensus: Option<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>
+        consensus: ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>
     ) -> Self {
         Self {
             eth_peer:              StateLockInner::new(node_id, eth_peer),
             strom_network_manager: StateLockInner::new(node_id, strom_network_manager),
-            strom_consensus:       consensus.map(|c| StateLockInner::new(node_id, c))
+            strom_consensus:       StateLockInner::new(node_id, consensus)
         }
     }
 
@@ -75,22 +76,16 @@ where
 
     pub(crate) fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
     {
-        self.strom_consensus
-            .as_ref()
-            .expect("consensus is not enabled")
-            .on_inner(f)
+        self.strom_consensus.on_inner(f)
     }
 
     pub(crate) fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&mut ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
     {
-        self.strom_consensus
-            .as_ref()
-            .expect("consensus is not enabled")
-            .on_inner_mut(f)
+        self.strom_consensus.on_inner_mut(f)
     }
 
     pub(crate) fn set_network(&self, running: bool) {
@@ -100,18 +95,8 @@ where
             .store(running, Ordering::Relaxed);
     }
 
-    pub(crate) fn set_consensus(&self, running: bool, checked: bool) {
-        if checked {
-            if let Some(c) = self.strom_consensus.as_ref() {
-                c.lock.store(running, Ordering::Relaxed)
-            }
-        } else {
-            self.strom_consensus
-                .as_ref()
-                .expect("consensus is not enabled")
-                .lock
-                .store(running, Ordering::Relaxed);
-        }
+    pub(crate) fn set_consensus(&self, running: bool) {
+        self.strom_consensus.lock.store(running, Ordering::Relaxed);
     }
 
     /// false -> off
@@ -124,10 +109,7 @@ where
     /// false -> off
     /// true -> on
     pub(crate) fn consensus_state(&self) -> bool {
-        self.strom_consensus
-            .as_ref()
-            .map(|c| c.lock.load(Ordering::Relaxed))
-            .unwrap_or_default()
+        self.strom_consensus.lock.load(Ordering::Relaxed)
     }
 
     pub(crate) fn poll_fut_to_initialize_network_connections(
@@ -171,10 +153,8 @@ where
             return Poll::Ready(())
         }
 
-        if let Some(strom_consensus) = this.strom_consensus.as_mut() {
-            if strom_consensus.fut.poll_unpin(cx).is_ready() {
-                return Poll::Ready(())
-            }
+        if this.strom_consensus.fut.poll_unpin(cx).is_ready() {
+            return Poll::Ready(())
         }
 
         Poll::Pending

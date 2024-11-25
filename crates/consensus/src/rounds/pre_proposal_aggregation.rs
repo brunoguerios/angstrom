@@ -3,7 +3,7 @@ use std::{
     task::{Context, Poll, Waker}
 };
 
-use alloy::providers::Provider;
+use alloy::{providers::Provider, transports::Transport};
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
 use matching_engine::MatchingEngineHandle;
@@ -28,14 +28,15 @@ pub struct PreProposalAggregationState {
 }
 
 impl PreProposalAggregationState {
-    pub fn new<P, Matching>(
+    pub fn new<P, T, Matching>(
         pre_proposals: HashSet<PreProposal>,
         mut pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         waker: Waker
     ) -> Self
     where
-        P: Provider + 'static,
+        P: Provider<T> + 'static,
+        T: Transport + Clone,
         Matching: MatchingEngineHandle
     {
         // generate my pre_proposal aggregation
@@ -58,14 +59,15 @@ impl PreProposalAggregationState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for PreProposalAggregationState
+impl<P, T, Matching> ConsensusState<P, T, Matching> for PreProposalAggregationState
 where
-    P: Provider + 'static,
+    P: Provider<T> + 'static,
+    T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -89,9 +91,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>> {
         // if we aren't the leader. we wait for the proposal to then verify in the
         // finalization state.
         if let Some(proposal) = self.proposal.take() {

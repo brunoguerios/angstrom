@@ -57,16 +57,16 @@ where
         &mut self,
         handles: &mut SharedRoundState<P, T, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>>;
+    ) -> Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>>;
 }
 
 /// Holds and progresses the consensus state machine
-pub struct RoundStateMachine<P, Matching> {
+pub struct RoundStateMachine<P, T, Matching> {
     current_state:           Box<dyn ConsensusState<P, T, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: Duration,
-    shared_state:            SharedRoundState<P, Matching>
+    shared_state:            SharedRoundState<P, T, Matching>
 }
 
 impl<P, T, Matching> RoundStateMachine<P, T, Matching>
@@ -77,7 +77,7 @@ where
 {
     pub fn new(
         consensus_wait_duration: Duration,
-        shared_state: SharedRoundState<P, Matching>
+        shared_state: SharedRoundState<P, T, Matching>
     ) -> Self {
         Self {
             current_state: Box::new(BidAggregationState::new(consensus_wait_duration)),
@@ -99,9 +99,10 @@ where
     }
 }
 
-impl<P, Matching> Stream for RoundStateMachine<P, Matching>
+impl<P, T, Matching> Stream for RoundStateMachine<P, T, Matching>
 where
-    P: Provider,
+    P: Provider<T> + 'static,
+    T: Transport + Clone + Unpin,
     Matching: MatchingEngineHandle
 {
     type Item = ConsensusMessage;
@@ -135,7 +136,7 @@ pub struct SharedRoundState<P, T, Matching> {
     _metrics:         ConsensusMetricsWrapper,
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
-    provider:         Arc<MevBoostProvider<P>>,
+    provider:         Arc<MevBoostProvider<P, T>>,
     messages:         VecDeque<ConsensusMessage>,
     _phantom:         PhantomData<T>
 }
@@ -158,7 +159,7 @@ where
         metrics: ConsensusMetricsWrapper,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: MevBoostProvider<P>,
+        provider: MevBoostProvider<P, T>,
         matching_engine: Matching
     ) -> Self {
         Self {

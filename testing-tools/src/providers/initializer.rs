@@ -166,7 +166,7 @@ impl WithWalletProvider for AnvilInitializer {
 mod tests {
     use alloy::providers::Provider;
     use rand::thread_rng;
-    use secp256k1::{Secp256k1, SecretKey};
+    use secp256k1::SecretKey;
 
     use super::*;
     use crate::types::config::DevnetConfig;

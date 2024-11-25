@@ -38,7 +38,7 @@ const MODULE_NAME: &str = "Consensus";
 pub struct ConsensusManager<P, T, Matching, BlockSync> {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    consensus_round_state:  RoundStateMachine<P, Matching>,
+    consensus_round_state:  RoundStateMachine<P, T, Matching>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
@@ -66,7 +66,7 @@ where
         angstrom_address: Address,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: MevBoostProvider<P>,
+        provider: MevBoostProvider<P, T>,
         matching_engine: Matching,
         block_sync: BlockSync
     ) -> Self {
@@ -147,9 +147,10 @@ where
     }
 }
 
-impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>
+impl<P, T, Matching, BlockSync> Future for ConsensusManager<P, T, Matching, BlockSync>
 where
-    P: Provider + 'static,
+    P: Provider<T> + 'static,
+    T: Transport + Clone + Unpin,
     Matching: MatchingEngineHandle,
     BlockSync: BlockSyncConsumer
 {

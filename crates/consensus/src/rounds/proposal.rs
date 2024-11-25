@@ -4,7 +4,10 @@ use std::{
     time::Duration
 };
 
-use alloy::{network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest};
+use alloy::{
+    network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest,
+    transports::Transport
+};
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
@@ -36,13 +39,14 @@ pub struct ProposalState {
 }
 
 impl ProposalState {
-    pub fn new<P, Matching>(
+    pub fn new<P, T, Matching>(
         pre_proposal_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         waker: Waker
     ) -> Self
     where
-        P: Provider + 'static,
+        P: Provider<T> + 'static,
+        T: Transport + Clone,
         Matching: MatchingEngineHandle
     {
         // queue building future
@@ -59,13 +63,14 @@ impl ProposalState {
         }
     }
 
-    fn try_build_proposal<P, Matching>(
+    fn try_build_proposal<P, T, Matching>(
         &mut self,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
-        handles: &mut SharedRoundState<P, Matching>
+        handles: &mut SharedRoundState<P, T, Matching>
     ) -> bool
     where
-        P: Provider + 'static,
+        P: Provider<T> + 'static,
+        T: Transport + Clone,
         Matching: MatchingEngineHandle
     {
         let Ok((pool_solution, gas_info)) = result else {
@@ -135,14 +140,15 @@ impl ProposalState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for ProposalState
+impl<P, T, Matching> ConsensusState<P, T, Matching> for ProposalState
 where
-    P: Provider + 'static,
+    P: Provider<T> + 'static,
+    T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        _: &mut SharedRoundState<P, Matching>,
+        _: &mut SharedRoundState<P, T, Matching>,
         _: StromConsensusEvent
     ) {
         // No messages at this point can effect the consensus round and thus are
@@ -151,9 +157,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>> {
         if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(state) => {

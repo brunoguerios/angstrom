@@ -82,7 +82,6 @@ where
             state_provider,
             strom_handles,
             strom_network.strom_handle.network_handle().clone(),
-            strom_network.secret_key,
             initial_validators,
             block_provider,
             inital_angstrom_state
@@ -224,24 +223,28 @@ where
     /// -------------------------------------
     pub fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(
+            &ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+        ) -> R
     {
         self.state_lock.strom_consensus(f)
     }
 
     pub fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(
+            &mut ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+        ) -> R
     {
         self.state_lock.strom_consensus_mut(f)
     }
 
     pub fn start_conensus(&self) {
-        self.state_lock.set_consensus(true, false);
+        self.state_lock.set_consensus(true);
     }
 
     pub fn stop_consensus(&self) {
-        self.state_lock.set_consensus(false, false);
+        self.state_lock.set_consensus(false);
     }
 
     pub fn is_consensus_on(&self) -> bool {

@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use alloy::{
-    providers::{Provider, RootProvider},
-    pubsub::PubSubFrontend
-};
+use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
@@ -25,7 +22,6 @@ use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, Matchin
 use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
-use secp256k1::SecretKey;
 use tokio_stream::wrappers::BroadcastStream;
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
@@ -60,13 +56,12 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         state_provider: AnvilProvider<P>,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
-        secret_key: SecretKey,
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(
         Self,
-        Option<ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>>
+        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
     )> {
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
@@ -229,7 +224,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 testnet_hub,
                 validator
             },
-            Some(consensus)
+            consensus
         ))
     }
 }

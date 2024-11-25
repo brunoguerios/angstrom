@@ -29,7 +29,7 @@ pub struct PreProposalState {
 }
 
 impl PreProposalState {
-    pub fn new<P, Matching>(
+    pub fn new<P, T, Matching>(
         block_height: BlockNumber,
         mut pre_proposals: HashSet<PreProposal>,
         pre_proposals_aggregation: HashSet<PreProposalAggregation>,
@@ -95,9 +95,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>> {
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization
             return Poll::Ready(Some(Box::new(FinalizationState::new(

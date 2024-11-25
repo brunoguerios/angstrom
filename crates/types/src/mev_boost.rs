@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::{marker::PhantomData, ops::Deref, sync::Arc};
 
 use alloy::{
     eips::eip2718::Encodable2718,
@@ -6,19 +6,24 @@ use alloy::{
     primitives::{Address, TxHash},
     providers::{Provider, ProviderBuilder},
     rpc::types::TransactionRequest,
-    transports::http::{reqwest::Url, ReqwestTransport}
+    transports::{
+        http::{reqwest::Url, ReqwestTransport},
+        Transport
+    }
 };
 
 use crate::primitive::AngstromSigner;
 
-pub struct MevBoostProvider<P> {
+pub struct MevBoostProvider<P, T> {
     mev_boost_providers: Vec<Arc<Box<dyn Provider<ReqwestTransport>>>>,
-    node_provider:       Arc<P>
+    node_provider:       Arc<P>,
+    _phantom:            PhantomData<T>
 }
 
-impl<P> MevBoostProvider<P>
+impl<P, T> MevBoostProvider<P, T>
 where
-    P: Provider + 'static
+    P: Provider<T> + 'static,
+    T: Transport + Clone
 {
     pub fn new_from_urls(node_provider: Arc<P>, urls: &[Url]) -> Self {
         let mev_boost_providers = urls
@@ -29,7 +34,7 @@ where
             })
             .collect::<Vec<_>>();
 
-        Self { mev_boost_providers, node_provider }
+        Self { mev_boost_providers, node_provider, _phantom: PhantomData }
     }
 
     pub async fn populate_gas_nonce_chain_id(&self, tx_from: Address, tx: &mut TransactionRequest) {
@@ -70,7 +75,7 @@ where
     }
 }
 
-impl<P> Deref for MevBoostProvider<P> {
+impl<P, T> Deref for MevBoostProvider<P, T> {
     type Target = P;
 
     fn deref(&self) -> &Self::Target {
