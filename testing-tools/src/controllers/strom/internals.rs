@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use alloy::{providers::Provider, pubsub::PubSubFrontend};
+use alloy::{
+    providers::{Provider, RootProvider},
+    pubsub::PubSubFrontend
+};
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
@@ -63,7 +66,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(
         Self,
-        Option<ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>>
+        Option<ConsensusManager<RootProvider<PubSubFrontend>, MatcherHandle, GlobalBlockSync>>
     )> {
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();

@@ -5,7 +5,7 @@ use std::{
     task::Poll
 };
 
-use alloy::pubsub::PubSubFrontend;
+use alloy::{providers::RootProvider, pubsub::PubSubFrontend};
 use alloy_primitives::Address;
 use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
@@ -32,6 +32,7 @@ use tracing::instrument;
 
 use super::internals::AngstromDevnetNodeInternals;
 use crate::{
+    contracts::anvil::WalletProviderRpc,
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
     providers::AnvilProvider,
@@ -42,7 +43,7 @@ pub struct TestnetNode<C, P> {
     testnet_node_id: u64,
     network:         TestnetNodeNetwork,
     strom:           AngstromDevnetNodeInternals<P>,
-    state_lock:      TestnetStateFutureLock<C, PubSubFrontend>
+    state_lock:      TestnetStateFutureLock<C, RootProvider<PubSubFrontend>>
 }
 
 impl<C, P> TestnetNode<C, P>

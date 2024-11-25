@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::transports::Transport;
+use alloy::{providers::Provider, transports::Transport};
 use angstrom_network::StromNetworkManager;
 use angstrom_types::block_sync::GlobalBlockSync;
 use consensus::ConsensusManager;
@@ -30,7 +30,7 @@ pub(crate) struct TestnetStateFutureLock<C, T> {
 impl<C, T> TestnetStateFutureLock<C, T>
 where
     C: Unpin + BlockReader + 'static,
-    T: Transport + Clone
+    T: Provider + 'static
 {
     pub(crate) fn new(
         node_id: u64,
