@@ -134,6 +134,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             .map_err(|e| eyre::eyre!("{e}"))?
         );
 
+        println!("{pool_config_store:?}");
+
         let validator = TestOrderValidator::new(
             state_provider.state_provider(),
             inital_angstrom_state.angstrom_addr,
