@@ -3,7 +3,7 @@ use std::{
     task::{Context, Poll, Waker}
 };
 
-use alloy::{primitives::BlockNumber, providers::Provider};
+use alloy::{primitives::BlockNumber, providers::Provider, transports::Transport};
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
 use matching_engine::MatchingEngineHandle;
@@ -33,11 +33,12 @@ impl PreProposalState {
         block_height: BlockNumber,
         mut pre_proposals: HashSet<PreProposal>,
         pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         waker: Waker
     ) -> Self
     where
-        P: Provider + 'static,
+        P: Provider<T> + 'static,
+        T: Transport + Clone,
         Matching: MatchingEngineHandle
     {
         // generate my pre_proposal
@@ -57,14 +58,15 @@ impl PreProposalState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for PreProposalState
+impl<P, T, Matching> ConsensusState<P, T, Matching> for PreProposalState
 where
-    P: Provider + 'static,
+    P: Provider<T> + 'static,
+    T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
