@@ -62,6 +62,7 @@ impl Cli {
             layer_builder(format!("angstrom={level}")),
             layer_builder(format!("testing_tools={level}")),
             layer_builder(format!("uniswap_v4={level}")),
+            layer_builder(format!("validation={level}")),
         ];
 
         tracing_subscriber::registry().with(layers).init();
