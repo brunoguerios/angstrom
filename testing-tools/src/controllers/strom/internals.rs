@@ -114,7 +114,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             block_number,
             block_sync.clone(),
             inital_angstrom_state.pool_manager_addr,
-            true
+            false
         )
         .await;
 
