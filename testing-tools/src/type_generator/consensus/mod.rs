@@ -1,4 +1,5 @@
 pub mod pool;
+pub mod pre_proposal_agg;
 pub mod preproposal;
 pub mod proposal;
 
@@ -37,7 +38,7 @@ mod tests {
             .for_random_pools(1)
             .for_block(10)
             .build();
-        assert!(preproposal.is_valid(), "Preproposal cannot validate itself");
+        assert!(preproposal.is_valid(&10), "Preproposal cannot validate itself");
     }
 
     #[test]
@@ -47,6 +48,6 @@ mod tests {
             .for_random_pools(1)
             .for_block(10)
             .build();
-        assert!(proposal.is_valid(), "Proposal cannot validate itself");
+        assert!(proposal.is_valid(&10), "Proposal cannot validate itself");
     }
 }

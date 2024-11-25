@@ -3,10 +3,10 @@
 use std::{collections::HashSet, sync::Arc};
 
 use alloy::{
+    self,
     eips::{BlockId, BlockNumberOrTag},
-    network::{EthereumWallet, Network},
+    network::Network,
     providers::{network::Ethereum, Provider, ProviderBuilder},
-    signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     transports::Transport
 };
 use alloy_chains::Chain;
@@ -24,11 +24,12 @@ use angstrom_network::{
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-    primitive::{PeerId, PoolId as AngstromPoolId, UniswapPoolRegistry},
+    mev_boost::MevBoostProvider,
+    primitive::{AngstromSigner, PeerId, PoolId as AngstromPoolId, UniswapPoolRegistry},
     reth_db_wrapper::RethDbWrapper
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, Signer};
-use matching_engine::{configure_uniswap_manager, manager::MatcherCommand, MatchingManager};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
+use matching_engine::{manager::MatcherCommand, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig, PoolManagerUpdate};
 use reth::{
     api::NodeAddOns,
@@ -37,9 +38,7 @@ use reth::{
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
-use reth_network_peers::pk2id;
 use reth_node_builder::FullNode;
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use tokio::sync::mpsc::{
     channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender
 };
@@ -56,13 +55,13 @@ use validation::{
 
 use crate::{cli::NodeConfig, AngstromConfig};
 
-pub fn init_network_builder(secret_key: SecretKey) -> eyre::Result<StromNetworkBuilder> {
-    let public_key = PublicKey::from_secret_key(&Secp256k1::new(), &secret_key);
+pub fn init_network_builder(secret_key: AngstromSigner) -> eyre::Result<StromNetworkBuilder> {
+    let public_key = secret_key.id();
 
     let state = StatusState {
         version:   0,
         chain:     Chain::mainnet().id(),
-        peer:      pk2id(&public_key),
+        peer:      public_key,
         timestamp: 0
     };
 
@@ -136,7 +135,7 @@ pub fn initialize_strom_handles() -> StromHandles {
 
 pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeAddOns<Node>>(
     config: AngstromConfig,
-    secret_key: SecretKey,
+    signer: AngstromSigner,
     handles: StromHandles,
     network_builder: StromNetworkBuilder,
     node: FullNode<Node, AddOns>,
@@ -144,17 +143,22 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
 ) {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
 
-    let signer = LocalSigner::<SigningKey>::from_bytes(&secret_key.secret_bytes().into()).unwrap();
     let node_address = signer.address();
 
-    // I am sure there is a prettier way of doing this
-    let provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
+    // NOTE:
+    // no key is installed and this is strictly for internal usage. Realsically, we
+    // should build a alloy provider impl that just uses the raw underlying db
+    // so it will be quicker than rpc + won't be bounded by the rpc threadpool.
+
+    let querying_provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
         .with_recommended_fillers()
-        .wallet(EthereumWallet::from(signer))
         .on_builtin(node.rpc_server_handles.rpc.http_url().unwrap().as_str())
         .await
         .unwrap()
         .into();
+
+    let mev_boost_provider =
+        MevBoostProvider::new_from_urls(querying_provider.clone(), &config.mev_boost_endpoints);
 
     tracing::info!(target: "angstrom::startup-sequence", "waiting for the next block to continue startup sequence. \
         this is done to ensure all modules start on the same state and we don't hit the rare  \
@@ -169,7 +173,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
 
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
-    let block_id = provider.get_block_number().await.unwrap();
+    let block_id = querying_provider.get_block_number().await.unwrap();
 
     let global_block_sync = GlobalBlockSync::new(block_id);
 
@@ -177,7 +181,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         AngstromPoolConfigStore::load_from_chain(
             node_config.angstrom_address,
             BlockId::Number(BlockNumberOrTag::Number(block_id)),
-            &provider
+            &querying_provider
         )
         .await
         .unwrap()
@@ -202,7 +206,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     .unwrap();
 
     let uniswap_pool_manager = configure_uniswap_manager(
-        provider.clone(),
+        querying_provider.clone(),
         eth_handle.subscribe_cannon_state_notifications().await,
         uniswap_registry,
         block_id,
@@ -220,7 +224,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
             .expect("watch for uniswap pool changes");
     }));
     let price_generator =
-        TokenPriceGenerator::new(provider.clone(), block_id, uniswap_pools.clone(), None)
+        TokenPriceGenerator::new(querying_provider.clone(), block_id, uniswap_pools.clone(), None)
             .await
             .expect("failed to start token price generator");
 
@@ -269,8 +273,6 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         handles.pool_manager_tx
     );
 
-    let signer = Signer::new(secret_key);
-
     // TODO load the stakes from Eigen using node.provider
     let validators = vec![
         AngstromValidator::new(PeerId::default(), 100),
@@ -291,9 +293,10 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         validators,
         order_storage.clone(),
         block_height,
+        node_config.angstrom_address,
         uni_ang_registry,
         uniswap_pools.clone(),
-        provider,
+        mev_boost_provider,
         matching_handle,
         global_block_sync.clone()
     );

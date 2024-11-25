@@ -7,7 +7,7 @@ use std::{
 
 use alloy::primitives::BlockNumber;
 use angstrom_types::{
-    consensus::{PreProposal, Proposal},
+    consensus::{PreProposal, PreProposalAggregation, Proposal},
     primitive::PeerId
 };
 use futures::StreamExt;
@@ -241,6 +241,7 @@ pub enum StromNetworkEvent {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum StromConsensusEvent {
     PreProposal(PeerId, PreProposal),
+    PreProposalAgg(PeerId, PreProposalAggregation),
     Proposal(PeerId, Proposal)
 }
 
@@ -248,20 +249,23 @@ impl StromConsensusEvent {
     pub fn message_type(&self) -> &'static str {
         match self {
             StromConsensusEvent::PreProposal(..) => "PreProposal",
+            StromConsensusEvent::PreProposalAgg(..) => "PreProposalAggregation",
             StromConsensusEvent::Proposal(..) => "Proposal"
         }
     }
 
     pub fn sender(&self) -> PeerId {
         match self {
-            StromConsensusEvent::PreProposal(peer_id, _) => *peer_id,
-            StromConsensusEvent::Proposal(peer_id, _) => *peer_id
+            StromConsensusEvent::PreProposal(peer_id, _)
+            | StromConsensusEvent::Proposal(peer_id, _)
+            | StromConsensusEvent::PreProposalAgg(peer_id, _) => *peer_id
         }
     }
 
     pub fn payload_source(&self) -> PeerId {
         match self {
             StromConsensusEvent::PreProposal(_, pre_proposal) => pre_proposal.source,
+            StromConsensusEvent::PreProposalAgg(_, pre_proposal) => pre_proposal.source,
             StromConsensusEvent::Proposal(_, proposal) => proposal.source
         }
     }
@@ -269,6 +273,7 @@ impl StromConsensusEvent {
     pub fn block_height(&self) -> BlockNumber {
         match self {
             StromConsensusEvent::PreProposal(_, PreProposal { block_height, .. }) => *block_height,
+            StromConsensusEvent::PreProposalAgg(_, p) => p.block_height,
             StromConsensusEvent::Proposal(_, Proposal { block_height, .. }) => *block_height
         }
     }
@@ -280,6 +285,8 @@ impl From<StromConsensusEvent> for StromMessage {
             StromConsensusEvent::PreProposal(_, pre_proposal) => {
                 StromMessage::PrePropose(pre_proposal)
             }
+            StromConsensusEvent::PreProposalAgg(_, agg) => StromMessage::PreProposeAgg(agg),
+
             StromConsensusEvent::Proposal(_, proposal) => StromMessage::Propose(proposal)
         }
     }

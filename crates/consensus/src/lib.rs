@@ -1,16 +1,14 @@
 mod leader_selection;
 mod manager;
-mod round_state;
-mod signer;
+
+pub use manager::*;
+pub mod rounds;
 
 use std::pin::Pin;
 
 use angstrom_types::consensus::{PreProposal, Proposal};
 use futures::Stream;
 pub use leader_selection::AngstromValidator;
-pub use manager::*;
-pub use round_state::ConsensusState;
-pub use signer::*;
 
 #[derive(Debug, Clone)]
 pub enum ConsensusMessage {
@@ -26,10 +24,4 @@ pub enum ConsensusMessage {
 pub trait ConsensusListener: Send + Sync + 'static {
     /// subscribes to new messages from our consensus
     fn subscribe_messages(&self) -> Pin<Box<dyn Stream<Item = ConsensusMessage>>>;
-}
-
-/// Feeds Ethereum updates to consensus
-pub trait ConsensusUpdater: Send + Sync + 'static {
-    /// sends a new block to the consensus
-    fn new_block(&self, block: ());
 }

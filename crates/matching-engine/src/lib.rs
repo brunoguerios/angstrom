@@ -9,13 +9,14 @@ use alloy::{
 };
 use alloy_primitives::{Address, BlockNumber};
 use angstrom_types::{
-    block_sync::BlockSyncConsumer,
-    consensus::PreProposal,
     contract_payloads::angstrom::BundleGasDetails,
     matching::uniswap::PoolSnapshot,
     orders::PoolSolution,
-    primitive::{PoolId, UniswapPoolRegistry},
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    primitive::PoolId,
+    sol_bindings::{
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use book::OrderBook;
 use futures_util::future::BoxFuture;
@@ -36,7 +37,8 @@ pub use manager::MatchingManager;
 pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
     fn solve_pools(
         &self,
-        preproposals: Vec<PreProposal>,
+        limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+        searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
         pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
     ) -> BoxFuture<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 }

@@ -3,14 +3,19 @@ use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
+    time::Duration
 };
 
-use alloy::{primitives::BlockNumber, providers::Provider, transports::Transport};
+use alloy::{
+    primitives::{Address, BlockNumber},
+    providers::Provider
+};
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{manager::StromConsensusEvent, StromMessage, StromNetworkHandle};
 use angstrom_types::{
-    block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry
+    block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry,
+    mev_boost::MevBoostProvider, primitive::AngstromSigner
 };
 use futures::StreamExt;
 use matching_engine::MatchingEngineHandle;
@@ -22,19 +27,16 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
     leader_selection::WeightedRoundRobin,
-    round_state::{
-        ConsensusState, Finalization, PreProposalAggregation, PreProposalSubmission,
-        RoundStateMachine
-    },
-    AngstromValidator, Signer
+    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
+    AngstromValidator
 };
 
 const MODULE_NAME: &str = "Consensus";
 
-pub struct ConsensusManager<T, Matching, BlockSync> {
+pub struct ConsensusManager<P, Matching, BlockSync> {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    state_transition:       RoundStateMachine<T, Matching>,
+    consensus_round_state:  RoundStateMachine<P, Matching>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
@@ -44,22 +46,23 @@ pub struct ConsensusManager<T, Matching, BlockSync> {
     broadcasted_messages: HashSet<StromConsensusEvent>
 }
 
-impl<T, Matching, BlockSync> ConsensusManager<T, Matching, BlockSync>
+impl<P, Matching, BlockSync> ConsensusManager<P, Matching, BlockSync>
 where
-    T: Transport + Clone,
+    P: Provider + 'static,
     BlockSync: BlockSyncConsumer,
     Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         netdeps: ManagerNetworkDeps,
-        signer: Signer,
+        signer: AngstromSigner,
         validators: Vec<AngstromValidator>,
         order_storage: Arc<OrderStorage>,
         current_height: BlockNumber,
+        angstrom_address: Address,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: impl Provider<T> + 'static,
+        provider: MevBoostProvider<P>,
         matching_engine: Matching,
         block_sync: BlockSync
     ) -> Self {
@@ -71,17 +74,21 @@ where
             strom_consensus_event,
             current_height,
             leader_selection,
-            state_transition: RoundStateMachine::new(
-                current_height,
-                order_storage,
-                signer,
-                leader,
-                validators.clone(),
-                ConsensusMetricsWrapper::new(),
-                pool_registry,
-                uniswap_pools,
-                provider,
-                matching_engine
+            consensus_round_state: RoundStateMachine::new(
+                Duration::new(8, 0),
+                SharedRoundState::new(
+                    current_height,
+                    angstrom_address,
+                    order_storage,
+                    signer,
+                    leader,
+                    validators.clone(),
+                    ConsensusMetricsWrapper::new(),
+                    pool_registry,
+                    uniswap_pools,
+                    provider,
+                    matching_engine
+                )
             ),
             block_sync,
             network,
@@ -97,7 +104,8 @@ where
             .leader_selection
             .choose_proposer(self.current_height)
             .unwrap();
-        self.state_transition
+
+        self.consensus_round_state
             .reset_round(self.current_height, round_leader);
         self.broadcasted_messages.clear();
 
@@ -116,71 +124,27 @@ where
             return
         }
 
-        if self.state_transition.my_id() == event.payload_source() {
-            tracing::debug!(
-                msg_sender=%event.sender(),
-                block_heighth=%event.block_height(),
-                message_type=%event.message_type(),
-                "ignoring event that we sent to node",
-            );
-            return
-        }
-
-        if !self.broadcasted_messages.contains(&event) {
-            self.network.broadcast_message(event.clone().into());
-            self.broadcasted_messages.insert(event.clone());
-        }
-
-        if let Some((peer_id, msg)) = self.state_transition.on_strom_message(event.clone()) {
-            if let Some(peer_id) = peer_id {
-                self.network.send_message(peer_id, msg);
-            } else {
-                self.network.broadcast_message(msg);
-            }
-        }
+        self.consensus_round_state.handle_message(event);
     }
 
-    pub fn on_state_start(&mut self, new_stat: ConsensusState) {
-        match new_stat {
-            // means we transitioned from commit phase to bid submission.
-            // nothing much to do here. we just wait sometime to accumulate orders
-            ConsensusState::PreProposalSubmission(PreProposalSubmission { .. }) => {}
-            // means we transitioned from bid submission to aggregation, therefore we broadcast our
-            // pre-proposal to the network
-            ConsensusState::PreProposalAggregation(PreProposalAggregation {
-                pre_proposals,
-                ..
-            }) => {
-                self.network.broadcast_message(
-                    self.state_transition
-                        .my_pre_proposal(&pre_proposals)
-                        .unwrap()
-                );
+    fn on_round_event(&mut self, event: ConsensusMessage) {
+        match event {
+            ConsensusMessage::PropagateProposal(p) => {
+                self.network.broadcast_message(StromMessage::Propose(p))
             }
-            // TODO: maybe trigger the round verification job after it has finished,
-            // if we are not a leader
-            ConsensusState::Finalization(finalization) => {
-                // tell everyone what we sent out to Ethereum
-                if self.state_transition.i_am_leader() {
-                    self.network
-                        .broadcast_message(StromMessage::Propose(finalization.proposal.unwrap()))
-                }
+            ConsensusMessage::PropagatePreProposal(p) => {
+                self.network.broadcast_message(StromMessage::PrePropose(p))
             }
-        }
-    }
-
-    pub fn on_state_end(&mut self, old_state: ConsensusState) {
-        match old_state {
-            ConsensusState::PreProposalSubmission(PreProposalSubmission { .. }) => {}
-            ConsensusState::PreProposalAggregation(PreProposalAggregation { .. }) => {}
-            ConsensusState::Finalization(Finalization { .. }) => {}
+            ConsensusMessage::PropagatePreProposalAgg(p) => self
+                .network
+                .broadcast_message(StromMessage::PreProposeAgg(p))
         }
     }
 }
 
-impl<T, Matching, BlockSync> Future for ConsensusManager<T, Matching, BlockSync>
+impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>
 where
-    T: Transport + Clone,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle,
     BlockSync: BlockSyncConsumer
 {
@@ -197,17 +161,12 @@ where
         }
 
         if this.block_sync.can_operate() {
-            if let Poll::Ready(Some(msg)) = this.strom_consensus_event.poll_next_unpin(cx) {
+            while let Poll::Ready(Some(msg)) = this.strom_consensus_event.poll_next_unpin(cx) {
                 this.on_network_event(msg);
             }
 
-            if let Poll::Ready(Some(new_state)) = this.state_transition.poll_next_unpin(cx) {
-                match new_state {
-                    Ok(new_state) => this.on_state_start(new_state),
-                    Err(e) => {
-                        tracing::error!("could not transition state: {}", e)
-                    }
-                };
+            while let Poll::Ready(Some(msg)) = this.consensus_round_state.poll_next_unpin(cx) {
+                this.on_round_event(msg);
             }
         }
 

@@ -3,7 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use alloy::rlp::{Buf, BufMut, Decodable, Encodable};
 use angstrom_types::{
-    consensus::{PreProposal, Proposal},
+    consensus::{PreProposal, PreProposalAggregation, Proposal},
     sol_bindings::grouped_orders::AllOrders
 };
 use reth_eth_wire::{protocol::Protocol, Capability};
@@ -25,12 +25,13 @@ const STROM_PROTOCOL: Protocol = Protocol::new(STROM_CAPABILITY, 5);
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StromMessageID {
-    Status     = 0,
+    Status        = 0,
     /// Consensus
-    PrePropose = 1,
-    Propose    = 2,
+    PrePropose    = 1,
+    PreProposeAgg = 2,
+    Propose       = 3,
     /// Propagation messages that broadcast new orders to all peers
-    PropagatePooledOrders = 3
+    PropagatePooledOrders = 4
 }
 
 impl Encodable for StromMessageID {
@@ -111,6 +112,7 @@ pub enum StromMessage {
 
     /// Consensus
     PrePropose(PreProposal),
+    PreProposeAgg(PreProposalAggregation),
     Propose(Proposal),
 
     /// Propagation messages that broadcast new orders to all peers
@@ -122,6 +124,7 @@ impl StromMessage {
         match self {
             StromMessage::Status(_) => StromMessageID::Status,
             StromMessage::PrePropose(_) => StromMessageID::PrePropose,
+            StromMessage::PreProposeAgg(_) => StromMessageID::PreProposeAgg,
             StromMessage::Propose(_) => StromMessageID::Propose,
             StromMessage::PropagatePooledOrders(_) => StromMessageID::PropagatePooledOrders
         }
@@ -141,6 +144,7 @@ pub enum StromBroadcastMessage {
     // Consensus Broadcast
     PrePropose(Arc<PreProposal>),
     Propose(Arc<Proposal>),
+    PreProposeAgg(Arc<PreProposalAggregation>),
     // Order Broadcast
     PropagatePooledOrders(Arc<Vec<AllOrders>>)
 }
@@ -150,6 +154,7 @@ impl StromBroadcastMessage {
     pub fn message_id(&self) -> StromMessageID {
         match self {
             StromBroadcastMessage::PrePropose(_) => StromMessageID::PrePropose,
+            StromBroadcastMessage::PreProposeAgg(_) => StromMessageID::PreProposeAgg,
             StromBroadcastMessage::Propose(_) => StromMessageID::Propose,
             StromBroadcastMessage::PropagatePooledOrders(_) => StromMessageID::PropagatePooledOrders
         }

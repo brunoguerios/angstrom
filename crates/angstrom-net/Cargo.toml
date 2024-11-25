@@ -87,6 +87,7 @@ eyre.workspace = true
 
 enr = { workspace = true, features = ["rust-secp256k1"], optional = true }
 tempfile = { version = "3.3", optional = true }
+k256.workspace = true
 
 [dev-dependencies]
 testing-tools.workspace = true

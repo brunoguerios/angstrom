@@ -656,7 +656,8 @@ impl AngstromBundle {
         let mut asset_builder = AssetBuilder::new();
 
         // Break out our input orders into lists of orders by pool
-        let orders_by_pool = PreProposal::orders_by_pool_id(&proposal.preproposals);
+        let preproposals = proposal.flattened_pre_proposals();
+        let orders_by_pool = PreProposal::orders_by_pool_id(&preproposals);
 
         // fetch the accumulated amount of gas delegated to the users
         let (total_swaps, total_gas) = Self::fetch_total_orders_and_gas_delegated_to_orders(

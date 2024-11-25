@@ -1,6 +1,6 @@
 use alloy_primitives::U256;
 use angstrom_types::{
-    consensus::PreProposal,
+    consensus::{PreProposal, PreProposalAggregation},
     orders::OrderPriorityData,
     primitive::AngstromSigner,
     sol_bindings::{
@@ -15,7 +15,7 @@ use crate::type_generator::orders::{
 };
 
 #[derive(Debug, Default)]
-pub struct PreproposalBuilder {
+pub struct PreProposalAggregationBuilder {
     order_count: Option<usize>,
     block:       Option<u64>,
     pools:       Option<Vec<Pool>>,
@@ -23,7 +23,7 @@ pub struct PreproposalBuilder {
     order_key:   Option<SigningInfo>
 }
 
-impl PreproposalBuilder {
+impl PreProposalAggregationBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -55,13 +55,9 @@ impl PreproposalBuilder {
         Self { order_key, ..self }
     }
 
-    pub fn build(self) -> PreProposal {
+    pub fn build(self) -> PreProposalAggregation {
         // Extract values from our struct
         let pools = self.pools.unwrap_or_default();
-        // let pools: Vec<PoolId> = self
-        //     .pools
-        //     .map(|p| p.iter().map(|key| key.id()).collect())
-        //     .unwrap_or_default();
         let count = self.order_count.unwrap_or_default();
         let block = self.block.unwrap_or_default();
         let sk = self.sk.unwrap_or_else(AngstromSigner::random);
@@ -136,36 +132,7 @@ impl PreproposalBuilder {
             })
             .collect();
 
-        PreProposal::generate_pre_proposal(block, &sk, limit, searcher)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::PreproposalBuilder;
-
-    #[test]
-    fn generates_order_spread_that_crosses() {
-        // It is MAYBE statistically possible that this will fail due to probability one
-        // day?
-        let pre_proposal = PreproposalBuilder::new()
-            .order_count(100)
-            .for_random_pools(1)
-            .build();
-        let (high_price, low_price) =
-            pre_proposal
-                .limit
-                .iter()
-                .fold((f64::MIN, f64::MAX), |mut acc, order| {
-                    let price = order.float_price();
-                    if order.is_bid && price > acc.0 {
-                        acc.0 = price;
-                    }
-                    if !order.is_bid && price < acc.1 {
-                        acc.1 = price;
-                    }
-                    acc
-                });
-        assert!(high_price > low_price, "Prices do not cross");
+        let pre_proposal = PreProposal::generate_pre_proposal(block, &sk, limit, searcher);
+        PreProposalAggregation::new(block, &sk, vec![pre_proposal])
     }
 }

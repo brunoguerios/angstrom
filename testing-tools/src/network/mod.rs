@@ -1,3 +1,6 @@
+mod consensus_future;
+use angstrom_types::primitive::AngstromSigner;
+pub(crate) use consensus_future::TestnetConsensusFuture;
 mod eth_peer;
 mod strom_peer;
 use std::{collections::HashSet, sync::Arc};
@@ -11,8 +14,8 @@ pub use eth_peer::*;
 use parking_lot::RwLock;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
-use reth_network::test_utils::{Peer, PeerConfig};
-use reth_network_peers::{pk2id, PeerId};
+use reth_network::test_utils::PeerConfig;
+use reth_network_peers::PeerId;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use secp256k1::SecretKey;
 pub use strom_peer::*;
@@ -25,34 +28,26 @@ use crate::{
 
 pub struct TestnetNodeNetwork {
     // eth components
-    pub eth_handle:   EthNetworkPeer,
+    pub eth_handle:      EthNetworkPeer,
     // strom components
-    pub strom_handle: StromNetworkPeer,
-    pub secret_key:   SecretKey,
-    pub pubkey:       PeerId
+    pub strom_handle:    StromNetworkPeer,
+    pub secret_key:      AngstromSigner,
+    pub pubkey:          PeerId,
+    running:             Arc<AtomicBool>,
+    pub(crate) networks: TestnetPeerStateFuture<C>
 }
 
 impl TestnetNodeNetwork {
     pub async fn new<C, G>(
         c: C,
-        node_config: &TestingNodeConfig<G>,
+        sk: AngstromSigner,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
         to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
-    ) -> (Self, Peer<C>, StromNetworkManager<C>)
-    where
-        C: BlockReader
-            + HeaderProvider
-            + ChainSpecProvider
-            + Unpin
-            + Clone
-            + ChainSpecProvider<ChainSpec: Hardforks>
-            + 'static,
-        G: GlobalTestingConfig
-    {
-        let sk = node_config.secret_key.clone();
-        let peer = PeerConfig::with_secret_key(c.clone(), sk.clone());
+    ) -> Self {
+        let peer =
+            PeerConfig::with_secret_key(c.clone(), SecretKey::from_slice(&*sk.to_bytes()).unwrap());
 
-        let peer_id = pk2id(&node_config.pub_key);
+        let peer_id = sk.id();
         let state = StatusState {
             version:   0,
             chain:     Chain::mainnet().id(),

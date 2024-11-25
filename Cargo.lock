@@ -1392,6 +1392,7 @@ dependencies = [
  "toml",
  "tracing",
  "uniswap-v4",
+ "url",
  "validation",
 ]
 
@@ -1459,6 +1460,7 @@ dependencies = [
  "eyre",
  "futures",
  "humantime-serde",
+ "k256",
  "linked-hash-map",
  "linked_hash_set",
  "metrics 0.21.1",
@@ -1555,6 +1557,7 @@ dependencies = [
  "hex-literal",
  "itertools 0.12.1",
  "itertools 0.13.0",
+ "k256",
  "malachite",
  "modular-bitfield",
  "num-traits",
@@ -1911,9 +1914,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "backon"
-version = "1.2.0"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4fa97bb310c33c811334143cf64c5bb2b7b3c06e453db6b095d7061eff8f113"
+checksum = "ba5289ec98f68f28dd809fd601059e6aa908bb8f6108620930828283d4ee23d7"
 dependencies = [
  "fastrand",
  "tokio",
