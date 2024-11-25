@@ -516,7 +516,6 @@ where
         block_number: Option<u64>,
         provider: Arc<P>
     ) -> Result<(), PoolError> {
-        tracing::trace!(?block_number, "loading pool data");
         let pool_data = self
             .data_loader
             .load_pool_data(block_number, provider)
