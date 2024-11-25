@@ -325,9 +325,10 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
         );
 
         let data = match block_number {
-            Some(number) => deployer.block(number.into()).call_raw().await?,
+            Some(number) => deployer.block(number.into()).call_raw().await.unwrap(),
             None => deployer.call_raw().await?
         };
+
         let pool_data_v4 = PoolDataV4::abi_decode(&data, true)?;
 
         Ok(PoolData {
