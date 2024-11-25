@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
-use alloy_rpc_types::{BlockId, Transaction};
+use alloy_rpc_types::Transaction;
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
@@ -93,17 +93,17 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
-        let pool_config_store = Arc::new(
-            AngstromPoolConfigStore::load_from_chain(
-                inital_angstrom_state.angstrom_addr,
-                block_number.into(),
-                &state_provider.rpc_provider()
-            )
-            .await
-            .map_err(|e| eyre::eyre!("{e}"))?
-        );
+        // let pool_config_store = Arc::new(
+        //     AngstromPoolConfigStore::load_from_chain(
+        //         inital_angstrom_state.angstrom_addr,
+        //         block_number.into(),
+        //         &state_provider.rpc_provider()
+        //     )
+        //     .await
+        //     .map_err(|e| eyre::eyre!("{e}"))?
+        // );
 
-        println!("{pool_config_store:?}");
+        let pool_config_store = Arc::new(AngstromPoolConfigStore::default());
 
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
