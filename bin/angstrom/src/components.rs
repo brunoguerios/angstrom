@@ -207,7 +207,8 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         uniswap_registry,
         block_id,
         global_block_sync.clone(),
-        node_config.pool_manager_address
+        node_config.pool_manager_address,
+        true
     )
     .await;
 
