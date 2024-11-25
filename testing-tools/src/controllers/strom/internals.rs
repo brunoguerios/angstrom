@@ -113,7 +113,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
-            None
+            Some(0)
         )
         .await
         .expect("failed to start price generator");
