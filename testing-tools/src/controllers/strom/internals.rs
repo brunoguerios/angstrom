@@ -145,7 +145,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         )
         .await;
 
-        let pool_config = PoolConfig::default();
+        let pool_config = PoolConfig {
+            ids: uniswap_registry.pools().keys().cloned().collect::<Vec<_>>(),
+            ..Default::default()
+        };
         let order_storage = Arc::new(OrderStorage::new(&pool_config));
 
         let pool_handle = PoolManagerBuilder::new(
