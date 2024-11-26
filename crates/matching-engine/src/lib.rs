@@ -54,11 +54,7 @@ pub fn build_book(
     OrderBook::new(id, amm, bids, asks, Some(book::sort::SortStrategy::ByPriceByVolume))
 }
 
-pub async fn configure_uniswap_manager<
-    T: Transport + Clone,
-    N: Network,
-    BlockSync: BlockSyncConsumer
->(
+pub async fn configure_uniswap_manager<T: Transport + Clone, BlockSync: BlockSyncConsumer>(
     provider: Arc<impl Provider<T>>,
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
