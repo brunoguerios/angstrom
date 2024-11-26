@@ -2,7 +2,7 @@ use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy::{
     primitives::{aliases::I24, Address, BlockNumber, U256},
-    providers::{Network, Provider},
+    providers::Provider,
     sol,
     sol_types::{SolEvent, SolType},
     transports::Transport

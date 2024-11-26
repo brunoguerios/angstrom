@@ -3,10 +3,7 @@ use std::{
     sync::Arc
 };
 
-use alloy::{
-    providers::{Network, Provider},
-    transports::Transport
-};
+use alloy::{providers::Provider, transports::Transport};
 use alloy_primitives::{Address, BlockNumber};
 use angstrom_types::{
     block_sync::BlockSyncConsumer,

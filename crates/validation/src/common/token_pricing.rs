@@ -5,7 +5,7 @@ use std::{
 
 use alloy::{
     primitives::{address, Address, U256},
-    providers::{Network, Provider},
+    providers::Provider,
     transports::Transport
 };
 use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId};

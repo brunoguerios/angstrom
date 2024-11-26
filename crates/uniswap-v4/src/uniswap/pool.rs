@@ -2,7 +2,6 @@ use std::{collections::HashMap, fmt::Debug, marker::PhantomData, sync::Arc};
 
 use alloy::{
     hex,
-    network::Network,
     primitives::{aliases::I24, Address, BlockNumber, B256, I256, U256},
     providers::Provider,
     transports::Transport
