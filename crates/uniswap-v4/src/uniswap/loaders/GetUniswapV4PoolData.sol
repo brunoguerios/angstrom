@@ -17,7 +17,7 @@ contract GetUniswapV4PoolData2 {
         int128 liquidityNet;
     }
 
-    error NoPoolManager;
+    error NoPoolManager();
     event Start();
     event ValidPoolAddress();
     event GotSlot0(Slot0 slot0);
@@ -34,7 +34,7 @@ contract GetUniswapV4PoolData2 {
         address asset1
     ) {
         emit Start();
-        if (codeSizeIsZero(poolManager)) revert NoPoolManager;
+        if (codeSizeIsZero(poolManager)) revert NoPoolManager();
         emit ValidPoolAddress();
         PoolData memory poolData;
         Slot0 slot0 = IUniV4.getSlot0(IPoolManager(poolManager), poolId);
