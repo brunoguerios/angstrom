@@ -26,7 +26,7 @@ contract GetUniswapV4PoolData {
         address asset0,
         address asset1
     ) {
-        emit Start();
+
         if (codeSizeIsZero(poolManager)) revert NoPoolManager();
         PoolData memory poolData;
 
