@@ -7,6 +7,7 @@ import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {Slot0} from "v4-core/src/types/Slot0.sol";
 import {IUniV4} from "core/src/interfaces/IUniV4.sol";
 
+
 contract GetUniswapV4PoolData {
     struct PoolData {
         uint8 token0Decimals;
@@ -18,14 +19,6 @@ contract GetUniswapV4PoolData {
     }
 
     error NoPoolManager();
-    event Start();
-    event ValidPoolAddress();
-    event GotSlot0(Slot0 slot0);
-    event GotLiquidity(uint128 liquidity);
-    event GotNetLiquidity(int128 liquidityNet);
-    event GotPoolData(PoolData poolData);
-    event MadeAbiEncoded(bytes abiEncodedData);
-    event FinishedAssembly();
 
     constructor(
         PoolId poolId,
@@ -35,11 +28,9 @@ contract GetUniswapV4PoolData {
     ) {
         emit Start();
         if (codeSizeIsZero(poolManager)) revert NoPoolManager();
-        emit ValidPoolAddress();
         PoolData memory poolData;
 
         Slot0 slot0 = IUniV4.getSlot0(IPoolManager(poolManager), poolId);
-        emit GotSlot0(slot0);
 
 
         uint128 liquidity = IUniV4.getPoolLiquidity(
@@ -48,7 +39,6 @@ contract GetUniswapV4PoolData {
         );
 
 
-        emit GotLiquidity(liquidity);
         (, int128 liquidityNet) = IUniV4.getTickLiquidity(
             IPoolManager(poolManager),
             poolId,
@@ -56,21 +46,16 @@ contract GetUniswapV4PoolData {
         );
 
 
-        emit GotNetLiquidity(liquidityNet);
 
         poolData.token0Decimals = IERC20(asset0).decimals();
         poolData.token1Decimals = IERC20(asset1).decimals();
-
-        revert NoPoolManager();
 
         poolData.liquidity = liquidity;
         poolData.sqrtPrice = slot0.sqrtPriceX96();
         poolData.tick = slot0.tick();
         poolData.liquidityNet = liquidityNet;
 
-        emit GotPoolData(poolData);
         bytes memory abiEncodedData = abi.encode(poolData);
-        emit MadeAbiEncoded(abiEncodedData);
 
 
         assembly {
