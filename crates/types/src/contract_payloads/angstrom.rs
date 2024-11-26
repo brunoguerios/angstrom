@@ -12,6 +12,7 @@ use alloy::{
     sol_types::SolValue,
     transports::Transport
 };
+use alloy_primitives::aliases::U40;
 use dashmap::DashMap;
 use pade::{PadeDecode, PadeEncode};
 use pade_macro::{PadeDecode, PadeEncode};
@@ -34,9 +35,13 @@ use crate::{
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
         },
-        rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder,
+        rpc_orders::{
+            ExactFlashOrder, ExactStandingOrder, PartialFlashOrder, PartialStandingOrder,
+            TopOfBlockOrder as RpcTopOfBlockOrder
+        },
         RawPoolOrder
-    }
+    },
+    testnet::TestnetStateOverrides
 };
 
 // This currently exists in types::sol_bindings as well, but that one is
@@ -158,6 +163,15 @@ pub enum OrderQuantities {
     Partial { min_quantity_in: u128, max_quantity_in: u128, filled_quantity: u128 }
 }
 
+impl OrderQuantities {
+    pub fn fetch_max_amount(&self) -> u128 {
+        match self {
+            Self::Exact { quantity } => *quantity,
+            Self::Partial { max_quantity_in, .. } => *max_quantity_in
+        }
+    }
+}
+
 #[derive(Debug, PadeEncode, PadeDecode)]
 pub struct UserOrder {
     pub ref_id:               u32,
@@ -176,8 +190,116 @@ pub struct UserOrder {
 }
 
 impl UserOrder {
-    pub fn order_hash(&self) -> B256 {
-        keccak256(self.signature.pade_encode())
+    pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        let pair = &pair[self.pair_index as usize];
+        match self.order_quantities {
+            OrderQuantities::Exact { quantity } => {
+                if let Some(validation) = &self.standing_validation {
+                    // exact standing
+                    ExactStandingOrder {
+                        ref_id: self.ref_id,
+                        exact_in: true,
+                        use_internal: self.use_internal,
+                        asset_in: if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out: if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient: self.recipient.unwrap_or_default(),
+                        nonce: validation.nonce,
+                        deadline: U40::from_limbs([validation.deadline]),
+                        amount: quantity,
+                        min_price: self.min_price,
+                        hook_data: self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        ..Default::default()
+                    }
+                    .order_hash()
+                } else {
+                    // exact flash
+                    ExactFlashOrder {
+                        ref_id: self.ref_id,
+                        exact_in: true,
+                        use_internal: self.use_internal,
+                        asset_in: if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out: if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient: self.recipient.unwrap_or_default(),
+                        valid_for_block: block,
+                        amount: quantity,
+                        min_price: self.min_price,
+                        hook_data: self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        ..Default::default()
+                    }
+                    .order_hash()
+                }
+            }
+            OrderQuantities::Partial { min_quantity_in, max_quantity_in, .. } => {
+                if let Some(validation) = &self.standing_validation {
+                    PartialStandingOrder {
+                        ref_id: self.ref_id,
+                        use_internal: self.use_internal,
+                        asset_in: if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out: if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient: self.recipient.unwrap_or_default(),
+                        deadline: U40::from_limbs([validation.deadline]),
+                        nonce: validation.nonce,
+                        min_amount_in: min_quantity_in,
+                        max_amount_in: max_quantity_in,
+                        min_price: self.min_price,
+                        hook_data: self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        ..Default::default()
+                    }
+                    .order_hash()
+                } else {
+                    PartialFlashOrder {
+                        ref_id: self.ref_id,
+                        use_internal: self.use_internal,
+                        asset_in: if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out: if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient: self.recipient.unwrap_or_default(),
+                        valid_for_block: block,
+                        max_amount_in: max_quantity_in,
+                        min_amount_in: min_quantity_in,
+                        min_price: self.min_price,
+                        hook_data: self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        ..Default::default()
+                    }
+                    .order_hash()
+                }
+            }
+        }
     }
 
     pub fn from_internal_order(
@@ -306,12 +428,60 @@ impl AngstromBundle {
         &self.pairs
     }
 
+    #[cfg(feature = "testnet")]
+    pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
+        let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
+        let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
+
+        // user orders
+        self.user_orders.iter().for_each(|order| {
+            let token = if order.zero_for_one {
+                // token0
+                self.assets[self.pairs[order.pair_index as usize].index0 as usize].addr
+            } else {
+                self.assets[self.pairs[order.pair_index as usize].index1 as usize].addr
+            };
+
+            // need to recover sender from signature
+            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let address = order.signature.recover_signer(hash);
+
+            let qty = order.order_quantities.fetch_max_amount();
+            approvals.entry(token).or_default().insert(address, qty);
+            balances.entry(token).or_default().insert(address, qty);
+        });
+
+        // tob
+        self.top_of_block_orders.iter().for_each(|order| {
+            let token = if order.zero_for_1 {
+                // token0
+                self.assets[self.pairs[order.pairs_index as usize].index0 as usize].addr
+            } else {
+                self.assets[self.pairs[order.pairs_index as usize].index1 as usize].addr
+            };
+
+            // need to recover sender from signature
+            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let address = order.signature.recover_signer(hash);
+
+            let qty = order.quantity_in;
+            approvals.entry(token).or_default().insert(address, qty);
+            balances.entry(token).or_default().insert(address, qty);
+        });
+
+        TestnetStateOverrides { approvals, balances }
+    }
+
     /// the block number is the block that this bundle was executed at.
     pub fn get_order_hashes(&self, block_number: u64) -> impl Iterator<Item = B256> + '_ {
         self.top_of_block_orders
             .iter()
             .map(move |order| order.order_hash(&self.pairs, &self.assets, block_number))
-            .chain(self.user_orders.iter().map(move |order| order.order_hash()))
+            .chain(
+                self.user_orders
+                    .iter()
+                    .map(move |order| order.order_hash(&self.pairs, &self.assets, block_number))
+            )
     }
 
     pub fn build_dummy_for_tob_gas(
