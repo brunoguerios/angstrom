@@ -35,9 +35,9 @@ where
             block_provider
         };
 
-        tracing::info!("initializing testnet with {} nodes", config.node_count());
+        tracing::info!("initializing devnet with {} nodes", config.node_count());
         this.spawn_new_devnet_nodes(c).await?;
-        tracing::info!("initialization testnet with {} nodes", config.node_count());
+        tracing::info!("initialization devnet with {} nodes", config.node_count());
 
         Ok(this)
     }

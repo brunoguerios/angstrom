@@ -36,14 +36,11 @@ where
     pub async fn new(inner: E) -> eyre::Result<Self> {
         debug!("Deploying pool manager...");
         let pool_manager = *PoolManager::deploy(inner.provider(), inner.controller())
-            .await
-            .unwrap()
+            .await?
             .address();
         debug!("Pool manager deployed at: {}", pool_manager);
         debug!("Deploying pool gate...");
-        let pool_gate_instance = PoolGate::deploy(inner.provider(), pool_manager)
-            .await
-            .unwrap();
+        let pool_gate_instance = PoolGate::deploy(inner.provider(), pool_manager).await?;
         let pool_gate = *pool_gate_instance.address();
         debug!("Pool gate deployed at: {}", pool_gate);
         Ok(Self { inner, pool_manager, pool_gate })

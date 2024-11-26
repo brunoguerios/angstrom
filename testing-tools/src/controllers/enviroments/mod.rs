@@ -1,5 +1,7 @@
 mod devnet;
 pub use devnet::*;
+mod testnet;
+pub use testnet::*;
 mod state_machine;
 use std::{
     collections::{HashMap, HashSet},
