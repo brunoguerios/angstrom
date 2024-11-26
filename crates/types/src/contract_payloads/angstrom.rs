@@ -919,8 +919,6 @@ impl AngstromPoolConfigStore {
             .await
             .map_err(|e| format!("Error getting code: {}", e))?;
 
-        println!("{code:?}");
-
         AngstromPoolConfigStore::try_from(code.as_ref())
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
     }
