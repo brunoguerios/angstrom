@@ -82,10 +82,10 @@ where
         self.data_loader.clone()
     }
 
-    pub async fn pool_data_for_block<T: Transport + Clone, N: Network>(
+    pub async fn pool_data_for_block<T: Transport + Clone>(
         &self,
         block_number: BlockNumber,
-        provider: Arc<impl Provider<T, N>>
+        provider: Arc<impl Provider<T>>
     ) -> Result<PoolData, PoolError> {
         self.data_loader
             .load_pool_data(Some(block_number), provider)
@@ -112,10 +112,10 @@ where
         Ok((self.token_a, self.token_b, PoolSnapshot::new(liq_ranges, self.sqrt_price.into())?))
     }
 
-    pub async fn initialize<T: Transport + Clone, N: Network>(
+    pub async fn initialize<T: Transport + Clone>(
         &mut self,
         block_number: Option<BlockNumber>,
-        provider: Arc<impl Provider<T, N>>
+        provider: Arc<impl Provider<T>>
     ) -> Result<(), PoolError> {
         tracing::trace!(?block_number, "populating pool data");
         self.populate_data(block_number, provider.clone()).await?;
@@ -133,7 +133,7 @@ where
         self.data_loader.address()
     }
 
-    async fn get_tick_data_batch_request<P: Provider<T, N>, T: Transport + Clone, N: Network>(
+    async fn get_tick_data_batch_request<P: Provider<T>, T: Transport + Clone>(
         &self,
         tick_start: I24,
         zero_for_one: bool,
@@ -156,7 +156,7 @@ where
         Ok((tick_data, block_number))
     }
 
-    async fn sync_ticks<P: Provider<T, N>, T: Transport + Clone, N: Network>(
+    async fn sync_ticks<P: Provider<T>, T: Transport + Clone>(
         &mut self,
         block_number: Option<u64>,
         provider: Arc<P>
@@ -511,7 +511,7 @@ where
         Ok(())
     }
 
-    pub async fn populate_data<P: Provider<T, N>, T: Transport + Clone, N: Network>(
+    pub async fn populate_data<P: Provider<T>, T: Transport + Clone>(
         &mut self,
         block_number: Option<u64>,
         provider: Arc<P>

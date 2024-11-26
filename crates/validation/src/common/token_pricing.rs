@@ -35,7 +35,7 @@ pub struct TokenPriceGenerator {
 impl TokenPriceGenerator {
     /// is a bit of a pain as we need todo a look-back in-order to grab last 5
     /// blocks.
-    pub async fn new<P: Provider<T, N>, T: Transport + Clone, N: Network, Loader>(
+    pub async fn new<P: Provider<T>, T: Transport + Clone, Loader>(
         provider: Arc<P>,
         current_block: u64,
         uni: SyncedUniswapPools<PoolId, Loader>,

@@ -59,7 +59,7 @@ pub async fn configure_uniswap_manager<
     N: Network,
     BlockSync: BlockSyncConsumer
 >(
-    provider: Arc<impl Provider<T, N>>,
+    provider: Arc<impl Provider<T>>,
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
     current_block: BlockNumber,
