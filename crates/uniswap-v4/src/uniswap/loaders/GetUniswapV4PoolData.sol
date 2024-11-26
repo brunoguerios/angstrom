@@ -37,15 +37,18 @@ contract GetUniswapV4PoolData {
         if (codeSizeIsZero(poolManager)) revert NoPoolManager();
         emit ValidPoolAddress();
         PoolData memory poolData;
+
         Slot0 slot0 = IUniV4.getSlot0(IPoolManager(poolManager), poolId);
         emit GotSlot0(slot0);
 
-        revert NoPoolManager();
 
         uint128 liquidity = IUniV4.getPoolLiquidity(
             IPoolManager(poolManager),
             poolId
         );
+
+        revert NoPoolManager();
+
         emit GotLiquidity(liquidity);
         (, int128 liquidityNet) = IUniV4.getTickLiquidity(
             IPoolManager(poolManager),
