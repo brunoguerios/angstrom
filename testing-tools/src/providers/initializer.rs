@@ -5,7 +5,7 @@ use alloy::{
 };
 use alloy_primitives::{
     aliases::{I24, U24},
-    Address, FixedBytes, U256
+    FixedBytes, U256
 };
 use angstrom_types::{
     contract_bindings::{
@@ -104,20 +104,39 @@ impl AnvilInitializer {
             currency1,
             fee,
             tickSpacing: I24::unchecked_from(tick_spacing),
-            hooks: Address::default()
+            hooks: *self.angstrom.address()
         };
         self.pending_state.add_pool_key(pool.clone());
 
         let liquidity = 1_000_000_000_000_000_u128;
         let price = SqrtPriceX96::at_tick(100000)?;
 
-        let init_pool = self
+        let configure_pool = self
             .angstrom
-            .initializePool(pool.currency0, pool.currency1, U256::ZERO, *price)
+            .configurePool(pool.currency0, pool.currency1, tick_spacing, fee)
+            .from(self.provider.controller())
             .nonce(nonce + 2)
             .deploy_pending()
             .await?;
+        self.pending_state.add_pending_tx(configure_pool);
+
+        let init_pool = self
+            .angstrom
+            .initializePool(pool.currency0, pool.currency1, U256::ZERO, *price)
+            .from(self.provider.controller())
+            .nonce(nonce + 3)
+            .deploy_pending()
+            .await?;
         self.pending_state.add_pending_tx(init_pool);
+
+        let pool_gate = self
+            .pool_gate
+            .tickSpacing(pool.tickSpacing)
+            .from(self.provider.controller())
+            .nonce(nonce + 4)
+            .deploy_pending()
+            .await?;
+        self.pending_state.add_pending_tx(pool_gate);
 
         let add_liq = self
             .pool_gate
@@ -130,10 +149,9 @@ impl AnvilInitializer {
                 FixedBytes::<32>::default()
             )
             .from(self.provider.controller())
-            .nonce(nonce + 3)
+            .nonce(nonce + 5)
             .deploy_pending()
             .await?;
-
         self.pending_state.add_pending_tx(add_liq);
 
         Ok(())
