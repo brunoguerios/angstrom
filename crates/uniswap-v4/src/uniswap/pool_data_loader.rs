@@ -43,6 +43,13 @@ sol! {
 }
 
 sol! {
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    IGetUniswapV4PoolDataBatchRequest_2,
+    "src/uniswap/loaders/GetUniswapV4PoolData_2.json"
+}
+
+sol! {
     struct PoolData {
         address tokenA;
         uint8 tokenADecimals;
@@ -316,7 +323,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
 
         tracing::trace!(?block_number, ?pool_key, "loading pool data");
 
-        let deployer = IGetUniswapV4PoolDataBatchRequest::deploy_builder(
+        let deployer = IGetUniswapV4PoolDataBatchRequest_2::deploy_builder(
             provider,
             self.address(),
             self.pool_manager(),

@@ -78,8 +78,6 @@ pub mod {mod_name} {{
         })
         .collect::<Vec<_>>();
 
-    // panic!("{this_dir}/crates/types{BINDINGS_PATH}");
-
     let mut f = std::fs::File::options()
         .write(true)
         .truncate(true)

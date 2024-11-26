@@ -1,0 +1,143 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "PoolId"
+      },
+      {
+        "name": "poolManager",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "asset0",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "asset1",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "FinishedAssembly",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GotLiquidity",
+    "inputs": [
+      {
+        "name": "liquidity",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GotNetLiquidity",
+    "inputs": [
+      {
+        "name": "liquidityNet",
+        "type": "int128",
+        "indexed": false,
+        "internalType": "int128"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GotPoolData",
+    "inputs": [
+      {
+        "name": "poolData",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct GetUniswapV4PoolData_2.PoolData",
+        "components": [
+          {
+            "name": "token0Decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "token1Decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "liquidity",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "sqrtPrice",
+            "type": "uint160",
+            "internalType": "uint160"
+          },
+          {
+            "name": "tick",
+            "type": "int24",
+            "internalType": "int24"
+          },
+          {
+            "name": "liquidityNet",
+            "type": "int128",
+            "internalType": "int128"
+          }
+        ]
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GotSlot0",
+    "inputs": [
+      {
+        "name": "slot0",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "Slot0"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MadeAbiEncoded",
+    "inputs": [
+      {
+        "name": "abiEncodedData",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Start",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ValidPoolAddress",
+    "inputs": [],
+    "anonymous": false
+  }
+]
