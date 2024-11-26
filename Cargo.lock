@@ -1578,7 +1578,6 @@ dependencies = [
  "serde",
  "serde_json",
  "testing-tools",
- "testing-tools-macros",
  "thiserror 1.0.69",
  "tracing",
  "uniswap_v3_math",
@@ -10742,15 +10741,6 @@ dependencies = [
  "uniswap-v4",
  "uniswap_v3_math",
  "validation",
-]
-
-[[package]]
-name = "testing-tools-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.89",
 ]
 
 [[package]]

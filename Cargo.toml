@@ -12,7 +12,6 @@ members = [
   "crates/rpc",
   "crates/eth/",
   "testing-tools",
-  "testing-tools/testing-tools-macros",
   "crates/matching-engine",
   "crates/metrics",
   "crates/uniswap-v4",
@@ -60,7 +59,6 @@ angstrom-rpc = { path = "./crates/rpc/" }
 angstrom-network = { path = "./crates/angstrom-net/" }
 angstrom-metrics = { path = "./crates/metrics/" }
 testing-tools = { path = "./testing-tools/" }
-testing-tools-macros = { path = "./testing-tools/testing-tools-macros" }
 angstrom = { path = "./bin/angstrom/" }
 matching-engine = { path = "./crates/matching-engine/" }
 contract-bindings = { path = "./crates/contract-bindings/" }
