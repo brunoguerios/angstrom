@@ -57,17 +57,21 @@ contract GetUniswapV4PoolData {
 
 
         emit GotNetLiquidity(liquidityNet);
+
         poolData.token0Decimals = IERC20(asset0).decimals();
         poolData.token1Decimals = IERC20(asset1).decimals();
+
+        revert NoPoolManager();
+
         poolData.liquidity = liquidity;
         poolData.sqrtPrice = slot0.sqrtPriceX96();
         poolData.tick = slot0.tick();
         poolData.liquidityNet = liquidityNet;
+
         emit GotPoolData(poolData);
         bytes memory abiEncodedData = abi.encode(poolData);
         emit MadeAbiEncoded(abiEncodedData);
 
-        revert NoPoolManager();
 
         assembly {
             let dataStart := add(abiEncodedData, 0x20)
