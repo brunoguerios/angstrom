@@ -47,7 +47,6 @@ contract GetUniswapV4PoolData {
             poolId
         );
 
-        revert NoPoolManager();
 
         emit GotLiquidity(liquidity);
         (, int128 liquidityNet) = IUniV4.getTickLiquidity(
@@ -55,6 +54,8 @@ contract GetUniswapV4PoolData {
             poolId,
             slot0.tick()
         );
+        revert NoPoolManager();
+
         emit GotNetLiquidity(liquidityNet);
         poolData.token0Decimals = IERC20(asset0).decimals();
         poolData.token1Decimals = IERC20(asset1).decimals();
