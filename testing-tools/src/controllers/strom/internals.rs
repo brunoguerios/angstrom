@@ -9,7 +9,7 @@ use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
     block_sync::GlobalBlockSync,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-    mev_boost::{MevBoostProvider, SubmitTx},
+    mev_boost::MevBoostProvider,
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
     sol_bindings::testnet::TestnetHub,
@@ -32,7 +32,7 @@ use crate::{
     contracts::anvil::WalletProviderRpc,
     providers::{
         utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider,
-        AnvilSubmissionProvider, WalletProvider
+        WalletProvider
     },
     types::{
         config::TestingNodeConfig, GlobalTestingConfig, SendingStromHandles, WithWalletProvider
@@ -112,7 +112,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             block_number,
             block_sync.clone(),
             inital_angstrom_state.pool_manager_addr,
-            false
+            true
         )
         .await;
 
@@ -191,14 +191,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let pool_registry =
             UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
-        let override_sender = vec![Arc::new(Box::new(AnvilSubmissionProvider {
-            provider: state_provider.rpc_provider()
-        }) as Box<dyn SubmitTx>)];
-
-        let mev_boost_provider = MevBoostProvider::new_from_raw(
-            Arc::new(state_provider.rpc_provider()),
-            override_sender
-        );
+        let mev_boost_provider =
+            MevBoostProvider::new_from_urls(Arc::new(state_provider.rpc_provider()), &[]);
 
         let consensus = ConsensusManager::new(
             ManagerNetworkDeps::new(
