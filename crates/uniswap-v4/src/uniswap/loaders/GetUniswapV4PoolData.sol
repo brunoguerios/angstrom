@@ -36,6 +36,7 @@ contract GetUniswapV4PoolData {
         emit Start();
         if (codeSizeIsZero(poolManager)) revert NoPoolManager();
         emit ValidPoolAddress();
+        revert NoPoolManager();
         PoolData memory poolData;
         Slot0 slot0 = IUniV4.getSlot0(IPoolManager(poolManager), poolId);
         emit GotSlot0(slot0);
