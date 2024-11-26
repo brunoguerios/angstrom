@@ -42,12 +42,12 @@ sol! {
     "src/uniswap/loaders/GetUniswapV4PoolData.json"
 }
 
-sol! {
+sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     IGetUniswapV4PoolDataBatchRequest_2,
     "src/uniswap/loaders/GetUniswapV4PoolData_2.json"
-}
+);
 
 sol! {
     struct PoolData {

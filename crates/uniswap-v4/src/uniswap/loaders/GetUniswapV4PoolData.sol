@@ -17,13 +17,24 @@ contract GetUniswapV4PoolData {
         int128 liquidityNet;
     }
 
-    constructor(PoolId poolId, address poolManager, address asset0, address asset1) {
+    constructor(
+        PoolId poolId,
+        address poolManager,
+        address asset0,
+        address asset1
+    ) {
         if (codeSizeIsZero(poolManager)) revert("Invalid pool address");
         PoolData memory poolData;
         Slot0 slot0 = IUniV4.getSlot0(IPoolManager(poolManager), poolId);
-        uint128 liquidity = IUniV4.getPoolLiquidity(IPoolManager(poolManager), poolId);
-        (, int128 liquidityNet) =
-            IUniV4.getTickLiquidity(IPoolManager(poolManager), poolId, slot0.tick());
+        uint128 liquidity = IUniV4.getPoolLiquidity(
+            IPoolManager(poolManager),
+            poolId
+        );
+        (, int128 liquidityNet) = IUniV4.getTickLiquidity(
+            IPoolManager(poolManager),
+            poolId,
+            slot0.tick()
+        );
 
         poolData.token0Decimals = IERC20(asset0).decimals();
         poolData.token1Decimals = IERC20(asset1).decimals();

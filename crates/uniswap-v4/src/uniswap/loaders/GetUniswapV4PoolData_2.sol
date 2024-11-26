@@ -7,7 +7,7 @@ import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {Slot0} from "v4-core/src/types/Slot0.sol";
 import {IUniV4} from "core/src/interfaces/IUniV4.sol";
 
-contract GetUniswapV4PoolData_2 {
+contract GetUniswapV4PoolData2 {
     struct PoolData {
         uint8 token0Decimals;
         uint8 token1Decimals;
@@ -63,7 +63,7 @@ contract GetUniswapV4PoolData_2 {
             let dataSize := 192
             return(dataStart, dataSize)
         }
-        emit FinishedAssembly();
+        // emit FinishedAssembly();
     }
 
     function codeSizeIsZero(address target) internal view returns (bool) {
