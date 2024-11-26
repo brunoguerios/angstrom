@@ -1,6 +1,7 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy::{
+    contract::CallBuilder,
     primitives::{aliases::I24, Address, BlockNumber, U256},
     providers::Provider,
     sol,
@@ -12,42 +13,47 @@ use angstrom_types::primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry};
 use itertools::Itertools;
 use malachite::{num::conversion::traits::RoundingInto, Natural, Rational};
 
+// sol! {
+//     #[allow(missing_docs)]
+//     #[sol(rpc)]
+//     IGetUniswapV3TickDataBatchRequest,
+//     "src/uniswap/loaders/GetUniswapV3TickData.json"
+// }
+//
+// sol! {
+//     #[allow(missing_docs)]
+//     #[sol(rpc)]
+//     IGetUniswapV3PoolDataBatchRequest,
+//     "src/uniswap/loaders/GetUniswapV3PoolData.json"
+// }
+//
+// sol! {
+//     #[allow(missing_docs)]
+//     #[sol(rpc)]
+//     IGetUniswapV4TickDataBatchRequest,
+//     "src/uniswap/loaders/GetUniswapV4TickData.json"
+// }
+//
+// sol! {
+//     #[allow(missing_docs)]
+//     #[sol(rpc)]
+//     IGetUniswapV4PoolDataBatchRequest,
+//     "src/uniswap/loaders/GetUniswapV4PoolData.json"
+// }
+//
+// sol!(
+//     #[allow(missing_docs)]
+//     #[sol(rpc)]
+//     IGetUniswapV4PoolDataBatchRequest_2,
+//     "src/uniswap/loaders/GetUniswapV4PoolData_2.json"
+// );
+use super::loaders::{
+    get_uniswap_v_3_pool_data::GetUniswapV3PoolData,
+    get_uniswap_v_3_tick_data::GetUniswapV3TickData,
+    get_uniswap_v_4_pool_data::GetUniswapV4PoolData,
+    get_uniswap_v_4_tick_data::GetUniswapV4TickData
+};
 use crate::uniswap::{i128_to_i256, i256_to_i128, pool::PoolError};
-
-sol! {
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    IGetUniswapV3TickDataBatchRequest,
-    "src/uniswap/loaders/GetUniswapV3TickData.json"
-}
-
-sol! {
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    IGetUniswapV3PoolDataBatchRequest,
-    "src/uniswap/loaders/GetUniswapV3PoolData.json"
-}
-
-sol! {
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    IGetUniswapV4TickDataBatchRequest,
-    "src/uniswap/loaders/GetUniswapV4TickData.json"
-}
-
-sol! {
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    IGetUniswapV4PoolDataBatchRequest,
-    "src/uniswap/loaders/GetUniswapV4PoolData.json"
-}
-
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    IGetUniswapV4PoolDataBatchRequest_2,
-    "src/uniswap/loaders/GetUniswapV4PoolData_2.json"
-);
 
 sol! {
     struct PoolData {
@@ -188,7 +194,7 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<(Vec<TickData>, U256), PoolError> {
-        let deployer = IGetUniswapV3TickDataBatchRequest::deploy_builder(
+        let deployer = GetUniswapV3TickData::deploy_builder(
             provider.clone(),
             self.address,
             zero_for_one,
@@ -212,7 +218,7 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<PoolData, PoolError> {
-        let deployer = IGetUniswapV3PoolDataBatchRequest::deploy_builder(provider, self.address);
+        let deployer = GetUniswapV3PoolData::deploy_builder(provider, self.address);
         let res = if let Some(block_number) = block_number {
             deployer.block(block_number.into()).call_raw().await?
         } else {
@@ -323,7 +329,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
 
         tracing::trace!(?block_number, ?pool_key, "loading pool data");
 
-        let deployer = IGetUniswapV4PoolDataBatchRequest_2::deploy_builder(
+        let deployer = GetUniswapV4PoolData::deploy_builder(
             provider,
             self.address(),
             self.pool_manager(),
@@ -361,7 +367,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<(Vec<TickData>, U256), PoolError> {
-        let deployer = IGetUniswapV4TickDataBatchRequest::deploy_builder(
+        let deployer = GetUniswapV4TickData::deploy_builder(
             provider.clone(),
             self.address(),
             self.pool_manager(),

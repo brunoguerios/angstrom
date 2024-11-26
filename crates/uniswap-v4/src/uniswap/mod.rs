@@ -2,6 +2,7 @@ use alloy_primitives::{aliases::I24, I256};
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
+pub mod loaders;
 pub mod pool;
 pub mod pool_data_loader;
 pub mod pool_manager;

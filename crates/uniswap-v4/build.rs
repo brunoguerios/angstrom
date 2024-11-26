@@ -5,14 +5,13 @@ use itertools::Itertools;
 
 const CONTRACT_LOCATION: &str = "contracts/";
 const OUT_DIRECTORY: &str = "contracts/out/";
-const BINDINGS_PATH: &str = "/src/contract_bindings/mod.rs";
+const BINDINGS_PATH: &str = "/src/uniswap/loaders/mod.rs";
 
-const WANTED_CONTRACTS: [&str; 5] = [
-    "Angstrom.sol",
-    "PoolManager.sol",
-    "PoolGate.sol",
-    "MockRewardsManager.sol",
-    "MintableMockERC20.sol"
+const WANTED_CONTRACTS: [&str; 4] = [
+    "GetUniswapV3PoolData.sol",
+    "GetUniswapV3TickData.sol",
+    "GetUniswapV4PoolData.sol",
+    "GetUniswapV4TickData.sol"
 ];
 
 // builds the contracts crate. then goes and generates bindings on this
@@ -29,6 +28,7 @@ fn main() {
     out_dir.push(OUT_DIRECTORY);
 
     let res = Command::new("forge")
+        .env("FOUNDRY_PROFILE", "loaders")
         .arg("build")
         .arg("--optimize")
         .arg("--optimizer-runs")
@@ -81,7 +81,7 @@ pub mod {mod_name} {{
     let mut f = std::fs::File::options()
         .write(true)
         .truncate(true)
-        .open(format!("{this_dir}/crates/types{BINDINGS_PATH}"))
+        .open(format!("{this_dir}/crates/uniswap-v4/{BINDINGS_PATH}"))
         .unwrap();
 
     for contract_build in sol_macro_invocation {

@@ -11554,6 +11554,7 @@ dependencies = [
  "rand_distr",
  "reth-provider",
  "reth-tasks",
+ "serde",
  "testing-tools",
  "thiserror 1.0.69",
  "tokio",

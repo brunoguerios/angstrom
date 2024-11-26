@@ -10,6 +10,7 @@ exclude.workspace = true
 
 
 [dependencies]
+serde.workspace =true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
 alloy.workspace = true
