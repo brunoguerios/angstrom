@@ -56,7 +56,7 @@ remappings = [
   "core/src/=src/",
   "solmate/=lib/solmate/",
 ]
-src = "../crates/uniswap-v4/src/uniswap/loaders/"
+src = "../crates/uniswap-v4/src/uniswap/loaders"
 libs = [
   "lib"
 ]
