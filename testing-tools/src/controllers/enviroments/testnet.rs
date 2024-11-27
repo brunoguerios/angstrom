@@ -32,7 +32,8 @@ where
             _dropped_peers: HashSet::new(),
             current_max_peer_id: 0,
             config: config.clone(),
-            block_provider
+            block_provider,
+            _anvil_instance: None
         };
 
         tracing::info!("initializing testnet with {} nodes", config.node_count());
@@ -65,6 +66,7 @@ where
                 tracing::info!(?node_id, "is leader init");
                 let mut initializer =
                     AnvilProvider::new(AnvilInitializer::new(node_config.clone())).await?;
+
                 let provider = initializer.provider_mut().provider_mut();
                 provider.deploy_pool_full().await?;
                 let initial_state = provider.initialize_state().await?;
@@ -77,6 +79,11 @@ where
                 provider.set_state(state_bytes).await?;
                 provider
             };
+
+            let instance = provider._instance.take();
+            if instance.is_some() {
+                self._anvil_instance = instance;
+            }
 
             tracing::info!(node_id, "connected to state provider");
 

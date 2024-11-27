@@ -14,8 +14,8 @@ use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
 
 #[derive(Debug)]
 pub struct AnvilProvider<P> {
-    provider:  AnvilStateProvider<P>,
-    _instance: Option<AnvilInstance>
+    provider:      AnvilStateProvider<P>,
+    pub _instance: Option<AnvilInstance>
 }
 impl<P> AnvilProvider<P>
 where

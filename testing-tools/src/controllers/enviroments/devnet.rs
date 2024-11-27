@@ -32,7 +32,8 @@ where
             _dropped_peers: HashSet::new(),
             current_max_peer_id: 0,
             config: config.clone(),
-            block_provider
+            block_provider,
+            _anvil_instance: None
         };
 
         tracing::info!("initializing devnet with {} nodes", config.node_count());
