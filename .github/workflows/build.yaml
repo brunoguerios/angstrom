@@ -30,6 +30,9 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
       - name: "build nightly"
         run: cargo build --workspace --all-features
 
