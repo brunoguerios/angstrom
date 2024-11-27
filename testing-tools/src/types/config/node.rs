@@ -74,7 +74,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg("--code-size-limit")
             .arg("393216")
             .arg("--preserve-historical-states")
-            .arg("--prune-history")
+            .arg("--max-persisted-states")
             .arg("500")
             .block_time(12)
     }
@@ -87,7 +87,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg("--code-size-limit")
             .arg("393216")
             .arg("--preserve-historical-states")
-            .arg("--prune-history")
+            .arg("--max-persisted-states")
             .arg("500")
             .arg("--disable-block-gas-limit");
 
