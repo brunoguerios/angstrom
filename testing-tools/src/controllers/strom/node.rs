@@ -12,7 +12,6 @@ use angstrom_network::{
     NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkManager
 };
 use angstrom_types::{
-    block_sync::MockBlockSync,
     primitive::PeerId,
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
     testnet::InitialTestnetState
@@ -36,7 +35,7 @@ use crate::{
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
     providers::AnvilProvider,
-    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
+    types::{config::TestingNodeConfig, GlobalTestingConfig, MockBlockSync, WithWalletProvider}
 };
 
 pub struct TestnetNode<C, P> {
