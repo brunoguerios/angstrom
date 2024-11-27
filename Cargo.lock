@@ -1457,6 +1457,7 @@ dependencies = [
  "auto_impl",
  "bincode",
  "enr 0.10.0",
+ "eyre",
  "futures",
  "humantime-serde",
  "k256",
@@ -1467,6 +1468,7 @@ dependencies = [
  "parking_lot 0.12.3",
  "pin-project",
  "rand",
+ "reth",
  "reth-chainspec",
  "reth-codecs",
  "reth-discv4",
@@ -1480,6 +1482,7 @@ dependencies = [
  "reth-network-api",
  "reth-network-p2p",
  "reth-network-peers",
+ "reth-node-builder",
  "reth-primitives",
  "reth-provider",
  "reth-tasks",
@@ -1541,6 +1544,7 @@ dependencies = [
  "alloy-primitives 0.8.12",
  "alloy-rlp",
  "anyhow",
+ "auto_impl",
  "base64 0.22.1",
  "bincode",
  "bitmaps",
@@ -1574,7 +1578,6 @@ dependencies = [
  "serde",
  "serde_json",
  "testing-tools",
- "testing-tools-macros",
  "thiserror 1.0.69",
  "tracing",
  "uniswap_v3_math",
@@ -2816,9 +2819,9 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.16"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16b80225097f2e5ae4e7179dd2266824648f3e2f49d9134d584b76389d31c4c3"
+checksum = "0ca741a962e1b0bff6d724a1a0958b686406e853bb14061f218562e1896f95e6"
 dependencies = [
  "libc",
 ]
@@ -3205,6 +3208,64 @@ dependencies = [
  "quote",
  "syn 2.0.89",
  "unicode-xid",
+]
+
+[[package]]
+name = "devnet"
+version = "0.1.0"
+dependencies = [
+ "alloy 0.4.2",
+ "alloy-chains",
+ "alloy-primitives 0.8.12",
+ "alloy-rpc-types 0.4.2",
+ "angstrom",
+ "angstrom-eth",
+ "angstrom-network",
+ "angstrom-rpc",
+ "angstrom-types",
+ "angstrom-utils",
+ "clap",
+ "consensus",
+ "enr 0.10.0",
+ "eyre",
+ "futures",
+ "jsonrpsee",
+ "order-pool",
+ "parking_lot 0.12.3",
+ "rand",
+ "reth",
+ "reth-beacon-consensus",
+ "reth-blockchain-tree",
+ "reth-codecs",
+ "reth-db",
+ "reth-discv4",
+ "reth-dns-discovery",
+ "reth-ecies",
+ "reth-eth-wire",
+ "reth-metrics",
+ "reth-network",
+ "reth-network-api",
+ "reth-network-peers",
+ "reth-node-builder",
+ "reth-node-ethereum",
+ "reth-primitives",
+ "reth-provider",
+ "reth-revm",
+ "reth-tasks",
+ "reth-tokio-util",
+ "reth-tracing",
+ "reth-transaction-pool",
+ "secp256k1 0.29.1",
+ "serial_test",
+ "tempfile",
+ "testing-tools",
+ "tikv-jemallocator",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "validation",
 ]
 
 [[package]]
@@ -5149,6 +5210,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "643cb0b8d4fcc284004d5fd0d67ccf61dfffadb7f75e1e71bc420f4688a3a704"
 
 [[package]]
+name = "local-ip-address"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3669cf5561f8d27e8fc84cc15e58350e70f557d4d65f70e3154e54cd2f8e1782"
+dependencies = [
+ "libc",
+ "neli",
+ "thiserror 1.0.69",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5288,6 +5361,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uniswap-v4",
  "uniswap_v3_math",
  "validation",
 ]
@@ -5614,6 +5688,31 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "neli"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1100229e06604150b3becd61a4965d5c70f3be1759544ea7274166f4be41ef43"
+dependencies = [
+ "byteorder",
+ "libc",
+ "log",
+ "neli-proc-macros",
+]
+
+[[package]]
+name = "neli-proc-macros"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c168194d373b1e134786274020dae7fc5513d565ea2ebb9bc9ff17ffb69106d4"
+dependencies = [
+ "either",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -6086,9 +6185,9 @@ dependencies = [
 [[package]]
 name = "pade"
 version = "0.1.0"
-source = "git+https://github.com/SorellaLabs/pade#18384964d3d38ccaa5fed3cbca11ff14fa4784ae"
+source = "git+https://github.com/SorellaLabs/pade#8807ca6f82063e06b76a38f6ed93f74d5f0a9cbb"
 dependencies = [
- "alloy 0.5.4",
+ "alloy 0.4.2",
  "bitvec",
  "bytes",
  "pade-macro",
@@ -6098,7 +6197,7 @@ dependencies = [
 [[package]]
 name = "pade-macro"
 version = "0.1.0"
-source = "git+https://github.com/SorellaLabs/pade#18384964d3d38ccaa5fed3cbca11ff14fa4784ae"
+source = "git+https://github.com/SorellaLabs/pade#8807ca6f82063e06b76a38f6ed93f74d5f0a9cbb"
 dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
@@ -9730,9 +9829,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.18"
+version = "0.23.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c9cc1d47e243d655ace55ed38201c19ae02c148ae56412ab8750e8f0166ab7f"
+checksum = "7f1a745511c54ba6d4465e8d5dfbd81b45791756de28d4981af70d6dca128f1e"
 dependencies = [
  "log",
  "once_cell",
@@ -10645,15 +10744,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "testing-tools-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.89",
-]
-
-[[package]]
 name = "testnet"
 version = "0.1.0"
 dependencies = [
@@ -10661,8 +10751,10 @@ dependencies = [
  "alloy-chains",
  "alloy-primitives 0.8.12",
  "alloy-rpc-types 0.4.2",
+ "alloy-signer-local",
  "angstrom",
  "angstrom-eth",
+ "angstrom-metrics",
  "angstrom-network",
  "angstrom-rpc",
  "angstrom-types",
@@ -10673,12 +10765,15 @@ dependencies = [
  "eyre",
  "futures",
  "jsonrpsee",
+ "local-ip-address",
+ "matching-engine",
  "order-pool",
  "parking_lot 0.12.3",
  "rand",
  "reth",
  "reth-beacon-consensus",
  "reth-blockchain-tree",
+ "reth-cli-util",
  "reth-codecs",
  "reth-db",
  "reth-discv4",
@@ -10699,6 +10794,7 @@ dependencies = [
  "reth-tracing",
  "reth-transaction-pool",
  "secp256k1 0.29.1",
+ "serde",
  "serial_test",
  "tempfile",
  "testing-tools",
@@ -10706,6 +10802,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+ "toml",
  "tracing",
  "tracing-subscriber",
  "validation",
@@ -11429,12 +11526,14 @@ dependencies = [
  "angstrom-utils",
  "arraydeque",
  "clap",
+ "convert_case 0.6.0",
  "criterion",
  "divan",
  "eyre",
  "futures",
  "futures-util",
  "itertools 0.12.1",
+ "itertools 0.13.0",
  "malachite",
  "malachite-q",
  "num-bigfloat",
@@ -11445,6 +11544,7 @@ dependencies = [
  "rand_distr",
  "reth-provider",
  "reth-tasks",
+ "serde",
  "testing-tools",
  "thiserror 1.0.69",
  "tokio",

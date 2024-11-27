@@ -19,16 +19,23 @@ pub use token_pricing::*;
 /// it so all async future state is polled and up-kept in a single spot
 pub struct SharedTools {
     pub token_pricing:   TokenPriceGenerator,
-    token_price_updater: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + 'static>>,
-    pub thread_pool: KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send>>, Handle>,
+    token_price_updater: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>,
+    pub thread_pool:
+        KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send + Sync>>, Handle>,
     pub metrics:         ValidationMetrics
 }
 
 impl SharedTools {
     pub fn new(
         token_pricing: TokenPriceGenerator,
-        token_price_updater: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + 'static>>,
-        thread_pool: KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send>>, Handle>
+        token_price_updater: Pin<
+            Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>
+        >,
+        thread_pool: KeySplitThreadpool<
+            Address,
+            Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
+            Handle
+        >
     ) -> Self {
         Self { token_price_updater, token_pricing, thread_pool, metrics: ValidationMetrics::new() }
     }
@@ -39,7 +46,8 @@ impl SharedTools {
 
     pub fn thread_pool_mut(
         &mut self
-    ) -> &mut KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send>>, Handle> {
+    ) -> &mut KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send + Sync>>, Handle>
+    {
         &mut self.thread_pool
     }
 

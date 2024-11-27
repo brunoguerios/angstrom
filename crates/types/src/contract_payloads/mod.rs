@@ -1,7 +1,8 @@
 use alloy::{
-    primitives::{Address, Bytes, FixedBytes},
+    primitives::{Address, Bytes, FixedBytes, Parity, U256},
     sol
 };
+use alloy_primitives::B256;
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 
@@ -37,6 +38,22 @@ pub enum Signature {
     Ecdsa { v: u8, r: FixedBytes<32>, s: FixedBytes<32> }
 }
 
+impl Signature {
+    pub fn recover_signer(&self, hash: B256) -> Address {
+        match self {
+            Self::Contract { from, .. } => *from,
+            Self::Ecdsa { v, r, s } => {
+                let sig = alloy::primitives::Signature::new(
+                    U256::from_be_slice(&**r),
+                    U256::from_be_slice(&**s),
+                    Parity::NonEip155(*v == 1)
+                );
+                sig.recover_address_from_prehash(&hash).unwrap()
+            }
+        }
+    }
+}
+
 impl Default for Signature {
     fn default() -> Self {
         Self::Contract { from: Address::default(), signature: Bytes::default() }
@@ -45,8 +62,7 @@ impl Default for Signature {
 
 impl From<alloy::primitives::Signature> for Signature {
     fn from(value: alloy::primitives::Signature) -> Self {
-        let v = value.v().y_parity_byte();
-        // TODO:  Make this robust, right now it Just Works
+        let v = value.v().y_parity_byte_non_eip155().unwrap();
         let r: FixedBytes<32> = value.r().into();
         let s: FixedBytes<32> = value.s().into();
         Self::Ecdsa { v, r, s }

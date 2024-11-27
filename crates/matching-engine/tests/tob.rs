@@ -16,12 +16,18 @@ use angstrom_types::{
     }
 };
 use pade::PadeEncode;
-use testing_tools::contracts::{environment::mockreward::MockRewardEnv, DebugTransaction};
+use testing_tools::{
+    contracts::{environment::mockreward::MockRewardEnv, DebugTransaction},
+    providers::AnvilProvider
+};
 use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 
 #[tokio::test]
 async fn properly_communicates_tob_to_contract() -> eyre::Result<()> {
-    let env = MockRewardEnv::spawn_anvil().await.unwrap();
+    let anvil = AnvilProvider::spawn_new_isolated().await.unwrap();
+    let env = MockRewardEnv::with_anvil(anvil.wallet_provider())
+        .await
+        .unwrap();
 
     println!("Env created");
     let sqrt_price_x96 = SqrtPriceX96::from(get_sqrt_ratio_at_tick(100020).unwrap());
@@ -70,7 +76,7 @@ async fn properly_communicates_tob_to_contract() -> eyre::Result<()> {
             I24::unchecked_from(99900),
             I24::unchecked_from(100140)
         )
-        .gas(10_000_000_u64)
+        .gas(50e6 as u64)
         .call()
         .await
         .unwrap()

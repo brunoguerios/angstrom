@@ -7,6 +7,7 @@ import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {Slot0} from "v4-core/src/types/Slot0.sol";
 import {IUniV4} from "core/src/interfaces/IUniV4.sol";
 
+
 contract GetUniswapV4PoolData {
     struct PoolData {
         uint8 token0Decimals;
@@ -17,27 +18,52 @@ contract GetUniswapV4PoolData {
         int128 liquidityNet;
     }
 
-    constructor(PoolId poolId, address poolManager, address asset0, address asset1) {
-        if (codeSizeIsZero(poolManager)) revert("Invalid pool address");
+    error NoPoolManager();
+
+    constructor(
+        PoolId poolId,
+        address poolManager,
+        address asset0,
+        address asset1
+    ) {
+
+        if (codeSizeIsZero(poolManager)) revert NoPoolManager();
         PoolData memory poolData;
+
         Slot0 slot0 = IUniV4.getSlot0(IPoolManager(poolManager), poolId);
-        uint128 liquidity = IUniV4.getPoolLiquidity(IPoolManager(poolManager), poolId);
-        (, int128 liquidityNet) =
-            IUniV4.getTickLiquidity(IPoolManager(poolManager), poolId, slot0.tick());
+
+
+        uint128 liquidity = IUniV4.getPoolLiquidity(
+            IPoolManager(poolManager),
+            poolId
+        );
+
+
+        (, int128 liquidityNet) = IUniV4.getTickLiquidity(
+            IPoolManager(poolManager),
+            poolId,
+            slot0.tick()
+        );
+
+
 
         poolData.token0Decimals = IERC20(asset0).decimals();
         poolData.token1Decimals = IERC20(asset1).decimals();
+
         poolData.liquidity = liquidity;
         poolData.sqrtPrice = slot0.sqrtPriceX96();
         poolData.tick = slot0.tick();
         poolData.liquidityNet = liquidityNet;
 
         bytes memory abiEncodedData = abi.encode(poolData);
+
+
         assembly {
             let dataStart := add(abiEncodedData, 0x20)
             let dataSize := 192
             return(dataStart, dataSize)
         }
+        // emit FinishedAssembly();
     }
 
     function codeSizeIsZero(address target) internal view returns (bool) {

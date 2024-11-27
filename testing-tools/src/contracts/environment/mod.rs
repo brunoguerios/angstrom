@@ -11,8 +11,8 @@ use alloy::{
 };
 use tracing::debug;
 
-use super::anvil::{AnvilWalletRpc, LocalAnvilRpc};
-use crate::contracts::anvil::spawn_anvil;
+use super::anvil::WalletProviderRpc;
+use crate::contracts::anvil::{spawn_anvil, LocalAnvilRpc};
 
 pub mod angstrom;
 pub mod mockreward;
@@ -29,7 +29,7 @@ pub trait TestAnvilEnvironment {
 pub struct SpawnedAnvil {
     #[allow(dead_code)]
     anvil:      AnvilInstance,
-    provider:   AnvilWalletRpc,
+    provider:   WalletProviderRpc,
     controller: Address
 }
 
@@ -44,7 +44,7 @@ impl SpawnedAnvil {
 }
 
 impl TestAnvilEnvironment for SpawnedAnvil {
-    type P = AnvilWalletRpc;
+    type P = WalletProviderRpc;
     type T = PubSubFrontend;
 
     fn provider(&self) -> &Self::P {

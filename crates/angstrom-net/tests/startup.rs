@@ -8,7 +8,7 @@ use reth_provider::test_utils::NoopProvider;
 async fn test_startup() {
     reth_tracing::init_test_tracing();
     let noop = NoopProvider::default();
-    let mut testnet = AngstromTestnet::new(4, noop).await;
+    let mut testnet = AngstromDevnet::new(4, noop).await;
 
     let res = tokio::time::timeout(Duration::from_secs(1), testnet.connect_all_peers()).await;
     assert!(res.is_ok(), "failed to connect all peers within 1 seconds");

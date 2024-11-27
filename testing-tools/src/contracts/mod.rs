@@ -14,10 +14,10 @@ use alloy::{
 };
 use alloy_primitives::TxHash;
 use angstrom_types::sol_bindings::testnet::{MockERC20, PoolManagerDeployer, TestnetHub};
+use anvil::WalletProviderRpc;
 use eyre::eyre;
 use futures::Future;
 
-use crate::anvil_state_provider::utils::AnvilWalletRpc;
 pub mod anvil;
 pub mod deploy;
 pub mod environment;
@@ -43,8 +43,8 @@ where
         if receipt.inner.status() {
             Ok(receipt.transaction_hash)
         } else {
-            let _default_options = GethDebugTracingOptions::default();
-            let call_options = GethDebugTracingOptions {
+            let default_options = GethDebugTracingOptions::default();
+            let _call_options = GethDebugTracingOptions {
                 config: GethDefaultTracingOptions {
                     disable_storage: Some(true),
                     enable_memory: Some(false),
@@ -56,7 +56,7 @@ where
                 ..Default::default()
             };
             let result = provider
-                .debug_trace_transaction(receipt.transaction_hash, call_options)
+                .debug_trace_transaction(receipt.transaction_hash, default_options)
                 .await?;
 
             println!("TRACE: {result:?}");
@@ -72,7 +72,7 @@ fn get_or_set_signer(my_address: Address) -> Address {
     *CREATE_SIGNER.get_or_init(|| my_address)
 }
 
-pub struct AngstromTestnetAddresses {
+pub struct AngstromTestingAddresses {
     pub contract:     Address,
     pub pool_manager: Address,
     pub token0:       Address,
@@ -82,8 +82,8 @@ pub struct AngstromTestnetAddresses {
 /// deploys the angstrom testhub contract along with two tokens, under the
 /// secret key
 pub async fn deploy_contract_and_create_pool(
-    provider: AnvilWalletRpc
-) -> eyre::Result<AngstromTestnetAddresses> {
+    provider: WalletProviderRpc
+) -> eyre::Result<AngstromTestingAddresses> {
     provider
         .anvil_impersonate_account(get_or_set_signer(provider.default_signer_address()))
         .await?;
@@ -150,7 +150,7 @@ pub async fn deploy_contract_and_create_pool(
         .anvil_stop_impersonating_account(get_or_set_signer(provider.default_signer_address()))
         .await?;
 
-    Ok(AngstromTestnetAddresses {
+    Ok(AngstromTestingAddresses {
         contract: angstrom_address,
         pool_manager: v4_address,
         token0,
@@ -164,7 +164,7 @@ pub async fn deploy_contract_and_create_pool(
 // between transactions while avoiding race conditions
 pub async fn anvil_mine_delay<F0: Future + Unpin>(
     f0: F0,
-    provider: &AnvilWalletRpc,
+    provider: &WalletProviderRpc,
     delay: Duration
 ) -> F0::Output {
     let mut pinned = pin!(f0);

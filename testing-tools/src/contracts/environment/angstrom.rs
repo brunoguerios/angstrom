@@ -10,6 +10,7 @@ pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
     fn angstrom(&self) -> Address;
 }
 
+#[derive(Clone)]
 pub struct AngstromEnv<E: TestUniswapEnv> {
     #[allow(dead_code)]
     inner:    E,
@@ -131,6 +132,7 @@ mod tests {
             uniswap::{TestUniswapEnv, UniswapEnv},
             LocalAnvil, SpawnedAnvil, TestAnvilEnvironment
         },
+        providers::AnvilProvider,
         type_generator::{
             amm::AMMSnapshotBuilder,
             consensus::{pool::Pool, proposal::ProposalBuilder},
@@ -140,8 +142,8 @@ mod tests {
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = SpawnedAnvil::new().await.unwrap();
-        let uniswap = UniswapEnv::new(anvil).await.unwrap();
+        let anvil = AnvilProvider::spawn_new_isolated().await.unwrap();
+        let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
         AngstromEnv::new(uniswap).await.unwrap();
     }
 
@@ -174,7 +176,6 @@ mod tests {
         default.meta.isEcdsa = true;
         default.meta.from = address;
         default.meta.signature = sig.pade_encode().into();
-        // (address, default)
 
         let user_order = OrderWithStorageData {
             order: GroupedVanillaOrder::Standing(StandingVariants::Exact(default)),
@@ -311,3 +312,10 @@ mod tests {
         // angstrom.execute(encoded)
     }
 }
+
+/*
+
+initial pool there are
+
+
+*/

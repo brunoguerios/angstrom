@@ -1,35 +1,77 @@
-use std::{ops::Deref, sync::Arc};
+use std::{marker::PhantomData, ops::Deref, pin::Pin, sync::Arc};
 
 use alloy::{
     eips::eip2718::Encodable2718,
     network::TransactionBuilder,
     primitives::{Address, TxHash},
-    providers::{Provider, ProviderBuilder},
+    providers::{Provider, ProviderBuilder, RootProvider},
     rpc::types::TransactionRequest,
-    transports::http::{reqwest::Url, ReqwestTransport}
+    transports::{http::reqwest::Url, Transport}
 };
+use futures::{Future, FutureExt};
 
 use crate::primitive::AngstromSigner;
 
-pub struct MevBoostProvider<P> {
-    mev_boost_providers: Vec<Arc<Box<dyn Provider<ReqwestTransport>>>>,
-    node_provider:       Arc<P>
+/// Allows for us to have a look at the angstrom payload to ensure that we can
+/// set balances properly for when the transaction is submitted
+pub trait SubmitTx: Send + Sync {
+    fn submit_transaction<'a>(
+        &'a self,
+        signer: &'a AngstromSigner,
+        tx: TransactionRequest
+    ) -> Pin<Box<dyn Future<Output = (TxHash, bool)> + Send + 'a>>;
 }
 
-impl<P> MevBoostProvider<P>
+// Default impl
+impl<T> SubmitTx for RootProvider<T>
 where
-    P: Provider + 'static
+    T: Transport + Clone
 {
+    fn submit_transaction<'a>(
+        &'a self,
+        signer: &'a AngstromSigner,
+        tx: TransactionRequest
+    ) -> Pin<Box<dyn Future<Output = (TxHash, bool)> + Send + 'a>> {
+        async move {
+            let tx = tx.build(&signer).await.unwrap();
+            let hash = *tx.tx_hash();
+            let encoded = tx.encoded_2718();
+
+            let submitted = self.send_raw_transaction(&encoded).await.is_ok();
+            (hash, submitted)
+        }
+        .boxed()
+    }
+}
+
+pub struct MevBoostProvider<P, T> {
+    mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>,
+    node_provider:       Arc<P>,
+    _phantom:            PhantomData<T>
+}
+
+impl<P, T> MevBoostProvider<P, T>
+where
+    P: Provider<T> + 'static,
+    T: Transport + Clone
+{
+    pub fn new_from_raw(
+        node_provider: Arc<P>,
+        mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>
+    ) -> Self {
+        Self { node_provider, mev_boost_providers, _phantom: PhantomData }
+    }
+
     pub fn new_from_urls(node_provider: Arc<P>, urls: &[Url]) -> Self {
         let mev_boost_providers = urls
             .iter()
             .map(|url| {
                 Arc::new(Box::new(ProviderBuilder::<_, _, _>::default().on_http(url.clone()))
-                    as Box<dyn Provider<ReqwestTransport>>)
+                    as Box<dyn SubmitTx>)
             })
             .collect::<Vec<_>>();
 
-        Self { mev_boost_providers, node_provider }
+        Self { mev_boost_providers, node_provider, _phantom: PhantomData }
     }
 
     pub async fn populate_gas_nonce_chain_id(&self, tx_from: Address, tx: &mut TransactionRequest) {
@@ -57,20 +99,19 @@ where
         signer: AngstromSigner,
         tx: TransactionRequest
     ) -> (TxHash, bool) {
-        let tx = tx.build(&signer).await.unwrap();
-        let hash = *tx.tx_hash();
-        let encoded = tx.encoded_2718();
-
         let mut submitted = true;
+        let mut phash = None;
         for provider in self.mev_boost_providers.clone() {
-            submitted &= provider.send_raw_transaction(&encoded).await.is_ok();
+            let (hash, sent) = provider.submit_transaction(&signer, tx.clone()).await;
+            phash = Some(hash);
+            submitted &= sent;
         }
 
-        (hash, submitted)
+        (phash.expect("no mev boost endpoint was set"), submitted)
     }
 }
 
-impl<P> Deref for MevBoostProvider<P> {
+impl<P, T> Deref for MevBoostProvider<P, T> {
     type Target = P;
 
     fn deref(&self) -> &Self::Target {

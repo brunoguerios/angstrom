@@ -2,19 +2,14 @@ use std::time::Duration;
 
 use angstrom_network::StromMessage;
 use reth_provider::test_utils::NoopProvider;
-use testing_tools::testnet_controllers::{AngstromTestnet, AngstromTestnetConfig, TestnetKind};
+use testing_tools::{controllers::enviroments::AngstromTestnet, types::config::DevnetConfig};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 5)]
 #[serial_test::serial]
 async fn test_broadcast_order_propagation() {
     reth_tracing::init_test_tracing();
-    let config = AngstromTestnetConfig {
-        intial_node_count:       3,
-        initial_rpc_port:        5000,
-        testnet_block_time_secs: 12,
-        testnet_kind:            TestnetKind::new_raw()
-    };
-    let mut testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config)
+    let config = DevnetConfig::default();
+    let mut testnet = AngstromTestnet::spawn_devnet(NoopProvider::default(), config)
         .await
         .unwrap();
 
@@ -32,7 +27,8 @@ async fn test_broadcast_order_propagation() {
             orders.clone()
         )
     )
-    .await;
+    .await
+    .map(|r| r.unwrap());
 
     assert_eq!(
         res,
@@ -49,7 +45,8 @@ async fn test_broadcast_order_propagation() {
             orders
         )
     )
-    .await;
+    .await
+    .map(|r| r.unwrap());
 
     assert_eq!(res, Ok(true), "failed to receive and react to order within 4 seconds");
 }
@@ -58,18 +55,13 @@ async fn test_broadcast_order_propagation() {
 #[serial_test::serial]
 async fn test_singular_order_propagation() {
     reth_tracing::init_test_tracing();
-    let config = AngstromTestnetConfig {
-        intial_node_count:       3,
-        initial_rpc_port:        5000,
-        testnet_block_time_secs: 12,
-        testnet_kind:            TestnetKind::new_raw()
-    };
+    let config = DevnetConfig::default();
 
     // connect all peers
     //
     let testnet = tokio::time::timeout(
         Duration::from_secs(30),
-        AngstromTestnet::spawn_testnet(NoopProvider::default(), config)
+        AngstromTestnet::spawn_devnet(NoopProvider::default(), config)
     )
     .await;
     assert!(matches!(testnet, Ok(Ok(_))), "failed to connect all peers within 30 seconds");
@@ -91,7 +83,8 @@ async fn test_singular_order_propagation() {
             orders.clone()
         )
     )
-    .await;
+    .await
+    .map(|r| r.unwrap());
 
     assert_eq!(
         res,
@@ -108,7 +101,8 @@ async fn test_singular_order_propagation() {
             orders.clone()
         )
     )
-    .await;
+    .await
+    .map(|r| r.unwrap());
 
     assert_eq!(res, Ok(true), "failed to receive and react to order within 4 seconds");
 }

@@ -15,6 +15,7 @@ harness = false
 [dependencies]
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
+uniswap-v4.workspace = true
 validation.workspace = true
 alloy.workspace = true
 alloy-primitives.workspace = true

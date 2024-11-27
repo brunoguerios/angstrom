@@ -6,12 +6,11 @@ use std::path::PathBuf;
 
 use alloy::signers::local::PrivateKeySigner;
 use angstrom_metrics::METRICS_ENABLED;
+use angstrom_network::AngstromNetworkBuilder;
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::primitive::AngstromSigner;
 use clap::Parser;
 use cli::AngstromConfig;
-use eyre::eyre;
-use network_builder::AngstromNetworkBuilder;
 use reth::{chainspec::EthereumChainSpecParser, cli::Cli};
 use reth_node_builder::{Node, NodeHandle};
 use reth_node_ethereum::{node::EthereumAddOns, EthereumNode};
@@ -23,7 +22,6 @@ use crate::components::{
 
 pub mod cli;
 pub mod components;
-pub mod network_builder;
 
 /// Convenience function for parsing CLI options, set up logging and run the
 /// chosen command.
@@ -80,6 +78,6 @@ fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
             let contents = std::fs::read_to_string(sk_path)?;
             Ok(AngstromSigner::new(contents.as_str().parse::<PrivateKeySigner>()?))
         }
-        _ => Err(eyre!("no secret_key was found at {:?}", sk_path))
+        _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
     }
 }

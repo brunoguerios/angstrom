@@ -32,8 +32,8 @@ impl<DB, Pools, Fetch> OrderValidator<DB, Pools, Fetch>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Sync + Send,
     <DB as revm::DatabaseRef>::Error: Send + Sync,
-    Pools: PoolsTracker + Sync + 'static,
-    Fetch: StateFetchUtils + Sync + 'static
+    Pools: PoolsTracker + Send + Sync + 'static,
+    Fetch: StateFetchUtils + Send + Sync + 'static
 {
     pub async fn new(
         sim: SimValidation<DB>,
@@ -65,7 +65,7 @@ where
         token_conversion: TokenPriceGenerator,
         thread_pool: &mut KeySplitThreadpool<
             UserAddress,
-            Pin<Box<dyn Future<Output = ()> + Send>>,
+            Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
             Handle
         >,
         metrics: ValidationMetrics

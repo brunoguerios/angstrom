@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::Hash,
+    marker::PhantomData,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -9,7 +10,8 @@ use std::{
 
 use alloy::{
     primitives::{Address, BlockNumber, FixedBytes},
-    providers::Provider
+    providers::Provider,
+    transports::Transport
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::manager::StromConsensusEvent;
@@ -37,14 +39,16 @@ mod pre_proposal;
 mod pre_proposal_aggregation;
 mod proposal;
 
-pub trait ConsensusState<P, Matching>: Send
+type PollTransition<P, T, Matching> = Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>>;
+pub trait ConsensusState<P, T, Matching>: Send
 where
-    P: Provider,
+    P: Provider<T>,
+    T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         message: StromConsensusEvent
     );
 
@@ -52,28 +56,29 @@ where
     /// round is over
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, T, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>>;
+    ) -> PollTransition<P, T, Matching>;
 }
 
 /// Holds and progresses the consensus state machine
-pub struct RoundStateMachine<P, Matching> {
-    current_state:           Box<dyn ConsensusState<P, Matching>>,
+pub struct RoundStateMachine<P, T, Matching> {
+    current_state:           Box<dyn ConsensusState<P, T, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: Duration,
-    shared_state:            SharedRoundState<P, Matching>
+    shared_state:            SharedRoundState<P, T, Matching>
 }
 
-impl<P, Matching> RoundStateMachine<P, Matching>
+impl<P, T, Matching> RoundStateMachine<P, T, Matching>
 where
-    P: Provider + 'static,
+    P: Provider<T> + 'static,
+    T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
     pub fn new(
         consensus_wait_duration: Duration,
-        shared_state: SharedRoundState<P, Matching>
+        shared_state: SharedRoundState<P, T, Matching>
     ) -> Self {
         Self {
             current_state: Box::new(BidAggregationState::new(consensus_wait_duration)),
@@ -95,9 +100,10 @@ where
     }
 }
 
-impl<P, Matching> Stream for RoundStateMachine<P, Matching>
+impl<P, T, Matching> Stream for RoundStateMachine<P, T, Matching>
 where
-    P: Provider,
+    P: Provider<T> + 'static,
+    T: Transport + Clone + Unpin,
     Matching: MatchingEngineHandle
 {
     type Item = ConsensusMessage;
@@ -120,7 +126,7 @@ where
     }
 }
 
-pub struct SharedRoundState<P, Matching> {
+pub struct SharedRoundState<P, T, Matching> {
     block_height:     BlockNumber,
     angstrom_address: Address,
     matching_engine:  Matching,
@@ -131,14 +137,16 @@ pub struct SharedRoundState<P, Matching> {
     _metrics:         ConsensusMetricsWrapper,
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
-    provider:         Arc<MevBoostProvider<P>>,
-    messages:         VecDeque<ConsensusMessage>
+    provider:         Arc<MevBoostProvider<P, T>>,
+    messages:         VecDeque<ConsensusMessage>,
+    _phantom:         PhantomData<T>
 }
 
 // contains shared impls
-impl<P, Matching> SharedRoundState<P, Matching>
+impl<P, T, Matching> SharedRoundState<P, T, Matching>
 where
-    P: Provider + 'static,
+    P: Provider<T> + 'static,
+    T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
@@ -152,7 +160,7 @@ where
         metrics: ConsensusMetricsWrapper,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: MevBoostProvider<P>,
+        provider: MevBoostProvider<P, T>,
         matching_engine: Matching
     ) -> Self {
         Self {
@@ -167,7 +175,8 @@ where
             _metrics: metrics,
             matching_engine,
             messages: VecDeque::new(),
-            provider: Arc::new(provider)
+            provider: Arc::new(provider),
+            _phantom: PhantomData
         }
     }
 

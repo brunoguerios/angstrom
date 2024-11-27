@@ -5,7 +5,7 @@ use std::{
 
 use alloy::{
     primitives::{address, Address, U256},
-    providers::{Network, Provider},
+    providers::Provider,
     transports::Transport
 };
 use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId};
@@ -35,7 +35,7 @@ pub struct TokenPriceGenerator {
 impl TokenPriceGenerator {
     /// is a bit of a pain as we need todo a look-back in-order to grab last 5
     /// blocks.
-    pub async fn new<P: Provider<T, N>, T: Transport + Clone, N: Network, Loader>(
+    pub async fn new<P: Provider<T>, T: Transport + Clone, Loader>(
         provider: Arc<P>,
         current_block: u64,
         uni: SyncedUniswapPools<PoolId, Loader>,
@@ -70,6 +70,7 @@ impl TokenPriceGenerator {
                     for block_number in
                         current_block.saturating_sub(blocks_to_avg_price)..=current_block
                     {
+                        tracing::debug!(block_number, current_block, ?pool_key, "loading pool");
                         let pool_data = data_loader
                             .load_pool_data(Some(block_number), provider.clone())
                             .await

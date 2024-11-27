@@ -7,11 +7,12 @@ use std::{
 use alloy::{
     eips::BlockId,
     network::Network,
-    primitives::{aliases::U40, keccak256, Address, Bytes, FixedBytes, B256, U256},
+    primitives::{keccak256, Address, Bytes, FixedBytes, B256, U256},
     providers::Provider,
     sol_types::SolValue,
     transports::Transport
 };
+use alloy_primitives::aliases::U40;
 use dashmap::DashMap;
 use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -31,13 +32,16 @@ use crate::{
     orders::{OrderFillState, OrderOutcome, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{
+            FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
+        },
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, PartialFlashOrder, PartialStandingOrder,
             TopOfBlockOrder as RpcTopOfBlockOrder
         },
         RawPoolOrder
-    }
+    },
+    testnet::TestnetStateOverrides
 };
 
 // This currently exists in types::sol_bindings as well, but that one is
@@ -159,6 +163,15 @@ pub enum OrderQuantities {
     Partial { min_quantity_in: u128, max_quantity_in: u128, filled_quantity: u128 }
 }
 
+impl OrderQuantities {
+    pub fn fetch_max_amount(&self) -> u128 {
+        match self {
+            Self::Exact { quantity } => *quantity,
+            Self::Partial { max_quantity_in, .. } => *max_quantity_in
+        }
+    }
+}
+
 #[derive(Debug, PadeEncode, PadeDecode)]
 pub struct UserOrder {
     pub ref_id:               u32,
@@ -173,7 +186,7 @@ pub struct UserOrder {
     pub max_extra_fee_asset0: u128,
     pub extra_fee_asset0:     u128,
     pub exact_in:             bool,
-    pub signature:            Bytes
+    pub signature:            Signature
 }
 
 impl UserOrder {
@@ -318,6 +331,11 @@ impl UserOrder {
             return Err(eyre::eyre!("order used more gas than allocated"))
         }
 
+        let sig_bytes = order.signature().clone().0.to_vec();
+        let decoded_signature =
+            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
+        let signature = Signature::from(decoded_signature);
+
         Ok(Self {
             ref_id: 0,
             use_internal: false,
@@ -331,7 +349,7 @@ impl UserOrder {
             max_extra_fee_asset0: order.max_gas_token_0(),
             extra_fee_asset0: gas_used,
             exact_in: false,
-            signature: order.signature().clone()
+            signature
         })
     }
 
@@ -340,38 +358,58 @@ impl UserOrder {
         outcome: &OrderOutcome,
         pair_index: u16
     ) -> Self {
-        let order_quantities = match order.order {
-            GroupedVanillaOrder::KillOrFill(_) => {
-                OrderQuantities::Exact { quantity: order.quantity().to() }
-            }
-            GroupedVanillaOrder::Standing(_) => {
-                let max_quantity_in: u128 = order.quantity().to();
-                let filled_quantity = match outcome.outcome {
-                    OrderFillState::CompleteFill => max_quantity_in,
-                    OrderFillState::PartialFill(fill) => fill.to(),
-                    _ => 0
-                };
-                OrderQuantities::Partial { min_quantity_in: 0, max_quantity_in, filled_quantity }
+        let order_quantities = match &order.order {
+            GroupedVanillaOrder::KillOrFill(o) => match o {
+                FlashVariants::Exact(_) => {
+                    OrderQuantities::Exact { quantity: order.quantity().to() }
+                }
+                FlashVariants::Partial(_) => OrderQuantities::Partial {
+                    min_quantity_in: 0,
+                    max_quantity_in: order.quantity().to(),
+                    filled_quantity: 0
+                }
+            },
+            GroupedVanillaOrder::Standing(o) => match o {
+                StandingVariants::Exact(_) => {
+                    OrderQuantities::Exact { quantity: order.quantity().to() }
+                }
+                StandingVariants::Partial(_) => {
+                    let max_quantity_in = order.quantity().to();
+                    let filled_quantity = match outcome.outcome {
+                        OrderFillState::CompleteFill => max_quantity_in,
+                        OrderFillState::PartialFill(fill) => fill.to(),
+                        _ => 0
+                    };
+                    OrderQuantities::Partial {
+                        min_quantity_in: 0,
+                        max_quantity_in,
+                        filled_quantity
+                    }
+                }
             }
         };
-        let hook_data = match order.order {
+        let hook_bytes = match order.order {
             GroupedVanillaOrder::KillOrFill(ref o) => o.hook_data().clone(),
             GroupedVanillaOrder::Standing(ref o) => o.hook_data().clone()
         };
+        let hook_data = if hook_bytes.is_empty() { None } else { Some(hook_bytes) };
+        let sig_bytes = order.signature().to_vec();
+        let decoded_signature =
+            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
         Self {
             ref_id: 0,
             use_internal: false,
             pair_index,
             min_price: *order.price(),
             recipient: None,
-            hook_data: Some(hook_data),
+            hook_data,
             zero_for_one: !order.is_bid,
             standing_validation: None,
             order_quantities,
             max_extra_fee_asset0: order.max_gas_token_0(),
             extra_fee_asset0: order.max_gas_token_0(),
             exact_in: false,
-            signature: order.signature().clone()
+            signature: Signature::from(decoded_signature)
         }
     }
 }
@@ -388,6 +426,50 @@ pub struct AngstromBundle {
 impl AngstromBundle {
     pub fn get_prices_per_pair(&self) -> &[Pair] {
         &self.pairs
+    }
+
+    #[cfg(feature = "testnet")]
+    pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
+        let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
+        let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
+
+        // user orders
+        self.user_orders.iter().for_each(|order| {
+            let token = if order.zero_for_one {
+                // token0
+                self.assets[self.pairs[order.pair_index as usize].index0 as usize].addr
+            } else {
+                self.assets[self.pairs[order.pair_index as usize].index1 as usize].addr
+            };
+
+            // need to recover sender from signature
+            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let address = order.signature.recover_signer(hash);
+
+            let qty = order.order_quantities.fetch_max_amount();
+            approvals.entry(token).or_default().insert(address, qty);
+            balances.entry(token).or_default().insert(address, qty);
+        });
+
+        // tob
+        self.top_of_block_orders.iter().for_each(|order| {
+            let token = if order.zero_for_1 {
+                // token0
+                self.assets[self.pairs[order.pairs_index as usize].index0 as usize].addr
+            } else {
+                self.assets[self.pairs[order.pairs_index as usize].index1 as usize].addr
+            };
+
+            // need to recover sender from signature
+            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let address = order.signature.recover_signer(hash);
+
+            let qty = order.quantity_in;
+            approvals.entry(token).or_default().insert(address, qty);
+            balances.entry(token).or_default().insert(address, qty);
+        });
+
+        TestnetStateOverrides { approvals, balances }
     }
 
     /// the block number is the block that this bundle was executed at.
@@ -992,12 +1074,14 @@ impl AngstromPoolConfigStore {
         N: Network,
         P: Provider<T, N>
     {
+        // offset of 6 bytes
         let value = provider
             .get_storage_at(angstrom_contract, U256::from(CONFIG_STORE_SLOT))
             .await
             .map_err(|e| format!("Error getting storage: {}", e))?;
 
         let value_bytes: [u8; 32] = value.to_be_bytes();
+        tracing::debug!("storage slot of poolkey storage {:?}", value_bytes);
         let config_store_address =
             Address::from(<[u8; 20]>::try_from(&value_bytes[4..24]).unwrap());
 
@@ -1006,6 +1090,8 @@ impl AngstromPoolConfigStore {
             .block_id(block_id)
             .await
             .map_err(|e| format!("Error getting code: {}", e))?;
+
+        tracing::debug!("bytecode: {:x}", code);
 
         AngstromPoolConfigStore::try_from(code.as_ref())
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))

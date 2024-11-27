@@ -10,6 +10,7 @@ exclude.workspace = true
 
 
 [dependencies]
+serde.workspace =true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
 alloy.workspace = true
@@ -45,3 +46,7 @@ pade.workspace = true
 pade-macro.workspace = true
 testing-tools.workspace = true
 divan = "0.1.14"
+
+[build-dependencies]
+convert_case = "0.6.0"
+itertools = "0.13.0"

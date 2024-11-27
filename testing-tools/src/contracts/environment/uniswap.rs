@@ -6,8 +6,8 @@ use angstrom_types::contract_bindings::{
 };
 use tracing::debug;
 
-use super::{SpawnedAnvil, TestAnvilEnvironment};
-use crate::contracts::DebugTransaction;
+use super::TestAnvilEnvironment;
+use crate::{contracts::DebugTransaction, providers::WalletProvider};
 
 pub trait TestUniswapEnv: TestAnvilEnvironment {
     fn pool_manager(&self) -> Address;
@@ -36,14 +36,11 @@ where
     pub async fn new(inner: E) -> eyre::Result<Self> {
         debug!("Deploying pool manager...");
         let pool_manager = *PoolManager::deploy(inner.provider(), inner.controller())
-            .await
-            .unwrap()
+            .await?
             .address();
         debug!("Pool manager deployed at: {}", pool_manager);
         debug!("Deploying pool gate...");
-        let pool_gate_instance = PoolGate::deploy(inner.provider(), pool_manager)
-            .await
-            .unwrap();
+        let pool_gate_instance = PoolGate::deploy(inner.provider(), pool_manager).await?;
         let pool_gate = *pool_gate_instance.address();
         debug!("Pool gate deployed at: {}", pool_gate);
         Ok(Self { inner, pool_manager, pool_gate })
@@ -54,10 +51,9 @@ where
     }
 }
 
-impl UniswapEnv<SpawnedAnvil> {
-    pub async fn spawn_anvil() -> eyre::Result<Self> {
-        let inner = SpawnedAnvil::new().await?;
-        Self::new(inner).await
+impl UniswapEnv<WalletProvider> {
+    pub async fn with_anvil(anvil: WalletProvider) -> eyre::Result<Self> {
+        Self::new(anvil).await
     }
 }
 

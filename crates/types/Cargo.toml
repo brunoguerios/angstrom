@@ -43,10 +43,9 @@ serde = { workspace = true, optional = true, default-features = false, features 
 uniswap_v3_math.workspace = true
 foldhash = "0.1.3"
 
-testing-tools-macros = { workspace = true, optional = true }
-
 rand = { version = "0.8.5", optional = true }
 dashmap = "6.1.0"
+auto_impl.workspace = true
 
 [build-dependencies]
 convert_case = "0.6.0"
@@ -58,6 +57,6 @@ testing-tools.workspace = true
 
 [features]
 default = ["serde", "testnet"]
-testnet = ["dep:rand", "dep:testing-tools-macros"]
+testnet = ["dep:rand"]
 # serde = ["dep:serde", "alloy-primitives/serde"]
 serde = ["dep:serde"]

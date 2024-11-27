@@ -9,10 +9,10 @@ use std::{
 
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_utils::{sync_pipeline::ThreadPool, PollExt};
-use futures::{stream::FuturesUnordered, FutureExt, Stream, StreamExt};
+use futures::{stream::FuturesUnordered, Stream, StreamExt};
 use tokio::sync::Semaphore;
 
-type PendingFut<F> = Pin<Box<dyn Future<Output = <F as Future>::Output> + Send>>;
+type PendingFut<F> = Pin<Box<dyn Future<Output = <F as Future>::Output> + Send + Sync>>;
 
 pub struct KeySplitThreadpool<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> {
     tp:              TP,
@@ -26,9 +26,9 @@ pub struct KeySplitThreadpool<K: PartialEq + Eq + Hash + Clone, F: Future, TP: T
 impl<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> KeySplitThreadpool<K, F, TP>
 where
     K: Send + Unpin + 'static,
-    F: Send + 'static + Unpin,
-    TP: Clone + Send + 'static + Unpin,
-    <F as Future>::Output: Send + 'static + Unpin
+    F: Send + Sync + 'static + Unpin,
+    TP: Clone + Send + Sync + 'static + Unpin,
+    <F as Future>::Output: Send + Sync + 'static + Unpin
 {
     pub fn new(theadpool: TP, permit_size: usize) -> Self {
         Self {
@@ -63,7 +63,7 @@ where
         let fut = Box::pin(async move {
             let permit = metrics
                 .measure_wait_time(|| {
-                    async { permit_cloned.acquire().await.expect("never") }.boxed()
+                    Box::pin(async { permit_cloned.acquire().await.expect("never") })
                 })
                 .await;
 
@@ -90,9 +90,9 @@ impl<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> Stream
     for KeySplitThreadpool<K, F, TP>
 where
     K: Send + Unpin + 'static,
-    F: Send + 'static + Unpin,
+    F: Send + Sync + 'static + Unpin,
     TP: Clone,
-    <F as Future>::Output: Send + 'static + Unpin
+    <F as Future>::Output: Send + Sync + 'static + Unpin
 {
     type Item = F::Output;
 
