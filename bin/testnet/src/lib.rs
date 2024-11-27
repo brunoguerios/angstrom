@@ -2,11 +2,7 @@
 pub mod cli;
 pub(crate) mod utils;
 
-use angstrom_types::testnet;
-use clap::Parser;
 use reth::{tasks::TaskExecutor, CliRunner};
-use secp256k1::Secp256k1;
-use testing_tools::types::config::TestnetConfig;
 
 pub fn run() -> eyre::Result<()> {
     CliRunner::default().run_command_until_exit(|ctx| execute(ctx.task_executor))

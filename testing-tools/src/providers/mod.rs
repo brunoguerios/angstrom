@@ -33,7 +33,7 @@ impl WalletProvider {
     pub async fn new<G: GlobalTestingConfig>(
         config: TestingNodeConfig<G>
     ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
-        Ok(config.spawn_anvil_rpc().await?)
+        config.spawn_anvil_rpc().await
     }
 
     pub(crate) fn new_with_provider(

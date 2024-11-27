@@ -113,7 +113,7 @@ impl TryFrom<TestnetNodeConfigInner> for TestnetNodeConfig {
 
     fn try_from(value: TestnetNodeConfigInner) -> Result<Self, Self::Error> {
         let ip = IpAddr::from_str(&value.ip)?;
-        let secret_key = SecretKey::from_slice(&Bytes::from_str(&value.secret_key)?.0.to_vec())?;
+        let secret_key = SecretKey::from_slice(&Bytes::from_str(&value.secret_key)?.0)?;
         let signing_key =
             LocalSigner::<SigningKey>::from_bytes(&secret_key.secret_bytes().into()).unwrap();
 
@@ -123,9 +123,9 @@ impl TryFrom<TestnetNodeConfigInner> for TestnetNodeConfig {
     }
 }
 
-impl Into<AngstromValidator> for TestnetNodeConfig {
-    fn into(self) -> AngstromValidator {
-        let pub_key = self.secret_key.public_key(&Secp256k1::default());
+impl From<TestnetNodeConfig> for AngstromValidator {
+    fn from(val: TestnetNodeConfig) -> Self {
+        let pub_key = val.secret_key.public_key(&Secp256k1::default());
 
         AngstromValidator::new(pk2id(&pub_key), 1)
     }
@@ -144,7 +144,7 @@ impl FullTestnetNodeConfigInner {
             return Err(eyre::eyre!("Config file does not exist at {:?}", config_path))
         }
 
-        let toml_content = std::fs::read_to_string(&config_path)
+        let toml_content = std::fs::read_to_string(config_path)
             .wrap_err_with(|| format!("Could not read config file {:?}", config_path))?;
 
         let node_config: Self = toml::from_str(&toml_content)
@@ -161,8 +161,11 @@ struct TestnetNodeConfigInner {
     secret_key: String
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use std::{path::PathBuf, str::FromStr};
+
+    use crate::cli::testnet::FullTestnetNodeConfigInner;
 
     #[test]
     fn test_read_config() {

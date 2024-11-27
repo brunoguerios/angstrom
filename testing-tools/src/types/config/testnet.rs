@@ -31,7 +31,7 @@ impl GlobalTestingConfig for TestnetConfig {
     }
 
     fn anvil_rpc_endpoint(&self, _: u64) -> String {
-        format!("/tmp/testnet_anvil.ipc")
+        "/tmp/testnet_anvil.ipc".to_string()
     }
 
     fn is_leader(&self, node_id: u64) -> bool {

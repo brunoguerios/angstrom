@@ -9,7 +9,7 @@ use std::{
 
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_utils::{sync_pipeline::ThreadPool, PollExt};
-use futures::{stream::FuturesUnordered, FutureExt, Stream, StreamExt};
+use futures::{stream::FuturesUnordered, Stream, StreamExt};
 use tokio::sync::Semaphore;
 
 type PendingFut<F> = Pin<Box<dyn Future<Output = <F as Future>::Output> + Send + Sync>>;
@@ -63,7 +63,7 @@ where
         let fut = Box::pin(async move {
             let permit = metrics
                 .measure_wait_time(|| {
-                    async { permit_cloned.acquire().await.expect("never") }.boxed()
+                    Box::pin(async { permit_cloned.acquire().await.expect("never") })
                 })
                 .await;
 

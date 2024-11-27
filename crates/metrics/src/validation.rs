@@ -136,7 +136,7 @@ impl ValidationMetricsInner {
 
     async fn handle_pending<'a, T>(
         &self,
-        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + 'a>>
+        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>
     ) -> T {
         self.inc_pending();
         let start = Instant::now();
@@ -215,7 +215,7 @@ impl ValidationMetrics {
 
     pub async fn measure_wait_time<'a, T>(
         &self,
-        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + 'a>>
+        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>
     ) -> T {
         if let Some(inner) = self.0.as_ref() {
             return inner.handle_pending(f).await

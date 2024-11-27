@@ -49,8 +49,8 @@ impl TestnetNodeNetwork {
             + 'static,
         G: GlobalTestingConfig
     {
-        let sk = node_config.secret_key.clone();
-        let peer = PeerConfig::with_secret_key(c.clone(), sk.clone());
+        let sk = node_config.secret_key;
+        let peer = PeerConfig::with_secret_key(c.clone(), sk);
 
         let peer_id = pk2id(&node_config.pub_key);
         let state = StatusState {
@@ -89,7 +89,7 @@ impl TestnetNodeNetwork {
         let eth_handle = EthNetworkPeer::new(&eth_peer);
 
         (
-            Self { strom_handle, secret_key: sk.clone(), pubkey: peer_id, eth_handle },
+            Self { strom_handle, secret_key: sk, pubkey: peer_id, eth_handle },
             eth_peer,
             strom_network
         )

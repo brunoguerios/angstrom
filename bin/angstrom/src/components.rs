@@ -5,12 +5,9 @@ use std::{collections::HashSet, sync::Arc};
 use alloy::{
     self,
     eips::{BlockId, BlockNumberOrTag},
-    network::Network,
-    providers::{network::Ethereum, Provider, ProviderBuilder},
-    transports::Transport
+    providers::{network::Ethereum, Provider, ProviderBuilder}
 };
 use alloy_chains::Chain;
-use alloy_primitives::{Address, BlockNumber};
 use angstrom_eth::{
     handle::{Eth, EthCommand},
     manager::EthDataCleanser
@@ -25,7 +22,7 @@ use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
-    primitive::{AngstromSigner, PeerId, PoolId as AngstromPoolId, UniswapPoolRegistry},
+    primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
     reth_db_wrapper::RethDbWrapper
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
@@ -34,17 +31,13 @@ use order_pool::{order_storage::OrderStorage, PoolConfig, PoolManagerUpdate};
 use reth::{
     api::NodeAddOns,
     builder::FullNodeComponents,
-    providers::{BlockNumReader, CanonStateNotifications, CanonStateSubscriptions},
+    providers::{BlockNumReader, CanonStateSubscriptions},
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
 use reth_node_builder::FullNode;
 use tokio::sync::mpsc::{
     channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender
-};
-use uniswap_v4::uniswap::{
-    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
-    pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
 use validation::{
     common::TokenPriceGenerator,

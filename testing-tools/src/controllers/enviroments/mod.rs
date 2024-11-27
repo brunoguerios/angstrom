@@ -1,8 +1,6 @@
 mod devnet;
-pub use devnet::*;
-mod testnet;
-pub use testnet::*;
 mod state_machine;
+mod testnet;
 use std::{
     collections::{HashMap, HashSet},
     future::Future

@@ -1,4 +1,4 @@
-use clap::{ArgAction, Parser};
+use clap::Parser;
 use testing_tools::types::config::DevnetConfig;
 
 #[derive(Parser)]
