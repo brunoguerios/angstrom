@@ -75,7 +75,11 @@ where
                 initial_angstrom_state = Some(initial_state);
                 initializer.into_state_provider()
             } else {
-                AnvilProvider::new(WalletProvider::new(node_config.clone())).await?
+                tracing::info!(?node_id, "default init");
+                let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
+                let provider = AnvilProvider::new(WalletProvider::new(node_config.clone())).await?;
+                provider.set_state(state_bytes).await?;
+                provider
             };
             tracing::info!(node_id, "connected to state provider");
 

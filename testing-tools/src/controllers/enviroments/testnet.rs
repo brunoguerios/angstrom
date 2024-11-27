@@ -62,7 +62,7 @@ where
         for node_config in configs {
             let node_id = node_config.node_id;
             tracing::info!(node_id, "connecting to state provider");
-            let provider = if self.config.is_leader(node_id) {
+            let mut provider = if self.config.is_leader(node_id) {
                 tracing::info!(?node_id, "is leader init");
                 let mut initializer =
                     AnvilProvider::new(AnvilInitializer::new(node_config.clone())).await?;

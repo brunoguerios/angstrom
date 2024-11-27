@@ -135,11 +135,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     async fn spawn_devnet_anvil_rpc(
         &self
     ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
-        let anvil = self
-            .global_config
-            .is_leader(self.node_id)
-            .then_some(self.configure_devnet_anvil().try_spawn())
-            .transpose()?;
+        let anvil = self.configure_devnet_anvil().try_spawn()?;
 
         let endpoint = self.global_config.anvil_rpc_endpoint(self.node_id);
         tracing::info!(?endpoint);
@@ -159,6 +155,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         rpc.anvil_set_balance(sk.address(), U256::from(1000000000000000000_u64))
             .await?;
 
-        Ok((WalletProvider::new_with_provider(rpc, sk), anvil))
+        Ok((WalletProvider::new_with_provider(rpc, sk), Some(anvil)))
     }
 }
