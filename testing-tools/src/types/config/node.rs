@@ -74,6 +74,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg("--code-size-limit")
             .arg("393216")
             .arg("--preserve-historical-states")
+            .arg("--prune-history")
+            .arg("500")
             .block_time(12)
     }
 
@@ -85,6 +87,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg("--code-size-limit")
             .arg("393216")
             .arg("--preserve-historical-states")
+            .arg("--prune-history")
+            .arg("500")
             .arg("--disable-block-gas-limit");
 
         if let Some((start_block, fork_url)) = self.global_config.fork_config() {
