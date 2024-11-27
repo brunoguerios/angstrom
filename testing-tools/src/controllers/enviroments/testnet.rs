@@ -62,6 +62,7 @@ where
             let node_id = node_config.node_id;
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
+                tracing::info!(?node_id, "is leader init");
                 let mut initializer =
                     AnvilProvider::new(AnvilInitializer::new(node_config.clone())).await?;
                 let provider = initializer.provider_mut().provider_mut();
@@ -70,6 +71,7 @@ where
                 initial_angstrom_state = Some(initial_state);
                 initializer.into_state_provider()
             } else {
+                tracing::info!(?node_id, "default init");
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
                 let provider = AnvilProvider::new(WalletProvider::new(node_config.clone())).await?;
                 provider.set_state(state_bytes).await?;
