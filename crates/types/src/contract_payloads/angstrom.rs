@@ -1074,12 +1074,14 @@ impl AngstromPoolConfigStore {
         N: Network,
         P: Provider<T, N>
     {
+        // offset of 6 bytes
         let value = provider
             .get_storage_at(angstrom_contract, U256::from(CONFIG_STORE_SLOT))
             .await
             .map_err(|e| format!("Error getting storage: {}", e))?;
 
         let value_bytes: [u8; 32] = value.to_be_bytes();
+        println!("{:x}", value_bytes);
         let config_store_address =
             Address::from(<[u8; 20]>::try_from(&value_bytes[4..24]).unwrap());
 
