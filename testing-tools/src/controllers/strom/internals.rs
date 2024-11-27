@@ -90,7 +90,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             .unwrap();
 
         tracing::debug!(block_number, "creating strom internals");
-        let block_sync = MockBlockSync::new(block_number);
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
@@ -111,7 +110,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 .subscribe_to_canonical_state(),
             uniswap_registry.clone(),
             block_number,
-            block_sync.clone(),
+            MockBlockSync,
             inital_angstrom_state.pool_manager_addr,
             true
         )
@@ -159,7 +158,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_network_handle.clone(),
             eth_handle.subscribe_network(),
             strom_handles.pool_rx,
-            block_sync.clone()
+            MockBlockSync
         )
         .with_config(pool_config)
         .build_with_channels(
@@ -212,7 +211,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_pools,
             mev_boost_provider,
             matching_handle,
-            block_sync.clone()
+            MockBlockSync
         );
 
         Ok((
