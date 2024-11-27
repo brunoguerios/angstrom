@@ -1,4 +1,5 @@
 //! CLI definition and entrypoint to executable
+#![allow(unused)]
 pub mod cli;
 pub(crate) mod utils;
 
@@ -8,7 +9,7 @@ pub fn run() -> eyre::Result<()> {
     CliRunner::default().run_command_until_exit(|ctx| execute(ctx.task_executor))
 }
 
-async fn execute(executor: TaskExecutor) -> eyre::Result<()> {
+async fn execute(_executor: TaskExecutor) -> eyre::Result<()> {
     // let cli = AngstromTestnetCli::parse();
     // executor.spawn_critical("metrics", cli.clone().init_metrics());
 

@@ -28,7 +28,7 @@ pub struct DevnetCli {
 }
 
 impl DevnetCli {
-    pub(crate) fn make_config(self) -> DevnetConfig {
+    pub fn _make_config(self) -> DevnetConfig {
         DevnetConfig::new(self.nodes_in_network, self.starting_port, self.fork_block, self.fork_url)
     }
 }

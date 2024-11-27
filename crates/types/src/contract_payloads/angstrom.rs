@@ -14,7 +14,7 @@ use alloy::{
 };
 use alloy_primitives::aliases::U40;
 use dashmap::DashMap;
-use pade::{PadeDecode, PadeEncode};
+use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 use tracing::warn;

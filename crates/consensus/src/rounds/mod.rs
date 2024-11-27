@@ -39,6 +39,7 @@ mod pre_proposal;
 mod pre_proposal_aggregation;
 mod proposal;
 
+type PollTransition<P, T, Matching> = Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>>;
 pub trait ConsensusState<P, T, Matching>: Send
 where
     P: Provider<T>,
@@ -57,7 +58,7 @@ where
         &mut self,
         handles: &mut SharedRoundState<P, T, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>>;
+    ) -> PollTransition<P, T, Matching>;
 }
 
 /// Holds and progresses the consensus state machine
