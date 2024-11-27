@@ -12,7 +12,7 @@ use angstrom_network::{
     NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkManager
 };
 use angstrom_types::{
-    block_sync::GlobalBlockSync,
+    block_sync::MockBlockSync,
     primitive::PeerId,
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
     testnet::InitialTestnetState
@@ -224,7 +224,7 @@ where
     pub fn strom_consensus<F, R>(&self, f: F) -> R
     where
         F: FnOnce(
-            &ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+            &ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
         ) -> R
     {
         self.state_lock.strom_consensus(f)
@@ -233,7 +233,7 @@ where
     pub fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
         F: FnOnce(
-            &mut ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+            &mut ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
         ) -> R
     {
         self.state_lock.strom_consensus_mut(f)
