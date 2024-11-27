@@ -34,15 +34,15 @@ pub(crate) trait HookResult: Sized {
 
     fn fmt_result(self, i: usize, name: &'static str) {
         if let Some(e) = self.error() {
-            tracing::error!(target: "testnet::state-machine", hook = i, name, "{:?}", e);
+            tracing::error!(target: "devnet::state-machine", hook = i, name, "{:?}", e);
             panic!("{:?}", e.root_cause());
             //panic!();
         }
 
         if self.is_pass() {
-            tracing::info!(target: "testnet::state-machine", hook = i, name, "hook PASSED");
+            tracing::info!(target: "devnet::state-machine", hook = i, name, "hook PASSED");
         } else {
-            tracing::error!(target: "testnet::state-machine", hook = i, name, "hook FAILED");
+            tracing::error!(target: "devnet::state-machine", hook = i, name, "hook FAILED");
             panic!()
         }
     }
