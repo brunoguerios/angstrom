@@ -8,7 +8,7 @@ use std::{
     future::Future
 };
 
-use alloy::providers::Provider;
+use alloy::{node_bindings::AnvilInstance, providers::Provider};
 use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
@@ -31,6 +31,7 @@ use crate::{
 
 pub struct AngstromTestnet<C, G, P> {
     block_provider:      TestnetBlockProvider,
+    _anvil_instance:     Option<AnvilInstance>,
     peers:               HashMap<u64, TestnetNode<C, P>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
