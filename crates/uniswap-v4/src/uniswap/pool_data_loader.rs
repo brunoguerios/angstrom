@@ -1,7 +1,6 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy::{
-    contract::CallBuilder,
     primitives::{aliases::I24, Address, BlockNumber, U256},
     providers::Provider,
     sol,
@@ -13,40 +12,6 @@ use angstrom_types::primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry};
 use itertools::Itertools;
 use malachite::{num::conversion::traits::RoundingInto, Natural, Rational};
 
-// sol! {
-//     #[allow(missing_docs)]
-//     #[sol(rpc)]
-//     IGetUniswapV3TickDataBatchRequest,
-//     "src/uniswap/loaders/GetUniswapV3TickData.json"
-// }
-//
-// sol! {
-//     #[allow(missing_docs)]
-//     #[sol(rpc)]
-//     IGetUniswapV3PoolDataBatchRequest,
-//     "src/uniswap/loaders/GetUniswapV3PoolData.json"
-// }
-//
-// sol! {
-//     #[allow(missing_docs)]
-//     #[sol(rpc)]
-//     IGetUniswapV4TickDataBatchRequest,
-//     "src/uniswap/loaders/GetUniswapV4TickData.json"
-// }
-//
-// sol! {
-//     #[allow(missing_docs)]
-//     #[sol(rpc)]
-//     IGetUniswapV4PoolDataBatchRequest,
-//     "src/uniswap/loaders/GetUniswapV4PoolData.json"
-// }
-//
-// sol!(
-//     #[allow(missing_docs)]
-//     #[sol(rpc)]
-//     IGetUniswapV4PoolDataBatchRequest_2,
-//     "src/uniswap/loaders/GetUniswapV4PoolData_2.json"
-// );
 use super::loaders::{
     get_uniswap_v_3_pool_data::GetUniswapV3PoolData,
     get_uniswap_v_3_tick_data::GetUniswapV3TickData,
@@ -338,7 +303,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
         );
 
         let data = match block_number {
-            Some(number) => deployer.block(number.into()).call_raw().await?,
+            Some(number) => deployer.call_raw().block(number.into()).await?,
             None => deployer.call_raw().await?
         };
 
@@ -379,7 +344,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
 
         tracing::info!("call_data {}", deployer.calldata());
         let data = match block_number {
-            Some(number) => deployer.block(number.into()).call_raw().await?,
+            Some(number) => deployer.call_raw().block(number.into()).await?,
             None => deployer.call_raw().await?
         };
 
