@@ -57,6 +57,9 @@ jobs:
           cache-on-failure: true
           key: "clippy-nightly"
 
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
       - name: "clippy all"
         run: cargo clippy --all-targets
         env: 
@@ -81,6 +84,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+
+      - name: Update Submodules
+        run: git submodule update --init --recursive
+
       - name: Build Tests
         run: cargo build --tests
 
