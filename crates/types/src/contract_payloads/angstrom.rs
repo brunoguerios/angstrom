@@ -1081,7 +1081,7 @@ impl AngstromPoolConfigStore {
             .map_err(|e| format!("Error getting storage: {}", e))?;
 
         let value_bytes: [u8; 32] = value.to_be_bytes();
-        println!("{:?}", value_bytes);
+        println!("storage slot of poolkey storage {:?}", value_bytes);
         let config_store_address =
             Address::from(<[u8; 20]>::try_from(&value_bytes[4..24]).unwrap());
 
@@ -1091,7 +1091,7 @@ impl AngstromPoolConfigStore {
             .await
             .map_err(|e| format!("Error getting code: {}", e))?;
 
-        println!("{:x}", code);
+        println!("bytecode: {:x}", code);
 
         AngstromPoolConfigStore::try_from(code.as_ref())
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))

@@ -118,6 +118,7 @@ impl AnvilInitializer {
             .nonce(nonce + 2)
             .deploy_pending()
             .await?;
+
         self.pending_state.add_pending_tx(configure_pool);
 
         let init_pool = self
