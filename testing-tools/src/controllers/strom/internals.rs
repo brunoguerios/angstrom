@@ -7,7 +7,6 @@ use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
-    block_sync::GlobalBlockSync,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
     pair_with_price::PairsWithPrice,
@@ -35,7 +34,8 @@ use crate::{
         WalletProvider
     },
     types::{
-        config::TestingNodeConfig, GlobalTestingConfig, SendingStromHandles, WithWalletProvider
+        config::TestingNodeConfig, GlobalTestingConfig, MockBlockSync, SendingStromHandles,
+        WithWalletProvider
     },
     validation::TestOrderValidator
 };
@@ -61,7 +61,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         inital_angstrom_state: InitialTestnetState
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
     )> {
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
@@ -90,7 +90,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             .unwrap();
 
         tracing::debug!(block_number, "creating strom internals");
-        let block_sync = GlobalBlockSync::new(block_number);
+        let block_sync = MockBlockSync::new(block_number);
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
