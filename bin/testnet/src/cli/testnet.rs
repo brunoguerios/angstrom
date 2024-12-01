@@ -27,7 +27,7 @@ pub struct TestnetCli {
     #[clap(short, long)]
     pub eth_fork_url:     String,
     /// path to the toml file with the pool keys
-    #[clap(short, long, default_value = "./pool_key_config.toml")]
+    #[clap(short, long, default_value = "./bin/testnet/pool_key_config.toml")]
     pub pool_key_config:  PathBuf
 }
 
