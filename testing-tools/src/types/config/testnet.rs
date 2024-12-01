@@ -8,12 +8,18 @@ pub struct TestnetConfig {
     pub node_count: u64,
     pub pool_keys:  Vec<PoolKey>,
     /// only the leader can have this
-    pub eth_ws_url: String
+    pub eth_ws_url: String,
+    pub mev_guard:  bool
 }
 
 impl TestnetConfig {
-    pub fn new(node_count: u64, pool_keys: Vec<PoolKey>, eth_ws_url: impl ToString) -> Self {
-        Self { node_count, pool_keys, eth_ws_url: eth_ws_url.to_string() }
+    pub fn new(
+        node_count: u64,
+        pool_keys: Vec<PoolKey>,
+        eth_ws_url: impl ToString,
+        mev_guard: bool
+    ) -> Self {
+        Self { node_count, pool_keys, eth_ws_url: eth_ws_url.to_string(), mev_guard }
     }
 }
 
