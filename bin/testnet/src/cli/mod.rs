@@ -11,7 +11,7 @@ use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
 };
 
-use crate::run_testnet;
+use crate::{run_devnet, run_testnet};
 
 #[derive(Parser)]
 pub struct AngstromTestnetCli {
@@ -102,7 +102,7 @@ impl TestnetSubcommmand {
                 run_testnet(executor, testnet_cli.make_config()?).await
             }
             TestnetSubcommmand::Devnet(devnet_cli) => {
-                run_testnet(executor, devnet_cli.make_config()).await
+                run_devnet(executor, devnet_cli.make_config()).await
             }
         }
     }
