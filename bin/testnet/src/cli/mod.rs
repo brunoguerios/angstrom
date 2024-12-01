@@ -102,7 +102,7 @@ impl TestnetSubcommmand {
                 run_testnet(executor, testnet_cli.make_config()?).await
             }
             TestnetSubcommmand::Devnet(devnet_cli) => {
-                run_testnet(executor, devnet_cli.make_config()?).await
+                run_testnet(executor, devnet_cli.make_config()).await
             }
         }
     }
