@@ -98,12 +98,8 @@ pub enum TestnetSubcommmand {
 impl TestnetSubcommmand {
     async fn run_command(self, executor: TaskExecutor) -> eyre::Result<()> {
         match self {
-            TestnetSubcommmand::Testnet(testnet_cli) => {
-                run_testnet(executor, testnet_cli.make_config()?).await
-            }
-            TestnetSubcommmand::Devnet(devnet_cli) => {
-                run_devnet(executor, devnet_cli.make_config()).await
-            }
+            TestnetSubcommmand::Testnet(testnet_cli) => run_testnet(executor, testnet_cli).await,
+            TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await
         }
     }
 }

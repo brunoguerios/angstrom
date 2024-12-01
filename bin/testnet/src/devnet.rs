@@ -9,7 +9,10 @@ use testing_tools::{
 };
 use tracing::{debug, info};
 
-pub(crate) async fn run_devnet(executor: TaskExecutor, config: DevnetConfig) -> eyre::Result<()> {
+use crate::cli::devnet::DevnetCli;
+
+pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::Result<()> {
+    let config = cli.make_config();
     let mut testnet = AngstromTestnet::spawn_devnet(NoopProvider::default(), config)
         .await?
         .as_state_machine();

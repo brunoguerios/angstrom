@@ -43,6 +43,14 @@ where
         Ok(this)
     }
 
+    pub async fn run_to_completion(mut self) {
+        let all_peers = std::mem::take(&mut self.peers)
+            .into_values()
+            .map(|peer| tokio::spawn(peer.testnet_future()));
+
+        futures::future::join_all(all_peers).await;
+    }
+
     async fn spawn_new_testnet_nodes(&mut self, c: C) -> eyre::Result<()> {
         let mut initial_angstrom_state = None;
 
