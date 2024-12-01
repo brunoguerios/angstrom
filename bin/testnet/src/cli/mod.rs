@@ -39,6 +39,8 @@ pub struct AngstromTestnetCli {
 impl AngstromTestnetCli {
     pub async fn run_all(executor: TaskExecutor) -> eyre::Result<()> {
         let this = Self::parse();
+        this.init_tracing();
+
         if this.metrics
             && initialize_prometheus_metrics(this.metrics_port)
                 .await
