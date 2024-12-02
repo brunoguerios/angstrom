@@ -27,7 +27,7 @@ use reth_network::{
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
-use tracing::instrument;
+use tracing::{instrument, Instrument};
 
 use super::internals::AngstromDevnetNodeInternals;
 use crate::{
@@ -85,7 +85,8 @@ where
             block_provider,
             inital_angstrom_state
         )
-        .await?;
+        .await
+        .in_current_span()?;
 
         tracing::info!("created strom internals");
 
