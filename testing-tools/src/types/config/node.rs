@@ -67,7 +67,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             panic!("only the leader can call this!")
         }
 
-        let (fork_block_number, fork_url) = self.global_config.fork_config().unwrap();
+        let (_, fork_url) = self.global_config.fork_config().unwrap();
 
         Anvil::new()
             .chain_id(1)
@@ -82,7 +82,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg("--disable-block-gas-limit")
             .block_time(12)
             .fork(fork_url)
-            .fork_block_number(fork_block_number)
     }
 
     fn configure_devnet_anvil(&self) -> Anvil {
@@ -97,8 +96,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             // .arg("500")
             .arg("--disable-block-gas-limit");
 
-        if let Some((_, fork_url)) = self.global_config.fork_config() {
-            anvil_builder = anvil_builder.fork(fork_url)
+        if let Some((fork_block_number, fork_url)) = self.global_config.fork_config() {
+            anvil_builder = anvil_builder
+                .fork(fork_url)
+                .fork_block_number(fork_block_number)
         }
 
         anvil_builder
