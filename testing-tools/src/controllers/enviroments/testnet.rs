@@ -84,6 +84,7 @@ where
                     .await?;
 
                 let initial_state = provider.initialize_state().await?;
+                println!("{initial_state:?}");
 
                 initial_angstrom_state = Some(initial_state);
                 initializer.into_state_provider()
