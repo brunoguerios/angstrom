@@ -10,8 +10,7 @@ use crate::{
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
         config::{TestingNodeConfig, TestnetConfig},
-        traits::WithWalletProvider,
-        GlobalTestingConfig
+        GlobalTestingConfig, WithWalletProvider
     }
 };
 
