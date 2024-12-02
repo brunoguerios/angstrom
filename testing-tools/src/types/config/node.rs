@@ -80,7 +80,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             // .arg("--max-persisted-states")
             // .arg("500")
             .arg("--disable-block-gas-limit")
-            // .block_time(12)
+            .block_time(12)
             .fork(fork_url)
     }
 
