@@ -67,8 +67,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             panic!("only the leader can call this!")
         }
 
-        let (_, fork_url) = self.global_config.fork_config().unwrap();
-
         Anvil::new()
             .chain_id(1)
             .fork(self.global_config.eth_ws_url())
@@ -76,12 +74,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            // .arg("--preserve-historical-states")
-            // .arg("--max-persisted-states")
-            // .arg("500")
             .arg("--disable-block-gas-limit")
             .block_time(12)
-            .fork(fork_url)
     }
 
     fn configure_devnet_anvil(&self) -> Anvil {
@@ -91,9 +85,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            // .arg("--preserve-historical-states")
-            // .arg("--max-persisted-states")
-            // .arg("500")
             .arg("--disable-block-gas-limit");
 
         if let Some((fork_block_number, fork_url)) = self.global_config.fork_config() {
