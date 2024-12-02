@@ -23,7 +23,8 @@ pub struct TestingNodeConfig<C> {
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
-    pub fn new(node_id: u64, global_config: C, secret_key: SecretKey, voting_power: u64) -> Self {
+    pub fn new(node_id: u64, global_config: C, voting_power: u64) -> Self {
+        let secret_key = SecretKey::new(&mut rand::thread_rng());
         Self {
             node_id,
             global_config,
@@ -66,6 +67,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             panic!("only the leader can call this!")
         }
 
+        let (fork_block_number, fork_url) = self.global_config.fork_config().unwrap();
+
         Anvil::new()
             .chain_id(1)
             .fork(self.global_config.eth_ws_url())
@@ -78,6 +81,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             // .arg("500")
             .arg("--disable-block-gas-limit")
             .block_time(12)
+            .fork(fork_url)
+            .fork_block_number(fork_block_number)
     }
 
     fn configure_devnet_anvil(&self) -> Anvil {
@@ -92,11 +97,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             // .arg("500")
             .arg("--disable-block-gas-limit");
 
-        if let Some((start_block, fork_url)) = self.global_config.fork_config() {
+        if let Some((fork_block_number, fork_url)) = self.global_config.fork_config() {
             anvil_builder = anvil_builder
                 .fork(fork_url)
-                .arg("--fork-block-number")
-                .arg(format!("{}", start_block));
+                .fork_block_number(fork_block_number)
         }
 
         anvil_builder

@@ -29,7 +29,7 @@ impl GlobalTestingConfig for TestnetConfig {
     }
 
     fn fork_config(&self) -> Option<(u64, String)> {
-        unreachable!()
+        Some((0, self.eth_ws_url.clone()))
     }
 
     fn config_type(&self) -> TestingConfigKind {
