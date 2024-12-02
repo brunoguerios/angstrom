@@ -78,12 +78,8 @@ where
                 let provider = initializer.provider_mut().provider_mut();
                 provider.deploy_pool_full().await?;
 
-                // provider
-                //     .rpc_provider()
-                //     .anvil_mine(Some(U256::from(5)), None)
-                //     .await?;
-
                 let initial_state = provider.initialize_state().await?;
+
                 initial_angstrom_state = Some(initial_state);
                 initializer.into_state_provider()
             } else {
@@ -91,8 +87,14 @@ where
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
                 let provider = AnvilProvider::new(WalletProvider::new(node_config.clone())).await?;
                 provider.set_state(state_bytes).await?;
+
                 provider
             };
+
+            provider
+                .rpc_provider()
+                .anvil_mine(Some(U256::from(5)), None)
+                .await?;
 
             let instance = provider._instance.take();
             if instance.is_some() {
