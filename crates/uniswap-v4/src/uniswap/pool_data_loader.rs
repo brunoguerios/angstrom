@@ -303,7 +303,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
         );
 
         let data = match block_number {
-            Some(number) => deployer.call_raw().block(number.into()).await.unwrap(),
+            Some(number) => deployer.call_raw().block(number.into()).await?,
             None => deployer.call_raw().await?
         };
 

@@ -10,7 +10,6 @@ use alloy::{
     transports::http::{Client, Http}
 };
 use futures::Future;
-use tokio::{select, time::sleep};
 use tracing::debug;
 
 use super::anvil::WalletProviderRpc;
@@ -27,6 +26,7 @@ pub trait TestAnvilEnvironment {
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;
 
+    #[allow(async_fn_in_trait)]
     async fn execute_then_mine<O>(&self, f: impl Future<Output = O> + Send) -> O {
         let mut fut = Box::pin(f);
         // poll for 500 ms. if  not resolves then we mine and join

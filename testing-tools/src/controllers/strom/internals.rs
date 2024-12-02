@@ -22,7 +22,6 @@ use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{span, Instrument, Level, Span};
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
@@ -192,8 +191,12 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let pool_registry =
             UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
+        tracing::debug!("created testnet hub and uniswap registry");
+
         let mev_boost_provider =
             MevBoostProvider::new_from_urls(Arc::new(state_provider.rpc_provider()), &[]);
+
+        tracing::debug!("created mev boost provider");
 
         let consensus = ConsensusManager::new(
             ManagerNetworkDeps::new(
@@ -214,6 +217,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             matching_handle,
             MockBlockSync
         );
+
+        tracing::info!("created consensus manager");
 
         Ok((
             Self {
