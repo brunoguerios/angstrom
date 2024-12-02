@@ -54,14 +54,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         self.signing_key().address()
     }
 
-    pub fn configure_anvil(&self) -> Anvil {
-        if matches!(self.global_config.config_type(), TestingConfigKind::Testnet) {
-            self.configure_testnet_leader_anvil()
-        } else {
-            self.configure_devnet_anvil()
-        }
-    }
-
     fn configure_testnet_leader_anvil(&self) -> Anvil {
         if !self.global_config.is_leader(self.node_id) {
             panic!("only the leader can call this!")
@@ -111,7 +103,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let anvil = self
             .global_config
             .is_leader(self.node_id)
-            .then_some(self.configure_testnet_leader_anvil().try_spawn())
+            .then(|| self.configure_testnet_leader_anvil().try_spawn())
             .transpose()?;
 
         let sk = self.signing_key();
