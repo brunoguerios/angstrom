@@ -98,9 +98,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg("--disable-block-gas-limit");
 
         if let Some((_, fork_url)) = self.global_config.fork_config() {
-            anvil_builder = anvil_builder
-                .fork(fork_url)
-                .fork_block_number(fork_block_number)
+            anvil_builder = anvil_builder.fork(fork_url)
         }
 
         anvil_builder
