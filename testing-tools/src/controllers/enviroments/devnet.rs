@@ -4,7 +4,6 @@ use alloy::providers::ext::AnvilApi;
 use alloy_primitives::U256;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
-use secp256k1::SecretKey;
 
 use super::AngstromTestnet;
 use crate::{
