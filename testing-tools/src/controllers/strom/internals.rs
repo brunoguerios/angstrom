@@ -22,6 +22,7 @@ use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
+use tracing::{span, Instrument, Level};
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
@@ -125,6 +126,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_pools.clone(),
             None
         )
+        .instrument(span!(Level::TRACE, "node", node_config.node_id))
         .await
         .expect("failed to start price generator");
 
