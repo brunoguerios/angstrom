@@ -102,7 +102,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 block_number.into(),
                 &state_provider.rpc_provider()
             )
-            .instrument(Span::current())
             .await
             .map_err(|e| eyre::eyre!("{e}"))?
         );
