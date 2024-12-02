@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use alloy_primitives::U256;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
@@ -9,6 +10,7 @@ use crate::{
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
         config::{TestingNodeConfig, TestnetConfig},
+        traits::WithWalletProvider,
         GlobalTestingConfig
     }
 };
