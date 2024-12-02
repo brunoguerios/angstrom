@@ -22,7 +22,7 @@ use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{span, Instrument, Level};
+use tracing::{span, Instrument, Level, Span};
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
@@ -93,6 +93,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         tracing::debug!(block_number, "creating strom internals");
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
+
+        println!("{:?}", Span::current());
 
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
