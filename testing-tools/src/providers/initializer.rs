@@ -72,12 +72,7 @@ impl AnvilInitializer {
 
     /// deploys tokens, a uniV4 pool, angstrom pool
     pub async fn deploy_pool_full(&mut self) -> eyre::Result<()> {
-        let nonce = self
-            .provider
-            .provider
-            .get_account(self.provider.controller())
-            .await?
-            .nonce;
+        let nonce = 0;
 
         let (first_token_tx, first_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
