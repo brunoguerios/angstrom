@@ -73,9 +73,9 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            .arg("--preserve-historical-states")
-            .arg("--max-persisted-states")
-            .arg("500")
+            // .arg("--preserve-historical-states")
+            // .arg("--max-persisted-states")
+            // .arg("500")
             .arg("--disable-block-gas-limit")
             .block_time(12)
     }
@@ -87,9 +87,9 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            .arg("--preserve-historical-states")
-            .arg("--max-persisted-states")
-            .arg("500")
+            // .arg("--preserve-historical-states")
+            // .arg("--max-persisted-states")
+            // .arg("500")
             .arg("--disable-block-gas-limit");
 
         if let Some((start_block, fork_url)) = self.global_config.fork_config() {
