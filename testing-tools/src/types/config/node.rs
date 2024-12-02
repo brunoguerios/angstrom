@@ -107,6 +107,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     async fn spawn_testnet_anvil_rpc(
         &self
     ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
+        println!("NODE: {}", self.node_id);
         let anvil = self
             .global_config
             .is_leader(self.node_id)
