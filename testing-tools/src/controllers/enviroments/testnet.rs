@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
-use secp256k1::SecretKey;
 
 use super::AngstromTestnet;
 use crate::{
@@ -43,14 +42,21 @@ where
         Ok(this)
     }
 
+    pub async fn run_to_completion(mut self) {
+        let all_peers = std::mem::take(&mut self.peers)
+            .into_values()
+            .map(|peer| tokio::spawn(peer.testnet_future()));
+
+        futures::future::join_all(all_peers).await;
+    }
+
     async fn spawn_new_testnet_nodes(&mut self, c: C) -> eyre::Result<()> {
         let mut initial_angstrom_state = None;
 
         let configs = (0..self.config.node_count())
             .map(|_| {
                 let node_id = self.incr_peer_id();
-                let secret_key = SecretKey::new(&mut rand::thread_rng());
-                TestingNodeConfig::new(node_id, self.config.clone(), secret_key, 100)
+                TestingNodeConfig::new(node_id, self.config.clone(), 100)
             })
             .collect::<Vec<_>>();
 

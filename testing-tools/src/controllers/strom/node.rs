@@ -257,7 +257,7 @@ where
     /// Testing Utils
     /// -------------------------------------
 
-    fn add_validator_bidirectional(&mut self, other: &Self) {
+    fn add_validator_bidirectional(&self, other: &Self) {
         self.add_strom_validator(other.network.pubkey());
         other.add_strom_validator(self.network.pubkey());
     }
@@ -333,7 +333,7 @@ where
         .await
     }
 
-    pub(crate) async fn _testnet_future(self) {
+    pub(crate) async fn testnet_future(self) {
         self.start_network_and_consensus();
         self.state_lock.await;
     }

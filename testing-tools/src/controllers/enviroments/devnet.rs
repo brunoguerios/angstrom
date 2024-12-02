@@ -55,8 +55,7 @@ where
         let configs = (0..self.config.node_count())
             .map(|_| {
                 let node_id = self.incr_peer_id();
-                let secret_key = SecretKey::new(&mut rand::thread_rng());
-                TestingNodeConfig::new(node_id, self.config.clone(), secret_key, 100)
+                TestingNodeConfig::new(node_id, self.config.clone(), 100)
             })
             .collect::<Vec<_>>();
 

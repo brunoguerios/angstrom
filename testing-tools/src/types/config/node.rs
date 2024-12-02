@@ -23,7 +23,8 @@ pub struct TestingNodeConfig<C> {
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
-    pub fn new(node_id: u64, global_config: C, secret_key: SecretKey, voting_power: u64) -> Self {
+    pub fn new(node_id: u64, global_config: C, voting_power: u64) -> Self {
+        let secret_key = SecretKey::new(&mut rand::thread_rng());
         Self {
             node_id,
             global_config,
@@ -66,6 +67,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             panic!("only the leader can call this!")
         }
 
+        let (_, fork_url) = self.global_config.fork_config().unwrap();
+
         Anvil::new()
             .chain_id(1)
             .fork(self.global_config.eth_ws_url())
@@ -73,10 +76,13 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            .arg("--preserve-historical-states")
-            .arg("--max-persisted-states")
-            .arg("500")
-            .block_time(12)
+            // .arg("--preserve-historical-states")
+            // .arg("--max-persisted-states")
+            // .arg("500")
+            .arg("--disable-block-gas-limit")
+            // .block_time(12)
+            .fork(fork_url)
+            .fork_block_number(20000000)
     }
 
     fn configure_devnet_anvil(&self) -> Anvil {
@@ -86,16 +92,15 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            .arg("--preserve-historical-states")
-            .arg("--max-persisted-states")
-            .arg("500")
+            // .arg("--preserve-historical-states")
+            // .arg("--max-persisted-states")
+            // .arg("500")
             .arg("--disable-block-gas-limit");
 
-        if let Some((start_block, fork_url)) = self.global_config.fork_config() {
+        if let Some((fork_block_number, fork_url)) = self.global_config.fork_config() {
             anvil_builder = anvil_builder
                 .fork(fork_url)
-                .arg("--fork-block-number")
-                .arg(format!("{}", start_block));
+                .fork_block_number(fork_block_number)
         }
 
         anvil_builder
@@ -112,14 +117,14 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     async fn spawn_testnet_anvil_rpc(
         &self
     ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
-        let sk = self.signing_key();
-        let wallet = EthereumWallet::new(sk.clone());
-
         let anvil = self
             .global_config
             .is_leader(self.node_id)
             .then_some(self.configure_testnet_leader_anvil().try_spawn())
             .transpose()?;
+
+        let sk = self.signing_key();
+        let wallet = EthereumWallet::new(sk.clone());
 
         let endpoint = "/tmp/testnet_anvil.ipc".to_string();
         tracing::info!(?endpoint);
@@ -132,8 +137,9 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
-        rpc.anvil_set_balance(sk.address(), U256::from(1000000000000000000_u64))
+        rpc.anvil_set_balance(sk.address(), U256::from(10000000000000000000_u64))
             .await?;
+        rpc.anvil_set_nonce(sk.address(), U256::ZERO).await?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), anvil))
     }
@@ -143,23 +149,23 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
         let anvil = self.configure_devnet_anvil().try_spawn()?;
 
+        let sk = self.signing_key();
+        let wallet = EthereumWallet::new(sk.clone());
+
         let endpoint = self.global_config.anvil_rpc_endpoint(self.node_id);
         tracing::info!(?endpoint);
-        let ipc = alloy::providers::IpcConnect::new(endpoint);
 
-        let sk = self.signing_key();
-
-        let wallet = EthereumWallet::new(sk.clone());
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_ipc(ipc)
+            .on_ipc(IpcConnect::new(endpoint))
             .await?;
 
         tracing::info!("connected to anvil");
 
-        rpc.anvil_set_balance(sk.address(), U256::from(1000000000000000000_u64))
+        rpc.anvil_set_balance(sk.address(), U256::from(10000000000000000000_u64))
             .await?;
+        rpc.anvil_set_nonce(sk.address(), U256::ZERO).await?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), Some(anvil)))
     }

@@ -186,8 +186,6 @@ impl WithWalletProvider for AnvilInitializer {
 #[cfg(test)]
 mod tests {
     use alloy::providers::Provider;
-    use rand::thread_rng;
-    use secp256k1::SecretKey;
 
     use super::*;
     use crate::types::config::DevnetConfig;
@@ -198,12 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_can_deploy() {
-        let config = TestingNodeConfig::new(
-            0,
-            DevnetConfig::default(),
-            SecretKey::new(&mut thread_rng()),
-            100
-        );
+        let config = TestingNodeConfig::new(0, DevnetConfig::default(), 100);
 
         let (mut initializer, _anvil) = AnvilInitializer::new(config).await.unwrap();
 
