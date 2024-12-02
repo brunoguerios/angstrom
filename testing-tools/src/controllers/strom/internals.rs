@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
-use alloy_rpc_types::Transaction;
+use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
@@ -94,12 +94,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
 
-        println!("{:?}", Span::current());
-
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
-                block_number.into(),
+                BlockId::latest(),
                 &state_provider.rpc_provider()
             )
             .await
@@ -126,9 +124,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
-            None
+            Some(1)
         )
-        .instrument(span!(Level::TRACE, "node", node_config.node_id))
         .await
         .expect("failed to start price generator");
 
