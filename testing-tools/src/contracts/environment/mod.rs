@@ -1,14 +1,16 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::AnvilInstance,
-    primitives::Address,
-    providers::ProviderBuilder,
+    primitives::{Address, U256},
+    providers::{ext::AnvilApi, ProviderBuilder},
     pubsub::PubSubFrontend,
     signers::local::PrivateKeySigner,
     transports::http::{Client, Http}
 };
+use futures::Future;
+use tokio::{select, time::sleep};
 use tracing::debug;
 
 use super::anvil::WalletProviderRpc;
@@ -24,6 +26,22 @@ pub trait TestAnvilEnvironment {
 
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;
+
+    async fn execute_then_mine<O>(&self, mut f: impl Future<Output = O> + Send) -> O {
+        let mut fut = Box::pin(f);
+        // poll for 500 ms. if  not resolves then we mine and join
+        tokio::select! {
+            o = &mut fut => {
+                return o
+            },
+            _ = tokio::time::sleep(Duration::from_millis(500)) => {
+            }
+        };
+
+        let mine_one_fut = self.provider().anvil_mine(Some(U256::from(1)), None);
+        let (res, _) = futures::join!(fut, mine_one_fut);
+        res
+    }
 }
 
 pub struct SpawnedAnvil {
