@@ -31,7 +31,7 @@ impl DevnetConfig {
 impl Default for DevnetConfig {
     fn default() -> Self {
         Self {
-            intial_node_count: 2,
+            intial_node_count: 5,
             initial_rpc_port:  4200,
             fork_block_number: None,
             fork_url:          None
