@@ -78,10 +78,10 @@ where
                 let provider = initializer.provider_mut().provider_mut();
                 provider.deploy_pool_full().await?;
 
-                provider
-                    .rpc_provider()
-                    .anvil_mine(Some(U256::from(5)), None)
-                    .await?;
+                // provider
+                //     .rpc_provider()
+                //     .anvil_mine(Some(U256::from(5)), None)
+                //     .await?;
 
                 let initial_state = provider.initialize_state().await?;
                 initial_angstrom_state = Some(initial_state);
