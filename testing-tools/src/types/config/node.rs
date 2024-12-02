@@ -139,6 +139,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         rpc.anvil_set_balance(sk.address(), U256::from(10000000000000000000_u64))
             .await?;
+        rpc.anvil_set_nonce(sk.address(), 0).await?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), anvil))
     }
@@ -164,6 +165,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         rpc.anvil_set_balance(sk.address(), U256::from(10000000000000000000_u64))
             .await?;
+        rpc.anvil_set_nonce(sk.address(), 0).await?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), Some(anvil)))
     }

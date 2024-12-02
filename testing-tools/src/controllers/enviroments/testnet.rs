@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
-use secp256k1::SecretKey;
 
 use super::AngstromTestnet;
 use crate::{
