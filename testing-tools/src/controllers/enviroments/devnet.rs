@@ -70,7 +70,6 @@ where
             let provider = if self.config.is_leader(node_id) {
                 let mut initializer =
                     AnvilProvider::new(AnvilInitializer::new(node_config.clone())).await?;
-
                 let provider = initializer.provider_mut().provider_mut();
                 provider.deploy_pool_full().await?;
                 let initial_state = provider.initialize_state().await?;

@@ -3211,6 +3211,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "devnet"
+version = "0.1.0"
+dependencies = [
+ "alloy 0.4.2",
+ "alloy-chains",
+ "alloy-primitives 0.8.12",
+ "alloy-rpc-types 0.4.2",
+ "angstrom",
+ "angstrom-eth",
+ "angstrom-network",
+ "angstrom-rpc",
+ "angstrom-types",
+ "angstrom-utils",
+ "clap",
+ "consensus",
+ "enr 0.10.0",
+ "eyre",
+ "futures",
+ "jsonrpsee",
+ "order-pool",
+ "parking_lot 0.12.3",
+ "rand",
+ "reth",
+ "reth-beacon-consensus",
+ "reth-blockchain-tree",
+ "reth-codecs",
+ "reth-db",
+ "reth-discv4",
+ "reth-dns-discovery",
+ "reth-ecies",
+ "reth-eth-wire",
+ "reth-metrics",
+ "reth-network",
+ "reth-network-api",
+ "reth-network-peers",
+ "reth-node-builder",
+ "reth-node-ethereum",
+ "reth-primitives",
+ "reth-provider",
+ "reth-revm",
+ "reth-tasks",
+ "reth-tokio-util",
+ "reth-tracing",
+ "reth-transaction-pool",
+ "secp256k1 0.29.1",
+ "serial_test",
+ "tempfile",
+ "testing-tools",
+ "tikv-jemallocator",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "validation",
+]
+
+[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
