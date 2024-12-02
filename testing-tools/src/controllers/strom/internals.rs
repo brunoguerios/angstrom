@@ -100,7 +100,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 block_number.into(),
                 &state_provider.rpc_provider()
             )
-            .in_current_span()
+            .instrument(span!(Level::TRACE, "node", node_config.node_id))
             .await
             .map_err(|e| eyre::eyre!("{e}"))?
         );
