@@ -84,13 +84,13 @@ where
                     .await?;
 
                 let initial_state = provider.initialize_state().await?;
-                println!("{initial_state:?}");
+                println!("{:?}", initial_angstrom_state..pool_keys);
 
                 initial_angstrom_state = Some(initial_state);
                 initializer.into_state_provider()
             } else {
                 tracing::info!(?node_id, "default init");
-                println!("{initial_angstrom_state:?}");
+                println!("{:?}", initial_angstrom_state.as_ref().map(|s| s.pool_keys));
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
                 let provider = AnvilProvider::new(WalletProvider::new(node_config.clone())).await?;
                 provider.set_state(state_bytes).await?;
