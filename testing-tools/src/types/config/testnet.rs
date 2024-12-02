@@ -41,7 +41,6 @@ impl GlobalTestingConfig for TestnetConfig {
     }
 
     fn is_leader(&self, node_id: u64) -> bool {
-        println!("IS LEADER NODE: {node_id}");
         node_id == 0
     }
 
