@@ -22,7 +22,7 @@ use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{span, Instrument, Level};
+use tracing::{span, Instrument, Level, Span};
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
@@ -100,7 +100,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 block_number.into(),
                 &state_provider.rpc_provider()
             )
-            .instrument(span!(Level::TRACE, "node", node_config.node_id))
+            .instrument(Span::current())
             .await
             .map_err(|e| eyre::eyre!("{e}"))?
         );
