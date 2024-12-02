@@ -82,7 +82,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg("--disable-block-gas-limit")
             // .block_time(12)
             .fork(fork_url)
-            .fork_block_number(20000000)
     }
 
     fn configure_devnet_anvil(&self) -> Anvil {
