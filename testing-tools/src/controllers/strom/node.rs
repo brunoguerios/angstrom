@@ -27,7 +27,7 @@ use reth_network::{
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
-use tracing::{instrument, Instrument};
+use tracing::instrument;
 
 use super::internals::AngstromDevnetNodeInternals;
 use crate::{
@@ -56,7 +56,7 @@ where
         + 'static,
     P: WithWalletProvider
 {
-    #[instrument(name = "node", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider), fields(id = node_config.node_id))]
+    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider), fields(id = node_config.node_id))]
     pub async fn new<G: GlobalTestingConfig>(
         c: C,
         node_config: TestingNodeConfig<G>,
