@@ -85,8 +85,8 @@ where
             block_provider,
             inital_angstrom_state
         )
-        .await
-        .in_current_span()?;
+        .in_current_span()
+        .await?;
 
         tracing::info!("created strom internals");
 
