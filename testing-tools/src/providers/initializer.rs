@@ -75,9 +75,8 @@ impl AnvilInitializer {
         let nonce = self
             .provider
             .provider
-            .get_account(self.provider.controller())
-            .await?
-            .nonce;
+            .get_transaction_count(self.provider.controller())
+            .await?;
 
         let (first_token_tx, first_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())

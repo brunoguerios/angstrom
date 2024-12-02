@@ -27,7 +27,7 @@ pub trait TestAnvilEnvironment {
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;
 
-    async fn execute_then_mine<O>(&self, mut f: impl Future<Output = O> + Send) -> O {
+    async fn execute_then_mine<O>(&self, f: impl Future<Output = O> + Send) -> O {
         let mut fut = Box::pin(f);
         // poll for 500 ms. if  not resolves then we mine and join
         tokio::select! {
