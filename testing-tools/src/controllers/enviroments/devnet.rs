@@ -71,10 +71,9 @@ where
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
                 let mut initializer =
-                    AnvilProvider::new(AnvilInitializer::new(node_config.clone())).await?;
+                    AnvilProvider::new(AnvilInitializer::new(node_config.clone()), false).await?;
                 let provider = initializer.provider_mut().provider_mut();
-                provider.deploy_pool_full().await?;
-                let initial_state = provider.initialize_state().await?;
+                let initial_state = provider.init_state_full().await?;
                 initial_angstrom_state = Some(initial_state);
 
                 initializer
@@ -85,7 +84,8 @@ where
             } else {
                 tracing::info!(?node_id, "default init");
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
-                let provider = AnvilProvider::new(WalletProvider::new(node_config.clone())).await?;
+                let provider =
+                    AnvilProvider::new(WalletProvider::new(node_config.clone()), false).await?;
                 provider.set_state(state_bytes).await?;
                 provider
                     .rpc_provider()

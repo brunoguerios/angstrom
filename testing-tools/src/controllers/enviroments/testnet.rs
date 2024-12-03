@@ -98,7 +98,7 @@ where
                 p
             } else {
                 tracing::info!(?node_id, "follower node init");
-                AnvilProvider::new(WalletProvider::new(node_config.clone())).await?
+                AnvilProvider::new(WalletProvider::new(node_config.clone()), true).await?
             };
 
             tracing::info!(node_id, "connected to state provider");
@@ -129,18 +129,16 @@ where
         &mut self,
         config: TestingNodeConfig<TestnetConfig>
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
-        let mut provider = AnvilProvider::new(AnvilInitializer::new(config)).await?;
+        let mut provider = AnvilProvider::new(AnvilInitializer::new(config), true).await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());
 
         let initializer = provider.provider_mut().provider_mut();
-        initializer.deploy_pool_full().await?;
 
+        let initial_state = initializer.init_state_full_no_bytes().await?;
         initializer
             .rpc_provider()
             .anvil_mine(Some(U256::from(5)), None)
             .await?;
-
-        let initial_state = initializer.initialize_state_no_bytes().await?;
 
         Ok((provider.into_state_provider(), initial_state))
     }

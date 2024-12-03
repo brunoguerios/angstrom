@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use alloy::{
     network::{Ethereum, EthereumWallet},
@@ -19,7 +19,7 @@ pub mod angstrom;
 pub mod mockreward;
 pub mod uniswap;
 
-pub trait TestAnvilEnvironment {
+pub trait TestAnvilEnvironment: Clone {
     type T: Clone + Send + Sync + alloy::transports::Transport;
     type P: alloy::providers::Provider<Self::T, Ethereum>;
 
@@ -44,9 +44,10 @@ pub trait TestAnvilEnvironment {
     }
 }
 
+#[derive(Clone)]
 pub struct SpawnedAnvil {
     #[allow(dead_code)]
-    anvil:      AnvilInstance,
+    anvil:      Arc<AnvilInstance>,
     provider:   WalletProviderRpc,
     controller: Address
 }
@@ -57,7 +58,7 @@ impl SpawnedAnvil {
         let (anvil, provider) = spawn_anvil(7).await?;
         let controller = anvil.addresses()[7];
         debug!("Anvil spawned");
-        Ok(Self { anvil, provider, controller })
+        Ok(Self { anvil: anvil.into(), provider, controller })
     }
 }
 
@@ -74,6 +75,7 @@ impl TestAnvilEnvironment for SpawnedAnvil {
     }
 }
 
+#[derive(Clone)]
 pub struct LocalAnvil {
     _url:     String,
     provider: LocalAnvilRpc
