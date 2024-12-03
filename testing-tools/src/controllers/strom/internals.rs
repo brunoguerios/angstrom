@@ -227,16 +227,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             MockBlockSync
         );
 
-        let block = Box::pin(
-            state_provider
-                .state_provider()
-                .canonical_state_stream()
-                .map(|node| match node {
-                    reth_provider::CanonStateNotification::Commit { new }
-                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
-                })
-        );
-
         // init agents
         let agent_config = AgentConfig {
             uniswap_pools,
