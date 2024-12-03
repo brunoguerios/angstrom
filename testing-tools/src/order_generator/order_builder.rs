@@ -26,7 +26,7 @@ impl OrderBuilder {
         let p_price = pool.calculate_price();
         // if the pool price > than price we want. given t1 / t0 -> more t0 less t1 ->
         // cur_price
-        let zfo = p_price < cur_price;
+        let zfo = p_price > cur_price;
 
         // convert price to sqrtx96
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
@@ -68,7 +68,7 @@ impl OrderBuilder {
         let unshifted_price = Ray::from(pool.calculate_price_unshifted());
         // if the pool price > than price we want. given t1 / t0 -> more t0 less t1 ->
         // cur_price
-        let zfo = p_price < cur_price;
+        let zfo = p_price > cur_price;
         let token0 = pool.token_a;
         let token1 = pool.token_b;
 
