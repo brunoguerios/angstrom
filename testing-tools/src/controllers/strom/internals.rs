@@ -15,7 +15,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig};
