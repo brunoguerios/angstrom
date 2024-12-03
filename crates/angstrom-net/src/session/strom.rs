@@ -241,6 +241,8 @@ impl StromSession {
                     msg.map_or(false, |msg| {
                         // first message has to be status
                         if let StromMessage::Status(status) = msg.message {
+                            tracing::debug!(?status, peer=?self.remote_peer_id, "decoded status message");
+
                             self.verify_incoming_status(status)
                         } else {
                             false
