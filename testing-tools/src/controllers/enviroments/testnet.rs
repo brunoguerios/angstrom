@@ -1,14 +1,16 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, pin::Pin};
 
 use alloy::providers::ext::AnvilApi;
 use alloy_primitives::U256;
 use angstrom_types::testnet::InitialTestnetState;
+use futures::Future;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use reth_tasks::TaskExecutor;
 
 use super::AngstromTestnet;
 use crate::{
+    agents::AgentConfig,
     controllers::strom::TestnetNode,
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
@@ -27,7 +29,14 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    pub async fn spawn_testnet(c: C, config: TestnetConfig) -> eyre::Result<Self> {
+    pub async fn spawn_testnet<F>(c: C, config: TestnetConfig, agents: Vec<F>) -> eyre::Result<Self>
+    where
+        F: for<'a> Fn(
+            &'a InitialTestnetState,
+            AgentConfig
+        ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
+        F: Clone
+    {
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
             peers: Default::default(),
@@ -40,7 +49,7 @@ where
         };
 
         tracing::info!("initializing testnet with {} nodes", config.node_count());
-        this.spawn_new_testnet_nodes(c).await?;
+        this.spawn_new_testnet_nodes(c, agents).await?;
         tracing::info!("initialized testnet with {} nodes", config.node_count());
 
         Ok(this)
@@ -57,7 +66,14 @@ where
         let _ = futures::future::select_all(all_peers).await;
     }
 
-    async fn spawn_new_testnet_nodes(&mut self, c: C) -> eyre::Result<()> {
+    async fn spawn_new_testnet_nodes<F>(&mut self, c: C, agents: Vec<F>) -> eyre::Result<()>
+    where
+        F: for<'a> Fn(
+            &'a InitialTestnetState,
+            AgentConfig
+        ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
+        F: Clone
+    {
         let mut initial_angstrom_state = None;
 
         let configs = (0..self.config.node_count())
@@ -82,7 +98,7 @@ where
                 p
             } else {
                 tracing::info!(?node_id, "follower node init");
-                AnvilProvider::new(WalletProvider::new(node_config.clone())).await?
+                AnvilProvider::new(WalletProvider::new(node_config.clone()), true).await?
             };
 
             tracing::info!(node_id, "connected to state provider");
@@ -93,7 +109,8 @@ where
                 provider,
                 initial_validators.clone(),
                 initial_angstrom_state.clone().unwrap(),
-                self.block_provider.subscribe_to_new_blocks()
+                self.block_provider.subscribe_to_new_blocks(),
+                agents.clone()
             )
             .await?;
 
@@ -110,21 +127,18 @@ where
 
     async fn leader_initialization(
         &mut self,
-
         config: TestingNodeConfig<TestnetConfig>
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
-        let mut provider = AnvilProvider::new(AnvilInitializer::new(config)).await?;
+        let mut provider = AnvilProvider::new(AnvilInitializer::new(config), true).await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());
 
         let initializer = provider.provider_mut().provider_mut();
-        initializer.deploy_pool_full().await?;
 
+        let initial_state = initializer.init_state_full_no_bytes().await?;
         initializer
             .rpc_provider()
             .anvil_mine(Some(U256::from(5)), None)
             .await?;
-
-        let initial_state = initializer.initialize_state_no_bytes().await?;
 
         Ok((provider.into_state_provider(), initial_state))
     }

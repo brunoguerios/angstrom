@@ -1,8 +1,10 @@
-use std::future::IntoFuture;
+use std::{future::IntoFuture, time::Duration};
 
 use alloy::{providers::Provider, rpc::types::Block};
 use alloy_primitives::{Address, BlockNumber, B256, U256};
+use alloy_rpc_types::BlockId;
 use eyre::bail;
+use futures::stream::StreamExt;
 use reth_provider::{
     BlockHashReader, BlockNumReader, CanonStateNotification, CanonStateNotifications,
     CanonStateSubscriptions, ProviderError, ProviderResult
@@ -59,6 +61,38 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
             provider:       self.provider.wallet_provider(),
             canon_state:    self.canon_state.clone(),
             canon_state_tx: self.canon_state_tx.clone()
+        }
+    }
+
+    /// used for testnet to make sure cannon notifications work
+    pub async fn listen_to_new_blocks(self) {
+        let mut new_blocks = self
+            .provider()
+            .rpc_provider()
+            .watch_blocks()
+            .await
+            .unwrap()
+            .with_poll_interval(Duration::from_millis(100))
+            .into_stream();
+
+        while let Some(block_hash) = new_blocks.next().await {
+            if let Some(block_hash) = block_hash.first() {
+                tracing::info!("got new blockhash");
+                let block = self
+                    .provider()
+                    .rpc_provider()
+                    .get_block(
+                        BlockId::Hash(alloy_rpc_types::RpcBlockHash {
+                            block_hash:        *block_hash,
+                            require_canonical: None
+                        }),
+                        alloy_rpc_types::BlockTransactionsKind::Full
+                    )
+                    .await
+                    .unwrap()
+                    .unwrap();
+                self.update_canon_chain(&block).unwrap();
+            }
         }
     }
 }

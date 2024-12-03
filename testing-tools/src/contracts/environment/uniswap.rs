@@ -23,6 +23,7 @@ pub trait TestUniswapEnv: TestAnvilEnvironment {
     ) -> eyre::Result<TxHash>;
 }
 
+#[derive(Clone)]
 pub struct UniswapEnv<E: TestAnvilEnvironment> {
     inner:        E,
     pool_manager: Address,
