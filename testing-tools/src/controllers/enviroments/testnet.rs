@@ -47,12 +47,12 @@ where
     }
 
     pub async fn run_to_completion(mut self, executor: TaskExecutor) {
-        let peer1_id = self.peers.get(&1).unwrap().eth_peer(|p| p.peer_id());
         let all_peers = std::mem::take(&mut self.peers)
             .into_values()
             .map(|mut peer| {
-                if peer.testnet_node_id() {
-                    peer.send_bundles_to_network(peer1_id, vec![]).unwrap();
+                if peer.testnet_node_id() == 0 {
+                    peer.send_bundles_to_network(peer.eth_peer(|p| p.peer_id()), 0)
+                        .unwrap();
                 }
                 executor.spawn_critical_blocking(
                     format!("testnet node {}", peer.testnet_node_id()).leak(),
