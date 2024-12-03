@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use alloy_rpc_types::{BlockId, Transaction};
@@ -15,7 +15,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use futures::{StreamExt, TryStreamExt};
+use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig};
@@ -74,8 +74,18 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let block_subscription = if node_config.is_devnet() {
             Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
+                as Pin<Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>>
         } else {
-            state_provider.rpc_provider().subscribe_blocks()
+            Box::pin(
+                state_provider
+                    .rpc_provider()
+                    .subscribe_blocks()
+                    .await?
+                    .into_stream()
+                    .map(|block| {
+                        ((block.header.number, block.transactions.into_transactions().collect()))
+                    })
+            ) as Pin<Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>>
         };
 
         let eth_handle = AnvilEthDataCleanser::spawn(
