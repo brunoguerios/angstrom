@@ -338,8 +338,7 @@ impl ChainExt for Chain {
 pub mod test {
     use alloy::{
         hex,
-        primitives::{b256, TxKind, U256},
-        signers::local::PrivateKeySigner
+        primitives::{b256, TxKind, U256}
     };
     use angstrom_types::{
         block_sync::*,
@@ -348,12 +347,12 @@ pub mod test {
             Asset, Pair
         },
         orders::OrderOutcome,
-        primitive::ANGSTROM_DOMAIN,
+        primitive::AngstromSigner,
         sol_bindings::grouped_orders::OrderWithStorageData
     };
     use pade::PadeEncode;
     use reth_primitives::Transaction;
-    use testing_tools::type_generator::orders::{SigningInfo, ToBOrderBuilder, UserOrderBuilder};
+    use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
     use super::*;
 
@@ -409,12 +408,8 @@ pub mod test {
         }
     }
 
-    fn setup_signing_info() -> SigningInfo {
-        // let mut rand = rand::rng();
-        let wallet = PrivateKeySigner::random();
-        let addr = wallet.address();
-        let key = wallet.credential().clone();
-        SigningInfo { domain: ANGSTROM_DOMAIN, address: addr, key }
+    fn setup_signing_info() -> AngstromSigner {
+        AngstromSigner::random()
     }
 
     #[test]
