@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
-use alloy_rpc_types::Transaction;
+use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
@@ -96,7 +96,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
-                block_number.into(),
+                BlockId::latest(),
                 &state_provider.rpc_provider()
             )
             .await
@@ -123,7 +123,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
-            None
+            Some(1)
         )
         .await
         .expect("failed to start price generator");
@@ -191,8 +191,12 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let pool_registry =
             UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
+        tracing::debug!("created testnet hub and uniswap registry");
+
         let mev_boost_provider =
             MevBoostProvider::new_from_urls(Arc::new(state_provider.rpc_provider()), &[]);
+
+        tracing::debug!("created mev boost provider");
 
         let consensus = ConsensusManager::new(
             ManagerNetworkDeps::new(
@@ -213,6 +217,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             matching_handle,
             MockBlockSync
         );
+
+        tracing::info!("created consensus manager");
 
         Ok((
             Self {

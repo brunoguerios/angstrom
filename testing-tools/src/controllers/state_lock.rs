@@ -146,6 +146,9 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
 
+        let span = span!(Level::TRACE, "node", id = this.eth_peer.node_id);
+        let e = span.enter();
+
         if this.eth_peer.fut.poll_unpin(cx).is_ready() {
             return Poll::Ready(())
         }
@@ -158,14 +161,17 @@ where
             return Poll::Ready(())
         }
 
+        drop(e);
+
         Poll::Pending
     }
 }
 
 struct StateLockInner<T> {
-    inner: Arc<Mutex<T>>,
-    lock:  Arc<AtomicBool>,
-    fut:   JoinHandle<()>
+    node_id: u64,
+    inner:   Arc<Mutex<T>>,
+    lock:    Arc<AtomicBool>,
+    fut:     JoinHandle<()>
 }
 
 impl<T: Unpin + Future + Send + 'static> StateLockInner<T> {
@@ -174,7 +180,7 @@ impl<T: Unpin + Future + Send + 'static> StateLockInner<T> {
         let inner = Arc::new(Mutex::new(inner_unarced));
         let inner_fut = StateLockFut::new(node_id, inner.clone(), lock.clone());
 
-        Self { inner, lock, fut: tokio::spawn(inner_fut) }
+        Self { node_id, inner, lock, fut: tokio::spawn(inner_fut) }
     }
 
     fn on_inner<F, R>(&self, f: F) -> R

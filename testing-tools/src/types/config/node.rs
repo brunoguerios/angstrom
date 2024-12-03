@@ -54,20 +54,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         self.signing_key().address()
     }
 
-    pub fn configure_anvil(&self) -> Anvil {
-        if matches!(self.global_config.config_type(), TestingConfigKind::Testnet) {
-            self.configure_testnet_leader_anvil()
-        } else {
-            self.configure_devnet_anvil()
-        }
-    }
-
     fn configure_testnet_leader_anvil(&self) -> Anvil {
         if !self.global_config.is_leader(self.node_id) {
             panic!("only the leader can call this!")
         }
-
-        let (_, fork_url) = self.global_config.fork_config().unwrap();
 
         Anvil::new()
             .chain_id(1)
@@ -76,12 +66,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            // .arg("--preserve-historical-states")
-            // .arg("--max-persisted-states")
-            // .arg("500")
             .arg("--disable-block-gas-limit")
             .block_time(12)
-            .fork(fork_url)
     }
 
     fn configure_devnet_anvil(&self) -> Anvil {
@@ -91,9 +77,6 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
             .arg("--code-size-limit")
             .arg("393216")
-            // .arg("--preserve-historical-states")
-            // .arg("--max-persisted-states")
-            // .arg("500")
             .arg("--disable-block-gas-limit");
 
         if let Some((fork_block_number, fork_url)) = self.global_config.fork_config() {
@@ -119,7 +102,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let anvil = self
             .global_config
             .is_leader(self.node_id)
-            .then_some(self.configure_testnet_leader_anvil().try_spawn())
+            .then(|| self.configure_testnet_leader_anvil().try_spawn())
             .transpose()?;
 
         let sk = self.signing_key();
@@ -136,9 +119,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
-        rpc.anvil_set_balance(sk.address(), U256::from(10000000000000000000_u64))
-            .await?;
-        rpc.anvil_set_nonce(sk.address(), U256::ZERO).await?;
+        rpc.anvil_set_balance(sk.address(), U256::MAX).await?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), anvil))
     }
@@ -162,9 +143,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
-        rpc.anvil_set_balance(sk.address(), U256::from(10000000000000000000_u64))
-            .await?;
-        rpc.anvil_set_nonce(sk.address(), U256::ZERO).await?;
+        rpc.anvil_set_balance(sk.address(), U256::MAX).await?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), Some(anvil)))
     }

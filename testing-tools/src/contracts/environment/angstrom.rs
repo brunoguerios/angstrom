@@ -24,21 +24,25 @@ where
     pub async fn new(inner: E) -> eyre::Result<Self> {
         let provider = inner.provider();
         debug!("Deploying mock rewards manager...");
-        let angstrom = deploy_angstrom(
-            &provider,
-            inner.pool_manager(),
-            inner.controller(),
-            Address::default()
-        )
-        .await;
+        let angstrom = inner
+            .execute_then_mine(deploy_angstrom(
+                &provider,
+                inner.pool_manager(),
+                inner.controller(),
+                Address::default()
+            ))
+            .await;
         debug!("Angstrom deployed at: {}", angstrom);
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
         let pool_gate_instance = PoolGateInstance::new(inner.pool_gate(), &provider);
-        pool_gate_instance
-            .setHook(angstrom)
-            .from(inner.controller())
-            .run_safe()
+        inner
+            .execute_then_mine(
+                pool_gate_instance
+                    .setHook(angstrom)
+                    .from(inner.controller())
+                    .run_safe()
+            )
             .await?;
         debug!("Environment deploy complete!");
         Ok(Self { inner, angstrom })
