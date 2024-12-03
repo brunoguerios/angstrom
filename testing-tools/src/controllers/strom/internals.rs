@@ -3,7 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
-use angstrom_eth::handle::Eth;
+use angstrom_eth::{handle::Eth, manager::ChainExt};
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
@@ -227,9 +227,24 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             MockBlockSync
         );
 
+        let block = Box::pin(
+            state_provider
+                .state_provider()
+                .canonical_state_stream()
+                .map(|node| match node {
+                    reth_provider::CanonStateNotification::Commit { new }
+                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
+                })
+        );
+
         // init agents
-        let agent_config =
-            AgentConfig { uniswap_pools, rpc_address: addr, current_block: block_number };
+        let agent_config = AgentConfig {
+            uniswap_pools,
+            rpc_address: addr,
+            current_block: block_number,
+            block_stream: block
+        };
+
         futures::stream::iter(agents.into_iter())
             .map(|agent| (agent)(&inital_angstrom_state, &agent_config))
             .buffer_unordered(4)
