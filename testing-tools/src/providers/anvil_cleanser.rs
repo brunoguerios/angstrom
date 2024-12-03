@@ -79,7 +79,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
             .into_iter()
             .find(|tx| tx.to == Some(self.angstrom_contract))
         else {
-            tracing::info!("No angstrom tx found");
+            tracing::info!("No angstrom txs found");
             return
         };
         let input = angstrom_tx.input;
