@@ -39,7 +39,9 @@ impl OrderBuilder {
         // want to swap to SqrtPriceX96. we set amount to negative so it will
         // just fil till we hit limit.
         info!(?price, "generating tob with price");
-        let (amount_in, amount_out) = pool.simulate_swap(t_in, I256::MIN, Some(price)).unwrap();
+        let (amount_in, amount_out) = pool
+            .simulate_swap(t_in, I256::MIN + I256::ONE, Some(price))
+            .unwrap();
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
         info!(%amount_in, %amount_out, %cur_price, pool_price=%p_price, "tob order builder");
@@ -75,7 +77,9 @@ impl OrderBuilder {
 
         let t_in = if zfo { token0 } else { token1 };
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
-        let (amount_in, amount_out) = pool.simulate_swap(t_in, I256::MIN, Some(price)).unwrap();
+        let (amount_in, amount_out) = pool
+            .simulate_swap(t_in, I256::MIN + I256::ONE, Some(price))
+            .unwrap();
 
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
