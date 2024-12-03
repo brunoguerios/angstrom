@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use alloy::providers::ext::AnvilApi;
 use alloy_primitives::U256;
+use angstrom_types::testnet::InitialTestnetState;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
@@ -70,50 +71,28 @@ where
         for node_config in configs {
             let node_id = node_config.node_id;
             tracing::info!(node_id, "connecting to state provider");
-            let mut provider = if self.config.is_leader(node_id) {
-                tracing::info!(?node_id, "is leader init");
-                let mut initializer =
-                    AnvilProvider::new(AnvilInitializer::new(node_config.clone())).await?;
-
-                let provider = initializer.provider_mut().provider_mut();
-                provider.deploy_pool_full().await?;
-
-                provider
-                    .rpc_provider()
-                    .anvil_mine(Some(U256::from(5)), None)
-                    .await?;
-
-                let initial_state = provider.initialize_state().await?;
-                println!("{:?}", initial_state.pool_keys);
-
+            let provider = if self.config.is_leader(node_id) {
+                tracing::info!(?node_id, "leader node init");
+                let (p, initial_state) = self.leader_initialization(node_config.clone()).await?;
                 initial_angstrom_state = Some(initial_state);
-                initializer.into_state_provider()
+                p
             } else {
-                tracing::info!(?node_id, "default init");
-                println!("{:?}", initial_angstrom_state.as_ref().map(|s| &s.pool_keys));
-                let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
-                let provider = AnvilProvider::new(WalletProvider::new(node_config.clone())).await?;
-                provider.set_state(state_bytes).await?;
-
-                provider
+                tracing::info!(?node_id, "follower node init");
+                AnvilProvider::new(WalletProvider::new(node_config.clone())).await?
             };
-
-            let instance = provider._instance.take();
-            if instance.is_some() {
-                self._anvil_instance = instance;
-            }
 
             tracing::info!(node_id, "connected to state provider");
 
             let mut node = TestnetNode::new(
                 c.clone(),
-                node_config,
+                node_config.clone(),
                 provider,
                 initial_validators.clone(),
                 initial_angstrom_state.clone().unwrap(),
                 self.block_provider.subscribe_to_new_blocks()
             )
             .await?;
+
             tracing::info!(node_id, "made angstrom node");
 
             node.connect_to_all_peers(&mut self.peers).await;
@@ -123,5 +102,26 @@ where
         }
 
         Ok(())
+    }
+
+    async fn leader_initialization(
+        &mut self,
+
+        config: TestingNodeConfig<TestnetConfig>
+    ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
+        let mut provider = AnvilProvider::new(AnvilInitializer::new(config)).await?;
+        self._anvil_instance = Some(provider._instance.take().unwrap());
+
+        let initializer = provider.provider_mut().provider_mut();
+        initializer.deploy_pool_full().await?;
+
+        initializer
+            .rpc_provider()
+            .anvil_mine(Some(U256::from(5)), None)
+            .await?;
+
+        let initial_state = initializer.initialize_state_no_bytes().await?;
+
+        Ok((provider.into_state_provider(), initial_state))
     }
 }

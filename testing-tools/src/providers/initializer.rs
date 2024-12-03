@@ -170,6 +170,19 @@ impl AnvilInitializer {
 
         Ok(state)
     }
+
+    pub async fn initialize_state_no_bytes(&mut self) -> eyre::Result<InitialTestnetState> {
+        let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
+
+        let state = InitialTestnetState::new(
+            self.angstrom_env.angstrom(),
+            self.angstrom_env.pool_manager(),
+            None,
+            pool_keys
+        );
+
+        Ok(state)
+    }
 }
 
 impl WithWalletProvider for AnvilInitializer {
