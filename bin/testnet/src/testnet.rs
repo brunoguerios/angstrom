@@ -9,8 +9,6 @@ pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre
 
     let testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config).await?;
 
-    executor
-        .spawn_critical_blocking("testnet", testnet.run_to_completion())
-        .await?;
+    testnet.run_to_completion(executor).await;
     Ok(())
 }
