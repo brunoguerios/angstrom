@@ -76,20 +76,23 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
             .into_stream();
 
         while let Some(block_hash) = new_blocks.next().await {
-            let block = self
-                .provider()
-                .rpc_provider()
-                .get_block(
-                    BlockId::Hash(alloy_rpc_types::RpcBlockHash {
-                        block_hash:        *block_hash.first().unwrap(),
-                        require_canonical: None
-                    }),
-                    alloy_rpc_types::BlockTransactionsKind::Full
-                )
-                .await
-                .unwrap()
-                .unwrap();
-            self.update_canon_chain(&block).unwrap();
+            if let Some(block_hash) = block_hash.first() {
+                tracing::info!("got new blockhash");
+                let block = self
+                    .provider()
+                    .rpc_provider()
+                    .get_block(
+                        BlockId::Hash(alloy_rpc_types::RpcBlockHash {
+                            block_hash:        *block_hash,
+                            require_canonical: None
+                        }),
+                        alloy_rpc_types::BlockTransactionsKind::Full
+                    )
+                    .await
+                    .unwrap()
+                    .unwrap();
+                self.update_canon_chain(&block).unwrap();
+            }
         }
     }
 }
