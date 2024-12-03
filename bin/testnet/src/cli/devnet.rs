@@ -13,7 +13,7 @@ pub struct DevnetCli {
     #[clap(short, long, default_value = "12")]
     pub testnet_block_time_secs: u64,
     /// the amount of testnet nodes that will be spawned and connected to.
-    #[clap(short, long, default_value = "5")]
+    #[clap(short, long, default_value = "3")]
     pub nodes_in_network:        u64,
     /// the secret key/address to use as the controller
     #[clap(short, long, default_value = "7")]

@@ -21,7 +21,7 @@ pub struct TestnetCli {
     #[clap(long)]
     pub mev_guard:        bool,
     /// the amount of testnet nodes that will be spawned and connected to.
-    #[clap(short, long, default_value = "5")]
+    #[clap(short, long, default_value = "3")]
     pub nodes_in_network: u64,
     /// eth rpc/ipc fork url
     #[clap(short, long)]
