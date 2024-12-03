@@ -47,18 +47,16 @@ where
     }
 
     pub async fn run_to_completion(mut self, executor: TaskExecutor) {
-        let all_peers = std::mem::take(&mut self.peers)
-            .into_values()
-            .map(|mut peer| {
-                if peer.testnet_node_id() == 0 {
-                    peer.send_bundles_to_network(peer.eth_peer(|p| p.peer_id()), 0)
-                        .unwrap();
-                }
-                executor.spawn_critical_blocking(
-                    format!("testnet node {}", peer.testnet_node_id()).leak(),
-                    peer.testnet_future()
-                )
-            });
+        let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
+            // if peer.testnet_node_id() == 0 {
+            //     peer.send_bundles_to_network(peer.eth_peer(|p| p.peer_id()), 0)
+            //         .unwrap();
+            // }
+            executor.spawn_critical_blocking(
+                format!("testnet node {}", peer.testnet_node_id()).leak(),
+                peer.testnet_future()
+            )
+        });
 
         let _ = futures::future::select_all(all_peers).await;
     }
