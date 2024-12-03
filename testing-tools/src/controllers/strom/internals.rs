@@ -72,13 +72,19 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client);
 
+        let block_subscription = if node_config.is_devnet() {
+            Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
+        } else {
+            state_provider.rpc_provider().subscribe_blocks()
+        };
+
         let eth_handle = AnvilEthDataCleanser::spawn(
             node_config.node_id,
             executor.clone(),
             inital_angstrom_state.angstrom_addr,
             strom_handles.eth_tx,
             strom_handles.eth_rx,
-            block_rx.into_stream().map(|v| v.unwrap()),
+            block_subscription,
             7
         )
         .await?;
