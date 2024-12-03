@@ -146,6 +146,9 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
 
+        let span = span!(Level::TRACE, "node", id = this.node_id);
+        let e = span.enter();
+
         if this.eth_peer.fut.poll_unpin(cx).is_ready() {
             return Poll::Ready(())
         }
@@ -157,6 +160,8 @@ where
         if this.strom_consensus.fut.poll_unpin(cx).is_ready() {
             return Poll::Ready(())
         }
+
+        drop(e);
 
         Poll::Pending
     }
