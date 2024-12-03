@@ -228,7 +228,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         );
 
         // init agents
-        let agent_config = AgentConfig { uniswap_pools, rpc_address: addr };
+        let agent_config =
+            AgentConfig { uniswap_pools, rpc_address: addr, current_block: block_number };
         futures::stream::iter(agents.into_iter())
             .map(|agent| (agent)(&inital_angstrom_state, &agent_config))
             .buffer_unordered(4)

@@ -13,7 +13,7 @@ use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
 };
 
-use crate::{run_devnet, run_testnet};
+use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};
 
 #[derive(Parser)]
 pub struct AngstromTestnetCli {
@@ -105,7 +105,8 @@ impl TestnetSubcommmand {
     async fn run_command(self, executor: TaskExecutor) -> eyre::Result<()> {
         match self {
             TestnetSubcommmand::Testnet(testnet_cli) => run_testnet(executor, testnet_cli).await,
-            TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await
+            TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await,
+            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await
         }
     }
 }

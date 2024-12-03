@@ -1,1 +1,1 @@
-mod e2e_orders;
+pub mod e2e_orders;
