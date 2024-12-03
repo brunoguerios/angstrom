@@ -235,6 +235,7 @@ impl StromSession {
                 self.verification_sidecar.has_received = true;
 
                 msg.map(|bytes| {
+                    tracing::debug!("decoding verification message");
                     let msg = StromProtocolMessage::decode_message(&mut bytes.deref());
 
                     msg.map_or(false, |msg| {
