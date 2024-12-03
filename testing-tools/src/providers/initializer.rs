@@ -75,9 +75,8 @@ impl AnvilInitializer {
         let nonce = self
             .provider
             .provider
-            .get_account(self.provider.controller())
-            .await?
-            .nonce;
+            .get_transaction_count(self.provider.controller())
+            .await?;
 
         let (first_token_tx, first_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
@@ -166,6 +165,19 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             Some(state_bytes),
+            pool_keys
+        );
+
+        Ok(state)
+    }
+
+    pub async fn initialize_state_no_bytes(&mut self) -> eyre::Result<InitialTestnetState> {
+        let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
+
+        let state = InitialTestnetState::new(
+            self.angstrom_env.angstrom(),
+            self.angstrom_env.pool_manager(),
+            None,
             pool_keys
         );
 
