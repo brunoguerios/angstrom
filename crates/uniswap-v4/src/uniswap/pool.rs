@@ -278,6 +278,7 @@ where
                 && (sqrt_price_limit_x96 <= self.sqrt_price
                     || sqrt_price_limit_x96 >= MAX_SQRT_RATIO))
         {
+            tracing::info!(?zero_for_one, ?sqrt_price_limit_x96, ?self.sqrt_price);
             return Err(SwapSimulationError::InvalidSqrtPriceLimit)
         }
 
