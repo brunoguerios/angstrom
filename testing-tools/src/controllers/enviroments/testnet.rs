@@ -47,14 +47,20 @@ where
     }
 
     pub async fn run_to_completion(mut self, executor: TaskExecutor) {
-        let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
-            executor.spawn_critical_blocking(
-                format!("testnet node {}", peer.testnet_node_id()).leak(),
-                peer.testnet_future()
-            )
-        });
+        let peer1_id = self.peers.get(&1).unwrap().eth_peer(|p| p.peer_id());
+        let all_peers = std::mem::take(&mut self.peers)
+            .into_values()
+            .map(|mut peer| {
+                if peer.testnet_node_id() {
+                    peer.send_bundles_to_network(peer1_id, vec![]).unwrap();
+                }
+                executor.spawn_critical_blocking(
+                    format!("testnet node {}", peer.testnet_node_id()).leak(),
+                    peer.testnet_future()
+                )
+            });
 
-        futures::future::select_all(all_peers).await;
+        let _ = futures::future::select_all(all_peers).await;
     }
 
     async fn spawn_new_testnet_nodes(&mut self, c: C) -> eyre::Result<()> {
