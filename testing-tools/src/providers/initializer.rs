@@ -140,8 +140,8 @@ impl AnvilInitializer {
             .addLiquidity(
                 pool.currency0,
                 pool.currency1,
-                I24::unchecked_from(99000),
-                I24::unchecked_from(101000),
+                I24::MIN,
+                I24::MAX,
                 U256::from(liquidity),
                 FixedBytes::<32>::default()
             )
