@@ -24,9 +24,11 @@ pub async fn run_e2e_orders(executor: TaskExecutor, cli: End2EndOrdersCli) -> ey
     let config = cli.testnet_config.make_config()?;
 
     let agents = vec![end_to_end_agent];
+    tracing::info!("spinning up e2e nodes for angstrom");
 
     // spawn testnet
     let testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config, agents).await?;
+    tracing::info!("e2e testnet is alive");
 
     executor
         .spawn_critical_blocking("testnet", testnet.run_to_completion(executor.clone()))
@@ -39,6 +41,7 @@ fn end_to_end_agent<'a>(
     agent_config: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async move {
+        tracing::info!("starting e2e agent");
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
