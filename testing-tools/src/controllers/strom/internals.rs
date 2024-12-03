@@ -15,7 +15,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use futures::{Future, StreamExt, TryStreamExt};
+use futures::{Future, Stream, StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig};
@@ -81,13 +81,30 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client);
 
+        let block_subscription: Pin<
+            Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>
+        > = if node_config.is_devnet() {
+            Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
+        } else {
+            Box::pin(
+                state_provider
+                    .rpc_provider()
+                    .subscribe_blocks()
+                    .await?
+                    .into_stream()
+                    .map(|block| {
+                        (block.header.number, block.transactions.into_transactions().collect())
+                    })
+            )
+        };
+
         let eth_handle = AnvilEthDataCleanser::spawn(
             node_config.node_id,
             executor.clone(),
             inital_angstrom_state.angstrom_addr,
             strom_handles.eth_tx,
             strom_handles.eth_rx,
-            block_rx.into_stream().map(|v| v.unwrap()),
+            block_subscription,
             7
         )
         .await?;

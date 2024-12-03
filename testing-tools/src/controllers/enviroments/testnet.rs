@@ -6,6 +6,7 @@ use angstrom_types::testnet::InitialTestnetState;
 use futures::Future;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
+use reth_tasks::TaskExecutor;
 
 use super::AngstromTestnet;
 use crate::{
@@ -49,17 +50,20 @@ where
 
         tracing::info!("initializing testnet with {} nodes", config.node_count());
         this.spawn_new_testnet_nodes(c, agents).await?;
-        tracing::info!("initialization testnet with {} nodes", config.node_count());
+        tracing::info!("initialized testnet with {} nodes", config.node_count());
 
         Ok(this)
     }
 
-    pub async fn run_to_completion(mut self) {
-        let all_peers = std::mem::take(&mut self.peers)
-            .into_values()
-            .map(|peer| tokio::spawn(peer.testnet_future()));
+    pub async fn run_to_completion(mut self, executor: TaskExecutor) {
+        let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
+            executor.spawn_critical_blocking(
+                format!("testnet node {}", peer.testnet_node_id()).leak(),
+                peer.testnet_future()
+            )
+        });
 
-        futures::future::join_all(all_peers).await;
+        let _ = futures::future::select_all(all_peers).await;
     }
 
     async fn spawn_new_testnet_nodes<F>(&mut self, c: C, agents: Vec<F>) -> eyre::Result<()>

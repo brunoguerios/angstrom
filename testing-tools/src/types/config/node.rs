@@ -34,6 +34,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         }
     }
 
+    pub fn is_devnet(&self) -> bool {
+        matches!(self.global_config.config_type(), TestingConfigKind::Devnet)
+    }
+
     pub fn strom_rpc_port(&self) -> u64 {
         4200 + self.node_id
     }
