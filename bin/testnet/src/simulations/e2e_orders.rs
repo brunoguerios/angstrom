@@ -61,6 +61,8 @@ fn end_to_end_agent<'a>(
             while let Some(block_number) = stream.next().await {
                 generator.new_block(block_number);
                 let new_orders = generator.generate_orders();
+                tracing::info!("generated new orders. submitting to rpc");
+
                 for orders in new_orders {
                     let GeneratedPoolOrders { pool_id, tob, book } = orders;
                     let all_orders = book

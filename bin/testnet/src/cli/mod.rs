@@ -75,6 +75,7 @@ impl AngstromTestnetCli {
             layer_builder(format!("testing_tools={level}")),
             layer_builder(format!("uniswap_v4={level}")),
             layer_builder(format!("validation={level}")),
+            layer_builder(format!("order_pool={level}")),
         ];
 
         tracing_subscriber::registry().with(layers).init();
