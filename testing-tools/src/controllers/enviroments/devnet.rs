@@ -1,12 +1,15 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, pin::Pin};
 
 use alloy::providers::ext::AnvilApi;
 use alloy_primitives::U256;
+use angstrom_types::testnet::InitialTestnetState;
+use futures::Future;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use super::AngstromTestnet;
 use crate::{
+    agents::AgentConfig,
     controllers::{enviroments::DevnetStateMachine, strom::TestnetNode},
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
@@ -98,7 +101,8 @@ where
                 provider,
                 initial_validators.clone(),
                 initial_angstrom_state.clone().unwrap(),
-                self.block_provider.subscribe_to_new_blocks()
+                self.block_provider.subscribe_to_new_blocks(),
+                vec![a]
             )
             .await?;
             tracing::info!(node_id, "made angstrom node");
@@ -115,4 +119,11 @@ where
 
         Ok(())
     }
+}
+
+fn a<'a>(
+    _: &'a InitialTestnetState,
+    _: &'a AgentConfig
+) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
+    Box::pin(async { eyre::Ok(()) })
 }

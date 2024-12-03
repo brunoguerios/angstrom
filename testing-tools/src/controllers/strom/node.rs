@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
+    pin::Pin,
     sync::Arc,
     task::Poll
 };
@@ -17,6 +18,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager};
+use futures::Future;
 use matching_engine::manager::MatcherHandle;
 use parking_lot::RwLock;
 use reth_chainspec::Hardforks;
@@ -31,6 +33,7 @@ use tracing::instrument;
 
 use super::internals::AngstromDevnetNodeInternals;
 use crate::{
+    agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
@@ -56,15 +59,23 @@ where
         + 'static,
     P: WithWalletProvider
 {
-    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider), fields(id = node_config.node_id))]
-    pub async fn new<G: GlobalTestingConfig>(
+    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider,agents), fields(id = node_config.node_id))]
+    pub async fn new<G: GlobalTestingConfig, F>(
         c: C,
         node_config: TestingNodeConfig<G>,
         state_provider: AnvilProvider<P>,
         initial_validators: Vec<AngstromValidator>,
         inital_angstrom_state: InitialTestnetState,
-        block_provider: BroadcastStream<(u64, Vec<alloy_rpc_types::Transaction>)>
-    ) -> eyre::Result<Self> {
+        block_provider: BroadcastStream<(u64, Vec<alloy_rpc_types::Transaction>)>,
+        agents: Vec<F>
+    ) -> eyre::Result<Self>
+    where
+        F: for<'a> Fn(
+            &'a InitialTestnetState,
+            &'a AgentConfig
+        ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
+        F: Clone
+    {
         tracing::info!("spawning node");
 
         let strom_handles = initialize_strom_handles();
@@ -83,7 +94,8 @@ where
             strom_network.strom_handle.network_handle().clone(),
             initial_validators,
             block_provider,
-            inital_angstrom_state
+            inital_angstrom_state,
+            agents
         )
         .await?;
 

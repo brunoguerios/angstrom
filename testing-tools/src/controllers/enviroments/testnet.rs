@@ -1,13 +1,15 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, pin::Pin};
 
 use alloy::providers::ext::AnvilApi;
 use alloy_primitives::U256;
 use angstrom_types::testnet::InitialTestnetState;
+use futures::Future;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use super::AngstromTestnet;
 use crate::{
+    agents::AgentConfig,
     controllers::strom::TestnetNode,
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
@@ -26,7 +28,14 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    pub async fn spawn_testnet(c: C, config: TestnetConfig) -> eyre::Result<Self> {
+    pub async fn spawn_testnet<F>(c: C, config: TestnetConfig, agents: Vec<F>) -> eyre::Result<Self>
+    where
+        F: for<'a> Fn(
+            &'a InitialTestnetState,
+            &'a AgentConfig
+        ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
+        F: Clone
+    {
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
             peers: Default::default(),
@@ -39,7 +48,7 @@ where
         };
 
         tracing::info!("initializing testnet with {} nodes", config.node_count());
-        this.spawn_new_testnet_nodes(c).await?;
+        this.spawn_new_testnet_nodes(c, agents).await?;
         tracing::info!("initialization testnet with {} nodes", config.node_count());
 
         Ok(this)
@@ -53,7 +62,14 @@ where
         futures::future::join_all(all_peers).await;
     }
 
-    async fn spawn_new_testnet_nodes(&mut self, c: C) -> eyre::Result<()> {
+    async fn spawn_new_testnet_nodes<F>(&mut self, c: C, agents: Vec<F>) -> eyre::Result<()>
+    where
+        F: for<'a> Fn(
+            &'a InitialTestnetState,
+            &'a AgentConfig
+        ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
+        F: Clone
+    {
         let mut initial_angstrom_state = None;
 
         let configs = (0..self.config.node_count())
@@ -89,7 +105,8 @@ where
                 provider,
                 initial_validators.clone(),
                 initial_angstrom_state.clone().unwrap(),
-                self.block_provider.subscribe_to_new_blocks()
+                self.block_provider.subscribe_to_new_blocks(),
+                agents.clone()
             )
             .await?;
 
