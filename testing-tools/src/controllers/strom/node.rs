@@ -101,6 +101,10 @@ where
 
     /// General
     /// -------------------------------------
+    pub fn node_rpc_url(&self) -> String {
+        let port = (4200 + self.testnet_node_id) as u16;
+        format!("http://localhost:{port}")
+    }
 
     pub fn testnet_node_id(&self) -> u64 {
         self.testnet_node_id
