@@ -3,7 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
-use angstrom_eth::{handle::Eth, manager::ChainExt};
+use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
