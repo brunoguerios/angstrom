@@ -56,9 +56,9 @@ fn end_to_end_agent<'a>(
                 });
 
         tokio::spawn(async move {
-            let client = HttpClient::builder()
-                .build(agent_config.rpc_address.to_string())
-                .unwrap();
+            let rpc_address = agent_config.rpc_address.to_string();
+            debug!(?rpc_address, "connecting to rpc to submit orders");
+            let client = HttpClient::builder().build(rpc_address).unwrap();
             while let Some(block_number) = stream.next().await {
                 generator.new_block(block_number);
                 let new_orders = generator.generate_orders();
