@@ -1,8 +1,10 @@
 pub mod devnet;
+pub mod e2e_orders;
 pub mod testnet;
 use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
 use clap::{ArgAction, Parser, Subcommand};
 use devnet::DevnetCli;
+use e2e_orders::End2EndOrdersCli;
 use reth_tasks::TaskExecutor;
 use testing_tools::types::config::{DevnetConfig, TestnetConfig};
 use testnet::TestnetCli;
@@ -94,7 +96,9 @@ pub enum TestnetSubcommmand {
     #[command(name = "testnet")]
     Testnet(TestnetCli),
     #[command(name = "devnet")]
-    Devnet(DevnetCli)
+    Devnet(DevnetCli),
+    #[command(name = "e2e")]
+    End2EndOrders(End2EndOrdersCli)
 }
 
 impl TestnetSubcommmand {
