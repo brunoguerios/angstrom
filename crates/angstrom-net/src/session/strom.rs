@@ -318,6 +318,7 @@ impl Stream for StromSession {
         }
 
         self.try_send_outbound(cx);
+        cx.waker().wake_by_ref();
 
         Poll::Pending
     }
