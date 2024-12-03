@@ -72,9 +72,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client);
 
-        let block_subscription = if node_config.is_devnet() {
+        let block_subscription: Pin<
+            Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>
+        > = if node_config.is_devnet() {
             Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
-                as Pin<Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>>
         } else {
             Box::pin(
                 state_provider
@@ -83,9 +84,9 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                     .await?
                     .into_stream()
                     .map(|block| {
-                        ((block.header.number, block.transactions.into_transactions().collect()))
+                        (block.header.number, block.transactions.into_transactions().collect())
                     })
-            ) as Pin<Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>>
+            )
         };
 
         let eth_handle = AnvilEthDataCleanser::spawn(
