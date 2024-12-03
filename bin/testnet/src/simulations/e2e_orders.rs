@@ -61,6 +61,7 @@ fn end_to_end_agent<'a>(
         tokio::spawn(async move {
             let rpc_address = format!("http://{}", agent_config.rpc_address.to_string());
             let client = HttpClient::builder().build(rpc_address).unwrap();
+            tracing::info!("waiting for new block");
             while let Some(block_number) = stream.next().await {
                 generator.new_block(block_number);
                 let new_orders = generator.generate_orders();
