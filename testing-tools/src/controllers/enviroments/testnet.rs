@@ -32,7 +32,7 @@ where
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
-            &'a AgentConfig
+            AgentConfig
         ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
         F: Clone
     {
@@ -66,7 +66,7 @@ where
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
-            &'a AgentConfig
+            AgentConfig
         ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
         F: Clone
     {
@@ -123,7 +123,6 @@ where
 
     async fn leader_initialization(
         &mut self,
-
         config: TestingNodeConfig<TestnetConfig>
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
         let mut provider = AnvilProvider::new(AnvilInitializer::new(config)).await?;

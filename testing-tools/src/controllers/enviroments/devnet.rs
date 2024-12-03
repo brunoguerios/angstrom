@@ -123,7 +123,7 @@ where
 
 fn a<'a>(
     _: &'a InitialTestnetState,
-    _: &'a AgentConfig
+    _: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async { eyre::Ok(()) })
 }

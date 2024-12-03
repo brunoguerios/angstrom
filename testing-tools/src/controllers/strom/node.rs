@@ -72,7 +72,7 @@ where
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
-            &'a AgentConfig
+            AgentConfig
         ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
         F: Clone
     {

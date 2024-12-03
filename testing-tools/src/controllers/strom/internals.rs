@@ -68,7 +68,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
-            &'a AgentConfig
+            AgentConfig
         ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
         F: Clone
     {
@@ -242,11 +242,11 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_pools,
             rpc_address: addr,
             current_block: block_number,
-            block_stream: block
+            state_provider: state_provider.state_provider()
         };
 
         futures::stream::iter(agents.into_iter())
-            .map(|agent| (agent)(&inital_angstrom_state, &agent_config))
+            .map(|agent| (agent)(&inital_angstrom_state, agent_config.clone()))
             .buffer_unordered(4)
             .collect::<Vec<_>>()
             .await
