@@ -23,7 +23,7 @@ pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre
 
 fn a<'a>(
     _: &'a InitialTestnetState,
-    _: &'a AgentConfig
+    _: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async { eyre::Ok(()) })
 }

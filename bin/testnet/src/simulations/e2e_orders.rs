@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
 use angstrom_eth::manager::ChainExt;
-use angstrom_rpc::{::OrderApiClient, api::OrderApiClient, impls::OrderApi};
+use angstrom_rpc::{api::OrderApiClient, impls::OrderApi};
 use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
 use futures::{Future, StreamExt};
 use jsonrpsee::http_client::HttpClient;
@@ -24,8 +24,7 @@ pub async fn run_e2e_orders(executor: TaskExecutor, cli: End2EndOrdersCli) -> ey
     let config = cli.testnet_config.make_config()?;
     let handle = executor.clone();
 
-    let mut agents = Vec::new();
-    agents.push(end_to_end_agent);
+    let agents = vec![end_to_end_agent];
 
     // spawn testnet
     let testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config, agents).await?;

@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, pin::Pin};
+use std::net::SocketAddr;
 
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
