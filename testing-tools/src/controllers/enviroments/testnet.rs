@@ -54,7 +54,7 @@ where
             )
         });
 
-        futures::future::join_all(all_peers).await;
+        futures::future::select_all(all_peers).await;
     }
 
     async fn spawn_new_testnet_nodes(&mut self, c: C) -> eyre::Result<()> {
