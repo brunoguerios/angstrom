@@ -10,7 +10,7 @@ use std::{
 
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use angstrom_network::StromNetworkManager;
-use angstrom_types::block_sync::{BlockSyncConsumer, GlobalBlockSync};
+use angstrom_types::block_sync::GlobalBlockSync;
 use consensus::ConsensusManager;
 use futures::FutureExt;
 use matching_engine::manager::MatcherHandle;

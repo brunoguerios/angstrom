@@ -13,7 +13,7 @@ use angstrom_network::{
     NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkManager
 };
 use angstrom_types::{
-    block_sync::{BlockSyncConsumer, GlobalBlockSync},
+    block_sync::GlobalBlockSync,
     primitive::PeerId,
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
     testnet::InitialTestnetState
