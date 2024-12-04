@@ -220,6 +220,7 @@ impl AnvilInitializer {
             .nonce(nonce + 4)
             .deploy_pending()
             .await?;
+
         self.pending_state.add_pending_tx(add_liq);
 
         Ok(())
@@ -233,8 +234,19 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             Some(state_bytes),
-            pool_keys
+            pool_keys.clone()
         );
+        for key in pool_keys {
+            let out = self
+                .pool_gate
+                .isInitialized(key.currency0, key.currency1)
+                .call()
+                .await?;
+            if !out._0 {
+                tracing::warn!(?key, "pool is still not initalized, even after deploying state");
+            }
+        }
+
         tracing::info!("initalized angstrom pool state");
 
         Ok(state)
@@ -247,8 +259,18 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             None,
-            pool_keys
+            pool_keys.clone()
         );
+        for key in pool_keys {
+            let out = self
+                .pool_gate
+                .isInitialized(key.currency0, key.currency1)
+                .call()
+                .await?;
+            if !out._0 {
+                tracing::warn!(?key, "pool is still not initalized, even after deploying state");
+            }
+        }
         tracing::info!("initalized angstrom pool state");
 
         Ok(state)
