@@ -74,7 +74,7 @@ impl TryInto<Vec<PartialConfigPoolKey>> for AllPoolKeyInners {
                     key.currency1.parse()?,
                     key.fee,
                     key.tick_spacing,
-                    key.liquidity,
+                    key.liquidity.parse()?,
                     key.sqrt_price
                 ))
             })
@@ -88,7 +88,7 @@ struct PoolKeyInner {
     currency1:    String,
     fee:          u64,
     tick_spacing: i32,
-    liquidity:    u128,
+    liquidity:    String,
     sqrt_price:   f64
 }
 
