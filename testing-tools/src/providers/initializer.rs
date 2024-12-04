@@ -7,6 +7,7 @@ use alloy_primitives::{
     aliases::{I24, U24},
     FixedBytes, U256
 };
+use alloy_sol_types::SolValue;
 use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
@@ -148,7 +149,8 @@ impl AnvilInitializer {
             .await?;
 
         self.pending_state.add_pool_key(pool_key.clone());
-        tracing::info!(?pool_key);
+        let encoded = pool_key.abi_encode();
+        tracing::info!(?pool_key, ?encoded);
 
         let configure_pool = self
             .angstrom
