@@ -1,6 +1,9 @@
 use alloy::providers::PendingTransaction;
-use alloy_primitives::TxHash;
-use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
+use alloy_primitives::{
+    aliases::{I24, U24},
+    Address, TxHash
+};
+use angstrom_types::{contract_bindings::angstrom::Angstrom::PoolKey, matching::SqrtPriceX96};
 
 pub struct PendingDeployedPools {
     pending_txs: Vec<PendingTransaction>,
@@ -39,5 +42,46 @@ impl PendingDeployedPools {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok((keys, tx_hashes))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PartialConfigPoolKey {
+    currency0:         Address,
+    currency1:         Address,
+    fee:               u64,
+    tick_spacing:      i32,
+    initial_liquidity: u128,
+    sqrt_price:        f64
+}
+
+impl PartialConfigPoolKey {
+    pub fn new(
+        currency0: Address,
+        currency1: Address,
+        fee: u64,
+        tick_spacing: i32,
+        initial_liquidity: u128,
+        sqrt_price: f64
+    ) -> Self {
+        Self { currency0, currency1, fee, tick_spacing, initial_liquidity, sqrt_price }
+    }
+
+    pub fn make_pool_key(&self, angstrom_address_hook: Address) -> PoolKey {
+        PoolKey {
+            currency0:   self.currency1,
+            currency1:   self.currency0,
+            fee:         U24::from(self.fee),
+            tickSpacing: I24::unchecked_from(self.tick_spacing),
+            hooks:       angstrom_address_hook
+        }
+    }
+
+    pub fn initial_liquidity(&self) -> u128 {
+        self.initial_liquidity
+    }
+
+    pub fn sqrt_price(&self) -> SqrtPriceX96 {
+        SqrtPriceX96::from_float_price(self.sqrt_price)
     }
 }

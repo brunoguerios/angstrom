@@ -73,7 +73,7 @@ where
                 let mut initializer =
                     AnvilProvider::new(AnvilInitializer::new(node_config.clone()), false).await?;
                 let provider = initializer.provider_mut().provider_mut();
-                let initial_state = provider.init_state_full().await?;
+                let initial_state = provider.initialize_state().await?;
                 initial_angstrom_state = Some(initial_state);
 
                 initializer

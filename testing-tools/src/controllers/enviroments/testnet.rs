@@ -129,12 +129,13 @@ where
         &mut self,
         config: TestingNodeConfig<TestnetConfig>
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
-        let mut provider = AnvilProvider::new(AnvilInitializer::new(config), true).await?;
+        let mut provider = AnvilProvider::new(AnvilInitializer::new(config.clone()), true).await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());
 
         let initializer = provider.provider_mut().provider_mut();
+        initializer.deploy_pool_fulls(config.pool_keys()).await?;
 
-        let initial_state = initializer.init_state_full_no_bytes().await?;
+        let initial_state = initializer.initialize_state_no_bytes().await?;
         initializer
             .rpc_provider()
             .anvil_mine(Some(U256::from(5)), None)

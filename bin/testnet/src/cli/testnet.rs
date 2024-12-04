@@ -3,18 +3,18 @@ use std::{net::IpAddr, path::PathBuf, str::FromStr};
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{
     aliases::{I24, U24},
-    Address, Bytes
+    Address, Bytes, U160
 };
 use alloy_signer_local::LocalSigner;
 use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
-use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
+use angstrom_types::{contract_bindings::angstrom::Angstrom::PoolKey, matching::SqrtPriceX96};
 use consensus::AngstromValidator;
 use enr::k256::ecdsa::SigningKey;
 use eyre::Context;
 use reth_network_peers::pk2id;
 use secp256k1::{Secp256k1, SecretKey};
 use serde::Deserialize;
-use testing_tools::types::config::TestnetConfig;
+use testing_tools::types::{config::TestnetConfig, initial_state::PartialConfigPoolKey};
 
 #[derive(Debug, Clone, Default, clap::Parser)]
 pub struct TestnetCli {
@@ -45,7 +45,7 @@ struct AllPoolKeyInners {
 }
 
 impl AllPoolKeyInners {
-    fn load_pool_keys(config_path: &PathBuf) -> eyre::Result<Vec<PoolKey>> {
+    fn load_pool_keys(config_path: &PathBuf) -> eyre::Result<Vec<PartialConfigPoolKey>> {
         if !config_path.exists() {
             return Err(eyre::eyre!("pool key config file does not exist at {:?}", config_path))
         }
@@ -61,21 +61,22 @@ impl AllPoolKeyInners {
     }
 }
 
-impl TryInto<Vec<PoolKey>> for AllPoolKeyInners {
+impl TryInto<Vec<PartialConfigPoolKey>> for AllPoolKeyInners {
     type Error = eyre::ErrReport;
 
-    fn try_into(self) -> Result<Vec<PoolKey>, Self::Error> {
+    fn try_into(self) -> Result<Vec<PartialConfigPoolKey>, Self::Error> {
         let Some(keys) = self.pool_keys else { return Ok(Vec::new()) };
 
         keys.into_iter()
             .map(|key| {
-                Ok::<_, eyre::ErrReport>(PoolKey {
-                    currency0:   key.currency0.parse()?,
-                    currency1:   key.currency1.parse()?,
-                    fee:         U24::from(key.fee),
-                    tickSpacing: I24::try_from(key.tick_spacing)?,
-                    hooks:       key.hooks.parse()?
-                })
+                Ok::<_, eyre::ErrReport>(PartialConfigPoolKey::new(
+                    key.currency0.parse()?,
+                    key.currency1.parse()?,
+                    key.fee,
+                    key.tick_spacing,
+                    key.liquidity.parse()?,
+                    key.sqrt_price
+                ))
             })
             .collect()
     }
@@ -86,8 +87,9 @@ struct PoolKeyInner {
     currency0:    String,
     currency1:    String,
     fee:          u64,
-    tick_spacing: i64,
-    hooks:        String
+    tick_spacing: i32,
+    liquidity:    String,
+    sqrt_price:   f64
 }
 
 #[cfg(test)]
