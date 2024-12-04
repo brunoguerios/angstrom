@@ -155,7 +155,7 @@ impl AnvilInitializer {
 
         self.pending_state.add_pool_key(pool_key.clone());
         let encoded = keccak256(pool_key.abi_encode());
-        tracing::info!(?pool_key, ?encoded);
+        tracing::info!(?pool_key, ?encoded, ?price);
 
         let configure_pool = self
             .angstrom
@@ -179,6 +179,7 @@ impl AnvilInitializer {
             .nonce(nonce + 1)
             .deploy_pending()
             .await?;
+
         self.pending_state.add_pending_tx(init_pool);
         let this_pool_key = angstrom_types::contract_bindings::pool_manager::PoolManager::PoolKey {
             currency0:   pool_key.currency0,
