@@ -66,7 +66,7 @@ contract GetUniswapV4TickData {
             counter++;
 
             //Set the current tick to the next tick and repeat
-            currentTick = nextTick;
+            currentTick = nextTick + tickSpacing;
         }
 
         TicksWithBlock memory ticksWithBlock =
