@@ -37,8 +37,6 @@ use crate::{
     }
 };
 
-pub const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
-
 pub struct AnvilInitializer {
     provider:      WalletProvider,
     uniswap_env:   PoolManagerInstance<PubSubFrontend, WalletProviderRpc>,
