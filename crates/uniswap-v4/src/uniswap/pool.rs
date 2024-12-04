@@ -140,6 +140,7 @@ where
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<(Vec<TickData>, U256), PoolError> {
+        tracing::info!(?tick_start,?num_ticks,addr=?self.address());
         let (tick_data, block_number) = self
             .data_loader
             .load_tick_data(
