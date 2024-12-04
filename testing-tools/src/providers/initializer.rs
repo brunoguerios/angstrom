@@ -42,7 +42,6 @@ pub const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
 
 pub struct AnvilInitializer {
     provider:      WalletProvider,
-    uniswap_env:   PoolManagerInstance<PubSubFrontend, WalletProviderRpc>,
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
     angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
@@ -68,12 +67,9 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let uniswap_env =
-            PoolManagerInstance::new(angstrom_env.pool_manager(), angstrom_env.provider().clone());
-
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state, uniswap_env };
+        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state };
 
         Ok((this, anvil))
     }
@@ -151,6 +147,7 @@ impl AnvilInitializer {
         // set bytecode to mock erc20
 
         let mock_bytecode = MockERC20::BYTECODE.clone();
+
         self.provider
             .rpc_provider()
             .anvil_set_code(pool_key.currency0, mock_bytecode.clone())
