@@ -17,6 +17,7 @@ use angstrom_types::{
         pool_manager::PoolManager::PoolManagerInstance
     },
     matching::SqrtPriceX96,
+    sol_bindings::testnet::MockERC20,
     testnet::InitialTestnetState
 };
 
@@ -147,6 +148,18 @@ impl AnvilInitializer {
         price: SqrtPriceX96,
         store_index: U256
     ) -> eyre::Result<()> {
+        // set bytecode to mock erc20
+
+        let mock_bytecode = MockERC20::BYTECODE;
+        self.provider
+            .rpc_provider()
+            .anvil_set_code(pool_key.currency0, mock_bytecode.clone())
+            .await?;
+        self.provider
+            .rpc_provider()
+            .anvil_set_code(pool_key.currency1, mock_bytecode.clone())
+            .await?;
+
         let nonce = self
             .provider
             .provider
