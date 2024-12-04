@@ -126,6 +126,7 @@ impl AnvilInitializer {
             .await?;
         state.add_pending_tx(init_pool);
 
+        // set spacing
         let pool_gate = self
             .pool_gate
             .tickSpacing(pool.tickSpacing)

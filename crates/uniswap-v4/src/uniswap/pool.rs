@@ -169,10 +169,8 @@ where
 
         let total_ticks_to_fetch = self.initial_ticks_per_side * 2;
         let mut remaining_ticks = total_ticks_to_fetch;
-        //  +1 because the retrieve is gt start_tick, i.e. start one step back to
-        // include the tick
-        let mut start_tick = (self.tick / self.tick_spacing) * self.tick_spacing
-            - self.tick_spacing * (self.initial_ticks_per_side + 1) as i32;
+        // current tick when loaded (init tick) - (half total tics * spacing);
+        let mut start_tick = self.tick - (total_ticks_to_fetch as i32 / 2 * self.tick_spacing);
 
         // Fetch ticks from left to right
         let mut fetched_ticks = Vec::new();
