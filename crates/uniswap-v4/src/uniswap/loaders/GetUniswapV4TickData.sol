@@ -7,6 +7,7 @@ import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {IUniV4} from "core/src/interfaces/IUniV4.sol";
 
 contract GetUniswapV4TickData {
+
     struct TickData {
         bool initialized;
         int24 tick;
@@ -66,7 +67,7 @@ contract GetUniswapV4TickData {
             counter++;
 
             //Set the current tick to the next tick and repeat
-            currentTick = nextTick + tickSpacing;
+            currentTick = nextTick;
         }
 
         TicksWithBlock memory ticksWithBlock =

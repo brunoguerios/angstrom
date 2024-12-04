@@ -36,7 +36,6 @@ fn i32_to_i24(val: i32) -> Result<I24, ConversionError> {
     if sign == Ordering::Less {
         new = -new;
     }
-    tracing::info!(?val, ?new, "output, i32 to i24");
     Ok(new)
 }
 

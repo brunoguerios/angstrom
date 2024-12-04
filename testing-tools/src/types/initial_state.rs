@@ -69,8 +69,8 @@ impl PartialConfigPoolKey {
 
     pub fn make_pool_key(&self, angstrom_address_hook: Address) -> PoolKey {
         PoolKey {
-            currency0:   self.currency1,
-            currency1:   self.currency0,
+            currency0:   self.currency0,
+            currency1:   self.currency1,
             fee:         U24::from(self.fee),
             tickSpacing: I24::unchecked_from(self.tick_spacing),
             hooks:       angstrom_address_hook
