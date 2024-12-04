@@ -348,6 +348,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
         };
 
         let result = TicksWithBlock::abi_decode(&data, true)?;
+        tracing::info!(?result, "loaded ticks");
 
         Ok((result.ticks, result.blockNumber))
     }
