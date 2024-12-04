@@ -43,6 +43,7 @@ sol! {
         int128 liquidityNet;
     }
 
+    #[derive(Debug)]
     struct TickData {
         bool initialized;
         int24 tick;
@@ -50,6 +51,7 @@ sol! {
         int128 liquidityNet;
     }
 
+    #[derive(Debug)]
     struct TicksWithBlock {
         TickData[] ticks;
         uint256 blockNumber;
