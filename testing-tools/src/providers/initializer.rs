@@ -235,6 +235,7 @@ impl AnvilInitializer {
             Some(state_bytes),
             pool_keys
         );
+        tracing::info!("initalized angstrom pool state");
 
         Ok(state)
     }
@@ -248,6 +249,7 @@ impl AnvilInitializer {
             None,
             pool_keys
         );
+        tracing::info!("initalized angstrom pool state");
 
         Ok(state)
     }
