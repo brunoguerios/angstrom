@@ -158,7 +158,7 @@ impl AnvilInitializer {
         tracing::info!(?pool_key, ?encoded, ?price);
 
         tracing::debug!("configuring pool");
-        let configure_pool = self
+        let _ = self
             .angstrom
             .configurePool(
                 pool_key.currency0,
@@ -169,20 +169,20 @@ impl AnvilInitializer {
             .from(self.provider.controller())
             .nonce(nonce)
             .deploy_pending()
+            .await?
             .await?;
 
-        self.pending_state.add_pending_tx(configure_pool);
+        // self.pending_state.add_pending_tx(configure_pool);
 
-        tracing::debug!("initalizing pool");
-        let init_pool = self
-            .angstrom
+        tracing::debug!("initializing pool");
+        self.angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
             .deploy_pending()
+            .await?
             .await?;
 
-        self.pending_state.add_pending_tx(init_pool);
         let this_pool_key = angstrom_types::contract_bindings::pool_manager::PoolManager::PoolKey {
             currency0:   pool_key.currency0,
             currency1:   pool_key.currency1,
@@ -192,27 +192,29 @@ impl AnvilInitializer {
         };
 
         tracing::debug!("uniswap init");
-        let uniwap_init = self
+        let _ = self
             .uniswap_env
             .initialize(this_pool_key, *price)
             .from(self.provider.controller())
             .nonce(nonce + 2)
             .deploy_pending()
+            .await?
             .await?;
-        self.pending_state.add_pending_tx(uniwap_init);
+        // self.pending_state.add_pending_tx(uniwap_init);
 
         tracing::debug!("tick spacing");
-        let pool_gate = self
+        let _ = self
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
             .nonce(nonce + 3)
             .deploy_pending()
+            .await?
             .await?;
-        self.pending_state.add_pending_tx(pool_gate);
+        // self.pending_state.add_pending_tx(pool_gate);
 
         tracing::debug!("add liq");
-        let add_liq = self
+        let _ = self
             .pool_gate
             .addLiquidity(
                 pool_key.currency0,
@@ -225,9 +227,10 @@ impl AnvilInitializer {
             .from(self.provider.controller())
             .nonce(nonce + 4)
             .deploy_pending()
+            .await?
             .await?;
 
-        self.pending_state.add_pending_tx(add_liq);
+        // self.pending_state.add_pending_tx(add_liq);
 
         Ok(())
     }
