@@ -280,6 +280,20 @@ impl AnvilInitializer {
             pool_keys.clone()
         );
         for key in pool_keys {
+            let add_liq = self
+                .pool_gate
+                .addLiquidity(
+                    key.currency0,
+                    key.currency1,
+                    I24::MIN,
+                    I24::MAX,
+                    U256::from(u128::MAX - 1),
+                    FixedBytes::<32>::default()
+                )
+                .from(self.provider.controller())
+                .call()
+                .await?;
+            tracing::info!(?add_liq, "add liq call ret");
             let out = self
                 .pool_gate
                 .isInitialized(key.currency0, key.currency1)
