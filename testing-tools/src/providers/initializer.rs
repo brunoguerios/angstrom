@@ -150,7 +150,7 @@ impl AnvilInitializer {
     ) -> eyre::Result<()> {
         // set bytecode to mock erc20
 
-        let mock_bytecode = MockERC20::BYTECODE;
+        let mock_bytecode = MockERC20::BYTECODE.clone();
         self.provider
             .rpc_provider()
             .anvil_set_code(pool_key.currency0, mock_bytecode.clone())
