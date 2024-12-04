@@ -21,12 +21,16 @@ impl<P> AnvilProvider<P>
 where
     P: WithWalletProvider
 {
-    pub async fn new<F>(fut: F) -> eyre::Result<Self>
+    pub async fn new<F>(fut: F, testnet: bool) -> eyre::Result<Self>
     where
         F: Future<Output = eyre::Result<(P, Option<AnvilInstance>)>>
     {
         let (provider, anvil) = fut.await?;
-        Ok(Self { provider: AnvilStateProvider::new(provider), _instance: anvil })
+        let this = Self { provider: AnvilStateProvider::new(provider), _instance: anvil };
+        if testnet {
+            tokio::spawn(this.provider.clone().listen_to_new_blocks());
+        }
+        Ok(this)
     }
 
     pub fn into_state_provider(&mut self) -> AnvilProvider<WalletProvider> {

@@ -1,6 +1,10 @@
 #![allow(clippy::too_many_arguments)]
 #![feature(associated_type_defaults)]
 
+/// External tools that are initialized on-top of the testnet
+/// for example a order generator that pushes orders to the nodes rpc
+/// and then checks for fills
+pub mod agents;
 /// mocks utils for different modules
 pub mod mocks;
 /// Tools for testing network setup

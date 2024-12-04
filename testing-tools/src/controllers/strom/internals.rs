@@ -15,7 +15,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{Future, Stream, StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
 use order_pool::{order_storage::OrderStorage, PoolConfig};
@@ -28,6 +28,7 @@ use validation::{
 };
 
 use crate::{
+    agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
     providers::{
         utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider,
@@ -51,18 +52,26 @@ pub struct AngstromDevnetNodeInternals<P> {
 }
 
 impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
-    pub async fn new<G: GlobalTestingConfig>(
+    pub async fn new<G: GlobalTestingConfig, F>(
         node_config: TestingNodeConfig<G>,
         state_provider: AnvilProvider<P>,
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
-        inital_angstrom_state: InitialTestnetState
+        inital_angstrom_state: InitialTestnetState,
+        agents: Vec<F>
     ) -> eyre::Result<(
         Self,
         ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
-    )> {
+    )>
+    where
+        F: for<'a> Fn(
+            &'a InitialTestnetState,
+            AgentConfig
+        ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
+        F: Clone
+    {
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
         let tx_strom_handles = (&strom_handles).into();
@@ -108,7 +117,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         tracing::debug!(block_number, "creating strom internals");
 
-        let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.into();
+        let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.clone().into();
 
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
@@ -229,11 +238,27 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             block_number,
             inital_angstrom_state.angstrom_addr,
             pool_registry,
-            uniswap_pools,
+            uniswap_pools.clone(),
             mev_boost_provider,
             matching_handle,
             MockBlockSync
         );
+
+        // init agents
+        let agent_config = AgentConfig {
+            uniswap_pools,
+            rpc_address: addr,
+            current_block: block_number,
+            state_provider: state_provider.state_provider()
+        };
+
+        futures::stream::iter(agents.into_iter())
+            .map(|agent| (agent)(&inital_angstrom_state, agent_config.clone()))
+            .buffer_unordered(4)
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
 
         tracing::info!("created consensus manager");
 

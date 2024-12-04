@@ -1,8 +1,10 @@
 pub mod devnet;
+pub mod e2e_orders;
 pub mod testnet;
 use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
 use clap::{ArgAction, Parser, Subcommand};
 use devnet::DevnetCli;
+use e2e_orders::End2EndOrdersCli;
 use reth_tasks::TaskExecutor;
 use testing_tools::types::config::{DevnetConfig, TestnetConfig};
 use testnet::TestnetCli;
@@ -11,7 +13,7 @@ use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
 };
 
-use crate::{run_devnet, run_testnet};
+use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};
 
 #[derive(Parser)]
 pub struct AngstromTestnetCli {
@@ -66,11 +68,14 @@ impl AngstromTestnetCli {
         };
 
         let layers = vec![
+            layer_builder(format!("testnet={level}")),
             layer_builder(format!("devnet={level}")),
+            layer_builder(format!("angstrom_rpc={level}")),
             layer_builder(format!("angstrom={level}")),
             layer_builder(format!("testing_tools={level}")),
             layer_builder(format!("uniswap_v4={level}")),
             layer_builder(format!("validation={level}")),
+            layer_builder(format!("order_pool={level}")),
         ];
 
         tracing_subscriber::registry().with(layers).init();
@@ -94,14 +99,17 @@ pub enum TestnetSubcommmand {
     #[command(name = "testnet")]
     Testnet(TestnetCli),
     #[command(name = "devnet")]
-    Devnet(DevnetCli)
+    Devnet(DevnetCli),
+    #[command(name = "e2e")]
+    End2EndOrders(End2EndOrdersCli)
 }
 
 impl TestnetSubcommmand {
     async fn run_command(self, executor: TaskExecutor) -> eyre::Result<()> {
         match self {
             TestnetSubcommmand::Testnet(testnet_cli) => run_testnet(executor, testnet_cli).await,
-            TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await
+            TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await,
+            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await
         }
     }
 }

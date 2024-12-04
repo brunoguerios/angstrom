@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use super::config::TestingConfigKind;
 use crate::{contracts::anvil::WalletProviderRpc, providers::WalletProvider};
 
-pub trait WithWalletProvider: Send + Sync {
+pub trait WithWalletProvider: Clone + Send + Sync + 'static {
     fn wallet_provider(&self) -> WalletProvider;
 
     fn rpc_provider(&self) -> WalletProviderRpc;
