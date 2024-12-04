@@ -98,6 +98,9 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             )
         };
 
+        let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
+        let block_sync = GlobalBlockSync::new(block_number);
+
         let eth_handle = AnvilEthDataCleanser::spawn(
             node_config.node_id,
             executor.clone(),
@@ -105,12 +108,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_handles.eth_tx,
             strom_handles.eth_rx,
             block_subscription,
-            7
+            7,
+            block_sync.clone()
         )
         .await?;
-
-        let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
-        let block_sync = GlobalBlockSync::new(block_number);
 
         tracing::debug!(block_number, "creating strom internals");
 

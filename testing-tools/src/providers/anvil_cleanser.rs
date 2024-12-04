@@ -6,7 +6,9 @@ use angstrom_eth::{
     manager::EthEvent
 };
 use angstrom_types::{
-    contract_payloads::angstrom::AngstromBundle, sol_bindings::testnet::TestnetHub
+    block_sync::{BlockSyncProducer, GlobalBlockSync},
+    contract_payloads::angstrom::AngstromBundle,
+    sol_bindings::testnet::TestnetHub
 };
 use futures::{Future, Stream, StreamExt};
 use pade::PadeDecode;
@@ -23,7 +25,8 @@ pub struct AnvilEthDataCleanser<S: Stream<Item = (u64, Vec<Transaction>)>> {
     /// people listening to events
     event_listeners:             Vec<UnboundedSender<EthEvent>>,
     block_subscription:          S,
-    block_finalization_lookback: u64
+    block_finalization_lookback: u64,
+    block_sync:                  GlobalBlockSync
 }
 
 impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEthDataCleanser<S> {
@@ -34,7 +37,8 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         tx: Sender<EthCommand>,
         rx: Receiver<EthCommand>,
         block_subscription: S,
-        block_finalization_lookback: u64
+        block_finalization_lookback: u64,
+        block_sync: GlobalBlockSync
     ) -> eyre::Result<EthHandle> {
         let stream = ReceiverStream::new(rx);
         let this = Self {
@@ -43,7 +47,8 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
             event_listeners: Vec::new(),
             block_subscription,
             angstrom_contract,
-            block_finalization_lookback
+            block_finalization_lookback,
+            block_sync
         };
 
         tp.spawn_critical("eth handle", Box::pin(this));
@@ -67,6 +72,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
 
     fn on_new_block(&mut self, block: (u64, Vec<Transaction>)) {
         let (bn, txes) = block;
+        self.block_sync.new_block(bn);
 
         self.send_events(EthEvent::NewBlock(bn));
         // no underflows today
