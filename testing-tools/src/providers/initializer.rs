@@ -70,8 +70,21 @@ impl AnvilInitializer {
         Ok((this, anvil))
     }
 
+    /// deploys multiple pools (pool key, liquidity, sqrt price)
+    pub async fn deploy_pool_fulls(
+        &mut self,
+        pool_keys: Vec<(PoolKey, u128, SqrtPriceX96)>
+    ) -> eyre::Result<()> {
+        for (i, (pool_key, liquidity, price)) in pool_keys.into_iter().enumerate() {
+            self.deploy_pool_full(pool_key, liquidity, price, U256::from(i))
+                .await?
+        }
+
+        Ok(())
+    }
+
     /// deploys tokens, a uniV4 pool, angstrom pool
-    pub async fn deploy_pool_full(&mut self) -> eyre::Result<()> {
+    pub async fn deploy_default_pool_full(&mut self) -> eyre::Result<()> {
         let nonce = self
             .provider
             .provider
@@ -96,25 +109,50 @@ impl AnvilInitializer {
             (second_token, first_token)
         };
 
-        let fee = U24::ZERO;
-        let tick_spacing = 10;
-        let pool = PoolKey {
+        let pool_key = PoolKey {
             currency0,
             currency1,
-            fee,
-            tickSpacing: I24::unchecked_from(tick_spacing),
+            fee: U24::ZERO,
+            tickSpacing: I24::unchecked_from(10),
             hooks: *self.angstrom.address()
         };
-        self.pending_state.add_pool_key(pool.clone());
+        self.pending_state.add_pool_key(pool_key.clone());
 
         let liquidity = 1_000_000_000_000_000_u128;
         let price = SqrtPriceX96::at_tick(100000)?;
 
+        self.deploy_pool_full(pool_key, liquidity, price, U256::ZERO)
+            .await?;
+
+        Ok(())
+    }
+
+    /// deploys tokens, a uniV4 pool, angstrom pool
+    async fn deploy_pool_full(
+        &mut self,
+        pool_key: PoolKey,
+        liquidity: u128,
+        price: SqrtPriceX96,
+        store_index: U256
+    ) -> eyre::Result<()> {
+        let nonce = self
+            .provider
+            .provider
+            .get_transaction_count(self.provider.controller())
+            .await?;
+
+        self.pending_state.add_pool_key(pool_key.clone());
+
         let configure_pool = self
             .angstrom
-            .configurePool(pool.currency0, pool.currency1, tick_spacing, fee)
+            .configurePool(
+                pool_key.currency0,
+                pool_key.currency1,
+                pool_key.tickSpacing.try_into().unwrap(),
+                pool_key.fee
+            )
             .from(self.provider.controller())
-            .nonce(nonce + 2)
+            .nonce(nonce)
             .deploy_pending()
             .await?;
 
@@ -122,18 +160,18 @@ impl AnvilInitializer {
 
         let init_pool = self
             .angstrom
-            .initializePool(pool.currency0, pool.currency1, U256::ZERO, *price)
+            .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
-            .nonce(nonce + 3)
+            .nonce(nonce + 1)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(init_pool);
 
         let pool_gate = self
             .pool_gate
-            .tickSpacing(pool.tickSpacing)
+            .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            .nonce(nonce + 4)
+            .nonce(nonce + 2)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(pool_gate);
@@ -141,15 +179,15 @@ impl AnvilInitializer {
         let add_liq = self
             .pool_gate
             .addLiquidity(
-                pool.currency0,
-                pool.currency1,
+                pool_key.currency0,
+                pool_key.currency1,
                 I24::unchecked_from(99000),
                 I24::unchecked_from(101000),
                 U256::from(liquidity),
                 FixedBytes::<32>::default()
             )
             .from(self.provider.controller())
-            .nonce(nonce + 5)
+            .nonce(nonce + 3)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(add_liq);
