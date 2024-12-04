@@ -148,6 +148,7 @@ impl AnvilInitializer {
             .await?;
 
         self.pending_state.add_pool_key(pool_key.clone());
+        tracing::info!(?pool_key);
 
         let configure_pool = self
             .angstrom
