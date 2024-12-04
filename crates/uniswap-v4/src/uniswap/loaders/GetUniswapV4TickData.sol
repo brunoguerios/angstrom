@@ -43,23 +43,21 @@ contract GetUniswapV4TickData {
 
             //Make sure not to overshoot the max/min tick
             //If we do, break the loop, and set the last initialized tick to the max/min tick=
-            if (nextTick < TickMath.MIN_TICK) {
-                nextTick = TickMath.MIN_TICK;
+            if (currentTick< TickMath.MIN_TICK) {
                 tickData[counter].initialized = liquidityNet != 0;
-                tickData[counter].tick = nextTick;
+                tickData[counter].tick = currentTick;
                 tickData[counter].liquidityGross = liquidityGross;
                 tickData[counter].liquidityNet = liquidityNet;
                 break;
-            } else if (nextTick > TickMath.MAX_TICK) {
-                nextTick = TickMath.MIN_TICK;
+            } else if (currentTick> TickMath.MAX_TICK) {
                 tickData[counter].initialized = liquidityNet != 0;
-                tickData[counter].tick = nextTick;
+                tickData[counter].tick = currentTick;
                 tickData[counter].liquidityGross = liquidityGross;
                 tickData[counter].liquidityNet = liquidityNet;
                 break;
             } else {
                 tickData[counter].initialized = liquidityNet != 0;
-                tickData[counter].tick = nextTick;
+                tickData[counter].tick = currentTick;
                 tickData[counter].liquidityGross = liquidityGross;
                 tickData[counter].liquidityNet = liquidityNet;
             }
