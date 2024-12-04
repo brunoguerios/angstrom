@@ -183,13 +183,14 @@ impl AnvilInitializer {
             .await?
             .await?;
 
-        let this_pool_key = angstrom_types::contract_bindings::pool_manager::PoolManager::PoolKey {
-            currency0:   pool_key.currency0,
-            currency1:   pool_key.currency1,
-            tickSpacing: pool_key.tickSpacing,
-            fee:         pool_key.fee,
-            hooks:       pool_key.hooks
-        };
+        // let this_pool_key =
+        // angstrom_types::contract_bindings::pool_manager::PoolManager::PoolKey {
+        //     currency0:   pool_key.currency0,
+        //     currency1:   pool_key.currency1,
+        //     tickSpacing: pool_key.tickSpacing,
+        //     fee:         pool_key.fee,
+        //     hooks:       pool_key.hooks
+        // };
 
         // tracing::debug!("uniswap init");
         // let _ = self
@@ -213,14 +214,17 @@ impl AnvilInitializer {
             .await?;
         // self.pending_state.add_pending_tx(pool_gate);
 
+        let tick = price.to_tick()?;
+        let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * 500));
+        let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * 500));
         tracing::debug!("add liq");
         let _ = self
             .pool_gate
             .addLiquidity(
                 pool_key.currency0,
                 pool_key.currency1,
-                I24::MIN,
-                I24::MAX,
+                lower,
+                upper,
                 U256::from(liquidity),
                 FixedBytes::<32>::default()
             )
