@@ -5,4 +5,4 @@ fee = 0
 tick_spacing = 60
 liquidity = "340282366920938463463374607431768211454"
 # weird bug were round down
-tick = 100021
+tick = 100020

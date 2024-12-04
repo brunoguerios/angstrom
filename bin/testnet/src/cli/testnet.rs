@@ -75,7 +75,7 @@ impl TryInto<Vec<PartialConfigPoolKey>> for AllPoolKeyInners {
                     key.fee,
                     key.tick_spacing,
                     key.liquidity.parse()?,
-                    SqrtPriceX96::at_tick(key.tick)?.as_f64()
+                    SqrtPriceX96::at_tick(key.tick)?
                 ))
             })
             .collect()

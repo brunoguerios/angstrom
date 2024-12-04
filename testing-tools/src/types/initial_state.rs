@@ -52,7 +52,7 @@ pub struct PartialConfigPoolKey {
     fee:               u64,
     tick_spacing:      i32,
     initial_liquidity: u128,
-    sqrt_price:        f64
+    sqrt_price:        SqrtPriceX96
 }
 
 impl PartialConfigPoolKey {
@@ -62,7 +62,7 @@ impl PartialConfigPoolKey {
         fee: u64,
         tick_spacing: i32,
         initial_liquidity: u128,
-        sqrt_price: f64
+        sqrt_price: SqrtPriceX96
     ) -> Self {
         Self { currency0, currency1, fee, tick_spacing, initial_liquidity, sqrt_price }
     }
@@ -82,6 +82,6 @@ impl PartialConfigPoolKey {
     }
 
     pub fn sqrt_price(&self) -> SqrtPriceX96 {
-        SqrtPriceX96::from_float_price(self.sqrt_price)
+        self.sqrt_price
     }
 }
