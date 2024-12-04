@@ -1,4 +1,5 @@
 use alloy_primitives::{aliases::I24, I256};
+use malachite::num::arithmetic::traits::Sign;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
