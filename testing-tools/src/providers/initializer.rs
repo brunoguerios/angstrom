@@ -207,7 +207,7 @@ impl AnvilInitializer {
             .await?;
         self.pending_state.add_pending_tx(pool_gate);
 
-        let add_liq = self
+        let add_liq_base = self
             .pool_gate
             .addLiquidity(
                 pool_key.currency0,
@@ -218,9 +218,11 @@ impl AnvilInitializer {
                 FixedBytes::<32>::default()
             )
             .from(self.provider.controller())
-            .nonce(nonce + 4)
-            .deploy_pending()
-            .await?;
+            .nonce(nonce + 4);
+        let add_liq = add_liq_base.clone().deploy_pending().await?;
+
+        let out = add_liq_base.call().await?;
+        tracing::info!(?out, "add liq call ret");
 
         self.pending_state.add_pending_tx(add_liq);
 
