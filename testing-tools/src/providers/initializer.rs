@@ -1,5 +1,6 @@
 use alloy::{
     node_bindings::AnvilInstance,
+    primitives::keccak256,
     providers::{ext::AnvilApi, Provider},
     pubsub::PubSubFrontend
 };
@@ -149,7 +150,7 @@ impl AnvilInitializer {
             .await?;
 
         self.pending_state.add_pool_key(pool_key.clone());
-        let encoded = pool_key.abi_encode();
+        let encoded = keccak256(pool_key.abi_encode());
         tracing::info!(?pool_key, ?encoded);
 
         let configure_pool = self
