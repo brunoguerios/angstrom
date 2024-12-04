@@ -28,7 +28,11 @@ where
         let (provider, anvil) = fut.await?;
         let this = Self { provider: AnvilStateProvider::new(provider), _instance: anvil };
         if testnet {
-            tokio::spawn(this.provider.clone().listen_to_new_blocks());
+            tokio::spawn(
+                this.provider
+                    .as_wallet_state_provider()
+                    .listen_to_new_blocks()
+            );
         }
         Ok(this)
     }

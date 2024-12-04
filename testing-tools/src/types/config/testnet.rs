@@ -1,12 +1,10 @@
-use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
-
 use super::TestingConfigKind;
-use crate::types::GlobalTestingConfig;
+use crate::types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct TestnetConfig {
     pub node_count: u64,
-    pub pool_keys:  Vec<PoolKey>,
+    pub pool_keys:  Vec<PartialConfigPoolKey>,
     /// only the leader can have this
     pub eth_ws_url: String,
     pub mev_guard:  bool
@@ -15,7 +13,7 @@ pub struct TestnetConfig {
 impl TestnetConfig {
     pub fn new(
         node_count: u64,
-        pool_keys: Vec<PoolKey>,
+        pool_keys: Vec<PartialConfigPoolKey>,
         eth_ws_url: impl ToString,
         mev_guard: bool
     ) -> Self {
@@ -46,5 +44,9 @@ impl GlobalTestingConfig for TestnetConfig {
 
     fn node_count(&self) -> u64 {
         self.node_count
+    }
+
+    fn pool_keys(&self) -> Vec<PartialConfigPoolKey> {
+        self.pool_keys.clone()
     }
 }

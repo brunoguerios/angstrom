@@ -204,43 +204,6 @@ impl<T> Drop for StateLockInner<T> {
     }
 }
 
-struct StateLockInner<T> {
-    node_id: u64,
-    inner:   Arc<Mutex<T>>,
-    lock:    Arc<AtomicBool>,
-    fut:     JoinHandle<()>
-}
-
-impl<T: Unpin + Future + Send + 'static> StateLockInner2<T> {
-    fn new(node_id: u64, inner_unarced: T) -> Self {
-        let lock = Arc::new(AtomicBool::new(false));
-        let inner = Arc::new(Mutex::new(inner_unarced));
-        let inner_fut = StateLockFut::new(node_id, inner.clone(), lock.clone());
-
-        Self { node_id, inner, lock, fut: tokio::spawn(inner_fut) }
-    }
-
-    fn on_inner<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&T) -> R
-    {
-        f(&self.inner.lock())
-    }
-
-    fn on_inner_mut<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&mut T) -> R
-    {
-        f(&mut self.inner.lock())
-    }
-}
-
-impl<T> Drop for StateLockInner2<T> {
-    fn drop(&mut self) {
-        self.fut.abort();
-    }
-}
-
 struct StateLockFut<T> {
     node_id: u64,
     inner:   Arc<Mutex<T>>,

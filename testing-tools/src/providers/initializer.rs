@@ -28,19 +28,21 @@ use crate::{
         }
     },
     types::{
-        config::TestingNodeConfig, initial_state::PendingDeployedPools, GlobalTestingConfig,
-        WithWalletProvider
+        config::TestingNodeConfig,
+        initial_state::{PartialConfigPoolKey, PendingDeployedPools},
+        GlobalTestingConfig, WithWalletProvider
     }
 };
 
 pub const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
 
-#[derive(Clone)]
 pub struct AnvilInitializer {
-    provider:     WalletProvider,
-    angstrom_env: AngstromEnv<UniswapEnv<WalletProvider>>,
-    angstrom:     AngstromInstance<PubSubFrontend, WalletProviderRpc>,
-    pool_gate:    PoolGateInstance<PubSubFrontend, WalletProviderRpc>
+    provider:      WalletProvider,
+    //uniswap_env:   UniswapEnv<WalletProvider>,
+    angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
+    angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
+    pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
+    pending_state: PendingDeployedPools
 }
 
 impl AnvilInitializer {
@@ -62,7 +64,9 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let this = Self { provider, angstrom_env, angstrom, pool_gate };
+        let pending_state = PendingDeployedPools::new();
+
+        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state };
 
         Ok((this, anvil))
     }
@@ -70,11 +74,16 @@ impl AnvilInitializer {
     /// deploys multiple pools (pool key, liquidity, sqrt price)
     pub async fn deploy_pool_fulls(
         &mut self,
-        pool_keys: Vec<(PoolKey, u128, SqrtPriceX96)>
+        pool_keys: Vec<PartialConfigPoolKey>
     ) -> eyre::Result<()> {
-        for (i, (pool_key, liquidity, price)) in pool_keys.into_iter().enumerate() {
-            self.deploy_pool_full(pool_key, liquidity, price, U256::from(i))
-                .await?
+        for (i, key) in pool_keys.into_iter().enumerate() {
+            self.deploy_pool_full(
+                key.make_pool_key(*self.angstrom.address()),
+                key.initial_liquidity(),
+                key.sqrt_price(),
+                U256::from(i)
+            )
+            .await?
         }
 
         Ok(())
@@ -92,13 +101,13 @@ impl AnvilInitializer {
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(nonce, self.provider.controller())
                 .await?;
-        state.add_pending_tx(first_token_tx);
+        self.pending_state.add_pending_tx(first_token_tx);
 
         let (second_token_tx, second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(nonce + 1, self.provider.controller())
                 .await?;
-        state.add_pending_tx(second_token_tx);
+        self.pending_state.add_pending_tx(second_token_tx);
 
         let (currency0, currency1) = if first_token < second_token {
             (first_token, second_token)
@@ -153,7 +162,7 @@ impl AnvilInitializer {
             .deploy_pending()
             .await?;
 
-        state.add_pending_tx(configure_pool);
+        self.pending_state.add_pending_tx(configure_pool);
 
         let init_pool = self
             .angstrom
@@ -162,7 +171,7 @@ impl AnvilInitializer {
             .nonce(nonce + 1)
             .deploy_pending()
             .await?;
-        state.add_pending_tx(init_pool);
+        self.pending_state.add_pending_tx(init_pool);
 
         let pool_gate = self
             .pool_gate
@@ -171,7 +180,7 @@ impl AnvilInitializer {
             .nonce(nonce + 2)
             .deploy_pending()
             .await?;
-        state.add_pending_tx(pool_gate);
+        self.pending_state.add_pending_tx(pool_gate);
 
         let add_liq = self
             .pool_gate
@@ -187,38 +196,32 @@ impl AnvilInitializer {
             .nonce(nonce + 3)
             .deploy_pending()
             .await?;
-        state.add_pending_tx(add_liq);
+        self.pending_state.add_pending_tx(add_liq);
 
         Ok(())
     }
 
-    pub async fn init_state_full_no_bytes(&mut self) -> eyre::Result<InitialTestnetState> {
-        let mut state = PendingDeployedPools::new();
-        self.deploy_pool_full(&mut state).await?;
-
-        let (pool_keys, _) = state.finalize_pending_txs().await?;
-
-        let state = InitialTestnetState::new(
-            self.angstrom_env.angstrom(),
-            self.angstrom_env.pool_manager(),
-            None,
-            pool_keys
-        );
-
-        Ok(state)
-    }
-
-    pub async fn init_state_full(&mut self) -> eyre::Result<InitialTestnetState> {
-        let mut state = PendingDeployedPools::new();
-        self.deploy_pool_full(&mut state).await?;
-
-        let (pool_keys, _) = state.finalize_pending_txs().await?;
+    pub async fn initialize_state(&mut self) -> eyre::Result<InitialTestnetState> {
+        let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
 
         let state_bytes = self.provider.provider_ref().anvil_dump_state().await?;
         let state = InitialTestnetState::new(
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             Some(state_bytes),
+            pool_keys
+        );
+
+        Ok(state)
+    }
+
+    pub async fn initialize_state_no_bytes(&mut self) -> eyre::Result<InitialTestnetState> {
+        let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
+
+        let state = InitialTestnetState::new(
+            self.angstrom_env.angstrom(),
+            self.angstrom_env.pool_manager(),
+            None,
             pool_keys
         );
 
@@ -238,37 +241,35 @@ impl WithWalletProvider for AnvilInitializer {
 
 #[cfg(test)]
 mod tests {
-    // use alloy::providers::Provider;
-    //
-    // use super::*;
-    // use crate::types::config::DevnetConfig;
-    //
-    // async fn get_block(provider: &WalletProvider) -> eyre::Result<u64> {
-    //     Ok(provider.provider.get_block_number().await?)
-    // }
-    //
-    // #[tokio::test]
-    // async fn test_can_deploy() {
-    //     let config = TestingNodeConfig::new(0, DevnetConfig::default(), 100);
-    //
-    //     let (mut initializer, _anvil) =
-    // AnvilInitializer::new(config).await.unwrap();
-    //
-    //     initializer.deploy_pool_full().await.unwrap();
-    //
-    //     let current_block = get_block(&initializer.provider).await.unwrap();
-    //
-    //     let _ = initializer.provider.provider.evm_mine(None).await.unwrap();
-    //
-    //     assert_eq!(current_block + 1,
-    // get_block(&initializer.provider).await.unwrap());
-    //
-    //     initializer
-    //         .pending_state
-    //         .finalize_pending_txs()
-    //         .await
-    //         .unwrap();
-    //
-    //     assert_eq!(current_block + 1,
-    // get_block(&initializer.provider).await.unwrap()); }
+    use alloy::providers::Provider;
+
+    use super::*;
+    use crate::types::config::DevnetConfig;
+
+    async fn get_block(provider: &WalletProvider) -> eyre::Result<u64> {
+        Ok(provider.provider.get_block_number().await?)
+    }
+
+    #[tokio::test]
+    async fn test_can_deploy() {
+        let config = TestingNodeConfig::new(0, DevnetConfig::default(), 100);
+
+        let (mut initializer, _anvil) = AnvilInitializer::new(config).await.unwrap();
+
+        initializer.deploy_default_pool_full().await.unwrap();
+
+        let current_block = get_block(&initializer.provider).await.unwrap();
+
+        let _ = initializer.provider.provider.evm_mine(None).await.unwrap();
+
+        assert_eq!(current_block + 1, get_block(&initializer.provider).await.unwrap());
+
+        initializer
+            .pending_state
+            .finalize_pending_txs()
+            .await
+            .unwrap();
+
+        assert_eq!(current_block + 1, get_block(&initializer.provider).await.unwrap());
+    }
 }

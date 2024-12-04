@@ -11,7 +11,10 @@ use reth_network_peers::pk2id;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
 use super::TestingConfigKind;
-use crate::{providers::WalletProvider, types::GlobalTestingConfig};
+use crate::{
+    providers::WalletProvider,
+    types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig}
+};
 
 #[derive(Debug, Clone)]
 pub struct TestingNodeConfig<C> {
@@ -56,6 +59,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     pub fn address(&self) -> Address {
         self.signing_key().address()
+    }
+
+    pub fn pool_keys(&self) -> Vec<PartialConfigPoolKey> {
+        self.global_config.pool_keys()
     }
 
     fn configure_testnet_leader_anvil(&self) -> Anvil {
