@@ -167,36 +167,26 @@ where
         self.ticks.clear();
         self.tick_bitmap.clear();
 
+        tracing::info!(?self.token_a, ?self.token_b,?self.tick, ?self.tick_spacing);
         let total_ticks_to_fetch = self.initial_ticks_per_side * 2;
-        let mut remaining_ticks = total_ticks_to_fetch;
-        //  +1 because the retrieve is gt start_tick, i.e. start one step back to
-        // include the tick
-        let mut start_tick = (self.tick / self.tick_spacing) * self.tick_spacing
-            - self.tick_spacing * (self.initial_ticks_per_side + 1) as i32;
+        // current tick when loaded (init tick) - (half total tics * spacing);
+        let start_tick = self.tick - (total_ticks_to_fetch as i32 / 2 * self.tick_spacing);
+        tracing::info!(?start_tick);
 
-        // Fetch ticks from left to right
-        let mut fetched_ticks = Vec::new();
-        while remaining_ticks > 0 {
-            let ticks_to_fetch = remaining_ticks.min(MAX_TICKS_PER_REQUEST);
-            let (mut batch_ticks, _) = self
-                .get_tick_data_batch_request(
-                    // safe because we pull the ticks form chain where they are i24
-                    i32_to_i24(start_tick)?,
-                    false,
-                    ticks_to_fetch,
-                    block_number,
-                    provider.clone()
-                )
-                .await?;
-            batch_ticks.sort_by_key(|s| s.tick);
-            fetched_ticks.append(&mut batch_ticks);
-            remaining_ticks -= ticks_to_fetch;
-            if let Some(last_tick) = fetched_ticks.last() {
-                start_tick = last_tick.tick.as_i32();
-            } else {
-                break
-            }
-        }
+        let mut fetched_ticks = self
+            .get_tick_data_batch_request(
+                i32_to_i24(start_tick)?,
+                false,
+                total_ticks_to_fetch,
+                None,
+                provider.clone()
+            )
+            .await?
+            .0;
+
+        fetched_ticks.sort_by_key(|k| k.tick);
+
+        tracing::info!(?fetched_ticks);
 
         fetched_ticks
             .into_iter()
@@ -278,6 +268,7 @@ where
                 && (sqrt_price_limit_x96 <= self.sqrt_price
                     || sqrt_price_limit_x96 >= MAX_SQRT_RATIO))
         {
+            tracing::info!(?zero_for_one, ?sqrt_price_limit_x96, ?self.sqrt_price);
             return Err(SwapSimulationError::InvalidSqrtPriceLimit)
         }
 

@@ -119,13 +119,13 @@ impl AnvilInitializer {
             currency0,
             currency1,
             fee: U24::ZERO,
-            tickSpacing: I24::unchecked_from(10),
+            tickSpacing: I24::unchecked_from(60),
             hooks: *self.angstrom.address()
         };
         self.pending_state.add_pool_key(pool_key.clone());
 
-        let liquidity = 1_000_000_000_000_000_u128;
-        let price = SqrtPriceX96::at_tick(100000)?;
+        let liquidity = u128::MAX - 1;
+        let price = SqrtPriceX96::at_tick(100_020)?;
 
         self.deploy_pool_full(pool_key, liquidity, price, U256::ZERO)
             .await?;
@@ -148,13 +148,14 @@ impl AnvilInitializer {
             .await?;
 
         self.pending_state.add_pool_key(pool_key.clone());
+        tracing::info!(?pool_key);
 
         let configure_pool = self
             .angstrom
             .configurePool(
                 pool_key.currency0,
                 pool_key.currency1,
-                pool_key.tickSpacing.try_into().unwrap(),
+                pool_key.tickSpacing.as_i32() as u16,
                 pool_key.fee
             )
             .from(self.provider.controller())
@@ -187,8 +188,8 @@ impl AnvilInitializer {
             .addLiquidity(
                 pool_key.currency0,
                 pool_key.currency1,
-                I24::unchecked_from(99000),
-                I24::unchecked_from(101000),
+                I24::MIN,
+                I24::MAX,
                 U256::from(liquidity),
                 FixedBytes::<32>::default()
             )
