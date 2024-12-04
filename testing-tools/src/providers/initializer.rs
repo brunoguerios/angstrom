@@ -207,7 +207,7 @@ impl AnvilInitializer {
             .await?;
         self.pending_state.add_pending_tx(pool_gate);
 
-        let add_liq_base = self
+        let add_liq = self
             .pool_gate
             .addLiquidity(
                 pool_key.currency0,
@@ -218,11 +218,9 @@ impl AnvilInitializer {
                 FixedBytes::<32>::default()
             )
             .from(self.provider.controller())
-            .nonce(nonce + 4);
-        let add_liq = add_liq_base.clone().deploy_pending().await?;
-
-        let out = add_liq_base.call().await?;
-        tracing::info!(?out, "add liq call ret");
+            .nonce(nonce + 4)
+            .deploy_pending()
+            .await?;
 
         self.pending_state.add_pending_tx(add_liq);
 
@@ -239,12 +237,29 @@ impl AnvilInitializer {
             Some(state_bytes),
             pool_keys.clone()
         );
+
         for key in pool_keys {
+            let add_liq = self
+                .pool_gate
+                .addLiquidity(
+                    key.currency0,
+                    key.currency1,
+                    I24::MIN,
+                    I24::MAX,
+                    U256::from(u128::MAX - 1),
+                    FixedBytes::<32>::default()
+                )
+                .from(self.provider.controller())
+                .call()
+                .await?;
+            tracing::info!(?add_liq, "add liq call ret");
+
             let out = self
                 .pool_gate
                 .isInitialized(key.currency0, key.currency1)
                 .call()
                 .await?;
+
             if !out._0 {
                 tracing::warn!(?key, "pool is still not initalized, even after deploying state");
             }
