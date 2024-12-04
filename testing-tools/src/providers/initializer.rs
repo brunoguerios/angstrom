@@ -191,15 +191,15 @@ impl AnvilInitializer {
             hooks:       pool_key.hooks
         };
 
-        tracing::debug!("uniswap init");
-        let _ = self
-            .uniswap_env
-            .initialize(this_pool_key, *price)
-            .from(self.provider.controller())
-            .nonce(nonce + 2)
-            .deploy_pending()
-            .await?
-            .await?;
+        // tracing::debug!("uniswap init");
+        // let _ = self
+        //     .uniswap_env
+        //     .initialize(this_pool_key, *price)
+        //     .from(self.provider.controller())
+        //     .nonce(nonce + 2)
+        //     .deploy_pending()
+        //     .await?
+        //     .await?;
         // self.pending_state.add_pending_tx(uniwap_init);
 
         tracing::debug!("tick spacing");
