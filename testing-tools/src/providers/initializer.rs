@@ -13,7 +13,8 @@ use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance
+        pool_gate::PoolGate::PoolGateInstance,
+        pool_manager::PoolManager::PoolManagerInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
@@ -40,7 +41,7 @@ pub const ANVIL_TESTNET_DEPLOYMENT_ENDPOINT: &str = "temp_deploy";
 
 pub struct AnvilInitializer {
     provider:      WalletProvider,
-    //uniswap_env:   UniswapEnv<WalletProvider>,
+    uniswap_env:   PoolManagerInstance<PubSubFrontend, WalletProviderRpc>,
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
     angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
@@ -66,9 +67,12 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
+        let uniswap_env =
+            PoolManagerInstance::new(angstrom_env.pool_manager(), angstrom_env.provider().clone());
+
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state };
+        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state, uniswap_env };
 
         Ok((this, anvil))
     }
@@ -176,12 +180,27 @@ impl AnvilInitializer {
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(init_pool);
+        let this_pool_key = angstrom_types::contract_bindings::pool_manager::PoolManager::PoolKey {
+            currency0:   pool_key.currency0,
+            currency1:   pool_key.currency1,
+            tickSpacing: pool_key.tickSpacing,
+            fee:         pool_key.fee,
+            hooks:       pool_key.hooks
+        };
+
+        let uniwap_init = self
+            .uniswap_env
+            .initialize(this_pool_key, *price)
+            .from(self.provider.controller())
+            .nonce(nonce + 2)
+            .deploy_pending()
+            .await?;
 
         let pool_gate = self
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            .nonce(nonce + 2)
+            .nonce(nonce + 3)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(pool_gate);
@@ -197,7 +216,7 @@ impl AnvilInitializer {
                 FixedBytes::<32>::default()
             )
             .from(self.provider.controller())
-            .nonce(nonce + 3)
+            .nonce(nonce + 4)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(add_liq);
