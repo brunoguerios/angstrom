@@ -183,26 +183,6 @@ impl AnvilInitializer {
             .await?
             .await?;
 
-        // let this_pool_key =
-        // angstrom_types::contract_bindings::pool_manager::PoolManager::PoolKey {
-        //     currency0:   pool_key.currency0,
-        //     currency1:   pool_key.currency1,
-        //     tickSpacing: pool_key.tickSpacing,
-        //     fee:         pool_key.fee,
-        //     hooks:       pool_key.hooks
-        // };
-
-        // tracing::debug!("uniswap init");
-        // let _ = self
-        //     .uniswap_env
-        //     .initialize(this_pool_key, *price)
-        //     .from(self.provider.controller())
-        //     .nonce(nonce + 2)
-        //     .deploy_pending()
-        //     .await?
-        //     .await?;
-        // self.pending_state.add_pending_tx(uniwap_init);
-
         tracing::debug!("tick spacing");
         let _ = self
             .pool_gate
