@@ -167,7 +167,7 @@ where
         self.ticks.clear();
         self.tick_bitmap.clear();
 
-        tracing::info!(?self);
+        tracing::info!(?self.token_a, ?self.token_b,?self.tick, ?self.tick_spacing);
         let total_ticks_to_fetch = self.initial_ticks_per_side * 2;
         let mut remaining_ticks = total_ticks_to_fetch;
         // current tick when loaded (init tick) - (half total tics * spacing);
