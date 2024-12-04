@@ -196,6 +196,8 @@ where
             }
         }
 
+        tracing::info!(?fetched_ticks);
+
         fetched_ticks
             .into_iter()
             .filter(|tick| tick.initialized)
