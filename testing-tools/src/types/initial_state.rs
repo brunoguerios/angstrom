@@ -72,7 +72,7 @@ impl PartialConfigPoolKey {
             currency0:   self.currency1,
             currency1:   self.currency0,
             fee:         U24::from(self.fee),
-            tickSpacing: I24::try_from(self.tick_spacing).unwrap(),
+            tickSpacing: I24::unchecked_from(self.tick_spacing),
             hooks:       angstrom_address_hook
         }
     }
