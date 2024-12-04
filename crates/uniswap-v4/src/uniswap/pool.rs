@@ -172,6 +172,7 @@ where
         let mut remaining_ticks = total_ticks_to_fetch;
         // current tick when loaded (init tick) - (half total tics * spacing);
         let mut start_tick = self.tick - (total_ticks_to_fetch as i32 / 2 * self.tick_spacing);
+        tracing::info!(?start_tick);
 
         // Fetch ticks from left to right
         let mut fetched_ticks = Vec::new();
