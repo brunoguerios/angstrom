@@ -155,7 +155,7 @@ impl AnvilInitializer {
             .configurePool(
                 pool_key.currency0,
                 pool_key.currency1,
-                pool_key.tickSpacing.as_u16(),
+                pool_key.tickSpacing.as_i32() as u16,
                 pool_key.fee
             )
             .from(self.provider.controller())
