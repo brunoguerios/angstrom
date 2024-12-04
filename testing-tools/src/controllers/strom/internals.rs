@@ -7,6 +7,7 @@ use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
+    block_sync::{BlockSyncConsumer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
     pair_with_price::PairsWithPrice,
@@ -35,8 +36,7 @@ use crate::{
         WalletProvider
     },
     types::{
-        config::TestingNodeConfig, GlobalTestingConfig, MockBlockSync, SendingStromHandles,
-        WithWalletProvider
+        config::TestingNodeConfig, GlobalTestingConfig, SendingStromHandles, WithWalletProvider
     },
     validation::TestOrderValidator
 };
@@ -63,7 +63,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         agents: Vec<F>
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
+        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
     )>
     where
         F: for<'a> Fn(
@@ -110,6 +110,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         .await?;
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
+        let block_sync = GlobalBlockSync::new(block_number);
 
         tracing::debug!(block_number, "creating strom internals");
 
@@ -132,7 +133,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 .subscribe_to_canonical_state(),
             uniswap_registry.clone(),
             block_number,
-            MockBlockSync,
+            block_sync.clone(),
             inital_angstrom_state.pool_manager_addr
         )
         .await;
@@ -186,7 +187,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_network_handle.clone(),
             eth_handle.subscribe_network(),
             strom_handles.pool_rx,
-            MockBlockSync
+            block_sync.clone()
         )
         .with_config(pool_config)
         .build_with_channels(
@@ -240,7 +241,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_pools.clone(),
             mev_boost_provider,
             matching_handle,
-            MockBlockSync
+            block_sync.clone()
         );
 
         // init agents

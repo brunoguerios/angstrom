@@ -13,6 +13,7 @@ use angstrom_network::{
     NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkManager
 };
 use angstrom_types::{
+    block_sync::{BlockSyncConsumer, GlobalBlockSync},
     primitive::PeerId,
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
     testnet::InitialTestnetState
@@ -38,7 +39,7 @@ use crate::{
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
     providers::AnvilProvider,
-    types::{config::TestingNodeConfig, GlobalTestingConfig, MockBlockSync, WithWalletProvider}
+    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
 };
 
 pub struct TestnetNode<C, P> {
@@ -59,7 +60,7 @@ where
         + 'static,
     P: WithWalletProvider
 {
-    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider,agents), fields(id = node_config.node_id))]
+    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider, agents), fields(id = node_config.node_id))]
     pub async fn new<G: GlobalTestingConfig, F>(
         c: C,
         node_config: TestingNodeConfig<G>,
@@ -239,7 +240,7 @@ where
     pub fn strom_consensus<F, R>(&self, f: F) -> R
     where
         F: FnOnce(
-            &ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
+            &ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
         ) -> R
     {
         self.state_lock.strom_consensus(f)
@@ -248,7 +249,7 @@ where
     pub fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
         F: FnOnce(
-            &mut ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
+            &mut ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
         ) -> R
     {
         self.state_lock.strom_consensus_mut(f)
