@@ -105,7 +105,7 @@ impl AnvilInitializer {
         state.add_pool_key(pool.clone());
 
         let liquidity = u128::MAX - 1;
-        let price = SqrtPriceX96::at_tick(100_000)?;
+        let price = SqrtPriceX96::at_tick(100_020)?;
 
         let configure_pool = self
             .angstrom
