@@ -207,7 +207,7 @@ impl AnvilInitializer {
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            .nonce(nonce + 3)
+            .nonce(nonce + 2)
             .deploy_pending()
             .await?
             .await?;
@@ -225,7 +225,7 @@ impl AnvilInitializer {
                 FixedBytes::<32>::default()
             )
             .from(self.provider.controller())
-            .nonce(nonce + 4)
+            .nonce(nonce + 3)
             .deploy_pending()
             .await?
             .await?;
