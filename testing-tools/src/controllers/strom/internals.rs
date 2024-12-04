@@ -133,8 +133,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_registry.clone(),
             block_number,
             MockBlockSync,
-            inital_angstrom_state.pool_manager_addr,
-            true
+            inital_angstrom_state.pool_manager_addr
         )
         .await;
 
