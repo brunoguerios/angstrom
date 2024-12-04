@@ -94,7 +94,7 @@ impl AnvilInitializer {
         };
 
         let fee = U24::ZERO;
-        let tick_spacing = 10;
+        let tick_spacing = 60;
         let pool = PoolKey {
             currency0,
             currency1,
