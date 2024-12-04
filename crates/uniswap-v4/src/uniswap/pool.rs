@@ -171,7 +171,8 @@ where
         tracing::info!(?self.token_a, ?self.token_b,?self.tick, ?self.tick_spacing);
         let total_ticks_to_fetch = self.initial_ticks_per_side * 2;
         // current tick when loaded (init tick) - (half total tics * spacing);
-        let start_tick = self.tick - (total_ticks_to_fetch as i32 / 2 * self.tick_spacing);
+
+        let start_tick = self.tick - (total_ticks_to_fetch.div_ceil(2) as i32 * self.tick_spacing);
         tracing::info!(?start_tick);
 
         let mut fetched_ticks = self
