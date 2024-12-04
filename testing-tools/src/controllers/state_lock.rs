@@ -138,8 +138,7 @@ where
         + Unpin
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
-        + 'static,
-    B: BlockSyncConsumer
+        + 'static
 {
     type Output = ();
 
