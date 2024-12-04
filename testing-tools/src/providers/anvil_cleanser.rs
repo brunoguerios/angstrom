@@ -124,13 +124,21 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> Future
         let span = span!(Level::TRACE, "node", id = self.testnet_node_id);
         let e = span.enter();
 
-        while let Poll::Ready(Some(block)) = self.block_subscription.poll_next_unpin(cx) {
-            tracing::trace!(block_number = block.0, "received new block from anvil");
-            self.on_new_block(block);
-        }
-        while let Poll::Ready(Some(cmd)) = self.commander.poll_next_unpin(cx) {
-            tracing::trace!("received command from channel");
-            self.on_command(cmd);
+        let mut work = 1048;
+        loop {
+            if let Poll::Ready(Some(block)) = self.block_subscription.poll_next_unpin(cx) {
+                tracing::trace!(block_number = block.0, "received new block from anvil");
+                self.on_new_block(block);
+            }
+            if let Poll::Ready(Some(cmd)) = self.commander.poll_next_unpin(cx) {
+                tracing::trace!("received command from channel");
+                self.on_command(cmd);
+            }
+            work -= 1;
+            if work == 0 {
+                cx.waker().wake_by_ref();
+                break;
+            }
         }
 
         drop(e);
