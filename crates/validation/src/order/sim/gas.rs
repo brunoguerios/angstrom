@@ -51,14 +51,9 @@ where
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     pub fn new(db: Arc<DB>, angstrom_address: Option<Address>) -> eyre::Result<Self> {
-        if let Some(angstrom_address) = angstrom_address {
-            Ok(Self { db: CacheDB::new(db), angstrom_address })
-        } else {
-            let ConfiguredRevm { db, angstrom } =
-                Self::setup_revm_cache_database_for_simulation(db)?;
+        let ConfiguredRevm { db, angstrom } = Self::setup_revm_cache_database_for_simulation(db)?;
 
-            Ok(Self { db, angstrom_address: angstrom })
-        }
+        Ok(Self { db, angstrom_address: angstrom })
     }
 
     pub fn gas_of_tob_order(
