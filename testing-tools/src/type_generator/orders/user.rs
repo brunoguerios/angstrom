@@ -105,10 +105,12 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     amount: self.amount,
+                    max_extra_fee_asset0: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     nonce: self.nonce,
                     exact_in: self.exact_in,
+
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
@@ -127,6 +129,7 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
+                    max_extra_fee_asset0: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     ..Default::default()
@@ -147,6 +150,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
+                    max_extra_fee_asset0: self.amount,
                     amount: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -169,6 +173,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
+                    max_extra_fee_asset0: self.amount,
                     max_amount_in: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
