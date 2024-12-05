@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
     primitives::{address, keccak256, Address, TxKind, B256, U160, U256},
@@ -48,7 +48,7 @@ pub struct OrderGasCalculations<DB> {
 impl<DB> OrderGasCalculations<DB>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + BlockNumReader,
-    <DB as revm::DatabaseRef>::Error: Send + Sync
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     pub fn new(db: Arc<DB>, angstrom_address: Option<Address>) -> eyre::Result<Self> {
         if let Some(angstrom_address) = angstrom_address {
@@ -247,11 +247,11 @@ where
 
             cache_db
                 .insert_account_storage(token_out, balance_amount_out_slot.into(), amount_out)
-                .map_err(|_| eyre!("failed to insert account into storage"))?;
+                .map_err(|e| eyre!(err=?e,"failed to insert account into storage"))?;
 
             cache_db
                 .insert_account_storage(token_in, approval_slot.into(), amount_in)
-                .map_err(|_| eyre!("failed to insert account into storage"))?;
+                .map_err(|e| eyre!(err=?e,"failed to insert account into storage"))?;
         }
 
         Ok(cache_db)

@@ -175,7 +175,7 @@ impl OrderValidationResults {
             .try_map_inner(move |order| Ok(map_new(order)))
             .unwrap();
 
-        let ((gas_units, gas_used)) = (calculate_function)(sim, &order, token_price)?;
+        let (gas_units, gas_used) = (calculate_function)(sim, &order, token_price)?;
         order.priority_data.gas += gas_used;
         order.priority_data.gas_units = gas_units;
 
