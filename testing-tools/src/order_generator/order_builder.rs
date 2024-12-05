@@ -28,7 +28,7 @@ impl OrderBuilder {
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let sqrt_price = pool.sqrt_price;
 
-        let zfo = sqrt_price < price;
+        let zfo = sqrt_price > price;
 
         let token0 = pool.token_a;
         let token1 = pool.token_b;
