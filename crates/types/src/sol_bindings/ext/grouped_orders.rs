@@ -291,13 +291,6 @@ impl RawPoolOrder for StandingVariants {
         }
     }
 
-    fn amount_out_min(&self) -> u128 {
-        match self {
-            StandingVariants::Exact(e) => e.amount_out_min(),
-            StandingVariants::Partial(p) => p.amount_out_min()
-        }
-    }
-
     fn flash_block(&self) -> Option<u64> {
         None
     }
@@ -375,13 +368,6 @@ impl RawPoolOrder for FlashVariants {
         match self {
             FlashVariants::Exact(e) => e.limit_price(),
             FlashVariants::Partial(p) => p.limit_price()
-        }
-    }
-
-    fn amount_out_min(&self) -> u128 {
-        match self {
-            FlashVariants::Exact(e) => e.amount_out_min(),
-            FlashVariants::Partial(p) => p.amount_out_min()
         }
     }
 
@@ -563,11 +549,7 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn limit_price(&self) -> U256 {
-        U256::from(self.amount_in() / self.amount_out_min())
-    }
-
-    fn amount_out_min(&self) -> u128 {
-        self.quantity_out
+        U256::from(self.amount_in() / self.quantity_out)
     }
 
     fn token_in(&self) -> Address {
@@ -622,15 +604,6 @@ impl RawPoolOrder for PartialStandingOrder {
 
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod {
         RespendAvoidanceMethod::Nonce(self.nonce)
-    }
-
-    fn amount_out_min(&self) -> u128 {
-        // TODO: verify math on this. feels wrong
-        if self.asset_in < self.asset_out {
-            self.min_amount_in * self.min_price.to::<u128>()
-        } else {
-            self.min_amount_in / self.min_price.to::<u128>()
-        }
     }
 
     fn limit_price(&self) -> U256 {
@@ -693,15 +666,6 @@ impl RawPoolOrder for ExactStandingOrder {
 
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod {
         RespendAvoidanceMethod::Nonce(self.nonce)
-    }
-
-    fn amount_out_min(&self) -> u128 {
-        // TODO: verify math on this. feels wrong
-        if self.asset_in < self.asset_out {
-            self.amount * self.min_price.to::<u128>()
-        } else {
-            self.amount / self.min_price.to::<u128>()
-        }
     }
 
     fn limit_price(&self) -> U256 {
@@ -782,15 +746,6 @@ impl RawPoolOrder for PartialFlashOrder {
         self.min_price
     }
 
-    fn amount_out_min(&self) -> u128 {
-        // TODO: verify math on this. feels wrong
-        if self.asset_in < self.asset_out {
-            self.min_amount_in * self.min_price.to::<u128>()
-        } else {
-            self.min_amount_in / self.min_price.to::<u128>()
-        }
-    }
-
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod {
         RespendAvoidanceMethod::Block(self.valid_for_block)
     }
@@ -859,15 +814,6 @@ impl RawPoolOrder for ExactFlashOrder {
 
     fn limit_price(&self) -> U256 {
         self.min_price
-    }
-
-    fn amount_out_min(&self) -> u128 {
-        // TODO: verify math on this. feels wrong
-        if self.asset_in < self.asset_out {
-            self.amount * self.min_price.to::<u128>()
-        } else {
-            self.amount / self.min_price.to::<u128>()
-        }
     }
 
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod {
@@ -945,14 +891,6 @@ impl RawPoolOrder for AllOrders {
             AllOrders::Standing(p) => p.limit_price(),
             AllOrders::Flash(kof) => kof.limit_price(),
             AllOrders::TOB(t) => t.limit_price()
-        }
-    }
-
-    fn amount_out_min(&self) -> u128 {
-        match self {
-            AllOrders::Standing(p) => p.amount_out_min(),
-            AllOrders::Flash(kof) => kof.amount_out_min(),
-            AllOrders::TOB(tob) => tob.amount_out_min()
         }
     }
 
@@ -1075,13 +1013,6 @@ impl RawPoolOrder for GroupedVanillaOrder {
         }
     }
 
-    fn amount_out_min(&self) -> u128 {
-        match self {
-            GroupedVanillaOrder::Standing(p) => p.amount_out_min(),
-            GroupedVanillaOrder::KillOrFill(kof) => kof.amount_out_min()
-        }
-    }
-
     fn order_location(&self) -> OrderLocation {
         match &self {
             GroupedVanillaOrder::Standing(_) => OrderLocation::Limit,
@@ -1165,13 +1096,6 @@ impl RawPoolOrder for GroupedComposableOrder {
         match self {
             GroupedComposableOrder::Partial(p) => p.limit_price(),
             GroupedComposableOrder::KillOrFill(p) => p.limit_price()
-        }
-    }
-
-    fn amount_out_min(&self) -> u128 {
-        match self {
-            GroupedComposableOrder::Partial(p) => p.amount_out_min(),
-            GroupedComposableOrder::KillOrFill(kof) => kof.amount_out_min()
         }
     }
 
