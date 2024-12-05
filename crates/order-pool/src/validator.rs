@@ -226,6 +226,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub enum OrderValidatorRes {
     /// standard flow
     ValidatedOrder(OrderValidationResults),
