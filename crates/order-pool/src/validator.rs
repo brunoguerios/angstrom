@@ -99,6 +99,7 @@ where
             unreachable!()
         };
         let validator_clone = validator.clone();
+        tracing::info!("informing validation that we got a new block");
         let fut = Box::pin(async move {
             validator_clone
                 .new_block(block_number, orders, changed_addresses)
@@ -113,7 +114,7 @@ where
     }
 
     pub fn validate_order(&mut self, origin: OrderOrigin, order: AllOrders) {
-        tracing::info!(?order, "validating order");
+        tracing::info!(order_hash=?order.order_hash(), "validating order");
         match self {
             Self::RegularProcessing { remaining_futures, validator } => {
                 let val = validator.clone();
