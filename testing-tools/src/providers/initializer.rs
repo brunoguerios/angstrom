@@ -13,11 +13,9 @@ use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance,
-        pool_manager::PoolManager::PoolManagerInstance
+        pool_gate::PoolGate::PoolGateInstance
     },
     matching::SqrtPriceX96,
-    sol_bindings::testnet::MockERC20,
     testnet::InitialTestnetState
 };
 
@@ -129,8 +127,8 @@ impl AnvilInitializer {
             hooks: *self.angstrom.address()
         };
         self.pending_state.add_pool_key(pool_key.clone());
+        self.pending_state.finalize_pending_txs().await?;
 
-        let (keys, _) = self.pending_state.finalize_pending_txs().await?;
         Ok((currency0, currency1))
     }
 
