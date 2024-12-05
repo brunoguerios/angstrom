@@ -62,7 +62,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         agents: Vec<F>
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>
+        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, MockBlockSync>,
+        TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where
         F: for<'a> Fn(
