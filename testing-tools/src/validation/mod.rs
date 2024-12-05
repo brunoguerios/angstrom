@@ -24,7 +24,7 @@ use validation::{
         order_validator::OrderValidator,
         sim::SimValidation,
         state::{
-            db_state_utils::{nonces::Nonces, FetchUtils},
+            db_state_utils::{nonces::Nonces, AutoMaxFetchUtils},
             pools::AngstromPoolsTracker
         }
     },
@@ -43,7 +43,7 @@ pub struct TestOrderValidator<
     /// allows us to set values to ensure
     pub db:         Arc<DB>,
     pub client:     ValidationClient,
-    pub underlying: Validator<DB, AngstromPoolsTracker, FetchUtils<DB>>
+    pub underlying: Validator<DB, AngstromPoolsTracker, AutoMaxFetchUtils>
 }
 
 impl<
@@ -68,7 +68,7 @@ where
             Arc::new(AtomicU64::new(BlockNumReader::best_block_number(&db).unwrap()));
         let db = Arc::new(db);
 
-        let fetch = FetchUtils::new(angstrom_address, db.clone());
+        let fetch = AutoMaxFetchUtils;
         let pools = AngstromPoolsTracker::new(angstrom_address, pool_store);
 
         let handle = tokio::runtime::Handle::current();

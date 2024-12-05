@@ -123,6 +123,45 @@ impl<DB: revm::DatabaseRef> FetchUtils<DB> {
     }
 }
 
+#[derive(Clone)]
+pub struct AutoMaxFetchUtils;
+
+impl StateFetchUtils for AutoMaxFetchUtils {
+    fn is_valid_nonce(&self, _: Address, _: u64) -> bool {
+        true
+    }
+
+    fn fetch_approval_balance_for_token_overrides(
+        &self,
+        _: Address,
+        _: Address,
+        _: &HashMap<Address, HashMap<U256, U256>>
+    ) -> Option<U256> {
+        Some(U256::MAX)
+    }
+
+    fn fetch_approval_balance_for_token(&self, _: Address, _: Address) -> Option<U256> {
+        Some(U256::MAX)
+    }
+
+    fn fetch_balance_for_token_overrides(
+        &self,
+        _: Address,
+        _: Address,
+        _: &HashMap<Address, HashMap<U256, U256>>
+    ) -> Option<U256> {
+        Some(U256::MAX)
+    }
+
+    fn fetch_balance_for_token(&self, _: Address, _: Address) -> U256 {
+        U256::MAX
+    }
+
+    fn fetch_token_balance_in_angstrom(&self, _: Address, _: Address) -> U256 {
+        U256::MAX
+    }
+}
+
 #[cfg(test)]
 pub mod test_fetching {
     use std::collections::{HashMap, HashSet};
