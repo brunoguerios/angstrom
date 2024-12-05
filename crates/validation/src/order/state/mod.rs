@@ -84,8 +84,8 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                         o.try_map_inner(|inner| Ok(inner.into())).unwrap()
                     )
                 })
-                .unwrap_or_else(|_| {
-                    tracing::debug!("user acount tracker failed to validate order");
+                .unwrap_or_else(|e| {
+                    tracing::debug!(%e,"user acount tracker failed to validate order");
                     OrderValidationResults::Invalid(order_hash)
                 })
         })
