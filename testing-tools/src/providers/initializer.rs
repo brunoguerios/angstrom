@@ -232,7 +232,7 @@ impl AnvilInitializer {
         let tick = price.to_tick()?;
         for i in 0..100 {
             let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * i));
-            let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * i + 1));
+            let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * (i + 1)));
 
             tracing::debug!(?lower, ?upper, "add liq");
             let add_liq = self
