@@ -170,6 +170,7 @@ where
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
+        tracing::debug!("pool order validator");
         match this {
             OrderValidator::ClearingForNewBlock {
                 validator,
