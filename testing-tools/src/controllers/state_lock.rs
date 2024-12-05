@@ -20,13 +20,18 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use tokio::task::JoinHandle;
 use tracing::{span, Level};
 
-use crate::types::MockBlockSync;
+use crate::{
+    providers::{AnvilStateProvider, WalletProvider},
+    types::MockBlockSync,
+    validation::TestOrderValidator
+};
 
 pub(crate) struct TestnetStateFutureLock<C, T> {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C>>,
     strom_consensus:
-        StateLockInner<ConsensusManager<T, PubSubFrontend, MatcherHandle, MockBlockSync>>
+        StateLockInner<ConsensusManager<T, PubSubFrontend, MatcherHandle, MockBlockSync>>,
+    validation:            StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>
 }
 
 impl<C, T> TestnetStateFutureLock<C, T>
@@ -38,12 +43,14 @@ where
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C>,
-        consensus: ConsensusManager<T, PubSubFrontend, MatcherHandle, MockBlockSync>
+        consensus: ConsensusManager<T, PubSubFrontend, MatcherHandle, MockBlockSync>,
+        validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>
     ) -> Self {
         Self {
             eth_peer:              StateLockInner::new(node_id, eth_peer),
             strom_network_manager: StateLockInner::new(node_id, strom_network_manager),
-            strom_consensus:       StateLockInner::new(node_id, consensus)
+            strom_consensus:       StateLockInner::new(node_id, consensus),
+            validation:            StateLockInner::new(node_id, validation)
         }
     }
 
@@ -87,6 +94,10 @@ where
         F: FnOnce(&mut ConsensusManager<T, PubSubFrontend, MatcherHandle, MockBlockSync>) -> R
     {
         self.strom_consensus.on_inner_mut(f)
+    }
+
+    pub(crate) fn set_validation(&self, running: bool) {
+        self.validation.lock.store(running, Ordering::Relaxed);
     }
 
     pub(crate) fn set_network(&self, running: bool) {
@@ -158,6 +169,10 @@ where
         }
 
         if this.strom_consensus.fut.poll_unpin(cx).is_ready() {
+            return Poll::Ready(())
+        }
+
+        if this.validation.fut.poll_unpin(cx).is_ready() {
             return Poll::Ready(())
         }
 

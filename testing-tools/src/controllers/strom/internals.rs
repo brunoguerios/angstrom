@@ -47,8 +47,7 @@ pub struct AngstromDevnetNodeInternals<P> {
     pub order_storage:    Arc<OrderStorage>,
     pub pool_handle:      PoolHandle,
     pub tx_strom_handles: SendingStromHandles,
-    pub testnet_hub:      StromContractInstance,
-    pub validator:        TestOrderValidator<AnvilStateProvider<WalletProvider>>
+    pub testnet_hub:      StromContractInstance
 }
 
 impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
@@ -270,10 +269,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 order_storage,
                 pool_handle,
                 tx_strom_handles,
-                testnet_hub,
-                validator
+                testnet_hub
             },
-            consensus
+            consensus,
+            validator
         ))
     }
 }

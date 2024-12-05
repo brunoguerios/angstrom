@@ -106,9 +106,17 @@ where
             .get_nonce_word_slot(user, nonce)
             .into()
     }
+}
 
-    pub async fn run(self) {
-        self.underlying.await
+impl<DB> Future for TestOrderValidator<DB>
+where
+    DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static,
+    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug + Unpin
+{
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        self.underlying.poll_unpin(cx)
     }
 }
 

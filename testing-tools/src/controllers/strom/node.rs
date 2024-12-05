@@ -87,7 +87,7 @@ where
         )
         .await;
 
-        let (strom, consensus) = AngstromDevnetNodeInternals::new(
+        let (strom, consensus, validation) = AngstromDevnetNodeInternals::new(
             node_config.clone(),
             state_provider,
             strom_handles,
@@ -105,7 +105,8 @@ where
             node_config.node_id,
             eth_peer,
             strom_network_manager,
-            consensus
+            consensus,
+            validation
         );
 
         Ok(Self { testnet_node_id: node_config.node_id, network: strom_network, strom, state_lock })
@@ -224,9 +225,10 @@ where
         !self.state_lock.network_state()
     }
 
-    pub fn start_network_and_consensus(&self) {
+    pub fn start_network_and_consensus_and_validation(&self) {
         self.start_network();
         self.start_conensus();
+        self.state_lock.set_validation(true);
     }
 
     pub fn stop_network_and_consensus(&self) {
@@ -350,8 +352,7 @@ where
     }
 
     pub(crate) async fn testnet_future(self) {
-        tokio::spawn(self.strom.validator.run());
-        self.start_network_and_consensus();
+        self.start_network_and_consensus_and_validation();
         self.state_lock.await;
     }
 }
