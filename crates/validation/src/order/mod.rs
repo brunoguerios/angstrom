@@ -97,7 +97,7 @@ impl OrderValidationResults {
             + reth_provider::BlockNumReader
             + Send
             + Sync,
-        <DB as revm::DatabaseRef>::Error: Send + Sync
+        <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
     {
         // TODO: this can be done without a clone but is super annoying
         let this = self.clone();
