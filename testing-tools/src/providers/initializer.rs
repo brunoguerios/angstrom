@@ -184,8 +184,6 @@ impl AnvilInitializer {
         price: SqrtPriceX96,
         store_index: U256
     ) -> eyre::Result<()> {
-        // set bytecode to mock erc20
-
         let nonce = self
             .provider
             .provider
@@ -236,7 +234,8 @@ impl AnvilInitializer {
         let tick = price.to_tick()?;
         let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * 500));
         let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * 500));
-        tracing::debug!("add liq");
+
+        tracing::debug!(?lower, ?upper, "add liq");
         let _ = self
             .pool_gate
             .addLiquidity(
