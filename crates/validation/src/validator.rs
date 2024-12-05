@@ -60,13 +60,17 @@ where
 
     fn on_new_validation_request(&mut self, req: ValidationRequest) {
         match req {
-            ValidationRequest::Order(order) => self.order_validator.validate_order(
-                order,
-                self.utils.token_pricing_snapshot(),
-                &mut self.utils.thread_pool,
-                self.utils.metrics.clone()
-            ),
+            ValidationRequest::Order(order) => {
+                tracing::debug!("starting validation of order");
+                self.order_validator.validate_order(
+                    order,
+                    self.utils.token_pricing_snapshot(),
+                    &mut self.utils.thread_pool,
+                    self.utils.metrics.clone()
+                )
+            }
             ValidationRequest::Bundle { sender, bundle } => {
+                tracing::debug!("simulating bundle");
                 self.bundle_validator.simulate_bundle(
                     sender,
                     bundle,
@@ -76,6 +80,7 @@ where
                 );
             }
             ValidationRequest::NewBlock { sender, block_number, orders, addresses } => {
+                tracing::debug!("transitioning to new block");
                 self.utils.metrics.eth_transition_updates(|| {
                     self.order_validator
                         .on_new_block(block_number, orders, addresses);

@@ -467,12 +467,13 @@ where
         if this.global_sync.can_operate() {
             // drain commands
             while let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
-                tracing::debug!(?cmd, "that was a command");
+                tracing::debug!(?cmd, "recieved a order command");
                 this.on_command(cmd);
             }
 
             // drain incoming transaction events
             while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
+                tracing::debug!(?event, "received orders from network");
                 this.on_network_order_event(event);
             }
         }

@@ -213,9 +213,15 @@ where
                 cx.waker().wake_by_ref();
                 Poll::Pending
             }
-            OrderValidator::RegularProcessing { remaining_futures, .. } => remaining_futures
-                .poll_next_unpin(cx)
-                .map(|inner| inner.map(OrderValidatorRes::ValidatedOrder))
+            OrderValidator::RegularProcessing { remaining_futures, .. } => {
+                remaining_futures.poll_next_unpin(cx).map(|inner| {
+                    inner
+                        .map(OrderValidatorRes::ValidatedOrder)
+                        .inspect(|order| {
+                            tracing::debug!(?order, "order has been validated");
+                        })
+                })
+            }
         }
     }
 }
