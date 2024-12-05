@@ -6,6 +6,7 @@ use angstrom_types::{
 };
 use rand::Rng;
 use tracing::info;
+use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
 
 use crate::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
@@ -26,6 +27,7 @@ impl OrderBuilder {
 
         // convert price to sqrtx96
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
+        let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
         let sqrt_price = pool.sqrt_price;
 
         let zfo = sqrt_price > price;
@@ -67,11 +69,16 @@ impl OrderBuilder {
         let is_partial = rng.gen_bool(partial_pct);
 
         let pool = self.pool_data.read().unwrap();
-        let p_price = pool.calculate_price();
         let unshifted_price = Ray::from(pool.calculate_price_unshifted());
         // if the pool price > than price we want. given t1 / t0 -> more t0 less t1 ->
         // cur_price
-        let zfo = p_price < cur_price;
+
+        let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
+        let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
+        let sqrt_price = pool.sqrt_price;
+
+        let zfo = sqrt_price > price;
+
         let token0 = pool.token_a;
         let token1 = pool.token_b;
 
@@ -88,7 +95,7 @@ impl OrderBuilder {
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
 
-        info!(%amount_in, %amount_out, %cur_price, pool_price=%p_price, "tob order builder");
+        info!(%amount_in, %amount_out, %cur_price, "tob order builder");
 
         // 50% amount range
         let modifier = rng.gen_range(0.5..=1.5);
