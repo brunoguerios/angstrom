@@ -80,6 +80,12 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
             .find(|tx| tx.to == Some(self.angstrom_contract))
         else {
             tracing::info!("No angstrom txs found");
+            self.send_events(EthEvent::NewBlockTransitions {
+                block_number:      block.0,
+                filled_orders:     vec![],
+                address_changeset: vec![]
+            });
+
             return
         };
         let input = angstrom_tx.input;
