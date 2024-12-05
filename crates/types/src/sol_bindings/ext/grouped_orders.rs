@@ -744,7 +744,7 @@ impl RawPoolOrder for PartialFlashOrder {
         let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
-        sig.recover_address_from_msg(hash)
+        sig.recover_address_from_prehash(&hash)
             .map(|addr| addr == self.meta.from)
             .unwrap_or_default()
     }
