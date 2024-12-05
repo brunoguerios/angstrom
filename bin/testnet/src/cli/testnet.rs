@@ -70,8 +70,6 @@ impl TryInto<Vec<PartialConfigPoolKey>> for AllPoolKeyInners {
         keys.into_iter()
             .map(|key| {
                 Ok::<_, eyre::ErrReport>(PartialConfigPoolKey::new(
-                    key.currency0.parse()?,
-                    key.currency1.parse()?,
                     key.fee,
                     key.tick_spacing,
                     key.liquidity.parse()?,
@@ -84,8 +82,8 @@ impl TryInto<Vec<PartialConfigPoolKey>> for AllPoolKeyInners {
 
 #[derive(Debug, Clone, Deserialize)]
 struct PoolKeyInner {
-    currency0:    String,
-    currency1:    String,
+    // currency0:    String,
+    // currency1:    String,
     fee:          u64,
     tick_spacing: i32,
     liquidity:    String,

@@ -122,11 +122,14 @@ where
 impl<T, P, C, N> SafeDeployPending for SolCallBuilder<T, P, C, N>
 where
     T: Transport + Clone,
-    P: Provider<T, N>,
-    C: SolCall + Send + Sync,
+    P: Provider<T, N> + Clone,
+    C: SolCall + Send + Sync + Clone,
     N: Network
 {
     async fn deploy_pending(self) -> eyre::Result<PendingTransaction> {
+        // check to see if transaction will pass first. else error
+        let _ = self.clone().gas(50e6 as u64).call_raw().await?;
+
         Ok(self.gas(50e6 as u64).send().await?.register().await?)
     }
 

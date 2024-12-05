@@ -1,20 +1,19 @@
 use alloy::{
     node_bindings::AnvilInstance,
-    primitives::keccak256,
+    primitives::{
+        aliases::{I24, U24},
+        keccak256, Address
+    },
     providers::{ext::AnvilApi, Provider},
     pubsub::PubSubFrontend
 };
-use alloy_primitives::{
-    aliases::{I24, U24},
-    FixedBytes, U256
-};
+use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
 use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance,
-        pool_manager::PoolManager::PoolManagerInstance
+        pool_gate::PoolGate::PoolGateInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
@@ -39,7 +38,6 @@ use crate::{
 
 pub struct AnvilInitializer {
     provider:      WalletProvider,
-    uniswap_env:   PoolManagerInstance<PubSubFrontend, WalletProviderRpc>,
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
     angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
@@ -65,12 +63,9 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let uniswap_env =
-            PoolManagerInstance::new(angstrom_env.pool_manager(), angstrom_env.provider().clone());
-
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state, uniswap_env };
+        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state };
 
         Ok((this, anvil))
     }
@@ -81,8 +76,9 @@ impl AnvilInitializer {
         pool_keys: Vec<PartialConfigPoolKey>
     ) -> eyre::Result<()> {
         for (i, key) in pool_keys.into_iter().enumerate() {
+            let (cur0, cur1) = self.deploy_currencies(&key).await?;
             self.deploy_pool_full(
-                key.make_pool_key(*self.angstrom.address()),
+                key.make_pool_key(*self.angstrom.address(), cur0, cur1),
                 key.initial_liquidity(),
                 key.sqrt_price(),
                 U256::from(i)
@@ -91,6 +87,47 @@ impl AnvilInitializer {
         }
 
         Ok(())
+    }
+
+    pub async fn deploy_currencies(
+        &mut self,
+        c: &PartialConfigPoolKey
+    ) -> eyre::Result<(Address, Address)> {
+        let nonce = self
+            .provider
+            .provider
+            .get_transaction_count(self.provider.controller())
+            .await?;
+
+        let (first_token_tx, first_token) =
+            MintableMockERC20::deploy_builder(self.provider.provider_ref())
+                .deploy_pending_creation(nonce, self.provider.controller())
+                .await?;
+        self.pending_state.add_pending_tx(first_token_tx);
+
+        let (second_token_tx, second_token) =
+            MintableMockERC20::deploy_builder(self.provider.provider_ref())
+                .deploy_pending_creation(nonce + 1, self.provider.controller())
+                .await?;
+        self.pending_state.add_pending_tx(second_token_tx);
+
+        let (currency0, currency1) = if first_token < second_token {
+            (first_token, second_token)
+        } else {
+            (second_token, first_token)
+        };
+
+        let pool_key = PoolKey {
+            currency0,
+            currency1,
+            fee: U24::from(c.fee),
+            tickSpacing: I24::unchecked_from(c.tick_spacing),
+            hooks: *self.angstrom.address()
+        };
+        self.pending_state.add_pool_key(pool_key.clone());
+        self.pending_state.finalize_pending_txs().await?;
+
+        Ok((currency0, currency1))
     }
 
     /// deploys tokens, a uniV4 pool, angstrom pool
@@ -145,6 +182,8 @@ impl AnvilInitializer {
         price: SqrtPriceX96,
         store_index: U256
     ) -> eyre::Result<()> {
+        // set bytecode to mock erc20
+
         let nonce = self
             .provider
             .provider
@@ -155,7 +194,8 @@ impl AnvilInitializer {
         let encoded = keccak256(pool_key.abi_encode());
         tracing::info!(?pool_key, ?encoded, ?price);
 
-        let configure_pool = self
+        tracing::debug!("configuring pool");
+        let _ = self
             .angstrom
             .configurePool(
                 pool_key.currency0,
@@ -166,61 +206,52 @@ impl AnvilInitializer {
             .from(self.provider.controller())
             .nonce(nonce)
             .deploy_pending()
+            .await?
             .await?;
 
-        self.pending_state.add_pending_tx(configure_pool);
+        // self.pending_state.add_pending_tx(configure_pool);
 
-        let init_pool = self
-            .angstrom
+        tracing::debug!("initializing pool");
+        self.angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
             .deploy_pending()
+            .await?
             .await?;
 
-        self.pending_state.add_pending_tx(init_pool);
-        let this_pool_key = angstrom_types::contract_bindings::pool_manager::PoolManager::PoolKey {
-            currency0:   pool_key.currency0,
-            currency1:   pool_key.currency1,
-            tickSpacing: pool_key.tickSpacing,
-            fee:         pool_key.fee,
-            hooks:       pool_key.hooks
-        };
-
-        let uniwap_init = self
-            .uniswap_env
-            .initialize(this_pool_key, *price)
-            .from(self.provider.controller())
-            .nonce(nonce + 2)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(uniwap_init);
-
-        let pool_gate = self
+        tracing::debug!("tick spacing");
+        let _ = self
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            .nonce(nonce + 3)
+            .nonce(nonce + 2)
             .deploy_pending()
+            .await?
             .await?;
-        self.pending_state.add_pending_tx(pool_gate);
+        // self.pending_state.add_pending_tx(pool_gate);
 
-        let add_liq = self
+        let tick = price.to_tick()?;
+        let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * 500));
+        let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * 500));
+        tracing::debug!("add liq");
+        let _ = self
             .pool_gate
             .addLiquidity(
                 pool_key.currency0,
                 pool_key.currency1,
-                I24::MIN,
-                I24::MAX,
+                lower,
+                upper,
                 U256::from(liquidity),
                 FixedBytes::<32>::default()
             )
             .from(self.provider.controller())
-            .nonce(nonce + 4)
+            .nonce(nonce + 3)
             .deploy_pending()
+            .await?
             .await?;
 
-        self.pending_state.add_pending_tx(add_liq);
+        // self.pending_state.add_pending_tx(add_liq);
 
         Ok(())
     }
@@ -235,12 +266,14 @@ impl AnvilInitializer {
             Some(state_bytes),
             pool_keys.clone()
         );
+
         for key in pool_keys {
             let out = self
                 .pool_gate
                 .isInitialized(key.currency0, key.currency1)
                 .call()
                 .await?;
+
             if !out._0 {
                 tracing::warn!(?key, "pool is still not initalized, even after deploying state");
             }
