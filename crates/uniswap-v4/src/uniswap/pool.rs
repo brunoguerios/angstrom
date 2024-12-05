@@ -39,7 +39,7 @@ pub struct TickInfo {
 }
 
 // at around 190 is when "max code size exceeded" comes up
-const MAX_TICKS_PER_REQUEST: u16 = 150;
+// const MAX_TICKS_PER_REQUEST: u16 = 150;
 
 pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
@@ -180,7 +180,7 @@ where
                 i32_to_i24(start_tick)?,
                 false,
                 total_ticks_to_fetch,
-                None,
+                block_number,
                 provider.clone()
             )
             .await?
