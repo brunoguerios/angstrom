@@ -23,13 +23,12 @@ impl OrderBuilder {
 
     pub fn build_tob_order(&self, cur_price: f64, block_number: u64) -> TopOfBlockOrder {
         let pool = self.pool_data.read().unwrap();
-        let p_price = pool.calculate_price();
-        // if the pool price > than price we want. given t1 / t0 -> more t0 less t1 ->
-        // cur_price
-        let zfo = p_price < cur_price;
 
         // convert price to sqrtx96
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
+        let sqrt_price = pool.sqrt_price;
+
+        let zfo = sqrt_price < price;
 
         let token0 = pool.token_a;
         let token1 = pool.token_b;
@@ -40,6 +39,7 @@ impl OrderBuilder {
         // want to swap to SqrtPriceX96. we set amount to negative so it will
         // just fil till we hit limit.
         info!(?price, "generating tob with price");
+
         let (amount_in, amount_out) = pool
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
@@ -47,7 +47,7 @@ impl OrderBuilder {
 
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
-        info!(%amount_in, %amount_out, %cur_price, pool_price=%p_price, "tob order builder");
+        info!(%amount_in, %amount_out, %cur_price,  "tob order builder");
         let mut rng = rand::thread_rng();
 
         ToBOrderBuilder::new()
