@@ -73,6 +73,7 @@ impl ProposalState {
         T: Transport + Clone,
         Matching: MatchingEngineHandle
     {
+        tracing::debug!("starting to build proposal");
         let Ok((pool_solution, gas_info)) = result else {
             tracing::error!(
                 "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
@@ -106,11 +107,13 @@ impl ProposalState {
         let signer = handles.signer.clone();
 
         let submission_future = async move {
+            tracing::info!("building bundle");
             provider
                 .populate_gas_nonce_chain_id(signer.address(), &mut tx)
                 .await;
 
             let (hash, success) = provider.sign_and_send(signer, tx).await;
+            tracing::info!("submitted bundle");
             if !success {
                 return false
             }
