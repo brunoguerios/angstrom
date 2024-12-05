@@ -97,7 +97,7 @@ impl OrderValidationResults {
             + reth_provider::BlockNumReader
             + Send
             + Sync,
-        <DB as revm::DatabaseRef>::Error: Send + Sync
+        <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
     {
         // TODO: this can be done without a clone but is super annoying
         let this = self.clone();
@@ -120,7 +120,8 @@ impl OrderValidationResults {
                     SimValidation::calculate_user_gas
                 );
 
-                if res.is_err() {
+                if let Err(e) = res {
+                    tracing::info!(%e, "failed to add gas to order");
                     *self = OrderValidationResults::Invalid(order_hash);
 
                     return
@@ -139,7 +140,8 @@ impl OrderValidationResults {
                     AllOrders::TOB,
                     SimValidation::calculate_tob_gas
                 );
-                if res.is_err() {
+                if let Err(e) = res {
+                    tracing::info!(%e, "failed to add gas to order");
                     *self = OrderValidationResults::Invalid(order_hash);
 
                     return
@@ -173,12 +175,9 @@ impl OrderValidationResults {
             .try_map_inner(move |order| Ok(map_new(order)))
             .unwrap();
 
-        if let Ok((gas_units, gas_used)) = (calculate_function)(sim, &order, token_price) {
-            order.priority_data.gas += gas_used;
-            order.priority_data.gas_units = gas_units;
-        } else {
-            return Err(eyre::eyre!("not able to process gas"))
-        }
+        let (gas_units, gas_used) = (calculate_function)(sim, &order, token_price)?;
+        order.priority_data.gas += gas_used;
+        order.priority_data.gas_units = gas_units;
 
         order.try_map_inner(move |new_order| Ok(map_old(new_order)))
     }

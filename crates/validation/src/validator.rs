@@ -67,6 +67,7 @@ where
                 self.utils.metrics.clone()
             ),
             ValidationRequest::Bundle { sender, bundle } => {
+                tracing::debug!("simulating bundle");
                 self.bundle_validator.simulate_bundle(
                     sender,
                     bundle,
@@ -76,6 +77,7 @@ where
                 );
             }
             ValidationRequest::NewBlock { sender, block_number, orders, addresses } => {
+                tracing::debug!("transitioning to new block");
                 self.utils.metrics.eth_transition_updates(|| {
                     self.order_validator
                         .on_new_block(block_number, orders, addresses);

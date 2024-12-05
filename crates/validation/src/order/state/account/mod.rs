@@ -51,8 +51,9 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 }
             }
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(order_block) => {
-                if block != order_block {
-                    return Err(UserAccountVerificationError::BadBlock)
+                // order should be for block + 1
+                if block + 1 != order_block {
+                    return Err(UserAccountVerificationError::BadBlock(block + 1, order_block))
                 }
             }
         }
@@ -135,8 +136,8 @@ pub enum UserAccountVerificationError<O: RawPoolOrder> {
     OrderIsCancelled(B256),
     #[error("Nonce exists for a current order hash: {0:?}")]
     DuplicateNonce(B256),
-    #[error("block for flash order is not current block")]
-    BadBlock
+    #[error("block for flash order is not for next block. next_block: {0}, requested_block: {1}.")]
+    BadBlock(u64, u64)
 }
 
 #[cfg(test)]

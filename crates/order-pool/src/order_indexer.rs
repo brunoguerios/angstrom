@@ -301,6 +301,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 .or_default()
                 .push(validation_tx);
         }
+
         self.validator.validate_order(origin, order);
     }
 
@@ -562,6 +563,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .as_secs();
         self.cancelled_orders
             .retain(|_, request| request.valid_until >= time_now);
+
         self.validator.notify_validation_on_changes(
             block_number,
             completed_orders,
@@ -582,6 +584,9 @@ where
         while let Poll::Ready(Some(next)) = self.validator.poll_next_unpin(cx) {
             match next {
                 OrderValidatorRes::EnsureClearForTransition { block, orders, addresses } => {
+                    tracing::info!(
+                        "ensure clear for transition. pruning all old + invalid txes from the pool"
+                    );
                     self.finish_new_block_processing(block, orders, addresses);
                 }
                 OrderValidatorRes::ValidatedOrder(next) => {

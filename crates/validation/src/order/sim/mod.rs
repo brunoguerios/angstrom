@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use alloy::primitives::Address;
 use angstrom_metrics::validation::ValidationMetrics;
@@ -26,7 +26,7 @@ pub struct SimValidation<DB> {
 impl<DB> SimValidation<DB>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Send + Sync,
-    <DB as revm::DatabaseRef>::Error: Send + Sync
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     pub fn new(db: Arc<DB>, angstrom_address: Address) -> Self {
         let gas_calculator = OrderGasCalculations::new(db.clone(), Some(angstrom_address))

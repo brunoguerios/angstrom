@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
     primitives::{address, keccak256, Address, TxKind, B256, U160, U256},
@@ -48,7 +48,7 @@ pub struct OrderGasCalculations<DB> {
 impl<DB> OrderGasCalculations<DB>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + BlockNumReader,
-    <DB as revm::DatabaseRef>::Error: Send + Sync
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     pub fn new(db: Arc<DB>, angstrom_address: Option<Address>) -> eyre::Result<Self> {
         if let Some(angstrom_address) = angstrom_address {
@@ -69,7 +69,7 @@ where
             &HashMap::default(),
             OverridesForTestAngstrom {
                 amount_in:    U256::from(tob.amount_in()),
-                amount_out:   U256::from(tob.amount_out_min()),
+                amount_out:   U256::from(tob.quantity_out),
                 token_out:    tob.token_out(),
                 token_in:     tob.token_in(),
                 user_address: tob.from()
@@ -101,7 +101,8 @@ where
             &HashMap::default(),
             OverridesForTestAngstrom {
                 amount_in:    U256::from(order.amount_in()),
-                amount_out:   U256::from(order.amount_out_min()),
+                // TODO: fix
+                amount_out:   U256::from(order.amount_in()),
                 token_out:    order.token_out(),
                 token_in:     order.token_in(),
                 user_address: order.from()
@@ -128,7 +129,7 @@ where
     fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) -> eyre::Result<(ResultAndState, D)>
     where
         F: FnOnce(&mut TxEnv),
-        <D as revm::DatabaseRef>::Error: Send + Sync
+        <D as revm::DatabaseRef>::Error: Send + Sync + Debug
     {
         let evm_handler = EnvWithHandlerCfg::default();
         let mut revm_sim = revm::Evm::builder()
@@ -246,11 +247,11 @@ where
 
             cache_db
                 .insert_account_storage(token_out, balance_amount_out_slot.into(), amount_out)
-                .map_err(|_| eyre!("failed to insert account into storage"))?;
+                .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
 
             cache_db
                 .insert_account_storage(token_in, approval_slot.into(), amount_in)
-                .map_err(|_| eyre!("failed to insert account into storage"))?;
+                .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
         }
 
         Ok(cache_db)
@@ -283,11 +284,13 @@ where
 
             let result = evm
                 .transact()
-                .map_err(|_| eyre!("failed to transact with revm"))?;
+                .map_err(|e| eyre!("failed to transact with revm: {e:?}"))?;
 
             if !result.result.is_success() {
                 return Err(eyre::eyre!(
-                    "gas simulation had a revert. cannot guarantee the proper gas was estimated"
+                    "gas simulation had a revert. cannot guarantee the proper gas was estimated \
+                     err={:?}",
+                    result.result
                 ))
             }
         }

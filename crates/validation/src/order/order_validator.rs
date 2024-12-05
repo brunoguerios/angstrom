@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     pin::Pin,
     sync::{atomic::AtomicU64, Arc}
 };
@@ -31,7 +32,7 @@ pub struct OrderValidator<DB, Pools, Fetch> {
 impl<DB, Pools, Fetch> OrderValidator<DB, Pools, Fetch>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Sync + Send,
-    <DB as revm::DatabaseRef>::Error: Send + Sync,
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
     Pools: PoolsTracker + Send + Sync + 'static,
     Fetch: StateFetchUtils + Send + Sync + 'static
 {

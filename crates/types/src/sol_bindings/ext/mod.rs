@@ -21,9 +21,6 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     /// Amount of tokens to sell
     fn amount_in(&self) -> u128;
 
-    /// Min amount of tokens to buy
-    fn amount_out_min(&self) -> u128;
-
     /// Limit Price
     fn limit_price(&self) -> U256;
 

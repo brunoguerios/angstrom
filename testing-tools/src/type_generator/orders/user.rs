@@ -105,19 +105,17 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     amount: self.amount,
+                    max_extra_fee_asset0: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     nonce: self.nonce,
                     exact_in: self.exact_in,
+
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("ExactStandingOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
-                    println!("Signature debug: {:?}", sig);
                     order.meta = OrderMeta {
                         isEcdsa:   true,
                         from:      signer.address(),
@@ -131,15 +129,13 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
+                    max_extra_fee_asset0: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("PartialStandingOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,
@@ -154,6 +150,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
+                    max_extra_fee_asset0: self.amount,
                     amount: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -162,9 +159,6 @@ impl UserOrderBuilder {
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("ExactFlashOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,
@@ -179,6 +173,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
+                    max_extra_fee_asset0: self.amount,
                     max_amount_in: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -186,10 +181,6 @@ impl UserOrderBuilder {
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("PartialFlashOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("PartialFlashorder Typestring:\n{}", order.eip712_encode_type());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,

@@ -16,7 +16,7 @@ use testing_tools::{
         config::DevnetConfig
     }
 };
-use tracing::{debug, info};
+use tracing::{debug, info, span, Instrument, Level};
 
 use crate::cli::e2e_orders::End2EndOrdersCli;
 
@@ -58,30 +58,33 @@ fn end_to_end_agent<'a>(
                     | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
                 });
 
-        tokio::spawn(async move {
-            let rpc_address = format!("http://{}", agent_config.rpc_address);
-            let client = HttpClient::builder().build(rpc_address).unwrap();
-            tracing::info!("waiting for new block");
-            while let Some(block_number) = stream.next().await {
-                generator.new_block(block_number);
-                let new_orders = generator.generate_orders();
-                tracing::info!("generated new orders. submitting to rpc");
+        tokio::spawn(
+            async move {
+                let rpc_address = format!("http://{}", agent_config.rpc_address);
+                let client = HttpClient::builder().build(rpc_address).unwrap();
+                tracing::info!("waiting for new block");
+                while let Some(block_number) = stream.next().await {
+                    generator.new_block(block_number);
+                    let new_orders = generator.generate_orders();
+                    tracing::info!("generated new orders. submitting to rpc");
 
-                for orders in new_orders {
-                    let GeneratedPoolOrders { pool_id, tob, book } = orders;
-                    let all_orders = book
-                        .into_iter()
-                        .map(Into::into)
-                        .chain(vec![tob.into()])
-                        .collect::<Vec<AllOrders>>();
+                    for orders in new_orders {
+                        let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                        let all_orders = book
+                            .into_iter()
+                            .map(Into::into)
+                            .chain(vec![tob.into()])
+                            .collect::<Vec<AllOrders>>();
 
-                    let order_res = client
-                        .send_orders(all_orders)
-                        .await
-                        .expect("failed to send orders");
+                        let order_res = client
+                            .send_orders(all_orders)
+                            .await
+                            .expect("failed to send orders");
+                    }
                 }
             }
-        });
+            .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))
+        );
 
         Ok(())
     }) as Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>

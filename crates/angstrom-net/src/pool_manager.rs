@@ -326,7 +326,7 @@ where
         }
     }
 
-    fn on_eth_event(&mut self, eth: EthEvent, waker: impl FnOnce() -> Waker) {
+    fn on_eth_event(&mut self, eth: EthEvent, waker: Waker) {
         match eth {
             EthEvent::NewBlockTransitions { block_number, filled_orders, address_changeset } => {
                 self.order_indexer.start_new_block_processing(
@@ -334,11 +334,12 @@ where
                     filled_orders,
                     address_changeset
                 );
+                waker.clone().wake_by_ref();
             }
             EthEvent::ReorgedOrders(orders, range) => {
                 self.order_indexer.reorg(orders);
                 self.global_sync
-                    .sign_off_reorg(MODULE_NAME, range, Some(waker()))
+                    .sign_off_reorg(MODULE_NAME, range, Some(waker))
             }
             EthEvent::FinalizedBlock(block) => {
                 self.order_indexer.finalized_block(block);
@@ -450,7 +451,7 @@ where
 
         // pull all eth events
         while let Poll::Ready(Some(eth)) = this.eth_network_events.poll_next_unpin(cx) {
-            this.on_eth_event(eth, || cx.waker().clone());
+            this.on_eth_event(eth, cx.waker().clone());
         }
 
         // drain network/peer related events
@@ -467,13 +468,15 @@ where
         if this.global_sync.can_operate() {
             // drain commands
             while let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
-                tracing::debug!(?cmd, "that was a command");
                 this.on_command(cmd);
+                cx.waker().wake_by_ref();
             }
 
             // drain incoming transaction events
             while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
+                tracing::debug!(?event, "received orders from network");
                 this.on_network_order_event(event);
+                cx.waker().wake_by_ref();
             }
         }
 

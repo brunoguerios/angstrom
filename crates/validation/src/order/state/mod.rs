@@ -68,10 +68,12 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         metrics.applying_state_transitions(|| {
             let order_hash = order.order_hash();
             if !order.is_valid_signature() {
+                tracing::debug!("order had invalid hash");
                 return OrderValidationResults::Invalid(order_hash)
             }
 
             let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {
+                tracing::debug!("order requested a invalid pool");
                 return OrderValidationResults::Invalid(order_hash);
             };
 
@@ -82,7 +84,10 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                         o.try_map_inner(|inner| Ok(inner.into())).unwrap()
                     )
                 })
-                .unwrap_or_else(|_| OrderValidationResults::Invalid(order_hash))
+                .unwrap_or_else(|e| {
+                    tracing::debug!(%e,"user acount tracker failed to validate order");
+                    OrderValidationResults::Invalid(order_hash)
+                })
         })
     }
 

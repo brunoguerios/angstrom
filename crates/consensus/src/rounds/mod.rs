@@ -115,6 +115,7 @@ where
             .current_state
             .poll_transition(&mut this.shared_state, cx)
         {
+            tracing::info!("transitioning to new round state");
             this.current_state = transitioned_state;
         }
 

@@ -232,7 +232,6 @@ impl AnvilInitializer {
             let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
             let upper = lower + pool_key.tickSpacing;
 
-            tracing::debug!(?lower, ?upper, "add liq");
             let add_liq = self
                 .pool_gate
                 .addLiquidity(

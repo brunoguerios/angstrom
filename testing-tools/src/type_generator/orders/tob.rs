@@ -57,15 +57,12 @@ impl ToBOrderBuilder {
             quantity_out: self.quantity_out.unwrap_or_default(),
             valid_for_block: self.valid_block.unwrap_or_default(),
             recipient: self.recipient.unwrap_or_else(|| Address::random()),
+            max_gas_asset0: self.quantity_in.unwrap_or_default(),
             ..Default::default()
         };
         if let Some(signer) = self.signing_key {
             let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-            println!("Typehash: {:?}", order.eip712_type_hash());
-            println!("Hash debug {:?}", hash);
-            println!("Alt hash debug: {:?}", order.eip712_hash_struct());
             let sig = signer.sign_hash_sync(&hash).unwrap();
-            println!("Signature debug: {:?}", sig);
             order.meta = OrderMeta {
                 isEcdsa:   true,
                 from:      signer.address(),

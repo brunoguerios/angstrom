@@ -22,7 +22,7 @@ use validation::{
         order_validator::OrderValidator,
         sim::SimValidation,
         state::{
-            db_state_utils::{nonces::Nonces, FetchUtils},
+            db_state_utils::{nonces::Nonces, AutoMaxFetchUtils},
             pools::AngstromPoolsTracker
         }
     },
@@ -42,7 +42,7 @@ where
     /// allows us to set values to ensure
     pub db:         Arc<DB>,
     pub client:     ValidationClient,
-    pub underlying: Validator<DB, AngstromPoolsTracker, FetchUtils<DB>>
+    pub underlying: Validator<DB, AngstromPoolsTracker, AutoMaxFetchUtils>
 }
 
 impl<DB> TestOrderValidator<DB>
@@ -65,7 +65,7 @@ where
         let current_block = Arc::new(AtomicU64::new(BlockNumReader::best_block_number(&db)?));
         let db = Arc::new(db);
 
-        let fetch = FetchUtils::new(angstrom_address, db.clone());
+        let fetch = AutoMaxFetchUtils;
 
         let handle = tokio::runtime::Handle::current();
         let thread_pool = KeySplitThreadpool::new(handle, 3);
@@ -100,6 +100,18 @@ where
         Nonces::new(Address::default())
             .get_nonce_word_slot(user, nonce)
             .into()
+    }
+}
+
+impl<DB> Future for TestOrderValidator<DB>
+where
+    DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static,
+    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug + Unpin
+{
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        self.underlying.poll_unpin(cx)
     }
 }
 

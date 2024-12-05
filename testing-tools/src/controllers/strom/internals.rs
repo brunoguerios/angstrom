@@ -47,8 +47,7 @@ pub struct AngstromDevnetNodeInternals<P> {
     pub order_storage:    Arc<OrderStorage>,
     pub pool_handle:      PoolHandle,
     pub tx_strom_handles: SendingStromHandles,
-    pub testnet_hub:      StromContractInstance,
-    pub validator:        TestOrderValidator<AnvilStateProvider<WalletProvider>>
+    pub testnet_hub:      StromContractInstance
 }
 
 impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
@@ -63,7 +62,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         agents: Vec<F>
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>,
+        TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where
         F: for<'a> Fn(
@@ -248,6 +248,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         // init agents
         let agent_config = AgentConfig {
             uniswap_pools,
+            agent_id: node_config.node_id,
             rpc_address: addr,
             current_block: block_number,
             state_provider: state_provider.state_provider()
@@ -270,10 +271,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 order_storage,
                 pool_handle,
                 tx_strom_handles,
-                testnet_hub,
-                validator
+                testnet_hub
             },
-            consensus
+            consensus,
+            validator
         ))
     }
 }
