@@ -232,8 +232,8 @@ impl AnvilInitializer {
         // self.pending_state.add_pending_tx(pool_gate);
 
         let tick = price.to_tick()?;
-        let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * 500));
-        let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * 500));
+        let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * 200));
+        let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * 200));
 
         tracing::debug!(?lower, ?upper, "add liq");
         let _ = self
