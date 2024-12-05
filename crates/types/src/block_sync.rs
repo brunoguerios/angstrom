@@ -80,6 +80,10 @@ impl GlobalBlockSync {
     fn proper_proposal(&self, proposal: &GlobalBlockState) -> bool {
         self.pending_state.read().unwrap().contains(proposal)
     }
+
+    pub fn clear(&self) {
+        self.pending_state.write().unwrap().clear();
+    }
 }
 impl BlockSyncProducer for GlobalBlockSync {
     fn new_block(&self, block_number: u64) {

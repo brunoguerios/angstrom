@@ -7,7 +7,7 @@ use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
-    block_sync::GlobalBlockSync,
+    block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
     pair_with_price::PairsWithPrice,
@@ -59,7 +59,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         initial_validators: Vec<AngstromValidator>,
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState,
-        agents: Vec<F>
+        agents: Vec<F>,
+        block_sync: GlobalBlockSync
     ) -> eyre::Result<(
         Self,
         ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>,
@@ -99,6 +100,9 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         };
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
+        block_sync.new_block(block_number);
+        block_sync.clear();
+
         let block_sync = GlobalBlockSync::new(block_number);
 
         let eth_handle = AnvilEthDataCleanser::spawn(

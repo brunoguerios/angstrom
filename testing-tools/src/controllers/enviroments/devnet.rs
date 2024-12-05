@@ -2,7 +2,7 @@ use std::{collections::HashSet, pin::Pin};
 
 use alloy::providers::ext::AnvilApi;
 use alloy_primitives::U256;
-use angstrom_types::testnet::InitialTestnetState;
+use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::Future;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
@@ -68,10 +68,15 @@ where
 
         for node_config in configs {
             let node_id = node_config.node_id;
+            let block_sync = GlobalBlockSync::new(0);
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
-                let mut initializer =
-                    AnvilProvider::new(AnvilInitializer::new(node_config.clone()), false).await?;
+                let mut initializer = AnvilProvider::new(
+                    AnvilInitializer::new(node_config.clone()),
+                    false,
+                    block_sync.clone()
+                )
+                .await?;
                 let provider = initializer.provider_mut().provider_mut();
                 let initial_state = provider.initialize_state().await?;
                 initial_angstrom_state = Some(initial_state);
@@ -84,8 +89,12 @@ where
             } else {
                 tracing::info!(?node_id, "default init");
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
-                let provider =
-                    AnvilProvider::new(WalletProvider::new(node_config.clone()), false).await?;
+                let provider = AnvilProvider::new(
+                    WalletProvider::new(node_config.clone()),
+                    false,
+                    block_sync.clone()
+                )
+                .await?;
                 provider.set_state(state_bytes).await?;
                 provider
                     .rpc_provider()
@@ -102,7 +111,8 @@ where
                 initial_validators.clone(),
                 initial_angstrom_state.clone().unwrap(),
                 self.block_provider.subscribe_to_new_blocks(),
-                vec![a]
+                vec![a],
+                block_sync
             )
             .await?;
             tracing::info!(node_id, "made angstrom node");
