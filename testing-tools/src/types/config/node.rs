@@ -119,7 +119,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let sk = self.signing_key();
         let wallet = EthereumWallet::new(sk.clone());
 
-        let endpoint = "/tmp/testnet_anvil.ipc".to_string();
+        let endpoint = self.global_config.anvil_rpc_endpoint(self.node_id);
         tracing::info!(?endpoint);
 
         let rpc = alloy::providers::builder::<Ethereum>()

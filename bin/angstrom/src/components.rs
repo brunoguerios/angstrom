@@ -204,8 +204,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
         uniswap_registry,
         block_id,
         global_block_sync.clone(),
-        node_config.pool_manager_address,
-        true
+        node_config.pool_manager_address
     )
     .await;
 
@@ -298,37 +297,3 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     // ensure no more modules can be added to block sync.
     global_block_sync.finalize_modules();
 }
-
-// async fn configure_uniswap_manager<T: Transport + Clone, N: Network>(
-//     provider: Arc<impl Provider<T, N>>,
-//     state_notification: CanonStateNotifications,
-//     uniswap_pool_registry: UniswapPoolRegistry,
-//     current_block: BlockNumber,
-//     block_sync: GlobalBlockSync,
-//     pool_manager: Address
-// ) -> UniswapPoolManager<
-//     CanonicalStateAdapter,
-//     GlobalBlockSync,
-//     DataLoader<AngstromPoolId>,
-//     AngstromPoolId
-// > { let mut uniswap_pools: Vec<_> = uniswap_pool_registry .pools() .keys()
-// > .map(|pool_id| { let initial_ticks_per_side = 200;
-// > EnhancedUniswapPool::new( DataLoader::new_with_registry( *pool_id,
-// > uniswap_pool_registry.clone(), pool_manager ), initial_ticks_per_side ) })
-// > .collect();
-
-//     for pool in uniswap_pools.iter_mut() {
-//         pool.initialize(Some(current_block), provider.clone())
-//             .await
-//             .unwrap();
-//     }
-
-//     let state_change_buffer = 100;
-//     UniswapPoolManager::new(
-//         uniswap_pools,
-//         current_block,
-//         state_change_buffer,
-//         Arc::new(CanonicalStateAdapter::new(state_notification)),
-//         block_sync
-//     )
-// }

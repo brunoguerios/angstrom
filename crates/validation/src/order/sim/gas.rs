@@ -361,7 +361,7 @@ pub mod test {
     use reth_provider::BlockNumReader;
     use reth_revm::primitives::Bytecode;
     use revm::primitives::AccountInfo;
-    use testing_tools::load_reth_db;
+    use testing_tools::utils::load_reth_db;
 
     use super::*;
 

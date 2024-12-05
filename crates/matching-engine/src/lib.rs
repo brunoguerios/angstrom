@@ -57,8 +57,7 @@ pub async fn configure_uniswap_manager<T: Transport + Clone, BlockSync: BlockSyn
     uniswap_pool_registry: UniswapPoolRegistry,
     current_block: BlockNumber,
     block_sync: BlockSync,
-    pool_manager_address: Address,
-    initialize_pools: bool
+    pool_manager_address: Address
 ) -> UniswapPoolManager<CanonicalStateAdapter, BlockSync, DataLoader<PoolId>, PoolId> {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
@@ -76,12 +75,10 @@ pub async fn configure_uniswap_manager<T: Transport + Clone, BlockSync: BlockSyn
         })
         .collect();
 
-    if initialize_pools {
-        for pool in uniswap_pools.iter_mut() {
-            pool.initialize(Some(current_block), provider.clone())
-                .await
-                .unwrap();
-        }
+    for pool in uniswap_pools.iter_mut() {
+        pool.initialize(Some(current_block), provider.clone())
+            .await
+            .unwrap();
     }
 
     let state_change_buffer = 100;

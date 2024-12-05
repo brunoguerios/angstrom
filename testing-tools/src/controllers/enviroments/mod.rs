@@ -11,7 +11,7 @@ use angstrom_network::{
     manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
 };
 use angstrom_types::sol_bindings::grouped_orders::AllOrders;
-use futures::{StreamExt, TryFutureExt};
+use futures::TryFutureExt;
 use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
@@ -19,6 +19,7 @@ use reth_metrics::common::mpsc::{
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 pub use state_machine::*;
+use tokio_stream::StreamExt;
 use tracing::{span, Instrument, Level};
 
 use crate::{

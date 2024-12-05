@@ -7,12 +7,10 @@ use std::{
 };
 
 use alloy_primitives::{Address, U256};
-use angstrom_types::{
-    contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice
-};
+use angstrom_types::pair_with_price::PairsWithPrice;
 use futures::{FutureExt, Stream};
 use reth_provider::BlockNumReader;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::UnboundedReceiver;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 use validation::{
     bundle::BundleValidator,
@@ -28,7 +26,7 @@ use validation::{
             pools::AngstromPoolsTracker
         }
     },
-    validator::{ValidationClient, Validator}
+    validator::{ValidationClient, ValidationRequest, Validator}
 };
 
 type ValidatorOperation<DB, T> =
@@ -37,54 +35,51 @@ type ValidatorOperation<DB, T> =
         T
     ) -> Pin<Box<dyn Future<Output = (TestOrderValidator<DB>, T)> + Send>>;
 
-pub struct TestOrderValidator<
+pub struct TestOrderValidator<DB>
+where
     DB: BlockStateProviderFactory + revm::DatabaseRef + Clone + Unpin + 'static
-> {
+{
     /// allows us to set values to ensure
     pub db:         Arc<DB>,
     pub client:     ValidationClient,
     pub underlying: Validator<DB, AngstromPoolsTracker, AutoMaxFetchUtils>
 }
 
-impl<
-        DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static
-    > TestOrderValidator<DB>
+impl<DB> TestOrderValidator<DB>
 where
+    DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static,
     <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
 {
     pub async fn new(
         db: DB,
+        validation_client: ValidationClient,
+        validator_rx: UnboundedReceiver<ValidationRequest>,
         angstrom_address: Address,
         pool_manager_address: Address,
         node_address: Address,
         uniswap_pools: SyncedUniswapPools,
         token_conversion: TokenPriceGenerator,
         token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>,
-        pool_store: Arc<AngstromPoolConfigStore>
-    ) -> Self {
-        let (tx, rx) = unbounded_channel();
-
-        let current_block =
-            Arc::new(AtomicU64::new(BlockNumReader::best_block_number(&db).unwrap()));
+        pool_storage: AngstromPoolsTracker
+    ) -> eyre::Result<Self> {
+        let current_block = Arc::new(AtomicU64::new(BlockNumReader::best_block_number(&db)?));
         let db = Arc::new(db);
 
         let fetch = AutoMaxFetchUtils;
-        let pools = AngstromPoolsTracker::new(angstrom_address, pool_store);
 
         let handle = tokio::runtime::Handle::current();
         let thread_pool = KeySplitThreadpool::new(handle, 3);
         let sim = SimValidation::new(db.clone(), pool_manager_address);
 
         let order_validator =
-            OrderValidator::new(sim, current_block, pools, fetch, uniswap_pools).await;
+            OrderValidator::new(sim, current_block, pool_storage, fetch, uniswap_pools).await;
 
         let bundle_validator = BundleValidator::new(db.clone(), angstrom_address, node_address);
         let shared_utils = SharedTools::new(token_conversion, token_updates, thread_pool);
 
-        let val = Validator::new(rx, order_validator, bundle_validator, shared_utils);
-        let client = ValidationClient(tx);
+        let val = Validator::new(validator_rx, order_validator, bundle_validator, shared_utils);
 
-        Self { db, client, underlying: val }
+        Ok(Self { db, client: validation_client, underlying: val })
     }
 
     pub async fn poll_for(&mut self, duration: Duration) {
@@ -120,21 +115,21 @@ where
     }
 }
 
-pub struct OrderValidatorChain<
+pub struct OrderValidatorChain<DB, T>
+where
     DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef,
     T: 'static
-> {
+{
     validator:     TestOrderValidator<DB>,
     state:         T,
     operations:    Vec<Box<ValidatorOperation<DB, T>>>,
     poll_duration: Duration
 }
 
-impl<
-        DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef + BlockNumReader,
-        T: 'static
-    > OrderValidatorChain<DB, T>
+impl<DB, T> OrderValidatorChain<DB, T>
 where
+    DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef + BlockNumReader,
+    T: 'static,
     <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
 {
     pub fn new(validator: TestOrderValidator<DB>, poll_duration: Duration, state: T) -> Self {
