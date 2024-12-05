@@ -77,6 +77,7 @@ where
                 >)
         });
 
+        tracing::info!("clearing for block");
         Self::ClearingForNewBlock {
             validator: validator.clone(),
             waiting_for_new_block: VecDeque::default(),
