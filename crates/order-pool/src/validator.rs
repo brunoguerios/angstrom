@@ -93,6 +93,7 @@ where
         orders: Vec<B256>,
         changed_addresses: Vec<Address>
     ) {
+        tracing::info!("notify validation on changes");
         assert!(matches!(self, Self::WaitingForStorageCleanup { .. }));
         let Self::WaitingForStorageCleanup { validator, waiting_for_new_block } = self else {
             unreachable!()
@@ -210,6 +211,8 @@ where
                 else {
                     return Poll::Pending
                 };
+
+                tracing::info!("starting regular processing");
                 *this = new_state;
                 cx.waker().wake_by_ref();
                 Poll::Pending
