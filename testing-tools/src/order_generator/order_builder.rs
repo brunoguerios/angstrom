@@ -5,7 +5,6 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::GroupedVanillaOrder, rpc_orders::TopOfBlockOrder}
 };
 use rand::Rng;
-use tracing::info;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
 
