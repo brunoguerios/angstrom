@@ -247,11 +247,11 @@ where
 
             cache_db
                 .insert_account_storage(token_out, balance_amount_out_slot.into(), amount_out)
-                .map_err(|e| eyre!(err=?e,"failed to insert account into storage"))?;
+                .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
 
             cache_db
                 .insert_account_storage(token_in, approval_slot.into(), amount_in)
-                .map_err(|e| eyre!(err=?e,"failed to insert account into storage"))?;
+                .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
         }
 
         Ok(cache_db)
