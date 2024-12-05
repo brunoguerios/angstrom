@@ -86,7 +86,7 @@ impl BlockSyncProducer for GlobalBlockSync {
         // add to pending state. this will trigger everyone to stop and start dealing
         // with new blocks
         if self.block_number.load(Ordering::SeqCst) + 1 != block_number {
-            panic!("already have this block_number");
+            return
         }
 
         self.pending_state
