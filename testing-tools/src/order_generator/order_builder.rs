@@ -34,11 +34,8 @@ impl OrderBuilder {
         let token1 = pool.token_b;
         // if zfo, sqrtprice < pool price
         let t_in = if zfo { token0 } else { token1 };
+        tracing::debug!(?zfo, ?sqrt_price, ?price);
         let amount_specified = if zfo { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
-
-        // want to swap to SqrtPriceX96. we set amount to negative so it will
-        // just fil till we hit limit.
-        info!(?price, "generating tob with price");
 
         let (amount_in, amount_out) = pool
             .simulate_swap(t_in, amount_specified, Some(price))
