@@ -180,14 +180,15 @@ where
                 revalidation_addresses,
                 remaining_futures
             } => {
-                let next = remaining_futures.poll_next_unpin(cx);
-                match next {
-                    res @ Poll::Ready(Some(_)) => {
-                        return res.map(|inner| inner.map(OrderValidatorRes::ValidatedOrder))
-                    }
-                    Poll::Pending => return Poll::Pending,
-                    _ => {}
+                while let Poll::Ready(Some(next)) = remaining_futures.poll_next_unpin(cx) {
+                    return Poll::Ready(
+                        Some(next).map(|inner| OrderValidatorRes::ValidatedOrder(inner))
+                    )
                 }
+                if !remaining_futures.is_empty() {
+                    return Poll::Pending
+                }
+
                 info!(
                     "clearing for new block done. triggering clearing and starting to validate \
                      state for current block"
