@@ -120,7 +120,8 @@ impl OrderValidationResults {
                     SimValidation::calculate_user_gas
                 );
 
-                if res.is_err() {
+                if let Err(e) = res {
+                    tracing::info!(%e, "failed to add gas to order");
                     *self = OrderValidationResults::Invalid(order_hash);
 
                     return
@@ -139,7 +140,8 @@ impl OrderValidationResults {
                     AllOrders::TOB,
                     SimValidation::calculate_tob_gas
                 );
-                if res.is_err() {
+                if let Err(e) = res {
+                    tracing::info!(%e, "failed to add gas to order");
                     *self = OrderValidationResults::Invalid(order_hash);
 
                     return
