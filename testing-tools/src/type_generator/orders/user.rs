@@ -113,11 +113,7 @@ impl UserOrderBuilder {
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("ExactStandingOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
-                    println!("Signature debug: {:?}", sig);
                     order.meta = OrderMeta {
                         isEcdsa:   true,
                         from:      signer.address(),
@@ -137,9 +133,6 @@ impl UserOrderBuilder {
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("PartialStandingOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,
@@ -162,9 +155,6 @@ impl UserOrderBuilder {
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("ExactFlashOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,
@@ -186,10 +176,6 @@ impl UserOrderBuilder {
                 };
                 if let Some(signer) = self.signing_key {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                    println!("PartialFlashOrder Typehash: {:?}", order.eip712_type_hash());
-                    println!("PartialFlashorder Typestring:\n{}", order.eip712_encode_type());
-                    println!("User Hash debug {:?}", hash);
-                    println!("User Alt hash debug: {:?}", order.eip712_hash_struct());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,

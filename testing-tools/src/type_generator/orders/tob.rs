@@ -61,11 +61,7 @@ impl ToBOrderBuilder {
         };
         if let Some(signer) = self.signing_key {
             let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-            println!("Typehash: {:?}", order.eip712_type_hash());
-            println!("Hash debug {:?}", hash);
-            println!("Alt hash debug: {:?}", order.eip712_hash_struct());
             let sig = signer.sign_hash_sync(&hash).unwrap();
-            println!("Signature debug: {:?}", sig);
             order.meta = OrderMeta {
                 isEcdsa:   true,
                 from:      signer.address(),
