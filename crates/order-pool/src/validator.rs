@@ -170,7 +170,6 @@ where
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
-        tracing::debug!("pool order validator");
         match this {
             OrderValidator::ClearingForNewBlock {
                 validator,
@@ -180,7 +179,6 @@ where
                 revalidation_addresses,
                 remaining_futures
             } => {
-                info!("polling clearing for block");
                 while let Poll::Ready(Some(next)) = remaining_futures.poll_next_unpin(cx) {
                     return Poll::Ready(
                         Some(next).map(|inner| OrderValidatorRes::ValidatedOrder(inner))
@@ -223,7 +221,6 @@ where
                 Poll::Pending
             }
             OrderValidator::RegularProcessing { remaining_futures, .. } => {
-                info!("reg processing");
                 remaining_futures.poll_next_unpin(cx).map(|inner| {
                     inner
                         .map(OrderValidatorRes::ValidatedOrder)
