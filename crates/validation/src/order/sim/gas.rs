@@ -284,11 +284,13 @@ where
 
             let result = evm
                 .transact()
-                .map_err(|_| eyre!("failed to transact with revm"))?;
+                .map_err(|e| eyre!("failed to transact with revm: {e:?}"))?;
 
             if !result.result.is_success() {
                 return Err(eyre::eyre!(
-                    "gas simulation had a revert. cannot guarantee the proper gas was estimated"
+                    "gas simulation had a revert. cannot guarantee the proper gas was estimated \
+                     err={:?}",
+                    result.result
                 ))
             }
         }
