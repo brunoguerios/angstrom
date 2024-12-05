@@ -19,7 +19,6 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-
 pub enum AllOrders {
     Standing(StandingVariants),
     Flash(FlashVariants),

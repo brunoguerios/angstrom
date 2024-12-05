@@ -112,6 +112,7 @@ where
     }
 
     pub fn validate_order(&mut self, origin: OrderOrigin, order: AllOrders) {
+        tracing::info!(?order, "validating order");
         match self {
             Self::RegularProcessing { remaining_futures, validator } => {
                 let val = validator.clone();
