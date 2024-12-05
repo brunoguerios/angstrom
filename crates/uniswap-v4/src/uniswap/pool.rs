@@ -188,8 +188,6 @@ where
 
         fetched_ticks.sort_by_key(|k| k.tick);
 
-        tracing::info!(?fetched_ticks);
-
         fetched_ticks
             .into_iter()
             .filter(|tick| tick.initialized)
