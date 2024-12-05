@@ -5,6 +5,7 @@ use alloy::{
     signers::Signature
 };
 use alloy_primitives::B256;
+use pade::PadeDecode;
 use serde::{Deserialize, Serialize};
 
 use super::{RawPoolOrder, RespendAvoidanceMethod};
@@ -579,7 +580,9 @@ impl RawPoolOrder for TopOfBlockOrder {
 
     fn is_valid_signature(&self) -> bool {
         let s = self.meta.signature.to_vec();
-        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
+        let mut slice = s.as_slice();
+
+        let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
         sig.recover_address_from_prehash(&hash)
@@ -603,7 +606,9 @@ impl RawPoolOrder for PartialStandingOrder {
 
     fn is_valid_signature(&self) -> bool {
         let s = self.meta.signature.to_vec();
-        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
+        let mut slice = s.as_slice();
+
+        let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
         sig.recover_address_from_prehash(&hash)
@@ -672,7 +677,9 @@ impl RawPoolOrder for ExactStandingOrder {
 
     fn is_valid_signature(&self) -> bool {
         let s = self.meta.signature.to_vec();
-        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
+        let mut slice = s.as_slice();
+
+        let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
         sig.recover_address_from_prehash(&hash)
@@ -741,7 +748,9 @@ impl RawPoolOrder for PartialFlashOrder {
 
     fn is_valid_signature(&self) -> bool {
         let s = self.meta.signature.to_vec();
-        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
+        let mut slice = s.as_slice();
+
+        let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
         sig.recover_address_from_prehash(&hash)
@@ -810,7 +819,9 @@ impl RawPoolOrder for ExactFlashOrder {
 
     fn is_valid_signature(&self) -> bool {
         let s = self.meta.signature.to_vec();
-        let Ok(sig) = Signature::try_from(s.as_slice()) else { return false };
+        let mut slice = s.as_slice();
+
+        let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
         sig.recover_address_from_prehash(&hash)
