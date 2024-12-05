@@ -247,6 +247,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         // init agents
         let agent_config = AgentConfig {
             uniswap_pools,
+            agent_id: node_config.node_id,
             rpc_address: addr,
             current_block: block_number,
             state_provider: state_provider.state_provider()
