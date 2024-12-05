@@ -42,7 +42,9 @@ const DEFAULT_CREATE2_FACTORY: Address = address!("4e59b44847b379578588920cA78Fb
 pub struct OrderGasCalculations<DB> {
     db:               CacheDB<Arc<DB>>,
     // the deployed addresses in cache_db
-    angstrom_address: Address
+    angstrom_address: Address,
+    /// the address(pubkey) of this node.
+    node_address:     Option<Address>
 }
 
 impl<DB> OrderGasCalculations<DB>
@@ -50,10 +52,19 @@ where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + BlockNumReader,
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
-    pub fn new(db: Arc<DB>, angstrom_address: Option<Address>) -> eyre::Result<Self> {
-        let ConfiguredRevm { db, angstrom } = Self::setup_revm_cache_database_for_simulation(db)?;
+    pub fn new(
+        db: Arc<DB>,
+        angstrom_address: Option<Address>,
+        node_address: Address
+    ) -> eyre::Result<Self> {
+        if let Some(angstrom_address) = angstrom_address {
+            Ok(Self { db, angstrom_address, node_address: Some(node_address) })
+        } else {
+            let ConfiguredRevm { db, angstrom } =
+                Self::setup_revm_cache_database_for_simulation(db)?;
 
-        Ok(Self { db, angstrom_address: angstrom })
+            Ok(Self { db, angstrom_address: angstrom, node_address: None })
+        }
     }
 
     pub fn gas_of_tob_order(
@@ -75,7 +86,7 @@ where
                     .pade_encode();
 
                 let tx = &mut execution_env.tx;
-                tx.caller = DEFAULT_FROM;
+                tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
                 tx.transact_to = TxKind::Call(self.angstrom_address);
                 tx.data = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::new(
                     (bundle.into(),)
@@ -108,7 +119,7 @@ where
                     .pade_encode();
 
                 let tx = &mut execution_env.tx;
-                tx.caller = DEFAULT_FROM;
+                tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
                 tx.transact_to = TxKind::Call(self.angstrom_address);
                 tx.data = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::new(
                     (bundle.into(),)
@@ -373,7 +384,7 @@ pub mod test {
     fn ensure_creation_of_mock_works() {
         let db_path = Path::new("/home/data/reth/db/");
         let db = load_reth_db(db_path);
-        let res = OrderGasCalculations::new(Arc::new(RethDbWrapper::new(db)), None);
+        let res = OrderGasCalculations::new(Arc::new(RethDbWrapper::new(db)), None, Address::ZERO);
 
         if let Err(e) = res.as_ref() {
             eprintln!("{}", e);
@@ -447,7 +458,8 @@ pub mod test {
         let db_path = Path::new("/home/data/reth/db/");
         let db = Arc::new(RethDbWrapper::new(load_reth_db(db_path)));
 
-        let gas_calculations = OrderGasCalculations::new(Arc::new(RethDbWrapper::new(db)), None);
+        let gas_calculations =
+            OrderGasCalculations::new(Arc::new(RethDbWrapper::new(db)), None, Address::ZERO);
 
         assert!(gas_calculations.is_ok(), "failed to deploy angstrom structure and v4 to chain");
         let mut gas_calculations = gas_calculations.unwrap();
@@ -486,7 +498,8 @@ pub mod test {
         let db_path = Path::new("/home/data/reth/db/");
         let db = Arc::new(RethDbWrapper::new(load_reth_db(db_path)));
 
-        let gas_calculations = OrderGasCalculations::new(Arc::new(RethDbWrapper::new(db)), None);
+        let gas_calculations =
+            OrderGasCalculations::new(Arc::new(RethDbWrapper::new(db)), None, Address::ZERO);
 
         assert!(gas_calculations.is_ok(), "failed to deploy angstrom structure and v4 to chain");
         let mut gas_calculations = gas_calculations.unwrap();
