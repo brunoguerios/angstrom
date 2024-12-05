@@ -1,13 +1,13 @@
 use alloy::{
     node_bindings::AnvilInstance,
-    primitives::keccak256,
+    primitives::{
+        aliases::{I24, U24},
+        keccak256, Address
+    },
     providers::{ext::AnvilApi, Provider},
     pubsub::PubSubFrontend
 };
-use alloy_primitives::{
-    aliases::{I24, U24},
-    FixedBytes, U256
-};
+use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
 use angstrom_types::{
     contract_bindings::{
@@ -80,8 +80,9 @@ impl AnvilInitializer {
         pool_keys: Vec<PartialConfigPoolKey>
     ) -> eyre::Result<()> {
         for (i, key) in pool_keys.into_iter().enumerate() {
+            let (cur0, cur1) = self.deploy_currencies(&key).await?;
             self.deploy_pool_full(
-                key.make_pool_key(*self.angstrom.address()),
+                key.make_pool_key(*self.angstrom.address(), cur0, cur1),
                 key.initial_liquidity(),
                 key.sqrt_price(),
                 U256::from(i)
@@ -90,6 +91,47 @@ impl AnvilInitializer {
         }
 
         Ok(())
+    }
+
+    pub async fn deploy_currencies(
+        &mut self,
+        c: &PartialConfigPoolKey
+    ) -> eyre::Result<(Address, Address)> {
+        let nonce = self
+            .provider
+            .provider
+            .get_transaction_count(self.provider.controller())
+            .await?;
+
+        let (first_token_tx, first_token) =
+            MintableMockERC20::deploy_builder(self.provider.provider_ref())
+                .deploy_pending_creation(nonce, self.provider.controller())
+                .await?;
+        self.pending_state.add_pending_tx(first_token_tx);
+
+        let (second_token_tx, second_token) =
+            MintableMockERC20::deploy_builder(self.provider.provider_ref())
+                .deploy_pending_creation(nonce + 1, self.provider.controller())
+                .await?;
+        self.pending_state.add_pending_tx(second_token_tx);
+
+        let (currency0, currency1) = if first_token < second_token {
+            (first_token, second_token)
+        } else {
+            (second_token, first_token)
+        };
+
+        let pool_key = PoolKey {
+            currency0,
+            currency1,
+            fee: U24::from(c.fee),
+            tickSpacing: I24::unchecked_from(c.tick_spacing),
+            hooks: *self.angstrom.address()
+        };
+        self.pending_state.add_pool_key(pool_key.clone());
+
+        let (keys, _) = self.pending_state.finalize_pending_txs().await?;
+        Ok((currency0, currency1))
     }
 
     /// deploys tokens, a uniV4 pool, angstrom pool
@@ -145,17 +187,6 @@ impl AnvilInitializer {
         store_index: U256
     ) -> eyre::Result<()> {
         // set bytecode to mock erc20
-
-        let mock_bytecode = MockERC20::BYTECODE.clone();
-
-        self.provider
-            .rpc_provider()
-            .anvil_set_code(pool_key.currency0, mock_bytecode.clone())
-            .await?;
-        self.provider
-            .rpc_provider()
-            .anvil_set_code(pool_key.currency1, mock_bytecode.clone())
-            .await?;
 
         let nonce = self
             .provider

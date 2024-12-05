@@ -47,30 +47,35 @@ impl PendingDeployedPools {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PartialConfigPoolKey {
-    currency0:         Address,
-    currency1:         Address,
-    fee:               u64,
-    tick_spacing:      i32,
-    initial_liquidity: u128,
-    sqrt_price:        SqrtPriceX96
+    // currency0:         Address,
+    // currency1:         Address,
+    pub fee:               u64,
+    pub tick_spacing:      i32,
+    pub initial_liquidity: u128,
+    pub sqrt_price:        SqrtPriceX96
 }
 
 impl PartialConfigPoolKey {
     pub fn new(
-        currency0: Address,
-        currency1: Address,
+        // currency0: Address,
+        // currency1: Address,
         fee: u64,
         tick_spacing: i32,
         initial_liquidity: u128,
         sqrt_price: SqrtPriceX96
     ) -> Self {
-        Self { currency0, currency1, fee, tick_spacing, initial_liquidity, sqrt_price }
+        Self { fee, tick_spacing, initial_liquidity, sqrt_price }
     }
 
-    pub fn make_pool_key(&self, angstrom_address_hook: Address) -> PoolKey {
+    pub fn make_pool_key(
+        &self,
+        angstrom_address_hook: Address,
+        cur0: Address,
+        cur1: Address
+    ) -> PoolKey {
         PoolKey {
-            currency0:   self.currency0,
-            currency1:   self.currency1,
+            currency0:   cur0,
+            currency1:   cur1,
             fee:         U24::from(self.fee),
             tickSpacing: I24::unchecked_from(self.tick_spacing),
             hooks:       angstrom_address_hook
