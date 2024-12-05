@@ -28,7 +28,9 @@ impl OrderBuilder {
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let sqrt_price = pool.sqrt_price;
 
-        let zfo = sqrt_price > price;
+        let zfo = 
+            // pool less than wanted
+           if  sqrt_price < price  { true } else { false};
 
         let token0 = pool.token_a;
         let token1 = pool.token_b;
@@ -82,6 +84,7 @@ impl OrderBuilder {
         let (amount_in, amount_out) = pool
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
+
         info!(%amount_in, %amount_out);
 
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
