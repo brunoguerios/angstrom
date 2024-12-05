@@ -62,7 +62,7 @@ where
         block_number: u64,
         completed_orders: Vec<B256>,
         revalidation_addresses: Vec<Address>
-    ) -> Self {
+    ) {
         assert!(
             !self.is_transitioning(),
             "already clearing for new block. if this gets triggered, means we have a big runtime \
@@ -78,7 +78,7 @@ where
         });
 
         tracing::info!("clearing for block");
-        Self::ClearingForNewBlock {
+        *self = Self::ClearingForNewBlock {
             validator: validator.clone(),
             waiting_for_new_block: VecDeque::default(),
             remaining_futures: FuturesUnordered::from_iter(rem_futures),
@@ -223,6 +223,7 @@ where
                 Poll::Pending
             }
             OrderValidator::RegularProcessing { remaining_futures, .. } => {
+                info!("reg processing");
                 remaining_futures.poll_next_unpin(cx).map(|inner| {
                     inner
                         .map(OrderValidatorRes::ValidatedOrder)
