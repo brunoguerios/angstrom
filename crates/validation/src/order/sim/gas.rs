@@ -58,7 +58,7 @@ where
         node_address: Address
     ) -> eyre::Result<Self> {
         if let Some(angstrom_address) = angstrom_address {
-            Ok(Self { db, angstrom_address, node_address: Some(node_address) })
+            Ok(Self { db: CacheDB::new(db), angstrom_address, node_address: Some(node_address) })
         } else {
             let ConfiguredRevm { db, angstrom } =
                 Self::setup_revm_cache_database_for_simulation(db)?;
