@@ -268,7 +268,7 @@ where
                 && (sqrt_price_limit_x96 <= self.sqrt_price
                     || sqrt_price_limit_x96 >= MAX_SQRT_RATIO))
         {
-            tracing::info!(?zero_for_one, ?sqrt_price_limit_x96, ?self.sqrt_price);
+            tracing::warn!(?zero_for_one, ?sqrt_price_limit_x96, ?self.sqrt_price);
             return Err(SwapSimulationError::InvalidSqrtPriceLimit)
         }
 
@@ -385,8 +385,6 @@ where
         } else {
             (amount_calculated, amount_specified - amount_specified_remaining)
         };
-
-        tracing::debug!(?amount0, ?amount1);
 
         Ok(SwapResult { amount0, amount1, liquidity, sqrt_price_x_96, tick })
     }
