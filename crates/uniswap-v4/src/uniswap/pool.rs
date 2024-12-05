@@ -39,7 +39,7 @@ pub struct TickInfo {
 }
 
 // at around 190 is when "max code size exceeded" comes up
-const MAX_TICKS_PER_REQUEST: u16 = 150;
+// const MAX_TICKS_PER_REQUEST: u16 = 150;
 
 pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
@@ -168,7 +168,7 @@ where
         self.ticks.clear();
         self.tick_bitmap.clear();
 
-        tracing::info!(?self.token_a, ?self.token_b,?self.tick, ?self.tick_spacing);
+        tracing::info!(?self.token_a, ?self.token_b,?self.tick, ?self.tick_spacing, ?self.liquidity,?self.liquidity_net);
         let total_ticks_to_fetch = self.initial_ticks_per_side * 2;
         // current tick when loaded (init tick) - (half total tics * spacing);
 
@@ -180,7 +180,7 @@ where
                 i32_to_i24(start_tick)?,
                 false,
                 total_ticks_to_fetch,
-                None,
+                block_number,
                 provider.clone()
             )
             .await?

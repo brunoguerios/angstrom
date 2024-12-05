@@ -182,8 +182,6 @@ impl AnvilInitializer {
         price: SqrtPriceX96,
         store_index: U256
     ) -> eyre::Result<()> {
-        // set bytecode to mock erc20
-
         let nonce = self
             .provider
             .provider
@@ -195,7 +193,7 @@ impl AnvilInitializer {
         tracing::info!(?pool_key, ?encoded, ?price);
 
         tracing::debug!("configuring pool");
-        let _ = self
+        let configure_pool = self
             .angstrom
             .configurePool(
                 pool_key.currency0,
@@ -206,10 +204,9 @@ impl AnvilInitializer {
             .from(self.provider.controller())
             .nonce(nonce)
             .deploy_pending()
-            .await?
             .await?;
 
-        // self.pending_state.add_pending_tx(configure_pool);
+        self.pending_state.add_pending_tx(configure_pool);
 
         tracing::debug!("initializing pool");
         self.angstrom
@@ -217,41 +214,42 @@ impl AnvilInitializer {
             .from(self.provider.controller())
             .nonce(nonce + 1)
             .deploy_pending()
-            .await?
             .await?;
 
         tracing::debug!("tick spacing");
-        let _ = self
+        let pool_gate = self
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
             .nonce(nonce + 2)
             .deploy_pending()
-            .await?
             .await?;
-        // self.pending_state.add_pending_tx(pool_gate);
+
+        self.pending_state.add_pending_tx(pool_gate);
 
         let tick = price.to_tick()?;
-        let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * 500));
-        let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * 500));
-        tracing::debug!("add liq");
-        let _ = self
-            .pool_gate
-            .addLiquidity(
-                pool_key.currency0,
-                pool_key.currency1,
-                lower,
-                upper,
-                U256::from(liquidity),
-                FixedBytes::<32>::default()
-            )
-            .from(self.provider.controller())
-            .nonce(nonce + 3)
-            .deploy_pending()
-            .await?
-            .await?;
+        for i in 0..100 {
+            let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
+            let upper = lower + pool_key.tickSpacing;
 
-        // self.pending_state.add_pending_tx(add_liq);
+            tracing::debug!(?lower, ?upper, "add liq");
+            let add_liq = self
+                .pool_gate
+                .addLiquidity(
+                    pool_key.currency0,
+                    pool_key.currency1,
+                    lower,
+                    upper,
+                    U256::from(liquidity),
+                    FixedBytes::<32>::default()
+                )
+                .from(self.provider.controller())
+                .nonce(nonce + 3 + (i as u64))
+                .deploy_pending()
+                .await?;
+
+            self.pending_state.add_pending_tx(add_liq);
+        }
 
         Ok(())
     }
