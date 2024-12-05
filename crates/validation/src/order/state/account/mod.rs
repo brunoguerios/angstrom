@@ -51,7 +51,8 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 }
             }
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(order_block) => {
-                if block != order_block {
+                // order should be for block + 1
+                if block + 1 != order_block {
                     return Err(UserAccountVerificationError::BadBlock)
                 }
             }
