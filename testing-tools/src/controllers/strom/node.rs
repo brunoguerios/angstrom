@@ -350,6 +350,7 @@ where
     }
 
     pub(crate) async fn testnet_future(self) {
+        tokio::spawn(self.strom.validator.run());
         self.start_network_and_consensus();
         self.state_lock.await;
     }

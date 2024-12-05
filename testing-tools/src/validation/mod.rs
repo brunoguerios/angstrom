@@ -68,7 +68,7 @@ where
             Arc::new(AtomicU64::new(BlockNumReader::best_block_number(&db).unwrap()));
         let db = Arc::new(db);
 
-        let fetch = FetchUtils::new(Address::default(), db.clone());
+        let fetch = FetchUtils::new(angstrom_address, db.clone());
         let pools = AngstromPoolsTracker::new(angstrom_address, pool_store);
 
         let handle = tokio::runtime::Handle::current();
@@ -105,6 +105,10 @@ where
         Nonces::new(Address::default())
             .get_nonce_word_slot(user, nonce)
             .into()
+    }
+
+    pub async fn run(self) {
+        self.underlying.await
     }
 }
 
