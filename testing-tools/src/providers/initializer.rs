@@ -230,7 +230,7 @@ impl AnvilInitializer {
         self.pending_state.add_pending_tx(pool_gate);
 
         let tick = price.to_tick()?;
-        for i in 0..200 {
+        for i in 0..100 {
             let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * i));
             let upper = I24::unchecked_from(tick + (pool_key.tickSpacing.as_i32() * i + 1));
 
@@ -246,7 +246,7 @@ impl AnvilInitializer {
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())
-                .nonce(nonce + 3 + i)
+                .nonce(nonce + 3 + (i as u64))
                 .deploy_pending()
                 .await?;
 
