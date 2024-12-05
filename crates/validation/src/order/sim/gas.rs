@@ -129,7 +129,7 @@ where
     fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) -> eyre::Result<(ResultAndState, D)>
     where
         F: FnOnce(&mut TxEnv),
-        <D as revm::DatabaseRef>::Error: Send + Sync
+        <D as revm::DatabaseRef>::Error: Send + Sync + Debug
     {
         let evm_handler = EnvWithHandlerCfg::default();
         let mut revm_sim = revm::Evm::builder()
