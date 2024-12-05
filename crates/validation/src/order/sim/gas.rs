@@ -69,7 +69,7 @@ where
             &HashMap::default(),
             OverridesForTestAngstrom {
                 amount_in:    U256::from(tob.amount_in()),
-                amount_out:   U256::from(tob.amount_out_min()),
+                amount_out:   U256::from(tob.quantity_out),
                 token_out:    tob.token_out(),
                 token_in:     tob.token_in(),
                 user_address: tob.from()
@@ -101,7 +101,8 @@ where
             &HashMap::default(),
             OverridesForTestAngstrom {
                 amount_in:    U256::from(order.amount_in()),
-                amount_out:   U256::from(order.amount_out_min()),
+                // TODO: fix
+                amount_out:   U256::from(order.amount_in()),
                 token_out:    order.token_out(),
                 token_in:     order.token_in(),
                 user_address: order.from()
