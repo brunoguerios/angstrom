@@ -585,7 +585,7 @@ where
             match next {
                 OrderValidatorRes::EnsureClearForTransition { block, orders, addresses } => {
                     tracing::info!(
-                        "ensure clear for tansition. pruning all old + invalid txes from the pool"
+                        "ensure clear for transition. pruning all old + invalid txes from the pool"
                     );
                     self.finish_new_block_processing(block, orders, addresses);
                 }

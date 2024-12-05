@@ -180,6 +180,7 @@ where
                 revalidation_addresses,
                 remaining_futures
             } => {
+                info!("polling clearing for block");
                 while let Poll::Ready(Some(next)) = remaining_futures.poll_next_unpin(cx) {
                     return Poll::Ready(
                         Some(next).map(|inner| OrderValidatorRes::ValidatedOrder(inner))
