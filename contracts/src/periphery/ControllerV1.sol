@@ -66,14 +66,16 @@ contract ControllerV1 is Ownable2Step {
         ANGSTROM = angstrom;
     }
 
-    function getAllPools(StoreKey[] storeKeys) public view returns (Pool[]) {
+    function getAllPools(
+        StoreKey[] calldata storeKeys
+    ) external view returns (Pool[] memory) {
         Pool[] memory allPools = new Pool[](storeKeys.length);
 
         for (uint256 i = 0; i < storeKeys.length; i++) {
             allPools[i] = pools[storeKeys[i]];
         }
 
-        retun allPools;
+        return allPools;
     }
 
     function setNewController(address newController) public {
