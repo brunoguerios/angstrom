@@ -84,14 +84,20 @@ impl GlobalBlockSync {
     pub fn clear(&self) {
         self.pending_state.write().unwrap().clear();
     }
+
+    pub fn set_block(&self, block_number: u64) {
+        self.block_number.store(block_number, Ordering::SeqCst);
+    }
 }
 impl BlockSyncProducer for GlobalBlockSync {
     fn new_block(&self, block_number: u64) {
         // add to pending state. this will trigger everyone to stop and start dealing
         // with new blocks
+
         if self.block_number.load(Ordering::SeqCst) + 1 != block_number {
             return
         }
+
         let modules = self.registered_modules.len();
         tracing::info!(%block_number, mod_cnt=modules,"new block proposal");
 
@@ -228,6 +234,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
             tracing::warn!(%module_name, "tried to register a module after setting no more modules to true. This module won't be added");
             return
         }
+        tracing::info!(%module "registered module on block sync");
 
         if self
             .registered_modules

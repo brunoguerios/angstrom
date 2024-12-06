@@ -100,7 +100,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         };
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
-        block_sync.new_block(block_number);
+        block_sync.set_block(block_number);
         block_sync.clear();
 
         let block_sync = GlobalBlockSync::new(block_number);
