@@ -160,6 +160,7 @@ where
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        tracing::debug!("poll consensus manager");
         let this = self.get_mut();
 
         while let Poll::Ready(Some(msg)) = this.canonical_block_stream.poll_next_unpin(cx) {
