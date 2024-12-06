@@ -121,6 +121,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             .recv()
             .await
             .expect("startup sequence failed");
+        let block_number = block_number + 1;
 
         tracing::debug!(block_number, "creating strom internals");
 
