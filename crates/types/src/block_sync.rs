@@ -272,7 +272,7 @@ pub enum GlobalBlockState {
 pub enum SignOffState {
     /// module has registered that there is a new block and made sure it is up
     /// to date
-    ReadyForNextBlock(u64, Option<Waker>),
+    ReadyForNextBlock(Option<Waker>),
     /// module has registered that there was a reorg and has appropriately
     /// handled it and is ready to continue processing
     HandledReorg(Option<Waker>)
@@ -281,7 +281,7 @@ pub enum SignOffState {
 impl SignOffState {
     pub fn try_wake_task(&self) {
         match self {
-            Self::ReadyForNextBlock(_, waker) | Self::HandledReorg(waker) => {
+            Self::ReadyForNextBlock(waker) | Self::HandledReorg(waker) => {
                 waker.as_ref().inspect(|w| w.wake_by_ref());
             }
         }
