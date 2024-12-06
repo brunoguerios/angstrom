@@ -190,6 +190,7 @@ where
             pool_manager_tx.clone(),
             pool_storage
         );
+        self.global_sync.register(MODULE_NAME);
 
         task_spawner.spawn_critical(
             "transaction manager",
@@ -289,7 +290,6 @@ where
         order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
         _pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
     ) -> Self {
-        global_sync.register(MODULE_NAME);
         Self {
             strom_network_events,
             network,
