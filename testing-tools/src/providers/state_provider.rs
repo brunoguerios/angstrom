@@ -98,6 +98,7 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
                 tracing::info!("updating block sync");
                 self.block_sync.new_block(block.header.number);
                 tracing::info!("updating cannon chain");
+
                 self.update_canon_chain(&block).unwrap();
             }
         }

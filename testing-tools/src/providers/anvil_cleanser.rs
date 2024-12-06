@@ -15,7 +15,7 @@ use pade::PadeDecode;
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{span, Level};
+use tracing::{span, Instrument, Level};
 
 pub struct AnvilEthDataCleanser<S: Stream<Item = (u64, Vec<Transaction>)>> {
     testnet_node_id:             u64,
@@ -51,7 +51,14 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
             block_sync
         };
 
-        tp.spawn_critical("eth handle", Box::pin(this));
+        tp.spawn_critical(
+            "eth handle",
+            Box::pin(this.instrument(tracing::span!(
+                Level::ERROR,
+                "data cleanser",
+                testnet_node_id
+            )))
+        );
 
         let handle = EthHandle::new(tx);
 

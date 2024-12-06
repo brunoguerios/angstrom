@@ -23,6 +23,7 @@ use order_pool::{order_storage::OrderStorage, PoolConfig};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
+use tracing::{span, Instrument};
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
@@ -153,7 +154,13 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         .await;
 
         let uniswap_pools = uniswap_pool_manager.pools();
-        tokio::spawn(async move { uniswap_pool_manager.watch_state_changes().await });
+        tokio::spawn(
+            async move { uniswap_pool_manager.watch_state_changes().await }.instrument(span!(
+                tracing::Level::ERROR,
+                "pool manager",
+                node_config.node_id
+            ))
+        );
 
         let token_conversion = TokenPriceGenerator::new(
             Arc::new(state_provider.rpc_provider()),
@@ -185,7 +192,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_pools.clone(),
             token_conversion,
             token_price_update_stream,
-            pool_storage.clone()
+            pool_storage.clone(),
+            node_config.node_id
         )
         .await?;
 
