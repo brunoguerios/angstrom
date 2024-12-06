@@ -268,6 +268,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         tracing::info!("created consensus manager");
 
+        block_sync.finalize_modules();
         Ok((
             Self {
                 rpc_port,

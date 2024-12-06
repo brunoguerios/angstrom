@@ -147,6 +147,8 @@ where
         order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
         global_sync: GlobalSync
     ) -> Self {
+        global_sync.register(MODULE_NAME);
+
         Self {
             order_events,
             global_sync,

@@ -74,6 +74,8 @@ where
         let wrapped_broadcast_stream = BroadcastStream::new(canonical_block_stream);
         let mut leader_selection = WeightedRoundRobin::new(validators.clone(), current_height);
         let leader = leader_selection.choose_proposer(current_height).unwrap();
+        block_sync.register(MODULE_NAME);
+
         Self {
             strom_consensus_event,
             current_height,
