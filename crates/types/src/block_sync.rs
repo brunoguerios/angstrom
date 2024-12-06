@@ -94,7 +94,9 @@ impl BlockSyncProducer for GlobalBlockSync {
         // add to pending state. this will trigger everyone to stop and start dealing
         // with new blocks
 
-        if self.block_number.load(Ordering::SeqCst) + 1 != block_number {
+        let cur_block = self.block_number.load(Ordering::SeqCst);
+        if cur_block + 1 != block_number {
+            tracing::warn!(%cur_block, %block_number, "got invalid new block");
             return
         }
         self.block_number.store(block_number, Ordering::SeqCst);
