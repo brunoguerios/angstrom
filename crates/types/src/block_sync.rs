@@ -104,10 +104,12 @@ impl BlockSyncProducer for GlobalBlockSync {
         let modules = self.registered_modules.len();
         tracing::info!(%block_number, mod_cnt=modules,"new block proposal");
 
-        self.pending_state
-            .write()
-            .unwrap()
-            .push_back(GlobalBlockState::PendingProgression(block_number));
+        let mut lock = self.pending_state.write().unwrap();
+        if lock.back() == Some(&GlobalBlockState::PendingProgression(block_number)) {
+            return
+        }
+
+        lock.push_back(GlobalBlockState::PendingProgression(block_number));
         tracing::info!(?self.pending_state, "current pending state");
     }
 
