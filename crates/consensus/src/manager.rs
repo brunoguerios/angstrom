@@ -162,7 +162,7 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
 
-        if let Poll::Ready(Some(msg)) = this.canonical_block_stream.poll_next_unpin(cx) {
+        while let Poll::Ready(Some(msg)) = this.canonical_block_stream.poll_next_unpin(cx) {
             match msg {
                 Ok(notification) => this.on_blockchain_state(notification, cx.waker().clone()),
                 Err(e) => tracing::error!("Error receiving chain state notification: {}", e)
