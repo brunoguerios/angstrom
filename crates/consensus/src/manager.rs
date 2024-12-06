@@ -81,7 +81,7 @@ where
             current_height,
             leader_selection,
             consensus_round_state: RoundStateMachine::new(
-                Duration::new(8, 0),
+                Duration::new(6, 0),
                 SharedRoundState::new(
                     current_height,
                     angstrom_address,
