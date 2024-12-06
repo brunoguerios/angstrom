@@ -149,7 +149,7 @@ where
         let initial_state = initializer.initialize_state_no_bytes().await?;
         initializer
             .rpc_provider()
-            .anvil_mine(Some(U256::from(5)), None)
+            .anvil_mine(Some(U256::from(10)), None)
             .await?;
 
         Ok((provider.into_state_provider(), initial_state))
