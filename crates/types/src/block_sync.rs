@@ -61,7 +61,7 @@ pub struct GlobalBlockSync {
     block_number:           Arc<AtomicU64>,
     /// the modules with there current sign off state for the transition of
     /// pending state -> cur state
-    registered_modules:     DashMap<&'static str, VecDeque<SignOffState>>,
+    registered_modules:     Arc<DashMap<&'static str, VecDeque<SignOffState>>>,
     /// Avoids having a module join the set while running. This is to ensure
     /// no race conditions.
     all_modules_registered: Arc<AtomicBool>
@@ -72,7 +72,7 @@ impl GlobalBlockSync {
         Self {
             block_number:           Arc::new(AtomicU64::new(block_number)),
             pending_state:          Arc::new(RwLock::new(VecDeque::with_capacity(2))),
-            registered_modules:     DashMap::default(),
+            registered_modules:     Arc::new(DashMap::default()),
             all_modules_registered: AtomicBool::new(false).into()
         }
     }
