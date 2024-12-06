@@ -592,6 +592,9 @@ where
                         validated.push(prop);
                     }
                 }
+                OrderValidatorRes::TransitionComplete => {
+                    validated.push(PoolInnerEvent::HasTransitionedToNewBlock(self.block_number));
+                }
             }
         }
 

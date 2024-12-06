@@ -147,8 +147,6 @@ where
         order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
         global_sync: GlobalSync
     ) -> Self {
-        global_sync.register(MODULE_NAME);
-
         Self {
             order_events,
             global_sync,
@@ -291,6 +289,7 @@ where
         order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
         _pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
     ) -> Self {
+        global_sync.register(MODULE_NAME);
         Self {
             strom_network_events,
             network,
