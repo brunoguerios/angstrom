@@ -91,6 +91,7 @@ where
         for node_config in configs {
             let node_id = node_config.node_id;
             let block_sync = GlobalBlockSync::new(0);
+
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
                 tracing::info!(?node_id, "leader node init");
