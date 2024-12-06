@@ -108,6 +108,7 @@ impl BlockSyncProducer for GlobalBlockSync {
             .write()
             .unwrap()
             .push_back(GlobalBlockState::PendingProgression(block_number));
+        tracing::info!(?self.pending_state, "current pending state");
     }
 
     fn reorg(&self, reorg_range: RangeInclusive<u64>) {
