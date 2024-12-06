@@ -92,6 +92,8 @@ impl BlockSyncProducer for GlobalBlockSync {
         if self.block_number.load(Ordering::SeqCst) + 1 != block_number {
             return
         }
+        let modules = self.registered_modules.len()
+        tracing::info!(%block_number, mod_cnt=modules,"new block proposal");
 
         self.pending_state
             .write()
@@ -183,6 +185,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
         });
 
         if transition {
+            tracing::info!("transitioning to new block");
             let mut lock = self.pending_state.write().unwrap();
             let new_state = lock
                 .pop_front()
