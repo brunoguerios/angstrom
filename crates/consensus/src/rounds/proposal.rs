@@ -51,6 +51,7 @@ impl ProposalState {
     {
         // queue building future
         waker.wake_by_ref();
+        tracing::info!("proposal");
 
         Self {
             matching_engine_future: Some(

@@ -53,6 +53,7 @@ impl PreProposalState {
         // ensure we get polled to start the checks for when we have 2f +1 pre_proposals
         // collected
         waker.wake_by_ref();
+        tracing::info!("starting pre proposal");
 
         Self { pre_proposals, pre_proposals_aggregation, proposal: None, waker }
     }
