@@ -95,10 +95,10 @@ impl BlockSyncProducer for GlobalBlockSync {
         // with new blocks
 
         let cur_block = self.block_number.load(Ordering::SeqCst);
-        if cur_block + 1 != block_number {
-            tracing::warn!(%cur_block, %block_number, "got invalid new block");
-            return
-        }
+        // if cur_block + 1 != block_number {
+        //     tracing::warn!(%cur_block, %block_number, "got invalid new block");
+        //     return
+        // }
         self.block_number.store(block_number, Ordering::SeqCst);
 
         let modules = self.registered_modules.len();
