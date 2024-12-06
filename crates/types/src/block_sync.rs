@@ -159,6 +159,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
     }
 
     fn sign_off_on_block(&self, module: &'static str, block_number: u64, waker: Option<Waker>) {
+        tracing::info!(?module, ?block_number, "module signed off for block");
         // check to see if there is pending state
         if self.pending_state.read().unwrap().is_empty() {
             panic!("{} tried to sign off on a proposal that didn't exist", module);
