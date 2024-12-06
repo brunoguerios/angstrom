@@ -41,6 +41,7 @@ impl PreProposalState {
         T: Transport + Clone,
         Matching: MatchingEngineHandle
     {
+        tracing::info!("starting pre proposal transition, building my pre_proposal");
         // generate my pre_proposal
         let my_preproposal =
             PreProposal::new(block_height, &handles.signer, handles.order_storage.get_all_orders());
