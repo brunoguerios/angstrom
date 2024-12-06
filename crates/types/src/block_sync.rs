@@ -154,9 +154,10 @@ impl BlockSyncConsumer for GlobalBlockSync {
         if transition {
             // was last sign off, pending state -> cur state
             let mut lock = self.pending_state.write().unwrap();
-            let new_state = lock
-                .pop_front()
-                .expect("everyone signed off on a transition proposal that didn't exist");
+            let Some(new_state) = lock.pop_front() else {
+                // are racing and someone beat us to it!
+                return
+            };
             drop(lock);
 
             tracing::info!(handled_state=?new_state, "detected reorg has been handled successfully");
