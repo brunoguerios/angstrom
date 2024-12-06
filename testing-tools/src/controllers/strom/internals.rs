@@ -103,8 +103,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         block_sync.set_block(block_number);
         block_sync.clear();
 
-        let block_sync = GlobalBlockSync::new(block_number);
-
         let eth_handle = AnvilEthDataCleanser::spawn(
             node_config.node_id,
             executor.clone(),
