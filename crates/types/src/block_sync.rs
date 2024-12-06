@@ -174,7 +174,13 @@ impl BlockSyncConsumer for GlobalBlockSync {
         }
         // ensure the block number is cur_block + 1
         if !self.proper_proposal(&GlobalBlockState::PendingProgression(block_number)) {
-            panic!("{} tried to sign off on a incorrect proposal", module);
+            panic!(
+                "{} tried to sign off on a incorrect proposal. current proposals: {:?}, got \
+                 proposal: {:?}",
+                module,
+                self.pending_state,
+                GlobalBlockState::PendingProgression(block_number)
+            );
         }
 
         let check = SignOffState::ReadyForNextBlock(waker);
