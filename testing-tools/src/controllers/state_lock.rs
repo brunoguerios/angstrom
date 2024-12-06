@@ -157,7 +157,7 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
 
-        let span = span!(Level::TRACE, "node", id = this.eth_peer.node_id);
+        let span = span!(Level::ERROR, "node", id = this.eth_peer.node_id);
         let e = span.enter();
 
         if this.eth_peer.fut.poll_unpin(cx).is_ready() {
