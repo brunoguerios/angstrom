@@ -470,9 +470,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
     }
 
     fn notify_order_subscribers(&mut self, update: PoolManagerUpdate) {
-        if let Err(e) = self.orders_subscriber_tx.send(update) {
-            error!("could not send order update {:?}", e)
-        }
+        let _ = self.orders_subscriber_tx.send(update);
     }
 
     fn notify_validation_subscribers(&mut self, hash: &B256, result: OrderValidationResults) {
