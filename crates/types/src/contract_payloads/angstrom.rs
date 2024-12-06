@@ -1108,6 +1108,10 @@ impl AngstromPoolConfigStore {
         let store_key = Self::derive_store_key(asset0, asset1);
         self.entries.get(&store_key).map(|i| *i)
     }
+
+    pub fn all_entries(&self) -> &DashMap<AngstromPoolPartialKey, AngPoolConfigEntry> {
+        &self.entries
+    }
 }
 
 impl TryFrom<&[u8]> for AngstromPoolConfigStore {
