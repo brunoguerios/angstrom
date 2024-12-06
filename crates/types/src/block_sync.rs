@@ -234,7 +234,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
             tracing::warn!(%module_name, "tried to register a module after setting no more modules to true. This module won't be added");
             return
         }
-        tracing::info!(%module ,"registered module on block sync");
+        tracing::info!(%module_name, "registered module on block sync");
 
         if self
             .registered_modules
