@@ -91,7 +91,6 @@ impl PreProposal {
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>
     ) -> Self {
         let payload = Self::serialize_payload(&ethereum_height, &limit, &searcher);
-        tracing::debug!(?payload, "signing payload");
         let signature = Self::sign_payload(sk, payload);
 
         Self { limit, source: sk.id(), searcher, block_height: ethereum_height, signature }
