@@ -202,9 +202,11 @@ impl BlockSyncConsumer for GlobalBlockSync {
         if transition {
             tracing::info!("transitioning to new block");
             let mut lock = self.pending_state.write().unwrap();
-            let new_state = lock
-                .pop_front()
-                .expect("everyone signed off on a transition proposal that didn't exist");
+            let Some(new_state) = lock.pop_front() else {
+                // are racing and someone beat us to it!
+                return
+            };
+
             drop(lock);
 
             tracing::info!(handled_state=?new_state, "new block has been handled successfully");
