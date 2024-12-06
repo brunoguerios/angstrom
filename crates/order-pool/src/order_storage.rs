@@ -305,8 +305,10 @@ impl OrderStorage {
     }
 
     pub fn get_all_orders(&self) -> OrderSet<GroupedVanillaOrder, TopOfBlockOrder> {
+        tracing::debug!("getting all orders");
         let limit = self.limit_orders.lock().expect("poisoned").get_all_orders();
         let searcher = self.top_tob_orders();
+        tracing::debug!("got all orders");
 
         OrderSet { limit, searcher }
     }
