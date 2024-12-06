@@ -241,15 +241,13 @@ where
         let this = self.get_mut();
 
         let span = span!(Level::ERROR, "node", id = this.node_id);
-        let e = span.enter();
-
-        if this.lock.load(Ordering::Relaxed) && this.inner.lock_arc().poll_unpin(cx).is_ready() {
-            return Poll::Ready(())
-        }
-
-        drop(e);
-
-        cx.waker().wake_by_ref();
-        Poll::Pending
+        span.in_scope(|| {
+            if this.lock.load(Ordering::Relaxed) && this.inner.lock_arc().poll_unpin(cx).is_ready()
+            {
+                return Poll::Ready(())
+            }
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        })
     }
 }
