@@ -101,7 +101,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
         block_sync.set_block(block_number);
-        block_sync.clear();
 
         let eth_handle = AnvilEthDataCleanser::spawn(
             node_config.node_id,
@@ -114,13 +113,15 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             block_sync.clone()
         )
         .await?;
-        // wait for new block and then initalize rest
+        // wait for new block then clear all proposals and init rest.
+        // this gives us 12 seconds so we can ensure all nodes are on the same update
         let _ = state_provider
             .state_provider()
             .subscribe_to_canonical_state()
             .recv()
             .await
             .expect("startup sequence failed");
+        block_sync.clear();
 
         tracing::debug!(block_number, "creating strom internals");
 
