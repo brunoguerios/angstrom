@@ -105,6 +105,7 @@ where
     }
 
     fn on_blockchain_state(&mut self, notification: CanonStateNotification, waker: Waker) {
+        tracing::info!("got new block_chain state");
         let new_block = notification.tip();
         self.current_height = new_block.block.number;
         let round_leader = self
