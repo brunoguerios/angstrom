@@ -114,6 +114,13 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             block_sync.clone()
         )
         .await?;
+        // wait for new block and then initalize rest
+        let _ = state_provider
+            .state_provider()
+            .subscribe_to_canonical_state()
+            .recv()
+            .await
+            .expect("startup sequence failed");
 
         tracing::debug!(block_number, "creating strom internals");
 
