@@ -111,11 +111,7 @@ where
         let cur_preproposals = self.pre_proposals.len();
         let twthr = handles.two_thirds_of_validation_set();
         if cur_preproposals >= twthr {
-            tracing::info!(
-                ?cur_preproposals,
-                ?twthr,
-                "got two thrids, moving to pre proposal aggregation"
-            );
+            tracing::info!("got two thrids, moving to pre proposal aggregation");
 
             return Poll::Ready(Some(Box::new(PreProposalAggregationState::new(
                 std::mem::take(&mut self.pre_proposals),
