@@ -104,6 +104,9 @@ where
                 cx.waker().clone()
             ))))
         }
+        let cur_preproposals = self.pre_proposals_aggregation.len();
+        let twthr = handles.two_thirds_of_validation_set();
+        tracing::info!(?cur_preproposals, ?twthr, is_leader = handles.i_am_leader(), "aggregation");
 
         // if  we are the leader, then we will transition
         if self.pre_proposals_aggregation.len() >= handles.two_thirds_of_validation_set()
