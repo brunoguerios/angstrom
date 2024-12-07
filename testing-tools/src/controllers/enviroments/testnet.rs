@@ -92,18 +92,24 @@ where
         // initialize leader provider
         let front = configs.remove(0);
         let l_block_sync = GlobalBlockSync::new(0);
-        let leader_provider = self
-            .initalize_leader_provider(l_block_sync, front, &mut initial_angstrom_state)
-            .await;
+        let leader_provider = Some(
+            self.initalize_leader_provider(
+                l_block_sync.clone(),
+                front,
+                &mut initial_angstrom_state
+            )
+            .await
+        );
 
         let nodes = futures::stream::iter(configs.into_iter())
             .map(|node_config| async {
                 let node_id = node_config.node_id;
-                let block_sync = if node_id == 0 { l_block_sync } else { GlobalBlockSync::new(0) };
+                let block_sync =
+                    if node_id == 0 { l_block_sync.clone() } else { GlobalBlockSync::new(0) };
 
                 tracing::info!(node_id, "connecting to state provider");
                 let provider = if self.config.is_leader(node_id) {
-                    leader_provider
+                    leader_provider.take().unwrap()
                 } else {
                     tracing::info!(?node_id, "follower node init");
                     AnvilProvider::new(
