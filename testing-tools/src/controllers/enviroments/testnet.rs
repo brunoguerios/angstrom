@@ -147,6 +147,8 @@ where
                         block_sync
                     )
                     .await?;
+                    let node_pk = node_config.angstrom_signer().id();
+                    tracing::info!(?node_pk, "node pk!!!!!!!!!!!");
 
                     tracing::info!(node_id, "made angstrom node");
 
