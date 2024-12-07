@@ -266,6 +266,7 @@ where
 
     fn verify_proposal(&mut self, peer_id: PeerId, proposal: Proposal) -> Option<Proposal> {
         if self.round_leader != peer_id {
+            tracing::debug!("got invalid proposal");
             return None
         }
 
@@ -313,6 +314,7 @@ where
         // if  we don't have the pre_proposal, propagate it and then store it.
         // else log a message
         if !proposal_set.contains(&proposal) {
+            tracing::info!("storing consensus message");
             self.propagate_message(proposal.clone().into());
             proposal_set.insert(proposal);
         } else {

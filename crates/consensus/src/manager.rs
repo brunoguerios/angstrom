@@ -112,6 +112,7 @@ where
             .leader_selection
             .choose_proposer(self.current_height)
             .unwrap();
+        tracing::info!(?round_leader, "selected new round leader");
 
         self.consensus_round_state
             .reset_round(self.current_height, round_leader);
