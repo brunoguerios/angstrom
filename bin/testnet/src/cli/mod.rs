@@ -73,6 +73,7 @@ impl AngstromTestnetCli {
             layer_builder(format!("angstrom_rpc={level}")),
             layer_builder(format!("angstrom={level}")),
             layer_builder(format!("testing_tools={level}")),
+            layer_builder(format!("matching_engine={level}")),
             layer_builder(format!("uniswap_v4={level}")),
             layer_builder(format!("consensus={level}")),
             layer_builder(format!("validation={level}")),
