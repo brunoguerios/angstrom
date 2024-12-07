@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
+    ops::Deref,
     sync::Arc
 };
 
@@ -1049,6 +1050,14 @@ impl AngstromBundle {
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub struct AngstromPoolPartialKey([u8; 27]);
+
+impl Deref for AngstromPoolPartialKey {
+    type Target = [u8; 27];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct AngPoolConfigEntry {
