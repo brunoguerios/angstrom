@@ -202,6 +202,7 @@ where
                 );
                 self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
             });
+        tracing::debug!("{:#?}", self.ticks);
 
         Ok(())
     }
