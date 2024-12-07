@@ -108,15 +108,14 @@ where
         let cur_preproposals_aggs = self.pre_proposals_aggregation.len();
         let twthr = handles.two_thirds_of_validation_set();
 
-        tracing::info!(
-            ?cur_preproposals_aggs,
-            ?twthr,
-            is_leader = handles.i_am_leader(),
-            "aggregation"
-        );
-
         // if  we are the leader, then we will transition
         if cur_preproposals_aggs >= twthr && handles.i_am_leader() {
+            tracing::info!(
+                ?cur_preproposals_aggs,
+                ?twthr,
+                is_leader = handles.i_am_leader(),
+                "aggregation transition to proposal"
+            );
             return Poll::Ready(Some(Box::new(ProposalState::new(
                 std::mem::take(&mut self.pre_proposals_aggregation),
                 handles,
