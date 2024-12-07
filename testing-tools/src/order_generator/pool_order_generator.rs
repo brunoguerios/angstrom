@@ -22,7 +22,7 @@ impl PoolOrderGenerator {
         let price = pool_data.read().unwrap().calculate_price();
 
         // bounds of 50% from start with a std of 10%
-        let mut price_distribution = PriceDistribution::new(price, price * 2, price * 0.5, price);
+        let mut price_distribution = PriceDistribution::new(price, price * 2.0, price * 0.5, price);
         let cur_price = price_distribution.generate_price();
         let builder = OrderBuilder::new(pool_data);
 
