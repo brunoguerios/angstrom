@@ -71,7 +71,6 @@ where
         handles: &mut SharedRoundState<P, T, Matching>,
         message: StromConsensusEvent
     ) {
-        tracing::debug!(?message);
         match message {
             StromConsensusEvent::PreProposal(..) => {
                 tracing::debug!("got a lagging pre-proposal");
