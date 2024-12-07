@@ -140,7 +140,7 @@ impl WeightedRoundRobin {
 
         let rounds_to_catchup = (block_number - self.block_number) as usize;
         let mut leader = None;
-        for _ in 0..rounds_to_catchup {
+        for _ in 0..=rounds_to_catchup {
             self.center_priorities();
             self.scale_priorities();
             leader = Some(self.proposer_selection());
