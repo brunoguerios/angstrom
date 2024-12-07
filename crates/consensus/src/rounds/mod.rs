@@ -255,6 +255,7 @@ where
         pre_proposal_agg: PreProposalAggregation,
         pre_proposal_agg_set: &mut HashSet<PreProposalAggregation>
     ) {
+        tracing::info!("got pre_proposal_agg");
         self.handle_proposal_verification(
             peer_id,
             pre_proposal_agg,
