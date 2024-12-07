@@ -135,12 +135,16 @@ impl WeightedRoundRobin {
         //    ideal, since nodes who were offline will not have seen the reorg, thus
         //    would not have executed the extra rounds after this if statement
         if block_number <= self.block_number {
+            if self.last_proposer.is_none() {
+                self.last_proposer = Some(self.proposer_selection());
+            }
+
             return self.last_proposer
         }
 
         let rounds_to_catchup = (block_number - self.block_number) as usize;
         let mut leader = None;
-        for _ in 0..=rounds_to_catchup {
+        for _ in 0..rounds_to_catchup {
             self.center_priorities();
             self.scale_priorities();
             leader = Some(self.proposer_selection());
