@@ -1,4 +1,4 @@
-use std::{collections::HashSet, pin::Pin};
+use std::{cell::Cell, collections::HashSet, pin::Pin, sync::Arc};
 
 use alloy::providers::ext::AnvilApi;
 use alloy_primitives::U256;
@@ -7,7 +7,6 @@ use futures::{Future, StreamExt};
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use reth_tasks::TaskExecutor;
-use tokio_stream::StreamExt;
 
 use super::AngstromTestnet;
 use crate::{
@@ -92,51 +91,67 @@ where
         // initialize leader provider
         let front = configs.remove(0);
         let l_block_sync = GlobalBlockSync::new(0);
-        let leader_provider = Some(
+        let leader_provider = Arc::new(Cell::new(
             self.initalize_leader_provider(
                 l_block_sync.clone(),
                 front,
                 &mut initial_angstrom_state
             )
-            .await
-        );
+            .await?
+        ));
 
         let nodes = futures::stream::iter(configs.into_iter())
-            .map(|node_config| async {
-                let node_id = node_config.node_id;
-                let block_sync =
-                    if node_id == 0 { l_block_sync.clone() } else { GlobalBlockSync::new(0) };
+            .map(|node_config| {
+                let block_s = l_block_sync.clone();
+                let block_st = self.block_provider.subscribe_to_new_blocks();
+                let c = c.clone();
+                let initial_validators = initial_validators.clone();
+                let initial_angstrom_state = initial_angstrom_state.clone().unwrap();
+                let agents = agents.clone();
+                let leader_provider = leader_provider.clone();
 
-                tracing::info!(node_id, "connecting to state provider");
-                let provider = if self.config.is_leader(node_id) {
-                    leader_provider.take().unwrap()
-                } else {
-                    tracing::info!(?node_id, "follower node init");
-                    AnvilProvider::new(
-                        WalletProvider::new(node_config.clone()),
-                        true,
-                        block_sync.clone()
+                async move {
+                    let node_id = node_config.node_id;
+                    let block_sync = if node_id == 0 { block_s } else { GlobalBlockSync::new(0) };
+
+                    tracing::info!(node_id, "connecting to state provider");
+                    let provider = if node_id == 0 {
+                        leader_provider.replace(
+                            AnvilProvider::new(
+                                WalletProvider::new(node_config.clone()),
+                                true,
+                                block_sync.clone()
+                            )
+                            .await?
+                        )
+                    } else {
+                        tracing::info!(?node_id, "follower node init");
+                        AnvilProvider::new(
+                            WalletProvider::new(node_config.clone()),
+                            true,
+                            block_sync.clone()
+                        )
+                        .await?
+                    };
+
+                    tracing::info!(node_id, "connected to state provider");
+
+                    let node = TestnetNode::new(
+                        c,
+                        node_config,
+                        provider,
+                        initial_validators,
+                        initial_angstrom_state,
+                        block_st,
+                        agents.clone(),
+                        block_sync
                     )
-                    .await?
-                };
+                    .await?;
 
-                tracing::info!(node_id, "connected to state provider");
+                    tracing::info!(node_id, "made angstrom node");
 
-                let mut node = TestnetNode::new(
-                    c.clone(),
-                    node_config.clone(),
-                    provider,
-                    initial_validators.clone(),
-                    initial_angstrom_state.clone().unwrap(),
-                    self.block_provider.subscribe_to_new_blocks(),
-                    agents.clone(),
-                    block_sync
-                )
-                .await?;
-
-                tracing::info!(node_id, "made angstrom node");
-
-                eyre::Ok((node_id, node))
+                    eyre::Ok((node_id, node))
+                }
             })
             .buffer_unordered(100)
             .collect::<Vec<_>>()
@@ -156,12 +171,12 @@ where
         block_sync: GlobalBlockSync,
         node_config: TestingNodeConfig<TestnetConfig>,
         initial_angstrom_state: &mut Option<InitialTestnetState>
-    ) -> AnvilProvider<WalletProvider> {
+    ) -> eyre::Result<AnvilProvider<WalletProvider>> {
         let (p, initial_state) = self
             .leader_initialization(node_config.clone(), block_sync.clone())
             .await?;
         *initial_angstrom_state = Some(initial_state);
-        p
+        Ok(p)
     }
 
     async fn leader_initialization(
