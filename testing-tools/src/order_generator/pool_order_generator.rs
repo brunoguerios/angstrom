@@ -44,6 +44,7 @@ impl PoolOrderGenerator {
             .build_tob_order(self.cur_price, self.block_number + 1);
 
         let price_samples = self.price_distribution.sample_around_price(amount);
+        tracing::info!(?price_samples, "sampled prices for order generation");
         let mut book = vec![];
 
         for price in price_samples.into_iter().take(amount) {
