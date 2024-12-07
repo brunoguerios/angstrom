@@ -167,7 +167,7 @@ where
     }
 
     async fn initalize_leader_provider(
-        &self,
+        &mut self,
         block_sync: GlobalBlockSync,
         node_config: TestingNodeConfig<TestnetConfig>,
         initial_angstrom_state: &mut Option<InitialTestnetState>
