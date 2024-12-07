@@ -143,7 +143,7 @@ where
             .await;
 
         for res in nodes {
-            let (node_id, node) = res?;
+            let (node_id, mut node) = res?;
             node.connect_to_all_peers(&mut self.peers).await;
             self.peers.insert(node_id, node);
         }
