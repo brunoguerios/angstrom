@@ -87,6 +87,10 @@ where
             .iter()
             .map(|node_config| node_config.angstrom_validator())
             .collect::<Vec<_>>();
+        let node_addresses = configs
+            .iter()
+            .map(|c| c.angstrom_signer().address())
+            .collect::<Vec<_>>();
 
         // initialize leader provider
         let front = configs.remove(0);
@@ -95,10 +99,12 @@ where
             self.initalize_leader_provider(
                 l_block_sync.clone(),
                 front,
-                &mut initial_angstrom_state
+                &mut initial_angstrom_state,
+                node_addresses
             )
             .await?
         ));
+        // take the provider and then set all people in the testnet as nodes.
 
         let nodes = futures::stream::iter(configs.into_iter())
             .map(|node_config| {
@@ -173,10 +179,11 @@ where
         &mut self,
         block_sync: GlobalBlockSync,
         node_config: TestingNodeConfig<TestnetConfig>,
-        initial_angstrom_state: &mut Option<InitialTestnetState>
+        initial_angstrom_state: &mut Option<InitialTestnetState>,
+        node_addresses: Vec<Address>
     ) -> eyre::Result<AnvilProvider<WalletProvider>> {
         let (p, initial_state) = self
-            .leader_initialization(node_config.clone(), block_sync.clone())
+            .leader_initialization(node_config.clone(), block_sync.clone(), node_addresses)
             .await?;
         *initial_angstrom_state = Some(initial_state);
         Ok(p)
@@ -185,10 +192,15 @@ where
     async fn leader_initialization(
         &mut self,
         config: TestingNodeConfig<TestnetConfig>,
-        block_sync: GlobalBlockSync
+        block_sync: GlobalBlockSync,
+        node_addresses: Vec<Address>
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
-        let mut provider =
-            AnvilProvider::new(AnvilInitializer::new(config.clone()), true, block_sync).await?;
+        let mut provider = AnvilProvider::new(
+            AnvilInitializer::new(config.clone(), node_addresses),
+            true,
+            block_sync
+        )
+        .await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());
 
         let initializer = provider.provider_mut().provider_mut();

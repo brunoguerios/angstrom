@@ -65,6 +65,10 @@ where
             .iter()
             .map(|node_config| node_config.angstrom_validator())
             .collect::<Vec<_>>();
+        let node_addresses = configs
+            .iter()
+            .map(|c| c.angstrom_signer().address())
+            .collect::<Vec<_>>();
 
         for node_config in configs {
             let node_id = node_config.node_id;
@@ -72,7 +76,7 @@ where
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
                 let mut initializer = AnvilProvider::new(
-                    AnvilInitializer::new(node_config.clone()),
+                    AnvilInitializer::new(node_config.clone(), node_addresses),
                     false,
                     block_sync.clone()
                 )
