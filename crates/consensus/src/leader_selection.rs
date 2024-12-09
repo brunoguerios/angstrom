@@ -82,7 +82,10 @@ impl WeightedRoundRobin {
     fn priority(a: &&AngstromValidator, b: &&AngstromValidator) -> Ordering {
         a.priority
             .partial_cmp(&b.priority)
-            .unwrap_or(Ordering::Equal)
+            // TODO: not the best because it encourages mining lower peer ids
+            // however we need a way for this to be uniform across nodes and
+            // this is the easiest
+            .unwrap_or_else(|| a.peer_id.cmp(&b.peer_id))
     }
 
     fn center_priorities(&mut self) {

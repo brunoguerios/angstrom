@@ -317,7 +317,7 @@ where
             self.propagate_message(proposal.clone().into());
             proposal_set.insert(proposal);
         } else {
-            tracing::info!(peer=?peer_id,"got a duplicate consensus message");
+            tracing::trace!(peer=?peer_id,"got a duplicate consensus message");
         }
     }
 }
