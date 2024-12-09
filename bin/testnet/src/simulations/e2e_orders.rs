@@ -45,7 +45,7 @@ fn end_to_end_agent<'a>(
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
-            5..20,
+            20..50,
             0.05..0.1
         );
 
