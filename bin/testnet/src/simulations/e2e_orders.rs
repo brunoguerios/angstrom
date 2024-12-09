@@ -46,7 +46,7 @@ fn end_to_end_agent<'a>(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
             20..50,
-            0.05..0.1
+            0.50..0.7
         );
 
         let mut stream =
