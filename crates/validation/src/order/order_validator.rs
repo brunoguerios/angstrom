@@ -24,9 +24,9 @@ use crate::{
 };
 
 pub struct OrderValidator<DB, Pools, Fetch> {
-    sim:          SimValidation<DB>,
-    state:        StateValidation<Pools, Fetch>,
-    block_number: Arc<AtomicU64>
+    sim:                     SimValidation<DB>,
+    state:                   StateValidation<Pools, Fetch>,
+    pub(crate) block_number: Arc<AtomicU64>
 }
 
 impl<DB, Pools, Fetch> OrderValidator<DB, Pools, Fetch>
