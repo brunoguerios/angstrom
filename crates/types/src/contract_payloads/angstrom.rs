@@ -838,6 +838,9 @@ impl AngstromBundle {
         // this should never underflow. if it does. means that there is underlying
         // problem with the gas delegation module
         assert!(gas_details.total_gas_cost_wei > total_gas);
+        if total_swaps == 0 {
+            return Err(eyre::eyre!("have a total swaps count of 0"));
+        }
         let shared_gas_in_wei = (gas_details.total_gas_cost_wei - total_gas) / total_swaps;
 
         // fetch gas used
