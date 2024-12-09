@@ -498,6 +498,7 @@ impl AngstromBundle {
         let (t0, t1) = {
             let token_in = user_order.token_in();
             let token_out = user_order.token_out();
+
             if token_in < token_out {
                 (token_in, token_out)
             } else {
@@ -517,6 +518,19 @@ impl AngstromBundle {
             price_1over0: U256::from(1)
         };
         pairs.push(pair);
+
+        let token_in = user_order.token_in();
+        let token_out = user_order.token_out();
+        let (asset_in, asset_out) =
+            if token_in < token_out { (t0_idx, t1_idx) } else { (t1_idx, t0_idx) };
+
+        asset_builder.external_swap(
+            AssetBuilderStage::TopOfBlock,
+            asset_in,
+            asset_out,
+            user_order.quantity_in,
+            user_order.quantity_out
+        );
 
         // Get our list of user orders, if we have any
         top_of_block_orders.push(TopOfBlockOrder::of_max_gas(user_order, 0));
