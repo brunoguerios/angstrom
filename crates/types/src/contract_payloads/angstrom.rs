@@ -519,15 +519,10 @@ impl AngstromBundle {
         };
         pairs.push(pair);
 
-        let token_in = user_order.token_in();
-        let token_out = user_order.token_out();
-        let (asset_in, asset_out) =
-            if token_in < token_out { (t0_idx, t1_idx) } else { (t1_idx, t0_idx) };
-
         asset_builder.external_swap(
             AssetBuilderStage::TopOfBlock,
-            asset_in,
-            asset_out,
+            user_order.token_in(),
+            user_order.token_out(),
             user_order.quantity_in,
             user_order.quantity_out
         );
