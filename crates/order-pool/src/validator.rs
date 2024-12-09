@@ -219,15 +219,9 @@ where
 
                 Poll::Ready(Some(OrderValidatorRes::TransitionComplete))
             }
-            OrderValidator::RegularProcessing { remaining_futures, .. } => {
-                remaining_futures.poll_next_unpin(cx).map(|inner| {
-                    inner
-                        .map(OrderValidatorRes::ValidatedOrder)
-                        .inspect(|order| {
-                            tracing::debug!(?order, "order has been validated");
-                        })
-                })
-            }
+            OrderValidator::RegularProcessing { remaining_futures, .. } => remaining_futures
+                .poll_next_unpin(cx)
+                .map(|inner| inner.map(OrderValidatorRes::ValidatedOrder))
         }
     }
 }
