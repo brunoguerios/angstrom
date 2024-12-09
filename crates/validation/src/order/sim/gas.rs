@@ -85,7 +85,7 @@ where
                 let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
                     .unwrap()
                     .pade_encode();
-                execution_env.block.number = (block + 1).into();
+                execution_env.block.number = U256::from(block + 1);
 
                 let tx = &mut execution_env.tx;
                 tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
@@ -121,7 +121,7 @@ where
                     .unwrap()
                     .pade_encode();
 
-                execution_env.block.number = (block + 1).into();
+                execution_env.block.number = U256::from(block + 1);
 
                 let tx = &mut execution_env.tx;
                 tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
