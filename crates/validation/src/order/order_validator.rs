@@ -91,7 +91,8 @@ where
                             results.add_gas_cost_or_invalidate(
                                 &cloned_sim,
                                 &token_conversion,
-                                true
+                                true,
+                                block_number
                             );
 
                             let _ = tx.send(results);
@@ -107,7 +108,8 @@ where
                             results.add_gas_cost_or_invalidate(
                                 &cloned_sim,
                                 &token_conversion,
-                                false
+                                false,
+                                block_number
                             );
 
                             let _ = tx.send(results);

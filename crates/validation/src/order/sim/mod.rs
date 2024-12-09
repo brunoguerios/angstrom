@@ -38,10 +38,11 @@ where
     pub fn calculate_tob_gas(
         &self,
         order: &OrderWithStorageData<TopOfBlockOrder>,
-        conversion: &TokenPriceGenerator
+        conversion: &TokenPriceGenerator,
+        block: u64
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
         self.metrics.fetch_gas_for_user(true, || {
-            let gas_in_wei = self.gas_calculator.gas_of_tob_order(order)?;
+            let gas_in_wei = self.gas_calculator.gas_of_tob_order(order, block)?;
             // grab order tokens;
             let (token0, token1) = if order.asset_in < order.asset_out {
                 (order.asset_in, order.asset_out)
@@ -58,10 +59,11 @@ where
     pub fn calculate_user_gas(
         &self,
         order: &OrderWithStorageData<GroupedVanillaOrder>,
-        conversion: &TokenPriceGenerator
+        conversion: &TokenPriceGenerator,
+        block: u64
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
         self.metrics.fetch_gas_for_user(false, || {
-            let gas_in_wei = self.gas_calculator.gas_of_book_order(order)?;
+            let gas_in_wei = self.gas_calculator.gas_of_book_order(order, block)?;
             // grab order tokens;
             let (token0, token1) = if order.token_in() < order.token_out() {
                 (order.token_in(), order.token_out())

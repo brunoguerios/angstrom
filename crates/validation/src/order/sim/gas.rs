@@ -69,7 +69,8 @@ where
 
     pub fn gas_of_tob_order(
         &self,
-        tob: &OrderWithStorageData<TopOfBlockOrder>
+        tob: &OrderWithStorageData<TopOfBlockOrder>,
+        block: u64
     ) -> eyre::Result<GasUsed> {
         self.execute_on_revm(
             &HashMap::default(),
@@ -84,6 +85,7 @@ where
                 let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
                     .unwrap()
                     .pade_encode();
+                execution_env.block.number = (block + 1).into();
 
                 let tx = &mut execution_env.tx;
                 tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
@@ -101,7 +103,8 @@ where
 
     pub fn gas_of_book_order(
         &self,
-        order: &OrderWithStorageData<GroupedVanillaOrder>
+        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        block: u64
     ) -> eyre::Result<GasUsed> {
         self.execute_on_revm(
             &HashMap::default(),
@@ -117,6 +120,8 @@ where
                 let bundle = AngstromBundle::build_dummy_for_user_gas(order)
                     .unwrap()
                     .pade_encode();
+
+                execution_env.block.number = (block + 1).into();
 
                 let tx = &mut execution_env.tx;
                 tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
