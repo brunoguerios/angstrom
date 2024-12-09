@@ -103,10 +103,16 @@ impl ProposalState {
             return false
         };
 
+        let encoded = bundle.pade_encode();
+        if encoded.is_empty() {
+            tracing::error!("empty bundle");
+            return false
+        }
+
         let mut tx = TransactionRequest::default()
             .with_to(handles.angstrom_address)
             .with_from(handles.signer.address())
-            .with_input(bundle.pade_encode());
+            .with_input(encoded);
 
         let provider = handles.provider.clone();
         let signer = handles.signer.clone();

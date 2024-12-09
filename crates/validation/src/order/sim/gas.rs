@@ -71,7 +71,6 @@ where
         &self,
         tob: &OrderWithStorageData<TopOfBlockOrder>
     ) -> eyre::Result<GasUsed> {
-        return Ok(0);
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -104,7 +103,6 @@ where
         &self,
         order: &OrderWithStorageData<GroupedVanillaOrder>
     ) -> eyre::Result<GasUsed> {
-        return Ok(0);
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
