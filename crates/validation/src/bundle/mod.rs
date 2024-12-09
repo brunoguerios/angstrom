@@ -77,6 +77,7 @@ where
                     .unwrap();
 
                 if !result.result.is_success() {
+                    tracing::warn!(?result.result);
                     let _ = sender.send(Err(eyre!("transaction simulation failed")));
                     return
                 }
