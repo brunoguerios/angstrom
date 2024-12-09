@@ -75,10 +75,11 @@ impl ProposalState {
         Matching: MatchingEngineHandle
     {
         tracing::debug!("starting to build proposal");
-        let Ok((pool_solution, gas_info)) = result else {
-            tracing::error!(
+        let Ok((pool_solution, gas_info)) = result.inspect_err(|e| {
+            tracing::error!(err=%e,
                 "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
             );
+        }) else {
             return false
         };
 
