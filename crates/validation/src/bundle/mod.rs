@@ -41,7 +41,8 @@ where
             Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
             Handle
         >,
-        metrics: ValidationMetrics
+        metrics: ValidationMetrics,
+        number: u64
     ) {
         let node_address = self.node_address;
         let angstrom_address = self.angstrom_address;
@@ -58,6 +59,9 @@ where
                     .with_env_with_handler_cfg(EnvWithHandlerCfg::default())
                     .modify_env(|env| {
                         env.cfg.disable_balance_check = true;
+                    })
+                    .modify_block_env(|env| {
+                        env.number = U256::from(number + 1);
                     })
                     .modify_tx_env(|tx| {
                         tx.caller = node_address;
