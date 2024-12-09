@@ -1,6 +1,6 @@
 use std::{cell::Cell, collections::HashSet, pin::Pin, sync::Arc};
 
-use alloy::providers::ext::AnvilApi;
+use alloy::{primitives::Address, providers::ext::AnvilApi};
 use alloy_primitives::U256;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, StreamExt};

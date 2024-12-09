@@ -76,7 +76,7 @@ where
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
                 let mut initializer = AnvilProvider::new(
-                    AnvilInitializer::new(node_config.clone(), node_addresses),
+                    AnvilInitializer::new(node_config.clone(), node_addresses.clone()),
                     false,
                     block_sync.clone()
                 )
