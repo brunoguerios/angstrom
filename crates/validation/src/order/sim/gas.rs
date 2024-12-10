@@ -99,7 +99,7 @@ where
                 tx.nonce = None;
             }
         )
-        .wrap_err("top of block order")
+        .map_err(|e| eyre!("tob order err={}", e))
     }
 
     pub fn gas_of_book_order(
@@ -135,7 +135,7 @@ where
                 tx.nonce = None;
             }
         )
-        .wrap_err("user order")
+        .map_err(|e| eyre!("user order err={}", e))
     }
 
     fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) -> eyre::Result<(ResultAndState, D)>
