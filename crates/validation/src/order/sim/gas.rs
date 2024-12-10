@@ -14,7 +14,7 @@ use angstrom_types::{
         RawPoolOrder
     }
 };
-use eyre::eyre;
+use eyre::{eyre, Context};
 use pade::PadeEncode;
 use reth_provider::BlockNumReader;
 use revm::{
@@ -72,7 +72,6 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        tracing::debug!("tob order");
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -100,6 +99,7 @@ where
                 tx.nonce = None;
             }
         )
+        .wrap_err("top of block order")
     }
 
     pub fn gas_of_book_order(
@@ -107,12 +107,10 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        tracing::debug!("normal order");
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
                 amount_in:    U256::from(order.amount_in()),
-                // TODO: fix
                 amount_out:   U256::from(order.amount_in()),
                 token_out:    order.token_out(),
                 token_in:     order.token_in(),
@@ -137,6 +135,7 @@ where
                 tx.nonce = None;
             }
         )
+        .wrap_err("user order")
     }
 
     fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) -> eyre::Result<(ResultAndState, D)>
