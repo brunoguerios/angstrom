@@ -558,7 +558,7 @@ impl AngstromBundle {
         user_order: &OrderWithStorageData<GroupedVanillaOrder>
     ) -> eyre::Result<Self> {
         let top_of_block_orders = Vec::new();
-        let pool_updates = Vec::new();
+        let mut pool_updates = Vec::new();
         let mut pairs = Vec::new();
         let mut user_orders = Vec::new();
         let mut asset_builder = AssetBuilder::new();
@@ -589,6 +589,23 @@ impl AngstromBundle {
         pairs.push(pair);
 
         let pair_idx = pairs.len() - 1;
+        let ucp = Ray::from(user_order.limit_price());
+        let amount_out = ucp.mul_quantity(U256::from(user_order.amount_in()));
+
+        // pull balances from uniswap
+        asset_builder.uniswap_swap_raw(
+            AssetBuilderStage::Swap,
+            user_order.token_out(),
+            user_order.token_in(),
+            amount_out.to(),
+            user_order.amount_in()
+        );
+        pool_updates.push(PoolUpdate {
+            zero_for_one:     false,
+            pair_index:       0,
+            swap_in_quantity: user_order.amount_in(),
+            rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
+        });
 
         let outcome =
             OrderOutcome { id: user_order.order_id, outcome: OrderFillState::CompleteFill };
