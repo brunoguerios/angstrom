@@ -246,7 +246,10 @@ where
         // anything
         // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
         for i in 0..10 {
-            let balance_amount_out_slot = keccak256((self.angstrom_address, i).abi_encode());
+            let balance_amount_out_slot_angstrom =
+                keccak256((self.angstrom_address, i).abi_encode());
+
+            let balance_amount_in_slot_user = keccak256((user_address, i).abi_encode());
 
             //keccak256(angstrom . keccak256(user . idx)))
             let approval_slot = keccak256(
@@ -254,7 +257,14 @@ where
             );
 
             cache_db
-                .insert_account_storage(token_out, balance_amount_out_slot.into(), amount_out)
+                .insert_account_storage(
+                    token_out,
+                    balance_amount_out_slot_angstrom.into(),
+                    amount_out
+                )
+                .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
+            cache_db
+                .insert_account_storage(token_out, balance_amount_in_slot_user.into(), amount_in)
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
 
             cache_db
