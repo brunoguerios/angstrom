@@ -71,7 +71,7 @@ where
 
         let handle = tokio::runtime::Handle::current();
         let thread_pool = KeySplitThreadpool::new(handle, 3);
-        let sim = SimValidation::new(db.clone(), pool_manager_address, node_address);
+        let sim = SimValidation::new(db.clone(), angstrom_address, node_address);
 
         let order_validator =
             OrderValidator::new(sim, current_block, pool_storage, fetch, uniswap_pools).await;
