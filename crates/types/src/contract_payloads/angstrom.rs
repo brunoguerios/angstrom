@@ -527,6 +527,7 @@ impl AngstromBundle {
             user_order.quantity_out
         );
 
+        // pull balances from uniswap
         asset_builder.uniswap_swap_raw(
             AssetBuilderStage::Swap,
             user_order.token_out(),
