@@ -72,6 +72,7 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        tracing::debug!("tob order");
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -106,6 +107,7 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        tracing::debug!("normal order");
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
