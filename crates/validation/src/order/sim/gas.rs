@@ -268,7 +268,7 @@ where
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
 
             cache_db
-                .insert_account_storage(token_in, approval_slot.into(), amount_in)
+                .insert_account_storage(token_in, approval_slot.into(), U256::MAX)
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
         }
 
