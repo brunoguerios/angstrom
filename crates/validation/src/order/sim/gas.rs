@@ -259,12 +259,12 @@ where
                 .insert_account_storage(
                     token_out,
                     balance_amount_out_slot_angstrom.into(),
-                    amount_out
+                    U256::MAX
                 )
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
 
             cache_db
-                .insert_account_storage(token_out, balance_amount_in_slot_user.into(), amount_in)
+                .insert_account_storage(token_in, balance_amount_in_slot_user.into(), U256::MAX)
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
 
             cache_db
