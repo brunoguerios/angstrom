@@ -85,7 +85,6 @@ where
                     .unwrap()
                     .pade_encode();
                 let bundle_bytes: Bytes = bundle.into();
-                tracing::info!(?bundle_bytes);
                 execution_env.block.number = U256::from(block + 1);
 
                 let tx = &mut execution_env.tx;
