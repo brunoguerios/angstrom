@@ -1,8 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
-    primitives::{address, keccak256, Address, TxKind, B256, U160, U256},
-    rlp::Bytes,
+    primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
@@ -14,7 +13,7 @@ use angstrom_types::{
         RawPoolOrder
     }
 };
-use eyre::{eyre, Context};
+use eyre::eyre;
 use pade::PadeEncode;
 use reth_provider::BlockNumReader;
 use revm::{
@@ -85,13 +84,15 @@ where
                 let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
                     .unwrap()
                     .pade_encode();
+                let bundle_bytes: Bytes = bundle.into();
+                tracing::info!(?bundle_bytes);
                 execution_env.block.number = U256::from(block + 1);
 
                 let tx = &mut execution_env.tx;
                 tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
                 tx.transact_to = TxKind::Call(self.angstrom_address);
                 tx.data = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::new(
-                    (bundle.into(),)
+                    (bundle_bytes,)
                 )
                 .abi_encode()
                 .into();
@@ -150,7 +151,6 @@ where
             .modify_env(|env| {
                 env.cfg.disable_balance_check = true;
                 env.cfg.limit_contract_code_size = Some(usize::MAX - 1);
-                env.cfg.disable_block_gas_limit = true;
                 env.cfg.disable_block_gas_limit = true;
             })
             .modify_tx_env(f)
