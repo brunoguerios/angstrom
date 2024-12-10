@@ -489,7 +489,7 @@ impl AngstromBundle {
         user_order: &OrderWithStorageData<RpcTopOfBlockOrder>
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
-        let pool_updates = Vec::new();
+        let mut pool_updates = Vec::new();
         let mut pairs = Vec::new();
         let user_orders = Vec::new();
         let mut asset_builder = AssetBuilder::new();
@@ -535,6 +535,12 @@ impl AngstromBundle {
             user_order.quantity_out,
             user_order.quantity_in
         );
+        pool_updates.push(PoolUpdate {
+            zero_for_one:     false,
+            pair_index:       0,
+            swap_in_quantity: user_order.quantity_out,
+            rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
+        });
 
         // Get our list of user orders, if we have any
         top_of_block_orders.push(TopOfBlockOrder::of_max_gas(user_order, 0));
