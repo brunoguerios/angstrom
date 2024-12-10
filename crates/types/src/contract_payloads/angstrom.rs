@@ -511,7 +511,6 @@ impl AngstromBundle {
         let t0_idx = asset_builder.add_or_get_asset(t0) as u16;
         let t1_idx = asset_builder.add_or_get_asset(t1) as u16;
 
-        // TODO this wasn't done when pulled from davids branch.
         let pair = Pair {
             index0:       t0_idx,
             index1:       t1_idx,
@@ -526,6 +525,14 @@ impl AngstromBundle {
             user_order.token_out(),
             user_order.quantity_in,
             user_order.quantity_out
+        );
+
+        asset_builder.uniswap_swap_raw(
+            AssetBuilderStage::Swap,
+            user_order.token_out(),
+            user_order.token_in(),
+            user_order.quantity_out,
+            user_order.quantity_in
         );
 
         // Get our list of user orders, if we have any
