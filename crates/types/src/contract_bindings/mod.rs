@@ -9,6 +9,16 @@ pub mod angstrom {
     );
 }
 #[rustfmt::skip]
+pub mod controller_v_1 {
+    alloy::sol!(
+        #[allow(missing_docs)]
+        #[sol(rpc)]
+        #[derive(Debug, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
+        ControllerV1,
+        "../../contracts/out/ControllerV1.sol/ControllerV1.json"
+    );
+}
+#[rustfmt::skip]
 pub mod mintable_mock_erc_20 {
     alloy::sol!(
         #[allow(missing_docs)]
