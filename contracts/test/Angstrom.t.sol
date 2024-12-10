@@ -30,7 +30,9 @@ contract AngstromTest is BaseTest {
 
     function setUp() public {
         uni = new PoolManager(address(0));
-        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
+        angstrom = Angstrom(
+            deployAngstrom(type(Angstrom).creationCode, uni, controller)
+        );
         domainSeparator = computeDomainSeparator(address(angstrom));
 
         vm.prank(controller);
@@ -40,6 +42,18 @@ contract AngstromTest is BaseTest {
 
         MockERC20(asset0).mint(address(uni), 100_000e18);
         MockERC20(asset1).mint(address(uni), 100_000e18);
+        MockERC20(asset0).mint(address(node), 100_000e18);
+        MockERC20(asset1).mint(address(node), 100_000e18);
+        vm.prank(address(node));
+        MockERC20(asset0).approve(address(angstrom), 10_000e18);
+        MockERC20(asset1).approve(address(angstrom), 10_000e18);
+    }
+
+    function test_bytecode() public {
+        bytes
+            memory data = hex"0000882d9b80a7115b816c780f84502727093c84b3b990000000000000aa3c7d4a0c60ab13e6a600000000000000000000000000000000000000000000000000000000000000006fcd1cfd1218890934ea7fc040f5bd2196fb66e8000000002a326abed066dce7115ea2d100000000000000000000000000000000000000005464d57da0cdb9ce22bd45a20000260000000100000000000000000000000000000000000000000000000000000000000000000001000023020000000000002a326abed066dce7115ea2d1000000000000000000000000000000000000980e000000000000aa3c7d4a0c60ab13e6a6000000002a326abed066dce7115ea2d1000000000000aa3c7d4a0c60ab13e6a6000000000000aa3c7d4a0c60ab13e6a60000595940fda17606a2e339777a67ffd9f79f8298a01c13936b0b2d8468e2d581c7d88a63a2d12e4ddb6bd970ddb64fb80cd358416b5e61dda5484336832ef3f84d9dd2f42248ea6122d6656a663f0be7c1526746912c000000";
+        vm.prank(address(node));
+        angstrom.execute(abi.encode(data));
     }
 
     function test_userOrderWithFees() public {
@@ -101,7 +115,9 @@ contract AngstromTest is BaseTest {
         bundle.assets[1].take += 10.0e18;
         bundle.assets[1].settle += 10.0e18;
 
-        bytes memory payload = bundle.encode(rawGetConfigStore(address(angstrom)));
+        bytes memory payload = bundle.encode(
+            rawGetConfigStore(address(angstrom))
+        );
         vm.prank(node);
         angstrom.execute(payload);
     }

@@ -96,8 +96,6 @@ where
                 )
                 .abi_encode()
                 .into();
-                tx.value = U256::from(0);
-                tx.nonce = None;
             }
         )
         .map_err(|e| eyre!("tob order err={}", e))
@@ -132,8 +130,6 @@ where
                 )
                 .abi_encode()
                 .into();
-                tx.value = U256::from(0);
-                tx.nonce = None;
             }
         )
         .map_err(|e| eyre!("user order err={}", e))
