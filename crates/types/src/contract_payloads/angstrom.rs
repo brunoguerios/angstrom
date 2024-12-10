@@ -528,13 +528,13 @@ impl AngstromBundle {
         );
 
         // pull balances from uniswap
-        asset_builder.uniswap_swap_raw(
-            AssetBuilderStage::Swap,
-            user_order.token_out(),
-            user_order.token_in(),
-            user_order.quantity_out,
-            user_order.quantity_in
-        );
+        // asset_builder.uniswap_swap_raw(
+        //     AssetBuilderStage::Swap,
+        //     user_order.token_out(),
+        //     user_order.token_in(),
+        //     user_order.quantity_out,
+        //     user_order.quantity_in
+        // );
         pool_updates.push(PoolUpdate {
             zero_for_one:     false,
             pair_index:       0,
@@ -593,13 +593,13 @@ impl AngstromBundle {
         let amount_out = ucp.mul_quantity(U256::from(user_order.amount_in()));
 
         // pull balances from uniswap
-        asset_builder.uniswap_swap_raw(
-            AssetBuilderStage::Swap,
-            user_order.token_out(),
-            user_order.token_in(),
-            amount_out.to(),
-            user_order.amount_in()
-        );
+        // asset_builder.uniswap_swap_raw(
+        //     AssetBuilderStage::Swap,
+        //     user_order.token_out(),
+        //     user_order.token_in(),
+        //     amount_out.to(),
+        //     user_order.amount_in()
+        // );
         pool_updates.push(PoolUpdate {
             zero_for_one:     false,
             pair_index:       0,
