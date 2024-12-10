@@ -263,6 +263,7 @@ where
                     amount_out
                 )
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
+
             cache_db
                 .insert_account_storage(token_out, balance_amount_in_slot_user.into(), amount_in)
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;

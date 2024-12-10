@@ -584,7 +584,7 @@ impl AngstromBundle {
             index0:       t0_idx,
             index1:       t1_idx,
             store_index:  0,
-            price_1over0: U256::from(1)
+            price_1over0: U256::from(user_order.limit_price())
         };
         pairs.push(pair);
 
