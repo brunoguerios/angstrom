@@ -578,14 +578,16 @@ impl AngstromBundle {
             let t0_idx = asset_builder.add_or_get_asset(t0) as u16;
             let t1_idx = asset_builder.add_or_get_asset(t1) as u16;
 
-            // TODO this wasn't done when pulled from davids branch.
-            let pair = Pair {
-                index0:       t0_idx,
-                index1:       t1_idx,
-                store_index:  0,
-                price_1over0: U256::from(user_order.limit_price())
-            };
-            pairs.push(pair);
+            // hacky but works
+            if pairs.is_empty() {
+                let pair = Pair {
+                    index0:       t0_idx,
+                    index1:       t1_idx,
+                    store_index:  0,
+                    price_1over0: U256::from(user_order.limit_price())
+                };
+                pairs.push(pair);
+            }
 
             let pair_idx = pairs.len() - 1;
 

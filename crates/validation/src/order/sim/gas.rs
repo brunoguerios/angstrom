@@ -255,6 +255,7 @@ where
                 (self.angstrom_address, keccak256((user_address, i).abi_encode())).abi_encode()
             );
 
+            // we set these so we don't have to configure borrowing from uniswap
             cache_db
                 .insert_account_storage(
                     token_out,
@@ -262,7 +263,15 @@ where
                     U256::MAX
                 )
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
+            cache_db
+                .insert_account_storage(
+                    token_in,
+                    balance_amount_out_slot_angstrom.into(),
+                    U256::MAX
+                )
+                .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
 
+            // others
             cache_db
                 .insert_account_storage(token_in, balance_amount_in_slot_user.into(), U256::MAX)
                 .map_err(|e| eyre!("failed to insert account into storage {e:?}"))?;
