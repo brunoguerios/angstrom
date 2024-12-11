@@ -135,8 +135,8 @@ impl GenerateFlippedOrder for GroupedVanillaOrder {
         Self: Sized
     {
         match self {
-            GroupedVanillaOrder::Standing(s) => s.flip(),
-            GroupedVanillaOrder::KillOrFill(s) => s.flip()
+            GroupedVanillaOrder::Standing(s) => GroupedVanillaOrder::Standing(s.flip()),
+            GroupedVanillaOrder::KillOrFill(s) => GroupedVanillaOrder::KillOrFill(s.flip())
         }
     }
 }
@@ -147,8 +147,8 @@ impl GenerateFlippedOrder for StandingVariants {
         Self: Sized
     {
         match self {
-            StandingVariants::Partial(s) => s.flip(),
-            StandingVariants::Exact(s) => s.flip()
+            StandingVariants::Partial(s) => StandingVariants::Partial(s.flip()),
+            StandingVariants::Exact(s) => StandingVariants::Exact(s.flip())
         }
     }
 }
@@ -159,8 +159,8 @@ impl GenerateFlippedOrder for FlashVariants {
         Self: Sized
     {
         match self {
-            FlashVariants::Partial(s) => s.flip(),
-            FlashVariants::Exact(s) => s.flip()
+            FlashVariants::Partial(s) => FlashVariants::Partial(s.flip()),
+            FlashVariants::Exact(s) => FlashVariants::Exact(s.flip())
         }
     }
 }
