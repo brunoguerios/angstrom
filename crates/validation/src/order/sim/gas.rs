@@ -238,8 +238,14 @@ where
         let mut cache_db = self.db.clone();
 
         // change approval of token in and then balance of token out
-        let OverridesForTestAngstrom { user_address, amount_in, amount_out, token_in, token_out } =
-            overrides;
+        let OverridesForTestAngstrom {
+            user_address,
+            mock_address,
+            amount_in,
+            amount_out,
+            token_in,
+            token_out
+        } = overrides;
         // for the first 10 slots, we just force override everything to balance. because
         // of the way storage slots work in solidity. this shouldn't effect
         // anything
@@ -249,6 +255,7 @@ where
                 keccak256((self.angstrom_address, i).abi_encode());
 
             let balance_amount_in_slot_user = keccak256((user_address, i).abi_encode());
+            let balance_amount_in_slot_mock = keccak256((mock_address, i).abi_encode());
 
             //keccak256(angstrom . keccak256(user . idx)))
             let approval_slot = keccak256(
@@ -256,33 +263,91 @@ where
             );
 
             // we set these so we don't have to configure borrowing from uniswap
-            // cache_db
-            //     .insert_account_storage(
-            //         token_out,
-            //         balance_amount_out_slot_angstrom.into(),
-            //         U256::MAX
-            //     )
-            //     .map_err(|e| eyre!("failed to insert account into storage
-            // {e:?}"))?; cache_db
-            //     .insert_account_storage(
-            //         token_in,
-            //         balance_amount_out_slot_angstrom.into(),
-            //         U256::MAX
-            //     )
-            //     .map_err(|e| eyre!("failed to insert account into storage
-            // {e:?}"))?;
-            //
-            // // others
-            // cache_db
-            //     .insert_account_storage(token_in,
-            // balance_amount_in_slot_user.into(), U256::MAX)
-            //     .map_err(|e| eyre!("failed to insert account into storage
-            // {e:?}"))?;
-            //
-            // cache_db
-            //     .insert_account_storage(token_in, approval_slot.into(),
-            // U256::MAX)     .map_err(|e| eyre!("failed to insert
-            // account into storage {e:?}"))?;
+            cache_db
+                .insert_account_storage(
+                    token_out,
+                    balance_amount_out_slot_angstrom.into(),
+                    U256::MAX - U256::from(1)
+                )
+                .map_err(|e| {
+                    eyre!(
+                        "failed to insert account into storage
+            {e:?}"
+                    )
+                })?;
+            cache_db
+                .insert_account_storage(
+                    token_in,
+                    balance_amount_out_slot_angstrom.into(),
+                    U256::MAX - U256::from(1)
+                )
+                .map_err(|e| {
+                    eyre!(
+                        "failed to insert account into storage
+            {e:?}"
+                    )
+                })?;
+
+            // others
+            cache_db
+                .insert_account_storage(
+                    token_in,
+                    balance_amount_in_slot_user.into(),
+                    U256::MAX - U256::from(1)
+                )
+                .map_err(|e| {
+                    eyre!(
+                        "failed to insert account into storage
+            {e:?}"
+                    )
+                })?;
+
+            cache_db
+                .insert_account_storage(
+                    token_out,
+                    balance_amount_in_slot_user.into(),
+                    U256::MAX - U256::from(1)
+                )
+                .map_err(|e| {
+                    eyre!(
+                        "failed to insert account into storage
+            {e:?}"
+                    )
+                })?;
+
+            cache_db
+                .insert_account_storage(
+                    token_out,
+                    balance_amount_in_slot_mock.into(),
+                    U256::MAX - U256::from(1)
+                )
+                .map_err(|e| {
+                    eyre!(
+                        "failed to insert account into storage
+            {e:?}"
+                    )
+                })?;
+            cache_db
+                .insert_account_storage(
+                    token_in,
+                    balance_amount_in_slot_mock.into(),
+                    U256::MAX - U256::from(1)
+                )
+                .map_err(|e| {
+                    eyre!(
+                        "failed to insert account into storage
+            {e:?}"
+                    )
+                })?;
+
+            cache_db
+                .insert_account_storage(token_in, approval_slot.into(), U256::MAX - U256::from(1))
+                .map_err(|e| {
+                    eyre!(
+                        "failed to insert
+            account into storage {e:?}"
+                    )
+                })?;
         }
 
         Ok(cache_db)
@@ -337,6 +402,7 @@ struct ConfiguredRevm<DB> {
 
 struct OverridesForTestAngstrom {
     pub user_address: Address,
+    pub mock_address: Address,
     pub amount_in:    U256,
     pub amount_out:   U256,
     pub token_in:     Address,
