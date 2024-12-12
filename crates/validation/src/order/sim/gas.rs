@@ -250,7 +250,7 @@ where
         // of the way storage slots work in solidity. this shouldn't effect
         // anything
         // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
-        return Ok(cache_db)
+        return Ok(cache_db);
         for i in 0..10 {
             let balance_slot_angstrom = keccak256((self.angstrom_address, i).abi_encode());
 
