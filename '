@@ -107,14 +107,11 @@ impl AnvilInitializer {
                 .await?;
         self.pending_state.add_pending_tx(first_token_tx);
 
-        let (second_token_tx, mut second_token) =
+        let (second_token_tx, second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(nonce + 1, self.provider.controller())
                 .await?;
         self.pending_state.add_pending_tx(second_token_tx);
-
-        // wait for them to be mined.
-        self.pending_state.finalize_pending_txs().await?;
 
         // lets load the bytecode of the second token, then use the bytecode to override
         // the weth address
@@ -128,7 +125,6 @@ impl AnvilInitializer {
             .rpc_provider()
             .anvil_set_code(WETH_ADDRESS, code)
             .await?;
-        second_token = WETH_ADDRESS;
 
         let (currency0, currency1) = if first_token < second_token {
             (first_token, second_token)
@@ -144,6 +140,7 @@ impl AnvilInitializer {
             hooks: *self.angstrom.address()
         };
         self.pending_state.add_pool_key(pool_key.clone());
+        self.pending_state.finalize_pending_txs().await?;
 
         Ok((currency0, currency1))
     }
