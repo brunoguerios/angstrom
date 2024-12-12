@@ -42,7 +42,6 @@ pub struct WeightedRoundRobin {
 
 impl WeightedRoundRobin {
     pub fn new(validators: Vec<AngstromValidator>, block_number: BlockNumber) -> Self {
-        tracing::info!(?validators, ?block_number, "initting the WeightedRoundRobin");
         WeightedRoundRobin {
             validators: HashSet::from_iter(validators),
             new_joiner_penalty_factor: PENALTY_FACTOR,
@@ -54,6 +53,7 @@ impl WeightedRoundRobin {
     fn proposer_selection(&mut self) -> PeerId {
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
 
+        //  apply all priorities.
         self.validators = self
             .validators
             .drain()
@@ -63,6 +63,7 @@ impl WeightedRoundRobin {
             })
             .collect();
 
+        // find the max
         let mut proposer = self
             .validators
             .iter()
@@ -78,12 +79,14 @@ impl WeightedRoundRobin {
     }
 
     fn priority(a: &&AngstromValidator, b: &&AngstromValidator) -> Ordering {
-        a.priority
-            .partial_cmp(&b.priority)
+        let out = a.priority.partial_cmp(&b.priority);
+        if out == Some(Ordering::Equal) {
             // TODO: not the best because it encourages mining lower peer ids
             // however we need a way for this to be uniform across nodes and
             // this is the easiest
-            .unwrap_or_else(|| a.peer_id.cmp(&b.peer_id))
+            return a.peer_id.cmp(&b.peer_id)
+        }
+        out.unwrap()
     }
 
     fn center_priorities(&mut self) {
