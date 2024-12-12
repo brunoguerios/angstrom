@@ -426,34 +426,42 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
 
-        // pull all eth events
-        while let Poll::Ready(Some(eth)) = this.eth_network_events.poll_next_unpin(cx) {
-            this.on_eth_event(eth, cx.waker().clone());
-        }
-
-        // drain network/peer related events
-        while let Poll::Ready(Some(event)) = this.strom_network_events.poll_next_unpin(cx) {
-            this.on_network_event(event);
-        }
-
-        // poll underlying pool. This is the validation process that's being polled
-        while let Poll::Ready(Some(orders)) = this.order_indexer.poll_next_unpin(cx) {
-            this.on_pool_events(orders, || cx.waker().clone());
-        }
-
-        // halt dealing with these till we have synced
-        if this.global_sync.can_operate() {
-            // drain commands
-            while let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
-                this.on_command(cmd);
+        let mut work = 30;
+        loop {
+            work -= 1;
+            if work == 0 {
                 cx.waker().wake_by_ref();
+                break;
+            }
+            // pull all eth events
+            while let Poll::Ready(Some(eth)) = this.eth_network_events.poll_next_unpin(cx) {
+                this.on_eth_event(eth, cx.waker().clone());
             }
 
-            // drain incoming transaction events
-            while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
-                tracing::debug!(?event, "received orders from network");
-                this.on_network_order_event(event);
-                cx.waker().wake_by_ref();
+            // drain network/peer related events
+            while let Poll::Ready(Some(event)) = this.strom_network_events.poll_next_unpin(cx) {
+                this.on_network_event(event);
+            }
+
+            // poll underlying pool. This is the validation process that's being polled
+            while let Poll::Ready(Some(orders)) = this.order_indexer.poll_next_unpin(cx) {
+                this.on_pool_events(orders, || cx.waker().clone());
+            }
+
+            // halt dealing with these till we have synced
+            if this.global_sync.can_operate() {
+                // drain commands
+                while let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
+                    this.on_command(cmd);
+                    cx.waker().wake_by_ref();
+                }
+
+                // drain incoming transaction events
+                while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
+                    tracing::debug!(?event, "received orders from network");
+                    this.on_network_order_event(event);
+                    cx.waker().wake_by_ref();
+                }
             }
         }
 
