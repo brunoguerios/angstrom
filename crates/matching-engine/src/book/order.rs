@@ -1,6 +1,6 @@
 use angstrom_types::{
     matching::{uniswap::PoolPriceVec, CompositeOrder, Debt},
-    orders::{OrderID, OrderId, OrderPrice, OrderVolume},
+    orders::{OrderFillState, OrderId, OrderPrice, OrderVolume},
     sol_bindings::grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants}
 };
 
@@ -9,22 +9,22 @@ use super::BookOrder;
 /// Definition of the various types of order that we can serve, as well as the
 /// outcomes we're able to have for them
 #[derive(Clone, Debug)]
-pub enum OrderContainer<'a, 'b> {
+pub enum OrderContainer<'a> {
     /// A complete order from our book
     BookOrder(&'a BookOrder),
     /// A fragment of an order from our book yet to be filled
-    BookOrderFragment(&'b BookOrder),
+    BookOrderFragment { order: &'a BookOrder, state: &'a OrderFillState },
     /// An order constructed from the current state of our AMM
     AMM(PoolPriceVec<'a>),
     /// A CompositeOrder built of Debt or AMM or Both
     Composite(CompositeOrder<'a>)
 }
 
-impl<'a, 'b> OrderContainer<'a, 'b> {
+impl<'a> OrderContainer<'a> {
     pub fn id(&self) -> Option<OrderId> {
         match self {
             Self::BookOrder(o) => Some(o.order_id),
-            Self::BookOrderFragment(o) => Some(o.order_id),
+            Self::BookOrderFragment { order, .. } => Some(order.order_id),
             _ => None
         }
     }
@@ -70,9 +70,9 @@ impl<'a, 'b> OrderContainer<'a, 'b> {
                         | GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(_))
                 )
             }
-            Self::BookOrderFragment(o) => {
+            Self::BookOrderFragment { order, .. } => {
                 matches!(
-                    o.order,
+                    order.order,
                     GroupedVanillaOrder::Standing(StandingVariants::Partial(_))
                         | GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(_))
                 )
@@ -86,7 +86,10 @@ impl<'a, 'b> OrderContainer<'a, 'b> {
     pub fn quantity(&self, target_price: OrderPrice) -> OrderVolume {
         match self {
             Self::BookOrder(o) => o.quantity(),
-            Self::BookOrderFragment(o) => o.quantity(),
+            Self::BookOrderFragment { order, state: OrderFillState::PartialFill(partial_q) } => {
+                order.quantity().saturating_sub(*partial_q)
+            }
+            Self::BookOrderFragment { order, .. } => order.quantity(),
             Self::AMM(ammo) => ammo.quantity(target_price).0,
             Self::Composite(c) => c.quantity(target_price.into())
         }
@@ -105,26 +108,9 @@ impl<'a, 'b> OrderContainer<'a, 'b> {
     pub fn price(&self) -> OrderPrice {
         match self {
             Self::BookOrder(o) => o.price().into(),
-            Self::BookOrderFragment(o) => o.price().into(),
+            Self::BookOrderFragment { order, .. } => order.price().into(),
             Self::AMM(o) => (*o.start_bound.price()).into(),
             Self::Composite(o) => o.start_price().into()
-        }
-    }
-
-    /// Produce a new order representing the remainder of the current order
-    /// after the fill operation has been performed
-    pub fn fill(&self, filled_quantity: OrderVolume) -> BookOrder {
-        match self {
-            Self::AMM(_) => panic!("This should never happen"),
-            Self::Composite(_) => panic!("This should never happen"),
-            Self::BookOrder(o) => {
-                let newo = (**o).clone();
-                newo.try_map_inner(|f| Ok(f.fill(filled_quantity))).unwrap()
-            }
-            Self::BookOrderFragment(o) => {
-                let newo = (**o).clone();
-                newo.try_map_inner(|f| Ok(f.fill(filled_quantity))).unwrap()
-            }
         }
     }
 }
