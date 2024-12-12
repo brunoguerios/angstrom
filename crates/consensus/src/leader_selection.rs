@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     collections::HashSet,
     fs::File,
-    io::{self, Read, Write}
+    io::{self, Write}
 };
 
 use alloy::primitives::BlockNumber;
@@ -36,15 +36,7 @@ pub struct WeightedRoundRobin {
 
 impl WeightedRoundRobin {
     pub fn new(validators: Vec<AngstromValidator>, block_number: BlockNumber) -> Self {
-        // let file_path = format!("{}/state.json", ROUND_ROBIN_CACHE);
-        // if let Ok(mut file) = File::open(file_path) {
-        //     let mut contents = String::new();
-        //     if file.read_to_string(&mut contents).is_ok() {
-        //         if let Ok(state) = serde_json::from_str(&contents) {
-        //             return state
-        //         }
-        //     }
-        // }
+        tracing::info!(?validators, ?block_number, "initing the WeightedRoundRobin");
         WeightedRoundRobin {
             validators: HashSet::from_iter(validators),
             new_joiner_penalty_factor: PENALTY_FACTOR,
