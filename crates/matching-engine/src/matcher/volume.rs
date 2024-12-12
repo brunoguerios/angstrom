@@ -165,8 +165,7 @@ impl<'a> VolumeFillMatcher<'a> {
             return Some(VolumeFillMatchEndReason::NoMoreAsks)
         };
 
-        // println!("------RAW ORDERS------\n{:?}\n{:?}\n----------------------", bid,
-        // ask);
+        println!("------RAW ORDERS------\n{:?}\n{:?}\n----------------------", bid, ask);
 
         // Check to see if we've hit an end state
         // If we're talking to the AMM on both sides, we're done
@@ -479,15 +478,16 @@ impl<'a> VolumeFillMatcher<'a> {
         // If we have an AMM price, see if it takes precedence over our book order
         amm.and_then(|a| {
             println!("Comparing AMM to book order");
-            let bound_price = book_order.map(|o| o.price());
-            if let Some(bp) = bound_price {
-                // If my book order is equal to or more advantageous to my AMM price, we have no
-                // AMM order
-                if bp.cmp(&a.as_ray()) != less_advantageous {
+            let bound_price = if let Some(o) = book_order {
+                println!("AMM price: {:?}\nBook price: {:?}", a.as_ray(), o.price());
+                if o.price().cmp(&a.as_ray()) != less_advantageous {
                     println!("Book order better than AMM price");
-                    return None;
+                    return None
                 }
-            }
+                Some(o.price())
+            } else {
+                None
+            };
             // Otherwise, my AMM price is better than my book price and we should make an
             // AMM order
             Some(CompositeOrder::new(None, Some(a.clone()), bound_price))
