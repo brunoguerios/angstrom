@@ -683,7 +683,13 @@ impl RawPoolOrder for ExactStandingOrder {
     }
 
     fn amount_in(&self) -> u128 {
-        self.amount
+        // zero for one
+        if self.asset_in < self.asset_out {
+            self.amount
+        } else {
+            let price = Ray::from(self.limit_price());
+            price.mul_quantity(U256::from(self.amount)).to()
+        }
     }
 
     fn deadline(&self) -> Option<U256> {
@@ -819,7 +825,12 @@ impl RawPoolOrder for ExactFlashOrder {
     }
 
     fn amount_in(&self) -> u128 {
-        self.amount
+        if self.asset_in < self.asset_out {
+            self.amount
+        } else {
+            let price = Ray::from(self.limit_price());
+            price.mul_quantity(U256::from(self.amount)).to()
+        }
     }
 
     fn limit_price(&self) -> U256 {
