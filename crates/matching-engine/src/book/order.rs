@@ -13,7 +13,7 @@ pub enum OrderContainer<'a> {
     /// A complete order from our book
     BookOrder(&'a BookOrder),
     /// A fragment of an order from our book yet to be filled
-    BookOrderFragment { order: &'a BookOrder, state: &'a OrderFillState },
+    BookOrderFragment { order: &'a BookOrder, state: OrderFillState },
     /// An order constructed from the current state of our AMM
     AMM(PoolPriceVec<'a>),
     /// A CompositeOrder built of Debt or AMM or Both

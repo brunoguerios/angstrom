@@ -7,7 +7,7 @@ use alloy::primitives::U256;
 use angstrom_types::{
     matching::{
         uniswap::{Direction, PoolPrice, PoolPriceVec},
-        CompositeOrder, Debt, Ray, SqrtPriceX96
+        CompositeOrder, Debt, Ray
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
@@ -389,15 +389,11 @@ impl<'a> VolumeFillMatcher<'a> {
     ) -> Option<OrderContainer<'a>> {
         println!("Getting next order for bid {} and debt {:?}", bid, debt);
         // If we have a fragment, that takes priority
-        if let Some(OrderFillState::PartialFill(_)) = fill_state.get(book_idx.get()) {
-            // If our current order is partially filled give it priority
+        if let Some(state @ OrderFillState::PartialFill(_)) = fill_state.get(book_idx.get()) {
+            return book
+                .get(book_idx.get())
+                .map(|order| OrderContainer::BookOrderFragment { order, state: *state })
         }
-        // if let Some(f) = fragment {
-        //     // If it's in the direction we're looking for, let's use it
-        //     if bid == f.is_bid {
-        //         return Some(OrderContainer::BookOrderFragment(f))
-        //     }
-        // }
         // Fix what makes a price "less" or "more" advantageous depending on direction
         let (less_advantageous, more_advantageous) = if bid {
             // If it's a bid, a lower price is less advantageous and a higher price is more
@@ -499,7 +495,7 @@ impl<'a> VolumeFillMatcher<'a> {
                     .enumerate()
                     .map(|(idx, outcome)| (self.book.asks()[idx].order_id, outcome))
             )
-            .map(|(id, outcome)| OrderOutcome { id, outcome: outcome.clone() })
+            .map(|(id, outcome)| OrderOutcome { id, outcome: *outcome })
             .collect();
         let ucp: Ray = self.results.price.map(Into::into).unwrap_or_default();
         PoolSolution {
