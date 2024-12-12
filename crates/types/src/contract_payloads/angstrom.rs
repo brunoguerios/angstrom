@@ -540,7 +540,7 @@ impl AngstromBundle {
 
     pub fn build_dummy_for_user_gas(
         user_order: &OrderWithStorageData<GroupedVanillaOrder>
-    ) -> eyre::Result<Self> {
+    ) -> eyre::Result<(Self, Address)> {
         // in order to properly build this. we will create a fake order with the
         // amount's flipped going the other way so we have a direct match and
         // don't have to worry about balance deltas
@@ -552,6 +552,7 @@ impl AngstromBundle {
         let mut asset_builder = AssetBuilder::new();
 
         let flipped_user = user_order.flip();
+        let flipped_from = flipped_user.from();
 
         for user_order in vec![user_order, &flipped_user] {
             // Get the information for the pool or skip this solution if we can't find a
@@ -595,12 +596,15 @@ impl AngstromBundle {
             ));
         }
 
-        Ok(Self::new(
-            asset_builder.get_asset_array(),
-            pairs,
-            pool_updates,
-            top_of_block_orders,
-            user_orders
+        Ok((
+            Self::new(
+                asset_builder.get_asset_array(),
+                pairs,
+                pool_updates,
+                top_of_block_orders,
+                user_orders
+            ),
+            flipped_from
         ))
     }
 

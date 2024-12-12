@@ -74,11 +74,12 @@ where
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
-                amount_in:    U256::from(tob.amount_in()),
-                amount_out:   U256::from(tob.quantity_out),
-                token_out:    tob.token_out(),
-                token_in:     tob.token_in(),
-                user_address: tob.from()
+                flipped_order: Address::ZERO,
+                amount_in:     U256::from(tob.amount_in()),
+                amount_out:    U256::from(tob.quantity_out),
+                token_out:     tob.token_out(),
+                token_in:      tob.token_in(),
+                user_address:  tob.from()
             },
             |execution_env| {
                 let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
@@ -105,20 +106,19 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        let (bundle, other_from) = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
+        let bundle = bundle.pade_encode();
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
-                amount_in:    U256::from(order.amount_in()),
-                amount_out:   U256::from(order.amount_in()),
-                token_out:    order.token_out(),
-                token_in:     order.token_in(),
-                user_address: order.from()
+                amount_in:     U256::from(order.amount_in()),
+                amount_out:    U256::from(order.amount_in()),
+                token_out:     order.token_out(),
+                token_in:      order.token_in(),
+                user_address:  order.from(),
+                flipped_order: other_from
             },
             |execution_env| {
-                let bundle = AngstromBundle::build_dummy_for_user_gas(order)
-                    .unwrap()
-                    .pade_encode();
-
                 execution_env.block.number = U256::from(block + 1);
 
                 let tx = &mut execution_env.tx;
@@ -238,8 +238,14 @@ where
         let mut cache_db = self.db.clone();
 
         // change approval of token in and then balance of token out
-        let OverridesForTestAngstrom { user_address, amount_in, amount_out, token_in, token_out } =
-            overrides;
+        let OverridesForTestAngstrom {
+            user_address,
+            flipped_order,
+            amount_in,
+            amount_out,
+            token_in,
+            token_out
+        } = overrides;
         // for the first 10 slots, we just force override everything to balance. because
         // of the way storage slots work in solidity. this shouldn't effect
         // anything
@@ -248,77 +254,74 @@ where
             let balance_amount_out_slot_angstrom =
                 keccak256((self.angstrom_address, i).abi_encode());
 
+            // user
             let balance_amount_in_slot_user = keccak256((user_address, i).abi_encode());
-
-            //keccak256(angstrom . keccak256(user . idx)))
             let approval_slot = keccak256(
                 (self.angstrom_address, keccak256((user_address, i).abi_encode())).abi_encode()
             );
 
-            // we set these so we don't have to configure borrowing from uniswap
-            cache_db
-                .insert_account_storage(
-                    token_out,
-                    balance_amount_out_slot_angstrom.into(),
-                    U256::MAX / U256::from(2)
-                )
-                .map_err(|e| {
-                    eyre!(
-                        "failed to insert account into storage
-            {e:?}"
-                    )
-                })?;
-            cache_db
-                .insert_account_storage(
-                    token_in,
-                    balance_amount_out_slot_angstrom.into(),
-                    U256::MAX / U256::from(2)
-                )
-                .map_err(|e| {
-                    eyre!(
-                        "failed to insert account into storage
-            {e:?}"
-                    )
-                })?;
+            // flipped
+            let balance_amount_in_slot_flipped = keccak256((flipped_order, i).abi_encode());
+            let approval_slot_flipped = keccak256(
+                (self.angstrom_address, keccak256((flipped_order, i).abi_encode())).abi_encode()
+            );
 
-            // others
-            cache_db
-                .insert_account_storage(
-                    token_in,
-                    balance_amount_in_slot_user.into(),
-                    U256::MAX / U256::from(2)
-                )
-                .map_err(|e| {
-                    eyre!(
-                        "failed to insert account into storage
-            {e:?}"
-                    )
-                })?;
+            // give angstrom both amounts of tokens.
+            Self::insert_into_storage(
+                &mut cache_db,
+                token_out,
+                balance_amount_out_slot_angstrom.into(),
+                amount_out
+            )?;
 
-            cache_db
-                .insert_account_storage(
-                    token_out,
-                    balance_amount_in_slot_user.into(),
-                    U256::MAX / U256::from(2)
-                )
-                .map_err(|e| {
-                    eyre!(
-                        "failed to insert account into storage
-            {e:?}"
-                    )
-                })?;
+            Self::insert_into_storage(
+                &mut cache_db,
+                token_in,
+                balance_amount_out_slot_angstrom.into(),
+                amount_in
+            )?;
 
-            cache_db
-                .insert_account_storage(token_in, approval_slot.into(), U256::MAX / U256::from(2))
-                .map_err(|e| {
-                    eyre!(
-                        "failed to insert
-            account into storage {e:?}"
-                    )
-                })?;
+            // default user approvals + balances for tokens
+            Self::insert_into_storage(
+                &mut cache_db,
+                token_in,
+                balance_amount_in_slot_user.into(),
+                amount_in
+            )?;
+            Self::insert_into_storage(&mut cache_db, token_in, approval_slot.into(), amount_in)?;
+
+            // flipped approval + balances
+            Self::insert_into_storage(
+                &mut cache_db,
+                token_out,
+                balance_amount_in_slot_flipped.into(),
+                amount_out
+            )?;
+            Self::insert_into_storage(
+                &mut cache_db,
+                token_out,
+                approval_slot_flipped.into(),
+                amount_out
+            )?;
         }
 
         Ok(cache_db)
+    }
+
+    fn insert_into_storage(
+        cache_db: &mut CacheDB<Arc<DB>>,
+        token_address: Address,
+        slot: U256,
+        value: U256
+    ) -> eyre::Result<()> {
+        cache_db
+            .insert_account_storage(token_address, slot, value)
+            .map_err(|e| {
+                eyre!(
+                    "failed to insert
+            account into storage {e:?}"
+                )
+            })
     }
 
     fn execute_on_revm<F>(
@@ -369,11 +372,12 @@ struct ConfiguredRevm<DB> {
 }
 
 struct OverridesForTestAngstrom {
-    pub user_address: Address,
-    pub amount_in:    U256,
-    pub amount_out:   U256,
-    pub token_in:     Address,
-    pub token_out:    Address
+    pub flipped_order: Address,
+    pub user_address:  Address,
+    pub amount_in:     U256,
+    pub amount_out:    U256,
+    pub token_in:      Address,
+    pub token_out:     Address
 }
 
 pub fn mine_address_with_factory(
