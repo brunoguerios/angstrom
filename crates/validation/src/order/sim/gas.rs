@@ -7,9 +7,11 @@ use alloy::{
 use angstrom_types::{
     contract_payloads::angstrom::AngstromBundle,
     matching::uniswap::UniswapFlags,
+    primitive::ERC20,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder,
+        testnet::MockERC20,
         RawPoolOrder
     }
 };
@@ -235,7 +237,7 @@ where
         overrides: OverridesForTestAngstrom
     ) -> eyre::Result<CacheDB<Arc<DB>>> {
         // fork db
-        let mut cache_db = self.db.clone();
+        let cache_db = self.db.clone();
 
         // change approval of token in and then balance of token out
         let OverridesForTestAngstrom {
@@ -246,75 +248,127 @@ where
             token_in,
             token_out
         } = overrides;
-        // for the first 10 slots, we just force override everything to balance. because
-        // of the way storage slots work in solidity. this shouldn't effect
-        // anything
-        // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
-        return Ok(cache_db);
-        for i in 0..10 {
-            let balance_slot_angstrom = keccak256((self.angstrom_address, i).abi_encode());
 
-            // user
-            let balance_amount_in_slot_user = keccak256((user_address, i).abi_encode());
-            let approval_slot = keccak256(
-                (self.angstrom_address, keccak256((user_address, i).abi_encode())).abi_encode()
-            );
-
-            // flipped
-            let balance_amount_in_slot_flipped = keccak256((flipped_order, i).abi_encode());
-            let approval_slot_flipped = keccak256(
-                (self.angstrom_address, keccak256((flipped_order, i).abi_encode())).abi_encode()
-            );
-
-            // give angstrom both amounts of tokens.
-            Self::insert_into_storage(
-                &mut cache_db,
-                token_out,
-                balance_slot_angstrom.into(),
-                amount_out * U256::from(2)
-            )?;
-
-            Self::insert_into_storage(
-                &mut cache_db,
-                token_in,
-                balance_slot_angstrom.into(),
-                amount_in * U256::from(2)
-            )?;
-
-            // default user approvals + balances for tokens
-            Self::insert_into_storage(
-                &mut cache_db,
-                token_in,
-                balance_amount_in_slot_user.into(),
-                amount_in * U256::from(2)
-            )?;
-            // max approval slots
-            Self::insert_into_storage(&mut cache_db, token_in, approval_slot.into(), U256::MAX)?;
-            Self::insert_into_storage(&mut cache_db, token_out, approval_slot.into(), U256::MAX)?;
-
-            // flipped approval + balances
-            Self::insert_into_storage(
-                &mut cache_db,
-                token_out,
-                balance_amount_in_slot_flipped.into(),
-                amount_out * U256::from(2)
-            )?;
-            // max approvals for flipped
-            Self::insert_into_storage(
-                &mut cache_db,
-                token_out,
-                approval_slot_flipped.into(),
-                U256::MAX
-            )?;
-            Self::insert_into_storage(
-                &mut cache_db,
-                token_in,
-                approval_slot_flipped.into(),
-                U256::MAX
-            )?;
+        // mint 2x amount in and out for angstrom contract.
+        let (r, db) = Self::execute_with_db(cache_db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_in * U256::from(2)))
+                .abi_encode()
+                .into();
+        })?;
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
         }
 
-        Ok(cache_db)
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_out);
+            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_out * U256::from(2)))
+                .abi_encode()
+                .into();
+        })?;
+
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+
+        // now lets mint the tokens for the user
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data = MockERC20::mintCall::new((user_address, amount_in * U256::from(2)))
+                .abi_encode()
+                .into();
+        })?;
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_out);
+            tx.data = MockERC20::mintCall::new((user_address, amount_out * U256::from(2)))
+                .abi_encode()
+                .into();
+        })?;
+
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data = MockERC20::mintCall::new((flipped_order, amount_in * U256::from(2)))
+                .abi_encode()
+                .into();
+        })?;
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_out);
+            tx.data = MockERC20::mintCall::new((flipped_order, amount_out * U256::from(2)))
+                .abi_encode()
+                .into();
+        })?;
+
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+
+        // now lets set approvals for angstrom contract
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data =
+                MockERC20::approveCall::new((self.angstrom_address, amount_in * U256::from(2)))
+                    .abi_encode()
+                    .into();
+        })?;
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = user_address;
+            tx.transact_to = TxKind::Call(token_out);
+            tx.data =
+                MockERC20::approveCall::new((self.angstrom_address, amount_out * U256::from(2)))
+                    .abi_encode()
+                    .into();
+        })?;
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+        // now lets set approvals for angstrom contract
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = flipped_order;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data =
+                MockERC20::approveCall::new((self.angstrom_address, amount_in * U256::from(2)))
+                    .abi_encode()
+                    .into();
+        })?;
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+
+        let (r, db) = Self::execute_with_db(db, |tx| {
+            tx.caller = flipped_order;
+            tx.transact_to = TxKind::Call(token_out);
+            tx.data =
+                MockERC20::approveCall::new((self.angstrom_address, amount_out * U256::from(2)))
+                    .abi_encode()
+                    .into();
+        })?;
+        if !r.result.is_success() {
+            eyre::bail!("overrides failed")
+        }
+
+        Ok(db)
     }
 
     fn insert_into_storage(
