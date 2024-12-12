@@ -256,13 +256,13 @@ where
             // user
             let balance_amount_in_slot_user = keccak256((user_address, i).abi_encode());
             let approval_slot = keccak256(
-                (user_address, keccak256((self.angstrom_address, i).abi_encode())).abi_encode()
+                (self.angstrom_address, keccak256((user_address, i).abi_encode())).abi_encode()
             );
 
             // flipped
             let balance_amount_in_slot_flipped = keccak256((flipped_order, i).abi_encode());
             let approval_slot_flipped = keccak256(
-                (flipped_order, keccak256((self.angstrom_address, i).abi_encode())).abi_encode()
+                (self.angstrom_address, keccak256((flipped_order, i).abi_encode())).abi_encode()
             );
 
             // give angstrom both amounts of tokens.
