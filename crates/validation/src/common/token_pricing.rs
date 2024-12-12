@@ -68,7 +68,7 @@ impl TokenPriceGenerator {
                     };
 
                     for block_number in
-                        current_block.saturating_sub(blocks_to_avg_price)..=current_block
+                        current_block.saturating_sub(blocks_to_avg_price)..current_block
                     {
                         tracing::debug!(block_number, current_block, ?pool_key, "loading pool");
                         let pool_data = data_loader
