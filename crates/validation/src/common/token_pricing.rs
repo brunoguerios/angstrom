@@ -154,7 +154,7 @@ impl TokenPriceGenerator {
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
-                warn!("size of loaded blocks doesn't match the value we set");
+                warn!(?size,?self.blocks_to_avg_price,"size of loaded blocks doesn't match the value we set");
             }
 
             return Some(
