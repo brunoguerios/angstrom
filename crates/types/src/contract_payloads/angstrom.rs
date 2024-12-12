@@ -566,7 +566,7 @@ impl AngstromBundle {
             amount_out.to()
         });
 
-        for user_order in vec![user_order] {
+        for user_order in vec![user_order, &flipped_user] {
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
             let (t0, t1) = {
