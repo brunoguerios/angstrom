@@ -257,7 +257,7 @@ where
         let (r, db) = Self::execute_with_db(cache_db, |tx| {
             tx.caller = user_address;
             tx.transact_to = TxKind::Call(token_in);
-            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_in * U256::from(2)))
+            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_in * U256::from(5)))
                 .abi_encode()
                 .into();
         })?;
@@ -268,7 +268,7 @@ where
         let (r, db) = Self::execute_with_db(db, |tx| {
             tx.caller = user_address;
             tx.transact_to = TxKind::Call(token_out);
-            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_out * U256::from(2)))
+            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_out * U256::from(5)))
                 .abi_encode()
                 .into();
         })?;
