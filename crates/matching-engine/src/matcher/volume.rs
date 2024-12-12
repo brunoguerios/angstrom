@@ -379,141 +379,6 @@ impl<'a> VolumeFillMatcher<'a> {
         None
     }
 
-    pub fn fill(&mut self) -> VolumeFillMatchEndReason {
-        {
-            loop {
-                let bid = {
-                    if let Some(o) = Self::next_order_from_book(
-                        true,
-                        &self.bid_idx,
-                        self.book.bids(),
-                        &self.bid_outcomes,
-                        self.amm_price.as_ref()
-                    ) {
-                        o
-                    } else {
-                        return VolumeFillMatchEndReason::NoMoreBids
-                    }
-                };
-                let ask = {
-                    if let Some(o) = Self::next_order_from_book(
-                        false,
-                        &self.ask_idx,
-                        self.book.asks(),
-                        &self.ask_outcomes,
-                        self.amm_price.as_ref()
-                    ) {
-                        o
-                    } else {
-                        return VolumeFillMatchEndReason::NoMoreBids
-                    }
-                };
-
-                // If we're talking to the AMM on both sides, we're done
-                if bid.is_amm() && ask.is_amm() {
-                    return VolumeFillMatchEndReason::BothSidesAMM
-                }
-
-                // If our prices no longer cross, we're done
-                if ask.price() > bid.price() {
-                    return VolumeFillMatchEndReason::NoLongerCross
-                }
-
-                // Limit to price so that AMM orders will only offer the quantity they can
-                // profitably sell.  (Non-AMM orders ignore the provided price)
-                let ask_q = ask.quantity(bid.price());
-                let bid_q = bid.quantity(ask.price());
-
-                // If either quantity is zero maybe we should break here? (could be a
-                // replacement for price cross checking if we implement that)
-                if ask_q == 0 || bid_q == 0 {
-                    return VolumeFillMatchEndReason::ZeroQuantity
-                }
-
-                let matched = ask_q.min(bid_q);
-                // Store the amount we matched
-                self.results.total_volume += matched;
-
-                // Record partial fills
-                if bid.is_partial() {
-                    self.results.partial_volume.0 += matched;
-                }
-                if ask.is_partial() {
-                    self.results.partial_volume.1 += matched;
-                }
-
-                // If bid or ask was an AMM order, we update our AMM stats
-                if let (OrderContainer::AMM(o), _) | (_, OrderContainer::AMM(o)) = (&bid, &ask) {
-                    // We always update our AMM price with any quantity sold
-                    let final_amm_order = o.fill(matched);
-                    self.amm_price = Some(final_amm_order.end_bound.clone());
-                    // Add to our solution
-                    self.results.amm_volume += matched;
-                    self.results.amm_final_price = Some(*final_amm_order.end_bound.price());
-                    // Update our overall AMM volume
-                    let amm_out = self
-                        .amm_outcome
-                        .get_or_insert_with(|| NetAmmOrder::new(bid.is_amm()));
-                    amm_out.add_quantity(
-                        U256::from(final_amm_order.d_t0),
-                        U256::from(final_amm_order.d_t1)
-                    );
-                }
-
-                // Then we see what else we need to do
-                match bid_q.cmp(&ask_q) {
-                    Ordering::Equal => {
-                        // We annihilated
-                        self.results.price =
-                            Some((*(ask.price() + bid.price()) / U256::from(2)).into());
-                        // self.results.price = Some((ask.price() + bid.price()) / 2.0_f64);
-                        // Mark as filled if non-AMM order
-                        if !ask.is_amm() {
-                            self.ask_outcomes[self.ask_idx.get()] = OrderFillState::CompleteFill
-                        }
-                        if !bid.is_amm() {
-                            self.bid_outcomes[self.bid_idx.get()] = OrderFillState::CompleteFill
-                        }
-                        // Take a snapshot as a good solve state
-                        self.save_checkpoint();
-                        // We're done here, we'll get our next bid and ask on
-                        // the next round
-                    }
-                    Ordering::Greater => {
-                        self.results.price = Some(bid.price());
-                        // Ask was completely filled, remainder bid
-                        if !ask.is_amm() {
-                            self.ask_outcomes[self.ask_idx.get()] = OrderFillState::CompleteFill
-                        }
-                        // Create and save our partial bid
-                        if !bid.is_amm() {
-                            self.bid_outcomes[self.bid_idx.get()] =
-                                self.bid_outcomes[self.bid_idx.get()].partial_fill(matched);
-                            if bid.is_partial() {
-                                self.save_checkpoint();
-                            }
-                        }
-                    }
-                    Ordering::Less => {
-                        self.results.price = Some(ask.price());
-                        // Bid was completely filled, remainder ask
-                        if !bid.is_amm() {
-                            self.bid_outcomes[self.bid_idx.get()] = OrderFillState::CompleteFill
-                        }
-                        // Create and save our parital ask
-                        if !ask.is_amm() {
-                            self.ask_outcomes[self.ask_idx.get()] =
-                                self.ask_outcomes[self.ask_idx.get()].partial_fill(matched);
-                            if ask.is_partial() {
-                                self.save_checkpoint();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     fn next_order(
         bid: bool,
         book_idx: &Cell<usize>,
@@ -619,37 +484,6 @@ impl<'a> VolumeFillMatcher<'a> {
         })
     }
 
-    fn next_order_from_book(
-        is_bid: bool,
-        index: &Cell<usize>,
-        book: &'a [BookOrder],
-        fill_state: &[OrderFillState],
-        amm: Option<&PoolPrice<'a>>
-    ) -> Option<OrderContainer<'a>> {
-        let mut cur_idx = index.get();
-        // Find the next unfilled order - we need to work with the index separately
-        while cur_idx < fill_state.len() {
-            match &fill_state[cur_idx] {
-                OrderFillState::Unfilled => break,
-                _ => cur_idx += 1
-            }
-        }
-        let book_order = book.get(cur_idx);
-        // See if our AMM takes precedence
-        amm.and_then(|amm_price| {
-            let target_price = book_order
-                .map(|o| SqrtPriceX96::from(Ray::from(*OrderContainer::BookOrder(o).price())));
-            // Will return None if the book order price is more beneficial than our AMM
-            // price
-            amm_price.order_to_target(target_price, !is_bid)
-        })
-        .map(OrderContainer::AMM)
-        .or_else(|| {
-            index.set(cur_idx);
-            book_order.map(OrderContainer::BookOrder)
-        })
-    }
-
     pub fn solution(
         &self,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
@@ -729,7 +563,7 @@ mod tests {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let mut matcher = VolumeFillMatcher::new(&book);
-        let _fill_outcome = matcher.fill();
+        let _fill_outcome = matcher.run_match();
         let solution = matcher.from_checkpoint().unwrap().solution(None);
         assert!(
             solution.ucp == high_price,
@@ -758,7 +592,7 @@ mod tests {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let mut matcher = VolumeFillMatcher::new(&book);
-        let _fill_outcome = matcher.fill();
+        let _fill_outcome = matcher.run_match();
         let solution = matcher.from_checkpoint().unwrap().solution(None);
         assert!(
             solution.ucp == low_price,
