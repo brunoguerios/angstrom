@@ -270,14 +270,14 @@ where
                 &mut cache_db,
                 token_out,
                 balance_slot_angstrom.into(),
-                amount_out
+                amount_out * U256::from(2)
             )?;
 
             Self::insert_into_storage(
                 &mut cache_db,
                 token_in,
                 balance_slot_angstrom.into(),
-                amount_in
+                amount_in * U256::from(2)
             )?;
 
             // default user approvals + balances for tokens
@@ -285,22 +285,27 @@ where
                 &mut cache_db,
                 token_in,
                 balance_amount_in_slot_user.into(),
-                amount_in
+                amount_in * U256::from(2)
             )?;
-            Self::insert_into_storage(&mut cache_db, token_in, approval_slot.into(), amount_in)?;
+            Self::insert_into_storage(
+                &mut cache_db,
+                token_in,
+                approval_slot.into(),
+                amount_in * U256::from(2)
+            )?;
 
             // flipped approval + balances
             Self::insert_into_storage(
                 &mut cache_db,
                 token_out,
                 balance_amount_in_slot_flipped.into(),
-                amount_out
+                amount_out * U256::from(2)
             )?;
             Self::insert_into_storage(
                 &mut cache_db,
                 token_out,
                 approval_slot_flipped.into(),
-                amount_out
+                amount_out * U256::from(2)
             )?;
         }
 
