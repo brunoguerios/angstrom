@@ -160,6 +160,8 @@ impl<'a> VolumeFillMatcher<'a> {
             return Some(VolumeFillMatchEndReason::NoMoreAsks)
         };
 
+        println!("------RAW ORDERS------\n{:?}\n{:?}\n----------------------", bid, ask);
+
         // Check to see if we've hit an end state
         // If we're talking to the AMM on both sides, we're done
         if bid.is_amm() && ask.is_amm() {
@@ -176,9 +178,13 @@ impl<'a> VolumeFillMatcher<'a> {
         let ask_q = ask.quantity(bid.price());
         let bid_q = bid.quantity(ask.price());
 
+        println!("Got bid: {} @ {:?}", bid_q, bid.price());
+        println!("Got ask: {} @ {:?}", ask_q, ask.price());
+
         // Check to see if we have a 0-quantity ask and need to do an ask-side fill
         // This is only applicable if our ask order has the debt in it
         if ask_q == 0 && ask.is_debt() {
+            println!("Doing ask-side backmatch");
             let Some(next_ask) = Self::next_order(
                 false,
                 &self.ask_idx,
@@ -285,6 +291,8 @@ impl<'a> VolumeFillMatcher<'a> {
             return None;
         }
 
+        println!("Normal match of bid_q: {} vs ask_q: {}", bid_q, ask_q);
+
         // If either quantity is zero at this point we should break
         if ask_q == 0 || bid_q == 0 {
             return Some(VolumeFillMatchEndReason::ZeroQuantity)
@@ -321,6 +329,7 @@ impl<'a> VolumeFillMatcher<'a> {
         // Then we see what else we need to do
         match bid_q.cmp(&ask_q) {
             Ordering::Equal => {
+                println!("Equal match");
                 // We annihilated
                 self.results.price = Some((*(ask.price() + bid.price()) / U256::from(2)).into());
                 // self.results.price = Some((ask.price() + bid.price()) / 2.0_f64);
@@ -337,6 +346,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 // the next round
             }
             Ordering::Greater => {
+                println!("Greater than match");
                 self.results.price = Some(bid.price());
                 // Ask was completely filled, remainder bid
                 if !ask.is_amm() && !ask.is_composite() {
@@ -356,6 +366,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 }
             }
             Ordering::Less => {
+                println!("Less than match");
                 self.results.price = Some(ask.price());
                 // Bid was completely filled, remainder ask
                 if !bid.is_amm() && !bid.is_composite() {
@@ -461,11 +472,13 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // If we have an AMM price, see if it takes precedence over our book order
         amm.and_then(|a| {
+            println!("Comparing AMM to book order");
             let bound_price = book_order.map(|o| o.price());
             if let Some(bp) = bound_price {
                 // If my book order is equal to or more advantageous to my AMM price, we have no
                 // AMM order
                 if bp.cmp(&a.as_ray()) != less_advantageous {
+                    println!("Book order better than AMM price");
                     return None;
                 }
             }

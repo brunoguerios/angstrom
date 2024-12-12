@@ -1,4 +1,4 @@
-use std::{cmp, slice::Iter};
+use std::slice::Iter;
 
 use eyre::{eyre, Context, OptionExt};
 use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
@@ -74,17 +74,18 @@ impl PoolSnapshot {
         end_tick: Tick
     ) -> eyre::Result<Vec<LiqRangeRef>> {
         let (low, high) = low_to_high(&start_tick, &end_tick);
-        let mut cur_tick = *low;
-        let mut output = vec![];
-        // TODO:  This is ugly and inefficient and we can do better here
-        while cur_tick < *high {
-            if let Some(range) = self.get_range_for_tick(cur_tick) {
-                cur_tick = range.upper_tick;
-                output.push(range);
-            } else {
-                break;
-            }
-        }
+        let output = self
+            .ranges
+            .iter()
+            .enumerate()
+            .filter_map(|(range_idx, range)| {
+                if range.upper_tick > *low && range.lower_tick <= *high {
+                    Some(LiqRangeRef { pool_snap: self, range, range_idx })
+                } else {
+                    None
+                }
+            })
+            .collect();
         Ok(output)
     }
 
