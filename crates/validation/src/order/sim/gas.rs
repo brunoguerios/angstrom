@@ -411,15 +411,13 @@ where
             if !result.result.is_success() {
                 let output = result.result.output().unwrap().to_vec();
                 let allowed_revert = alloy::primitives::hex!("cc67af53");
-                if &output[0..4] == &allowed_revert {
-                    return Ok(inspector.into_gas_used())
+                if &output[0..4] != &allowed_revert {
+                    return Err(eyre::eyre!(
+                        "gas simulation had a revert. cannot guarantee the proper gas was \
+                         estimated err={:?}",
+                        result.result
+                    ))
                 }
-
-                return Err(eyre::eyre!(
-                    "gas simulation had a revert. cannot guarantee the proper gas was estimated \
-                     err={:?}",
-                    result.result
-                ))
             }
         }
 
