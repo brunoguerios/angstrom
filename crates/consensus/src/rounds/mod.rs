@@ -313,7 +313,6 @@ where
         // if  we don't have the pre_proposal, propagate it and then store it.
         // else log a message
         if !proposal_set.contains(&proposal) {
-            tracing::info!("storing consensus message");
             self.propagate_message(proposal.clone().into());
             proposal_set.insert(proposal);
         } else {
