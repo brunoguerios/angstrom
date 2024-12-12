@@ -104,7 +104,9 @@ impl ProposalState {
         };
 
         let encoded: Bytes = bundle.pade_encode().into();
-        tracing::info!(?encoded);
+        let v = encoded.to_vec();
+
+        tracing::info!(?encoded, ?v);
         if encoded.is_empty() {
             tracing::error!("empty bundle");
             return false
