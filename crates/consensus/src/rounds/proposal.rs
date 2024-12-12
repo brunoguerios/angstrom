@@ -6,11 +6,12 @@ use std::{
 
 use alloy::{
     network::TransactionBuilder, primitives::Bytes, providers::Provider,
-    rpc::types::TransactionRequest, transports::Transport
+    rpc::types::TransactionRequest, sol_types::SolCall, transports::Transport
 };
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
+    contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution
 };
@@ -103,14 +104,7 @@ impl ProposalState {
             return false
         };
 
-        let encoded: Bytes = bundle.pade_encode().into();
-        let v = encoded.to_vec();
-
-        tracing::info!(?encoded, ?v);
-        if encoded.is_empty() {
-            tracing::error!("empty bundle");
-            return false
-        }
+        let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
 
         let mut tx = TransactionRequest::default()
             .with_to(handles.angstrom_address)
