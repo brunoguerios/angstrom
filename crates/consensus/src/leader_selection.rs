@@ -24,7 +24,11 @@ pub struct AngstromValidator {
 
 impl AngstromValidator {
     pub fn new(name: PeerId, voting_power: u64) -> Self {
-        AngstromValidator { peer_id: name, voting_power, priority: 0 }
+        AngstromValidator {
+            peer_id:      name,
+            voting_power: voting_power * ONE_E3,
+            priority:     0
+        }
     }
 }
 
