@@ -71,7 +71,6 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        return Ok(0);
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -106,7 +105,6 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        return Ok(0);
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -262,7 +260,7 @@ where
                 .insert_account_storage(
                     token_out,
                     balance_amount_out_slot_angstrom.into(),
-                    U256::MAX - U256::from(1)
+                    U256::MAX / U256::from(2)
                 )
                 .map_err(|e| {
                     eyre!(
@@ -274,7 +272,7 @@ where
                 .insert_account_storage(
                     token_in,
                     balance_amount_out_slot_angstrom.into(),
-                    U256::MAX - U256::from(1)
+                    U256::MAX / U256::from(2)
                 )
                 .map_err(|e| {
                     eyre!(
@@ -288,7 +286,7 @@ where
                 .insert_account_storage(
                     token_in,
                     balance_amount_in_slot_user.into(),
-                    U256::MAX - U256::from(1)
+                    U256::MAX / U256::from(2)
                 )
                 .map_err(|e| {
                     eyre!(
@@ -301,7 +299,7 @@ where
                 .insert_account_storage(
                     token_out,
                     balance_amount_in_slot_user.into(),
-                    U256::MAX - U256::from(1)
+                    U256::MAX / U256::from(2)
                 )
                 .map_err(|e| {
                     eyre!(
@@ -311,7 +309,7 @@ where
                 })?;
 
             cache_db
-                .insert_account_storage(token_in, approval_slot.into(), U256::MAX - U256::from(1))
+                .insert_account_storage(token_in, approval_slot.into(), U256::MAX / U256::from(2))
                 .map_err(|e| {
                     eyre!(
                         "failed to insert
