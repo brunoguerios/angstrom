@@ -108,8 +108,7 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        let (bundle, other_from) = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
-        // look at order amounts and see if they cancel.
+        let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
         self.execute_on_revm(
             &HashMap::default(),
@@ -123,7 +122,7 @@ where
                 token_out:     order.token_out(),
                 token_in:      order.token_in(),
                 user_address:  order.from(),
-                flipped_order: other_from
+                flipped_order: Address::default()
             },
             |execution_env| {
                 execution_env.block.number = U256::from(block + 1);
