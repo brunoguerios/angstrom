@@ -13,7 +13,7 @@ use alloy::{
     sol_types::SolValue,
     transports::Transport
 };
-use alloy_primitives::aliases::U40;
+use alloy_primitives::{aliases::U40, I256};
 use dashmap::DashMap;
 use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -463,6 +463,44 @@ impl AngstromBundle {
         });
 
         TestnetStateOverrides { approvals, balances }
+    }
+
+    pub fn assert_book_matches(&self) {
+        let map = self
+            .user_orders
+            .iter()
+            .fold(HashMap::<Address, I256>::new(), |mut acc, user| {
+                let pair = &self.pairs[user.pair_index as usize];
+                let asset_in = &self.assets
+                    [if user.zero_for_one { pair.index0 } else { pair.index1 } as usize];
+                let asset_out = &self.assets
+                    [if !user.zero_for_one { pair.index0 } else { pair.index1 } as usize];
+
+                let price = Ray::from(user.min_price);
+                // if we are exact in, then we can attribute amoutn
+                let amount_in = if user.exact_in {
+                    U256::from(user.order_quantities.fetch_max_amount())
+                } else {
+                    price.mul_quantity(U256::from(user.order_quantities.fetch_max_amount()))
+                };
+
+                let amount_out = if user.exact_in {
+                    price.mul_quantity(U256::from(user.order_quantities.fetch_max_amount()))
+                } else {
+                    U256::from(user.order_quantities.fetch_max_amount())
+                };
+
+                *acc.entry(asset_in.addr).or_default() += I256::from_raw(amount_in);
+                *acc.entry(asset_out.addr).or_default() -= I256::from_raw(amount_out);
+
+                acc
+            });
+
+        for (address, delta) in map {
+            if !delta.is_zero() {
+                tracing::error!(?address, ?delta, "user orders don't cancel out");
+            }
+        }
     }
 
     /// the block number is the block that this bundle was executed at.

@@ -109,7 +109,9 @@ where
         block: u64
     ) -> eyre::Result<GasUsed> {
         let (bundle, other_from) = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
-        tracing::info!(assests=?bundle.assets);
+        // look at order amounts and see if they cancel.
+        bundle.assert_book_matches();
+
         let bundle = bundle.pade_encode();
         self.execute_on_revm(
             &HashMap::default(),
