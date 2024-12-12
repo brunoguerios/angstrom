@@ -10,7 +10,7 @@ pub use poolprice::PoolPrice;
 pub use poolpricevec::PoolPriceVec;
 pub use poolsnapshot::PoolSnapshot;
 
-use super::SqrtPriceX96;
+use super::{Ray, SqrtPriceX96};
 
 pub type Tick = i32;
 
@@ -45,6 +45,10 @@ impl Quantity {
 }
 
 #[derive(Copy, Clone, Debug)]
+/// Direction is used from the perspective of the operation and not from the
+/// perspective of the Uniswap pool itself.  In other words, "buying T0" means
+/// putting T1 into the pool to get T0 out, which will decrease the overall
+/// amount of T0 left in the pool.
 pub enum Direction {
     /// When buying T0, the price will go up and the tick number will increase
     BuyingT0,
@@ -65,10 +69,11 @@ impl Direction {
         matches!(self, Self::BuyingT0)
     }
 
-    pub fn from_prices(start: SqrtPriceX96, end: SqrtPriceX96) -> Self {
+    /// Determine the direction of sale from a start and end price
+    pub fn from_prices<P: Ord>(start: P, end: P) -> Self {
         match start.cmp(&end) {
-            std::cmp::Ordering::Less => Self::SellingT0,
-            _ => Self::BuyingT0
+            std::cmp::Ordering::Less => Self::BuyingT0,
+            _ => Self::SellingT0
         }
     }
 

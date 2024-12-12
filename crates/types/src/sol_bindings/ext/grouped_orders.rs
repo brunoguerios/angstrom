@@ -448,10 +448,10 @@ impl GroupedVanillaOrder {
         }
     }
 
-    pub fn quantity(&self) -> U256 {
+    pub fn quantity(&self) -> u128 {
         match self {
-            Self::Standing(o) => U256::from(o.amount_in()),
-            Self::KillOrFill(o) => U256::from(o.amount_in())
+            Self::Standing(o) => o.amount_in(),
+            Self::KillOrFill(o) => o.amount_in()
         }
     }
 

@@ -1,4 +1,4 @@
-use std::slice::Iter;
+use std::{cmp, slice::Iter};
 
 use eyre::{eyre, Context, OptionExt};
 use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
@@ -8,7 +8,7 @@ use super::{
     poolprice::PoolPrice,
     Tick
 };
-use crate::matching::SqrtPriceX96;
+use crate::matching::{math::low_to_high, SqrtPriceX96};
 
 /// Snapshot of a particular Uniswap pool and a map of its liquidity.
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -66,6 +66,28 @@ impl PoolSnapshot {
             .map(|(range_idx, range)| LiqRangeRef { pool_snap: self, range, range_idx })
     }
 
+    /// Returns a list of references to all liquidity ranges including and
+    /// between the given Ticks.  These ranges will be continuous in order.
+    pub fn ranges_for_ticks(
+        &self,
+        start_tick: Tick,
+        end_tick: Tick
+    ) -> eyre::Result<Vec<LiqRangeRef>> {
+        let (low, high) = low_to_high(&start_tick, &end_tick);
+        let mut cur_tick = *low;
+        let mut output = vec![];
+        // TODO:  This is ugly and inefficient and we can do better here
+        while cur_tick < *high {
+            if let Some(range) = self.get_range_for_tick(cur_tick) {
+                cur_tick = range.upper_tick;
+                output.push(range);
+            } else {
+                break;
+            }
+        }
+        Ok(output)
+    }
+
     /// Return a read-only iterator over the liquidity ranges in this snapshot
     pub fn ranges(&self) -> Iter<LiqRange> {
         self.ranges.iter()
@@ -82,6 +104,14 @@ impl PoolSnapshot {
 
     pub fn at_price(&self, price: SqrtPriceX96) -> eyre::Result<PoolPrice> {
         let tick = price.to_tick()?;
+        let range = self
+            .get_range_for_tick(tick)
+            .ok_or_eyre("Unable to find tick range for price")?;
+        Ok(PoolPrice { liq_range: range, tick, price })
+    }
+
+    pub fn at_tick(&self, tick: i32) -> eyre::Result<PoolPrice> {
+        let price = SqrtPriceX96::at_tick(tick)?;
         let range = self
             .get_range_for_tick(tick)
             .ok_or_eyre("Unable to find tick range for price")?;

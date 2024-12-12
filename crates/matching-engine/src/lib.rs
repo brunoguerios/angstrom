@@ -16,7 +16,7 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use book::OrderBook;
+use book::{BookOrder, OrderBook};
 use futures_util::future::BoxFuture;
 use reth_provider::CanonStateNotifications;
 use uniswap_v4::uniswap::{
@@ -35,17 +35,13 @@ pub use manager::MatchingManager;
 pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
     fn solve_pools(
         &self,
-        limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+        limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
         pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
     ) -> BoxFuture<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 }
 
-pub fn build_book(
-    id: PoolId,
-    amm: Option<PoolSnapshot>,
-    orders: HashSet<OrderWithStorageData<GroupedVanillaOrder>>
-) -> OrderBook {
+pub fn build_book(id: PoolId, amm: Option<PoolSnapshot>, orders: HashSet<BookOrder>) -> OrderBook {
     let (bids, asks) = orders.into_iter().partition(|o| o.is_bid);
 
     OrderBook::new(id, amm, bids, asks, Some(book::sort::SortStrategy::ByPriceByVolume))
