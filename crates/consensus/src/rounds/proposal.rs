@@ -5,8 +5,8 @@ use std::{
 };
 
 use alloy::{
-    network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest,
-    transports::Transport
+    network::TransactionBuilder, primitives::Bytes, providers::Provider,
+    rpc::types::TransactionRequest, transports::Transport
 };
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
@@ -103,7 +103,7 @@ impl ProposalState {
             return false
         };
 
-        let encoded = bundle.pade_encode();
+        let encoded: Bytes = bundle.pade_encode().into();
         tracing::info!(?encoded);
         if encoded.is_empty() {
             tracing::error!("empty bundle");
