@@ -553,7 +553,7 @@ impl<'a> VolumeFillMatcher<'a> {
         book: &'a [BookOrder],
         fill_state: &[OrderFillState]
     ) -> Option<OrderContainer<'a, 'b>> {
-        println!("Getting next order for bid {} and debt {:?}", bid, debt);
+        tracing::trace!("Getting next order for bid {} and debt {:?}", bid, debt);
         // If we have a fragment, that takes priority
         if let Some(f) = fragment {
             // If it's in the direction we're looking for, let's use it
