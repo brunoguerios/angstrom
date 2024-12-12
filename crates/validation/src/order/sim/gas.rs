@@ -246,150 +246,10 @@ where
         Ok(ConfiguredRevm { db: cache_db, angstrom: angstrom_address })
     }
 
-    fn fetch_db_with_overrides(
-        &self,
-        overrides: OverridesForTestAngstrom
-    ) -> eyre::Result<CacheDB<Arc<DB>>> {
-        // fork db
-        let cache_db = self.db.clone();
-
-        // change approval of token in and then balance of token out
-        let OverridesForTestAngstrom {
-            user_address,
-            flipped_order,
-            amount_in,
-            amount_out,
-            token_in,
-            token_out
-        } = overrides;
-
-        // mint 2x amount in and out for angstrom contract.
-        let (r, db) = Self::execute_with_db(cache_db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_in);
-            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_in * U256::from(5)))
-                .abi_encode()
-                .into();
-        })?;
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_out);
-            tx.data = MockERC20::mintCall::new((self.angstrom_address, amount_out * U256::from(5)))
-                .abi_encode()
-                .into();
-        })?;
-
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        // now lets mint the tokens for the regular user
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_in);
-            tx.data = MockERC20::mintCall::new((user_address, amount_in * U256::from(2)))
-                .abi_encode()
-                .into();
-        })?;
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_out);
-            tx.data = MockERC20::mintCall::new((user_address, amount_out * U256::from(2)))
-                .abi_encode()
-                .into();
-        })?;
-
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-        // now flipped order
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_in);
-            tx.data = MockERC20::mintCall::new((flipped_order, amount_in * U256::from(2)))
-                .abi_encode()
-                .into();
-        })?;
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_out);
-            tx.data = MockERC20::mintCall::new((flipped_order, amount_out * U256::from(2)))
-                .abi_encode()
-                .into();
-        })?;
-
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        // now lets set approvals for angstrom contract
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_in);
-            tx.data =
-                MockERC20::approveCall::new((self.angstrom_address, amount_in * U256::from(2)))
-                    .abi_encode()
-                    .into();
-        })?;
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = user_address;
-            tx.transact_to = TxKind::Call(token_out);
-            tx.data =
-                MockERC20::approveCall::new((self.angstrom_address, amount_out * U256::from(2)))
-                    .abi_encode()
-                    .into();
-        })?;
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-        // now lets set approvals for angstrom contract
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = flipped_order;
-            tx.transact_to = TxKind::Call(token_in);
-            tx.data =
-                MockERC20::approveCall::new((self.angstrom_address, amount_in * U256::from(2)))
-                    .abi_encode()
-                    .into();
-        })?;
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        let (r, db) = Self::execute_with_db(db, |tx| {
-            tx.caller = flipped_order;
-            tx.transact_to = TxKind::Call(token_out);
-            tx.data =
-                MockERC20::approveCall::new((self.angstrom_address, amount_out * U256::from(2)))
-                    .abi_encode()
-                    .into();
-        })?;
-        if !r.result.is_success() {
-            eyre::bail!("overrides failed")
-        }
-
-        Ok(db)
-    }
-
     fn execute_on_revm<F>(
         &self,
         offsets: &HashMap<usize, usize>,
-        overrides: OverridesForTestAngstrom,
+        _overrides: OverridesForTestAngstrom,
         f: F
     ) -> eyre::Result<GasUsed>
     where
@@ -402,7 +262,7 @@ where
 
         {
             let mut evm = revm::Evm::builder()
-                .with_ref_db(self.fetch_db_with_overrides(overrides)?)
+                .with_ref_db(self.db.clone())
                 .with_external_context(&mut inspector)
                 .with_env_with_handler_cfg(evm_handler)
                 .append_handler_register(inspector_handle_register)
