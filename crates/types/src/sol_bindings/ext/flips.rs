@@ -23,14 +23,13 @@ impl GenerateFlippedOrder for ExactStandingOrder {
         Self: Sized
     {
         let new_signer = AngstromSigner::random();
-        let price = Ray::from(self.min_price);
-        let amount_out = price.mul_quantity(U256::from(self.amount_in()));
 
         let mut this = Self {
             asset_in: self.asset_out,
             asset_out: self.asset_in,
-            amount: amount_out.to(),
-            max_extra_fee_asset0: amount_out.to(),
+            amount: self.amount,
+            max_extra_fee_asset0: self.max_extra_fee_asset0,
+            exact_in: !self.exact_in,
             ..self.clone()
         };
 
@@ -79,14 +78,13 @@ impl GenerateFlippedOrder for ExactFlashOrder {
         Self: Sized
     {
         let new_signer = AngstromSigner::random();
-        let price = Ray::from(self.min_price);
-        let amount_out = price.mul_quantity(U256::from(self.amount_in()));
 
         let mut this = Self {
             asset_in: self.asset_out,
             asset_out: self.asset_in,
-            amount: amount_out.to(),
-            max_extra_fee_asset0: amount_out.to(),
+            amount: self.amount,
+            max_extra_fee_asset0: self.max_extra_fee_asset0,
+            exact_in: !self.exact_in,
             ..self.clone()
         };
 
