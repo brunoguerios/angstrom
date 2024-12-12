@@ -5,6 +5,7 @@ use alloy::{
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
+    contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
     primitive::ERC20,
@@ -59,6 +60,12 @@ where
         node_address: Address
     ) -> eyre::Result<Self> {
         if let Some(angstrom_address) = angstrom_address {
+            let bytecode = keccak256(&Angstrom::BYTECODE);
+            // assert we have the right bytecode
+            // let acc = db.basic_ref(angstrom_address).unwrap().unwrap();
+            // let bytecode = acc.code_hash();
+            tracing::info!(?bytecode);
+
             Ok(Self { db: CacheDB::new(db), angstrom_address, node_address: Some(node_address) })
         } else {
             let ConfiguredRevm { db, angstrom } =
