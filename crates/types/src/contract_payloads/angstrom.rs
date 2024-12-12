@@ -594,7 +594,17 @@ impl AngstromBundle {
         let flipped_user = user_order.flip();
         let flipped_from = flipped_user.from();
 
-        for user_order in vec![user_order, &flipped_user] {
+        asset_builder.allocate(
+            AssetBuilderStage::UserOrder,
+            user_order.token_in(),
+            user_order.amount_in()
+        );
+        asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(), {
+            let price = Ray::from(user_order.limit_price());
+            price.mul_quantity(U256::from(user_order.amount_in())).to()
+        });
+
+        for user_order in vec![user_order] {
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
             let (t0, t1) = {

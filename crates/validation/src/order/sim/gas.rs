@@ -21,7 +21,7 @@ use reth_provider::BlockNumReader;
 use revm::{
     db::CacheDB,
     inspector_handle_register,
-    primitives::{EnvWithHandlerCfg, ResultAndState, TxEnv},
+    primitives::{bytes, EnvWithHandlerCfg, ResultAndState, TxEnv},
     DatabaseRef
 };
 
@@ -425,6 +425,12 @@ where
                 .map_err(|e| eyre!("failed to transact with revm: {e:?}"))?;
 
             if !result.result.is_success() {
+                let output = result.result.output().unwrap().to_vec();
+                let allowed_revert = alloy::primitives::hex!("cc67af53");
+                if output[0..4] == &allowed_revert {
+                    return Ok(inspector.into_gas_used())
+                }
+
                 return Err(eyre::eyre!(
                     "gas simulation had a revert. cannot guarantee the proper gas was estimated \
                      err={:?}",
