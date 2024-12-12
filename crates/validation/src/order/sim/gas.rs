@@ -251,33 +251,32 @@ where
         // anything
         // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
         for i in 0..10 {
-            let balance_amount_out_slot_angstrom =
-                keccak256((self.angstrom_address, i).abi_encode());
+            let balance_slot_angstrom = keccak256((self.angstrom_address, i).abi_encode());
 
             // user
             let balance_amount_in_slot_user = keccak256((user_address, i).abi_encode());
             let approval_slot = keccak256(
-                (self.angstrom_address, keccak256((user_address, i).abi_encode())).abi_encode()
+                (user_address, keccak256((self.angstrom_address, i).abi_encode())).abi_encode()
             );
 
             // flipped
             let balance_amount_in_slot_flipped = keccak256((flipped_order, i).abi_encode());
             let approval_slot_flipped = keccak256(
-                (self.angstrom_address, keccak256((flipped_order, i).abi_encode())).abi_encode()
+                (flipped_order, keccak256((self.angstrom_address, i).abi_encode())).abi_encode()
             );
 
             // give angstrom both amounts of tokens.
             Self::insert_into_storage(
                 &mut cache_db,
                 token_out,
-                balance_amount_out_slot_angstrom.into(),
+                balance_slot_angstrom.into(),
                 amount_out
             )?;
 
             Self::insert_into_storage(
                 &mut cache_db,
                 token_in,
-                balance_amount_out_slot_angstrom.into(),
+                balance_slot_angstrom.into(),
                 amount_in
             )?;
 
