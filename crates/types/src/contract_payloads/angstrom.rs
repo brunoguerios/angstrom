@@ -474,7 +474,7 @@ impl AngstromBundle {
                 let asset_in = &self.assets
                     [if user.zero_for_one { pair.index0 } else { pair.index1 } as usize];
                 let asset_out = &self.assets
-                    [if !user.zero_for_one { pair.index0 } else { pair.index1 } as usize];
+                    [if user.zero_for_one { pair.index1 } else { pair.index0 } as usize];
 
                 let price = Ray::from(user.min_price);
                 // if we are exact in, then we can attribute amoutn
@@ -499,6 +499,8 @@ impl AngstromBundle {
         for (address, delta) in map {
             if !delta.is_zero() {
                 tracing::error!(?address, ?delta, "user orders don't cancel out");
+            } else {
+                tracing::info!(?address, "solid delta");
             }
         }
     }
@@ -591,18 +593,6 @@ impl AngstromBundle {
 
         let flipped_user = user_order.flip();
         let flipped_from = flipped_user.from();
-
-        // borrow the amount for the angstrom contract from the underlying uni pool.
-        // asset_builder.allocate(
-        //     AssetBuilderStage::UserOrder,
-        //     user_order.token_in(),
-        //     user_order.amount_in()
-        // );
-        // asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(),
-        // {     let price = Ray::from(U256::from(user_order.limit_price()));
-        //     let amount_out = price.mul_quantity(U256::from(user_order.amount_in()));
-        //     amount_out.to()
-        // });
 
         for user_order in vec![user_order, &flipped_user] {
             // Get the information for the pool or skip this solution if we can't find a
