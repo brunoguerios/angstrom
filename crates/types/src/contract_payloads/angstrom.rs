@@ -554,19 +554,19 @@ impl AngstromBundle {
         let flipped_user = user_order.flip();
         let flipped_from = flipped_user.from();
 
+        // borrow the amount for the angstrom contract from the underlying uni pool.
         asset_builder.allocate(
             AssetBuilderStage::UserOrder,
             user_order.token_in(),
             user_order.amount_in()
         );
-
         asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(), {
             let price = Ray::from(U256::from(user_order.limit_price()));
             let amount_out = price.mul_quantity(U256::from(user_order.amount_in()));
             amount_out.to()
         });
 
-        for user_order in vec![user_order, &flipped_user] {
+        for user_order in vec![user_order] {
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
             let (t0, t1) = {
