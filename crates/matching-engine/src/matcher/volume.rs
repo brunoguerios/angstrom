@@ -435,7 +435,7 @@ impl<'a> VolumeFillMatcher<'a> {
             // Compare our debt to our book price, debt is more advantageous if there's no
             // book order
             let debt_book_cmp = book_order
-                .map(|b| d.price().cmp(&b.price()))
+                .map(|b| d.price().cmp(&b.price_for_book_side(bid)))
                 .unwrap_or(more_advantageous);
             // Compare our debt to our AMM, debt is more advantageous if there's no AMM
             let debt_amm_cmp = amm
@@ -449,7 +449,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 (Ordering::Equal, _) => (),
                 // Debt == AMM -> CompositeOrder(Debt, Amm) bound to the next book order
                 (_, Ordering::Equal) => {
-                    let bound_price = book_order.map(|b| b.price());
+                    let bound_price = book_order.map(|b| b.price_for_book_side(bid));
                     return Some(OrderContainer::Composite(CompositeOrder::new(
                         *debt,
                         amm.cloned(),
@@ -461,8 +461,8 @@ impl<'a> VolumeFillMatcher<'a> {
                 (_, dac) if dac == more_advantageous => {
                     let bound_price = book_order
                         .map(|b| {
-                            amm.map(|a| max(b.price(), a.as_ray()))
-                                .unwrap_or_else(|| b.price())
+                            amm.map(|a| max(b.price_for_book_side(bid), a.as_ray()))
+                                .unwrap_or_else(|| b.price_for_book_side(bid))
                         })
                         .or_else(|| amm.map(|a| a.as_ray()));
                     return Some(OrderContainer::Composite(CompositeOrder::new(
@@ -479,12 +479,16 @@ impl<'a> VolumeFillMatcher<'a> {
         amm.and_then(|a| {
             println!("Comparing AMM to book order");
             let bound_price = if let Some(o) = book_order {
-                println!("AMM price: {:?}\nBook price: {:?}", a.as_ray(), o.price());
-                if o.price().cmp(&a.as_ray()) != less_advantageous {
+                println!(
+                    "AMM price: {:?}\nBook price: {:?}",
+                    a.as_ray(),
+                    o.price_for_book_side(bid)
+                );
+                if o.price_for_book_side(bid).cmp(&a.as_ray()) != less_advantageous {
                     println!("Book order better than AMM price");
                     return None
                 }
-                Some(o.price())
+                Some(o.price_for_book_side(bid))
             } else {
                 None
             };
@@ -560,12 +564,12 @@ mod tests {
     #[test]
     fn bid_outweighs_ask_sets_price() {
         let pool_id = PoolId::random();
-        let high_price = Ray::from(Uint::from(1_000_000_000_u128));
+        let bid_price = Ray::from(Uint::from(1_000_000_000_u128)).inv_ray_round(true);
         let low_price = Ray::from(Uint::from(1_000_u128));
         let bid_order = UserOrderBuilder::new()
             .partial()
             .amount(100)
-            .min_price(high_price)
+            .min_price(bid_price)
             .with_storage()
             .bid()
             .build();
@@ -576,12 +580,13 @@ mod tests {
             .with_storage()
             .ask()
             .build();
+        println!("Ask order:\n{:?}", ask_order);
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let mut matcher = VolumeFillMatcher::new(&book);
         let _fill_outcome = matcher.run_match();
         let solution = matcher.from_checkpoint().unwrap().solution(None);
         assert!(
-            solution.ucp == high_price,
+            solution.ucp == bid_price.inv_ray_round(true),
             "Bid outweighed but the final price wasn't properly set"
         );
     }
@@ -594,7 +599,7 @@ mod tests {
         let bid_order = UserOrderBuilder::new()
             .exact()
             .amount(10)
-            .min_price(high_price)
+            .bid_min_price(high_price)
             .with_storage()
             .bid()
             .build();
@@ -625,7 +630,7 @@ mod tests {
             .map(|i| {
                 // Step downwards if it's a bid to simulate bid book ordering
                 let min_price = if is_bid {
-                    target_price - (i * price_step)
+                    (target_price - (i * price_step)).inv_ray_round(true)
                 } else {
                     target_price + (i * price_step)
                 };
@@ -774,14 +779,14 @@ mod tests {
         ));
         let index = Cell::new(0);
         let (book, fill_state) =
-            basic_order_book(true, 10, Ray::from(SqrtPriceX96::at_tick(101000).unwrap()), 10);
+            basic_order_book(false, 10, Ray::from(SqrtPriceX96::at_tick(101000).unwrap()), 10);
 
         let next_order =
             VolumeFillMatcher::next_order(false, &index, &debt, None, &book, &fill_state).unwrap();
 
         assert!(matches!(next_order, OrderContainer::Composite(_)), "Composite order not created!");
         if let OrderContainer::Composite(c) = next_order {
-            let q = c.quantity(book[0].price());
+            let q = c.quantity(book[0].price_for_book_side(false));
             assert_eq!(q, 0, "Ask-side debt doesn't have a zero quantity!");
         } else {
             panic!("Composite order not created but did match?");

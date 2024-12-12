@@ -19,9 +19,10 @@ struct TestOrder {
 
 impl TestOrder {
     pub fn to_order(&self, is_bid: bool) -> BookOrder {
+        let min_price = if is_bid { self.p.inv_ray_round(true) } else { self.p };
         UserOrderBuilder::new()
             .amount(self.q)
-            .min_price(self.p)
+            .min_price(min_price)
             .with_storage()
             .is_bid(is_bid)
             .build()
