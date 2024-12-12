@@ -287,12 +287,9 @@ where
                 balance_amount_in_slot_user.into(),
                 amount_in * U256::from(2)
             )?;
-            Self::insert_into_storage(
-                &mut cache_db,
-                token_in,
-                approval_slot.into(),
-                amount_in * U256::from(2)
-            )?;
+            // max approval slots
+            Self::insert_into_storage(&mut cache_db, token_in, approval_slot.into(), U256::MAX)?;
+            Self::insert_into_storage(&mut cache_db, token_out, approval_slot.into(), U256::MAX)?;
 
             // flipped approval + balances
             Self::insert_into_storage(
@@ -301,11 +298,18 @@ where
                 balance_amount_in_slot_flipped.into(),
                 amount_out * U256::from(2)
             )?;
+            // max approvals for flipped
             Self::insert_into_storage(
                 &mut cache_db,
                 token_out,
                 approval_slot_flipped.into(),
-                amount_out * U256::from(2)
+                U256::MAX
+            )?;
+            Self::insert_into_storage(
+                &mut cache_db,
+                token_in,
+                approval_slot_flipped.into(),
+                U256::MAX
             )?;
         }
 
