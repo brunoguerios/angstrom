@@ -55,7 +55,7 @@ impl OrderBook {
 #[cfg(test)]
 mod test {
     use alloy::primitives::FixedBytes;
-    use angstrom_types::matching::SqrtPriceX96;
+    use angstrom_types::matching::{uniswap::LiqRange, SqrtPriceX96};
 
     use super::*;
 
@@ -64,7 +64,11 @@ mod test {
         // Very basic book construction test
         let bids = vec![];
         let asks = vec![];
-        let amm = PoolSnapshot::new(vec![], SqrtPriceX96::from_float_price(0.0)).unwrap();
+        let amm = PoolSnapshot::new(
+            vec![LiqRange::new(90000, 110000, 10).unwrap()],
+            SqrtPriceX96::at_tick(100000).unwrap()
+        )
+        .unwrap();
         OrderBook::new(FixedBytes::<32>::random(), Some(amm), bids, asks, None);
     }
 }

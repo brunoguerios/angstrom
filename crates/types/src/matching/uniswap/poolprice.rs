@@ -16,7 +16,6 @@ use super::{liqrange::LiqRangeRef, poolpricevec::PoolPriceVec, Direction, Quanti
 use crate::matching::{
     debt::Debt,
     math::{price_intersect_solve, resolve_precision},
-    uniswap::poolpricevec::SwapStep,
     Ray, SqrtPriceX96
 };
 /// Representation of a specific price point in a Uniswap Pool.  Can be operated
