@@ -379,22 +379,6 @@ where
         Ok(db)
     }
 
-    fn insert_into_storage(
-        cache_db: &mut CacheDB<Arc<DB>>,
-        token_address: Address,
-        slot: U256,
-        value: U256
-    ) -> eyre::Result<()> {
-        cache_db
-            .insert_account_storage(token_address, slot, value)
-            .map_err(|e| {
-                eyre!(
-                    "failed to insert
-            account into storage {e:?}"
-                )
-            })
-    }
-
     fn execute_on_revm<F>(
         &self,
         offsets: &HashMap<usize, usize>,
@@ -427,7 +411,7 @@ where
             if !result.result.is_success() {
                 let output = result.result.output().unwrap().to_vec();
                 let allowed_revert = alloy::primitives::hex!("cc67af53");
-                if output[0..4] == &allowed_revert {
+                if &output[0..4] == &allowed_revert {
                     return Ok(inspector.into_gas_used())
                 }
 
