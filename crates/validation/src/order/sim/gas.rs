@@ -6,7 +6,7 @@ use alloy::{
 };
 use angstrom_types::{
     contract_payloads::angstrom::AngstromBundle,
-    matching::uniswap::UniswapFlags,
+    matching::{uniswap::UniswapFlags, Ray},
     primitive::ERC20,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
@@ -114,7 +114,11 @@ where
             &HashMap::default(),
             OverridesForTestAngstrom {
                 amount_in:     U256::from(order.amount_in()),
-                amount_out:    U256::from(order.amount_in()),
+                amount_out:    {
+                    let price = Ray::from(U256::from(order.limit_price()));
+                    let amount_out = price.mul_quantity(U256::from(order.amount_in()));
+                    amount_out
+                },
                 token_out:     order.token_out(),
                 token_in:      order.token_in(),
                 user_address:  order.from(),
@@ -273,7 +277,7 @@ where
             eyre::bail!("overrides failed")
         }
 
-        // now lets mint the tokens for the user
+        // now lets mint the tokens for the regular user
         let (r, db) = Self::execute_with_db(db, |tx| {
             tx.caller = user_address;
             tx.transact_to = TxKind::Call(token_in);
@@ -296,6 +300,7 @@ where
         if !r.result.is_success() {
             eyre::bail!("overrides failed")
         }
+        // now flipped order
         let (r, db) = Self::execute_with_db(db, |tx| {
             tx.caller = user_address;
             tx.transact_to = TxKind::Call(token_in);
