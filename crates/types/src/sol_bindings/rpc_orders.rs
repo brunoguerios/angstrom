@@ -7,9 +7,10 @@ use alloy::{
 };
 use serde::{Deserialize, Serialize};
 
+// use super::Ray;
+
 sol! {
-    #[derive(Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
-    type Ray is uint256;
+    type SolRay is uint256;
 
     #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
     struct OrderMeta {
@@ -24,7 +25,7 @@ sol! {
         uint128 min_amount_in;
         uint128 max_amount_in;
         uint128 max_extra_fee_asset0;
-        Ray min_price;
+        SolRay min_price;
         bool use_internal;
         address asset_in;
         address asset_out;
@@ -41,7 +42,7 @@ sol! {
         bool exact_in;
         uint128 amount;
         uint128 max_extra_fee_asset0;
-        Ray min_price;
+        SolRay min_price;
         bool use_internal;
         address asset_in;
         address asset_out;
@@ -58,7 +59,7 @@ sol! {
         uint128 min_amount_in;
         uint128 max_amount_in;
         uint128 max_extra_fee_asset0;
-        Ray min_price;
+        SolRay min_price;
         bool use_internal;
         address asset_in;
         address asset_out;
@@ -74,7 +75,7 @@ sol! {
         bool exact_in;
         uint128 amount;
         uint128 max_extra_fee_asset0;
-        Ray min_price;
+        SolRay min_price;
         bool use_internal;
         address asset_in;
         address asset_out;

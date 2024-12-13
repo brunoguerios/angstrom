@@ -1,9 +1,6 @@
 use std::ops::{Add, AddAssign, Deref, Sub, SubAssign};
 
-use alloy::{
-    primitives::{aliases::U320, Uint, U256, U512},
-    sol
-};
+use alloy::primitives::{aliases::U320, Uint, U256, U512};
 use malachite::{
     num::{
         arithmetic::traits::{DivRound, Pow},
@@ -14,14 +11,22 @@ use malachite::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::rpc_orders::SolRay;
 use crate::matching::{const_1e27, const_1e54, const_2_192, MatchingPrice, SqrtPriceX96};
 
-// we define it in here so we can have all the sol bindings but also access to
-// self.0
-sol! {
-    /// a ray is a value to 1e27 same concept as a wad where wad is 18
-    #[derive(Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
-    type Ray is uint256;
+#[derive(Copy, Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Ray(pub U256);
+
+impl From<SolRay> for Ray {
+    fn from(value: SolRay) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<Ray> for SolRay {
+    fn from(value: Ray) -> Self {
+        SolRay::from(value.0)
+    }
 }
 
 impl Deref for Ray {
