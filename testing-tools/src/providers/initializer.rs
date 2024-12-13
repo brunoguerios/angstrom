@@ -246,7 +246,7 @@ impl AnvilInitializer {
         self.pending_state.add_pending_tx(pool_gate);
 
         let tick = price.to_tick()?;
-        for i in 0..100 {
+        for i in 0..200 {
             let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
             let upper = lower + pool_key.tickSpacing;
 
