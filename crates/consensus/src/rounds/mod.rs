@@ -199,6 +199,7 @@ where
         self.uniswap_pools
             .iter()
             .filter_map(|(key, pool)| {
+                tracing::info!(?key, "getting snapshot");
                 let (token_a, token_b, snapshot) =
                     pool.read().unwrap().fetch_pool_snapshot().ok()?;
                 let entry = self.pool_registry.get_ang_entry(key)?;
