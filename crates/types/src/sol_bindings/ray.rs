@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Deref, Sub, SubAssign};
+use std::{
+    iter::Sum,
+    ops::{Add, AddAssign, Deref, Sub, SubAssign}
+};
 
 use alloy::primitives::{aliases::U320, Uint, U256, U512};
 use malachite::{
@@ -20,6 +23,16 @@ pub struct Ray(pub U256);
 impl From<SolRay> for Ray {
     fn from(value: SolRay) -> Self {
         Self(value.into())
+    }
+}
+
+impl Sum for Ray {
+    fn sum<I: Iterator<Item = Ray>>(mut iter: I) -> Self {
+        let mut acc = Ray::default();
+        while let Some(ray) = iter.next() {
+            acc += ray;
+        }
+        acc
     }
 }
 
@@ -48,6 +61,22 @@ impl Sub for Ray {
 impl SubAssign for Ray {
     fn sub_assign(&mut self, rhs: Self) {
         *self = Self(self.0 - rhs.0)
+    }
+}
+
+impl std::ops::Mul<U256> for Ray {
+    type Output = Ray;
+
+    fn mul(self, rhs: U256) -> Self::Output {
+        Ray::from(self.0 * rhs)
+    }
+}
+
+impl std::ops::Div<U256> for Ray {
+    type Output = Ray;
+
+    fn div(self, rhs: U256) -> Self::Output {
+        Ray::from(self.0 / rhs)
     }
 }
 

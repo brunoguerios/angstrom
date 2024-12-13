@@ -3,14 +3,14 @@ use futures::{Stream, StreamExt};
 use pade::PadeDecode;
 use reth_provider::CanonStateNotificationStream;
 
-use crate::contract_payloads::angstrom::AngstromBundle;
+use crate::{contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray};
 
 /// represents the price settled on angstrom between two tokens
 #[derive(Debug, Clone, Copy)]
 pub struct PairsWithPrice {
     pub token0:         Address,
     pub token1:         Address,
-    pub price_1_over_0: U256,
+    pub price_1_over_0: Ray,
     pub block_num:      u64
 }
 
@@ -25,7 +25,7 @@ impl PairsWithPrice {
             .map(|pair| Self {
                 token0: bundle.assets[pair.index0 as usize].addr,
                 token1: bundle.assets[pair.index1 as usize].addr,
-                price_1_over_0: pair.price_1over0,
+                price_1_over_0: Ray::from(pair.price_1over0),
                 block_num
             })
             .collect::<Vec<_>>()

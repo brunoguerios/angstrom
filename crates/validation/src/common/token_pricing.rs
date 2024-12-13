@@ -8,7 +8,7 @@ use alloy::{
     providers::Provider,
     transports::Transport
 };
-use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId};
+use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray};
 use futures::StreamExt;
 use tracing::warn;
 use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
@@ -76,6 +76,7 @@ impl TokenPriceGenerator {
                             .await
                             .expect("failed to load historical price for token price conversion");
 
+                        // price as ray
                         let price = pool_data.get_raw_price();
 
                         queue.push_back(PairsWithPrice {
@@ -133,13 +134,12 @@ impl TokenPriceGenerator {
         self.cur_block += 1;
     }
 
-    /// NOTE: assumes tokens are properly sorted
-    /// returns the conversion ratio of the pair to eth, this looks like
-    /// non-weth / weth. This then allows for the simple calcuation of
-    /// gas_in_wei * conversion price in order to get the used token_0
-    pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<U256> {
+    /// NOTE: assumes tokens are properly sorted.
+    /// the previous prices are stored in RAY (1e27).
+    /// we take this price. then
+    pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         if token_0 == WETH_ADDRESS {
-            return Some(U256::from(1))
+            return Some(Ray::from(1.0))
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
@@ -161,11 +161,11 @@ impl TokenPriceGenerator {
                 prices
                     .iter()
                     .map(|price| {
-                        // need to flip. add 18 decimal precision then reciprocal
-                        U256::from(1e36) / price.price_1_over_0
+                        // flip price
+                        price.price_1_over_0.inv_ray()
                     })
-                    .sum::<U256>()
-                    / U256::from(size.max(1))
+                    .sum::<Ray>()
+                    / U256::from(size)
             )
         }
 
