@@ -361,7 +361,8 @@ pub mod test {
         let token_conversion = setup();
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN2, TOKEN0)
-            .unwrap();
+            .unwrap()
+            .scale_out_of_ray();
 
         let expected_rate = U256::from(1e36) / U256::from(5e18);
         assert_eq!(rate, expected_rate)
@@ -372,7 +373,8 @@ pub mod test {
         let token_conversion = setup();
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN2, TOKEN3)
-            .unwrap();
+            .unwrap()
+            .scale_out_of_ray();
 
         let expected_rate = U256::from(1e36) / U256::from(5e18);
         assert_eq!(rate, expected_rate)
@@ -383,7 +385,8 @@ pub mod test {
         let token_conversion = setup();
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN4, TOKEN1)
-            .unwrap();
+            .unwrap()
+            .scale_out_of_ray();
 
         // hop 1 rate
         // assumes token1 is 6 decimals and token 0 is 18 with a conversion rate of 0.2
