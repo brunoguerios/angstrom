@@ -83,7 +83,6 @@ impl<'a> LiqRangeRef<'a> {
     /// Determines if a given SqrtPriceX96 is within this liquidity range
     pub fn price_in_range(&self, price: SqrtPriceX96) -> bool {
         if let Ok(price_tick) = price.to_tick() {
-            println!("Checking that {} <= {} < {}", self.lower_tick, price_tick, self.upper_tick);
             price_tick >= self.lower_tick && price_tick < self.upper_tick
         } else {
             println!("Default false");
