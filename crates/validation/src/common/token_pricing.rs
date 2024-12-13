@@ -100,7 +100,7 @@ impl TokenPriceGenerator {
         Ok(Self { prev_prices: pools, cur_block: current_block, pair_to_pool, blocks_to_avg_price })
     }
 
-    pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), U256> {
+    pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), Ray> {
         self.pair_to_pool
             .keys()
             .filter_map(|(mut token0, mut token1)| {
@@ -201,11 +201,11 @@ impl TokenPriceGenerator {
                             price.price_1_over_0
                         } else {
                             // need to flip. add 18 decimal precision then reciprocal
-                            U256::from(1e36) / price.price_1_over_0
+                            price.price_1_over_0.inv_ray()
                         }
                     })
-                    .sum::<U256>()
-                    / U256::from(size.max(1))
+                    .sum::<Ray>()
+                    / U256::from(size)
             )
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
             // because we are going through token1 here and we want token zero, we need to
@@ -225,12 +225,9 @@ impl TokenPriceGenerator {
             // token 0 / token 1
             let first_hop_price = prices
                 .iter()
-                .map(|price| {
-                    // need to flip. add 18 decimal precision then reciprocal
-                    U256::from(1e36) / price.price_1_over_0
-                })
-                .sum::<U256>()
-                / U256::from(size.max(1));
+                .map(|price| price.price_1_over_0.inv_ray())
+                .sum::<Ray>()
+                / U256::from(size);
 
             // grab second hop
             let prices = self.prev_prices.get(key)?;
@@ -249,14 +246,14 @@ impl TokenPriceGenerator {
                         price.price_1_over_0
                     } else {
                         // need to flip. add 18 decimal precision then reciprocal
-                        U256::from(1e36) / price.price_1_over_0
+                        price.price_1_over_0.inv_ray()
                     }
                 })
-                .sum::<U256>()
-                / U256::from(size.max(1));
+                .sum::<Ray>()
+                / U256::from(size);
 
             // token 0 / token1 * token1 / weth  = token0 / weth
-            Some(first_hop_price * second_hop_price)
+            Some(first_hop_price.mul_ray(second_hop_price))
         } else {
             panic!("found a token that doesn't have a 1 hop to WETH")
         }
