@@ -45,6 +45,9 @@ pub struct VolumeFillMatcher<'a> {
 
 impl<'a> VolumeFillMatcher<'a> {
     pub fn new(book: &'a OrderBook) -> Self {
+        let bid_cnt = book.bids().len();
+        let ask_cnt = book.asks().len();
+        tracing::info!(?bid_cnt, ?ask_cnt);
         let bid_outcomes = vec![OrderFillState::Unfilled; book.bids().len()];
         let ask_outcomes = vec![OrderFillState::Unfilled; book.asks().len()];
         let amm_price = book.amm().map(|a| a.current_price());
