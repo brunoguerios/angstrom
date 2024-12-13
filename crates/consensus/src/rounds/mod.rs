@@ -201,8 +201,8 @@ where
             .filter_map(|(key, pool)| {
                 tracing::info!(?key, "getting snapshot");
                 let (token_a, token_b, snapshot) =
-                    pool.read().unwrap().fetch_pool_snapshot().ok()?;
-                let entry = self.pool_registry.get_ang_entry(key)?;
+                    pool.read().unwrap().fetch_pool_snapshot().unwrap();
+                let entry = self.pool_registry.get_ang_entry(key).unwrap();
 
                 Some((*key, (token_a, token_b, snapshot, entry.store_index as u16)))
             })
