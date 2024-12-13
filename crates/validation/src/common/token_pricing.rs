@@ -191,6 +191,7 @@ impl TokenPriceGenerator {
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
+            println!("token 0 is weth pair");
 
             return Some(
                 prices
@@ -200,7 +201,6 @@ impl TokenPriceGenerator {
                         if first_flip {
                             price.price_1_over_0
                         } else {
-                            // need to flip. add 18 decimal precision then reciprocal
                             price.price_1_over_0.inv_ray()
                         }
                     })
@@ -216,6 +216,7 @@ impl TokenPriceGenerator {
                 .expect("got pool update that we don't have stored");
 
             let prices = self.prev_prices.get(default_pool_key)?;
+            println!("{:?}", prices);
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -228,6 +229,7 @@ impl TokenPriceGenerator {
                 .map(|price| price.price_1_over_0.inv_ray())
                 .sum::<Ray>()
                 / U256::from(size);
+            println!("{first_hop_price:?}");
 
             // grab second hop
             let prices = self.prev_prices.get(key)?;
@@ -252,6 +254,7 @@ impl TokenPriceGenerator {
                 .sum::<Ray>()
                 / U256::from(size);
 
+            println!("mullin values {:?} * {:?}", first_hop_price, second_hop_price);
             // token 0 / token1 * token1 / weth  = token0 / weth
             Some(first_hop_price.mul_ray(second_hop_price))
         } else {
@@ -361,10 +364,11 @@ pub mod test {
         let token_conversion = setup();
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN2, TOKEN0)
-            .unwrap()
-            .scale_out_of_ray();
+            .unwrap();
 
-        let expected_rate = U256::from(1e36) / U256::from(5e18);
+        let expected_rate = Ray::scale_to_ray(U256::from(5e18)).inv_ray();
+
+        println!("rate: {:?} got: {:?}", rate, expected_rate);
         assert_eq!(rate, expected_rate)
     }
 
@@ -373,10 +377,10 @@ pub mod test {
         let token_conversion = setup();
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN2, TOKEN3)
-            .unwrap()
-            .scale_out_of_ray();
+            .unwrap();
 
-        let expected_rate = U256::from(1e36) / U256::from(5e18);
+        let expected_rate = Ray::scale_to_ray(U256::from(5e18)).inv_ray();
+        println!("rate: {:?} got: {:?}", rate, expected_rate);
         assert_eq!(rate, expected_rate)
     }
 
@@ -385,8 +389,7 @@ pub mod test {
         let token_conversion = setup();
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN4, TOKEN1)
-            .unwrap()
-            .scale_out_of_ray();
+            .unwrap();
 
         // hop 1 rate
         // assumes token1 is 6 decimals and token 0 is 18 with a conversion rate of 0.2
@@ -397,7 +400,8 @@ pub mod test {
         // let pair4_rate = U256::from(1e36) / U256::from(8e6);
         //
         // gives us 0.2 * 0.8 = 0.16;
-        let expected_rate = U256::from(1600000000000u128);
+        let expected_rate = Ray::scale_to_ray(U256::from(1600000000000u128));
+        println!("rate: {:?} got: {:?}", rate, expected_rate);
         assert_eq!(rate, expected_rate)
     }
 }
