@@ -160,7 +160,8 @@ impl<'a> VolumeFillMatcher<'a> {
             return Some(VolumeFillMatchEndReason::NoMoreAsks)
         };
 
-        println!("------RAW ORDERS------\n{:?}\n{:?}\n----------------------", bid, ask);
+        // println!("------RAW ORDERS------\n{:?}\n{:?}\n----------------------", bid,
+        // ask);
 
         // Check to see if we've hit an end state
         // If we're talking to the AMM on both sides, we're done
