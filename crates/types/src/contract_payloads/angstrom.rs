@@ -920,7 +920,10 @@ impl AngstromBundle {
             let Some((t0, t1, snapshot, store_index)) = pools.get(&solution.id) else {
                 // This should never happen but let's handle it as gracefully as possible -
                 // right now will skip the pool, not produce an error
-                warn!("Skipped a solution as we couldn't find a pool for it: {:?}", pools);
+                warn!(
+                    "Skipped a solution as we couldn't find a pool for it: {:?}, {:?}",
+                    pools, solution.id
+                );
                 continue;
             };
             println!("Processing pair {} - {}", t0, t1);
