@@ -27,9 +27,9 @@ impl From<SolRay> for Ray {
 }
 
 impl Sum for Ray {
-    fn sum<I: Iterator<Item = Ray>>(mut iter: I) -> Self {
+    fn sum<I: Iterator<Item = Ray>>(iter: I) -> Self {
         let mut acc = Ray::default();
-        while let Some(ray) = iter.next() {
+        for ray in iter {
             acc += ray;
         }
         acc

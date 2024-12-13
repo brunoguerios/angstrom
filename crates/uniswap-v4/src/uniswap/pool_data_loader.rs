@@ -13,7 +13,6 @@ use angstrom_types::{
     primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry}
 };
 use itertools::Itertools;
-use malachite::{num::conversion::traits::RoundingInto, Natural, Rational};
 
 use super::loaders::{
     get_uniswap_v_3_pool_data::GetUniswapV3PoolData,
