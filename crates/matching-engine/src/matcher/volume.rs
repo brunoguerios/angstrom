@@ -131,12 +131,14 @@ impl<'a> VolumeFillMatcher<'a> {
         // Run our match over and over until we get an end reason
         loop {
             if let Some(r) = self.single_match() {
+                tracing::debug!(?r);
                 return r
             }
         }
     }
 
     pub fn single_match(&mut self) -> Option<VolumeFillMatchEndReason> {
+        tracing::info!("single match");
         // Get the bid order
         let Some(bid) = Self::next_order(
             true,
