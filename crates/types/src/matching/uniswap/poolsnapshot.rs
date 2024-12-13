@@ -48,9 +48,13 @@ impl PoolSnapshot {
         // Find the tick range that our current tick lies within
         let Some(cur_tick_idx) = ranges
             .iter()
-            .position(|r| r.lower_tick <= current_tick && current_tick <= r.upper_tick)
+            .position(|r| r.lower_tick <= current_tick && current_tick < r.upper_tick)
         else {
-            return Err(eyre!("Unable to find initialized tick window for tick '{}'", current_tick));
+            return Err(eyre!(
+                "Unable to find initialized tick window for tick '{}'\n {:?}",
+                current_tick,
+                ranges
+            ));
         };
 
         Ok(Self { ranges, sqrt_price_x96, current_tick, cur_tick_idx })
