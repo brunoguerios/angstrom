@@ -940,8 +940,8 @@ impl AngstromBundle {
                 rewards_update
             });
             // calculate the shared amount of gas in token 0 to share over this pool
-            let delegated_amount_in_token_0: U256 =
-                conversion_rate_to_token0 * U256::from(shared_gas_in_wei);
+            let delegated_amount_in_token_0 =
+                (*conversion_rate_to_token0 * U256::from(shared_gas_in_wei)).scale_out_of_ray();
 
             // Add the ToB order to our tob order list - This is currently converting
             // between two ToB order formats
@@ -1022,14 +1022,14 @@ impl AngstromBundle {
 pub struct BundleGasDetails {
     /// a map (sorted tokens) of how much of token0 in gas is needed per unit of
     /// gas
-    token_price_per_wei: HashMap<(Address, Address), U256>,
+    token_price_per_wei: HashMap<(Address, Address), Ray>,
     /// total gas to execute the bundle on angstrom
     total_gas_cost_wei:  u64
 }
 
 impl BundleGasDetails {
     pub fn new(
-        token_price_per_wei: HashMap<(Address, Address), U256>,
+        token_price_per_wei: HashMap<(Address, Address), Ray>,
         total_gas_cost_wei: u64
     ) -> Self {
         Self { token_price_per_wei, total_gas_cost_wei }

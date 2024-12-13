@@ -2,10 +2,13 @@ use std::{fmt::Debug, sync::Arc};
 
 use alloy::primitives::Address;
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::sol_bindings::{
-    grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-    rpc_orders::TopOfBlockOrder,
-    RawPoolOrder
+use angstrom_types::{
+    matching::Ray,
+    sol_bindings::{
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder,
+        RawPoolOrder
+    }
 };
 use gas::OrderGasCalculations;
 use revm::primitives::ruint::aliases::U256;
@@ -50,7 +53,7 @@ where
 
             // grab price conversion
             let conversion_factor = conversion.get_eth_conversion_price(token0, token1).unwrap();
-            Ok((gas_in_wei, conversion_factor * U256::from(gas_in_wei)))
+            Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
         })
     }
 
@@ -70,7 +73,7 @@ where
 
             // grab price conversion
             let conversion_factor = conversion.get_eth_conversion_price(token0, token1).unwrap();
-            Ok((gas_in_wei, conversion_factor * U256::from(gas_in_wei)))
+            Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
         })
     }
 }

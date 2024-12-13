@@ -183,6 +183,24 @@ impl<'de> Deserialize<'de> for Ray {
 impl Ray {
     pub const ZERO: Ray = Ray(U256::ZERO);
 
+    /// value * 1e27
+    pub fn scale_to_ray(value: U256) -> Ray {
+        let value = Natural::from_limbs_asc(value.as_limbs()) * const_1e27();
+
+        Ray::from(Uint::from_limbs_slice(&value.to_limbs_asc()))
+    }
+
+    /// value / 1e27
+    pub fn scale_out_of_ray(self) -> U256 {
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs());
+        let denominator: Natural = const_1e27().clone();
+        let price = Rational::from_naturals(numerator, denominator);
+        let (res, _): (Natural, _) =
+            price.rounding_into(malachite::rounding_modes::RoundingMode::Floor);
+
+        Uint::from_limbs_slice(&res.into_limbs_asc())
+    }
+
     /// self * other / ray
     pub fn mul_ray_assign(&mut self, other: Ray) {
         let p: U512 = self.0.widening_mul(other.0);

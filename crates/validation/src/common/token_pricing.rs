@@ -268,7 +268,7 @@ pub mod test {
         node_bindings::WEI_IN_ETHER,
         primitives::{Address, FixedBytes, U256}
     };
-    use angstrom_types::pair_with_price::PairsWithPrice;
+    use angstrom_types::{pair_with_price::PairsWithPrice, sol_bindings::Ray};
     use revm::primitives::address;
 
     use super::{TokenPriceGenerator, BLOCKS_TO_AVG_PRICE};
@@ -305,7 +305,7 @@ pub mod test {
             token0:         TOKEN2,
             token1:         TOKEN0,
             block_num:      0,
-            price_1_over_0: pair1_rate
+            price_1_over_0: Ray::scale_to_ray(pair1_rate)
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(1), queue);
@@ -318,7 +318,7 @@ pub mod test {
             token0:         TOKEN0,
             token1:         TOKEN1,
             block_num:      0,
-            price_1_over_0: pair2_rate
+            price_1_over_0: Ray::scale_to_ray(pair2_rate)
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(2), queue);
@@ -330,7 +330,7 @@ pub mod test {
             token0:         TOKEN2,
             token1:         TOKEN3,
             block_num:      0,
-            price_1_over_0: pair3_rate
+            price_1_over_0: Ray::scale_to_ray(pair3_rate)
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(3), queue);
@@ -342,7 +342,7 @@ pub mod test {
             token0:         TOKEN4,
             token1:         TOKEN1,
             block_num:      0,
-            price_1_over_0: pair4_rate
+            price_1_over_0: Ray::scale_to_ray(pair4_rate)
         };
 
         let queue = VecDeque::from([pair; 5]);
