@@ -227,6 +227,10 @@ impl TokenPriceGenerator {
             let first_hop_price = prices
                 .iter()
                 .map(|price| price.price_1_over_0.inv_ray())
+                .map(|a| {
+                    println!("{a:?}");
+                    a
+                })
                 .sum::<Ray>()
                 / U256::from(size);
             println!("{first_hop_price:?}");
