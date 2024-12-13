@@ -11,8 +11,9 @@ use malachite::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{const_2_192, MatchingPrice, SqrtPriceX96};
+use super::{const_1e54, const_2_192, MatchingPrice, SqrtPriceX96};
 use crate::matching::const_1e27;
+
 #[derive(Copy, Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ray(U256);
 
@@ -59,19 +60,6 @@ impl AddAssign for Ray {
         *self = Self(self.0 + rhs.0);
     }
 }
-impl Mul for Ray {
-    type Output = Ray;
-
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mult: U512 = self.widening_mul(rhs.0);
-        // div by 1e27
-        let out = (mult / U512::from(1e27)).into_limbs();
-
-        let buf = [out[4], out[5], out[6], out[7]];
-        Ray::from(U256::from_limbs(buf))
-    }
-}
 
 impl From<U256> for Ray {
     fn from(value: U256) -> Self {
@@ -96,15 +84,6 @@ impl From<usize> for Ray {
         Self(Uint::from(value))
     }
 }
-
-// Can't do this because of something in the blsful crate, annoying!
-// trait RayConvert {}
-
-// impl<T: Into<U256> + RayConvert> From<T> for Ray {
-//     fn from(value: T) -> Self {
-//         Self(Uint::from(value))
-//     }
-// }
 
 impl From<f64> for Ray {
     fn from(value: f64) -> Self {
@@ -163,6 +142,56 @@ impl<'de> Deserialize<'de> for Ray {
 impl Ray {
     pub const ZERO: Ray = Ray(U256::ZERO);
 
+    /// self * other / 1e27
+    pub fn mul_ray_assign(&mut self, other: Ray) {
+        let p: U512 = self.0.widening_mul(other.0);
+        let numerator = Natural::from_limbs_asc(p.as_limbs());
+        let (res, _) =
+            numerator.div_round(const_1e27(), malachite::rounding_modes::RoundingMode::Floor);
+        let reslimbs = res.into_limbs_asc();
+
+        *self = Ray::from(Uint::from_limbs_slice(&reslimbs));
+    }
+
+    pub fn mul_ray(mut self, other: Ray) -> Ray {
+        self.mul_ray_assign(other);
+        self
+    }
+
+    /// self * ray / other
+    pub fn div_ray_assign(&mut self, other: Ray) {
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs());
+        let num = numerator * const_1e27();
+
+        let denom = Natural::from_limbs_asc(other.0.as_limbs());
+        let res = Rational::from_naturals(num, denom);
+        let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
+        let this = U256::from_limbs_slice(&n.to_limbs_asc());
+
+        *self = Ray::from(this);
+    }
+
+    pub fn div_ray(mut self, other: Ray) -> Ray {
+        self.div_ray_assign(other);
+        self
+    }
+
+    pub fn inv_ray_assign(&mut self) {
+        let num = const_1e54().clone();
+        let denom = Natural::from_limbs_asc(self.0.as_limbs());
+
+        let res = Rational::from_naturals(num, denom);
+        let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
+        let this = U256::from_limbs_slice(&n.to_limbs_asc());
+
+        *self = Ray::from(this);
+    }
+
+    pub fn inv_ray(mut self) -> Ray {
+        self.inv_ray_assign();
+        self
+    }
+
     /// Uses malachite.rs to approximate this value as a floating point number.
     /// Converts from the internal U256 representation to an approximated f64
     /// representation, which is a change to the value of this number and why
@@ -188,7 +217,7 @@ impl Ray {
         let p: U512 = self.0.widening_mul(q);
         let numerator = Natural::from_limbs_asc(p.as_limbs());
         let (res, _) =
-            numerator.div_round(const_1e27(), malachite::rounding_modes::RoundingMode::Ceiling);
+            numerator.div_round(const_1e27(), malachite::rounding_modes::RoundingMode::Floor);
         let reslimbs = res.into_limbs_asc();
         Uint::from_limbs_slice(&reslimbs)
     }
@@ -199,7 +228,7 @@ impl Ray {
         let numerator = Natural::from_limbs_asc(q.as_limbs()) * const_1e27();
         let denominator = Natural::from_limbs_asc(self.0.as_limbs());
         let output = Rational::from_naturals(numerator, denominator);
-        let (natout, _): (Natural, _) = output.rounding_into(RoundingMode::Ceiling);
+        let (natout, _): (Natural, _) = output.rounding_into(RoundingMode::Floor);
         U256::from_limbs_slice(&natout.to_limbs_asc())
     }
 }
