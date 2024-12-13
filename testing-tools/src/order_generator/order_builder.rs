@@ -80,7 +80,6 @@ impl OrderBuilder {
 
         let t_in = if zfo { token0 } else { token1 };
         let amount_specified = if zfo { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
-        let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
 
         let (amount_in, amount_out) = pool
             .simulate_swap(t_in, amount_specified, Some(price))
