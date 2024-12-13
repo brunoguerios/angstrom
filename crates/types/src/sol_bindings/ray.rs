@@ -1,6 +1,9 @@
-use std::ops::{Add, AddAssign, Deref, Mul, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Deref, Sub, SubAssign};
 
-use alloy::primitives::{aliases::U320, Uint, U256, U512};
+use alloy::{
+    primitives::{aliases::U320, Uint, U256, U512},
+    sol
+};
 use malachite::{
     num::{
         arithmetic::traits::{DivRound, Pow},
@@ -11,11 +14,15 @@ use malachite::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{const_1e54, const_2_192, MatchingPrice, SqrtPriceX96};
-use crate::matching::const_1e27;
+use crate::matching::{const_1e27, const_1e54, const_2_192, MatchingPrice, SqrtPriceX96};
 
-#[derive(Copy, Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Ray(U256);
+// we define it in here so we can have all the sol bindings but also access to
+// self.0
+sol! {
+    /// a ray is a value to 1e27 same concept as a wad where wad is 18
+    #[derive(Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
+    type Ray is uint256;
+}
 
 impl Deref for Ray {
     type Target = U256;
@@ -142,7 +149,7 @@ impl<'de> Deserialize<'de> for Ray {
 impl Ray {
     pub const ZERO: Ray = Ray(U256::ZERO);
 
-    /// self * other / 1e27
+    /// self * other / ray
     pub fn mul_ray_assign(&mut self, other: Ray) {
         let p: U512 = self.0.widening_mul(other.0);
         let numerator = Natural::from_limbs_asc(p.as_limbs());
@@ -153,6 +160,7 @@ impl Ray {
         *self = Ray::from(Uint::from_limbs_slice(&reslimbs));
     }
 
+    /// self * other / ray
     pub fn mul_ray(mut self, other: Ray) -> Ray {
         self.mul_ray_assign(other);
         self
@@ -171,11 +179,13 @@ impl Ray {
         *self = Ray::from(this);
     }
 
+    /// self * ray / other
     pub fn div_ray(mut self, other: Ray) -> Ray {
         self.div_ray_assign(other);
         self
     }
 
+    /// 1e54 / self
     pub fn inv_ray_assign(&mut self) {
         let num = const_1e54().clone();
         let denom = Natural::from_limbs_asc(self.0.as_limbs());
@@ -187,6 +197,7 @@ impl Ray {
         *self = Ray::from(this);
     }
 
+    /// 1e54 / self
     pub fn inv_ray(mut self) -> Ray {
         self.inv_ray_assign();
         self

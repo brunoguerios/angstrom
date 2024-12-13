@@ -941,7 +941,7 @@ impl AngstromBundle {
             });
             // calculate the shared amount of gas in token 0 to share over this pool
             let delegated_amount_in_token_0: U256 =
-                *(Ray::from(*conversion_rate_to_token0) * Ray::from(U256::from(shared_gas_in_wei)));
+                conversion_rate_to_token0 * U256::from(shared_gas_in_wei);
 
             // Add the ToB order to our tob order list - This is currently converting
             // between two ToB order formats

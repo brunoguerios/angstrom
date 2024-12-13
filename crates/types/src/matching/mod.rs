@@ -6,7 +6,6 @@ use std::{
 use alloy::primitives::U256;
 
 pub mod match_estimate_response;
-mod ray;
 mod sqrtprice;
 pub mod uniswap;
 
@@ -14,20 +13,21 @@ use malachite::{
     num::{arithmetic::traits::PowerOf2, conversion::traits::FromSciString},
     Natural
 };
-pub use ray::Ray;
 pub use sqrtprice::SqrtPriceX96;
 
-fn const_1e27() -> &'static Natural {
+pub use super::sol_bindings::Ray;
+
+pub fn const_1e27() -> &'static Natural {
     static TWENTYSEVEN: OnceLock<Natural> = OnceLock::new();
     TWENTYSEVEN.get_or_init(|| Natural::from_sci_string("1e27").unwrap())
 }
 
-fn const_1e54() -> &'static Natural {
+pub fn const_1e54() -> &'static Natural {
     static FIFTYFOUR: OnceLock<Natural> = OnceLock::new();
     FIFTYFOUR.get_or_init(|| Natural::from_sci_string("1e54").unwrap())
 }
 
-fn const_2_192() -> &'static Natural {
+pub fn const_2_192() -> &'static Natural {
     static ONENINETWO: OnceLock<Natural> = OnceLock::new();
     ONENINETWO.get_or_init(|| Natural::power_of_2(192))
 }
