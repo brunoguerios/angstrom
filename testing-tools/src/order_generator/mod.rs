@@ -85,12 +85,15 @@ impl<const N: usize> PriceDistribution<N> {
         let normal = Normal::new(price_avg, price_avg / self.sd_factor).unwrap();
         let mut rng = rand::thread_rng();
 
-        vec![
-            normal
-                .sample(&mut rng)
-                .clamp(self.lower_bound, self.upper_bound);
-            amount
-        ]
+        let mut res = Vec::with_capacity(amount);
+        for _ in 0..amount {
+            res.push(
+                normal
+                    .sample(&mut rng)
+                    .clamp(self.lower_bound, self.upper_bound)
+            );
+        }
+        res
     }
 
     /// updates the mean price
