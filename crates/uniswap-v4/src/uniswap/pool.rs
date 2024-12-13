@@ -173,7 +173,9 @@ where
         // current tick when loaded (init tick) - (half total tics * spacing);
 
         let start_tick = self.tick - (total_ticks_to_fetch.div_ceil(2) as i32 * self.tick_spacing);
-        tracing::info!(?start_tick);
+
+        let end_tick = start_tick + (self.tick_spacing * total_ticks_to_fetch);
+        tracing::info!(?start_tick, ?end_tick);
 
         let mut fetched_ticks = self
             .get_tick_data_batch_request(
