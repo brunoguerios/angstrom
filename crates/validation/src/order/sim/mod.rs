@@ -3,10 +3,10 @@ use std::{fmt::Debug, sync::Arc};
 use alloy::primitives::Address;
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
-        RawPoolOrder
-    };
+    grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+    rpc_orders::TopOfBlockOrder,
+    RawPoolOrder
+};
 use gas::OrderGasCalculations;
 use revm::primitives::ruint::aliases::U256;
 

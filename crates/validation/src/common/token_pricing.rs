@@ -191,7 +191,6 @@ impl TokenPriceGenerator {
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
-            println!("token 0 is weth pair");
 
             return Some(
                 prices
@@ -227,13 +226,8 @@ impl TokenPriceGenerator {
             let first_hop_price = prices
                 .iter()
                 .map(|price| price.price_1_over_0.inv_ray())
-                .map(|a| {
-                    println!("{a:?}");
-                    a
-                })
                 .sum::<Ray>()
                 / U256::from(size);
-            println!("{first_hop_price:?}");
 
             // grab second hop
             let prices = self.prev_prices.get(key)?;
@@ -258,7 +252,6 @@ impl TokenPriceGenerator {
                 .sum::<Ray>()
                 / U256::from(size);
 
-            println!("mullin values {:?} * {:?}", first_hop_price, second_hop_price);
             // token 0 / token1 * token1 / weth  = token0 / weth
             Some(first_hop_price.mul_ray(second_hop_price))
         } else {
@@ -331,7 +324,7 @@ pub mod test {
         prices.insert(FixedBytes::<32>::with_last_byte(2), queue);
 
         // simple conversion rate of 2/1 on 18 decimals
-        let pair3_rate = U256::from(2e18);
+        let pair3_rate = U256::from(2) * WEI_IN_ETHER;
 
         let pair = PairsWithPrice {
             token0:         TOKEN2,
@@ -343,7 +336,7 @@ pub mod test {
         prices.insert(FixedBytes::<32>::with_last_byte(3), queue);
 
         // token 1 is 18 decimals, token 0 is 6 with a conversion rate of 1/8
-        let pair4_rate = U256::from(1e36) / U256::from(8e6);
+        let pair4_rate = U256::from(1e18) / U256::from(8e6);
 
         let pair = PairsWithPrice {
             token0:         TOKEN4,
@@ -401,11 +394,10 @@ pub mod test {
         //
         // hop 2 rate
         // token 1 is 18 decimals, token 0 is 6 with a conversion rate of 1/8
-        // let pair4_rate = U256::from(1e36) / U256::from(8e6);
+        // let pair4_rate = U256::from(1e18) / U256::from(8e6);
         //
         // gives us 0.2 * 0.8 = 0.16;
-        let expected_rate = Ray::scale_to_ray(U256::from(1600000000000u128));
-        println!("rate: {:?} got: {:?}", rate, expected_rate);
+        let expected_rate = Ray(U256::from(1600000000000000000000u128));
         assert_eq!(rate, expected_rate)
     }
 }
