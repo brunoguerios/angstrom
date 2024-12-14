@@ -65,12 +65,16 @@ impl OrderBuilder {
         let is_partial = rng.gen_bool(partial_pct);
 
         let pool = self.pool_data.read().unwrap();
-        let unshifted_price = Ray::from(pool.calculate_price_unshifted());
+
+        let unshifted_price = Ray::from(
+            pool.calculate_price_unshifted(SqrtPriceX96::from_float_price(cur_price).into())
+        );
         // if the pool price > than price we want. given t1 / t0 -> more t0 less t1 ->
         // cur_price
 
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
+
         let sqrt_price = pool.sqrt_price;
 
         let zfo = sqrt_price > price;
