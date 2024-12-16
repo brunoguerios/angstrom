@@ -195,12 +195,16 @@ where
 
 #[cfg(test)]
 mod tests {
+    use angstrom_types::block_sync::GlobalBlockSync;
+
     use super::MockRewardEnv;
     use crate::{contracts::environment::uniswap::UniswapEnv, providers::AnvilProvider};
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilProvider::spawn_new_isolated().await.unwrap();
+        let anvil = AnvilProvider::spawn_new_isolated(GlobalBlockSync::new(0))
+            .await
+            .unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
         MockRewardEnv::new(uniswap).await.unwrap();
     }

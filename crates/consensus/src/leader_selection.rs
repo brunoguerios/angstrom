@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     collections::HashSet,
     fs::File,
-    io::{self, Read, Write}
+    io::{self, Write}
 };
 
 use alloy::primitives::BlockNumber;
@@ -11,40 +11,37 @@ use angstrom_types::primitive::PeerId;
 const ROUND_ROBIN_CACHE: &str = "./";
 
 // https://github.com/tendermint/tendermint/pull/2785#discussion_r235038971
-const PENALTY_FACTOR: f64 = 1.125;
+// 1.125
+const PENALTY_FACTOR: u64 = 1125;
+const ONE_E3: u64 = 1000;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AngstromValidator {
     pub peer_id:  PeerId,
     voting_power: u64,
-    priority:     f64
+    priority:     i64
 }
 
 impl AngstromValidator {
     pub fn new(name: PeerId, voting_power: u64) -> Self {
-        AngstromValidator { peer_id: name, voting_power, priority: 0.0 }
+        AngstromValidator {
+            peer_id:      name,
+            voting_power: voting_power * ONE_E3,
+            priority:     0
+        }
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WeightedRoundRobin {
     validators:                HashSet<AngstromValidator>,
-    new_joiner_penalty_factor: f64,
+    new_joiner_penalty_factor: u64,
     block_number:              BlockNumber,
     last_proposer:             Option<PeerId>
 }
 
 impl WeightedRoundRobin {
     pub fn new(validators: Vec<AngstromValidator>, block_number: BlockNumber) -> Self {
-        let file_path = format!("{}/state.json", ROUND_ROBIN_CACHE);
-        if let Ok(mut file) = File::open(file_path) {
-            let mut contents = String::new();
-            if file.read_to_string(&mut contents).is_ok() {
-                if let Ok(state) = serde_json::from_str(&contents) {
-                    return state
-                }
-            }
-        }
         WeightedRoundRobin {
             validators: HashSet::from_iter(validators),
             new_joiner_penalty_factor: PENALTY_FACTOR,
@@ -56,22 +53,24 @@ impl WeightedRoundRobin {
     fn proposer_selection(&mut self) -> PeerId {
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
 
+        //  apply all priorities.
         self.validators = self
             .validators
             .drain()
             .map(|mut validator| {
-                validator.priority += validator.voting_power as f64;
+                validator.priority += validator.voting_power as i64;
                 validator
             })
             .collect();
 
+        // find the max
         let mut proposer = self
             .validators
             .iter()
             .max_by(Self::priority)
             .unwrap()
             .clone();
-        proposer.priority -= total_voting_power as f64;
+        proposer.priority -= total_voting_power as i64;
         let proposer_name = proposer.peer_id;
 
         self.validators.replace(proposer);
@@ -80,14 +79,20 @@ impl WeightedRoundRobin {
     }
 
     fn priority(a: &&AngstromValidator, b: &&AngstromValidator) -> Ordering {
-        a.priority
-            .partial_cmp(&b.priority)
-            .unwrap_or(Ordering::Equal)
+        let out = a.priority.partial_cmp(&b.priority);
+        if out == Some(Ordering::Equal) {
+            // TODO: not the best because it encourages mining lower peer ids
+            // however we need a way for this to be uniform across nodes and
+            // this is the easiest
+            return a.peer_id.cmp(&b.peer_id)
+        }
+        out.unwrap()
     }
 
     fn center_priorities(&mut self) {
-        let avg_priority: f64 =
-            self.validators.iter().map(|v| v.priority).sum::<f64>() / self.validators.len() as f64;
+        let avg_priority = (self.validators.iter().map(|v| v.priority).sum::<i64>()
+            * ONE_E3 as i64)
+            / self.validators.len() as i64;
 
         self.validators = self
             .validators
@@ -104,24 +109,26 @@ impl WeightedRoundRobin {
             .validators
             .iter()
             .map(|v| v.priority)
-            .fold(f64::NEG_INFINITY, f64::max);
+            .fold(i64::MIN, i64::max);
         let min_priority = self
             .validators
             .iter()
             .map(|v| v.priority)
-            .fold(f64::INFINITY, f64::min);
+            .fold(i64::MAX, i64::min);
+
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
         let diff = max_priority - min_priority;
-        let threshold = 2.0 * total_voting_power as f64;
+        let threshold = 2 * total_voting_power as i64;
 
         if diff > threshold {
-            let scale = diff / threshold;
+            let scale = (diff * ONE_E3 as i64) / threshold;
 
             self.validators = self
                 .validators
                 .drain()
                 .map(|mut validator| {
-                    validator.priority /= scale;
+                    let new_pri = validator.priority * ONE_E3 as i64;
+                    validator.priority = new_pri / scale;
                     validator
                 })
                 .collect();
@@ -135,6 +142,10 @@ impl WeightedRoundRobin {
         //    ideal, since nodes who were offline will not have seen the reorg, thus
         //    would not have executed the extra rounds after this if statement
         if block_number <= self.block_number {
+            if self.last_proposer.is_none() {
+                self.last_proposer = Some(self.proposer_selection());
+            }
+
             return self.last_proposer
         }
 
@@ -160,7 +171,8 @@ impl WeightedRoundRobin {
     fn add_validator(&mut self, peer_id: PeerId, voting_power: u64) {
         let mut new_validator = AngstromValidator::new(peer_id, voting_power);
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
-        new_validator.priority -= self.new_joiner_penalty_factor * total_voting_power as f64;
+        new_validator.priority -=
+            ((self.new_joiner_penalty_factor * total_voting_power) / ONE_E3) as i64;
         self.validators.insert(new_validator);
     }
 

@@ -80,6 +80,8 @@ bitmaps = "3.2.1"
 revm = { version = "14.0.3", features = [
   "std",
   "secp256k1",
+  "optional_balance_check",
+  "optional_block_gas_limit",
 ], default-features = false }
 
 

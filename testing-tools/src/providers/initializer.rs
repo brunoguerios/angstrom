@@ -18,6 +18,7 @@ use angstrom_types::{
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
 };
+use validation::common::WETH_ADDRESS;
 
 use super::WalletProvider;
 use crate::{
@@ -46,7 +47,8 @@ pub struct AnvilInitializer {
 
 impl AnvilInitializer {
     pub async fn new<G: GlobalTestingConfig>(
-        config: TestingNodeConfig<G>
+        config: TestingNodeConfig<G>,
+        nodes: Vec<Address>
     ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
         let (provider, anvil) = config.spawn_anvil_rpc().await?;
 
@@ -55,7 +57,7 @@ impl AnvilInitializer {
         tracing::info!("deployed UniV4 enviroment");
 
         tracing::debug!("deploying Angstrom enviroment");
-        let angstrom_env = AngstromEnv::new(uniswap_env).await?;
+        let angstrom_env = AngstromEnv::new(uniswap_env, nodes).await?;
         tracing::info!("deployed Angstrom enviroment");
 
         let angstrom =
@@ -105,11 +107,28 @@ impl AnvilInitializer {
                 .await?;
         self.pending_state.add_pending_tx(first_token_tx);
 
-        let (second_token_tx, second_token) =
+        let (second_token_tx, mut second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(nonce + 1, self.provider.controller())
                 .await?;
         self.pending_state.add_pending_tx(second_token_tx);
+
+        // wait for them to be mined.
+        self.pending_state.finalize_pending_txs().await?;
+
+        // lets load the bytecode of the second token, then use the bytecode to override
+        // the weth address
+        let code = self
+            .provider
+            .rpc_provider()
+            .get_code_at(second_token)
+            .await
+            .unwrap();
+        self.provider
+            .rpc_provider()
+            .anvil_set_code(WETH_ADDRESS, code)
+            .await?;
+        second_token = WETH_ADDRESS;
 
         let (currency0, currency1) = if first_token < second_token {
             (first_token, second_token)
@@ -125,7 +144,6 @@ impl AnvilInitializer {
             hooks: *self.angstrom.address()
         };
         self.pending_state.add_pool_key(pool_key.clone());
-        self.pending_state.finalize_pending_txs().await?;
 
         Ok((currency0, currency1))
     }
@@ -228,7 +246,7 @@ impl AnvilInitializer {
         self.pending_state.add_pending_tx(pool_gate);
 
         let tick = price.to_tick()?;
-        for i in 0..100 {
+        for i in 0..200 {
             let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
             let upper = lower + pool_key.tickSpacing;
 
@@ -331,7 +349,7 @@ mod tests {
     async fn test_can_deploy() {
         let config = TestingNodeConfig::new(0, DevnetConfig::default(), 100);
 
-        let (mut initializer, _anvil) = AnvilInitializer::new(config).await.unwrap();
+        let (mut initializer, _anvil) = AnvilInitializer::new(config, vec![]).await.unwrap();
 
         initializer.deploy_default_pool_full().await.unwrap();
 

@@ -1,6 +1,9 @@
 use alloy::primitives::Address;
 use alloy_primitives::TxHash;
-use angstrom_types::contract_bindings::pool_gate::PoolGate::PoolGateInstance;
+use angstrom_types::contract_bindings::{
+    angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
+    pool_gate::PoolGate::PoolGateInstance
+};
 use tracing::debug;
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
@@ -13,15 +16,16 @@ pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
 #[derive(Clone)]
 pub struct AngstromEnv<E: TestUniswapEnv> {
     #[allow(dead_code)]
-    inner:    E,
-    angstrom: Address
+    inner:         E,
+    angstrom:      Address,
+    controller_v1: Address
 }
 
 impl<E> AngstromEnv<E>
 where
     E: TestUniswapEnv
 {
-    pub async fn new(inner: E) -> eyre::Result<Self> {
+    pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
         let provider = inner.provider();
         debug!("Deploying mock rewards manager...");
         let angstrom = inner
@@ -33,6 +37,21 @@ where
             ))
             .await;
         debug!("Angstrom deployed at: {}", angstrom);
+        // gotta toggle nodes
+        let ang_i = AngstromInstance::new(angstrom, &provider);
+        let _ = ang_i
+            .toggleNodes(nodes)
+            .from(inner.controller())
+            .run_safe()
+            .await?;
+
+        let controller_v1 = *inner
+            .execute_then_mine(ControllerV1::deploy(&provider, angstrom, inner.controller()))
+            .await?
+            .address();
+
+        debug!("ControllerV1 deployed at: {}", controller_v1);
+
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
         let pool_gate_instance = PoolGateInstance::new(inner.pool_gate(), &provider);
@@ -44,12 +63,18 @@ where
                     .run_safe()
             )
             .await?;
+
         debug!("Environment deploy complete!");
-        Ok(Self { inner, angstrom })
+
+        Ok(Self { inner, angstrom, controller_v1 })
     }
 
     pub fn angstrom(&self) -> Address {
         self.angstrom
+    }
+
+    pub fn controller_v1(&self) -> Address {
+        self.controller_v1
     }
 }
 
@@ -115,6 +140,7 @@ mod tests {
     };
     use alloy_primitives::FixedBytes;
     use angstrom_types::{
+        block_sync::GlobalBlockSync,
         contract_bindings::{
             angstrom::Angstrom::{AngstromInstance, PoolKey},
             mintable_mock_erc_20::MintableMockERC20,
@@ -146,9 +172,11 @@ mod tests {
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilProvider::spawn_new_isolated().await.unwrap();
+        let anvil = AnvilProvider::spawn_new_isolated(GlobalBlockSync::new(0))
+            .await
+            .unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
-        AngstromEnv::new(uniswap).await.unwrap();
+        AngstromEnv::new(uniswap, vec![]).await.unwrap();
     }
 
     #[test]
@@ -211,7 +239,7 @@ mod tests {
         );
 
         let uniswap = UniswapEnv::new(anvil).await.unwrap();
-        let env = AngstromEnv::new(uniswap).await.unwrap();
+        let env = AngstromEnv::new(uniswap, vec![]).await.unwrap();
         let angstrom = AngstromInstance::new(env.angstrom(), env.provider());
         println!("Angstrom: {}", angstrom.address());
         println!("Controller: {}", controller);

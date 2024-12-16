@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 pub type BookID = u128;
 pub type OrderID = u128;
-pub type OrderVolume = U256;
+pub type OrderVolume = u128;
 pub type OrderPrice = MatchingPrice;
 
 use crate::{
@@ -87,6 +87,14 @@ pub struct OrderOutcome {
 impl OrderOutcome {
     pub fn is_filled(&self) -> bool {
         self.outcome.is_filled()
+    }
+
+    pub fn fill_amount(&self, max: u128) -> u128 {
+        match self.outcome {
+            OrderFillState::CompleteFill => max,
+            OrderFillState::PartialFill(p) => std::cmp::min(max, p),
+            _ => 0
+        }
     }
 }
 

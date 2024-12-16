@@ -198,12 +198,13 @@ where
     ) -> HashMap<FixedBytes<32>, (Address, Address, PoolSnapshot, u16)> {
         self.uniswap_pools
             .iter()
-            .filter_map(|(key, pool)| {
+            .map(|(key, pool)| {
+                tracing::info!(?key, "getting snapshot");
                 let (token_a, token_b, snapshot) =
-                    pool.read().unwrap().fetch_pool_snapshot().ok()?;
-                let entry = self.pool_registry.get_ang_entry(key)?;
+                    pool.read().unwrap().fetch_pool_snapshot().unwrap();
+                let entry = self.pool_registry.get_ang_entry(key).unwrap();
 
-                Some((*key, (token_a, token_b, snapshot, entry.store_index as u16)))
+                (*key, (token_a, token_b, snapshot, entry.store_index as u16))
             })
             .collect::<HashMap<_, _>>()
     }
@@ -265,6 +266,7 @@ where
 
     fn verify_proposal(&mut self, peer_id: PeerId, proposal: Proposal) -> Option<Proposal> {
         if self.round_leader != peer_id {
+            tracing::debug!("got invalid proposal");
             return None
         }
 
@@ -315,7 +317,7 @@ where
             self.propagate_message(proposal.clone().into());
             proposal_set.insert(proposal);
         } else {
-            tracing::info!(peer=?peer_id,"got a duplicate consensus message");
+            tracing::trace!(peer=?peer_id,"got a duplicate consensus message");
         }
     }
 }
