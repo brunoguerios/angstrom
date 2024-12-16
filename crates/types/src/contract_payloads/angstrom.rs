@@ -602,7 +602,6 @@ impl AngstromBundle {
         });
 
         {
-            let user_order = user_order;
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
             let (t0, t1) = {

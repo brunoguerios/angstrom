@@ -50,16 +50,11 @@ pub mod pool_gate {
 }
 #[rustfmt::skip]
 pub mod pool_manager {
-
-
-
-
-        alloy::sol!(
-            #[allow(missing_docs)]
-            #[sol(rpc)]
-            #[derive(Debug, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
-            PoolManager,
-            "../../contracts/out/PoolManager.sol/PoolManager.json"
-        );
-    
+    alloy::sol!(
+        #[allow(missing_docs)]
+        #[sol(rpc)]
+        #[derive(Debug, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
+        PoolManager,
+        "../../contracts/out/PoolManager.sol/PoolManager.json"
+    );
 }

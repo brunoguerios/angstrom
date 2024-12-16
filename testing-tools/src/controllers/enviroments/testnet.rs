@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashSet, pin::Pin, sync::Arc};
+use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc, sync::Arc};
 
 use alloy::{primitives::Address, providers::ext::AnvilApi};
 use alloy_primitives::U256;
@@ -95,7 +95,7 @@ where
         // initialize leader provider
         let front = configs.remove(0);
         let l_block_sync = GlobalBlockSync::new(0);
-        let leader_provider = Arc::new(Cell::new(
+        let leader_provider = Rc::new(Cell::new(
             self.initalize_leader_provider(
                 l_block_sync.clone(),
                 front,
