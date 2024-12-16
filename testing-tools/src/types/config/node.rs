@@ -7,7 +7,6 @@ use alloy::{
 use alloy_primitives::{Address, U256};
 use angstrom_types::primitive::AngstromSigner;
 use consensus::AngstromValidator;
-use reth_network_peers::pk2id;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
 use super::TestingConfigKind;

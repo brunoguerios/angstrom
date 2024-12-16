@@ -187,7 +187,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             validation_client.clone(),
             strom_handles.validator_rx,
             inital_angstrom_state.angstrom_addr,
-            inital_angstrom_state.pool_manager_addr,
             node_config.address(),
             uniswap_pools.clone(),
             token_conversion,

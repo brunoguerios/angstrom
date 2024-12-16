@@ -56,7 +56,6 @@ where
         validation_client: ValidationClient,
         validator_rx: UnboundedReceiver<ValidationRequest>,
         angstrom_address: Address,
-        pool_manager_address: Address,
         node_address: Address,
         uniswap_pools: SyncedUniswapPools,
         token_conversion: TokenPriceGenerator,
