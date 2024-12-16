@@ -11,7 +11,11 @@ use alloy::{
 };
 use angstrom_types::{
     block_sync::BlockSyncProducer,
-    contract_bindings::{self, angstrom::Angstrom::PoolKey},
+    contract_bindings::{
+        self,
+        angstrom::Angstrom::PoolKey,
+        controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
+    },
     contract_payloads::angstrom::{AngstromBundle, AngstromPoolConfigStore},
     primitive::NewInitializedPool
 };
@@ -182,15 +186,32 @@ where
             });
     }
 
-    fn apply_node_change_deltas(&mut self, chain: &impl ChainExt) {
+    fn apply_periphery_logs(&mut self, chain: &impl ChainExt) {
         chain
             .receipts_by_block_hash(chain.tip_hash())
             .unwrap()
             .into_iter()
             .flat_map(|receipt| &receipt.logs)
-            .filter(|log| log.address == self.periphery_address)
+            .filter(move |log| log.address == self.periphery_address)
             .for_each(|log| {
-                println!("log");
+                if let Ok(remove_node) = NodeRemoved::decode_log(log, true) {
+                    self.node_set.remove(&remove_node.address);
+                    self.send_events(EthEvent::RemovedNode(remove_node.node));
+                }
+                if let Ok(added_node) = NodeAdded::decode_log(log, true) {
+                    self.node_set.insert(added_node.address);
+                    self.send_events(EthEvent::AddedNode(added_node.node));
+                }
+                if let Ok(removed_pool) = PoolRemoved::decode_log(log, true) {
+                    self.pool_store
+                        .remove_pair(removed_pool.asset0, removed_pool.asset1);
+
+                    self.send_events(EthEvent::RemovedPool {
+                        token0: removed_pool.asset0,
+                        token1: removed_pool.asset1
+                    });
+                }
+                if let Ok(added_pool) = PoolConfigured::decode_log(log, true) {}
             });
     }
 
