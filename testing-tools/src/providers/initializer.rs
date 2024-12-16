@@ -349,7 +349,7 @@ mod tests {
     async fn test_can_deploy() {
         let config = TestingNodeConfig::new(0, DevnetConfig::default(), 100);
 
-        let (mut initializer, _anvil) = AnvilInitializer::new(config).await.unwrap();
+        let (mut initializer, _anvil) = AnvilInitializer::new(config, vec![]).await.unwrap();
 
         initializer.deploy_default_pool_full().await.unwrap();
 

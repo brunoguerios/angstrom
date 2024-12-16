@@ -125,6 +125,7 @@ mod tests {
     };
     use alloy_primitives::FixedBytes;
     use angstrom_types::{
+        block_sync::GlobalBlockSync,
         contract_bindings::{
             angstrom::Angstrom::{AngstromInstance, PoolKey},
             mintable_mock_erc_20::MintableMockERC20,
@@ -156,7 +157,9 @@ mod tests {
 
     #[tokio::test]
     async fn can_be_constructed() {
-        let anvil = AnvilProvider::spawn_new_isolated().await.unwrap();
+        let anvil = AnvilProvider::spawn_new_isolated(GlobalBlockSync::new(0))
+            .await
+            .unwrap();
         let uniswap = UniswapEnv::new(anvil.wallet_provider()).await.unwrap();
         AngstromEnv::new(uniswap, vec![]).await.unwrap();
     }
