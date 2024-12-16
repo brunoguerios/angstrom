@@ -41,8 +41,12 @@ pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
 }
 
 pub fn build_book(id: PoolId, amm: Option<PoolSnapshot>, orders: HashSet<BookOrder>) -> OrderBook {
-    let (bids, asks): (Vec<BookOrder>, Vec<BookOrder>) = orders.into_iter().partition(|o| o.is_bid);
+    let (mut bids, mut asks): (Vec<BookOrder>, Vec<BookOrder>) =
+        orders.into_iter().partition(|o| o.is_bid);
     // assert bids decreasing and asks increasing
+    bids.sort_by(|a, b| b.limit_price().cmp(&a.limit_price()));
+    asks.sort_by(|a, b| a.limit_price().cmp(&b.limit_price()));
+
     assert!(
         bids.is_sorted_by(|a, b| a.limit_price() >= b.limit_price()),
         "bids aren't decreasing by price"
