@@ -474,7 +474,7 @@ pub mod test {
 
         // ensure user address has proper funds
         let order_gas = gas_calculations
-            .gas_of_tob_order(&tob_order)
+            .gas_of_tob_order(&tob_order, 0)
             .expect("failed_to execute tob order");
 
         // have not set offsets
@@ -513,7 +513,7 @@ pub mod test {
 
         // ensure user address has proper funds
         let order_gas = gas_calculations
-            .gas_of_book_order(&user_order)
+            .gas_of_book_order(&user_order, 0)
             .expect("failed_to execute user order");
 
         // have not set offsets

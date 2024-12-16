@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min, Ordering},
-    collections::HashMap
-};
+use std::{cmp::Ordering, collections::HashMap};
 
 use alloy::primitives::{Uint, I256, U256};
 use eyre::{eyre, Context, OptionExt};

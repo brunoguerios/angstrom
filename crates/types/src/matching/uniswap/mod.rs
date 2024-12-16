@@ -10,8 +10,6 @@ pub use poolprice::PoolPrice;
 pub use poolpricevec::PoolPriceVec;
 pub use poolsnapshot::PoolSnapshot;
 
-use super::{Ray, SqrtPriceX96};
-
 pub type Tick = i32;
 
 pub enum Quantity {

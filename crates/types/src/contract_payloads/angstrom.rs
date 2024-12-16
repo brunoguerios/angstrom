@@ -31,7 +31,7 @@ use crate::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{uniswap::PoolSnapshot, Ray},
     orders::{OrderFillState, OrderOutcome, PoolSolution},
-    primitive::{AngstromSigner, PoolId, UniswapPoolRegistry},
+    primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
@@ -40,7 +40,7 @@ use crate::{
             ExactFlashOrder, ExactStandingOrder, PartialFlashOrder, PartialStandingOrder,
             TopOfBlockOrder as RpcTopOfBlockOrder
         },
-        GenerateFlippedOrder, RawPoolOrder
+        RawPoolOrder
     },
     testnet::TestnetStateOverrides
 };

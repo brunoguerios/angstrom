@@ -33,6 +33,7 @@ fn const_2_192() -> &'static Natural {
     ONENINETWO.get_or_init(|| Natural::power_of_2(192))
 }
 
+#[allow(unused)]
 fn const_2_96() -> &'static Natural {
     static ONENINETWO: OnceLock<Natural> = OnceLock::new();
     ONENINETWO.get_or_init(|| Natural::power_of_2(96))

@@ -39,11 +39,11 @@ impl OrderBook {
         self.id
     }
 
-    pub fn bids(&self) -> &Vec<BookOrder> {
+    pub fn bids(&self) -> &[BookOrder] {
         &self.bids
     }
 
-    pub fn asks(&self) -> &Vec<BookOrder> {
+    pub fn asks(&self) -> &[BookOrder] {
         &self.asks
     }
 

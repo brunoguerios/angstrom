@@ -13,6 +13,7 @@ use super::{const_1e27, Ray, SqrtPriceX96};
 /// Given an AMM with a constant liquidity, a debt, and a quantity of T0 will
 /// find the amount of T0 to feed into both the AMM and the debt to ensure that
 /// their price winds up at an equal point
+#[allow(unused)]
 pub fn equal_move_solve() -> Integer {
     Integer::default()
 }

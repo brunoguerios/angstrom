@@ -11,10 +11,7 @@ use angstrom_types::{
     matching::{match_estimate_response::BundleEstimate, uniswap::PoolSnapshot},
     orders::PoolSolution,
     primitive::PoolId,
-    sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder
-    }
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use futures::{stream::FuturesUnordered, Future};
 use futures_util::FutureExt;

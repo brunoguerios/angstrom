@@ -11,10 +11,7 @@ use angstrom_types::{
     matching::uniswap::PoolSnapshot,
     orders::PoolSolution,
     primitive::{PoolId, UniswapPoolRegistry},
-    sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder
-    }
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use book::{BookOrder, OrderBook};
 use futures_util::future::BoxFuture;
