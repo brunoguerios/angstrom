@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc, sync::Arc};
+use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc};
 
 use alloy::{primitives::Address, providers::ext::AnvilApi};
 use alloy_primitives::U256;
