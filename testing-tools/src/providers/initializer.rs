@@ -234,12 +234,13 @@ impl AnvilInitializer {
 
         let controller_configure_pool = self
             .controller_v1
-            .configurePool(
-                pool_key.currency0,
-                pool_key.currency1,
-                pool_key.tickSpacing.as_i32() as u16,
-                pool_key.fee
-            )
+            .addPoolToMap(pool_key.currency0, pool_key.currency1)
+            // .configurePool(
+            //     pool_key.currency0,
+            //     pool_key.currency1,
+            //     pool_key.tickSpacing.as_i32() as u16,
+            //     pool_key.fee
+            // )
             .from(self.provider.controller())
             .nonce(nonce + 1)
             .deploy_pending()
@@ -357,12 +358,36 @@ impl WithWalletProvider for AnvilInitializer {
 #[cfg(test)]
 mod tests {
     use alloy::providers::Provider;
+    use alloy_primitives::TxKind;
+    use alloy_rpc_types::{BlockId, TransactionInput, TransactionRequest};
+    use alloy_sol_types::SolCall;
+    use angstrom_types::{
+        contract_bindings::controller_v_1::ControllerV1,
+        contract_payloads::angstrom::AngstromPoolConfigStore
+    };
 
     use super::*;
     use crate::types::config::DevnetConfig;
 
     async fn get_block(provider: &WalletProvider) -> eyre::Result<u64> {
         Ok(provider.provider.get_block_number().await?)
+    }
+
+    async fn view_call<IC>(
+        provider: &WalletProvider,
+        contract: Address,
+        call: IC
+    ) -> eyre::Result<IC::Return>
+    where
+        IC: SolCall + Send
+    {
+        let tx = TransactionRequest {
+            to: Some(TxKind::Call(contract)),
+            input: TransactionInput::both(call.abi_encode().into()),
+            ..Default::default()
+        };
+
+        Ok(IC::abi_decode_returns(&provider.provider().call(&tx).await?, true)?)
     }
 
     #[tokio::test]
@@ -386,5 +411,31 @@ mod tests {
             .unwrap();
 
         assert_eq!(current_block + 1, get_block(&initializer.provider).await.unwrap());
+
+        let config_store = AngstromPoolConfigStore::load_from_chain(
+            *initializer.angstrom.address(),
+            BlockId::latest(),
+            &initializer.provider.provider()
+        )
+        .await
+        .unwrap();
+
+        let partial_keys = config_store
+            .all_entries()
+            .iter()
+            .map(|val| FixedBytes::from(*val.pool_partial_key))
+            .collect::<Vec<_>>();
+
+        println!("{partial_keys:?}");
+
+        let all_pools_call = view_call(
+            &initializer.provider,
+            *initializer.controller_v1.address(),
+            ControllerV1::getAllPoolsCall { storeKeys: partial_keys }
+        )
+        .await
+        .unwrap();
+
+        println!("{all_pools_call:?}")
     }
 }
