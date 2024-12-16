@@ -12,6 +12,7 @@ use alloy_sol_types::SolValue;
 use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
+        controller_v_1::ControllerV1::ControllerV1Instance,
         mintable_mock_erc_20::MintableMockERC20,
         pool_gate::PoolGate::PoolGateInstance
     },
@@ -40,6 +41,7 @@ use crate::{
 pub struct AnvilInitializer {
     provider:      WalletProvider,
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1: ControllerV1Instance<PubSubFrontend, WalletProviderRpc>,
     angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
     pending_state: PendingDeployedPools
@@ -64,10 +66,15 @@ impl AnvilInitializer {
             AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
+        let controller_v1 = ControllerV1Instance::new(
+            angstrom_env.controller_v1(),
+            angstrom_env.provider().clone()
+        );
 
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self { provider, angstrom_env, angstrom, pool_gate, pending_state };
+        let this =
+            Self { provider, controller_v1, angstrom_env, angstrom, pool_gate, pending_state };
 
         Ok((this, anvil))
     }
@@ -223,8 +230,21 @@ impl AnvilInitializer {
             .nonce(nonce)
             .deploy_pending()
             .await?;
-
         self.pending_state.add_pending_tx(configure_pool);
+
+        let controller_configure_pool = self
+            .controller_v1
+            .configurePool(
+                pool_key.currency0,
+                pool_key.currency1,
+                pool_key.tickSpacing.as_i32() as u16,
+                pool_key.fee
+            )
+            .from(self.provider.controller())
+            .nonce(nonce)
+            .deploy_pending()
+            .await?;
+        self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
         self.angstrom
