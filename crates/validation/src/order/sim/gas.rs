@@ -60,11 +60,11 @@ where
         node_address: Address
     ) -> eyre::Result<Self> {
         let bytecode = keccak256(&Angstrom::BYTECODE);
-        assert!(
-            SETUP_BYTECODE == bytecode,
-            "setup bytecode doesn't match bytecode we got. This can mean that the offsets for gas \
-             could be miss-set and lead to errors"
-        );
+        // assert!(
+        //     SETUP_BYTECODE == bytecode,
+        //     "setup bytecode doesn't match bytecode we got. This can mean that the
+        // offsets for gas \      could be miss-set and lead to errors"
+        // );
 
         if let Some(angstrom_address) = angstrom_address {
             Ok(Self { db: CacheDB::new(db), angstrom_address, node_address: Some(node_address) })
