@@ -36,6 +36,14 @@ where
             ))
             .await;
         debug!("Angstrom deployed at: {}", angstrom);
+
+        let controller_v1 = *inner
+            .execute_then_mine(ControllerV1::deploy(&provider, angstrom, inner.controller()))
+            .await?
+            .address();
+
+        debug!("ControllerV1 deployed at: {}", controller_v1);
+
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
         let pool_gate_instance = PoolGateInstance::new(inner.pool_gate(), &provider);
@@ -48,16 +56,9 @@ where
             )
             .await?;
 
-        // let controller_v1 = *inner
-        //     .execute_then_mine(ControllerV1::deploy(&provider, angstrom,
-        // inner.controller()))     .await?
-        //     .address();
-
-        // debug!("ControllerV1 deployed at: {}", controller_v1);
-
         debug!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom, controller_v1: Address::default() })
+        Ok(Self { inner, angstrom, controller_v1 })
     }
 
     pub fn angstrom(&self) -> Address {
