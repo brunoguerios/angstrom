@@ -1,7 +1,8 @@
 use alloy::primitives::Address;
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
-    angstrom::Angstrom::AngstromInstance, pool_gate::PoolGate::PoolGateInstance
+    angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
+    pool_gate::PoolGate::PoolGateInstance
 };
 use tracing::debug;
 
@@ -15,8 +16,9 @@ pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
 #[derive(Clone)]
 pub struct AngstromEnv<E: TestUniswapEnv> {
     #[allow(dead_code)]
-    inner:    E,
-    angstrom: Address
+    inner:         E,
+    angstrom:      Address,
+    controller_v1: Address
 }
 
 impl<E> AngstromEnv<E>
@@ -43,6 +45,13 @@ where
             .run_safe()
             .await?;
 
+        let controller_v1 = *inner
+            .execute_then_mine(ControllerV1::deploy(&provider, angstrom, inner.controller()))
+            .await?
+            .address();
+
+        debug!("ControllerV1 deployed at: {}", controller_v1);
+
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
         let pool_gate_instance = PoolGateInstance::new(inner.pool_gate(), &provider);
@@ -54,12 +63,18 @@ where
                     .run_safe()
             )
             .await?;
+
         debug!("Environment deploy complete!");
-        Ok(Self { inner, angstrom })
+
+        Ok(Self { inner, angstrom, controller_v1 })
     }
 
     pub fn angstrom(&self) -> Address {
         self.angstrom
+    }
+
+    pub fn controller_v1(&self) -> Address {
+        self.controller_v1
     }
 }
 
