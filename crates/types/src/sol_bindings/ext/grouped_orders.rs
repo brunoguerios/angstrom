@@ -559,7 +559,7 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn limit_price(&self) -> U256 {
-        U256::from(self.amount_in() / self.quantity_out)
+        *Ray::scale_to_ray(U256::from(self.amount_in() / self.quantity_out))
     }
 
     fn token_in(&self) -> Address {

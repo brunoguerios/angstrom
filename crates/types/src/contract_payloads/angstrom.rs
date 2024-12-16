@@ -596,6 +596,7 @@ impl AngstromBundle {
             user_order.token_in(),
             user_order.amount_in()
         );
+
         asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(), {
             let price = Ray::from(user_order.limit_price());
             price.mul_quantity(U256::from(user_order.amount_in())).to()
@@ -624,10 +625,11 @@ impl AngstromBundle {
                     index0:       t0_idx,
                     index1:       t1_idx,
                     store_index:  0,
-                    price_1over0: U256::from(user_order.limit_price())
+                    price_1over0: user_order.limit_price()
                 };
                 pairs.push(pair);
             }
+            println!("user price: {:?}", user_order.limit_price());
 
             let pair_idx = pairs.len() - 1;
 
