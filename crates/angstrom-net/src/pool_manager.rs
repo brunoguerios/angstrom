@@ -323,6 +323,9 @@ where
             }
             EthEvent::NewPool(pool) => self.order_indexer.new_pool(pool),
             EthEvent::NewBlock(_) => {}
+            EthEvent::AddedNode(addr) => {}
+            EthEvent::RemovedNode(addr) => {}
+            EthEvent::RemovedPool { token0, token1 } => {}
         }
     }
 

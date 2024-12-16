@@ -11,7 +11,7 @@ use alloy::{
 };
 use angstrom_types::{
     block_sync::BlockSyncProducer,
-    contract_bindings,
+    contract_bindings::{self, angstrom::Angstrom::PoolKey},
     contract_payloads::angstrom::{AngstromBundle, AngstromPoolConfigStore},
     primitive::NewInitializedPool
 };
@@ -36,25 +36,23 @@ const MAX_REORG_DEPTH: u64 = 30;
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
 pub struct EthDataCleanser<Sync> {
-    angstrom_address: Address,
+    angstrom_address:  Address,
+    periphery_address: Address,
     /// our command receiver
-    commander:        ReceiverStream<EthCommand>,
+    commander:         ReceiverStream<EthCommand>,
     /// people listening to events
-    event_listeners:  Vec<UnboundedSender<EthEvent>>,
-
+    event_listeners:   Vec<UnboundedSender<EthEvent>>,
     /// for rebroadcasting
-    cannon_sender: tokio::sync::broadcast::Sender<CanonStateNotification>,
-
+    cannon_sender:     tokio::sync::broadcast::Sender<CanonStateNotification>,
     /// Notifications for Canonical Block updates
     canonical_updates: BroadcastStream<CanonStateNotification>,
     angstrom_tokens:   HashSet<Address>,
     /// handles syncing of blocks.
     block_sync:        Sync,
-
-    /// TODO: Once the periphery contracts are finished. we will add a watcher
-    /// on the contract that every time a new pair is added, we update the
-    /// pool store globally.
-    _pool_store: Arc<AngstromPoolConfigStore>
+    /// updated by periphery contract.
+    pool_store:        Arc<AngstromPoolConfigStore>,
+    /// the set of currently active nodes.
+    node_set:          HashSet<Address>
 }
 
 impl<Sync> EthDataCleanser<Sync>
@@ -63,26 +61,30 @@ where
 {
     pub fn spawn<TP: TaskSpawner>(
         angstrom_address: Address,
+        periphery_address: Address,
         canonical_updates: CanonStateNotifications,
         tp: TP,
         tx: Sender<EthCommand>,
         rx: Receiver<EthCommand>,
         angstrom_tokens: HashSet<Address>,
         pool_store: Arc<AngstromPoolConfigStore>,
-        sync: Sync
+        sync: Sync,
+        node_set: HashSet<Address>
     ) -> anyhow::Result<EthHandle> {
         let stream = ReceiverStream::new(rx);
         let (cannon_tx, _) = tokio::sync::broadcast::channel(1000);
 
         let this = Self {
             angstrom_address,
+            periphery_address,
             canonical_updates: BroadcastStream::new(canonical_updates),
             commander: stream,
             event_listeners: Vec::new(),
             angstrom_tokens,
             cannon_sender: cannon_tx,
             block_sync: sync,
-            _pool_store: pool_store
+            pool_store,
+            node_set
         };
         tp.spawn_critical("eth handle", this.boxed());
 
@@ -180,6 +182,20 @@ where
             });
     }
 
+    fn apply_node_change_deltas(&mut self, chain: &impl ChainExt) {
+        chain
+            .receipts_by_block_hash(chain.tip_hash())
+            .unwrap()
+            .into_iter()
+            .flat_map(|receipt| &receipt.logs)
+            .filter(|log| log.address == self.periphery_address)
+            .for_each(|log| {
+                println!("log");
+            });
+    }
+
+    fn apply_pool_change_deltas(&mut self, chain: &impl ChainExt) {}
+
     /// TODO: check contract for state change. if there is change. fetch the
     /// transaction on Angstrom and process call-data to pull order-hashes.
     fn fetch_filled_order<'a>(
@@ -272,7 +288,13 @@ pub enum EthEvent {
     },
     ReorgedOrders(Vec<B256>, RangeInclusive<u64>),
     FinalizedBlock(u64),
-    NewPool(NewInitializedPool)
+    NewPool(NewInitializedPool),
+    AddedNode(Address),
+    RemovedNode(Address),
+    RemovedPool {
+        token0: Address,
+        token1: Address
+    }
 }
 
 #[auto_impl::auto_impl(&,Arc)]
