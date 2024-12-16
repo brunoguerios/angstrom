@@ -7,7 +7,6 @@ use alloy::{
 use alloy_primitives::{Address, U256};
 use angstrom_types::primitive::AngstromSigner;
 use consensus::AngstromValidator;
-use reth_network_peers::pk2id;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
 use super::TestingConfigKind;
@@ -54,7 +53,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     pub fn angstrom_validator(&self) -> AngstromValidator {
-        AngstromValidator::new(pk2id(&self.pub_key), self.voting_power)
+        let id = self.angstrom_signer().id();
+        AngstromValidator::new(id, self.voting_power)
     }
 
     pub fn address(&self) -> Address {

@@ -90,7 +90,7 @@ impl StoredOrderBuilder {
             .unwrap_or_default();
         let priority_data = OrderPriorityData {
             price:     self.order.price().into(),
-            volume:    self.order.quantity().to(),
+            volume:    self.order.quantity(),
             gas:       U256::ZERO,
             gas_units: 0
         };

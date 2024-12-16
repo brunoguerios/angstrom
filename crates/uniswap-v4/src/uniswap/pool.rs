@@ -102,7 +102,7 @@ where
             .sorted_unstable_by(|a, b| a.0.cmp(b.0))
             .map_windows(|[(tick_lower, _), (tick_upper, tick_inner_upper)]| {
                 // ensure everything is spaced properly
-                assert_eq!(**tick_upper - **tick_lower, self.tick_spacing);
+                assert_eq!(tick_upper.abs() - tick_lower.abs(), self.tick_spacing);
                 LiqRange::new(**tick_lower, **tick_upper, tick_inner_upper.liquidity_net as u128)
                     .unwrap()
             })
@@ -173,7 +173,9 @@ where
         // current tick when loaded (init tick) - (half total tics * spacing);
 
         let start_tick = self.tick - (total_ticks_to_fetch.div_ceil(2) as i32 * self.tick_spacing);
-        tracing::info!(?start_tick);
+
+        let end_tick = start_tick + (self.tick_spacing as u16 * total_ticks_to_fetch) as i32;
+        tracing::info!(?start_tick, ?end_tick);
 
         let mut fetched_ticks = self
             .get_tick_data_batch_request(

@@ -8,7 +8,7 @@ use alloy_primitives::B256;
 use pade::PadeDecode;
 use serde::{Deserialize, Serialize};
 
-use super::{RawPoolOrder, RespendAvoidanceMethod};
+use super::{GenerateFlippedOrder, RawPoolOrder, RespendAvoidanceMethod};
 use crate::{
     matching::Ray,
     orders::{OrderId, OrderLocation, OrderPriorityData},
@@ -146,6 +146,15 @@ pub struct OrderWithStorageData<Order> {
     /// holds expiry data
     pub order_id:           OrderId,
     pub tob_reward:         U256
+}
+
+impl<O: GenerateFlippedOrder> GenerateFlippedOrder for OrderWithStorageData<O> {
+    fn flip(&self) -> Self
+    where
+        Self: Sized
+    {
+        Self { order: self.order.flip(), is_bid: !self.is_bid, ..self.clone() }
+    }
 }
 
 impl<Order> Hash for OrderWithStorageData<Order> {
@@ -409,6 +418,7 @@ pub enum GroupedVanillaOrder {
     Standing(StandingVariants),
     KillOrFill(FlashVariants)
 }
+
 impl Default for GroupedVanillaOrder {
     fn default() -> Self {
         GroupedVanillaOrder::Standing(StandingVariants::Exact(ExactStandingOrder::default()))
@@ -438,10 +448,10 @@ impl GroupedVanillaOrder {
         }
     }
 
-    pub fn quantity(&self) -> U256 {
+    pub fn quantity(&self) -> u128 {
         match self {
-            Self::Standing(o) => U256::from(o.amount_in()),
-            Self::KillOrFill(o) => U256::from(o.amount_in())
+            Self::Standing(o) => o.amount_in(),
+            Self::KillOrFill(o) => o.amount_in()
         }
     }
 
@@ -673,7 +683,13 @@ impl RawPoolOrder for ExactStandingOrder {
     }
 
     fn amount_in(&self) -> u128 {
-        self.amount
+        // zero for one
+        if self.asset_in < self.asset_out {
+            self.amount
+        } else {
+            let price = Ray::from(self.limit_price());
+            price.mul_quantity(U256::from(self.amount)).to()
+        }
     }
 
     fn deadline(&self) -> Option<U256> {
@@ -809,7 +825,12 @@ impl RawPoolOrder for ExactFlashOrder {
     }
 
     fn amount_in(&self) -> u128 {
-        self.amount
+        if self.asset_in < self.asset_out {
+            self.amount
+        } else {
+            let price = Ray::from(self.limit_price());
+            price.mul_quantity(U256::from(self.amount)).to()
+        }
     }
 
     fn limit_price(&self) -> U256 {

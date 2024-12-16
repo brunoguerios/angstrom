@@ -6,11 +6,12 @@ use std::{
 
 use alloy::{
     network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest,
-    transports::Transport
+    sol_types::SolCall, transports::Transport
 };
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
+    contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution
 };
@@ -51,6 +52,7 @@ impl ProposalState {
     {
         // queue building future
         waker.wake_by_ref();
+        tracing::info!("proposal");
 
         Self {
             matching_engine_future: Some(
@@ -74,10 +76,11 @@ impl ProposalState {
         Matching: MatchingEngineHandle
     {
         tracing::debug!("starting to build proposal");
-        let Ok((pool_solution, gas_info)) = result else {
-            tracing::error!(
+        let Ok((pool_solution, gas_info)) = result.inspect_err(|e| {
+            tracing::error!(err=%e,
                 "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
             );
+        }) else {
             return false
         };
 
@@ -91,17 +94,22 @@ impl ProposalState {
         self.proposal = Some(proposal.clone());
         let snapshot = handles.fetch_pool_snapshot();
 
-        let Ok(bundle) = AngstromBundle::from_proposal(&proposal, gas_info, &snapshot) else {
-            tracing::error!(
-                "failed to encode angstrom bundle, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
-            );
+        let Ok(bundle) =
+            AngstromBundle::from_proposal(&proposal, gas_info, &snapshot).inspect_err(|e| {
+                tracing::error!(err=%e,
+                    "failed to encode angstrom bundle, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
+                );
+            })
+        else {
             return false
         };
+
+        let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
 
         let mut tx = TransactionRequest::default()
             .with_to(handles.angstrom_address)
             .with_from(handles.signer.address())
-            .with_input(bundle.pade_encode());
+            .with_input(encoded);
 
         let provider = handles.provider.clone();
         let signer = handles.signer.clone();

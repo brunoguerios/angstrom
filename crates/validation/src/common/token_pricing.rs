@@ -68,7 +68,7 @@ impl TokenPriceGenerator {
                     };
 
                     for block_number in
-                        current_block.saturating_sub(blocks_to_avg_price)..=current_block
+                        current_block.saturating_sub(blocks_to_avg_price)..current_block
                     {
                         tracing::debug!(block_number, current_block, ?pool_key, "loading pool");
                         let pool_data = data_loader
@@ -154,7 +154,7 @@ impl TokenPriceGenerator {
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
-                warn!("size of loaded blocks doesn't match the value we set");
+                warn!(?size,?self.blocks_to_avg_price,"size of loaded blocks doesn't match the value we set");
             }
 
             return Some(
@@ -255,7 +255,8 @@ impl TokenPriceGenerator {
             // token 0 / token1 * token1 / weth  = token0 / weth
             Some(first_hop_price.mul_ray(second_hop_price))
         } else {
-            panic!("found a token that doesn't have a 1 hop to WETH")
+            tracing::error!("found a token that doesn't have a 1 hop to WETH");
+            None
         }
     }
 }

@@ -67,6 +67,7 @@ impl PoolData {
     /// that we don't do any decimal adjustments
     pub fn get_raw_price(&self) -> Ray {
         let this = SqrtPriceX96::from(self.sqrtPrice);
+        tracing::debug!(sqrt_price=?this);
         let tick = this.to_tick().expect("should never fail");
         // TODO: not a fan of this given precision will be lost. could cause problems
         // down the road.
