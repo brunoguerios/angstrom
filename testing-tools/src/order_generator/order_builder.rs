@@ -95,13 +95,13 @@ impl OrderBuilder {
         // 50% amount range
         let modifier = rng.gen_range(0.5..=1.5);
         let amount = (amount_in as f64 * modifier) as u128;
-        let direction: bool = rng.gen();
+        // let direction: bool = rng.gen();
 
         UserOrderBuilder::new()
             .signing_key(self.keys.get(rng.gen_range(0..10)).cloned())
             .is_exact(!is_partial)
-            .asset_in(if direction { token0 } else { token1 })
-            .asset_out(if !direction { token0 } else { token1 })
+            .asset_in(if zfo { token0 } else { token1 })
+            .asset_out(if !zfo { token0 } else { token1 })
             .is_standing(false)
             .exact_in(rng.gen_bool(0.5))
             .min_price(unshifted_price)
