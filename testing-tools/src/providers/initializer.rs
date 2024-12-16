@@ -241,7 +241,7 @@ impl AnvilInitializer {
                 pool_key.fee
             )
             .from(self.provider.controller())
-            .nonce(nonce)
+            .nonce(nonce + 1)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(controller_configure_pool);
@@ -250,7 +250,7 @@ impl AnvilInitializer {
         self.angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
-            .nonce(nonce + 1)
+            .nonce(nonce + 2)
             .deploy_pending()
             .await?;
 
@@ -259,7 +259,7 @@ impl AnvilInitializer {
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            .nonce(nonce + 2)
+            .nonce(nonce + 3)
             .deploy_pending()
             .await?;
 
@@ -281,7 +281,7 @@ impl AnvilInitializer {
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())
-                .nonce(nonce + 3 + (i as u64))
+                .nonce(nonce + 4 + (i as u64))
                 .deploy_pending()
                 .await?;
 
