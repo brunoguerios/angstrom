@@ -7,7 +7,7 @@ use alloy::primitives::U256;
 
 mod composite;
 pub use composite::CompositeOrder;
-mod debt;
+pub mod debt;
 pub use debt::{Debt, DebtType};
 pub mod match_estimate_response;
 mod math;
@@ -39,7 +39,7 @@ pub fn const_2_192() -> &'static Natural {
 }
 
 #[allow(unused)]
-fn const_2_96() -> &'static Natural {
+pub fn const_2_96() -> &'static Natural {
     static ONENINETWO: OnceLock<Natural> = OnceLock::new();
     ONENINETWO.get_or_init(|| Natural::power_of_2(96))
 }

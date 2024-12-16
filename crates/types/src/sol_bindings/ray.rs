@@ -1,6 +1,6 @@
 use std::{
     iter::Sum,
-    ops::{Add, AddAssign, Deref, Mul, Sub, SubAssign},
+    ops::{Add, AddAssign, Deref, Sub, SubAssign},
     sync::OnceLock
 };
 
