@@ -5,7 +5,7 @@ use std::{
 };
 
 use alloy::{
-    network::TransactionBuilder, primitives::Bytes, providers::Provider,
+    network::TransactionBuilder, providers::Provider,
     rpc::types::TransactionRequest, sol_types::SolCall, transports::Transport
 };
 use angstrom_network::manager::StromConsensusEvent;

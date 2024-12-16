@@ -8,11 +8,9 @@ use angstrom_types::{
     contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
-    primitive::ERC20,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder,
-        testnet::MockERC20,
         RawPoolOrder
     }
 };
@@ -126,8 +124,8 @@ where
                 amount_in:     U256::from(order.amount_in()),
                 amount_out:    {
                     let price = Ray::from(U256::from(order.limit_price()));
-                    let amount_out = price.mul_quantity(U256::from(order.amount_in()));
-                    amount_out
+                    
+                    price.mul_quantity(U256::from(order.amount_in()))
                 },
                 token_out:     order.token_out(),
                 token_in:      order.token_in(),
@@ -278,7 +276,7 @@ where
             if !result.result.is_success() {
                 let output = result.result.output().unwrap().to_vec();
                 let allowed_revert = alloy::primitives::hex!("cc67af53");
-                if &output[0..4] != &allowed_revert {
+                if output[0..4] != allowed_revert {
                     return Err(eyre::eyre!(
                         "gas simulation had a revert. cannot guarantee the proper gas was \
                          estimated err={:?}",

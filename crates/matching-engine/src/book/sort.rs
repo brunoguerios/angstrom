@@ -1,4 +1,3 @@
-use angstrom_types::sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData};
 
 use super::BookOrder;
 

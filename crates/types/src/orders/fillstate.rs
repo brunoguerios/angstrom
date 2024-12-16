@@ -24,7 +24,7 @@ impl OrderFillState {
         match self {
             Self::Unfilled => Self::PartialFill(quantity),
             Self::PartialFill(f) => Self::PartialFill(f + quantity),
-            Self::CompleteFill | Self::Killed => self.clone()
+            Self::CompleteFill | Self::Killed => *self
         }
     }
 }
