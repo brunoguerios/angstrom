@@ -12,7 +12,7 @@ exclude.workspace = true
 consensus.workspace = true
 angstrom-types = { workspace = true, features = ["testnet"] }
 angstrom-utils.workspace = true
-uniswap-v4.workspace =true
+uniswap-v4.workspace = true
 angstrom-network.workspace = true
 angstrom-eth.workspace = true
 angstrom-rpc.workspace = true
@@ -85,5 +85,5 @@ tempfile.workspace = true
 
 parking_lot.workspace = true
 clap = { version = "4.5.4", features = ["derive"] }
-eyre = "0.6.12"
+eyre.workspace = true
 uniswap_v3_math.workspace = true
