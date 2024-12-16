@@ -66,7 +66,7 @@ impl OrderBuilder {
 
         let pool = self.pool_data.read().unwrap();
 
-        let unshifted_price = Ray::from(
+        let mut unshifted_price = Ray::from(
             pool.calculate_price_unshifted(SqrtPriceX96::from_float_price(cur_price).into())
         );
         // if the pool price > than price we want. given t1 / t0 -> more t0 less t1 ->
@@ -95,13 +95,18 @@ impl OrderBuilder {
         // 50% amount range
         let modifier = rng.gen_range(0.5..=1.5);
         let amount = (amount_in as f64 * modifier) as u128;
-        // let direction: bool = rng.gen();
+        let direction: bool = rng.gen();
+
+        // if the random direction changes the swap. inv the price
+        if direction != zfo {
+            unshifted_price.inv_ray_assign();
+        }
 
         UserOrderBuilder::new()
             .signing_key(self.keys.get(rng.gen_range(0..10)).cloned())
             .is_exact(!is_partial)
-            .asset_in(if zfo { token0 } else { token1 })
-            .asset_out(if !zfo { token0 } else { token1 })
+            .asset_in(if direction { token0 } else { token1 })
+            .asset_out(if !direction { token0 } else { token1 })
             .is_standing(false)
             .exact_in(rng.gen_bool(0.5))
             .min_price(unshifted_price)
