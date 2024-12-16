@@ -13,10 +13,11 @@ use angstrom_types::{
     block_sync::BlockSyncProducer,
     contract_bindings::{
         self,
-        angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
-    contract_payloads::angstrom::{AngstromBundle, AngstromPoolConfigStore},
+    contract_payloads::angstrom::{
+        AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore, AngstromPoolPartialKey
+    },
     primitive::NewInitializedPool
 };
 use futures::Future;
@@ -147,6 +148,9 @@ where
             filled_orders:     new_filled.into_iter().collect(),
             address_changeset: eoas
         };
+
+        self.apply_periphery_logs(&new);
+
         self.send_events(transitions);
         self.send_events(reorged_orders);
     }
@@ -156,7 +160,7 @@ where
         self.block_sync.new_block(tip);
 
         // handle this first so the newest state is the first available
-        self.handle_new_pools(new.clone());
+        self.apply_periphery_logs(&new);
 
         let filled_orders = self.fetch_filled_order(&new).collect::<Vec<_>>();
 
@@ -170,29 +174,16 @@ where
         self.send_events(transitions);
     }
 
-    fn handle_new_pools(&mut self, chain: Arc<impl ChainExt>) {
-        Self::get_new_pools(&chain)
-            .inspect(|pool| {
-                let token_0 = pool.currency_in;
-                let token_1 = pool.currency_out;
-                self.angstrom_tokens.insert(token_0);
-                self.angstrom_tokens.insert(token_1);
-            })
-            .map(EthEvent::NewPool)
-            .for_each(|pool_event| {
-                // didn't use send event fn because of lifetimes.
-                self.event_listeners
-                    .retain(|e| e.send(pool_event.clone()).is_ok());
-            });
-    }
-
+    /// looks at all periphery contrct events updating the internal state +
+    /// sending out info.
     fn apply_periphery_logs(&mut self, chain: &impl ChainExt) {
+        let periphery_address = self.periphery_address.clone();
         chain
             .receipts_by_block_hash(chain.tip_hash())
             .unwrap()
             .into_iter()
             .flat_map(|receipt| &receipt.logs)
-            .filter(move |log| log.address == self.periphery_address)
+            .filter(|log| log.address == periphery_address)
             .for_each(|log| {
                 if let Ok(remove_node) = NodeRemoved::decode_log(log, true) {
                     self.node_set.remove(&remove_node.address);
@@ -211,11 +202,21 @@ where
                         token1: removed_pool.asset1
                     });
                 }
-                if let Ok(added_pool) = PoolConfigured::decode_log(log, true) {}
+                if let Ok(added_pool) = PoolConfigured::decode_log(log, true) {
+                    let asset0 = added_pool.asset0;
+                    let asset1 = added_pool.asset1;
+                    let entry = AngPoolConfigEntry {
+                        pool_partial_key: AngstromPoolConfigStore::derive_store_key(asset0, asset1),
+                        tick_spacing:     added_pool.tickSpacing,
+                        fee_in_e6:        added_pool.feeInE6.to(),
+                        store_index:      0
+                    };
+
+                    self.pool_store.new_pool(asset0, asset1, entry.clone());
+                    self.send_events(EthEvent::NewPool { asset0, asset1, pool: entry });
+                }
             });
     }
-
-    fn apply_pool_change_deltas(&mut self, chain: &impl ChainExt) {}
 
     /// TODO: check contract for state change. if there is change. fetch the
     /// transaction on Angstrom and process call-data to pull order-hashes.
@@ -309,7 +310,11 @@ pub enum EthEvent {
     },
     ReorgedOrders(Vec<B256>, RangeInclusive<u64>),
     FinalizedBlock(u64),
-    NewPool(NewInitializedPool),
+    NewPool {
+        asset0: Address,
+        asset1: Address,
+        pool:   AngPoolConfigEntry
+    },
     AddedNode(Address),
     RemovedNode(Address),
     RemovedPool {
