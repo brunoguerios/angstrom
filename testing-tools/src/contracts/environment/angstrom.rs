@@ -48,16 +48,16 @@ where
             )
             .await?;
 
-        let controller_v1 = *inner
-            .execute_then_mine(ControllerV1::deploy(&provider, angstrom, inner.controller()))
-            .await?
-            .address();
+        // let controller_v1 = *inner
+        //     .execute_then_mine(ControllerV1::deploy(&provider, angstrom,
+        // inner.controller()))     .await?
+        //     .address();
 
-        debug!("ControllerV1 deployed at: {}", controller_v1);
+        // debug!("ControllerV1 deployed at: {}", controller_v1);
 
         debug!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom, controller_v1 })
+        Ok(Self { inner, angstrom, controller_v1: Address::default() })
     }
 
     pub fn angstrom(&self) -> Address {
