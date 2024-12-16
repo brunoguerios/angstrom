@@ -61,6 +61,7 @@ fn simple_book() {
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
+    println!("End reason: {:?}", end);
     let solution = matcher.solution(None);
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }
@@ -76,6 +77,7 @@ fn unsolveable_book() {
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
+    println!("End reason: {:?}", end);
     let solution = matcher.solution(None);
     assert!(solution.limit.iter().all(|outcome| !outcome.is_filled()), "All orders not unfilled");
 }
@@ -101,6 +103,7 @@ fn multiple_orders_fill() {
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
+    println!("End reason: {:?}", end);
     let solution = matcher.solution(None);
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }

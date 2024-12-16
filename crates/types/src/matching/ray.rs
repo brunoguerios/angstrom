@@ -455,6 +455,7 @@ mod tests {
         );
     }
 
+    #[allow(non_snake_case)]
     #[test]
     fn insano_math_test() {
         let l = 1_000_u128;
