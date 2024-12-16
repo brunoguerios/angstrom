@@ -52,7 +52,7 @@ where
 
             // grab price conversion
             let conversion_factor = conversion.get_eth_conversion_price(token0, token1).unwrap();
-            Ok((gas_in_wei, conversion_factor * U256::from(gas_in_wei)))
+            Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
         })
     }
 
@@ -73,7 +73,7 @@ where
 
             // grab price conversion
             let conversion_factor = conversion.get_eth_conversion_price(token0, token1).unwrap();
-            Ok((gas_in_wei, conversion_factor * U256::from(gas_in_wei)))
+            Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
         })
     }
 }

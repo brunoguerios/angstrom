@@ -331,7 +331,6 @@ mod test {
         println!("Result: {}", result);
         let valid = debt.valid_for_price(amm.current_price().as_ray());
         println!("Valid: {}", valid);
-        
     }
 
     #[test]

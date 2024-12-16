@@ -8,9 +8,11 @@ use alloy::{
     transports::Transport
 };
 use alloy_primitives::{Log, B256, I256};
-use angstrom_types::primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry};
+use angstrom_types::{
+    matching::Ray,
+    primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry}
+};
 use itertools::Itertools;
-use malachite::{num::conversion::traits::RoundingInto, Natural, Rational};
 
 use super::loaders::{
     get_uniswap_v_3_pool_data::GetUniswapV3PoolData,
@@ -63,23 +65,14 @@ impl PoolData {
     /// converts the loaded sqrt_price_x96 into the limit price that is used
     /// for internal math. this is different than just the raw conversion given
     /// that we don't do any decimal adjustments
-    pub fn get_raw_price(&self) -> U256 {
+    pub fn get_raw_price(&self) -> Ray {
         let this = SqrtPriceX96::from(self.sqrtPrice);
         tracing::debug!(sqrt_price=?this);
         let tick = this.to_tick().expect("should never fail");
         // TODO: not a fan of this given precision will be lost. could cause problems
         // down the road.
         let normalized_price = 1.0001_f64.powi(tick);
-
-        // because this is user set values and we want to upkeep readability on the
-        // frontend, this value is not stored as a RAY and instead is a
-        // unadjusted t1/t0
-        let price = Rational::try_from(normalized_price).unwrap();
-        let (output, _): (Natural, _) =
-            price.rounding_into(malachite::rounding_modes::RoundingMode::Floor);
-        let limbs = output.to_limbs_asc();
-
-        U256::from_limbs_slice(&limbs)
+        Ray::from(normalized_price)
     }
 }
 

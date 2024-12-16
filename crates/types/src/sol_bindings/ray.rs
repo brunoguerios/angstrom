@@ -1,5 +1,6 @@
 use std::{
-    ops::{Add, AddAssign, Deref, Mul, Sub, SubAssign},
+    iter::Sum,
+    ops::{Add, AddAssign, Deref, Sub, SubAssign},
     sync::OnceLock
 };
 
@@ -16,8 +17,10 @@ use malachite::{
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
-use super::{const_2_192, uniswap::PoolPrice, MatchingPrice, SqrtPriceX96};
-use crate::matching::const_1e27;
+use super::rpc_orders::SolRay;
+use crate::matching::{
+    const_1e27, const_1e54, const_2_192, uniswap::PoolPrice, MatchingPrice, SqrtPriceX96
+};
 
 fn max_tick_ray() -> &'static Ray {
     static MAX_TICK_PRICE: OnceLock<Ray> = OnceLock::new();
@@ -29,7 +32,29 @@ fn min_tick_ray() -> &'static Ray {
     MIN_TICK_PRICE.get_or_init(|| Ray::from(SqrtPriceX96::from(MIN_SQRT_RATIO)))
 }
 #[derive(Copy, Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Ray(U256);
+pub struct Ray(pub U256);
+
+impl From<SolRay> for Ray {
+    fn from(value: SolRay) -> Self {
+        Self(value.into())
+    }
+}
+
+impl Sum for Ray {
+    fn sum<I: Iterator<Item = Ray>>(iter: I) -> Self {
+        let mut acc = Ray::default();
+        for ray in iter {
+            acc += ray;
+        }
+        acc
+    }
+}
+
+impl From<Ray> for SolRay {
+    fn from(value: Ray) -> Self {
+        SolRay::from(value.0)
+    }
+}
 
 impl Deref for Ray {
     type Target = U256;
@@ -61,6 +86,22 @@ impl SubAssign for Ray {
     }
 }
 
+impl std::ops::Mul<U256> for Ray {
+    type Output = Ray;
+
+    fn mul(self, rhs: U256) -> Self::Output {
+        Ray::from(self.0 * rhs)
+    }
+}
+
+impl std::ops::Div<U256> for Ray {
+    type Output = Ray;
+
+    fn div(self, rhs: U256) -> Self::Output {
+        Ray::from(self.0 / rhs)
+    }
+}
+
 impl Add for Ray {
     type Output = Ray;
 
@@ -80,19 +121,6 @@ impl Add<usize> for Ray {
 impl AddAssign for Ray {
     fn add_assign(&mut self, rhs: Self) {
         *self = Self(self.0 + rhs.0);
-    }
-}
-impl Mul for Ray {
-    type Output = Ray;
-
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mult: U512 = self.widening_mul(rhs.0);
-        // div by 1e27
-        let out = (mult / U512::from(1e27)).into_limbs();
-
-        let buf = [out[4], out[5], out[6], out[7]];
-        Ray::from(U256::from_limbs(buf))
     }
 }
 
@@ -119,15 +147,6 @@ impl From<usize> for Ray {
         Self(Uint::from(value))
     }
 }
-
-// Can't do this because of something in the blsful crate, annoying!
-// trait RayConvert {}
-
-// impl<T: Into<U256> + RayConvert> From<T> for Ray {
-//     fn from(value: T) -> Self {
-//         Self(Uint::from(value))
-//     }
-// }
 
 impl From<f64> for Ray {
     fn from(value: f64) -> Self {
@@ -208,6 +227,78 @@ impl<'de> Deserialize<'de> for Ray {
 impl Ray {
     pub const ZERO: Ray = Ray(U256::ZERO);
 
+    /// value * 1e27
+    pub fn scale_to_ray(value: U256) -> Ray {
+        let value = Natural::from_limbs_asc(value.as_limbs()) * const_1e27();
+
+        Ray::from(Uint::from_limbs_slice(&value.to_limbs_asc()))
+    }
+
+    /// value / 1e27
+    pub fn scale_out_of_ray(self) -> U256 {
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs());
+        let denominator: Natural = const_1e27().clone();
+        let price = Rational::from_naturals(numerator, denominator);
+        let (res, _): (Natural, _) =
+            price.rounding_into(malachite::rounding_modes::RoundingMode::Floor);
+
+        Uint::from_limbs_slice(&res.into_limbs_asc())
+    }
+
+    /// self * other / ray
+    pub fn mul_ray_assign(&mut self, other: Ray) {
+        let p: U512 = self.0.widening_mul(other.0);
+        let numerator = Natural::from_limbs_asc(p.as_limbs());
+        let (res, _) =
+            numerator.div_round(const_1e27(), malachite::rounding_modes::RoundingMode::Floor);
+        let reslimbs = res.into_limbs_asc();
+
+        *self = Ray::from(Uint::from_limbs_slice(&reslimbs));
+    }
+
+    /// self * other / ray
+    pub fn mul_ray(mut self, other: Ray) -> Ray {
+        self.mul_ray_assign(other);
+        self
+    }
+
+    /// self * ray / other
+    pub fn div_ray_assign(&mut self, other: Ray) {
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs());
+        let num = numerator * const_1e27();
+
+        let denom = Natural::from_limbs_asc(other.0.as_limbs());
+        let res = Rational::from_naturals(num, denom);
+        let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
+        let this = U256::from_limbs_slice(&n.to_limbs_asc());
+
+        *self = Ray::from(this);
+    }
+
+    /// self * ray / other
+    pub fn div_ray(mut self, other: Ray) -> Ray {
+        self.div_ray_assign(other);
+        self
+    }
+
+    /// 1e54 / self
+    pub fn inv_ray_assign(&mut self) {
+        let num = const_1e54().clone();
+        let denom = Natural::from_limbs_asc(self.0.as_limbs());
+
+        let res = Rational::from_naturals(num, denom);
+        let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
+        let this = U256::from_limbs_slice(&n.to_limbs_asc());
+
+        *self = Ray::from(this);
+    }
+
+    /// 1e54 / self
+    pub fn inv_ray(mut self) -> Ray {
+        self.inv_ray_assign();
+        self
+    }
+
     pub fn max_uniswap_price() -> Self {
         *max_tick_ray()
     }
@@ -248,7 +339,7 @@ impl Ray {
         let p: U512 = self.0.widening_mul(q);
         let numerator = Natural::from_limbs_asc(p.as_limbs());
         let (res, _) =
-            numerator.div_round(const_1e27(), malachite::rounding_modes::RoundingMode::Ceiling);
+            numerator.div_round(const_1e27(), malachite::rounding_modes::RoundingMode::Floor);
         let reslimbs = res.into_limbs_asc();
         Uint::from_limbs_slice(&reslimbs)
     }
