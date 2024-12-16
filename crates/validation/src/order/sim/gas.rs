@@ -124,7 +124,7 @@ where
                 amount_in:     U256::from(order.amount_in()),
                 amount_out:    {
                     let price = Ray::from(U256::from(order.limit_price()));
-                    
+
                     price.mul_quantity(U256::from(order.amount_in()))
                 },
                 token_out:     order.token_out(),
@@ -295,6 +295,7 @@ struct ConfiguredRevm<DB> {
     pub db:       CacheDB<Arc<DB>>
 }
 
+#[allow(dead_code)]
 struct OverridesForTestAngstrom {
     pub flipped_order: Address,
     pub user_address:  Address,

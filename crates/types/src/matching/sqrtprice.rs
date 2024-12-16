@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn min_and_max_for_tick() {
-        let min_at_tick = SqrtPriceX96::at_tick(100000).unwrap();
+        let _min_at_tick = SqrtPriceX96::at_tick(100000).unwrap();
         let max_at_tick = SqrtPriceX96::max_at_tick(100000).unwrap();
         let next_tick = SqrtPriceX96::at_tick(100001).unwrap();
 
