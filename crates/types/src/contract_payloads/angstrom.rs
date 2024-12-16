@@ -1176,6 +1176,10 @@ impl AngstromPoolConfigStore {
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
     }
 
+    pub fn length(&self) -> usize {
+        self.entries.len()
+    }
+
     pub fn remove_pair(&self, asset0: Address, asset1: Address) {
         let key = Self::derive_store_key(asset0, asset1);
 

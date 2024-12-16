@@ -321,7 +321,9 @@ where
             EthEvent::FinalizedBlock(block) => {
                 self.order_indexer.finalized_block(block);
             }
-            EthEvent::NewPool(pool) => self.order_indexer.new_pool(pool),
+            EthEvent::NewPool { asset0, asset1, pool } => {
+                // self.order_indexer.new_pool(pool);
+            }
             EthEvent::NewBlock(_) => {}
             EthEvent::AddedNode(addr) => {}
             EthEvent::RemovedNode(addr) => {}

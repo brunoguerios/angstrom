@@ -127,6 +127,7 @@ where
     }
 
     fn handle_reorg(&mut self, old: Arc<impl ChainExt>, new: Arc<impl ChainExt>) {
+        self.apply_periphery_logs(&new);
         // notify producer of reorg if one happened. NOTE: reth also calls this
         // on reverts
         let tip = new.tip_number();
@@ -149,18 +150,16 @@ where
             address_changeset: eoas
         };
 
-        self.apply_periphery_logs(&new);
-
         self.send_events(transitions);
         self.send_events(reorged_orders);
     }
 
     fn handle_commit(&mut self, new: Arc<impl ChainExt>) {
-        let tip = new.tip_number();
-        self.block_sync.new_block(tip);
-
         // handle this first so the newest state is the first available
         self.apply_periphery_logs(&new);
+
+        let tip = new.tip_number();
+        self.block_sync.new_block(tip);
 
         let filled_orders = self.fetch_filled_order(&new).collect::<Vec<_>>();
 
@@ -209,7 +208,7 @@ where
                         pool_partial_key: AngstromPoolConfigStore::derive_store_key(asset0, asset1),
                         tick_spacing:     added_pool.tickSpacing,
                         fee_in_e6:        added_pool.feeInE6.to(),
-                        store_index:      0
+                        store_index:      self.pool_store.length()
                     };
 
                     self.pool_store.new_pool(asset0, asset1, entry.clone());
@@ -252,22 +251,6 @@ where
                     .or_else(|_| Approval::decode_log(logs, true).map(|log| log._owner))
             })
             .collect()
-    }
-
-    /// gets any newly initialized pools in this block
-    /// do we want to use logs here?
-    fn get_new_pools(chain: &impl ChainExt) -> impl Iterator<Item = NewInitializedPool> + '_ {
-        chain
-            .receipts_by_block_hash(chain.tip_hash())
-            .unwrap()
-            .into_iter()
-            .flat_map(|receipt| {
-                receipt.logs.iter().filter_map(|log| {
-                    contract_bindings::pool_manager::PoolManager::Initialize::decode_log(log, true)
-                        .map(Into::into)
-                        .ok()
-                })
-            })
     }
 }
 
