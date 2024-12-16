@@ -81,6 +81,9 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client.clone());
 
+        let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
+        let block_sync = GlobalBlockSync::new(block_number);
+
         let block_subscription: Pin<
             Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>
         > = if node_config.is_devnet() {
@@ -97,9 +100,6 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                     })
             )
         };
-
-        let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
-        let block_sync = GlobalBlockSync::new(block_number);
 
         let eth_handle = AnvilEthDataCleanser::spawn(
             node_config.node_id,
