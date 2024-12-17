@@ -5,8 +5,8 @@ use std::{
 };
 
 use alloy::{
-    network::TransactionBuilder, providers::Provider,
-    rpc::types::TransactionRequest, sol_types::SolCall, transports::Transport
+    network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest,
+    sol_types::SolCall, transports::Transport
 };
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
