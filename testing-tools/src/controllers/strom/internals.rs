@@ -3,7 +3,6 @@ use std::{pin::Pin, sync::Arc};
 use alloy::{providers::Provider, pubsub::PubSubFrontend};
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
-use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
@@ -95,7 +94,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                     .await?
                     .into_stream()
                     .map(|block| {
-                        (block.header.number, block.transactions.into_transactions().collect())
+                        (block.number, block.inner.transactions.into_transactions().collect())
                     })
             )
         };
