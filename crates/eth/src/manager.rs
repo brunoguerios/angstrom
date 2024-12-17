@@ -12,13 +12,10 @@ use alloy::{
 use angstrom_types::{
     block_sync::BlockSyncProducer,
     contract_bindings::{
-        self,
         angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
-    contract_payloads::angstrom::{
-        AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore, AngstromPoolPartialKey
-    }
+    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore}
 };
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
@@ -184,7 +181,7 @@ where
     /// looks at all periphery contrct events updating the internal state +
     /// sending out info.
     fn apply_periphery_logs(&mut self, chain: &impl ChainExt) {
-        let periphery_address = self.periphery_address.clone();
+        let periphery_address = self.periphery_address;
         chain
             .receipts_by_block_hash(chain.tip_hash())
             .unwrap()
@@ -227,14 +224,20 @@ where
                         currency1:   asset1,
                         currency0:   asset0,
                         fee:         added_pool.feeInE6,
-                        tickSpacing: I24::try_from_be_slice(
-                            &added_pool.tickSpacing.to_be_bytes()[1..4]
-                        )
+                        tickSpacing: I24::try_from_be_slice(&{
+                            let bytes = added_pool.tickSpacing.to_be_bytes();
+                            let mut a = [0u8; 3];
+                            a[1..3].copy_from_slice(&bytes);
+                            a
+                        })
                         .unwrap(),
                         hooks:       self.angstrom_address
                     };
 
-                    self.pool_store.new_pool(asset0, asset1, entry.clone());
+                    self.pool_store.new_pool(asset0, asset1, entry);
+                    self.angstrom_tokens.insert(asset0);
+                    self.angstrom_tokens.insert(asset1);
+
                     self.send_events(EthEvent::NewPool { pool: pool_key });
                 }
             });
@@ -451,11 +454,13 @@ pub mod test {
             commander:         ReceiverStream::new(command_rx),
             event_listeners:   vec![],
             angstrom_tokens:   HashSet::default(),
+            node_set:          HashSet::default(),
             angstrom_address:  angstrom_address.unwrap_or_default(),
+            periphery_address: Address::default(),
             canonical_updates: BroadcastStream::new(cannon_rx),
             block_sync:        GlobalBlockSync::new(1),
             cannon_sender:     tx,
-            _pool_store:       Default::default()
+            pool_store:        Default::default()
         }
     }
 

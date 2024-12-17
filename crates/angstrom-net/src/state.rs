@@ -4,7 +4,6 @@ use alloy::{primitives::Address, sol};
 use angstrom_types::primitive::PeerId;
 use parking_lot::RwLock;
 use reth_network::DisconnectReason;
-use reth_network_peers::id2pk;
 
 use crate::PeersManager;
 
