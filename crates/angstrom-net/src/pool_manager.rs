@@ -10,8 +10,9 @@ use alloy::primitives::{Address, FixedBytes, B256};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
+    contract_bindings::angstrom::Angstrom::PoolKey,
     orders::{OrderLocation, OrderOrigin, OrderStatus},
-    primitive::PeerId,
+    primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
@@ -321,8 +322,14 @@ where
             EthEvent::FinalizedBlock(block) => {
                 self.order_indexer.finalized_block(block);
             }
-            EthEvent::NewPool { asset0, asset1, pool } => {
-                // self.order_indexer.new_pool(pool);
+            EthEvent::NewPool { pool } => {
+                let t0 = pool.currency0;
+                let t1 = pool.currency1;
+                let id: PoolId = pool.into();
+
+                let pool = NewInitializedPool { currency_in: t0, currency_out: t1, id };
+
+                self.order_indexer.new_pool(pool);
             }
             EthEvent::NewBlock(_) => {}
             EthEvent::AddedNode(addr) => {}

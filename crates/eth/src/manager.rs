@@ -6,13 +6,14 @@ use std::{
 };
 
 use alloy::{
-    primitives::{Address, BlockHash, BlockNumber, B256},
+    primitives::{aliases::I24, Address, BlockHash, BlockNumber, B256},
     sol_types::SolEvent
 };
 use angstrom_types::{
     block_sync::BlockSyncProducer,
     contract_bindings::{
         self,
+        angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
     contract_payloads::angstrom::{
@@ -196,10 +197,17 @@ where
                     self.pool_store
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
 
-                    self.send_events(EthEvent::RemovedPool {
-                        token0: removed_pool.asset0,
-                        token1: removed_pool.asset1
-                    });
+                    let pool_key = PoolKey {
+                        currency1:   removed_pool.asset1,
+                        currency0:   removed_pool.asset0,
+                        fee:         removed_pool.feeInE6,
+                        tickSpacing: I24::try_from_be_slice(
+                            &removed_pool.tickSpacing.to_be_bytes()[1..3]
+                        )
+                        .unwrap(),
+                        hooks:       self.angstrom_address
+                    };
+                    self.send_events(EthEvent::RemovedPool { pool: pool_key });
                 }
                 if let Ok(added_pool) = PoolConfigured::decode_log(log, true) {
                     let asset0 = added_pool.asset0;
@@ -211,8 +219,19 @@ where
                         store_index:      self.pool_store.length()
                     };
 
+                    let pool_key = PoolKey {
+                        currency1:   asset1,
+                        currency0:   asset0,
+                        fee:         added_pool.feeInE6,
+                        tickSpacing: I24::try_from_be_slice(
+                            &added_pool.tickSpacing.to_be_bytes()[1..3]
+                        )
+                        .unwrap(),
+                        hooks:       self.angstrom_address
+                    };
+
                     self.pool_store.new_pool(asset0, asset1, entry.clone());
-                    self.send_events(EthEvent::NewPool { asset0, asset1, pool: entry });
+                    self.send_events(EthEvent::NewPool { pool: pool_key });
                 }
             });
     }
@@ -294,16 +313,13 @@ pub enum EthEvent {
     ReorgedOrders(Vec<B256>, RangeInclusive<u64>),
     FinalizedBlock(u64),
     NewPool {
-        asset0: Address,
-        asset1: Address,
-        pool:   AngPoolConfigEntry
+        pool: PoolKey
+    },
+    RemovedPool {
+        pool: PoolKey
     },
     AddedNode(Address),
-    RemovedNode(Address),
-    RemovedPool {
-        token0: Address,
-        token1: Address
-    }
+    RemovedNode(Address)
 }
 
 #[auto_impl::auto_impl(&,Arc)]

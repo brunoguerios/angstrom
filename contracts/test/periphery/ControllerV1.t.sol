@@ -7,9 +7,7 @@ import {PoolManager} from "v4-core/src/PoolManager.sol";
 import {ControllerV1, Asset, Distribution} from "src/periphery/ControllerV1.sol";
 import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
 import {LibSort} from "solady/src/utils/LibSort.sol";
-import {
-    PoolConfigStoreLib, PoolConfigStore, StoreKey
-} from "../../src/libraries/PoolConfigStore.sol";
+import {PoolConfigStoreLib, PoolConfigStore, StoreKey} from "../../src/libraries/PoolConfigStore.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 
@@ -27,7 +25,9 @@ contract ControllerV1Test is BaseTest {
 
     function setUp() public {
         uni = new PoolManager(pm_owner);
-        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, temp_controller));
+        angstrom = Angstrom(
+            deployAngstrom(type(Angstrom).creationCode, uni, temp_controller)
+        );
         controller = new ControllerV1(angstrom, controller_owner);
         vm.prank(temp_controller);
         angstrom.setController(address(controller));
@@ -53,7 +53,8 @@ contract ControllerV1Test is BaseTest {
             vm.prank(controller_owner);
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    Ownable.OwnableUnauthorizedAccount.selector, controller_owner
+                    Ownable.OwnableUnauthorizedAccount.selector,
+                    controller_owner
                 )
             );
             controller.transferOwnership(controller_owner);
@@ -68,7 +69,11 @@ contract ControllerV1Test is BaseTest {
         token1.mint(a, 120.1e18);
         token2.mint(a, 20.0e18);
 
-        address[3] memory recipients = [makeAddr("r_1"), makeAddr("r_2"), makeAddr("r_3")];
+        address[3] memory recipients = [
+            makeAddr("r_1"),
+            makeAddr("r_2"),
+            makeAddr("r_3")
+        ];
         Asset[] memory assets = new Asset[](2);
 
         assets[0].addr = address(token1);
@@ -111,8 +116,13 @@ contract ControllerV1Test is BaseTest {
     }
 
     function test_configurePools() public {
-        address[] memory assets =
-            addrs(abi.encode(makeAddr("asset_1"), makeAddr("asset_2"), makeAddr("asset_3")));
+        address[] memory assets = addrs(
+            abi.encode(
+                makeAddr("asset_1"),
+                makeAddr("asset_2"),
+                makeAddr("asset_3")
+            )
+        );
         LibSort.sort(assets);
 
         vm.expectEmit(true, true, true, true);
@@ -120,7 +130,9 @@ contract ControllerV1Test is BaseTest {
         vm.prank(controller_owner);
         controller.configurePool(assets[0], assets[2], 100, 0);
 
-        PoolConfigStore store = PoolConfigStore.wrap(rawGetConfigStore(address(angstrom)));
+        PoolConfigStore store = PoolConfigStore.wrap(
+            rawGetConfigStore(address(angstrom))
+        );
         assertEq(store.totalEntries(), 1);
         StoreKey key = skey(assets[0], assets[2]);
         (int24 tickSpacing, uint24 feeInE6) = store.get(key, 0);
@@ -131,16 +143,22 @@ contract ControllerV1Test is BaseTest {
         assertEq(asset1, assets[2]);
 
         vm.expectEmit(true, true, true, true);
-        emit ControllerV1.PoolRemoved(assets[0], assets[2]);
+        emit ControllerV1.PoolRemoved(assets[0], assets[2], 100, 0);
         vm.prank(controller_owner);
         controller.removePool(assets[0], assets[2]);
     }
 
-    function test_fuzzing_preventsNonOwnerTransfer(address nonOwner, address newOwner) public {
+    function test_fuzzing_preventsNonOwnerTransfer(
+        address nonOwner,
+        address newOwner
+    ) public {
         vm.assume(nonOwner != controller_owner);
         vm.prank(nonOwner);
         vm.expectRevert(
-            abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner)
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                nonOwner
+            )
         );
         controller.transferOwnership(newOwner);
     }
@@ -220,10 +238,16 @@ contract ControllerV1Test is BaseTest {
                 }
                 if (removed[j]) {
                     assertFalse(found, "Found when didn't expect to");
-                    assertFalse(_isNode(addrs[j]), "expected not node after removal");
+                    assertFalse(
+                        _isNode(addrs[j]),
+                        "expected not node after removal"
+                    );
                 } else {
                     assertTrue(found, "Not found when expected");
-                    assertTrue(_isNode(addrs[j]), "expected node before removal");
+                    assertTrue(
+                        _isNode(addrs[j]),
+                        "expected node before removal"
+                    );
                 }
             }
         }
@@ -235,7 +259,10 @@ contract ControllerV1Test is BaseTest {
         try angstrom.execute(new bytes(15)) {
             return true;
         } catch (bytes memory error) {
-            require(keccak256(error) == keccak256(abi.encodePacked(TopLevelAuth.NotNode.selector)));
+            require(
+                keccak256(error) ==
+                    keccak256(abi.encodePacked(TopLevelAuth.NotNode.selector))
+            );
             return false;
         }
     }
