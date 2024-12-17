@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{keccak256, Address, FixedBytes, Signature, B256, U256};
-use alloy_sol_types::SolValue;
+use alloy_primitives::{Address, FixedBytes, B256, U256};
 use angstrom_types::{
-    orders::{OrderLocation, OrderStatus},
+    orders::{CancelOrderRequest, OrderLocation, OrderStatus},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;

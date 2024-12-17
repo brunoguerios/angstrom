@@ -146,6 +146,6 @@ impl CancelOrderRequest {
         let hash = self.signing_payload();
         let Ok(sender) = self.signature.recover_address_from_prehash(&hash) else { return false };
 
-        return sender == self.user_address
+        sender == self.user_address
     }
 }

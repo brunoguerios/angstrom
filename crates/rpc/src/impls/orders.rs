@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use alloy_primitives::{Address, FixedBytes, B256};
 use angstrom_types::{
-    orders::{OrderLocation, OrderOrigin, OrderStatus},
+    orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
@@ -12,9 +12,9 @@ use reth_tasks::TaskSpawner;
 use validation::order::OrderValidatorHandle;
 
 use crate::{
-    api::{CancelOrderRequest, GasEstimateResponse, OrderApiServer},
+    api::{GasEstimateResponse, OrderApiServer},
     types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult},
-    OrderApiError::{GasEstimationError, SignatureRecoveryError}
+    OrderApiError::GasEstimationError
 };
 
 pub struct OrderApi<OrderPool, Spawner, Validator> {
@@ -45,17 +45,7 @@ where
     }
 
     async fn cancel_order(&self, request: CancelOrderRequest) -> RpcResult<bool> {
-        let hash = request.signing_payload();
-        let sender = request
-            .signature
-            .recover_address_from_prehash(&hash)
-            .map_err(|_| SignatureRecoveryError)?;
-
-        if sender != request.user_address {
-            return Ok(false)
-        }
-
-        Ok(self.pool.cancel_order(sender, request.order_id).await)
+        Ok(self.pool.cancel_order(request).await)
     }
 
     async fn estimate_gas(&self, order: AllOrders) -> RpcResult<GasEstimateResponse> {
@@ -313,16 +303,9 @@ mod tests {
             unimplemented!("Not needed for this test")
         }
 
-        fn cancel_order(
-            &self,
-            from: Address,
-            order_hash: B256
-        ) -> impl Future<Output = bool> + Send {
+        fn cancel_order(&self, req: CancelOrderRequest) -> impl Future<Output = bool> + Send {
             let (tx, _) = tokio::sync::oneshot::channel();
-            let _ = self
-                .sender
-                .send(OrderCommand::CancelOrder(from, order_hash, tx))
-                .is_ok();
+            let _ = self.sender.send(OrderCommand::CancelOrder(req, tx)).is_ok();
             future::ready(true)
         }
 

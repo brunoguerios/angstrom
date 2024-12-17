@@ -192,11 +192,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.new_order(Some(peer_id), origin, order, None)
     }
 
-    pub fn cancel_order(&mut self, request: angstrom_types::orders::CancelOrderRequest) -> bool {
+    pub fn cancel_order(&mut self, request: &angstrom_types::orders::CancelOrderRequest) -> bool {
         // ensure validity
         if !request.is_valid() {
             return false;
         }
+
         if self.is_seen_invalid(&request.order_id) || self.is_cancelled(&request.order_id) {
             return true
         }
@@ -219,7 +220,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             return true
         }
         let id = self.order_hash_to_order_id.remove(&request.order_id);
-        if let Some(order) = id.map(|v| self.order_storage.cancel_order(&v)).flatten() {
+        if let Some(order) = id.and_then(|v| self.order_storage.cancel_order(&v)) {
             self.order_hash_to_order_id.remove(&order.order_hash());
             self.order_hash_to_peer_id.remove(&order.order_hash());
             self.insert_cancel_request_with_deadline(
@@ -236,7 +237,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             return true
         }
 
-        return false
+        false
     }
 
     fn insert_cancel_request_with_deadline(

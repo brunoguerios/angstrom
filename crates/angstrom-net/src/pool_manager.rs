@@ -283,8 +283,11 @@ where
             OrderCommand::NewOrder(_, order, validation_response) => self
                 .order_indexer
                 .new_rpc_order(OrderOrigin::External, order, validation_response),
-            OrderCommand::CancelOrder(req) => {
-                let res = self.order_indexer.cancel_order(req);
+            OrderCommand::CancelOrder(req, receiver) => {
+                let res = self.order_indexer.cancel_order(&req);
+                if res {
+                    self.broadcast_cancel_to_peers(req);
+                }
                 let _ = receiver.send(res);
             }
             OrderCommand::PendingOrders(from, receiver) => {
@@ -356,7 +359,10 @@ where
                 });
             }
             NetworkOrderEvent::CancelOrder { request, .. } => {
-                self.order_indexer.cancel_order(request);
+                let res = self.order_indexer.cancel_order(&request);
+                if res {
+                    self.broadcast_cancel_to_peers(request);
+                }
             }
         }
     }
@@ -368,10 +374,10 @@ where
                 self.peer_to_info.insert(
                     peer_id,
                     StromPeer {
-                        orders:       LruCache::new(
+                        orders:        LruCache::new(
                             NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
                         ),
-                        cancelations: LruCache::new(
+                        cancellations: LruCache::new(
                             NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
                         )
                     }
@@ -388,10 +394,10 @@ where
                 self.peer_to_info.insert(
                     peer_id,
                     StromPeer {
-                        orders:       LruCache::new(
+                        orders:        LruCache::new(
                             NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
                         ),
-                        cancelations: LruCache::new(
+                        cancellations: LruCache::new(
                             NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
                         )
                     }
@@ -424,6 +430,18 @@ where
             .collect::<Vec<_>>();
 
         self.broadcast_orders_to_peers(valid_orders);
+    }
+
+    fn broadcast_cancel_to_peers(&mut self, cancel: CancelOrderRequest) {
+        for (peer_id, info) in self.peer_to_info.iter_mut() {
+            let order_hash = cancel.order_id;
+            if !info.cancellations.contains(&order_hash) {
+                self.network
+                    .send_message(*peer_id, StromMessage::OrderCancellation(cancel.clone()));
+
+                info.cancellations.insert(order_hash);
+            }
+        }
     }
 
     fn broadcast_orders_to_peers(&mut self, valid_orders: Vec<AllOrders>) {
@@ -509,6 +527,6 @@ pub enum NetworkTransactionEvent {
 #[derive(Debug)]
 struct StromPeer {
     /// Keeps track of transactions that we know the peer has seen.
-    orders:       LruCache<B256>,
-    cancelations: LruCache<B256>
+    orders:        LruCache<B256>,
+    cancellations: LruCache<B256>
 }
