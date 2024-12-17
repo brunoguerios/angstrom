@@ -3,12 +3,14 @@ use std::future::Future;
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
-    providers::{builder, ext::AnvilApi},
+    providers::{builder, ext::AnvilApi, Provider},
     rpc::types::{anvil::MineOptions, Block},
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::Bytes;
+use alloy_rpc_types::{BlockTransactionsKind, Transaction};
 use angstrom_types::block_sync::GlobalBlockSync;
+use futures::{Stream, StreamExt};
 
 use super::{AnvilStateProvider, WalletProvider};
 use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
@@ -112,6 +114,22 @@ where
         self.provider.update_canon_chain(&mined)?;
 
         Ok(mined)
+    }
+
+    pub async fn subscribe_blocks(
+        &self
+    ) -> eyre::Result<impl Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send> {
+        let provider = self.rpc_provider();
+        let stream = provider.subscribe_blocks().await?.into_stream();
+
+        let stream_provider = provider.clone();
+        let this = stream.for_each_concurrent(None, |header| {
+            let provider = stream_provider;
+
+            provider.get_block(header.number, BlockTransactionsKind::Full)
+        });
+
+        todo!()
     }
 }
 
