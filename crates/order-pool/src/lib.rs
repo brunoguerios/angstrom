@@ -12,7 +12,7 @@ use std::future::Future;
 
 use alloy::primitives::{Address, FixedBytes, B256};
 use angstrom_types::{
-    orders::{OrderLocation, OrderOrigin, OrderStatus},
+    orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 pub use angstrom_utils::*;
@@ -39,7 +39,7 @@ pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
 
     fn pending_orders(&self, sender: Address) -> impl Future<Output = Vec<AllOrders>> + Send;
 
-    fn cancel_order(&self, sender: Address, order_hash: B256) -> impl Future<Output = bool> + Send;
+    fn cancel_order(&self, req: CancelOrderRequest) -> impl Future<Output = bool> + Send;
 
     fn fetch_orders_from_pool(
         &self,

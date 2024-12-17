@@ -10,7 +10,7 @@ use alloy::primitives::{Address, FixedBytes, B256};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
-    orders::{OrderLocation, OrderOrigin, OrderStatus},
+    orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
@@ -48,7 +48,7 @@ pub struct PoolHandle {
 pub enum OrderCommand {
     // new orders
     NewOrder(OrderOrigin, AllOrders, tokio::sync::oneshot::Sender<OrderValidationResults>),
-    CancelOrder(Address, B256, tokio::sync::oneshot::Sender<bool>),
+    CancelOrder(CancelOrderRequest, tokio::sync::oneshot::Sender<bool>),
     PendingOrders(Address, tokio::sync::oneshot::Sender<Vec<AllOrders>>),
     OrdersByPool(FixedBytes<32>, OrderLocation, tokio::sync::oneshot::Sender<Vec<AllOrders>>),
     OrderStatus(B256, tokio::sync::oneshot::Sender<Option<OrderStatus>>)
@@ -112,9 +112,9 @@ impl OrderPoolHandle for PoolHandle {
         rx.map(|res| res.unwrap_or_default())
     }
 
-    fn cancel_order(&self, from: Address, order_hash: B256) -> impl Future<Output = bool> + Send {
+    fn cancel_order(&self, req: CancelOrderRequest) -> impl Future<Output = bool> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        let _ = self.send(OrderCommand::CancelOrder(from, order_hash, tx));
+        let _ = self.send(OrderCommand::CancelOrder(req, tx));
         rx.map(|res| res.unwrap_or(false))
     }
 }
@@ -283,8 +283,11 @@ where
             OrderCommand::NewOrder(_, order, validation_response) => self
                 .order_indexer
                 .new_rpc_order(OrderOrigin::External, order, validation_response),
-            OrderCommand::CancelOrder(from, order_hash, receiver) => {
-                let res = self.order_indexer.cancel_order(from, order_hash);
+            OrderCommand::CancelOrder(req, receiver) => {
+                let res = self.order_indexer.cancel_order(&req);
+                if res {
+                    self.broadcast_cancel_to_peers(req);
+                }
                 let _ = receiver.send(res);
             }
             OrderCommand::PendingOrders(from, receiver) => {
@@ -355,6 +358,12 @@ where
                     );
                 });
             }
+            NetworkOrderEvent::CancelOrder { request, .. } => {
+                let res = self.order_indexer.cancel_order(&request);
+                if res {
+                    self.broadcast_cancel_to_peers(request);
+                }
+            }
         }
     }
 
@@ -365,7 +374,12 @@ where
                 self.peer_to_info.insert(
                     peer_id,
                     StromPeer {
-                        orders: LruCache::new(NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap())
+                        orders:        LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
+                        ),
+                        cancellations: LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
+                        )
                     }
                 );
             }
@@ -380,7 +394,12 @@ where
                 self.peer_to_info.insert(
                     peer_id,
                     StromPeer {
-                        orders: LruCache::new(NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap())
+                        orders:        LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
+                        ),
+                        cancellations: LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
+                        )
                     }
                 );
             }
@@ -411,6 +430,18 @@ where
             .collect::<Vec<_>>();
 
         self.broadcast_orders_to_peers(valid_orders);
+    }
+
+    fn broadcast_cancel_to_peers(&mut self, cancel: CancelOrderRequest) {
+        for (peer_id, info) in self.peer_to_info.iter_mut() {
+            let order_hash = cancel.order_id;
+            if !info.cancellations.contains(&order_hash) {
+                self.network
+                    .send_message(*peer_id, StromMessage::OrderCancellation(cancel.clone()));
+
+                info.cancellations.insert(order_hash);
+            }
+        }
     }
 
     fn broadcast_orders_to_peers(&mut self, valid_orders: Vec<AllOrders>) {
@@ -496,5 +527,6 @@ pub enum NetworkTransactionEvent {
 #[derive(Debug)]
 struct StromPeer {
     /// Keeps track of transactions that we know the peer has seen.
-    orders: LruCache<B256>
+    orders:        LruCache<B256>,
+    cancellations: LruCache<B256>
 }
