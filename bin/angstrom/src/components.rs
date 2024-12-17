@@ -20,6 +20,7 @@ use angstrom_network::{
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
+    contract_bindings::controller_v_1::ControllerV1,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
     primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
@@ -193,7 +194,15 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
-    let mut node_set = HashSet::default();
+    let periphery_c = ControllerV1::new(node_config.periphery_addr, querying_provider.clone());
+    let node_set = periphery_c
+        .nodes()
+        .call()
+        .await
+        .unwrap()
+        ._0
+        .into_iter()
+        .collect::<HashSet<_>>();
 
     // Build our PoolManager using the PoolConfig and OrderStorage we've already
     // created

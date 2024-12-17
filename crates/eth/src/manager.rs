@@ -18,8 +18,7 @@ use angstrom_types::{
     },
     contract_payloads::angstrom::{
         AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore, AngstromPoolPartialKey
-    },
-    primitive::NewInitializedPool
+    }
 };
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
@@ -81,7 +80,7 @@ where
         let stream = ReceiverStream::new(rx);
         let (cannon_tx, _) = tokio::sync::broadcast::channel(1000);
 
-        let this = Self {
+        let mut this = Self {
             angstrom_address,
             periphery_address,
             canonical_updates: BroadcastStream::new(canonical_updates),
@@ -93,6 +92,13 @@ where
             node_set,
             event_listeners
         };
+        // ensure we broadcast node set. will allow for proper connections
+        // on the network side
+        for n in &this.node_set {
+            this.event_listeners
+                .retain(|e| e.send(EthEvent::AddedNode(*n)).is_ok());
+        }
+
         tp.spawn_critical("eth handle", this.boxed());
 
         let handle = EthHandle::new(tx);
