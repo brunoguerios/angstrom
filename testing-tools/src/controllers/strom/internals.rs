@@ -1,8 +1,9 @@
 use std::{pin::Pin, sync::Arc};
 
-use alloy::{providers::Provider, pubsub::PubSubFrontend};
+use alloy::pubsub::PubSubFrontend;
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
+use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
 use angstrom_rpc::{api::OrderApiServer, OrderApi};
 use angstrom_types::{
@@ -87,16 +88,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         > = if node_config.is_devnet() {
             Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
         } else {
-            Box::pin(
-                state_provider
-                    .rpc_provider()
-                    .subscribe_blocks()
-                    .await?
-                    .into_stream()
-                    .map(|block| {
-                        (block.number, block.inner.transactions.into_transactions().collect())
-                    })
-            )
+            Box::pin(state_provider.subscribe_blocks().await?)
         };
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;

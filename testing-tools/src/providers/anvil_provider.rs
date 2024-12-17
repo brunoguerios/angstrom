@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, pin::Pin, task::Poll};
 
 use alloy::{
     network::{Ethereum, EthereumWallet},
@@ -8,9 +8,9 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::Bytes;
-use alloy_rpc_types::{BlockTransactionsKind, Transaction};
+use alloy_rpc_types::{BlockTransactionsKind, Header, Transaction};
 use angstrom_types::block_sync::GlobalBlockSync;
-use futures::{Stream, StreamExt};
+use futures::{stream::FuturesUnordered, Stream, StreamExt};
 
 use super::{AnvilStateProvider, WalletProvider};
 use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
@@ -119,17 +119,9 @@ where
     pub async fn subscribe_blocks(
         &self
     ) -> eyre::Result<impl Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send> {
-        let provider = self.rpc_provider();
-        let stream = provider.subscribe_blocks().await?.into_stream();
+        let stream = self.rpc_provider().subscribe_blocks().await?.into_stream();
 
-        let stream_provider = provider.clone();
-        let this = stream.for_each_concurrent(None, |header| {
-            let provider = stream_provider;
-
-            provider.get_block(header.number, BlockTransactionsKind::Full)
-        });
-
-        todo!()
+        Ok(StreamBlockProvider::new(self.rpc_provider(), stream))
     }
 }
 
@@ -163,5 +155,56 @@ impl AnvilProvider<WalletProvider> {
             ),
             _instance: Some(anvil)
         })
+    }
+}
+
+struct StreamBlockProvider {
+    provider:      WalletProviderRpc,
+    header_stream: Pin<Box<dyn Stream<Item = Header> + Send>>,
+    futs:          FuturesUnordered<Pin<Box<dyn Future<Output = (u64, Vec<Transaction>)> + Send>>>
+}
+
+impl StreamBlockProvider {
+    fn new(
+        provider: WalletProviderRpc,
+        header_stream: impl Stream<Item = Header> + Send + 'static
+    ) -> Self {
+        Self { provider, header_stream: Box::pin(header_stream), futs: FuturesUnordered::new() }
+    }
+
+    fn new_block(&mut self, header: Header) {
+        self.futs
+            .push(Box::pin(Self::make_block(self.provider.clone(), header.number)));
+    }
+
+    async fn make_block(provider: WalletProviderRpc, number: u64) -> (u64, Vec<Transaction>) {
+        let block = provider
+            .get_block(number.into(), BlockTransactionsKind::Full)
+            .await
+            .expect(&format!("could not get block number {number}"))
+            .expect(&format!("no block found - number {number}"));
+
+        (number, block.transactions.into_transactions().collect())
+    }
+}
+
+impl Stream for StreamBlockProvider {
+    type Item = (u64, Vec<Transaction>);
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+
+        if let Poll::Ready(Some(header)) = this.header_stream.poll_next_unpin(cx) {
+            this.new_block(header);
+        }
+
+        if let Poll::Ready(Some(val)) = this.futs.poll_next_unpin(cx) {
+            return Poll::Ready(Some(val))
+        }
+
+        Poll::Pending
     }
 }

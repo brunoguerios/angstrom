@@ -37,10 +37,7 @@ use reth::{
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
-use reth_node_builder::{
-    components::NetworkBuilder, node::FullNodeTypes, rpc::RethRpcAddOns, BuilderContext, FullNode,
-    NodeTypes
-};
+use reth_node_builder::{node::FullNodeTypes, rpc::RethRpcAddOns, FullNode, NodeTypes};
 use reth_provider::BlockReader;
 use tokio::sync::mpsc::{
     channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender
