@@ -75,7 +75,8 @@ where
         angstrom_tokens: HashSet<Address>,
         pool_store: Arc<AngstromPoolConfigStore>,
         sync: Sync,
-        node_set: HashSet<Address>
+        node_set: HashSet<Address>,
+        event_listeners: Vec<UnboundedSender<EthEvent>>
     ) -> anyhow::Result<EthHandle> {
         let stream = ReceiverStream::new(rx);
         let (cannon_tx, _) = tokio::sync::broadcast::channel(1000);
@@ -85,12 +86,12 @@ where
             periphery_address,
             canonical_updates: BroadcastStream::new(canonical_updates),
             commander: stream,
-            event_listeners: Vec::new(),
             angstrom_tokens,
             cannon_sender: cannon_tx,
             block_sync: sync,
             pool_store,
-            node_set
+            node_set,
+            event_listeners
         };
         tp.spawn_critical("eth handle", this.boxed());
 

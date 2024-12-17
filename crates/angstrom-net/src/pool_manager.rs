@@ -10,7 +10,6 @@ use alloy::primitives::{Address, FixedBytes, B256};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
-    contract_bindings::angstrom::Angstrom::PoolKey,
     orders::{OrderLocation, OrderOrigin, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::grouped_orders::AllOrders
@@ -334,8 +333,8 @@ where
             EthEvent::RemovedPool { pool } => {
                 self.order_indexer.remove_pool(pool.into());
             }
-            EthEvent::AddedNode(addr) => {}
-            EthEvent::RemovedNode(addr) => {}
+            EthEvent::AddedNode(_) => {}
+            EthEvent::RemovedNode(_) => {}
             EthEvent::NewBlock(_) => {}
         }
     }
