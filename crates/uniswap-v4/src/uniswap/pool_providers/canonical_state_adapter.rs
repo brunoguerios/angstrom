@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    RwLock
+};
 
 use alloy::{
     eips::BlockNumberOrTag,
@@ -7,7 +10,7 @@ use alloy::{
 };
 use futures_util::StreamExt;
 use reth_provider::CanonStateNotification;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::broadcast;
 
 use super::PoolMangerBlocks;
 use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
@@ -34,7 +37,7 @@ impl PoolManagerProvider for CanonicalStateAdapter {
             self.canon_state_notifications.resubscribe(),
             move |mut notifications| async move {
                 if let Ok(notification) = notifications.recv().await {
-                    let mut last_log_write = self.last_logs.write().await;
+                    let mut last_log_write = self.last_logs.write().unwrap();
                     let block = match notification {
                         CanonStateNotification::Commit { new } => {
                             let block = new.tip();
@@ -94,10 +97,10 @@ impl PoolManagerProvider for CanonicalStateAdapter {
         .boxed()
     }
 
-    async fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>, PoolManagerError> {
+    fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>, PoolManagerError> {
         self.validate_filter(filter)?;
 
-        let cache = self.last_logs.read().await;
+        let cache = self.last_logs.read().unwrap();
         let res = cache
             .iter()
             .filter(|log| Self::log_matches_filter(log, filter))

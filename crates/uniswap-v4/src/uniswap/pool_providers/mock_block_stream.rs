@@ -28,9 +28,9 @@ where
 
 impl<P, T, N> PoolManagerProvider for MockBlockStream<P, T, N>
 where
-    P: Provider<T, N> + 'static,
-    T: Transport + Clone,
-    N: Network
+    P: Provider<T, N> + Unpin + 'static,
+    T: Transport + Clone + Unpin,
+    N: Network + Unpin
 {
     fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>> {
         futures::stream::iter(self.from_block..=self.to_block)
@@ -42,12 +42,16 @@ where
             .boxed()
     }
 
-    async fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>, PoolManagerError> {
-        let alloy_logs = self
-            .inner
-            .get_logs(filter)
-            .await
-            .map_err(PoolManagerError::from)?;
+    fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>, PoolManagerError> {
+        let handle = tokio::runtime::Handle::try_current().expect("No tokio runtime found");
+        let alloy_logs = tokio::task::block_in_place(|| {
+            handle.block_on(async {
+                self.inner
+                    .get_logs(filter)
+                    .await
+                    .map_err(PoolManagerError::from)
+            })
+        })?;
 
         let reth_logs = alloy_logs
             .iter()

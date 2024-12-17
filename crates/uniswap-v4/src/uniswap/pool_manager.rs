@@ -1,11 +1,13 @@
 use std::{
     collections::HashMap,
     fmt::Debug,
+    future::Future,
     hash::Hash,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, RwLock, RwLockReadGuard
-    }
+    },
+    task::Poll
 };
 
 use alloy::{
@@ -41,7 +43,6 @@ pub type SyncedUniswapPool<A = PoolId, Loader = DataLoader<A>> =
 
 const MODULE_NAME: &str = "UniswapV4";
 
-#[derive(Default)]
 pub struct UniswapPoolManager<P, BlockSync, Loader: PoolDataLoader<A>, A = Address>
 where
     A: Debug + Copy
@@ -52,6 +53,7 @@ where
     state_change_cache:  Arc<RwLock<StateChangeCache<Loader, A>>>,
     provider:            Arc<P>,
     block_sync:          BlockSync,
+    block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
     sync_started:        AtomicBool
 }
 
@@ -75,11 +77,13 @@ where
             .into_iter()
             .map(|pool| (pool.address(), Arc::new(RwLock::new(pool))))
             .collect();
+
         Self {
             pools: Arc::new(rwlock_pools),
             latest_synced_block,
             state_change_buffer,
             state_change_cache: Arc::new(RwLock::new(HashMap::new())),
+            block_stream: provider.clone().subscribe_blocks(),
             provider,
             sync_started: AtomicBool::new(false),
             block_sync
@@ -187,14 +191,12 @@ where
                     }
                 };
 
-                let logs = provider
-                    .get_logs(
-                        &filter
-                            .clone()
-                            .from_block(last_synced_block + 1)
-                            .to_block(chain_head_block_number)
-                    )
-                    .await?;
+                let logs = provider.get_logs(
+                    &filter
+                        .clone()
+                        .from_block(last_synced_block + 1)
+                        .to_block(chain_head_block_number)
+                )?;
 
                 if is_reorg {
                     // scope for locks
@@ -326,6 +328,96 @@ where
             StateChange::new(Some(pool_clone), block_number),
             pool.address()
         )
+    }
+}
+
+impl<P, BlockSync, Loader, A> Future for UniswapPoolManager<P, BlockSync, Loader, A>
+where
+    A: Eq + Hash + Debug + Default + Copy + Sync + Send + Unpin + 'static,
+    Loader: PoolDataLoader<A> + Default + Clone + Send + Sync + Unpin + 'static,
+    BlockSync: BlockSyncConsumer,
+    P: PoolManagerProvider + Send + Sync + 'static
+{
+    type Output = ();
+
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>
+    ) -> std::task::Poll<Self::Output> {
+        while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
+            // If there is a reorg, unwind state changes from last_synced block to the
+            // chain head block number
+            let (chain_head_block_number, block_range, is_reorg) = match block_info {
+                PoolMangerBlocks::NewBlock(block) => (block, None, false),
+                PoolMangerBlocks::Reorg(tip, range) => {
+                    self.latest_synced_block = tip - range.end();
+                    tracing::trace!(
+                        tip,
+                        self.latest_synced_block,
+                        "reorg detected, unwinding state changes"
+                    );
+                    (tip, Some(range), true)
+                }
+            };
+
+            let logs = self
+                .provider
+                .get_logs(
+                    &self
+                        .filter()
+                        .from_block(self.latest_synced_block + 1)
+                        .to_block(chain_head_block_number)
+                )
+                .expect("should never fail");
+
+            if is_reorg {
+                // scope for locks
+                let mut state_change_cache = self.state_change_cache.write().unwrap();
+                for pool in self.pools.values() {
+                    let mut pool_guard = pool.write().unwrap();
+                    Self::unwind_state_changes(
+                        &mut pool_guard,
+                        &mut state_change_cache,
+                        chain_head_block_number
+                    )
+                    .expect("should never fail");
+                }
+            }
+
+            let logs_by_address = Loader::group_logs(logs);
+
+            for (addr, logs) in logs_by_address {
+                if logs.is_empty() {
+                    continue
+                }
+
+                let Some(pool) = self.pools.get(&addr) else {
+                    continue;
+                };
+
+                let mut pool_guard = pool.write().unwrap();
+                let mut state_change_cache = self.state_change_cache.write().unwrap();
+                Self::handle_state_changes_from_logs(
+                    &mut pool_guard,
+                    &mut state_change_cache,
+                    logs,
+                    chain_head_block_number
+                )
+                .expect("never fail");
+            }
+
+            self.latest_synced_block = chain_head_block_number;
+
+            if is_reorg {
+                self.block_sync
+                    .sign_off_reorg(MODULE_NAME, block_range.unwrap(), None);
+            } else {
+                self.block_sync
+                    .sign_off_on_block(MODULE_NAME, self.latest_synced_block, None);
+            }
+        }
+
+        Poll::Pending
     }
 }
 

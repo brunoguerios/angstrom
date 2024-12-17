@@ -8,12 +8,9 @@ pub mod canonical_state_adapter;
 pub mod mock_block_stream;
 pub mod provider_adapter;
 
-pub trait PoolManagerProvider: Send + Sync {
+pub trait PoolManagerProvider: Send + Sync + Unpin {
     fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>>;
-    fn get_logs(
-        &self,
-        filter: &Filter
-    ) -> impl Future<Output = Result<Vec<Log>, PoolManagerError>> + Send;
+    fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>, PoolManagerError>;
 }
 
 #[derive(Debug, Clone)]
