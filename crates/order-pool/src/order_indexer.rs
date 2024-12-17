@@ -165,8 +165,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.cancelled_orders.contains_key(order_hash)
     }
 
-    fn remove_pool(&self, key: PoolId) {
-        self.order_storage.
+    pub fn remove_pool(&self, key: PoolId) {
+        self.order_storage.remove_pool(key);
     }
 
     fn is_duplicate(&self, order_hash: &B256) -> bool {

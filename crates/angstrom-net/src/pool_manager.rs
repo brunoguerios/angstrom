@@ -331,10 +331,12 @@ where
 
                 self.order_indexer.new_pool(pool);
             }
-            EthEvent::NewBlock(_) => {}
+            EthEvent::RemovedPool { pool } => {
+                self.order_indexer.remove_pool(pool.into());
+            }
             EthEvent::AddedNode(addr) => {}
             EthEvent::RemovedNode(addr) => {}
-            EthEvent::RemovedPool { token0, token1 } => {}
+            EthEvent::NewBlock(_) => {}
         }
     }
 
