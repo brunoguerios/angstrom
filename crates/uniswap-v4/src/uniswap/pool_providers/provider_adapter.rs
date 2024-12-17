@@ -39,7 +39,7 @@ where
     T: Transport + Clone + Send + Sync + Unpin,
     N: Network + Send + Sync + Unpin
 {
-    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>> {
+    fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
         let provider = self.inner.clone();
         async move { provider.subscribe_blocks().await.unwrap().into_stream() }
             .flatten_stream()

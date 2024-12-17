@@ -78,12 +78,14 @@ where
             .map(|pool| (pool.address(), Arc::new(RwLock::new(pool))))
             .collect();
 
+        let block_stream = <P as Clone>::clone(&provider).subscribe_blocks();
+
         Self {
             pools: Arc::new(rwlock_pools),
             latest_synced_block,
             state_change_buffer,
             state_change_cache: Arc::new(RwLock::new(HashMap::new())),
-            block_stream: provider.clone().subscribe_blocks(),
+            block_stream,
             provider,
             sync_started: AtomicBool::new(false),
             block_sync
@@ -160,103 +162,104 @@ where
         Ok(updated_pool_handle)
     }
 
-    async fn handle_state_changes(
-        &self,
-        pool_updated_tx: Option<Sender<(A, BlockNumber)>>
-    ) -> Result<JoinHandle<Result<(), PoolManagerError>>, PoolManagerError> {
-        let mut last_synced_block = self.latest_synced_block;
-
-        let pools = self.pools.clone();
-        let provider = Arc::clone(&self.provider);
-        let filter = self.filter();
-        let state_change_cache = Arc::clone(&self.state_change_cache);
-        let block_sync = self.block_sync.clone();
-
-        let updated_pool_handle = tokio::spawn(async move {
-            let mut block_stream: BoxStream<Option<_>> = provider.subscribe_blocks();
-            while let Some(Some(block_number)) = block_stream.next().await {
-                // If there is a reorg, unwind state changes from last_synced block to the
-                // chain head block number
-
-                let (chain_head_block_number, block_range, is_reorg) = match block_number {
-                    PoolMangerBlocks::NewBlock(block) => (block, None, false),
-                    PoolMangerBlocks::Reorg(tip, range) => {
-                        last_synced_block = tip - range.end();
-                        tracing::trace!(
-                            tip,
-                            last_synced_block,
-                            "reorg detected, unwinding state changes"
-                        );
-                        (tip, Some(range), true)
-                    }
-                };
-
-                let logs = provider.get_logs(
-                    &filter
-                        .clone()
-                        .from_block(last_synced_block + 1)
-                        .to_block(chain_head_block_number)
-                )?;
-
-                if is_reorg {
-                    // scope for locks
-                    let mut state_change_cache = state_change_cache.write().unwrap();
-                    for pool in pools.values() {
-                        let mut pool_guard = pool.write().unwrap();
-                        Self::unwind_state_changes(
-                            &mut pool_guard,
-                            &mut state_change_cache,
-                            chain_head_block_number
-                        )?;
-                    }
-                }
-
-                let logs_by_address = Loader::group_logs(logs);
-
-                for (addr, logs) in logs_by_address {
-                    if logs.is_empty() {
-                        continue
-                    }
-
-                    let Some(pool) = pools.get(&addr) else {
-                        continue;
-                    };
-
-                    // scope for locks
-                    let address = {
-                        let mut pool_guard = pool.write().unwrap();
-                        let mut state_change_cache = state_change_cache.write().unwrap();
-                        Self::handle_state_changes_from_logs(
-                            &mut pool_guard,
-                            &mut state_change_cache,
-                            logs,
-                            chain_head_block_number
-                        )?;
-                        pool_guard.address()
-                    };
-
-                    if let Some(tx) = &pool_updated_tx {
-                        tx.send((address, chain_head_block_number))
-                            .await
-                            .map_err(|e| tracing::error!("Failed to send pool update: {}", e))
-                            .ok();
-                    }
-                }
-
-                last_synced_block = chain_head_block_number;
-
-                if is_reorg {
-                    block_sync.sign_off_reorg(MODULE_NAME, block_range.unwrap(), None);
-                } else {
-                    block_sync.sign_off_on_block(MODULE_NAME, last_synced_block, None);
-                }
-            }
-
-            Ok(())
-        });
-
-        Ok(updated_pool_handle)
-    }
+    // async fn handle_state_changes(
+    //     &self,
+    //     pool_updated_tx: Option<Sender<(A, BlockNumber)>>
+    // ) -> Result<JoinHandle<Result<(), PoolManagerError>>, PoolManagerError> {
+    //     let mut last_synced_block = self.latest_synced_block;
+    //
+    //     let pools = self.pools.clone();
+    //     let provider = Arc::clone(&self.provider);
+    //     let filter = self.filter();
+    //     let state_change_cache = Arc::clone(&self.state_change_cache);
+    //     let block_sync = self.block_sync.clone();
+    //
+    //     let updated_pool_handle = tokio::spawn(async move {
+    //         let mut block_stream: BoxStream<Option<_>> =
+    // provider.clone().subscribe_blocks();         while let
+    // Some(Some(block_number)) = block_stream.next().await {             // If
+    // there is a reorg, unwind state changes from last_synced block to the
+    //             // chain head block number
+    //
+    //             let (chain_head_block_number, block_range, is_reorg) = match
+    // block_number {                 PoolMangerBlocks::NewBlock(block) =>
+    // (block, None, false),                 PoolMangerBlocks::Reorg(tip, range)
+    // => {                     last_synced_block = tip - range.end();
+    //                     tracing::trace!(
+    //                         tip,
+    //                         last_synced_block,
+    //                         "reorg detected, unwinding state changes"
+    //                     );
+    //                     (tip, Some(range), true)
+    //                 }
+    //             };
+    //
+    //             let logs = provider.get_logs(
+    //                 &filter
+    //                     .clone()
+    //                     .from_block(last_synced_block + 1)
+    //                     .to_block(chain_head_block_number)
+    //             )?;
+    //
+    //             if is_reorg {
+    //                 // scope for locks
+    //                 let mut state_change_cache =
+    // state_change_cache.write().unwrap();                 for pool in
+    // pools.values() {                     let mut pool_guard =
+    // pool.write().unwrap();                     Self::unwind_state_changes(
+    //                         &mut pool_guard,
+    //                         &mut state_change_cache,
+    //                         chain_head_block_number
+    //                     )?;
+    //                 }
+    //             }
+    //
+    //             let logs_by_address = Loader::group_logs(logs);
+    //
+    //             for (addr, logs) in logs_by_address {
+    //                 if logs.is_empty() {
+    //                     continue
+    //                 }
+    //
+    //                 let Some(pool) = pools.get(&addr) else {
+    //                     continue;
+    //                 };
+    //
+    //                 // scope for locks
+    //                 let address = {
+    //                     let mut pool_guard = pool.write().unwrap();
+    //                     let mut state_change_cache =
+    // state_change_cache.write().unwrap();
+    // Self::handle_state_changes_from_logs(                         &mut
+    // pool_guard,                         &mut state_change_cache,
+    //                         logs,
+    //                         chain_head_block_number
+    //                     )?;
+    //                     pool_guard.address()
+    //                 };
+    //
+    //                 if let Some(tx) = &pool_updated_tx {
+    //                     tx.send((address, chain_head_block_number))
+    //                         .await
+    //                         .map_err(|e| tracing::error!("Failed to send pool
+    // update: {}", e))                         .ok();
+    //                 }
+    //             }
+    //
+    //             last_synced_block = chain_head_block_number;
+    //
+    //             if is_reorg {
+    //                 block_sync.sign_off_reorg(MODULE_NAME, block_range.unwrap(),
+    // None);             } else {
+    //                 block_sync.sign_off_on_block(MODULE_NAME, last_synced_block,
+    // None);             }
+    //         }
+    //
+    //         Ok(())
+    //     });
+    //
+    //     Ok(updated_pool_handle)
+    // }
 
     /// Unwinds the state changes cache for every block from the most recent
     /// state change cache back to the block to unwind -1.

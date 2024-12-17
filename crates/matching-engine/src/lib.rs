@@ -19,8 +19,10 @@ use book::{BookOrder, OrderBook};
 use futures_util::future::BoxFuture;
 use reth_provider::CanonStateNotifications;
 use uniswap_v4::uniswap::{
-    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
-    pool_providers::canonical_state_adapter::CanonicalStateAdapter
+    pool::EnhancedUniswapPool,
+    pool_data_loader::DataLoader,
+    pool_manager::UniswapPoolManager,
+    pool_providers::{canonical_state_adapter::CanonicalStateAdapter, PoolManagerProvider}
 };
 
 pub mod book;
@@ -58,7 +60,7 @@ pub async fn configure_uniswap_manager<T: Transport + Clone, BlockSync: BlockSyn
     current_block: BlockNumber,
     block_sync: BlockSync,
     pool_manager_address: Address
-) -> UniswapPoolManager<CanonicalStateAdapter, BlockSync, DataLoader<PoolId>, PoolId> {
+) -> UniswapPoolManager<'static, CanonicalStateAdapter, BlockSync, DataLoader<PoolId>, PoolId> {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
         .keys()
@@ -82,11 +84,7 @@ pub async fn configure_uniswap_manager<T: Transport + Clone, BlockSync: BlockSyn
     }
 
     let state_change_buffer = 100;
-    UniswapPoolManager::new(
-        uniswap_pools,
-        current_block,
-        state_change_buffer,
-        Arc::new(CanonicalStateAdapter::new(state_notification)),
-        block_sync
-    )
+    let notifier = Arc::new(CanonicalStateAdapter::new(state_notification));
+
+    UniswapPoolManager::new(uniswap_pools, current_block, state_change_buffer, notifier, block_sync)
 }

@@ -28,11 +28,11 @@ where
 
 impl<P, T, N> PoolManagerProvider for MockBlockStream<P, T, N>
 where
-    P: Provider<T, N> + Unpin + 'static,
+    P: Provider<T, N> + Unpin + 'static + Clone,
     T: Transport + Clone + Unpin,
     N: Network + Unpin
 {
-    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>> {
+    fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
         futures::stream::iter(self.from_block..=self.to_block)
             .then(|block| async move {
                 // yield to sym async call

@@ -21,6 +21,24 @@ pub struct CanonicalStateAdapter {
     last_block_number:         AtomicU64
 }
 
+impl Clone for CanonicalStateAdapter {
+    fn clone(&self) -> Self {
+        let mut last_logs = vec![];
+        let l = self.last_logs.read().unwrap();
+        for log in l.iter() {
+            last_logs.push(log.clone());
+        }
+
+        Self {
+            canon_state_notifications: self.canon_state_notifications.resubscribe(),
+            last_logs:                 RwLock::new(last_logs),
+            last_block_number:         AtomicU64::new(
+                self.last_block_number.load(Ordering::SeqCst)
+            )
+        }
+    }
+}
+
 impl CanonicalStateAdapter {
     pub fn new(canon_state_notifications: broadcast::Receiver<CanonStateNotification>) -> Self {
         Self {
@@ -32,64 +50,67 @@ impl CanonicalStateAdapter {
 }
 
 impl PoolManagerProvider for CanonicalStateAdapter {
-    fn subscribe_blocks(&self) -> futures::stream::BoxStream<Option<PoolMangerBlocks>> {
+    fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
         futures_util::stream::unfold(
             self.canon_state_notifications.resubscribe(),
-            move |mut notifications| async move {
-                if let Ok(notification) = notifications.recv().await {
-                    let mut last_log_write = self.last_logs.write().unwrap();
-                    let block = match notification {
-                        CanonStateNotification::Commit { new } => {
-                            let block = new.tip();
-                            let logs: Vec<Log> = new
-                                .execution_outcome()
-                                .logs(block.number)
-                                .map_or_else(Vec::new, |logs| logs.cloned().collect());
-                            *last_log_write = logs;
-                            self.last_block_number.store(block.number, Ordering::SeqCst);
-                            Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
-                        }
-                        CanonStateNotification::Reorg { old, new } => {
-                            let tip = new.tip().block.number;
-                            // search 30 blocks back;
-                            let start = tip - 30;
-
-                            let range = old
-                                .blocks_iter()
-                                .filter(|b| b.block.number >= start)
-                                .zip(new.blocks_iter().filter(|b| b.block.number >= start))
-                                .filter(|&(old, new)| (old.block.hash() != new.block.hash()))
-                                .map(|(_, new)| new.block.number)
-                                .collect::<Vec<_>>();
-
-                            let range = match range.len() {
-                                0 => tip..=tip,
-                                _ => {
-                                    let start = *range.first().unwrap();
-                                    let end = *range.last().unwrap();
-                                    start..=end
-                                }
-                            };
-
-                            let block = new.tip();
-                            let mut logs = Vec::new();
-
-                            for block in range.clone() {
-                                logs.extend(
-                                    new.execution_outcome()
-                                        .logs(block)
-                                        .map_or_else(Vec::new, |logs| logs.cloned().collect())
-                                );
+            move |mut notifications| {
+                let this = self.clone();
+                async move {
+                    if let Ok(notification) = notifications.recv().await {
+                        let mut last_log_write = this.last_logs.write().unwrap();
+                        let block = match notification {
+                            CanonStateNotification::Commit { new } => {
+                                let block = new.tip();
+                                let logs: Vec<Log> = new
+                                    .execution_outcome()
+                                    .logs(block.number)
+                                    .map_or_else(Vec::new, |logs| logs.cloned().collect());
+                                *last_log_write = logs;
+                                this.last_block_number.store(block.number, Ordering::SeqCst);
+                                Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
                             }
+                            CanonStateNotification::Reorg { old, new } => {
+                                let tip = new.tip().block.number;
+                                // search 30 blocks back;
+                                let start = tip - 30;
 
-                            *last_log_write = logs;
-                            self.last_block_number.store(block.number, Ordering::SeqCst);
-                            Some(Some(PoolMangerBlocks::Reorg(block.number, range)))
-                        }
-                    };
-                    Some((block, notifications))
-                } else {
-                    None
+                                let range = old
+                                    .blocks_iter()
+                                    .filter(|b| b.block.number >= start)
+                                    .zip(new.blocks_iter().filter(|b| b.block.number >= start))
+                                    .filter(|&(old, new)| (old.block.hash() != new.block.hash()))
+                                    .map(|(_, new)| new.block.number)
+                                    .collect::<Vec<_>>();
+
+                                let range = match range.len() {
+                                    0 => tip..=tip,
+                                    _ => {
+                                        let start = *range.first().unwrap();
+                                        let end = *range.last().unwrap();
+                                        start..=end
+                                    }
+                                };
+
+                                let block = new.tip();
+                                let mut logs = Vec::new();
+
+                                for block in range.clone() {
+                                    logs.extend(
+                                        new.execution_outcome()
+                                            .logs(block)
+                                            .map_or_else(Vec::new, |logs| logs.cloned().collect())
+                                    );
+                                }
+
+                                *last_log_write = logs;
+                                this.last_block_number.store(block.number, Ordering::SeqCst);
+                                Some(Some(PoolMangerBlocks::Reorg(block.number, range)))
+                            }
+                        };
+                        Some((block, notifications))
+                    } else {
+                        None
+                    }
                 }
             }
         )
