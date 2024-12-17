@@ -201,10 +201,7 @@ where
                         currency1:   removed_pool.asset1,
                         currency0:   removed_pool.asset0,
                         fee:         removed_pool.feeInE6,
-                        tickSpacing: I24::try_from_be_slice(
-                            &removed_pool.tickSpacing.to_be_bytes()[1..3]
-                        )
-                        .unwrap(),
+                        tickSpacing: removed_pool.tickSpacing,
                         hooks:       self.angstrom_address
                     };
                     self.send_events(EthEvent::RemovedPool { pool: pool_key });
@@ -224,7 +221,7 @@ where
                         currency0:   asset0,
                         fee:         added_pool.feeInE6,
                         tickSpacing: I24::try_from_be_slice(
-                            &added_pool.tickSpacing.to_be_bytes()[1..3]
+                            &added_pool.tickSpacing.to_be_bytes()[1..4]
                         )
                         .unwrap(),
                         hooks:       self.angstrom_address
