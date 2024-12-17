@@ -48,7 +48,7 @@ where
         let hash = request.signing_payload();
         let sender = request
             .signature
-            .recover_address_from_msg(hash)
+            .recover_address_from_prehash(&hash)
             .map_err(|_| SignatureRecoveryError)?;
 
         if sender != request.user_address {

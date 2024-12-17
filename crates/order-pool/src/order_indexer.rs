@@ -192,46 +192,51 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.new_order(Some(peer_id), origin, order, None)
     }
 
-    pub fn cancel_order(&mut self, from: Address, order_hash: B256) -> bool {
-        if self.is_seen_invalid(&order_hash) || self.is_cancelled(&order_hash) {
+    pub fn cancel_order(&mut self, request: angstrom_types::orders::CancelOrderRequest) -> bool {
+        // ensure validity
+        if !request.is_valid() {
+            return false;
+        }
+        if self.is_seen_invalid(&request.order_id) || self.is_cancelled(&request.order_id) {
             return true
         }
 
         // the cancel arrived before the new order request
         // nothing more needs to be done, since new_order() will return early
-        if self.is_missing(&order_hash) {
+        if self.is_missing(&request.order_id) {
             // optimistically assuming that orders won't take longer than a day to propagate
             let deadline = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_secs()
                 + MAX_NEW_ORDER_DELAY_PROPAGATION * ETH_BLOCK_TIME.as_secs();
-            self.insert_cancel_request_with_deadline(from, &order_hash, Some(U256::from(deadline)));
+            self.insert_cancel_request_with_deadline(
+                request.user_address,
+                &request.order_id,
+                Some(U256::from(deadline))
+            );
 
             return true
         }
-
-        let order_id = self.order_hash_to_order_id.get(&order_hash).unwrap();
-        if order_id.address != from {
-            return false
-        }
-
-        let removed = self.order_storage.cancel_order(order_id);
-        let removed_from_storage = removed.is_some();
-        if removed_from_storage {
-            let order = removed.unwrap();
-            self.order_hash_to_order_id.remove(&order_hash);
-            self.order_hash_to_peer_id.remove(&order_hash);
-            self.insert_cancel_request_with_deadline(from, &order_hash, order.deadline());
+        let id = self.order_hash_to_order_id.remove(&request.order_id);
+        if let Some(order) = id.map(|v| self.order_storage.cancel_order(&v)).flatten() {
+            self.order_hash_to_order_id.remove(&order.order_hash());
+            self.order_hash_to_peer_id.remove(&order.order_hash());
+            self.insert_cancel_request_with_deadline(
+                request.user_address,
+                &request.order_id,
+                order.deadline()
+            );
 
             self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
                 order_hash: order.order_hash(),
                 user:       order.from(),
                 pool_id:    order.pool_id
             });
+            return true
         }
 
-        removed_from_storage
+        return false
     }
 
     fn insert_cancel_request_with_deadline(

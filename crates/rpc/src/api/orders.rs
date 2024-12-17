@@ -15,21 +15,6 @@ use serde::Deserialize;
 
 use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct CancelOrderRequest {
-    pub signature:    Signature,
-    // if there's no salt to make this a unique signing hash. One can just
-    // copy the signature of the order and id and it will verify
-    pub user_address: Address,
-    pub order_id:     B256
-}
-
-impl CancelOrderRequest {
-    pub fn signing_payload(&self) -> FixedBytes<32> {
-        keccak256((self.user_address, self.order_id).abi_encode())
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GasEstimateResponse {
     pub gas_units: u64,

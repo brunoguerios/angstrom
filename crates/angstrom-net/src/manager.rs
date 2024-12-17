@@ -212,6 +212,12 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                                     .send(NetworkOrderEvent::IncomingOrders { peer_id, orders: a });
                             });
                         }
+                        StromMessage::OrderCancellation(a) => {
+                            self.to_pool_manager.as_ref().inspect(|tx| {
+                                let _ =
+                                    tx.send(NetworkOrderEvent::CancelOrder { peer_id, request: a });
+                            });
+                        }
                         StromMessage::Status(_) => {}
                     },
                     SwarmEvent::Disconnected { peer_id } => {
