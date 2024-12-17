@@ -10,7 +10,7 @@ use alloy::{
 use alloy_chains::Chain;
 use angstrom_eth::{
     handle::{Eth, EthCommand},
-    manager::EthDataCleanser
+    manager::{EthDataCleanser, EthEvent}
 };
 use angstrom_network::{
     manager::StromConsensusEvent,
@@ -20,6 +20,7 @@ use angstrom_network::{
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
+    contract_bindings::controller_v_1::ControllerV1,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
     primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
@@ -48,7 +49,10 @@ use validation::{
 
 use crate::{cli::NodeConfig, AngstromConfig};
 
-pub fn init_network_builder(secret_key: AngstromSigner) -> eyre::Result<StromNetworkBuilder> {
+pub fn init_network_builder(
+    secret_key: AngstromSigner,
+    eth_handle: UnboundedReceiver<EthEvent>
+) -> eyre::Result<StromNetworkBuilder> {
     let public_key = secret_key.id();
 
     let state = StatusState {
@@ -61,7 +65,7 @@ pub fn init_network_builder(secret_key: AngstromSigner) -> eyre::Result<StromNet
     let verification =
         VerificationSidecar { status: state, has_sent: false, has_received: false, secret_key };
 
-    Ok(StromNetworkBuilder::new(verification))
+    Ok(StromNetworkBuilder::new(verification, eth_handle))
 }
 
 pub type DefaultPoolHandle = PoolHandle;
@@ -81,11 +85,15 @@ pub struct StromHandles {
     pub validator_tx: UnboundedSender<ValidationRequest>,
     pub validator_rx: UnboundedReceiver<ValidationRequest>,
 
+    pub eth_handle_tx: Option<UnboundedSender<EthEvent>>,
+    pub eth_handle_rx: Option<UnboundedReceiver<EthEvent>>,
+
     pub pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
 
     pub consensus_tx_op: UnboundedMeteredSender<StromConsensusEvent>,
     pub consensus_rx_op: UnboundedMeteredReceiver<StromConsensusEvent>,
 
+    // only 1 set cur
     pub matching_tx: Sender<MatcherCommand>,
     pub matching_rx: Receiver<MatcherCommand>
 }
@@ -106,6 +114,7 @@ pub fn initialize_strom_handles() -> StromHandles {
     let (pool_tx, pool_rx) = reth_metrics::common::mpsc::metered_unbounded_channel("orderpool");
     let (orderpool_tx, orderpool_rx) = unbounded_channel();
     let (validator_tx, validator_rx) = unbounded_channel();
+    let (eth_handle_tx, eth_handle_rx) = unbounded_channel();
     let (consensus_tx_op, consensus_rx_op) =
         reth_metrics::common::mpsc::metered_unbounded_channel("orderpool");
 
@@ -122,20 +131,21 @@ pub fn initialize_strom_handles() -> StromHandles {
         consensus_tx_op,
         consensus_rx_op,
         matching_tx,
-        matching_rx
+        matching_rx,
+        eth_handle_tx: Some(eth_handle_tx),
+        eth_handle_rx: Some(eth_handle_rx)
     }
 }
 
 pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeAddOns<Node>>(
     config: AngstromConfig,
     signer: AngstromSigner,
-    handles: StromHandles,
+    mut handles: StromHandles,
     network_builder: StromNetworkBuilder,
     node: FullNode<Node, AddOns>,
     executor: &TaskExecutor
 ) {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
-
     let node_address = signer.address();
 
     // NOTE:
@@ -184,17 +194,30 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
+    let periphery_c = ControllerV1::new(node_config.periphery_addr, querying_provider.clone());
+    let node_set = periphery_c
+        .nodes()
+        .call()
+        .await
+        .unwrap()
+        ._0
+        .into_iter()
+        .collect::<HashSet<_>>();
+
     // Build our PoolManager using the PoolConfig and OrderStorage we've already
     // created
     let eth_handle = EthDataCleanser::spawn(
         node_config.angstrom_address,
+        node_config.periphery_addr,
         node.provider.subscribe_to_canonical_state(),
         executor.clone(),
         handles.eth_tx,
         handles.eth_rx,
         HashSet::new(),
         pool_config_store.clone(),
-        global_block_sync.clone()
+        global_block_sync.clone(),
+        node_set,
+        vec![handles.eth_handle_tx.take().unwrap()]
     )
     .unwrap();
 

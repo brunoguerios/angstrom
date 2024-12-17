@@ -11,7 +11,7 @@ use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     orders::{OrderLocation, OrderOrigin, OrderStatus},
-    primitive::PeerId,
+    primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
@@ -321,7 +321,20 @@ where
             EthEvent::FinalizedBlock(block) => {
                 self.order_indexer.finalized_block(block);
             }
-            EthEvent::NewPool(pool) => self.order_indexer.new_pool(pool),
+            EthEvent::NewPool { pool } => {
+                let t0 = pool.currency0;
+                let t1 = pool.currency1;
+                let id: PoolId = pool.into();
+
+                let pool = NewInitializedPool { currency_in: t0, currency_out: t1, id };
+
+                self.order_indexer.new_pool(pool);
+            }
+            EthEvent::RemovedPool { pool } => {
+                self.order_indexer.remove_pool(pool.into());
+            }
+            EthEvent::AddedNode(_) => {}
+            EthEvent::RemovedNode(_) => {}
             EthEvent::NewBlock(_) => {}
         }
     }

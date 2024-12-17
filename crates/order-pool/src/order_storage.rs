@@ -63,6 +63,11 @@ impl OrderStorage {
         }
     }
 
+    pub fn remove_pool(&self, key: PoolId) {
+        self.searcher_orders.lock().unwrap().remove_pool(&key);
+        self.limit_orders.lock().unwrap().remove_pool(&key);
+    }
+
     pub fn fetch_status_of_order(&self, order: B256) -> Option<OrderStatus> {
         if self
             .filled_orders

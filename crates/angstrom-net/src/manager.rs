@@ -6,6 +6,7 @@ use std::{
 };
 
 use alloy::primitives::BlockNumber;
+use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
     primitive::PeerId
@@ -13,7 +14,7 @@ use angstrom_types::{
 use futures::StreamExt;
 use reth_eth_wire::DisconnectReason;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::error;
 
@@ -28,6 +29,7 @@ pub struct StromNetworkManager<DB> {
     from_handle_rx:       UnboundedReceiverStream<StromNetworkHandleMsg>,
     to_pool_manager:      Option<UnboundedMeteredSender<NetworkOrderEvent>>,
     to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
+    eth_handle:           UnboundedReceiver<EthEvent>,
 
     event_listeners:  Vec<UnboundedSender<StromNetworkEvent>>,
     swarm:            Swarm<DB>,
@@ -40,6 +42,7 @@ pub struct StromNetworkManager<DB> {
 impl<DB: Unpin> StromNetworkManager<DB> {
     pub fn new(
         swarm: Swarm<DB>,
+        eth_handle: UnboundedReceiver<EthEvent>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
         to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
     ) -> Self {
@@ -51,6 +54,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
 
         Self {
             handle: handle.clone(),
+            eth_handle,
             num_active_peers: peers,
             swarm,
             from_handle_rx: rx.into(),
@@ -170,6 +174,19 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                 }
                 _ => {}
             };
+
+            // make sure we add and remove validators properly
+            if let Poll::Ready(Some(eth_event)) = self.eth_handle.poll_recv(cx) {
+                match eth_event {
+                    EthEvent::AddedNode(addr) => {
+                        self.swarm().state().add_validator(addr);
+                    }
+                    EthEvent::RemovedNode(addr) => {
+                        self.swarm_mut().state_mut().remove_validator(addr);
+                    }
+                    _ => {}
+                }
+            }
 
             if let Poll::Ready(Some(event)) = self.swarm.poll_next_unpin(cx) {
                 match event {

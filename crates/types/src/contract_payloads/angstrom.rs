@@ -1176,6 +1176,22 @@ impl AngstromPoolConfigStore {
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
     }
 
+    pub fn length(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn remove_pair(&self, asset0: Address, asset1: Address) {
+        let key = Self::derive_store_key(asset0, asset1);
+
+        self.entries.remove(&key);
+    }
+
+    pub fn new_pool(&self, asset0: Address, asset1: Address, pool: AngPoolConfigEntry) {
+        let key = Self::derive_store_key(asset0, asset1);
+
+        self.entries.insert(key, pool);
+    }
+
     pub fn derive_store_key(asset0: Address, asset1: Address) -> AngstromPoolPartialKey {
         let hash = keccak256((asset0, asset1).abi_encode());
         let mut store_key = [0u8; 27];
