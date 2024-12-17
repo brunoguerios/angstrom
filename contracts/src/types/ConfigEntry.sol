@@ -19,9 +19,7 @@ library ConfigEntryLib {
         return ConfigEntry.unwrap(self) == 0;
     }
 
-    function tickSpacing(
-        ConfigEntry self
-    ) internal pure returns (int24 spacing) {
+    function tickSpacing(ConfigEntry self) internal pure returns (int24 spacing) {
         assembly ("memory-safe") {
             spacing := and(TICK_SPACING_MASK, shr(TICK_SPACING_OFFSET, self))
         }
@@ -33,11 +31,11 @@ library ConfigEntryLib {
         }
     }
 
-    function matchingStoreKey(
-        ConfigEntry self,
-        address asset0,
-        address asset1
-    ) internal pure returns (bool out) {
+    function matchingStoreKey(ConfigEntry self, address asset0, address asset1)
+        internal
+        pure
+        returns (bool out)
+    {
         assembly ("memory-safe") {
             mstore(0x00, asset0)
             mstore(0x20, asset1)
