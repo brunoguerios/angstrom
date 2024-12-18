@@ -99,7 +99,7 @@ impl OrderBuilder {
 
         // if the random direction changes the swap. inv the price
         if direction != zfo {
-            // unshifted_price.inv_ray_assign();
+            unshifted_price.inv_ray_assign();
         }
 
         UserOrderBuilder::new()

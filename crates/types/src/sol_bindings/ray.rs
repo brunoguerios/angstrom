@@ -311,7 +311,7 @@ impl Ray {
     }
 
     /// 1e54 / self
-    pub fn inv_ray(mut self) -> Ray {
+    pub fn inv_ray(self) -> Ray {
         self.invert(RoundingMode::Floor)
     }
 
