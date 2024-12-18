@@ -17,9 +17,9 @@ impl Default for SortStrategy {
 impl SortStrategy {
     pub fn sort_bids(&self, bids: &mut [BookOrder]) {
         if let Self::ByPriceByVolume = self {
-            // Sort by price and then by volume - highest price first, highest volume first
-            // for same price
-            bids.sort_by(|a, b| b.priority_data.cmp(&a.priority_data));
+            // given that these prices are inversed, we want to sort it oposite to what it
+            // is
+            bids.sort_by(|a, b| a.priority_data.cmp(&b.priority_data));
         }
     }
 
