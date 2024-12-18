@@ -119,7 +119,7 @@ fn fill_from_amm() {
     let amm = generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
     let book = make_books(vec![], vec![TestOrder { q: 100, p: raw_price(100) }], Some(amm));
     let mut matcher = VolumeFillMatcher::new(&book);
-    let end = matcher.run_match();
+    let _ = matcher.run_match();
     let solution = matcher.solution(None);
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }
@@ -134,7 +134,7 @@ fn amm_provides_last_mile_liquidity() {
         Some(amm)
     );
     let mut matcher = VolumeFillMatcher::new(&book);
-    let end = matcher.run_match();
+    let _ = matcher.run_match();
     let solution = matcher.solution(None);
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }
