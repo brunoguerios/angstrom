@@ -345,7 +345,6 @@ where
     fn on_network_order_event(&mut self, event: NetworkOrderEvent) {
         match event {
             NetworkOrderEvent::IncomingOrders { peer_id, orders } => {
-                tracing::debug!("recieved IncomingOrders from peer {:?}", peer_id);
                 orders.into_iter().for_each(|order| {
                     self.peer_to_info
                         .get_mut(&peer_id)
@@ -502,7 +501,6 @@ where
 
                 // drain incoming transaction events
                 while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
-                    tracing::debug!(?event, "received orders from network");
                     this.on_network_order_event(event);
                     cx.waker().wake_by_ref();
                 }
