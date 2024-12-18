@@ -139,7 +139,7 @@ impl TokenPriceGenerator {
     /// we take this price. then
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         if token_0 == WETH_ADDRESS {
-            return Some(Ray::from(1.0))
+            return Some(Ray::scale_to_ray(U256::from(1)))
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
