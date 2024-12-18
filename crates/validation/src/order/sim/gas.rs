@@ -81,6 +81,7 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        return Ok(40_000);
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -116,6 +117,8 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        return Ok(40_000);
+
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
         self.execute_on_revm(
