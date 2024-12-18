@@ -629,7 +629,6 @@ impl AngstromBundle {
                 };
                 pairs.push(pair);
             }
-            println!("user price: {:?}", user_order.limit_price());
 
             let pair_idx = pairs.len() - 1;
 
