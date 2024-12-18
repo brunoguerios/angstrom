@@ -94,6 +94,10 @@ impl UserOrderBuilder {
         Self { min_price, ..self }
     }
 
+    pub fn bid_min_price(self, min_price: Ray) -> Self {
+        Self { min_price: min_price.inv_ray_round(true), ..self }
+    }
+
     pub fn signing_key(self, signing_key: Option<AngstromSigner>) -> Self {
         Self { signing_key, ..self }
     }

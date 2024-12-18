@@ -50,6 +50,12 @@ impl Sum for Ray {
     }
 }
 
+impl From<Ray> for Natural {
+    fn from(value: Ray) -> Self {
+        Natural::from_limbs_asc(value.0.as_limbs())
+    }
+}
+
 impl From<Ray> for SolRay {
     fn from(value: Ray) -> Self {
         SolRay::from(value.0)
@@ -281,22 +287,32 @@ impl Ray {
         self
     }
 
+    fn invert(&self, rm: RoundingMode) -> Self {
+        let res: Natural = const_1e54().div_round(Natural::from(*self), rm).0;
+        Self(U256::from_limbs_slice(&res.to_limbs_asc()))
+    }
+
+    /// 1e54 / self
+    /// If `round_up` is true, will use RoundingMode::Ceiling, otherwise will
+    /// use RoundingMode::Floor.  This is for rounding in the matching engine
+    /// where we want to ensure that, depending on the bid/ask nature of the
+    /// order, we always round in a direction that is most favorable to us
+    pub fn inv_ray_round(&self, round_up: bool) -> Self {
+        if round_up {
+            self.invert(RoundingMode::Ceiling)
+        } else {
+            self.invert(RoundingMode::Floor)
+        }
+    }
+
     /// 1e54 / self
     pub fn inv_ray_assign(&mut self) {
-        let num = const_1e54().clone();
-        let denom = Natural::from_limbs_asc(self.0.as_limbs());
-
-        let res = Rational::from_naturals(num, denom);
-        let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
-        let this = U256::from_limbs_slice(&n.to_limbs_asc());
-
-        *self = Ray::from(this);
+        *self = self.invert(RoundingMode::Floor);
     }
 
     /// 1e54 / self
     pub fn inv_ray(mut self) -> Ray {
-        self.inv_ray_assign();
-        self
+        self.invert(RoundingMode::Floor)
     }
 
     pub fn max_uniswap_price() -> Self {
