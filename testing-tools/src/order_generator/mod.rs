@@ -82,7 +82,7 @@ impl<const N: usize> PriceDistribution<N> {
     /// samples around mean price
     pub fn sample_around_price(&self, amount: usize) -> Vec<f64> {
         let price_avg = self.last_prices.iter().sum::<f64>() / N as f64;
-        let normal = Normal::new(price_avg, price_avg / self.sd_factor).unwrap();
+        let normal = Normal::new(price_avg, price_avg * (self.sd_factor / 100.0)).unwrap();
         let mut rng = rand::thread_rng();
 
         let mut res = Vec::with_capacity(amount);
