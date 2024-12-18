@@ -19,7 +19,9 @@ impl SortStrategy {
         if let Self::ByPriceByVolume = self {
             // Sort by price and then by volume - highest price first, highest volume first
             // for same price
-            bids.sort_by(|a, b| b.priority_data.cmp(&a.priority_data));
+            // Because of price inversion, we're going to reverse the order of sorting for
+            // our bid prices
+            bids.sort_by(|a, b| a.priority_data.cmp(&b.priority_data));
         }
     }
 
