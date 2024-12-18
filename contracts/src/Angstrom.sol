@@ -34,7 +34,7 @@ contract Angstrom is
     IUnlockCallback,
     PermitSubmitterHook
 {
-    error LimitViolated(uint256 expected, uint256 got);
+    error LimitViolated();
     error ToBGasUsedAboveMax();
 
     constructor(IPoolManager uniV4, address controller)
@@ -203,9 +203,7 @@ contract Angstrom is
         }
 
         (reader, buffer.minPrice) = reader.readU256();
-        if (price.into() < buffer.minPrice) {
-            revert LimitViolated(buffer.minPrice, price.into());
-        }
+        if (price.into() < buffer.minPrice) revert LimitViolated();
 
         (reader, buffer.recipient) =
             variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));

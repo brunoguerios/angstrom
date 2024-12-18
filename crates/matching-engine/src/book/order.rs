@@ -107,8 +107,8 @@ impl<'a> OrderContainer<'a> {
     /// Retrieve the starting price bound for a given order
     pub fn price(&self) -> OrderPrice {
         match self {
-            Self::BookOrder(o) => o.price().into(),
-            Self::BookOrderFragment { order, .. } => order.price().into(),
+            Self::BookOrder(o) => o.price_for_book_side(o.is_bid).into(),
+            Self::BookOrderFragment { order, .. } => order.price_for_book_side(order.is_bid).into(),
             Self::AMM(o) => (*o.start_bound.price()).into(),
             Self::Composite(o) => o.start_price().into()
         }
