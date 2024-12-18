@@ -121,47 +121,6 @@ where
         Filter::new().event_signature(pool.event_signatures())
     }
 
-    /// Listens to new blocks and handles state changes, sending the pool
-    /// address if it incurred a state change in the block.
-    pub async fn subscribe_state_changes(
-        &self
-    ) -> Result<
-        (Receiver<(A, BlockNumber)>, JoinHandle<Result<(), PoolManagerError>>),
-        PoolManagerError
-    > {
-        if self
-            .sync_started
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
-        {
-            return Err(PoolManagerError::SyncAlreadyStarted)
-        }
-
-        let (pool_updated_tx, pool_updated_rx) =
-            tokio::sync::mpsc::channel::<(A, BlockNumber)>(self.state_change_buffer);
-
-        let updated_pool_handle = self.handle_state_changes(Some(pool_updated_tx)).await?;
-
-        Ok((pool_updated_rx, updated_pool_handle))
-    }
-
-    /// Listens to new blocks and handles state changes
-    pub async fn watch_state_changes(
-        &self
-    ) -> Result<JoinHandle<Result<(), PoolManagerError>>, PoolManagerError> {
-        if self
-            .sync_started
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
-        {
-            return Err(PoolManagerError::SyncAlreadyStarted)
-        }
-
-        let updated_pool_handle = self.handle_state_changes(None).await?;
-
-        Ok(updated_pool_handle)
-    }
-
     // async fn handle_state_changes(
     //     &self,
     //     pool_updated_tx: Option<Sender<(A, BlockNumber)>>

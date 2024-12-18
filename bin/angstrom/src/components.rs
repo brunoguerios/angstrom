@@ -232,12 +232,7 @@ pub async fn initialize_strom_components<Node: FullNodeComponents, AddOns: NodeA
     .await;
 
     let uniswap_pools = uniswap_pool_manager.pools();
-    executor.spawn(Box::pin(async move {
-        uniswap_pool_manager
-            .watch_state_changes()
-            .await
-            .expect("watch for uniswap pool changes");
-    }));
+    executor.spawn(Box::pin(async move { uniswap_pool_manager.await }));
     let price_generator =
         TokenPriceGenerator::new(querying_provider.clone(), block_id, uniswap_pools.clone(), None)
             .await

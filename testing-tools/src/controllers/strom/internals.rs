@@ -154,13 +154,11 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         .await;
 
         let uniswap_pools = uniswap_pool_manager.pools();
-        tokio::spawn(
-            async move { uniswap_pool_manager.watch_state_changes().await }.instrument(span!(
-                tracing::Level::ERROR,
-                "pool manager",
-                node_config.node_id
-            ))
-        );
+        tokio::spawn(async move { uniswap_pool_manager.await }.instrument(span!(
+            tracing::Level::ERROR,
+            "pool manager",
+            node_config.node_id
+        )));
 
         let token_conversion = TokenPriceGenerator::new(
             Arc::new(state_provider.rpc_provider()),
