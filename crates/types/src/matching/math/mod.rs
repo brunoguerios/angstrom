@@ -8,7 +8,7 @@ use malachite::{
     Integer, Natural, Rational
 };
 
-use super::{const_1e27, Ray, SqrtPriceX96};
+use super::{const_1e27, uniswap::Direction, Ray, SqrtPriceX96};
 
 /// Given an AMM with a constant liquidity, a debt, and a quantity of T0 will
 /// find the amount of T0 to feed into both the AMM and the debt to ensure that
@@ -97,6 +97,16 @@ pub fn low_to_high<'a, T: Ord>(a: &'a T, b: &'a T) -> (&'a T, &'a T) {
     match a.cmp(b) {
         std::cmp::Ordering::Greater => (b, a),
         _ => (a, b)
+    }
+}
+
+pub fn max_t1_for_t0(t0: u128, direction: Direction, price: Ray) -> u128 {
+    match direction {
+        // If we're buying we always round down so it's the amount it'd take to buy (t0 + 1) - 1
+        Direction::BuyingT0 => price.quantity(t0 + 1, true).saturating_sub(1),
+        // If we're selling, we always round up, so the max for a quantity is just what's at the
+        // quantity
+        Direction::SellingT0 => price.quantity(t0, false)
     }
 }
 

@@ -7,7 +7,7 @@ use alloy::primitives::U256;
 use angstrom_types::{
     matching::{
         uniswap::{Direction, PoolPrice, PoolPriceVec},
-        CompositeOrder, Debt, Ray
+        CompositeOrder, Debt, DebtType, Ray
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
@@ -180,8 +180,14 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // Limit to price so that AMM orders will only offer the quantity they can
         // profitably sell.  (Non-AMM orders ignore the provided price)
-        let ask_q = ask.quantity(bid.price());
-        let bid_q = bid.quantity(ask.price());
+        let (ask_q, bid_q) = if ask.inverse_order() && bid.inverse_order() {
+            (ask.raw_book_quantity(), bid.raw_book_quantity())
+        } else {
+            (
+                ask.quantity(bid.price(), self.debt.as_ref()),
+                bid.quantity(ask.price(), self.debt.as_ref())
+            )
+        };
 
         println!("Got bid: {} @ {:?}", bid_q, bid.price());
         println!("Got ask: {} @ {:?}", ask_q, ask.price());
@@ -211,7 +217,7 @@ impl<'a> VolumeFillMatcher<'a> {
             // Check to see if our next order is AMM.  If so we have to do some cool
             // bounding math where we reset the bound of our current order to be
             // the closer of the intersection point or the next order's bound.
-            let normal_next_q = next_ask.quantity(bid.price());
+            let normal_next_q = next_ask.quantity(bid.price(), self.debt.as_ref());
             let next_ask_q = if next_ask.is_amm() {
                 self.debt
                     .as_ref()
@@ -255,7 +261,7 @@ impl<'a> VolumeFillMatcher<'a> {
             match next_ask_q.cmp(&cur_ask_q) {
                 Ordering::Equal => {
                     println!("Equal match");
-                    // We annihilated
+                    // We annihilated in which case the debt price has moved to the next_ask price
                     self.results.price = Some(next_ask.price());
                     // Mark as filled if non-AMM order
                     if !next_ask.is_amm() && !next_ask.is_composite() {
@@ -268,7 +274,8 @@ impl<'a> VolumeFillMatcher<'a> {
                 }
                 Ordering::Greater => {
                     println!("Greater match");
-                    // Our next order is greater than our debt
+                    // Our next order is greater than our debt.  The debt has been moved to next_ask
+                    // price without consuming the entirety of next_ask
                     // The end point is our next ask's price
                     self.results.price = Some(next_ask.price());
                     // Set the Debt's current price to the target price
@@ -283,7 +290,12 @@ impl<'a> VolumeFillMatcher<'a> {
                     println!("Less match");
                     // Our debt is greater than the order
                     // Find the end price of the debt and move it there
-                    self.debt = self.debt.map(|d| d.partial_fill(matched));
+                    if let Some(cur_debt) = self.debt.as_mut() {
+                        let new_debt = cur_debt.partial_fill(matched);
+                        // Our new final price is the last moved price of our debt
+                        self.results.price = Some(new_debt.price().into());
+                        *cur_debt = new_debt;
+                    }
                     // Mark as filled if non-AMM order
                     if !next_ask.is_amm() && !next_ask.is_composite() {
                         self.ask_outcomes[self.ask_idx.get()] = OrderFillState::CompleteFill
@@ -299,6 +311,9 @@ impl<'a> VolumeFillMatcher<'a> {
         println!("Normal match of bid_q: {} vs ask_q: {}", bid_q, ask_q);
 
         // If either quantity is zero at this point we should break
+        // I actually think this might be OK - there are some edge cases where this is
+        // fine
+        // A 0-volume match can happen if we have some kind of "slack" bid or ask left
         if ask_q == 0 || bid_q == 0 {
             return Some(VolumeFillMatchEndReason::ZeroQuantity)
         }
@@ -316,6 +331,8 @@ impl<'a> VolumeFillMatcher<'a> {
         }
 
         // If bid or ask was an AMM order, we update our AMM stats
+        // Might need to work on this as well, the quantity we actually buy or sell to
+        // the AMM is not necessarily what we think
         if let Some(amm) = self.amm_price.as_mut() {
             let direction = match (bid.is_amm(), ask.is_amm()) {
                 (true, false) => Some(Direction::BuyingT0),
@@ -336,8 +353,24 @@ impl<'a> VolumeFillMatcher<'a> {
             Ordering::Equal => {
                 println!("Equal match");
                 // We annihilated
-                self.results.price = Some((*(ask.price() + bid.price()) / U256::from(2)).into());
-                // self.results.price = Some((ask.price() + bid.price()) / 2.0_f64);
+
+                // Settle our debt
+                if let Some(net_debt) = match (ask.as_debt(), bid.as_debt()) {
+                    (Some(a), Some(b)) => a + b,
+                    (a, b) => a.or(b)
+                } {
+                    self.debt += net_debt;
+                }
+
+                // If we have a debt price, this is our current price, otherwise we get a price
+                // from our orders
+                let new_price = self
+                    .debt
+                    .map(|d| d.price())
+                    .unwrap_or_else(|| (*(ask.price() + bid.price()) / U256::from(2)).into());
+
+                self.results.price = Some(new_price.into());
+
                 // Mark as filled if non-AMM order
                 if !ask.is_amm() && !ask.is_composite() {
                     self.ask_outcomes[self.ask_idx.get()] = OrderFillState::CompleteFill

@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 use malachite::{
     num::{
@@ -47,6 +47,19 @@ impl DebtType {
         let ray_price: Ray = price.into();
         ray_price.inverse_quantity(self.magnitude(), round_up)
     }
+
+    pub fn slack_at_price<T: Into<Ray>>(&self, price: T) -> u128 {
+        let ray_price: Ray = price.into();
+        ray_price.inverse_remainder(self.magnitude())
+    }
+
+    pub fn same_side(&self, other: &Self) -> bool {
+        if let Self::ExactIn(_) = self {
+            matches!(other, Self::ExactIn(_))
+        } else {
+            matches!(other, Self::ExactOut(_))
+        }
+    }
 }
 
 impl Add for DebtType {
@@ -92,6 +105,20 @@ impl Debt {
         self.cur_price
     }
 
+    /// Does this debt exist on the bid side of the book?  A debt is on the bid
+    /// side of the book when it's an ExactIn debt (i.e. I would like to pay 100
+    /// T1 and get as many T0 as I can for that amount)
+    pub fn bid_side(&self) -> bool {
+        matches!(self.magnitude, DebtType::ExactIn(_))
+    }
+
+    /// Return the T1 quantity of debt "slack" - i.e. the amount that is being
+    /// rounded away at the current price.  This is primarily for use in order
+    /// quantity calculations to ensure we don't over or underfill orders
+    pub fn slack(&self) -> u128 {
+        self.magnitude.slack_at_price(self.cur_price)
+    }
+
     /// Given the Debt's direction and rounding, return the low and high price
     /// that will result in an exchange for an identical amount of T0
     pub fn price_range(&self) -> (Ray, Ray) {
@@ -123,9 +150,6 @@ impl Debt {
     pub fn valid_for_price(&self, price: Ray) -> bool {
         let (low, high) = self.price_range();
 
-        println!("Checking if I'm valid for price {:?}", price);
-        println!("Me:  {:?}", self.cur_price);
-        println!("Low: {:?}\nHgh: {:?}", low, high);
         match self.magnitude {
             DebtType::ExactIn(_) => price > low && price <= high,
             DebtType::ExactOut(_) => price >= low && price < high
@@ -227,6 +251,39 @@ impl Debt {
                 .div_round(const_2_192(), RoundingMode::Ceiling)
                 .0;
         u128::saturating_from(&debt_delta_t0)
+    }
+}
+
+impl Add<Debt> for Option<Debt> {
+    type Output = Option<Debt>;
+
+    fn add(self, rhs: Debt) -> Self::Output {
+        match self {
+            None => Some(rhs),
+            Some(d) => d + rhs
+        }
+    }
+}
+
+impl AddAssign<Debt> for Option<Debt> {
+    fn add_assign(&mut self, rhs: Debt) {
+        *self = *self + rhs
+    }
+}
+
+impl Add<Debt> for Debt {
+    type Output = Option<Debt>;
+
+    fn add(self, rhs: Debt) -> Self::Output {
+        let magnitude = self.magnitude + rhs.magnitude;
+        if magnitude.magnitude() == 0 {
+            return None
+        }
+        // If our new magnitude is on the same side, we stay at our price.  If we flip,
+        // we flip to the other price
+        let cur_price =
+            if magnitude.same_side(&self.magnitude) { self.cur_price } else { rhs.cur_price };
+        Some(Self { magnitude, cur_price })
     }
 }
 
