@@ -8,7 +8,7 @@ use alloy::primitives::{aliases::U320, Uint, U256, U512};
 use alloy_primitives::U160;
 use malachite::{
     num::{
-        arithmetic::traits::{DivRound, Pow},
+        arithmetic::traits::{DivRound, Mod, Pow},
         conversion::traits::{RoundingInto, SaturatingFrom}
     },
     rounding_modes::RoundingMode,
@@ -368,6 +368,15 @@ impl Ray {
         let denominator = Natural::from_limbs_asc(self.0.as_limbs());
         let (res, _) = numerator.div_round(denominator, rm);
         u128::saturating_from(&res)
+    }
+
+    /// Given a price ratio t1/t0 calculates the amount of excess T1 left after
+    /// dividing out an even amount of T0
+    pub fn inverse_remainder(&self, q: u128) -> u128 {
+        let numerator = Natural::from(q) * const_1e27();
+        let denominator = Natural::from_limbs_asc(self.0.as_limbs());
+        let remainder = numerator.mod_op(denominator);
+        u128::saturating_from(&remainder)
     }
 }
 
