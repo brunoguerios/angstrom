@@ -1,6 +1,6 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
-use alloy::{network::Network, providers::Provider, rpc::types::Filter, transports::Transport};
+use alloy::{providers::Provider, rpc::types::Filter};
 use alloy_primitives::Log;
 use futures_util::StreamExt;
 
@@ -8,29 +8,24 @@ use super::PoolMangerBlocks;
 use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
 
 #[derive(Debug, Clone)]
-pub struct MockBlockStream<P, T, N> {
+pub struct MockBlockStream<P> {
     inner:      Arc<P>,
     from_block: u64,
-    to_block:   u64,
-    _phantom:   PhantomData<(T, N)>
+    to_block:   u64
 }
 
-impl<P, T, N> MockBlockStream<P, T, N>
+impl<P> MockBlockStream<P>
 where
-    P: Provider<T, N> + 'static,
-    T: Transport + Clone,
-    N: Network
+    P: Provider + Unpin + 'static + Clone
 {
     pub fn new(inner: Arc<P>, from_block: u64, to_block: u64) -> Self {
-        Self { inner, from_block, to_block, _phantom: PhantomData }
+        Self { inner, from_block, to_block }
     }
 }
 
-impl<P, T, N> PoolManagerProvider for MockBlockStream<P, T, N>
+impl<P> PoolManagerProvider for MockBlockStream<P>
 where
-    P: Provider<T, N> + Unpin + 'static + Clone,
-    T: Transport + Clone + Unpin,
-    N: Network + Unpin
+    P: Provider + Unpin + 'static + Clone
 {
     fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
         futures::stream::iter(self.from_block..=self.to_block)
@@ -62,5 +57,9 @@ where
             .collect();
 
         Ok(reth_logs)
+    }
+
+    fn provider(&self) -> Arc<impl Provider> {
+        self.inner.clone()
     }
 }

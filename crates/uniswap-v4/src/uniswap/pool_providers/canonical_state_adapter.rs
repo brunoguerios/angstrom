@@ -1,11 +1,12 @@
 use std::sync::{
     atomic::{AtomicU64, Ordering},
-    RwLock
+    Arc, RwLock
 };
 
 use alloy::{
     eips::BlockNumberOrTag,
     primitives::Log,
+    providers::Provider,
     rpc::types::{Filter, FilterBlockOption}
 };
 use futures_util::StreamExt;
@@ -15,13 +16,20 @@ use tokio::sync::broadcast;
 use super::PoolMangerBlocks;
 use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
 
-pub struct CanonicalStateAdapter {
+pub struct CanonicalStateAdapter<P>
+where
+    P: Provider + 'static
+{
     canon_state_notifications: broadcast::Receiver<CanonStateNotification>,
     last_logs:                 RwLock<Vec<Log>>,
-    last_block_number:         AtomicU64
+    last_block_number:         AtomicU64,
+    node_provider:             Arc<P>
 }
 
-impl Clone for CanonicalStateAdapter {
+impl<P> Clone for CanonicalStateAdapter<P>
+where
+    P: Provider + 'static
+{
     fn clone(&self) -> Self {
         let mut last_logs = vec![];
         let l = self.last_logs.read().unwrap();
@@ -34,22 +42,37 @@ impl Clone for CanonicalStateAdapter {
             last_logs:                 RwLock::new(last_logs),
             last_block_number:         AtomicU64::new(
                 self.last_block_number.load(Ordering::SeqCst)
-            )
+            ),
+            node_provider:             self.node_provider.clone()
         }
     }
 }
 
-impl CanonicalStateAdapter {
-    pub fn new(canon_state_notifications: broadcast::Receiver<CanonStateNotification>) -> Self {
+impl<P> CanonicalStateAdapter<P>
+where
+    P: Provider + 'static
+{
+    pub fn new(
+        canon_state_notifications: broadcast::Receiver<CanonStateNotification>,
+        node_provider: Arc<P>
+    ) -> Self {
         Self {
             canon_state_notifications,
             last_logs: RwLock::new(Vec::new()),
-            last_block_number: AtomicU64::new(0)
+            last_block_number: AtomicU64::new(0),
+            node_provider
         }
     }
 }
 
-impl PoolManagerProvider for CanonicalStateAdapter {
+impl<P> PoolManagerProvider for CanonicalStateAdapter<P>
+where
+    P: Provider + 'static
+{
+    fn provider(&self) -> Arc<impl Provider> {
+        self.node_provider.clone()
+    }
+
     fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
         futures_util::stream::unfold(
             self.canon_state_notifications.resubscribe(),
@@ -132,7 +155,10 @@ impl PoolManagerProvider for CanonicalStateAdapter {
     }
 }
 
-impl CanonicalStateAdapter {
+impl<P> CanonicalStateAdapter<P>
+where
+    P: Provider + 'static
+{
     fn validate_filter(&self, filter: &Filter) -> Result<(), PoolManagerError> {
         let last_block = self.last_block_number.load(Ordering::SeqCst);
         if let FilterBlockOption::Range { from_block, to_block } = &filter.block_option {

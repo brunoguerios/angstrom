@@ -1,10 +1,9 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use alloy::{
-    network::{BlockResponse, HeaderResponse, Network},
+    network::{BlockResponse, HeaderResponse},
     providers::Provider,
-    rpc::types::Filter,
-    transports::Transport
+    rpc::types::Filter
 };
 use alloy_primitives::Log;
 use futures_util::{FutureExt, StreamExt};
@@ -12,33 +11,31 @@ use futures_util::{FutureExt, StreamExt};
 use super::PoolMangerBlocks;
 use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManagerProvider};
 
-pub struct ProviderAdapter<P, T, N>
+#[derive(Clone)]
+pub struct ProviderAdapter<P>
 where
-    P: Provider<T, N> + Send + Sync,
-    T: Transport + Clone + Send + Sync,
-    N: Network + Send + Sync
+    P: Provider + Send + Sync
 {
-    inner:    Arc<P>,
-    _phantom: PhantomData<(T, N)>
+    inner: Arc<P>
 }
 
-impl<P, T, N> ProviderAdapter<P, T, N>
+impl<P> ProviderAdapter<P>
 where
-    P: Provider<T, N> + Send + Sync,
-    T: Transport + Clone + Send + Sync,
-    N: Network + Send + Sync
+    P: Provider + Send + Sync
 {
     pub fn new(inner: Arc<P>) -> Self {
-        Self { inner, _phantom: PhantomData }
+        Self { inner }
     }
 }
 
-impl<P, T, N> PoolManagerProvider for ProviderAdapter<P, T, N>
+impl<P> PoolManagerProvider for ProviderAdapter<P>
 where
-    P: Provider<T, N> + 'static + Send + Sync + Unpin,
-    T: Transport + Clone + Send + Sync + Unpin,
-    N: Network + Send + Sync + Unpin
+    P: Provider + Send + Sync + Clone + 'static
 {
+    fn provider(&self) -> Arc<impl Provider> {
+        self.inner.clone()
+    }
+
     fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
         let provider = self.inner.clone();
         async move { provider.subscribe_blocks().await.unwrap().into_stream() }

@@ -111,7 +111,7 @@ where
     block_sync:          BlockSync,
     block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
     sync_started:        AtomicBool,
-    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Notify)>
+    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Notify)> /* chain_provider: Arc<CP> */
 }
 
 impl<P, BlockSync, Loader, A> UniswapPoolManager<P, BlockSync, Loader, A>
@@ -327,14 +327,19 @@ where
 
     async fn load_more_ticks(
         notifier: Notify,
-        pools: SyncedUniswapPools,
+        pools: SyncedUniswapPools<A, Loader>,
         provider: Arc<P>,
         tick_req: TickRangeToLoad<A>
     ) {
-        let pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
-        pool.load_more_ticks(tick_req, None, provider)
+        let node_provider = provider.provider();
+        let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
+
+        pool.load_more_ticks(tick_req, None, node_provider)
             .await
             .unwrap();
+
+        // notify we have updated the liquidity
+        notifier.notify_one();
     }
 }
 
