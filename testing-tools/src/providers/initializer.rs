@@ -5,7 +5,7 @@ use alloy::{
         keccak256, Address
     },
     providers::{ext::AnvilApi, Provider},
-    pubsub::PubSubFrontend
+    transports::BoxTransport
 };
 use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
@@ -40,8 +40,8 @@ use crate::{
 pub struct AnvilInitializer {
     provider:      WalletProvider,
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
-    angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
-    pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
+    angstrom:      AngstromInstance<BoxTransport, WalletProviderRpc>,
+    pool_gate:     PoolGateInstance<BoxTransport, WalletProviderRpc>,
     pending_state: PendingDeployedPools
 }
 

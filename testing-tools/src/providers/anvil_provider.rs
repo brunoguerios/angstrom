@@ -126,14 +126,14 @@ impl AnvilProvider<WalletProvider> {
             .arg("--disable-block-gas-limit")
             .try_spawn()?;
 
-        let ipc = alloy::providers::IpcConnect::new("/tmp/anvil.ipc".to_string());
+        let ipc = "/tmp/anvil.ipc";
         let sk: PrivateKeySigner = anvil.keys()[7].clone().into();
 
         let wallet = EthereumWallet::new(sk.clone());
         let rpc = builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_ipc(ipc)
+            .on_builtin(&ipc)
             .await?;
 
         tracing::info!("connected to anvil");

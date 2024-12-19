@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::{providers::Provider, pubsub::PubSubFrontend};
+use alloy::{providers::Provider, transports::BoxTransport};
 use angstrom_network::StromNetworkManager;
 use angstrom_types::block_sync::GlobalBlockSync;
 use consensus::ConsensusManager;
@@ -30,20 +30,20 @@ pub(crate) struct TestnetStateFutureLock<C, T> {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C>>,
     strom_consensus:
-        StateLockInner<ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>>,
+        StateLockInner<ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>>,
     validation:            StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>
 }
 
 impl<C, T> TestnetStateFutureLock<C, T>
 where
     C: Unpin + BlockReader + 'static,
-    T: Provider<PubSubFrontend> + 'static
+    T: Provider<BoxTransport> + 'static
 {
     pub(crate) fn new(
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C>,
-        consensus: ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>,
+        consensus: ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>,
         validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>
     ) -> Self {
         Self {
@@ -84,14 +84,14 @@ where
 
     pub(crate) fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus.on_inner(f)
     }
 
     pub(crate) fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T, PubSubFrontend, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&mut ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus.on_inner_mut(f)
     }

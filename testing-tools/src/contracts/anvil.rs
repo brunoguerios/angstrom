@@ -16,7 +16,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
     transports::{
         http::{Client, Http},
-        Transport
+        BoxTransport, Transport
     }
 };
 use alloy_primitives::Address;
@@ -30,8 +30,8 @@ pub type WalletProviderRpc = FillProvider<
         >,
         WalletFiller<EthereumWallet>
     >,
-    RootProvider<PubSubFrontend>,
-    PubSubFrontend,
+    RootProvider<BoxTransport>,
+    BoxTransport,
     Ethereum
 >;
 
@@ -52,8 +52,8 @@ pub type LocalAnvilRpc = alloy::providers::fillers::FillProvider<
         >,
         alloy::providers::fillers::WalletFiller<EthereumWallet>
     >,
-    RootProvider<Http<Client>>,
-    Http<Client>,
+    RootProvider<BoxTransport>,
+    BoxTransport,
     Ethereum
 >;
 
@@ -68,14 +68,14 @@ pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, Walle
 
     let endpoint = "/tmp/anvil.ipc";
     tracing::info!(?endpoint);
-    let ipc = IpcConnect::new(endpoint.to_string());
+    // let ipc = IpcConnect::new(endpoint.to_string());
     let sk: PrivateKeySigner = anvil.keys()[anvil_key].clone().into();
 
     let wallet = EthereumWallet::new(sk);
     let rpc = builder::<Ethereum>()
         .with_recommended_fillers()
         .wallet(wallet)
-        .on_ipc(ipc)
+        .on_builtin(&endpoint.to_string())
         .await?;
 
     tracing::info!("connected to anvil");

@@ -20,8 +20,7 @@ pub mod mockreward;
 pub mod uniswap;
 
 pub trait TestAnvilEnvironment: Clone {
-    type T: Clone + Send + Sync + alloy::transports::Transport;
-    type P: alloy::providers::Provider<Self::T, Ethereum>;
+    type P: alloy::providers::Provider;
 
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;
@@ -64,7 +63,6 @@ impl SpawnedAnvil {
 
 impl TestAnvilEnvironment for SpawnedAnvil {
     type P = WalletProviderRpc;
-    type T = PubSubFrontend;
 
     fn provider(&self) -> &Self::P {
         &self.provider
@@ -91,14 +89,16 @@ impl LocalAnvil {
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_http(url.clone().parse()?);
+            .on_builtin(&url)
+            .await
+            .unwrap();
+
         Ok(Self { _url: url, provider })
     }
 }
 
 impl TestAnvilEnvironment for LocalAnvil {
     type P = LocalAnvilRpc;
-    type T = Http<Client>;
 
     fn provider(&self) -> &Self::P {
         &self.provider

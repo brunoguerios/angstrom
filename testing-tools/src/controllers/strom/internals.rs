@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use alloy::{providers::Provider, pubsub::PubSubFrontend};
+use alloy::{providers::Provider, transports::BoxTransport};
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
@@ -64,7 +64,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         block_sync: GlobalBlockSync
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>,
+        ConsensusManager<WalletProviderRpc, BoxTransport, MatcherHandle, GlobalBlockSync>,
         TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where

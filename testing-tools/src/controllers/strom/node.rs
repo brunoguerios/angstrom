@@ -6,7 +6,7 @@ use std::{
     task::Poll
 };
 
-use alloy::pubsub::PubSubFrontend;
+use alloy::transports::BoxTransport;
 use alloy_primitives::Address;
 use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
@@ -244,7 +244,7 @@ where
     pub fn strom_consensus<F, R>(&self, f: F) -> R
     where
         F: FnOnce(
-            &ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+            &ConsensusManager<WalletProviderRpc, BoxTransport, MatcherHandle, GlobalBlockSync>
         ) -> R
     {
         self.state_lock.strom_consensus(f)
@@ -253,7 +253,7 @@ where
     pub fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
         F: FnOnce(
-            &mut ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>
+            &mut ConsensusManager<WalletProviderRpc, BoxTransport, MatcherHandle, GlobalBlockSync>
         ) -> R
     {
         self.state_lock.strom_consensus_mut(f)
