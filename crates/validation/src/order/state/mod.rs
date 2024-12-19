@@ -36,7 +36,7 @@ impl<Pools, Fetch> Clone for StateValidation<Pools, Fetch> {
         Self {
             user_account_tracker: Arc::clone(&self.user_account_tracker),
             pool_tacker:          Arc::clone(&self.pool_tacker),
-            uniswap_pools:        Arc::clone(&self.uniswap_pools)
+            uniswap_pools:        self.uniswap_pools.clone()
         }
     }
 }

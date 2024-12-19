@@ -15,6 +15,7 @@
 //     pool_providers::mock_block_stream::MockBlockStream
 // };
 //
+fn main() {}
 // #[tokio::main]
 // async fn main() -> eyre::Result<()> {
 //     std::env::set_var("RUST_LOG", "amms=trace,matching_engine=debug,info");
