@@ -21,7 +21,7 @@ use uniswap_v3_math::{
     tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK}
 };
 
-use super::pool_data_loader::PoolData;
+use super::{pool_data_loader::PoolData, pool_manager::TickRangeToLoad};
 use crate::uniswap::{
     i32_to_i24,
     pool_data_loader::{DataLoader, ModifyPositionEvent, PoolDataLoader, TickData},
@@ -160,6 +160,43 @@ where
             .await?;
 
         Ok((tick_data, block_number))
+    }
+
+    pub async fn load_more_ticks<P: Provider<T>, T: Transport + Clone>(
+        &mut self,
+        tick_data: TickRangeToLoad<A>,
+        block_number: Option<BlockNumber>,
+        provider: Arc<P>
+    ) -> Result<(), PoolError> {
+        let mut fetched_ticks = self
+            .get_tick_data_batch_request(
+                i32_to_i24(tick_data.start_tick)?,
+                tick_data.zfo,
+                tick_data.tick_count,
+                block_number,
+                provider
+            )
+            .await?
+            .0;
+
+        fetched_ticks.sort_by_key(|k| k.tick);
+
+        fetched_ticks
+            .into_iter()
+            .filter(|tick| tick.initialized)
+            .for_each(|tick| {
+                self.ticks.insert(
+                    tick.tick.as_i32(),
+                    TickInfo {
+                        initialized:     tick.initialized,
+                        liquidity_gross: tick.liquidityGross,
+                        liquidity_net:   tick.liquidityNet
+                    }
+                );
+                self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
+            });
+
+        Ok(())
     }
 
     async fn sync_ticks<P: Provider<T>, T: Transport + Clone>(

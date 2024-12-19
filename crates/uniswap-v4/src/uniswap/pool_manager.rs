@@ -49,10 +49,11 @@ pub type SyncedUniswapPool<A = PoolId, Loader = DataLoader<A>> =
 const MODULE_NAME: &str = "UniswapV4";
 
 #[derive(Debug, Clone, Copy)]
-struct TickRangeToLoad {
-    pub pool_id: PoolId,
-    pub lower:   i32,
-    pub upper:   i32
+pub struct TickRangeToLoad<A = PoolId> {
+    pub pool_id:    A,
+    pub start_tick: i32,
+    pub zfo:        bool,
+    pub tick_count: u16
 }
 
 #[derive(Clone)]
@@ -61,7 +62,7 @@ where
     Loader: PoolDataLoader<A>
 {
     pools: Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>,
-    tx:    tokio::sync::mpsc::Sender<(TickRangeToLoad, Notify)>
+    tx:    tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Notify)>
 }
 
 impl<A, Loader> Deref for SyncedUniswapPools<A, Loader>
@@ -81,7 +82,7 @@ where
 {
     pub fn new(
         pools: Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>,
-        tx: tokio::sync::mpsc::Sender<(TickRangeToLoad, Notify)>
+        tx: tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Notify)>
     ) -> Self {
         Self { pools, tx }
     }
@@ -110,7 +111,7 @@ where
     block_sync:          BlockSync,
     block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
     sync_started:        AtomicBool,
-    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad, Notify)>
+    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Notify)>
 }
 
 impl<P, BlockSync, Loader, A> UniswapPoolManager<P, BlockSync, Loader, A>
@@ -324,8 +325,16 @@ where
         }
     }
 
-    fn load_more_ticks(&self, tick_req: TickRangeToLoad) {
-        self.pools.get(&tick_req.pool_id)
+    async fn load_more_ticks(
+        notifier: Notify,
+        pools: SyncedUniswapPools,
+        provider: Arc<P>,
+        tick_req: TickRangeToLoad<A>
+    ) {
+        let pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
+        pool.load_more_ticks(tick_req, None, provider)
+            .await
+            .unwrap();
     }
 }
 
