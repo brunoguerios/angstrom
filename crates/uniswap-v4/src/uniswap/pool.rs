@@ -1,4 +1,10 @@
-use std::{cmp::Ordering, collections::HashMap, fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{hash_map::Entry, HashMap},
+    fmt::Debug,
+    marker::PhantomData,
+    sync::Arc
+};
 
 use alloy::{
     hex,
@@ -588,7 +594,12 @@ where
     }
 
     pub fn update_tick(&mut self, tick: i32, liquidity_delta: i128, upper: bool) -> bool {
-        let info = self.ticks.entry(tick).or_default();
+        let Entry::Occupied(mut e) = self.ticks.entry(tick) else {
+            // we return false here because if the tick hasn't been loaded by the loader.
+            // Initializing from this log will lead to incorrect data.
+            return false;
+        };
+        let info = e.get_mut();
 
         let liquidity_gross_before = info.liquidity_gross;
 
