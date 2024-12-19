@@ -707,6 +707,7 @@ impl AngstromBundle {
                 price_1over0: ucp
             };
             pairs.push(pair);
+
             let pair_idx = pairs.len() - 1;
 
             // Pull out our net AMM order
@@ -791,10 +792,11 @@ impl AngstromBundle {
                 .get(&solution.id)
                 .map(|order_set| order_set.iter().collect())
                 .unwrap_or_default();
+
             // Sort the user order list so we can properly associate it with our
             // OrderOutcomes.  First bids by price then asks by price.
             order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
-                (true, true) => b.priority_data.cmp(&a.priority_data),
+                (true, true) => a.priority_data.cmp(&b.priority_data),
                 (false, false) => a.priority_data.cmp(&b.priority_data),
                 (..) => b.is_bid.cmp(&a.is_bid)
             });
@@ -806,6 +808,8 @@ impl AngstromBundle {
                 .zip(order_list.iter())
                 .filter(|(outcome, _)| outcome.is_filled())
             {
+                assert_eq!(outcome.id.hash, order.order_id.hash);
+
                 let quantity_out = match outcome.outcome {
                     OrderFillState::PartialFill(p) => p,
                     _ => order.quantity()
@@ -1046,7 +1050,7 @@ impl AngstromBundle {
             // Sort the user order list so we can properly associate it with our
             // OrderOutcomes.  First bids by price then asks by price.
             order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
-                (true, true) => b.priority_data.cmp(&a.priority_data),
+                (true, true) => a.priority_data.cmp(&b.priority_data),
                 (false, false) => a.priority_data.cmp(&b.priority_data),
                 (..) => b.is_bid.cmp(&a.is_bid)
             });
@@ -1058,8 +1062,10 @@ impl AngstromBundle {
                 .zip(order_list.iter())
                 .filter(|(outcome, _)| outcome.is_filled())
             {
+                assert_eq!(outcome.id.hash, order.order_id.hash);
                 let t0_moving = U256::from(outcome.fill_amount(order.quantity()));
                 let t1_moving = Ray::from(ucp).mul_quantity(t0_moving);
+
                 let (quantity_in, quantity_out) =
                     if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
                 // Account for our user order
