@@ -162,23 +162,7 @@ where
         Ok((tick_data, block_number))
     }
 
-    pub async fn load_more_ticks<P: Provider<T>, T: Transport + Clone>(
-        &mut self,
-        tick_data: TickRangeToLoad<A>,
-        block_number: Option<BlockNumber>,
-        provider: Arc<P>
-    ) -> Result<(), PoolError> {
-        let mut fetched_ticks = self
-            .get_tick_data_batch_request(
-                i32_to_i24(tick_data.start_tick)?,
-                tick_data.zfo,
-                tick_data.tick_count,
-                block_number,
-                provider
-            )
-            .await?
-            .0;
-
+    pub fn apply_ticks(&mut self, mut fetched_ticks: Vec<TickData>) {
         fetched_ticks.sort_by_key(|k| k.tick);
 
         fetched_ticks
@@ -195,8 +179,24 @@ where
                 );
                 self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
             });
+    }
 
-        Ok(())
+    pub async fn load_more_ticks<P: Provider<T>, T: Transport + Clone>(
+        &self,
+        tick_data: TickRangeToLoad<A>,
+        block_number: Option<BlockNumber>,
+        provider: Arc<P>
+    ) -> Result<Vec<TickData>, PoolError> {
+        Ok(self
+            .get_tick_data_batch_request(
+                i32_to_i24(tick_data.start_tick)?,
+                tick_data.zfo,
+                tick_data.tick_count,
+                block_number,
+                provider
+            )
+            .await?
+            .0)
     }
 
     async fn sync_ticks<P: Provider<T>, T: Transport + Clone>(

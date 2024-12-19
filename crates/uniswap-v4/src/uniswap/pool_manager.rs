@@ -324,7 +324,7 @@ where
         tick_req: TickRangeToLoad<A>
     ) {
         let node_provider = provider.provider();
-        let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
+        let mut pool = pools.get(&tick_req.pool_id).unwrap().read().unwrap();
 
         pool.load_more_ticks(tick_req, None, node_provider)
             .await
