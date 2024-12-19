@@ -133,7 +133,7 @@ impl AnvilProvider<WalletProvider> {
         let rpc = builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_builtin(&ipc)
+            .on_builtin(ipc)
             .await?;
 
         tracing::info!("connected to anvil");

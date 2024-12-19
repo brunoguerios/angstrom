@@ -1,7 +1,7 @@
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
-    providers::{ext::AnvilApi, IpcConnect},
+    providers::ext::AnvilApi,
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, U256};

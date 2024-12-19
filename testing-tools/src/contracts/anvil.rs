@@ -10,12 +10,10 @@ use alloy::{
             BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller,
             WalletFiller
         },
-        Identity, IpcConnect, PendingTransaction, Provider, RootProvider
+        Identity, PendingTransaction, Provider, RootProvider
     },
-    pubsub::PubSubFrontend,
     signers::local::PrivateKeySigner,
     transports::{
-        http::{Client, Http},
         BoxTransport, Transport
     }
 };
@@ -75,7 +73,7 @@ pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, Walle
     let rpc = builder::<Ethereum>()
         .with_recommended_fillers()
         .wallet(wallet)
-        .on_builtin(&endpoint.to_string())
+        .on_builtin(endpoint)
         .await?;
 
     tracing::info!("connected to anvil");

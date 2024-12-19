@@ -24,13 +24,7 @@ use angstrom_types::{
 use arraydeque::ArrayDeque;
 use futures_util::{stream::BoxStream, StreamExt};
 use thiserror::Error;
-use tokio::{
-    sync::{
-        mpsc::{Receiver, Sender},
-        Notify
-    },
-    task::JoinHandle
-};
+use tokio::sync::Notify;
 
 use super::{pool::PoolError, pool_providers::PoolMangerBlocks};
 use crate::uniswap::{

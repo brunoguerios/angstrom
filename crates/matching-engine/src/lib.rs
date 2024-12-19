@@ -3,7 +3,7 @@ use std::{
     sync::Arc
 };
 
-use alloy::{providers::Provider, transports::Transport};
+use alloy::providers::Provider;
 use alloy_primitives::{Address, BlockNumber};
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
@@ -22,7 +22,7 @@ use uniswap_v4::uniswap::{
     pool::EnhancedUniswapPool,
     pool_data_loader::DataLoader,
     pool_manager::UniswapPoolManager,
-    pool_providers::{canonical_state_adapter::CanonicalStateAdapter, PoolManagerProvider}
+    pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
 
 pub mod book;

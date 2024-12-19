@@ -154,7 +154,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         .await;
 
         let uniswap_pools = uniswap_pool_manager.pools();
-        tokio::spawn(async move { uniswap_pool_manager.await }.instrument(span!(
+        tokio::spawn(uniswap_pool_manager.instrument(span!(
             tracing::Level::ERROR,
             "pool manager",
             node_config.node_id

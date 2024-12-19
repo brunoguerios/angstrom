@@ -1,13 +1,11 @@
 use std::{str::FromStr, sync::Arc, time::Duration};
 
 use alloy::{
-    network::{Ethereum, EthereumWallet},
+    network::EthereumWallet,
     node_bindings::AnvilInstance,
     primitives::{Address, U256},
     providers::{ext::AnvilApi, ProviderBuilder},
-    pubsub::PubSubFrontend,
-    signers::local::PrivateKeySigner,
-    transports::http::{Client, Http}
+    signers::local::PrivateKeySigner
 };
 use futures::Future;
 use tracing::debug;
