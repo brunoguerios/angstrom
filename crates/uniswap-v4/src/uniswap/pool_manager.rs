@@ -104,8 +104,7 @@ where
     provider:            Arc<P>,
     block_sync:          BlockSync,
     block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
-    sync_started:        AtomicBool,
-    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Notify)> /* chain_provider: Arc<CP> */
+    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Notify)>
 }
 
 impl<P, BlockSync, Loader, A> UniswapPoolManager<P, BlockSync, Loader, A>
@@ -139,7 +138,6 @@ where
             state_change_cache: Arc::new(RwLock::new(HashMap::new())),
             block_stream,
             provider,
-            sync_started: AtomicBool::new(false),
             block_sync,
             rx
         }
@@ -352,6 +350,13 @@ where
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
             self.handle_new_block_info(block_info);
+        }
+        while let Poll::Ready(Some((ticks, not))) = self.rx.poll_recv(cx) {
+            let pools = self.pools.clone();
+            let prov = self.provider.clone();
+            tokio::spawn(async move {
+                Self::load_more_ticks(not, pools, prov, ticks).await;
+            });
         }
 
         Poll::Pending
