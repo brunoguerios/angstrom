@@ -104,7 +104,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         };
         let input = angstrom_tx.input();
 
-        let Ok(bytes) = TestnetHub::executeCall::abi_decode(&input, false) else {
+        let Ok(bytes) = TestnetHub::executeCall::abi_decode(input, false) else {
             tracing::warn!("found angstrom contract call thats not a bundle");
             return
         };

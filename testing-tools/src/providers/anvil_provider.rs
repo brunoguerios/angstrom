@@ -181,8 +181,8 @@ impl StreamBlockProvider {
         let block = provider
             .get_block(number.into(), BlockTransactionsKind::Full)
             .await
-            .expect(&format!("could not get block number {number}"))
-            .expect(&format!("no block found - number {number}"));
+            .unwrap_or_else(|_| panic!("could not get block number {number}"))
+            .unwrap_or_else(|| panic!("no block found - number {number}"));
 
         (number, block.transactions.into_transactions().collect())
     }
