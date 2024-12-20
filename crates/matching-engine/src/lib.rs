@@ -19,9 +19,7 @@ use book::{BookOrder, OrderBook};
 use futures_util::future::BoxFuture;
 use reth_provider::CanonStateNotifications;
 use uniswap_v4::uniswap::{
-    pool::EnhancedUniswapPool,
-    pool_data_loader::DataLoader,
-    pool_manager::UniswapPoolManager,
+    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
     pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
 

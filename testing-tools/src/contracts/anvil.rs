@@ -13,9 +13,7 @@ use alloy::{
         Identity, PendingTransaction, Provider, RootProvider
     },
     signers::local::PrivateKeySigner,
-    transports::{
-        BoxTransport, Transport
-    }
+    transports::{BoxTransport, Transport}
 };
 use alloy_primitives::Address;
 use alloy_sol_types::SolCall;

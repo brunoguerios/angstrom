@@ -4,7 +4,7 @@ use std::{
     future::Future,
     hash::Hash,
     ops::Deref,
-    sync::{atomic::AtomicBool, Arc, RwLock, RwLockReadGuard},
+    sync::{Arc, RwLock, RwLockReadGuard},
     task::Poll
 };
 
@@ -22,6 +22,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
+use futures::FutureExt;
 use futures_util::{stream::BoxStream, StreamExt};
 use thiserror::Error;
 use tokio::sync::Notify;
@@ -34,8 +35,6 @@ use crate::uniswap::{
 };
 
 pub type StateChangeCache<Loader, A> = HashMap<A, ArrayDeque<StateChange<Loader, A>, 150>>;
-// pub type SyncedUniswapPools<A = PoolId, Loader = DataLoader<A>> =
-//     Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>;
 
 pub type SyncedUniswapPool<A = PoolId, Loader = DataLoader<A>> =
     Arc<RwLock<EnhancedUniswapPool<Loader, A>>>;
@@ -50,12 +49,14 @@ pub struct TickRangeToLoad<A = PoolId> {
     pub tick_count: u16
 }
 
+type PoolMap<Loader, A> = Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>;
+
 #[derive(Clone)]
 pub struct SyncedUniswapPools<A = PoolId, Loader = DataLoader<A>>
 where
     Loader: PoolDataLoader<A>
 {
-    pools: Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>,
+    pools: PoolMap<Loader, A>,
     tx:    tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Notify)>
 }
 
@@ -63,7 +64,7 @@ impl<A, Loader> Deref for SyncedUniswapPools<A, Loader>
 where
     Loader: PoolDataLoader<A>
 {
-    type Target = Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>;
+    type Target = PoolMap<Loader, A>;
 
     fn deref(&self) -> &Self::Target {
         &self.pools
@@ -75,7 +76,7 @@ where
     Loader: PoolDataLoader<A>
 {
     pub fn new(
-        pools: Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>,
+        pools: PoolMap<Loader, A>,
         tx: tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Notify)>
     ) -> Self {
         Self { pools, tx }
@@ -317,6 +318,7 @@ where
         }
     }
 
+    #[allow(clippy::await_holding_lock)]
     async fn load_more_ticks(
         notifier: Notify,
         pools: SyncedUniswapPools<A, Loader>,
@@ -324,11 +326,15 @@ where
         tick_req: TickRangeToLoad<A>
     ) {
         let node_provider = provider.provider();
-        let mut pool = pools.get(&tick_req.pool_id).unwrap().read().unwrap();
+        let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
 
-        pool.load_more_ticks(tick_req, None, node_provider)
+        // problematic await on a lock
+        let ticks = pool
+            .load_more_ticks(tick_req, None, node_provider)
             .await
             .unwrap();
+
+        pool.apply_ticks(ticks);
 
         // notify we have updated the liquidity
         notifier.notify_one();
@@ -352,11 +358,11 @@ where
             self.handle_new_block_info(block_info);
         }
         while let Poll::Ready(Some((ticks, not))) = self.rx.poll_recv(cx) {
+            // hacky for now but only way to avoid lock problems
             let pools = self.pools.clone();
             let prov = self.provider.clone();
-            tokio::spawn(async move {
-                Self::load_more_ticks(not, pools, prov, ticks).await;
-            });
+            let mut f = Box::pin(Self::load_more_ticks(not, pools, prov, ticks));
+            while f.poll_unpin(cx).is_pending() {}
         }
 
         Poll::Pending
