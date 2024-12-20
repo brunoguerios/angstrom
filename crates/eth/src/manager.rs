@@ -385,7 +385,7 @@ impl ChainExt for Chain {
     }
 
     fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
-        self.tip().transactions().into_iter()
+        self.tip().transactions().iter()
     }
 }
 

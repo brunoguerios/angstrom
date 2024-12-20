@@ -1,7 +1,7 @@
 mod fillstate;
 mod origin;
 use alloy::{
-    primitives::{keccak256, Address, FixedBytes, Signature, B256, U256},
+    primitives::{keccak256, Address, FixedBytes, PrimitiveSignature, B256, U256},
     sol_types::SolValue
 };
 pub mod orderpool;
@@ -130,7 +130,7 @@ impl Ord for PoolSolution {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CancelOrderRequest {
-    pub signature:    Signature,
+    pub signature:    PrimitiveSignature,
     // if there's no salt to make this a unique signing hash. One can just
     // copy the signature of the order and id and it will verify
     pub user_address: Address,
