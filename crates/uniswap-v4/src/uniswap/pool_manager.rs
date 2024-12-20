@@ -57,7 +57,7 @@ where
     Loader: PoolDataLoader<A>
 {
     pools: PoolMap<Loader, A>,
-    tx:    tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Notify)>
+    tx:    tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Arc<Notify>)>
 }
 
 impl<A, Loader> Deref for SyncedUniswapPools<A, Loader>
@@ -71,13 +71,17 @@ where
     }
 }
 
+/// Amount of ticks to load when we go out of scope;
+const OUT_OF_SCOPE_TICKS: u16 = 20;
+
 impl<A, Loader> SyncedUniswapPools<A, Loader>
 where
-    Loader: PoolDataLoader<A>
+    Loader: PoolDataLoader<A> + Default,
+    A: Debug + Hash + PartialEq + Eq + Copy + Default
 {
     pub fn new(
         pools: PoolMap<Loader, A>,
-        tx: tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Notify)>
+        tx: tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Arc<Notify>)>
     ) -> Self {
         Self { pools, tx }
     }
@@ -88,9 +92,47 @@ where
     /// simulate a order.
     pub async fn calculate_rewards(
         &self,
+        pool_id: A,
         tob: &OrderWithStorageData<TopOfBlockOrder>
     ) -> eyre::Result<ToBOutcome> {
-        todo!()
+        let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
+        let market_snapshot = pool.fetch_pool_snapshot().map(|v| v.2).unwrap();
+
+        let mut cnt = 5;
+        loop {
+            let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot);
+            if outcome.is_err() {
+                let zfo = !tob.is_bid;
+                let not = Arc::new(Notify::new());
+                let start_tick =
+                    if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() };
+
+                let _ = self
+                    .tx
+                    .send((
+                        // load 50 more ticks on the side of the order and try again
+                        TickRangeToLoad {
+                            pool_id,
+                            start_tick,
+                            zfo,
+                            tick_count: OUT_OF_SCOPE_TICKS
+                        },
+                        not.clone()
+                    ))
+                    .await;
+
+                not.notified().await;
+
+                // don't loop forever
+                cnt -= 1;
+                if cnt == 0 {
+                    return outcome
+                }
+
+                continue
+            }
+            return outcome
+        }
     }
 }
 
@@ -105,7 +147,7 @@ where
     provider:            Arc<P>,
     block_sync:          BlockSync,
     block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
-    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Notify)>
+    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Arc<Notify>)>
 }
 
 impl<P, BlockSync, Loader, A> UniswapPoolManager<P, BlockSync, Loader, A>
@@ -320,7 +362,7 @@ where
 
     #[allow(clippy::await_holding_lock)]
     async fn load_more_ticks(
-        notifier: Notify,
+        notifier: Arc<Notify>,
         pools: SyncedUniswapPools<A, Loader>,
         provider: Arc<P>,
         tick_req: TickRangeToLoad<A>

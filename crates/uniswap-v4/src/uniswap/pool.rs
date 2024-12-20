@@ -97,6 +97,14 @@ where
             .await
     }
 
+    pub fn fetch_lowest_tick(&self) -> i32 {
+        *self.ticks.keys().min().unwrap()
+    }
+
+    pub fn fetch_highest_tick(&self) -> i32 {
+        *self.ticks.keys().max().unwrap()
+    }
+
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, PoolSnapshot), PoolError> {
         if !self.data_is_populated() {
             return Err(PoolError::PoolNotInitialized)
