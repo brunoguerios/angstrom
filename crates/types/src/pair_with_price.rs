@@ -1,4 +1,4 @@
-use alloy::primitives::Address;
+use alloy::{consensus::Transaction, primitives::Address};
 use futures::{Stream, StreamExt};
 use pade::PadeDecode;
 use reth_provider::CanonStateNotificationStream;
@@ -44,6 +44,7 @@ impl PairsWithPrice {
             new_cannon_chain
                 .tip()
                 .transactions()
+                .iter()
                 .filter(|tx| tx.transaction.to() == Some(angstrom_address))
                 .filter_map(|transaction| {
                     let mut input: &[u8] = transaction.input();
