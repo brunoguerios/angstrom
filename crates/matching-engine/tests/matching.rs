@@ -1,7 +1,13 @@
 use alloy::primitives::U256;
 use alloy_primitives::FixedBytes;
-use angstrom_types::matching::{uniswap::PoolSnapshot, Ray};
-use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
+use angstrom_types::{
+    matching::{uniswap::PoolSnapshot, Ray, SqrtPriceX96},
+    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+};
+use matching_engine::{
+    book::{BookOrder, OrderBook},
+    matcher::VolumeFillMatcher
+};
 use testing_tools::type_generator::{
     amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder
 };
@@ -11,33 +17,33 @@ struct TestOrder {
     p: Ray
 }
 
+impl TestOrder {
+    pub fn to_order(&self, is_bid: bool) -> BookOrder {
+        let min_price = if is_bid { self.p.inv_ray_round(true) } else { self.p };
+        UserOrderBuilder::new()
+            .amount(self.q)
+            .min_price(min_price)
+            .with_storage()
+            .is_bid(is_bid)
+            .build()
+    }
+
+    pub fn to_bid(&self) -> OrderWithStorageData<GroupedVanillaOrder> {
+        self.to_order(true)
+    }
+
+    pub fn to_ask(&self) -> OrderWithStorageData<GroupedVanillaOrder> {
+        self.to_order(false)
+    }
+}
+
 fn make_books(
     bids_raw: Vec<TestOrder>,
     asks_raw: Vec<TestOrder>,
     amm: Option<PoolSnapshot>
 ) -> OrderBook {
-    let bids = bids_raw
-        .iter()
-        .map(|b| {
-            UserOrderBuilder::new()
-                .amount(b.q)
-                .min_price(b.p)
-                .with_storage()
-                .bid()
-                .build()
-        })
-        .collect();
-    let asks = asks_raw
-        .iter()
-        .map(|a| {
-            UserOrderBuilder::new()
-                .amount(a.q)
-                .min_price(a.p)
-                .with_storage()
-                .ask()
-                .build()
-        })
-        .collect();
+    let bids = bids_raw.iter().map(TestOrder::to_bid).collect();
+    let asks = asks_raw.iter().map(TestOrder::to_ask).collect();
     OrderBook::new(
         FixedBytes::random(),
         amm,
@@ -113,9 +119,25 @@ fn fill_from_amm() {
     let amm = generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
     let book = make_books(vec![], vec![TestOrder { q: 100, p: raw_price(100) }], Some(amm));
     let mut matcher = VolumeFillMatcher::new(&book);
-    let end = matcher.run_match();
-    println!("End reason: {:?}", end);
+    let _ = matcher.run_match();
     let solution = matcher.solution(None);
-    println!("Solution:\n{:?}", solution);
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }
+
+#[test]
+fn amm_provides_last_mile_liquidity() {
+    let amm_price = Ray::from(SqrtPriceX96::at_tick(100001).unwrap());
+    let amm = generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
+    let book = make_books(
+        vec![TestOrder { q: 100, p: amm_price + 100_usize }],
+        vec![TestOrder { q: 50, p: amm_price - 100_usize }],
+        Some(amm)
+    );
+    let mut matcher = VolumeFillMatcher::new(&book);
+    let _ = matcher.run_match();
+    let solution = matcher.solution(None);
+    assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
+}
+
+#[test]
+fn debt_price_is_final_price() {}

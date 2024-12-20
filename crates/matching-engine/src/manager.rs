@@ -186,7 +186,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         let bundle =
             AngstromBundle::for_gas_finalization(limit, solutions.clone(), &pool_snapshots)?;
 
-        println!("{:?}", bundle);
+        println!("{:#?}", bundle);
         let gas_response = self.validation_handle.fetch_gas_for_bundle(bundle).await?;
 
         Ok((solutions, gas_response))

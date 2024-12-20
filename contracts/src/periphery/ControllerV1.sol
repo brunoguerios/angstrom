@@ -36,7 +36,13 @@ contract ControllerV1 is Ownable2Step {
         uint16 tickSpacing,
         uint24 feeInE6
     );
-    event PoolRemoved(address indexed asset0, address indexed asset1);
+
+    event PoolRemoved(
+        address indexed asset0,
+        address indexed asset1,
+        int24 tickSpacing,
+        uint24 feeInE6
+    );
 
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
@@ -120,22 +126,34 @@ contract ControllerV1 is Ownable2Step {
 
     function removePool(address asset0, address asset1) external {
         _checkOwner();
+
+        if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
             asset0,
             asset1
         );
         address configStore = _configStore();
         uint256 poolIndex = 0;
+
+        int24 tickSpacing;
+        uint24 feeInE6;
+
         while (true) {
             ConfigEntry entry = _getAndCheckStoreEntry(
                 configStore,
                 poolIndex,
                 key
             );
+            if (entry.matchingStoreKey(asset0, asset1)) {
+                tickSpacing = entry.tickSpacing();
+                feeInE6 = entry.feeInE6();
+            }
+
             if (!entry.isEmpty()) break;
+
             poolIndex++;
         }
-        emit PoolRemoved(asset0, asset1);
+        emit PoolRemoved(asset0, asset1, tickSpacing, feeInE6);
         ANGSTROM.removePool(configStore, poolIndex);
     }
 
@@ -182,7 +200,7 @@ contract ControllerV1 is Ownable2Step {
         return _nodes.values();
     }
 
-    function _configStore() internal view returns (address addr) {
+    function _configStore() public view returns (address addr) {
         bytes32 slotValue = ANGSTROM.extsload(STORE_ANGSTROM_SLOT);
         assembly ("memory-safe") {
             addr := shr(STORE_RIGHT_SHIFT, slotValue)

@@ -1,6 +1,9 @@
 mod fillstate;
 mod origin;
-use alloy::primitives::U256;
+use alloy::{
+    primitives::{keccak256, Address, FixedBytes, Signature, B256, U256},
+    sol_types::SolValue
+};
 pub mod orderpool;
 
 pub use fillstate::*;
@@ -122,5 +125,27 @@ impl PartialOrd for PoolSolution {
 impl Ord for PoolSolution {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.id.cmp(&other.id)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CancelOrderRequest {
+    pub signature:    Signature,
+    // if there's no salt to make this a unique signing hash. One can just
+    // copy the signature of the order and id and it will verify
+    pub user_address: Address,
+    pub order_id:     B256
+}
+
+impl CancelOrderRequest {
+    fn signing_payload(&self) -> FixedBytes<32> {
+        keccak256((self.user_address, self.order_id).abi_encode())
+    }
+
+    pub fn is_valid(&self) -> bool {
+        let hash = self.signing_payload();
+        let Ok(sender) = self.signature.recover_address_from_prehash(&hash) else { return false };
+
+        sender == self.user_address
     }
 }

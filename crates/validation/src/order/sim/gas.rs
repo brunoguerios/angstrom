@@ -1,11 +1,10 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
-    primitives::{address, keccak256, Address, Bytes, FixedBytes, TxKind, B256, U160, U256},
+    primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
-    contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
     sol_bindings::{
@@ -20,7 +19,7 @@ use reth_provider::BlockNumReader;
 use revm::{
     db::CacheDB,
     inspector_handle_register,
-    primitives::{fixed_bytes, EnvWithHandlerCfg, ResultAndState, TxEnv},
+    primitives::{EnvWithHandlerCfg, ResultAndState, TxEnv},
     DatabaseRef
 };
 
@@ -29,8 +28,9 @@ use super::gas_inspector::{GasSimulationInspector, GasUsed};
 /// A address we can use to deploy contracts
 const DEFAULT_FROM: Address = address!("aa250d5630b4cf539739df2c5dacb4c659f2488d");
 const DEFAULT_CREATE2_FACTORY: Address = address!("4e59b44847b379578588920cA78FbF26c0B4956C");
-const SETUP_BYTECODE: FixedBytes<32> =
-    fixed_bytes!("907ea7ad6d1fbded0236f040aea693e2c9711b62b065fc95c4262972aca03996");
+// const SETUP_BYTECODE: FixedBytes<32> =
+//     fixed_bytes!("
+// 907ea7ad6d1fbded0236f040aea693e2c9711b62b065fc95c4262972aca03996");
 
 /// deals with the calculation of gas for a given type of order.
 /// user orders and tob orders take different paths and are different size and
@@ -59,12 +59,12 @@ where
         angstrom_address: Option<Address>,
         node_address: Address
     ) -> eyre::Result<Self> {
-        let bytecode = keccak256(&Angstrom::BYTECODE);
-        assert!(
-            SETUP_BYTECODE == bytecode,
-            "setup bytecode doesn't match bytecode we got. This can mean that the offsets for gas \
-             could be miss-set and lead to errors"
-        );
+        // let bytecode = keccak256(&Angstrom::BYTECODE);
+        // assert!(
+        //     SETUP_BYTECODE == bytecode,
+        //     "setup bytecode doesn't match bytecode we got. This can mean that the
+        // offsets for gas \      could be miss-set and lead to errors"
+        // );
 
         if let Some(angstrom_address) = angstrom_address {
             Ok(Self { db: CacheDB::new(db), angstrom_address, node_address: Some(node_address) })

@@ -441,6 +441,21 @@ impl GroupedVanillaOrder {
         }
     }
 
+    /// Bid orders need to invert their price
+    pub fn bid_price(&self) -> Ray {
+        self.price().inv_ray_round(true)
+    }
+
+    /// Get the appropriate price when passed a bool telling us if we're looking
+    /// for a bid-side price or not
+    pub fn price_for_book_side(&self, is_bid: bool) -> Ray {
+        if is_bid {
+            self.bid_price()
+        } else {
+            self.price()
+        }
+    }
+
     pub fn price(&self) -> Ray {
         match self {
             Self::Standing(o) => o.limit_price().into(),
@@ -559,7 +574,7 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn limit_price(&self) -> U256 {
-        U256::from(self.amount_in() / self.quantity_out)
+        *Ray::scale_to_ray(U256::from(self.amount_in() / self.quantity_out))
     }
 
     fn token_in(&self) -> Address {
@@ -683,13 +698,7 @@ impl RawPoolOrder for ExactStandingOrder {
     }
 
     fn amount_in(&self) -> u128 {
-        // zero for one
-        if self.asset_in < self.asset_out {
-            self.amount
-        } else {
-            let price = Ray::from(self.limit_price());
-            price.mul_quantity(U256::from(self.amount)).to()
-        }
+        self.amount
     }
 
     fn deadline(&self) -> Option<U256> {
@@ -825,12 +834,7 @@ impl RawPoolOrder for ExactFlashOrder {
     }
 
     fn amount_in(&self) -> u128 {
-        if self.asset_in < self.asset_out {
-            self.amount
-        } else {
-            let price = Ray::from(self.limit_price());
-            price.mul_quantity(U256::from(self.amount)).to()
-        }
+        self.amount
     }
 
     fn limit_price(&self) -> U256 {

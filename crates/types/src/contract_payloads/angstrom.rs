@@ -600,6 +600,7 @@ impl AngstromBundle {
             user_order.token_in(),
             user_order.amount_in()
         );
+
         asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(), {
             let price = Ray::from(user_order.limit_price());
             price.mul_quantity(U256::from(user_order.amount_in())).to()
@@ -628,7 +629,7 @@ impl AngstromBundle {
                     index0:       t0_idx,
                     index1:       t1_idx,
                     store_index:  0,
-                    price_1over0: U256::from(user_order.limit_price())
+                    price_1over0: user_order.limit_price()
                 };
                 pairs.push(pair);
             }
@@ -710,6 +711,7 @@ impl AngstromBundle {
                 price_1over0: ucp
             };
             pairs.push(pair);
+
             let pair_idx = pairs.len() - 1;
 
             // Pull out our net AMM order
@@ -794,10 +796,11 @@ impl AngstromBundle {
                 .get(&solution.id)
                 .map(|order_set| order_set.iter().collect())
                 .unwrap_or_default();
+
             // Sort the user order list so we can properly associate it with our
             // OrderOutcomes.  First bids by price then asks by price.
             order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
-                (true, true) => b.priority_data.cmp(&a.priority_data),
+                (true, true) => a.priority_data.cmp(&b.priority_data),
                 (false, false) => a.priority_data.cmp(&b.priority_data),
                 (..) => b.is_bid.cmp(&a.is_bid)
             });
@@ -809,6 +812,8 @@ impl AngstromBundle {
                 .zip(order_list.iter())
                 .filter(|(outcome, _)| outcome.is_filled())
             {
+                assert_eq!(outcome.id.hash, order.order_id.hash);
+
                 let quantity_out = match outcome.outcome {
                     OrderFillState::PartialFill(p) => p,
                     _ => order.quantity()
@@ -1049,7 +1054,7 @@ impl AngstromBundle {
             // Sort the user order list so we can properly associate it with our
             // OrderOutcomes.  First bids by price then asks by price.
             order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
-                (true, true) => b.priority_data.cmp(&a.priority_data),
+                (true, true) => a.priority_data.cmp(&b.priority_data),
                 (false, false) => a.priority_data.cmp(&b.priority_data),
                 (..) => b.is_bid.cmp(&a.is_bid)
             });
@@ -1061,8 +1066,10 @@ impl AngstromBundle {
                 .zip(order_list.iter())
                 .filter(|(outcome, _)| outcome.is_filled())
             {
+                assert_eq!(outcome.id.hash, order.order_id.hash);
                 let t0_moving = U256::from(outcome.fill_amount(order.quantity()));
                 let t1_moving = Ray::from(ucp).mul_quantity(t0_moving);
+
                 let (quantity_in, quantity_out) =
                     if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
                 // Account for our user order
@@ -1178,6 +1185,22 @@ impl AngstromPoolConfigStore {
 
         AngstromPoolConfigStore::try_from(code.as_ref())
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
+    }
+
+    pub fn length(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn remove_pair(&self, asset0: Address, asset1: Address) {
+        let key = Self::derive_store_key(asset0, asset1);
+
+        self.entries.remove(&key);
+    }
+
+    pub fn new_pool(&self, asset0: Address, asset1: Address, pool: AngPoolConfigEntry) {
+        let key = Self::derive_store_key(asset0, asset1);
+
+        self.entries.insert(key, pool);
     }
 
     pub fn derive_store_key(asset0: Address, asset1: Address) -> AngstromPoolPartialKey {
