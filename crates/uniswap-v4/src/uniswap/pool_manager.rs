@@ -95,8 +95,10 @@ where
         pool_id: A,
         tob: &OrderWithStorageData<TopOfBlockOrder>
     ) -> eyre::Result<ToBOutcome> {
-        let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
-        let market_snapshot = pool.fetch_pool_snapshot().map(|v| v.2).unwrap();
+        let market_snapshot = {
+            let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
+            pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
+        };
 
         let mut cnt = 5;
         loop {
@@ -104,8 +106,15 @@ where
             if outcome.is_err() {
                 let zfo = !tob.is_bid;
                 let not = Arc::new(Notify::new());
-                let start_tick =
-                    if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() };
+                // scope for awaits
+                let start_tick = {
+                    let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
+                    if zfo {
+                        pool.fetch_lowest_tick()
+                    } else {
+                        pool.fetch_highest_tick()
+                    }
+                };
 
                 let _ = self
                     .tx
