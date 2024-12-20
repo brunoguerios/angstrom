@@ -151,7 +151,6 @@ where
 {
     pools:               SyncedUniswapPools<A, Loader>,
     latest_synced_block: u64,
-    state_change_buffer: usize,
     state_change_cache:  Arc<RwLock<StateChangeCache<Loader, A>>>,
     provider:            Arc<P>,
     block_sync:          BlockSync,
@@ -169,7 +168,6 @@ where
     pub fn new(
         pools: Vec<EnhancedUniswapPool<Loader, A>>,
         latest_synced_block: BlockNumber,
-        state_change_buffer: usize,
         provider: Arc<P>,
         block_sync: BlockSync
     ) -> Self {
@@ -186,7 +184,6 @@ where
         Self {
             pools: SyncedUniswapPools::new(Arc::new(rwlock_pools), tx),
             latest_synced_block,
-            state_change_buffer,
             state_change_cache: Arc::new(RwLock::new(HashMap::new())),
             block_stream,
             provider,
