@@ -91,6 +91,7 @@ where
                                     .map_or_else(Vec::new, |logs| logs.cloned().collect());
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
+                                tracing::info!(?block.number,"updated number");
                                 Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
                             }
                             CanonStateNotification::Reorg { old, new } => {
