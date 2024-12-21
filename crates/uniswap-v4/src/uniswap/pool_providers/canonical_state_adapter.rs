@@ -163,6 +163,8 @@ where
     fn validate_filter(&self, filter: &Filter) -> Result<(), PoolManagerError> {
         let last_block = self.last_block_number.load(Ordering::SeqCst);
         if let FilterBlockOption::Range { from_block, to_block } = &filter.block_option {
+            tracing::debug!(?from_block, ?to_block, ?last_block);
+
             let from_equal_block_range = from_block.as_ref().map_or(false, |from| {
                 matches!(from, BlockNumberOrTag::Number(from_num)
                     if last_block == *from_num
