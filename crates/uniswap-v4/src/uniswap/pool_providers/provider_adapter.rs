@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use alloy::{
-    network::{BlockResponse, HeaderResponse},
-    providers::Provider,
-    rpc::types::Filter
+    consensus::BlockHeader, network::Network, providers::Provider, rpc::types::Filter,
+    transports::Transport
 };
 use alloy_primitives::Log;
 use futures_util::{FutureExt, StreamExt};
@@ -40,7 +39,7 @@ where
         let provider = self.inner.clone();
         async move { provider.subscribe_blocks().await.unwrap().into_stream() }
             .flatten_stream()
-            .map(|b| Some(PoolMangerBlocks::NewBlock(b.header().number())))
+            .map(|b| Some(PoolMangerBlocks::NewBlock(b.number())))
             .boxed()
     }
 

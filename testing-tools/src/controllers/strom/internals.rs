@@ -88,16 +88,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         > = if node_config.is_devnet() {
             Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
         } else {
-            Box::pin(
-                state_provider
-                    .rpc_provider()
-                    .subscribe_blocks()
-                    .await?
-                    .into_stream()
-                    .map(|block| {
-                        (block.header.number, block.transactions.into_transactions().collect())
-                    })
-            )
+            Box::pin(state_provider.subscribe_blocks().await?)
         };
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
@@ -219,7 +210,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let rpc_port = node_config.strom_rpc_port();
         let server = ServerBuilder::default()
-            .build(format!("127.0.0.1:{}", rpc_port))
+            .build(format!("0.0.0.0:{}", rpc_port))
             .await?;
 
         let addr = server.local_addr()?;
