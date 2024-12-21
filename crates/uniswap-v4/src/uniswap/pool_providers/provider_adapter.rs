@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use alloy::{
-    consensus::BlockHeader, network::Network, providers::Provider, rpc::types::Filter,
+    consensus::BlockHeader, providers::Provider, rpc::types::Filter,
     transports::Transport
 };
 use alloy_primitives::Log;
