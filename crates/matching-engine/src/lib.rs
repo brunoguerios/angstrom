@@ -86,7 +86,8 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
             .unwrap();
     }
 
-    let notifier = Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone()));
+    let notifier =
+        Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
 
     UniswapPoolManager::new(uniswap_pools, current_block, notifier, block_sync)
 }

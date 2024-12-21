@@ -54,12 +54,13 @@ where
 {
     pub fn new(
         canon_state_notifications: broadcast::Receiver<CanonStateNotification>,
-        node_provider: Arc<P>
+        node_provider: Arc<P>,
+        block_number: u64
     ) -> Self {
         Self {
             canon_state_notifications,
             last_logs: RwLock::new(Vec::new()),
-            last_block_number: AtomicU64::new(0),
+            last_block_number: AtomicU64::new(block_number),
             node_provider
         }
     }
@@ -173,7 +174,7 @@ where
                 )
             });
 
-            if !from_equal_block_range || !to_equal_to_block_range {
+            if !(from_equal_block_range && to_equal_to_block_range) {
                 return Err(PoolManagerError::InvalidBlockRange)
             }
         }
