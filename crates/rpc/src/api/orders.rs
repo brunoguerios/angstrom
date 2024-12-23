@@ -128,9 +128,9 @@ pub trait OrderApi {
     #[method(name = "ordersByPairs")]
     async fn orders_by_pool_ids(
         &self,
-        pair_with_location: Vec<(FixedBytes<32>, OrderLocation)>
+        pool_ids_with_location: Vec<(PoolId, OrderLocation)>
     ) -> RpcResult<Vec<AllOrders>> {
-        Ok(futures::stream::iter(pair_with_location.into_iter())
+        Ok(futures::stream::iter(pool_ids_with_location.into_iter())
             .map(|(pair, location)| async move { self.orders_by_pool_id(pair, location).await })
             .buffered(3)
             .collect::<Vec<_>>()
