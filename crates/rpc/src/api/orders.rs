@@ -15,7 +15,7 @@ use validation::order::OrderPoolNewOrderResult;
 
 use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GasEstimateResponse {
     pub gas_units: u64,
     pub gas:       U256

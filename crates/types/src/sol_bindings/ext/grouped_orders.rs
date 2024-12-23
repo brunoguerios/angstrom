@@ -600,10 +600,7 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn is_valid_signature(&self) -> bool {
-        let s = self.meta.signature.to_vec();
-        let mut slice = s.as_slice();
-
-        let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
+        let Ok(sig) = self.order_signature() else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
         sig.recover_address_from_prehash(&hash)
