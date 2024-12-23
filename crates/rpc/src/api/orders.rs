@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use alloy_primitives::{Address, FixedBytes, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderStatus},
+    primitive::PoolId,
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
@@ -42,9 +43,9 @@ pub trait OrderApi {
     async fn order_status(&self, order_hash: B256) -> RpcResult<Option<OrderStatus>>;
 
     #[method(name = "ordersByPair")]
-    async fn orders_by_pair(
+    async fn orders_by_pool_id(
         &self,
-        pair: FixedBytes<32>,
+        pool_id: PoolId,
         location: OrderLocation
     ) -> RpcResult<Vec<AllOrders>>;
 
@@ -125,12 +126,12 @@ pub trait OrderApi {
     }
 
     #[method(name = "ordersByPairs")]
-    async fn orders_by_pairs(
+    async fn orders_by_pool_ids(
         &self,
         pair_with_location: Vec<(FixedBytes<32>, OrderLocation)>
     ) -> RpcResult<Vec<AllOrders>> {
         Ok(futures::stream::iter(pair_with_location.into_iter())
-            .map(|(pair, location)| async move { self.orders_by_pair(pair, location).await })
+            .map(|(pair, location)| async move { self.orders_by_pool_id(pair, location).await })
             .buffered(3)
             .collect::<Vec<_>>()
             .await

@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, FixedBytes, B256};
+use alloy_primitives::{Address, B256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
+    primitive::PoolId,
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
@@ -61,12 +62,12 @@ where
         Ok(self.pool.fetch_order_status(order_hash).await)
     }
 
-    async fn orders_by_pair(
+    async fn orders_by_pool_id(
         &self,
-        pair: FixedBytes<32>,
+        pool_id: PoolId,
         location: OrderLocation
     ) -> RpcResult<Vec<AllOrders>> {
-        Ok(self.pool.fetch_orders_from_pool(pair, location).await)
+        Ok(self.pool.fetch_orders_from_pool(pool_id, location).await)
     }
 
     async fn subscribe_orders(
@@ -286,7 +287,7 @@ mod tests {
     impl OrderPoolHandle for MockOrderPoolHandle {
         fn fetch_orders_from_pool(
             &self,
-            _: FixedBytes<32>,
+            _: PoolId,
             _: OrderLocation
         ) -> impl Future<Output = Vec<AllOrders>> + Send {
             future::ready(vec![])
