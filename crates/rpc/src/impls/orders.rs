@@ -9,7 +9,7 @@ use futures::StreamExt;
 use jsonrpsee::{core::RpcResult, PendingSubscriptionSink, SubscriptionMessage};
 use order_pool::{OrderPoolHandle, PoolManagerUpdate};
 use reth_tasks::TaskSpawner;
-use validation::order::OrderValidatorHandle;
+use validation::order::{OrderPoolNewOrderResult, OrderValidatorHandle};
 
 use crate::{
     api::{GasEstimateResponse, OrderApiServer},
@@ -36,7 +36,7 @@ where
     Spawner: TaskSpawner + 'static,
     Validator: OrderValidatorHandle
 {
-    async fn send_order(&self, order: AllOrders) -> RpcResult<bool> {
+    async fn send_order(&self, order: AllOrders) -> RpcResult<OrderPoolNewOrderResult> {
         Ok(self.pool.new_order(OrderOrigin::External, order).await)
     }
 
@@ -238,18 +238,24 @@ mod tests {
         assert!(api
             .send_order(standing_order)
             .await
-            .expect("to not throw error"));
+            .expect("to not throw error")
+            .is_valid());
 
         // Test flash order
         let flash_order = create_flash_order();
         assert!(api
             .send_order(flash_order)
             .await
-            .expect("to not throw error"));
+            .expect("to not throw error")
+            .is_valid());
 
         // Test TOB order
         let tob_order = create_tob_order();
-        assert!(api.send_order(tob_order).await.expect("to not throw error"));
+        assert!(api
+            .send_order(tob_order)
+            .await
+            .expect("to not throw error")
+            .is_valid());
     }
 
     fn setup_order_api(
@@ -290,13 +296,13 @@ mod tests {
             &self,
             origin: OrderOrigin,
             order: AllOrders
-        ) -> impl Future<Output = bool> + Send {
+        ) -> impl Future<Output = OrderPoolNewOrderResult> + Send {
             let (tx, _) = tokio::sync::oneshot::channel();
             let _ = self
                 .sender
                 .send(OrderCommand::NewOrder(origin, order, tx))
                 .is_ok();
-            future::ready(true)
+            future::ready(OrderPoolNewOrderResult::Valid)
         }
 
         fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {
