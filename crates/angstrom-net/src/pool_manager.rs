@@ -27,7 +27,8 @@ use tokio::sync::{
 };
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use validation::order::{
-    state::pools::AngstromPoolsTracker, OrderValidationResults, OrderValidatorHandle
+    state::pools::AngstromPoolsTracker, OrderPoolNewOrderResult, OrderValidationResults,
+    OrderValidatorHandle
 };
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};
@@ -65,15 +66,10 @@ impl OrderPoolHandle for PoolHandle {
         &self,
         origin: OrderOrigin,
         order: AllOrders
-    ) -> impl Future<Output = bool> + Send {
+    ) -> impl Future<Output = OrderPoolNewOrderResult> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let _ = self.send(OrderCommand::NewOrder(origin, order, tx));
-        rx.map(|result| match result {
-            Ok(OrderValidationResults::Valid(_)) => true,
-            Ok(OrderValidationResults::Invalid(_)) => false,
-            Ok(OrderValidationResults::TransitionedToBlock) => false,
-            Err(_) => false
-        })
+        rx.map(Into::into)
     }
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {

@@ -11,6 +11,7 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
+use serde::{Deserialize, Serialize};
 use sim::SimValidation;
 use tokio::sync::oneshot::{channel, Sender};
 
@@ -81,6 +82,37 @@ pub enum OrderValidationResults {
     // the raw hash to be removed
     Invalid(B256),
     TransitionedToBlock
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OrderPoolNewOrderResult {
+    Valid,
+    Invalid,
+    TransitionedToBlock,
+    Error(String)
+}
+
+impl OrderPoolNewOrderResult {
+    pub fn is_valid(&self) -> bool {
+        matches!(self, OrderPoolNewOrderResult::Valid)
+    }
+}
+
+impl<E: std::error::Error + Send + Sync + 'static> From<Result<OrderValidationResults, E>>
+    for OrderPoolNewOrderResult
+{
+    fn from(value: Result<OrderValidationResults, E>) -> Self {
+        match value {
+            Ok(val) => match val {
+                OrderValidationResults::Valid(_) => OrderPoolNewOrderResult::Valid,
+                OrderValidationResults::Invalid(_) => OrderPoolNewOrderResult::Invalid,
+                OrderValidationResults::TransitionedToBlock => {
+                    OrderPoolNewOrderResult::TransitionedToBlock
+                }
+            },
+            Err(e) => OrderPoolNewOrderResult::Error(e.to_string())
+        }
+    }
 }
 
 impl OrderValidationResults {

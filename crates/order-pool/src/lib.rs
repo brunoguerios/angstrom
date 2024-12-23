@@ -19,6 +19,7 @@ pub use angstrom_utils::*;
 pub use config::PoolConfig;
 pub use order_indexer::*;
 use tokio_stream::wrappers::BroadcastStream;
+use validation::order::OrderPoolNewOrderResult;
 
 #[derive(Debug, Clone)]
 pub enum PoolManagerUpdate {
@@ -32,8 +33,11 @@ pub enum PoolManagerUpdate {
 /// asyncly. This allows for requesting data and providing data from different
 /// threads efficiently.
 pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
-    fn new_order(&self, origin: OrderOrigin, order: AllOrders)
-        -> impl Future<Output = bool> + Send;
+    fn new_order(
+        &self,
+        origin: OrderOrigin,
+        order: AllOrders
+    ) -> impl Future<Output = OrderPoolNewOrderResult> + Send;
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate>;
 

@@ -2,6 +2,7 @@
 use std::fmt;
 
 use alloy::primitives::{Address, TxHash, U256};
+use alloy_primitives::PrimitiveSignature;
 use serde::{Deserialize, Serialize};
 
 use crate::orders::OrderLocation;
@@ -44,6 +45,8 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
 
     /// whether to use angstrom balances or not
     fn use_internal(&self) -> bool;
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature>;
 }
 
 pub trait GenerateFlippedOrder: Send + Sync + Clone + Unpin + 'static {
