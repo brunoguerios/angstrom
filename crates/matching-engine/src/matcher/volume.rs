@@ -7,7 +7,7 @@ use alloy::primitives::U256;
 use angstrom_types::{
     matching::{
         uniswap::{Direction, PoolPrice, PoolPriceVec},
-        CompositeOrder, Debt, DebtType, Ray
+        CompositeOrder, Debt, Ray
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
@@ -441,7 +441,7 @@ impl<'a> VolumeFillMatcher<'a> {
         if let Some(state @ OrderFillState::PartialFill(_)) = fill_state.get(book_idx.get()) {
             return book
                 .get(book_idx.get())
-                .map(|order| OrderContainer::BookOrderFragment { order, state: *state })
+                .map(|order| OrderContainer::BookOrder { order, state: *state })
         }
         // Fix what makes a price "less" or "more" advantageous depending on direction
         let (less_advantageous, more_advantageous) = if bid {
@@ -532,7 +532,10 @@ impl<'a> VolumeFillMatcher<'a> {
         .map(OrderContainer::Composite)
         .or_else(|| {
             book_idx.set(cur_idx);
-            book_order.map(OrderContainer::BookOrder)
+            book_order.map(|order| {
+                let state = fill_state[cur_idx];
+                OrderContainer::BookOrder { order, state }
+            })
         })
     }
 
@@ -687,8 +690,8 @@ mod tests {
         let amm = None;
         let next_order =
             VolumeFillMatcher::next_order(true, &index, &debt, amm, &book, &fill_state).unwrap();
-        if let OrderContainer::BookOrder(o) = next_order {
-            assert_eq!(*o, book[0], "Next order selected was not first order in book");
+        if let OrderContainer::BookOrder { order, .. } = next_order {
+            assert_eq!(*order, book[0], "Next order selected was not first order in book");
         } else {
             panic!("Next order is not a BookOrder");
         }
@@ -765,8 +768,8 @@ mod tests {
         let next_order =
             VolumeFillMatcher::next_order(true, &index, &debt, amm, &book, &fill_state).unwrap();
 
-        assert!(matches!(next_order, OrderContainer::BookOrder(_)), "Book order not chosen");
-        if let OrderContainer::BookOrder(b) = next_order {
+        assert!(matches!(next_order, OrderContainer::BookOrder { .. }), "Book order not chosen");
+        if let OrderContainer::BookOrder { order: b, .. } = next_order {
             assert_eq!(*b, book[0], "First book order not chosen");
         } else {
             panic!("Book order not created but did match?");

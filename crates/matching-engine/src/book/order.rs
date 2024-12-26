@@ -19,10 +19,8 @@ use super::BookOrder;
 /// outcomes we're able to have for them
 #[derive(Clone, Debug)]
 pub enum OrderContainer<'a> {
-    /// A complete order from our book
-    BookOrder(&'a BookOrder),
-    /// A fragment of an order from our book yet to be filled
-    BookOrderFragment { order: &'a BookOrder, state: OrderFillState },
+    /// An order from our Book and its current fill state
+    BookOrder { order: &'a BookOrder, state: OrderFillState },
     /// An order constructed from the current state of our AMM
     AMM(PoolPriceVec<'a>),
     /// A CompositeOrder built of Debt or AMM or Both
@@ -32,8 +30,7 @@ pub enum OrderContainer<'a> {
 impl<'a> OrderContainer<'a> {
     pub fn id(&self) -> Option<OrderId> {
         match self {
-            Self::BookOrder(o) => Some(o.order_id),
-            Self::BookOrderFragment { order, .. } => Some(order.order_id),
+            Self::BookOrder { order, .. } => Some(order.order_id),
             _ => None
         }
     }
@@ -66,7 +63,7 @@ impl<'a> OrderContainer<'a> {
     /// price
     pub fn partial_debt(&self, matched_t0: u128) -> Option<Debt> {
         if self.inverse_order() {
-            if let Self::BookOrder(o) | Self::BookOrderFragment { order: o, .. } = self {
+            if let Self::BookOrder { order: o, .. } = self {
                 let magnitude = if o.is_bid {
                     DebtType::exact_in(max_t1_for_t0(matched_t0, Direction::BuyingT0, o.price()))
                 } else {
@@ -81,7 +78,7 @@ impl<'a> OrderContainer<'a> {
     /// Represents an applicable order as a debt at its current price
     pub fn as_debt(&self) -> Option<Debt> {
         if self.inverse_order() {
-            if let Self::BookOrder(o) | Self::BookOrderFragment { order: o, .. } = self {
+            if let Self::BookOrder { order: o, .. } = self {
                 let magnitude = if o.is_bid {
                     DebtType::exact_in(o.max_q())
                 } else {
@@ -103,14 +100,7 @@ impl<'a> OrderContainer<'a> {
     /// Is the underlying order a Partial Fill compatible order
     pub fn is_partial(&self) -> bool {
         match self {
-            Self::BookOrder(o) => {
-                matches!(
-                    o.order,
-                    GroupedVanillaOrder::Standing(StandingVariants::Partial(_))
-                        | GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(_))
-                )
-            }
-            Self::BookOrderFragment { order, .. } => {
+            Self::BookOrder { order, .. } => {
                 matches!(
                     order.order,
                     GroupedVanillaOrder::Standing(StandingVariants::Partial(_))
@@ -126,14 +116,11 @@ impl<'a> OrderContainer<'a> {
     /// quantity instead of T0.  That means this order will cause or react to
     /// debt
     pub fn inverse_order(&self) -> bool {
-        let order = match self {
-            Self::BookOrder(o) => o,
-            Self::BookOrderFragment { order, .. } => order,
-            _ => return false
-        };
-        let is_bid = order.is_bid();
-        let exact_in = order.exact_in();
-        is_bid == exact_in
+        if let Self::BookOrder { order, .. } = self {
+            order.is_bid() == order.exact_in()
+        } else {
+            false
+        }
     }
 
     fn book_order_q_t0(
@@ -177,7 +164,7 @@ impl<'a> OrderContainer<'a> {
 
     /// Raw quantity of a book order
     pub fn raw_book_quantity(&self) -> u128 {
-        if let Self::BookOrder(o) | Self::BookOrderFragment { order: o, .. } = self {
+        if let Self::BookOrder { order: o, .. } = self {
             o.max_q()
         } else {
             0
@@ -187,11 +174,10 @@ impl<'a> OrderContainer<'a> {
     /// Retrieve the quantity available within the bounds of a given order
     pub fn quantity(&self, target_price: OrderPrice, debt: Option<&Debt>) -> OrderVolume {
         match self {
-            Self::BookOrder(o) => Self::book_order_q_t0(o, debt),
-            Self::BookOrderFragment { order, state: OrderFillState::PartialFill(partial_q) } => {
+            Self::BookOrder { order, state: OrderFillState::PartialFill(partial_q) } => {
                 Self::book_order_q_t0(order, debt).saturating_sub(*partial_q)
             }
-            Self::BookOrderFragment { order, .. } => Self::book_order_q_t0(order, debt),
+            Self::BookOrder { order, .. } => Self::book_order_q_t0(order, debt),
             Self::AMM(ammo) => ammo.quantity(target_price).0,
             Self::Composite(c) => c.quantity(target_price.into())
         }
@@ -210,8 +196,7 @@ impl<'a> OrderContainer<'a> {
     /// always t0/t1 and is flipped if necessary
     pub fn price(&self) -> OrderPrice {
         match self {
-            Self::BookOrder(o) => o.price_for_book_side(o.is_bid).into(),
-            Self::BookOrderFragment { order, .. } => order.price_for_book_side(order.is_bid).into(),
+            Self::BookOrder { order, .. } => order.price_for_book_side(order.is_bid).into(),
             Self::AMM(o) => (*o.start_bound.price()).into(),
             Self::Composite(o) => o.start_price().into()
         }

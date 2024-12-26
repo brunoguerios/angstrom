@@ -594,43 +594,6 @@ impl GroupedVanillaOrder {
         0
     }
 
-    /// Creates a new order fragment representing the current order as filled by
-    /// a specific quantity
-    pub fn fill(&self, filled_quantity: u128) -> Self {
-        match self {
-            Self::Standing(p) => match p {
-                StandingVariants::Partial(part) => {
-                    Self::Standing(StandingVariants::Partial(PartialStandingOrder {
-                        min_amount_in: part.min_amount_in.saturating_sub(filled_quantity),
-                        max_amount_in: part.max_amount_in - filled_quantity,
-                        ..part.clone()
-                    }))
-                }
-                StandingVariants::Exact(exact) => {
-                    Self::Standing(StandingVariants::Exact(ExactStandingOrder {
-                        amount: exact.amount - filled_quantity,
-                        ..exact.clone()
-                    }))
-                }
-            },
-            Self::KillOrFill(kof) => match kof {
-                FlashVariants::Partial(part) => {
-                    Self::KillOrFill(FlashVariants::Partial(PartialFlashOrder {
-                        min_amount_in: part.min_amount_in.saturating_sub(filled_quantity),
-                        max_amount_in: part.max_amount_in - filled_quantity,
-                        ..part.clone()
-                    }))
-                }
-                FlashVariants::Exact(exact) => {
-                    Self::KillOrFill(FlashVariants::Exact(ExactFlashOrder {
-                        amount: exact.amount - filled_quantity,
-                        ..exact.clone()
-                    }))
-                }
-            }
-        }
-    }
-
     pub fn signature(&self) -> &Bytes {
         match self {
             Self::Standing(o) => o.signature(),
