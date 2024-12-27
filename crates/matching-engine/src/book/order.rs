@@ -123,6 +123,26 @@ impl<'a> OrderContainer<'a> {
         }
     }
 
+    fn book_order_q_t1(
+        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        debt: Option<&Debt>
+    ) -> Option<u128> {
+        // We only have a t1 quantity to report if or order is on the T1 side
+        if order.is_bid() == order.exact_in() {
+            if let Some(d) = debt {
+                if order.is_bid() == d.bid_side() {
+                    Some(order.max_q() + d.slack())
+                } else {
+                    Some(order.max_q().saturating_sub(d.slack()))
+                }
+            } else {
+                Some(order.max_q())
+            }
+        } else {
+            None
+        }
+    }
+
     fn book_order_q_t0(
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         debt: Option<&Debt>
@@ -180,6 +200,22 @@ impl<'a> OrderContainer<'a> {
             Self::BookOrder { order, .. } => Self::book_order_q_t0(order, debt),
             Self::AMM(ammo) => ammo.quantity(target_price).0,
             Self::Composite(c) => c.quantity(target_price.into())
+        }
+    }
+
+    /// Retrieve the quantity of direct t1 match available for this order
+    pub fn quantity_t1(
+        &self,
+        target_price: OrderPrice,
+        debt: Option<&Debt>
+    ) -> Option<OrderVolume> {
+        match self {
+            Self::BookOrder { order, state: OrderFillState::PartialFill(partial_q) } => {
+                Self::book_order_q_t1(order, debt).map(|q| q.saturating_sub(*partial_q))
+            }
+            Self::BookOrder { order, .. } => Self::book_order_q_t1(order, debt),
+            Self::Composite(c) => None,
+            _ => None
         }
     }
 
