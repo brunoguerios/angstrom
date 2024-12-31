@@ -5,6 +5,7 @@ use std::{
 
 use alloy::primitives::U256;
 
+mod comparable;
 mod composite;
 pub use composite::CompositeOrder;
 pub mod debt;

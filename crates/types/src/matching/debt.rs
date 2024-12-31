@@ -27,6 +27,13 @@ impl DebtType {
         Self::ExactOut(q)
     }
 
+    pub fn same_type(&self, q: u128) -> Self {
+        match self {
+            Self::ExactIn(_) => Self::ExactIn(q),
+            Self::ExactOut(_) => Self::ExactOut(q)
+        }
+    }
+
     pub fn magnitude(&self) -> u128 {
         match self {
             Self::ExactIn(q) | Self::ExactOut(q) => *q
@@ -105,6 +112,14 @@ impl Debt {
         self.cur_price
     }
 
+    /// Returns the additional T0 needed to increase a debt from a specific T1
+    /// to another greater T1 count
+    pub fn additional_t0_needed(&self, added_t1: u128) -> u128 {
+        let new_magnitude = self.magnitude + self.magnitude.same_type(added_t1);
+        let new_debt = Self { magnitude: new_magnitude, cur_price: self.cur_price };
+        new_debt.current_t0() - self.current_t0()
+    }
+
     /// Does this debt exist on the bid side of the book?  A debt is on the bid
     /// side of the book when it's an ExactIn debt (i.e. I would like to pay 100
     /// T1 and get as many T0 as I can for that amount)
@@ -156,7 +171,7 @@ impl Debt {
         }
     }
 
-    fn current_t0(&self) -> u128 {
+    pub fn current_t0(&self) -> u128 {
         self.magnitude.t0_at_price(self.cur_price)
     }
 

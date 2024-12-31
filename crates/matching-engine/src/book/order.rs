@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use angstrom_types::{
     matching::{
         max_t1_for_t0,
@@ -27,12 +29,34 @@ pub enum OrderContainer<'a> {
     Composite(CompositeOrder<'a>)
 }
 
+impl<'a> From<&'a BookOrder> for OrderContainer<'a> {
+    fn from(value: &'a BookOrder) -> Self {
+        Self::BookOrder { order: value, state: OrderFillState::Unfilled }
+    }
+}
+
+impl<'a> From<PoolPriceVec<'a>> for OrderContainer<'a> {
+    fn from(value: PoolPriceVec<'a>) -> Self {
+        Self::AMM(value)
+    }
+}
+
+impl<'a> From<CompositeOrder<'a>> for OrderContainer<'a> {
+    fn from(value: CompositeOrder<'a>) -> Self {
+        Self::Composite(value)
+    }
+}
+
 impl<'a> OrderContainer<'a> {
     pub fn id(&self) -> Option<OrderId> {
         match self {
             Self::BookOrder { order, .. } => Some(order.order_id),
             _ => None
         }
+    }
+
+    pub fn is_book(&self) -> bool {
+        matches!(self, Self::BookOrder { .. })
     }
 
     pub fn is_composite(&self) -> bool {
@@ -149,10 +173,9 @@ impl<'a> OrderContainer<'a> {
     ) -> u128 {
         // Get the raw max quantity of the order
         let raw_q = order.max_q();
-        // Bid exact_in orders and ask exact_out orders are in T1 Context
-        let t1_context = order.is_bid() == order.exact_in();
 
-        if t1_context {
+        // Bid exact_in orders and ask exact_out orders are in T1 Context
+        if order.is_bid() == order.exact_in() {
             // Exact In bid or Exact Out ask both interact with debt so we calculate them at
             // our target_price which is the price of the Debt if one already exists,
             // otherwise the limit price of this order When calculating T1, we
@@ -160,21 +183,36 @@ impl<'a> OrderContainer<'a> {
             // in than needed)
             // First we find our target price - target price is always properly flipped to
             // be T1/T0
-            let (target_price, net_q) = if let Some(d) = debt {
-                let q = if order.is_bid() == d.bid_side() {
-                    // Same side - we add our slack to the order to properly determine how much T0
-                    // should be allocated
-                    raw_q + d.slack()
-                } else {
-                    // Opposite side
-                    raw_q.saturating_sub(d.slack())
-                };
-                (d.price(), q)
-            } else {
-                (order.price_for_book_side(order.is_bid()), raw_q)
-            };
             let round_up = !order.is_bid();
-            target_price.inverse_quantity(net_q, round_up)
+            if let Some(d) = debt {
+                if order.is_bid() == d.bid_side() {
+                    // The debt is on the same side, so we're going to add to the debt.  We
+                    // calculate how much additional T0 our order's T1 component would add to the
+                    // debt and offer that.
+                    d.additional_t0_needed(raw_q)
+                } else {
+                    // The debt is on the opposite side, so we're going to be unfilling that debt.
+                    // We can offer an amount of T0 to the book that is equal to the amount of T0
+                    // currently filling the opposed debt and then, once we have eliminated all of
+                    // that debt's T1, we can start our own T1 debt at our order price and fill T0
+                    // from that.
+                    // Round up is inverted because we use the debt's setting for this
+                    let debt_portion = d
+                        .price()
+                        .inverse_quantity(d.magnitude().min(raw_q), !round_up);
+                    // If the debt is greater than the order, our order portion should be zero
+                    let order_portion = raw_q
+                        .checked_sub(d.magnitude())
+                        .map(|q| order.price().inverse_quantity(q, round_up))
+                        .unwrap_or_default();
+                    debt_portion + order_portion
+                }
+            } else {
+                // With no debt, we just offer as much T0 as we can get at our current price
+                order
+                    .price_for_book_side(order.is_bid())
+                    .inverse_quantity(raw_q, round_up)
+            }
         } else {
             // Exact Out bid (normal bid) and Exact In ask (normal ask)
             // These don't cause or interact with debt so they just offer what they offer
@@ -192,23 +230,24 @@ impl<'a> OrderContainer<'a> {
     }
 
     /// Retrieve the quantity available within the bounds of a given order
-    pub fn quantity(&self, target_price: OrderPrice, debt: Option<&Debt>) -> OrderVolume {
+    pub fn quantity(&self, opposed_order: &OrderContainer, debt: Option<&Debt>) -> OrderVolume {
+        let target_price = opposed_order.price();
         match self {
-            Self::BookOrder { order, state: OrderFillState::PartialFill(partial_q) } => {
-                Self::book_order_q_t0(order, debt).saturating_sub(*partial_q)
+            Self::BookOrder { order, state } => {
+                if let Some(partial_q) = state.partial_q() {
+                    // If we have a partial, subtract that from what's available
+                    Self::book_order_q_t0(order, debt).saturating_sub(partial_q)
+                } else {
+                    Self::book_order_q_t0(order, debt)
+                }
             }
-            Self::BookOrder { order, .. } => Self::book_order_q_t0(order, debt),
             Self::AMM(ammo) => ammo.quantity(target_price).0,
             Self::Composite(c) => c.quantity(target_price.into())
         }
     }
 
     /// Retrieve the quantity of direct t1 match available for this order
-    pub fn quantity_t1(
-        &self,
-        target_price: OrderPrice,
-        debt: Option<&Debt>
-    ) -> Option<OrderVolume> {
+    pub fn quantity_t1(&self, debt: Option<&Debt>) -> Option<OrderVolume> {
         match self {
             Self::BookOrder { order, state: OrderFillState::PartialFill(partial_q) } => {
                 Self::book_order_q_t1(order, debt).map(|q| q.saturating_sub(*partial_q))
@@ -240,3 +279,18 @@ impl<'a> OrderContainer<'a> {
 }
 
 // Make some tests for book_order_quantity
+#[cfg(test)]
+mod tests {
+    use testing_tools::type_generator::{
+        amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder
+    };
+
+    use super::OrderContainer;
+
+    #[test]
+    fn t1_quantity_calculation() {
+        let order = UserOrderBuilder::new().with_storage().build();
+        let debt = None;
+        let q = OrderContainer::book_order_q_t0(&order, debt);
+    }
+}

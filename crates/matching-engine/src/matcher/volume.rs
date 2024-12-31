@@ -7,7 +7,7 @@ use alloy::primitives::U256;
 use angstrom_types::{
     matching::{
         uniswap::{Direction, PoolPrice, PoolPriceVec},
-        CompositeOrder, Debt, Ray
+        CompositeOrder, Debt, MatchingPrice, Ray
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
@@ -180,14 +180,7 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // Limit to price so that AMM orders will only offer the quantity they can
         // profitably sell.  (Non-AMM orders ignore the provided price)
-        let (ask_q, bid_q) = if ask.inverse_order() && bid.inverse_order() {
-            (ask.raw_book_quantity(), bid.raw_book_quantity())
-        } else {
-            (
-                ask.quantity(bid.price(), self.debt.as_ref()),
-                bid.quantity(ask.price(), self.debt.as_ref())
-            )
-        };
+        let (bid_q, ask_q) = Self::get_match_quantities(&bid, &ask, self.debt.as_ref());
 
         println!("Got bid: {} @ {:?}", bid_q, bid.price());
         println!("Got ask: {} @ {:?}", ask_q, ask.price());
@@ -217,7 +210,7 @@ impl<'a> VolumeFillMatcher<'a> {
             // Check to see if our next order is AMM.  If so we have to do some cool
             // bounding math where we reset the bound of our current order to be
             // the closer of the intersection point or the next order's bound.
-            let normal_next_q = next_ask.quantity(bid.price(), self.debt.as_ref());
+            let normal_next_q = next_ask.quantity(&bid, self.debt.as_ref());
             let next_ask_q = if next_ask.is_amm() {
                 self.debt
                     .as_ref()
@@ -428,6 +421,32 @@ impl<'a> VolumeFillMatcher<'a> {
         None
     }
 
+    /// Returns (bid_q, ask_q)
+    fn get_match_quantities(
+        bid: &OrderContainer,
+        ask: &OrderContainer,
+        debt: Option<&Debt>
+    ) -> (u128, u128) {
+        if bid.is_book() && ask.is_book() {
+            // We have a pair of book orders
+            match (bid.inverse_order(), ask.inverse_order()) {
+                // Inverse vs inverse is a T1 match
+                (true, true) => {
+                    // We already know these are book orders so we can unwrap here
+                    (bid.quantity_t1(debt).unwrap(), ask.quantity_t1(debt).unwrap())
+                }
+                // Mixed order returns quantity in T0 at debt or order price
+                (true, false) | (false, true) => (bid.quantity(ask, debt), ask.quantity(bid, debt)),
+                // Normal book order and normal book order just return T0 quantities
+                (false, false) => (bid.quantity(ask, debt), ask.quantity(bid, debt))
+            }
+        } else {
+            // We have either a book order and a Composite order or a pair of Composite
+            // orders, all of which return T0
+            (bid.quantity(ask, debt), ask.quantity(bid, debt))
+        }
+    }
+
     fn next_order(
         bid: bool,
         book_idx: &Cell<usize>,
@@ -604,6 +623,7 @@ mod tests {
         let low_price = Ray::from(Uint::from(1_000_u128));
         let bid_order = UserOrderBuilder::new()
             .partial()
+            .bid()
             .amount(100)
             .min_price(bid_price)
             .with_storage()
@@ -611,16 +631,24 @@ mod tests {
             .build();
         let ask_order = UserOrderBuilder::new()
             .exact()
+            .ask()
             .amount(10)
+            .exact_in(true)
             .min_price(low_price)
             .with_storage()
             .ask()
             .build();
+        println!("Bid order:\n{:?}", bid_order);
         println!("Ask order:\n{:?}", ask_order);
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let mut matcher = VolumeFillMatcher::new(&book);
         let _fill_outcome = matcher.run_match();
         let solution = matcher.from_checkpoint().unwrap().solution(None);
+        println!(
+            "Solution UCP: {:?}\nFinal bid: {:?}",
+            solution.ucp,
+            bid_price.inv_ray_round(true)
+        );
         assert!(
             solution.ucp == bid_price.inv_ray_round(true),
             "Bid outweighed but the final price wasn't properly set"
@@ -634,6 +662,7 @@ mod tests {
         let low_price = Ray::from(Uint::from(1_000_u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
+            .bid()
             .amount(10)
             .bid_min_price(high_price)
             .with_storage()
@@ -641,6 +670,7 @@ mod tests {
             .build();
         let ask_order = UserOrderBuilder::new()
             .partial()
+            .ask()
             .amount(100)
             .min_price(low_price)
             .with_storage()
@@ -671,8 +701,11 @@ mod tests {
                     target_price + (i * price_step)
                 };
                 UserOrderBuilder::new()
+                    .exact()
+                    .exact_in(!is_bid)
                     .min_price(min_price)
                     .amount(100)
+                    .is_bid(is_bid)
                     .with_storage()
                     .is_bid(is_bid)
                     .build()
@@ -916,5 +949,18 @@ mod tests {
         );
         let end = matcher.single_match();
         println!("Fill ended: {:?}", end);
+    }
+
+    #[test]
+    fn get_match_quantities_works_properly() {
+        let bid_price = Ray::from(SqrtPriceX96::at_tick(110000).unwrap());
+        let ask_price = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
+        let (bid_book, bid_states) = basic_order_book(true, 10, bid_price, 10);
+        let (ask_book, ask_states) = basic_order_book(false, 10, ask_price, 10);
+        let bid = OrderContainer::from(&bid_book[0]);
+        let ask = OrderContainer::from(&ask_book[0]);
+        println!("Bid order: {:?}\nAsk order: {:?}", bid, ask);
+        let (bid_q, ask_q) = VolumeFillMatcher::get_match_quantities(&bid, &ask, None);
+        println!("Bidq: {}\nAskq: {}", bid_q, ask_q);
     }
 }
