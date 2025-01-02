@@ -180,6 +180,8 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // Limit to price so that AMM orders will only offer the quantity they can
         // profitably sell.  (Non-AMM orders ignore the provided price)
+        // These quantities might be in T0 or T1 depending, we might want to be a bit
+        // more explicit about this, but they will always be in the SAME amount
         let (bid_q, ask_q) = Self::get_match_quantities(&bid, &ask, self.debt.as_ref());
 
         println!("Got bid: {} @ {:?}", bid_q, bid.price());
@@ -311,7 +313,10 @@ impl<'a> VolumeFillMatcher<'a> {
             return Some(VolumeFillMatchEndReason::ZeroQuantity)
         }
 
+        // Determine how much we matched and if our orders totally annihilated
         let matched = ask_q.min(bid_q);
+
+        // --- Instrumentation for benchmarking needs updating ---
         // Store the amount we matched
         self.results.total_volume += matched;
 
@@ -322,6 +327,7 @@ impl<'a> VolumeFillMatcher<'a> {
         if ask.is_partial() {
             self.results.partial_volume.1 += matched;
         }
+        // --- End instrumentation ---
 
         // If bid or ask was an AMM order, we update our AMM stats
         // Might need to work on this as well, the quantity we actually buy or sell to
@@ -348,29 +354,32 @@ impl<'a> VolumeFillMatcher<'a> {
                 // We annihilated
 
                 // Settle our debt
-                if let Some(net_debt) = match (ask.as_debt(), bid.as_debt()) {
-                    (Some(a), Some(b)) => a + b,
-                    (a, b) => a.or(b)
-                } {
+                // If both of our orders cause debt they should cancel out so we can skip this,
+                // if neither cause debt there is no change to be made so in this case we can
+                // only operate if one is debt and the other isn't
+                if let Some(net_debt) = ask.as_debt(None).xor(bid.as_debt(None)) {
                     self.debt += net_debt;
                 }
 
                 // If we have a debt price, this is our current price, otherwise we get a price
-                // from our orders
+                // from our order outcomes
                 let new_price = self
                     .debt
                     .map(|d| d.price())
                     .unwrap_or_else(|| (*(ask.price() + bid.price()) / U256::from(2)).into());
-
                 self.results.price = Some(new_price.into());
 
-                // Mark as filled if non-AMM order
-                if !ask.is_amm() && !ask.is_composite() {
+                // Mark book orders as CompletelyFilled
+                if ask.is_book() {
                     self.ask_outcomes[self.ask_idx.get()] = OrderFillState::CompleteFill
                 }
-                if !bid.is_amm() && !ask.is_composite() {
+                if bid.is_book() {
                     self.bid_outcomes[self.bid_idx.get()] = OrderFillState::CompleteFill
                 }
+
+                // Update everything for a Composite order
+                if ask.is_composite() {}
+                if bid.is_composite() {}
                 // Take a snapshot as a good solve state
                 self.save_checkpoint();
                 // We're done here, we'll get our next bid and ask on

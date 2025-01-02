@@ -1,5 +1,8 @@
+use malachite::rounding_modes::RoundingMode;
+
 use super::{
     debt::Debt,
+    math::{amm_debt_same_move_solve, resolve_precision},
     uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
     Ray
 };
@@ -115,28 +118,52 @@ impl<'a> CompositeOrder<'a> {
     }
 
     /// Compute the final state for the AMM and for the Debt when we partially
+    /// fill this order with T1
+    pub fn partial_fill_t1(&self, partial_q_t1: u128) -> Self {
+        self.clone()
+    }
+
+    /// Given an incoming amount of T0, determine how much of that T0 should go
+    /// to the debt vs the AMM to ensure an equal movement of both
+    /// quantities.  Works fine if we have only a debt or only an AMM
+    pub fn t0_quantities(&self, t0_input: u128, direction: Direction) -> (u128, u128) {
+        match (self.amm.as_ref(), self.debt.as_ref()) {
+            (None, None) => (0, 0),
+            (Some(_), None) => (t0_input, 0),
+            (None, Some(_)) => (0, t0_input),
+            (Some(a), Some(d)) => {
+                let result = amm_debt_same_move_solve(
+                    a.liquidity(),
+                    d.current_t0(),
+                    d.magnitude(),
+                    t0_input,
+                    direction
+                );
+                // Maybe build in some safety here around partial quantities
+                let amm_portion = resolve_precision(192, result, RoundingMode::Nearest);
+                let debt_portion = t0_input.saturating_sub(amm_portion);
+                (amm_portion, debt_portion)
+            }
+        }
+    }
+
+    /// Compute the final state for the AMM and for the Debt when we partially
     /// fill this order.  The requirements for this final state are as follows:
     ///
     /// 1. The quantity filled is used precisely
     /// 2. The debt and the AMM end up at as close a price to each other as
     ///    possible
     pub fn partial_fill(&self, partial_q: u128, direction: Direction) -> Self {
-        // If we only have one thing (AMM or Debt) do a partial fill of that thing
-        if self.amm.is_none() || self.debt.is_none() {
-            // We can implement both maps here because it's all good
-            let new_amm = self.amm.clone().map(|a| {
-                let quantity = Quantity::Token0(partial_q);
-                PoolPriceVec::from_swap(a.clone(), direction, quantity)
-                    .map(|v| v.end_bound)
-                    .ok()
-                    .unwrap_or_else(|| a.clone())
-            });
-            let new_debt = self.debt.map(|d| d.partial_fill(partial_q));
-            Self { amm: new_amm, debt: new_debt, bound_price: self.bound_price }
-        } else {
-            // If we have both the AMM AND Debt, we should do a combined fill of the two
-            self.clone()
-        }
+        let (amm_q, debt_q) = self.t0_quantities(partial_q, direction);
+        let new_amm = self.amm.clone().map(|a| {
+            let quantity = Quantity::Token0(amm_q);
+            PoolPriceVec::from_swap(a.clone(), direction, quantity)
+                .map(|v| v.end_bound)
+                .ok()
+                .unwrap_or_else(|| a.clone())
+        });
+        let new_debt = self.debt.map(|d| d.partial_fill(debt_q));
+        Self { amm: new_amm, debt: new_debt, bound_price: self.bound_price }
     }
 
     /// Initial price of this composite order in Ray format.  Will default to
