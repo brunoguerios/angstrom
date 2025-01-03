@@ -54,15 +54,15 @@ impl<'a> OrderContainer<'a> {
         matches!(self, Self::Composite(_))
     }
 
-    fn composite_t0_quantities(
+    pub fn composite_t0_quantities(
         &self,
         t0_input: u128,
         direction: Direction
-    ) -> Option<(u128, u128)> {
+    ) -> (Option<u128>, Option<u128>) {
         if let Self::Composite(c) = self {
-            Some(c.t0_quantities(t0_input, direction))
+            c.t0_quantities(t0_input, direction)
         } else {
-            None
+            (None, None)
         }
     }
 

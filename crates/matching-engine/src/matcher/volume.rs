@@ -329,37 +329,106 @@ impl<'a> VolumeFillMatcher<'a> {
         }
         // --- End instrumentation ---
 
-        // If bid or ask was an AMM order, we update our AMM stats
-        // Might need to work on this as well, the quantity we actually buy or sell to
-        // the AMM is not necessarily what we think
-        if let Some(amm) = self.amm_price.as_mut() {
-            let direction = match (bid.is_amm(), ask.is_amm()) {
-                (true, false) => Some(Direction::BuyingT0),
-                (false, true) => Some(Direction::SellingT0),
-                (..) => None
-            };
-            if let Some(d) = direction {
-                if Self::fill_amm(amm, &mut self.results, &mut self.amm_outcome, matched, d)
-                    .is_err()
+        // Time to update our AMM and/or debt based on our match
+        let t1_context =
+            (bid.inverse_order() || bid.is_debt()) && (ask.inverse_order() || ask.is_debt());
+
+        // Find our AMM order
+        let amm_order = if bid.is_amm() {
+            Some((&bid, Direction::BuyingT0))
+        } else if ask.is_amm() {
+            Some((&ask, Direction::SellingT0))
+        } else {
+            None
+        };
+
+        // Update our AMM from our AMM order if we have one
+        if let Some((a_o, direction)) = amm_order {
+            if let Some(amm) = self.amm_price.as_mut() {
+                // We shouldn't be in a t1 context unless a_o.is_debt() is true, but let's be
+                // explicit
+                let quantity = if t1_context && a_o.is_debt() {
+                    // Move the AMM by the amount of T0 "freed" from the debt
+                    self.debt.unwrap().freed_t0(matched)
+                } else {
+                    // Move the AMM by the portion of the matched T0
+                    // Can unwrap here as we've checked to be sure the order is valid
+                    a_o.composite_t0_quantities(matched, direction).0.unwrap()
+                };
+                if Self::fill_amm(
+                    amm,
+                    &mut self.results,
+                    &mut self.amm_outcome,
+                    quantity,
+                    direction
+                )
+                .is_err()
                 {
                     return Some(VolumeFillMatchEndReason::ErrorEncountered);
                 }
             }
         }
 
-        // Then we see what else we need to do
+        // Find our partial match quantity if we need our debt to calculate that.  We
+        // have to do this before we adjust the debt because it relies on the current
+        // debt
+        let t1_matched = if t1_context {
+            matched
+        } else {
+            match (bid.inverse_order(), ask.inverse_order()) {
+                (true, false) => 0,
+                (false, true) => 0,
+                _ => 0
+            }
+        };
+
+        // Adjust our debt
+        // Find our debt order
+        let debt_order = if bid.is_debt() {
+            Some((&bid, Direction::BuyingT0))
+        } else if ask.is_debt() {
+            Some((&ask, Direction::SellingT0))
+        } else {
+            None
+        };
+
+        // Update the debt based on whether we have a debt order or not
+        if let Some((d_o, direction)) = debt_order {
+            if t1_context {
+                if let Some(d) = self.debt.as_mut() {
+                    if d_o.is_amm() {
+                        // If the AMM is here, we've used the T1 to feed T0 into the AMM.  Maybe
+                        // we've done this at the AMM step?
+                        *d = d.flat_fill_t1(matched);
+                    } else {
+                        // In t1 context, if we don't have the AMM in this order, we use the T1
+                        // difference to adjust the price.
+                        *d = d.partial_fill_t1(matched);
+                    }
+                }
+            } else {
+                let quantity = d_o.composite_t0_quantities(matched, direction).1.unwrap();
+                if let Some(d) = self.debt.as_mut() {
+                    *d = d.partial_fill(quantity);
+                }
+            }
+        } else {
+            // Without a debt order we can alwasys just add the total of our
+            // compared orders' debts - if both have debt it annihilates and if neither does
+            // we don't need to do it
+            if let Some(net_debt) = ask
+                .as_debt(Some(t1_matched))
+                .xor(bid.as_debt(Some(t1_matched)))
+            {
+                self.debt += net_debt;
+            }
+        }
+
+        // Then we deal with fixing up our book orders
         match bid_q.cmp(&ask_q) {
             Ordering::Equal => {
                 println!("Equal match");
                 // We annihilated
-
-                // Settle our debt
-                // If both of our orders cause debt they should cancel out so we can skip this,
-                // if neither cause debt there is no change to be made so in this case we can
-                // only operate if one is debt and the other isn't
-                if let Some(net_debt) = ask.as_debt(None).xor(bid.as_debt(None)) {
-                    self.debt += net_debt;
-                }
 
                 // If we have a debt price, this is our current price, otherwise we get a price
                 // from our order outcomes
@@ -386,13 +455,14 @@ impl<'a> VolumeFillMatcher<'a> {
                 println!("Greater than match");
                 self.results.price = Some(bid.price());
                 // Ask was completely filled, remainder bid
-                if !ask.is_amm() && !ask.is_composite() {
+                if ask.is_book() {
                     self.ask_outcomes[self.ask_idx.get()] = OrderFillState::CompleteFill
                 }
                 // Set our bid outcome to be partial
-                if !bid.is_amm() && !bid.is_composite() {
+                if bid.is_book() {
+                    let partial_q = if bid.inverse_order() { t1_matched } else { matched };
                     self.bid_outcomes[self.bid_idx.get()] =
-                        self.bid_outcomes[self.bid_idx.get()].partial_fill(matched);
+                        self.bid_outcomes[self.bid_idx.get()].partial_fill(partial_q);
                     // A partial fill of a partial-safe order is checkpointable
                     if bid.is_partial() {
                         self.save_checkpoint();
@@ -406,13 +476,14 @@ impl<'a> VolumeFillMatcher<'a> {
                 println!("Less than match");
                 self.results.price = Some(ask.price());
                 // Bid was completely filled, remainder ask
-                if !bid.is_amm() && !bid.is_composite() {
+                if bid.is_book() {
                     self.bid_outcomes[self.bid_idx.get()] = OrderFillState::CompleteFill
                 }
                 // Set our ask outcome to be partial
-                if !ask.is_amm() && !ask.is_composite() {
+                if ask.is_book() {
+                    let partial_q = if bid.inverse_order() { t1_matched } else { matched };
                     self.ask_outcomes[self.ask_idx.get()] =
-                        self.ask_outcomes[self.ask_idx.get()].partial_fill(matched);
+                        self.ask_outcomes[self.ask_idx.get()].partial_fill(partial_q);
                     // A partial fill of a partial-safe order is checkpointable
                     if ask.is_partial() {
                         self.save_checkpoint();
@@ -538,13 +609,15 @@ impl<'a> VolumeFillMatcher<'a> {
             println!("Comparing AMM to book order");
             let bound_price = if let Some(o) = book_order {
                 println!(
-                    "AMM price: {:?}\nBook price: {:?}",
+                    "AMM price:  {:?}\nBook price: {:?}",
                     a.as_ray(),
                     o.price_for_book_side(bid)
                 );
                 if o.price_for_book_side(bid).cmp(&a.as_ray()) != less_advantageous {
                     println!("Book order better than AMM price");
                     return None
+                } else {
+                    println!("Amm price better than book price");
                 }
                 Some(o.price_for_book_side(bid))
             } else {

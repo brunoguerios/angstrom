@@ -24,6 +24,8 @@ impl TestOrder {
             .amount(self.q)
             .min_price(min_price)
             .exact()
+            .exact_in(!is_bid)
+            .is_bid(is_bid)
             .with_storage()
             .is_bid(is_bid)
             .build()
@@ -98,10 +100,14 @@ fn unsolveable_book() {
         vec![TestOrder { q: 100, p: raw_price(10) }],
         None
     );
+    println!("Book: {:?}", book);
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
     println!("End reason: {:?}", end);
-    let solution = matcher.solution(None);
+    let solution = matcher
+        .from_checkpoint()
+        .expect("No checkpoint in matcher")
+        .solution(None);
     assert!(solution.limit.iter().all(|outcome| !outcome.is_filled()), "All orders not unfilled");
 }
 
@@ -127,7 +133,10 @@ fn multiple_orders_fill() {
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
     println!("End reason: {:?}", end);
-    let solution = matcher.solution(None);
+    let solution = matcher
+        .from_checkpoint()
+        .expect("No checkpointed solution")
+        .solution(None);
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }
 
@@ -143,10 +152,10 @@ fn fill_from_amm() {
 
 #[test]
 fn amm_provides_last_mile_liquidity() {
-    let amm_price = Ray::from(SqrtPriceX96::at_tick(100001).unwrap());
     let amm = generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
+    let amm_price = amm.current_price().as_ray();
     let book = make_books(
-        vec![TestOrder { q: 100, p: amm_price + 100_usize }],
+        vec![TestOrder { q: 100, p: amm_price + 100000000000_usize }],
         vec![TestOrder { q: 50, p: amm_price - 100_usize }],
         Some(amm)
     );
