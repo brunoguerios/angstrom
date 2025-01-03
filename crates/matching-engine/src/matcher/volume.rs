@@ -377,9 +377,6 @@ impl<'a> VolumeFillMatcher<'a> {
                     self.bid_outcomes[self.bid_idx.get()] = OrderFillState::CompleteFill
                 }
 
-                // Update everything for a Composite order
-                if ask.is_composite() {}
-                if bid.is_composite() {}
                 // Take a snapshot as a good solve state
                 self.save_checkpoint();
                 // We're done here, we'll get our next bid and ask on
