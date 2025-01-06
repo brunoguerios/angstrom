@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, Bytes, FixedBytes, TxHash, U256},
     signers::Signature
 };
-use alloy_primitives::B256;
+use alloy_primitives::{PrimitiveSignature, B256};
 use pade::PadeDecode;
 use serde::{Deserialize, Serialize};
 
@@ -321,6 +321,13 @@ impl RawPoolOrder for StandingVariants {
             StandingVariants::Partial(p) => p.use_internal()
         }
     }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        match self {
+            StandingVariants::Exact(e) => e.order_signature(),
+            StandingVariants::Partial(p) => p.order_signature()
+        }
+    }
 }
 
 impl RawPoolOrder for FlashVariants {
@@ -409,6 +416,13 @@ impl RawPoolOrder for FlashVariants {
         match self {
             FlashVariants::Exact(e) => e.use_internal(),
             FlashVariants::Partial(p) => p.use_internal()
+        }
+    }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        match self {
+            FlashVariants::Exact(e) => e.order_signature(),
+            FlashVariants::Partial(p) => p.order_signature()
         }
     }
 }
@@ -586,10 +600,7 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn is_valid_signature(&self) -> bool {
-        let s = self.meta.signature.to_vec();
-        let mut slice = s.as_slice();
-
-        let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
+        let Ok(sig) = self.order_signature() else { return false };
         let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
 
         sig.recover_address_from_prehash(&hash)
@@ -603,6 +614,13 @@ impl RawPoolOrder for TopOfBlockOrder {
 
     fn use_internal(&self) -> bool {
         self.use_internal
+    }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        let s = self.meta.signature.to_vec();
+        let mut slice = s.as_slice();
+
+        Ok(Signature::pade_decode(&mut slice, None)?)
     }
 }
 
@@ -666,6 +684,13 @@ impl RawPoolOrder for PartialStandingOrder {
     fn use_internal(&self) -> bool {
         self.use_internal
     }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        let s = self.meta.signature.to_vec();
+        let mut slice = s.as_slice();
+
+        Ok(Signature::pade_decode(&mut slice, None)?)
+    }
 }
 
 impl RawPoolOrder for ExactStandingOrder {
@@ -727,6 +752,13 @@ impl RawPoolOrder for ExactStandingOrder {
 
     fn use_internal(&self) -> bool {
         self.use_internal
+    }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        let s = self.meta.signature.to_vec();
+        let mut slice = s.as_slice();
+
+        Ok(Signature::pade_decode(&mut slice, None)?)
     }
 }
 
@@ -790,6 +822,13 @@ impl RawPoolOrder for PartialFlashOrder {
     fn use_internal(&self) -> bool {
         self.use_internal
     }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        let s = self.meta.signature.to_vec();
+        let mut slice = s.as_slice();
+
+        Ok(Signature::pade_decode(&mut slice, None)?)
+    }
 }
 
 impl RawPoolOrder for ExactFlashOrder {
@@ -851,6 +890,13 @@ impl RawPoolOrder for ExactFlashOrder {
 
     fn use_internal(&self) -> bool {
         self.use_internal
+    }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        let s = self.meta.signature.to_vec();
+        let mut slice = s.as_slice();
+
+        Ok(Signature::pade_decode(&mut slice, None)?)
     }
 }
 
@@ -958,6 +1004,14 @@ impl RawPoolOrder for AllOrders {
             AllOrders::TOB(tob) => tob.use_internal()
         }
     }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        match self {
+            AllOrders::Standing(p) => p.order_signature(),
+            AllOrders::Flash(kof) => kof.order_signature(),
+            AllOrders::TOB(tob) => tob.order_signature()
+        }
+    }
 }
 
 impl RawPoolOrder for GroupedVanillaOrder {
@@ -1051,6 +1105,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
             GroupedVanillaOrder::KillOrFill(kof) => kof.use_internal()
         }
     }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        match self {
+            GroupedVanillaOrder::Standing(p) => p.order_signature(),
+            GroupedVanillaOrder::KillOrFill(kof) => kof.order_signature()
+        }
+    }
 }
 
 impl RawPoolOrder for GroupedComposableOrder {
@@ -1142,6 +1203,13 @@ impl RawPoolOrder for GroupedComposableOrder {
         match self {
             GroupedComposableOrder::Partial(p) => p.use_internal(),
             GroupedComposableOrder::KillOrFill(kof) => kof.use_internal()
+        }
+    }
+
+    fn order_signature(&self) -> eyre::Result<PrimitiveSignature> {
+        match self {
+            GroupedComposableOrder::Partial(p) => p.order_signature(),
+            GroupedComposableOrder::KillOrFill(kof) => kof.order_signature()
         }
     }
 }

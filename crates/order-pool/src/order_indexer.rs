@@ -345,12 +345,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             })
             // remove from all underlying pools
             .filter_map(|id| match id.location {
-                angstrom_types::orders::OrderLocation::Searcher => {
-                    self.order_storage.remove_searcher_order(&id)
-                }
-                angstrom_types::orders::OrderLocation::Limit => {
-                    self.order_storage.remove_limit_order(&id)
-                }
+                OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id),
+                OrderLocation::Limit => self.order_storage.remove_limit_order(&id)
             })
             .collect::<Vec<_>>();
 
@@ -363,12 +359,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .for_each(|order_ids| {
                 order_ids.into_iter().for_each(|id| {
                     let Some(order) = (match id.location {
-                        angstrom_types::orders::OrderLocation::Limit => {
-                            self.order_storage.remove_limit_order(&id)
-                        }
-                        angstrom_types::orders::OrderLocation::Searcher => {
-                            self.order_storage.remove_searcher_order(&id)
-                        }
+                        OrderLocation::Limit => self.order_storage.remove_limit_order(&id),
+                        OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id)
                     }) else {
                         return
                     };
@@ -404,12 +396,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .iter()
             .filter_map(|hash| self.order_hash_to_order_id.remove(hash))
             .filter_map(|order_id| match order_id.location {
-                angstrom_types::orders::OrderLocation::Limit => {
-                    self.order_storage.remove_limit_order(&order_id)
-                }
-                angstrom_types::orders::OrderLocation::Searcher => {
-                    self.order_storage.remove_searcher_order(&order_id)
-                }
+                OrderLocation::Limit => self.order_storage.remove_limit_order(&order_id),
+                OrderLocation::Searcher => self.order_storage.remove_searcher_order(&order_id)
             })
             .collect::<Vec<OrderWithStorageData<AllOrders>>>();
 
