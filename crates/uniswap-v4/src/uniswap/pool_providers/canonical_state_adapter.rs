@@ -21,10 +21,9 @@ where
     P: Provider + 'static
 {
     canon_state_notifications: broadcast::Receiver<CanonStateNotification>,
-    last_logs: RwLock<Vec<Log>>,
-    last_block_number: AtomicU64,
-    node_provider: Arc<P>,
-    id: u64
+    last_logs:                 Arc<RwLock<Vec<Log>>>,
+    last_block_number:         Arc<AtomicU64>,
+    node_provider:             Arc<P>
 }
 
 impl<P> Clone for CanonicalStateAdapter<P>
@@ -32,18 +31,11 @@ where
     P: Provider + 'static
 {
     fn clone(&self) -> Self {
-        let mut last_logs = vec![];
-        let l = self.last_logs.read().unwrap();
-        for log in l.iter() {
-            last_logs.push(log.clone());
-        }
-
         Self {
-            id: rand::random(),
             canon_state_notifications: self.canon_state_notifications.resubscribe(),
-            last_logs: RwLock::new(last_logs),
-            last_block_number: AtomicU64::new(self.last_block_number.load(Ordering::SeqCst)),
-            node_provider: self.node_provider.clone()
+            last_logs:                 self.last_logs.clone(),
+            last_block_number:         self.last_block_number.clone(),
+            node_provider:             self.node_provider.clone()
         }
     }
 }
@@ -58,10 +50,9 @@ where
         block_number: u64
     ) -> Self {
         Self {
-            id: rand::random(),
             canon_state_notifications,
-            last_logs: RwLock::new(Vec::new()),
-            last_block_number: AtomicU64::new(block_number),
+            last_logs: Arc::new(RwLock::new(Vec::new())),
+            last_block_number: Arc::new(AtomicU64::new(block_number)),
             node_provider
         }
     }
@@ -76,7 +67,6 @@ where
     }
 
     fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
-        tracing::info!(?self.id,"subscribing blocks");
         futures_util::stream::unfold(
             self.canon_state_notifications.resubscribe(),
             move |mut notifications| {
@@ -94,7 +84,7 @@ where
                                     .map_or_else(Vec::new, |logs| logs.cloned().collect());
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
-                                tracing::info!(?self.id, ?block.number,"updated number");
+                                tracing::info!(?block.number,"updated number");
                                 Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
                             }
                             CanonStateNotification::Reorg { old, new } => {
@@ -132,7 +122,7 @@ where
 
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
-                                tracing::info!(?self.id, ?block.number,"updated number");
+                                tracing::info!(?block.number,"updated number");
                                 Some(Some(PoolMangerBlocks::Reorg(block.number, range)))
                             }
                         };
@@ -168,7 +158,7 @@ where
     fn validate_filter(&self, filter: &Filter) -> Result<(), PoolManagerError> {
         let last_block = self.last_block_number.load(Ordering::SeqCst);
         if let FilterBlockOption::Range { from_block, to_block } = &filter.block_option {
-            tracing::debug!(?from_block, ?to_block, ?last_block, ?self.id);
+            tracing::debug!(?from_block, ?to_block, ?last_block);
 
             let from_equal_block_range = from_block.as_ref().map_or(false, |from| {
                 matches!(from, BlockNumberOrTag::Number(from_num)

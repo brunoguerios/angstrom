@@ -10,6 +10,7 @@ pub mod provider_adapter;
 
 pub trait PoolManagerProvider: Send + Sync + Clone + Unpin {
     fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>>;
+
     fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>, PoolManagerError>;
     fn provider(&self) -> Arc<impl Provider>;
 }
