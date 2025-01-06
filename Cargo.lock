@@ -6226,7 +6226,7 @@ dependencies = [
 [[package]]
 name = "pade"
 version = "0.1.0"
-source = "git+https://github.com/SorellaLabs/pade#d714a212e4bf0daaa37459f2302945c5615cb1f8"
+source = "git+https://github.com/SorellaLabs/pade#0643311263ff2a41cf855b12b84c489264249c5e"
 dependencies = [
  "alloy 0.7.3",
  "bitvec",
@@ -6238,7 +6238,7 @@ dependencies = [
 [[package]]
 name = "pade-macro"
 version = "0.1.0"
-source = "git+https://github.com/SorellaLabs/pade#d714a212e4bf0daaa37459f2302945c5615cb1f8"
+source = "git+https://github.com/SorellaLabs/pade#0643311263ff2a41cf855b12b84c489264249c5e"
 dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
