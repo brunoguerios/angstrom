@@ -380,7 +380,7 @@ where
         let node_provider = provider.provider();
         let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
 
-        // problematic await on a lock
+        // given we force this to resolve, should'nt be problematic
         let ticks = pool
             .load_more_ticks(tick_req, None, node_provider)
             .await
