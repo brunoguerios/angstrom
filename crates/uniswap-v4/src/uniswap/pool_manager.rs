@@ -382,6 +382,7 @@ where
         tracing::info!("starting to load more ticks in manager");
         let node_provider = provider.provider();
         let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
+        tracing::info!("got write lock");
 
         // given we force this to resolve, should'nt be problematic
         let ticks = pool
