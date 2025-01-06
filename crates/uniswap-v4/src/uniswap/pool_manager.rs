@@ -98,16 +98,16 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>
     ) -> eyre::Result<ToBOutcome> {
         tracing::info!("calculate_rewards function");
-        let market_snapshot = {
-            let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
-            pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
-        };
 
         let mut cnt = ATTEMPTS;
         loop {
+            let market_snapshot = {
+                let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
+                pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
+            };
+
             let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot);
             if outcome.is_err() {
-                tracing::info!("is error on calculating rewards");
                 let zfo = !tob.is_bid;
                 let not = Arc::new(Notify::new());
                 // scope for awaits
@@ -135,7 +135,6 @@ where
                     .await;
 
                 not.notified().await;
-                tracing::info!("loaded more ticks");
 
                 // don't loop forever
                 cnt -= 1;
@@ -379,10 +378,8 @@ where
         provider: Arc<P>,
         tick_req: TickRangeToLoad<A>
     ) {
-        tracing::info!("starting to load more ticks in manager");
         let node_provider = provider.provider();
         let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
-        tracing::info!("got write lock");
 
         // given we force this to resolve, should'nt be problematic
         let ticks = pool
@@ -391,7 +388,6 @@ where
             .unwrap();
 
         pool.apply_ticks(ticks);
-        tracing::info!("loaded ticks, applying");
 
         // notify we have updated the liquidity
         notifier.notify_one();
