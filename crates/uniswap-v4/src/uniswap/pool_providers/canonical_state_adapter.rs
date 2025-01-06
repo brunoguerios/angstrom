@@ -85,6 +85,7 @@ where
                         let block = match notification {
                             CanonStateNotification::Commit { new } => {
                                 let block = new.tip();
+
                                 let logs: Vec<Log> = new
                                     .execution_outcome()
                                     .logs(block.number)
@@ -129,6 +130,7 @@ where
 
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
+                                tracing::info!(?block.number,"updated number");
                                 Some(Some(PoolMangerBlocks::Reorg(block.number, range)))
                             }
                         };

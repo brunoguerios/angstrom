@@ -74,6 +74,8 @@ where
 /// Amount of ticks to load when we go out of scope;
 const OUT_OF_SCOPE_TICKS: u16 = 20;
 
+const ATTEMPTS: u8 = 5;
+
 impl<A, Loader> SyncedUniswapPools<A, Loader>
 where
     Loader: PoolDataLoader<A> + Default,
@@ -100,7 +102,7 @@ where
             pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
         };
 
-        let mut cnt = 5;
+        let mut cnt = ATTEMPTS;
         loop {
             let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot);
             if outcome.is_err() {
@@ -410,6 +412,7 @@ where
             let pools = self.pools.clone();
             let prov = self.provider.clone();
             let mut f = Box::pin(Self::load_more_ticks(not, pools, prov, ticks));
+
             while f.poll_unpin(cx).is_pending() {}
         }
 
