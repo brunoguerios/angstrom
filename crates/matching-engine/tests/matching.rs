@@ -1,7 +1,7 @@
 use alloy::primitives::U256;
 use alloy_primitives::FixedBytes;
 use angstrom_types::{
-    matching::{uniswap::PoolSnapshot, Ray, SqrtPriceX96},
+    matching::{uniswap::PoolSnapshot, Ray},
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use matching_engine::{
@@ -15,6 +15,24 @@ use testing_tools::type_generator::{
 struct TestOrder {
     q: u128,
     p: Ray
+}
+
+impl TestOrder {
+    fn exact_bid(q: u128, p: Ray) -> BookOrder {
+        Self { q, p }.to_order(true)
+    }
+
+    fn exact_ask(q: u128, p: Ray) -> BookOrder {
+        Self { q, p }.to_order(false)
+    }
+
+    fn exact_inverse_bid(q: u128, p: Ray) -> BookOrder {
+        Self { q, p }.to_inverse_order(true)
+    }
+
+    fn exact_inverse_ask(q: u128, p: Ray) -> BookOrder {
+        Self { q, p }.to_inverse_order(false)
+    }
 }
 
 impl TestOrder {
@@ -166,7 +184,22 @@ fn amm_provides_last_mile_liquidity() {
 }
 
 #[test]
-fn debt_price_is_final_price() {}
+fn debt_price_is_final_price() {
+    let book = OrderBook::new(
+        FixedBytes::random(),
+        None,
+        vec![TestOrder::exact_bid(1000000000000000000000000000_u128, raw_price(500))],
+        vec![TestOrder::exact_inverse_ask(100, raw_price(100))],
+        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
+    );
+    let mut matcher = VolumeFillMatcher::new(&book);
+    let _ = matcher.run_match();
+    let solution = matcher
+        .from_checkpoint()
+        .expect("No checkpointed solution")
+        .solution(None);
+    assert!(solution.ucp == book.asks()[0].price(), "Price is not stuck at debt price");
+}
 
 #[test]
 fn annihilating_debt() {

@@ -404,6 +404,7 @@ mod tests {
 
     #[test]
     fn inverts_properly() {
+        // This test currently fails due to our precision issues
         let s = SqrtPriceX96::at_tick(100000).unwrap();
         let r = Ray::from(s);
         let inv_r = r.inv_ray();
