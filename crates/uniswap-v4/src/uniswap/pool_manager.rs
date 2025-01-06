@@ -107,7 +107,6 @@ where
             };
 
             let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot);
-            tracing::info!(?outcome);
 
             if outcome.is_err() {
                 let zfo = !tob.is_bid;
@@ -141,7 +140,6 @@ where
                 // don't loop forever
                 cnt -= 1;
                 if cnt == 0 {
-                    tracing::info!("cnt = 0");
                     return outcome
                 }
 
