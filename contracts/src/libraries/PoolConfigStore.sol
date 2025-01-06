@@ -93,17 +93,11 @@ library PoolConfigStoreLib {
             extcodecopy(previousStore, entryOffset, STORE_HEADER_SIZE, totalEntryBytes)
             // Shift all entries in memory after the one to be removed back by one entry.
             let toBeRemovedMemOffset := add(entryOffset, mul(storeIndex, ENTRY_SIZE))
-            mcopy(
-                toBeRemovedMemOffset,
-                add(toBeRemovedMemOffset, 0x20),
-                mul(entriesAfterToBeRemoved, ENTRY_SIZE)
-            )
+            mcopy(toBeRemovedMemOffset, add(toBeRemovedMemOffset, 0x20), mul(entriesAfterToBeRemoved, ENTRY_SIZE))
             // Deploy store.
             newStore :=
                 create(
-                    0,
-                    add(free, sub(32, STORE_DEPLOYER_BYTES)),
-                    add(sub(totalEntryBytes, ENTRY_SIZE), STORE_DEPLOYER_BYTES)
+                    0, add(free, sub(32, STORE_DEPLOYER_BYTES)), add(sub(totalEntryBytes, ENTRY_SIZE), STORE_DEPLOYER_BYTES)
                 )
         }
         if (PoolConfigStore.unwrap(newStore) == address(0)) {
@@ -162,12 +156,7 @@ library PoolConfigStoreLib {
             // if the entry was found & replaced).
             mstore(entriesEnd, newEntry)
             // Deploy store.
-            newStore :=
-                create(
-                    0,
-                    add(free, sub(32, STORE_DEPLOYER_BYTES)),
-                    add(totalEntryBytes, STORE_DEPLOYER_BYTES)
-                )
+            newStore := create(0, add(free, sub(32, STORE_DEPLOYER_BYTES)), add(totalEntryBytes, STORE_DEPLOYER_BYTES))
         }
 
         if (PoolConfigStore.unwrap(newStore) == address(0)) {
@@ -199,11 +188,7 @@ library PoolConfigStoreLib {
 
     /// @dev Computes the `StoreKey` from the inputs. WARN: Does not check that the assets are
     /// sorted and in unique order.
-    function keyFromAssetsUnchecked(address asset0, address asset1)
-        internal
-        pure
-        returns (StoreKey key)
-    {
+    function keyFromAssetsUnchecked(address asset0, address asset1) internal pure returns (StoreKey key) {
         assembly ("memory-safe") {
             mstore(0x00, asset0)
             mstore(0x20, asset1)

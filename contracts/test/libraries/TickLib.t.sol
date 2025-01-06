@@ -38,8 +38,7 @@ contract TickLibTest is Test {
     }
 
     function test_fuzzing_compress(int24 tick, int24 tickSpacing) public pure {
-        tickSpacing =
-            int24(bound(tickSpacing, TickMath.MIN_TICK_SPACING, TickMath.MAX_TICK_SPACING));
+        tickSpacing = int24(bound(tickSpacing, TickMath.MIN_TICK_SPACING, TickMath.MAX_TICK_SPACING));
         // Assumption: Tick spacing is always a positive non-negative value.
         int24 libCompressed = TickLib.compress(tick, tickSpacing);
 
@@ -49,33 +48,21 @@ contract TickLibTest is Test {
         assertEq(libCompressed, safeCompressed);
     }
 
-    function test_fuzzing_tickRecreatedFromPositionToTick(int24 tick, int24 tickSpacing)
-        public
-        pure
-    {
-        tickSpacing =
-            int24(bound(tickSpacing, TickMath.MIN_TICK_SPACING, TickMath.MAX_TICK_SPACING));
+    function test_fuzzing_tickRecreatedFromPositionToTick(int24 tick, int24 tickSpacing) public pure {
+        tickSpacing = int24(bound(tickSpacing, TickMath.MIN_TICK_SPACING, TickMath.MAX_TICK_SPACING));
         (int16 wordPos, uint8 bitPos) = TickLib.position(tick / tickSpacing);
         int24 outTick = TickLib.toTick(wordPos, bitPos, tickSpacing);
         assertEq(tick - tick % tickSpacing, outTick);
     }
 
-    function _findNextGte(uint256 word, uint8 bitPos)
-        internal
-        pure
-        returns (uint8 nextBitPos, bool initialized)
-    {
+    function _findNextGte(uint256 word, uint8 bitPos) internal pure returns (uint8 nextBitPos, bool initialized) {
         for (uint256 i = bitPos; i < 256; i++) {
             if (word & (1 << i) != 0) return (uint8(i), true);
         }
         return (type(uint8).max, false);
     }
 
-    function _findNextLte(uint256 word, uint8 bitPos)
-        internal
-        pure
-        returns (uint8 nextBitPos, bool initialized)
-    {
+    function _findNextLte(uint256 word, uint8 bitPos) internal pure returns (uint8 nextBitPos, bool initialized) {
         while (true) {
             if (word & (1 << bitPos) != 0) return (uint8(bitPos), true);
             if (bitPos == 0) break;
@@ -83,12 +70,10 @@ contract TickLibTest is Test {
         }
     }
 
-    function assertNextBitPosGteEq(
-        uint256 word,
-        uint8 bitPos,
-        bool expectedInitialized,
-        uint8 expectedOutBitPos
-    ) internal pure {
+    function assertNextBitPosGteEq(uint256 word, uint8 bitPos, bool expectedInitialized, uint8 expectedOutBitPos)
+        internal
+        pure
+    {
         (bool initialized, uint8 outPos) = TickLib.nextBitPosGte(word, bitPos);
         assertEq(initialized, expectedInitialized);
         assertEq(outPos, expectedOutBitPos);

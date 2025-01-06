@@ -38,8 +38,7 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
             uint128 amount;
             (reader, amount) = reader.readU128();
             unchecked {
-                poolRewards_.globalGrowth +=
-                    X128MathLib.flatDivX128(amount, UNI_V4.getPoolLiquidity(id));
+                poolRewards_.globalGrowth += X128MathLib.flatDivX128(amount, UNI_V4.getPoolLiquidity(id));
             }
 
             return (reader, amount);

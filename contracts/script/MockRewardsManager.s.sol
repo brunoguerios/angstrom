@@ -25,9 +25,7 @@ contract MockRewardsManagerScript is Test, Script, HookDeployer {
         vm.startBroadcast(key);
 
         (bool suc, address mockRewardsAddr,) = deployHook(
-            abi.encodePacked(
-                type(MockRewardsManager).creationCode, abi.encode(UNI_V4_PM, vm.addr(key))
-            ),
+            abi.encodePacked(type(MockRewardsManager).creationCode, abi.encode(UNI_V4_PM, vm.addr(key))),
             ANGSTROM_HOOK_FLAGS,
             CREATE2_FACTORY
         );

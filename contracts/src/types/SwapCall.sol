@@ -59,8 +59,7 @@ library SwapCallLib {
 
     function call(SwapCall memory self, IPoolManager uni) internal {
         assembly ("memory-safe") {
-            let success :=
-                call(gas(), uni, 0, add(self, CALL_PAYLOAD_START_OFFSET), CALL_PAYLOAD_CD_BYTES, 0, 0)
+            let success := call(gas(), uni, 0, add(self, CALL_PAYLOAD_START_OFFSET), CALL_PAYLOAD_CD_BYTES, 0, 0)
             if iszero(success) {
                 let free := mload(0x40)
                 returndatacopy(free, 0, returndatasize())

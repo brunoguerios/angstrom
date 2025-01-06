@@ -43,8 +43,7 @@ library BundleLib {
         bytes memory summaryPreImage;
         for (uint256 i = 0; i < self.assets.length; i++) {
             Asset memory asset = self.assets[i];
-            summaryPreImage =
-                bytes.concat(summaryPreImage, bytes20(asset.addr), bytes16(asset.save));
+            summaryPreImage = bytes.concat(summaryPreImage, bytes20(asset.addr), bytes16(asset.save));
         }
         return keccak256(summaryPreImage);
     }
@@ -71,11 +70,7 @@ library BundleLib {
         return self;
     }
 
-    function addPair(Bundle memory self, address asset0, address asset1)
-        internal
-        pure
-        returns (Bundle memory)
-    {
+    function addPair(Bundle memory self, address asset0, address asset1) internal pure returns (Bundle memory) {
         return self.addPair(asset0, asset1, Price10.wrap(0));
     }
 
@@ -102,11 +97,7 @@ library BundleLib {
         return self;
     }
 
-    function addToB(Bundle memory self, TopOfBlockOrder memory tob)
-        internal
-        pure
-        returns (Bundle memory)
-    {
+    function addToB(Bundle memory self, TopOfBlockOrder memory tob) internal pure returns (Bundle memory) {
         self.addPair(tob.assetIn, tob.assetOut);
 
         TopOfBlockOrder[] memory newToBOrders = new TopOfBlockOrder[](self.toBOrders.length + 1);
@@ -119,10 +110,7 @@ library BundleLib {
         return self;
     }
 
-    function addDeltas(Bundle memory self, uint256 index0, uint256 index1, BalanceDelta deltas)
-        internal
-        pure
-    {
+    function addDeltas(Bundle memory self, uint256 index0, uint256 index1, BalanceDelta deltas) internal pure {
         self.assets[index0].addDelta(deltas.amount0());
         self.assets[index1].addDelta(deltas.amount1());
     }

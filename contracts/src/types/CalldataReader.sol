@@ -139,11 +139,7 @@ library CalldataReaderLib {
         return (self, value);
     }
 
-    function readU24End(CalldataReader self)
-        internal
-        pure
-        returns (CalldataReader, CalldataReader end)
-    {
+    function readU24End(CalldataReader self) internal pure returns (CalldataReader, CalldataReader end) {
         assembly ("memory-safe") {
             let len := shr(232, calldataload(self))
             self := add(self, 3)
@@ -152,11 +148,7 @@ library CalldataReaderLib {
         return (self, end);
     }
 
-    function readBytes(CalldataReader self)
-        internal
-        pure
-        returns (CalldataReader, bytes calldata slice)
-    {
+    function readBytes(CalldataReader self) internal pure returns (CalldataReader, bytes calldata slice) {
         assembly ("memory-safe") {
             slice.length := shr(232, calldataload(self))
             self := add(self, 3)

@@ -12,11 +12,7 @@ library TickLib {
         return word & (uint256(1) << bitPos) != 0;
     }
 
-    function nextBitPosLte(uint256 word, uint8 bitPos)
-        internal
-        pure
-        returns (bool initialized, uint8 nextBitPos)
-    {
+    function nextBitPosLte(uint256 word, uint8 bitPos) internal pure returns (bool initialized, uint8 nextBitPos) {
         unchecked {
             uint8 offset = 0xff - bitPos;
             uint256 relativePos = LibBit.fls(word << offset);
@@ -25,11 +21,7 @@ library TickLib {
         }
     }
 
-    function nextBitPosGte(uint256 word, uint8 bitPos)
-        internal
-        pure
-        returns (bool initialized, uint8 nextBitPos)
-    {
+    function nextBitPosGte(uint256 word, uint8 bitPos) internal pure returns (bool initialized, uint8 nextBitPos) {
         unchecked {
             uint256 relativePos = LibBit.ffs(word >> bitPos);
             initialized = relativePos != 256;
@@ -45,14 +37,9 @@ library TickLib {
 
     /// @dev Normalize tick to its tick boundary (rounding towards negative infinity). WARN: Can underflow
     /// for values of `tick < mul(sdiv(type(int24).min, tickSpacing), tickSpacing)`.
-    function normalizeUnchecked(int24 tick, int24 tickSpacing)
-        internal
-        pure
-        returns (int24 normalized)
-    {
+    function normalizeUnchecked(int24 tick, int24 tickSpacing) internal pure returns (int24 normalized) {
         assembly ("memory-safe") {
-            normalized :=
-                mul(sub(sdiv(tick, tickSpacing), slt(smod(tick, tickSpacing), 0)), tickSpacing)
+            normalized := mul(sub(sdiv(tick, tickSpacing), slt(smod(tick, tickSpacing), 0)), tickSpacing)
         }
     }
 

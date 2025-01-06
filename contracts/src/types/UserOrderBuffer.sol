@@ -120,9 +120,7 @@ library UserOrderBufferLib {
             variantMap := byte(0, calldataload(reader))
             reader := add(reader, VARIANT_MAP_BYTES)
             // Copy `refId` from calldata directly to memory.
-            calldatacopy(
-                add(self, add(REF_ID_MEM_OFFSET, sub(0x20, REF_ID_BYTES))), reader, REF_ID_BYTES
-            )
+            calldatacopy(add(self, add(REF_ID_MEM_OFFSET, sub(0x20, REF_ID_BYTES))), reader, REF_ID_BYTES)
             // Advance reader.
             reader := add(reader, REF_ID_BYTES)
         }
@@ -209,23 +207,17 @@ library UserOrderBufferLib {
         return (reader, quantityIn, quantityOut);
     }
 
-    function readOrderValidation(
-        UserOrderBuffer memory self,
-        CalldataReader reader,
-        UserOrderVariantMap variant
-    ) internal view returns (CalldataReader) {
+    function readOrderValidation(UserOrderBuffer memory self, CalldataReader reader, UserOrderVariantMap variant)
+        internal
+        view
+        returns (CalldataReader)
+    {
         if (variant.isStanding()) {
             // Copy slices directly from calldata into memory.
             assembly ("memory-safe") {
-                calldatacopy(
-                    add(self, add(NONCE_MEM_OFFSET, sub(0x20, NONCE_BYTES))), reader, NONCE_BYTES
-                )
+                calldatacopy(add(self, add(NONCE_MEM_OFFSET, sub(0x20, NONCE_BYTES))), reader, NONCE_BYTES)
                 reader := add(reader, NONCE_BYTES)
-                calldatacopy(
-                    add(self, add(DEADLINE_MEM_OFFSET, sub(0x20, DEADLINE_BYTES))),
-                    reader,
-                    DEADLINE_BYTES
-                )
+                calldatacopy(add(self, add(DEADLINE_MEM_OFFSET, sub(0x20, DEADLINE_BYTES))), reader, DEADLINE_BYTES)
                 reader := add(reader, DEADLINE_BYTES)
             }
         } else {

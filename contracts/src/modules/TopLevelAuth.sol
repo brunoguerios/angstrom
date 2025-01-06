@@ -38,19 +38,11 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         _controller = newController;
     }
 
-    function initializePool(
-        address assetA,
-        address assetB,
-        uint256 storeIndex,
-        uint160 sqrtPriceX96
-    ) public {
+    function initializePool(address assetA, address assetB, uint256 storeIndex, uint160 sqrtPriceX96) public {
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(assetA, assetB);
         (int24 tickSpacing,) = _configStore.get(key, storeIndex);
-        UNI_V4.initialize(
-            PoolKey(_c(assetA), _c(assetB), POOL_FEE, tickSpacing, IHooks(address(this))),
-            sqrtPriceX96
-        );
+        UNI_V4.initialize(PoolKey(_c(assetA), _c(assetB), POOL_FEE, tickSpacing, IHooks(address(this))), sqrtPriceX96);
     }
 
     function removePool(address expectedStore, uint256 storeIndex) external {
@@ -68,9 +60,7 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
     }
 
     /// @dev Allow controller to set parameters of a given pool.
-    function configurePool(address assetA, address assetB, uint16 tickSpacing, uint24 feeInE6)
-        external
-    {
+    function configurePool(address assetA, address assetB, uint16 tickSpacing, uint24 feeInE6) external {
         _onlyController();
         _configStore = _configStore.setIntoNew(assetA, assetB, tickSpacing, feeInE6);
     }
