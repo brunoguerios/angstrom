@@ -180,7 +180,8 @@ where
             .map(|pool| (pool.address(), Arc::new(RwLock::new(pool))))
             .collect();
 
-        let block_stream = <P as Clone>::clone(&provider).subscribe_blocks();
+        let block_stream = <P as Clone>::clone(&provider);
+        let block_stream = block_stream.subscribe_blocks();
         let (tx, rx) = tokio::sync::mpsc::channel(100);
 
         Self {
