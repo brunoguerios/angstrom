@@ -19,6 +19,7 @@ use angstrom_types::{
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
 };
+use rand::{thread_rng, Rng};
 use validation::common::WETH_ADDRESS;
 
 use super::WalletProvider;
@@ -265,6 +266,7 @@ impl AnvilInitializer {
             .await?;
 
         self.pending_state.add_pending_tx(pool_gate);
+        let mut rng = thread_rng();
 
         let tick = price.to_tick()?;
         for i in 0..200 {
@@ -278,7 +280,7 @@ impl AnvilInitializer {
                     pool_key.currency1,
                     lower,
                     upper,
-                    U256::from(liquidity),
+                    U256::from(rng.gen_range(liquidity / 2..liquidity)),
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())
