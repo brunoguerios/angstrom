@@ -21,9 +21,10 @@ where
     P: Provider + 'static
 {
     canon_state_notifications: broadcast::Receiver<CanonStateNotification>,
-    last_logs:                 RwLock<Vec<Log>>,
-    last_block_number:         AtomicU64,
-    node_provider:             Arc<P>
+    last_logs: RwLock<Vec<Log>>,
+    last_block_number: AtomicU64,
+    node_provider: Arc<P>,
+    id: u64
 }
 
 impl<P> Clone for CanonicalStateAdapter<P>
@@ -38,12 +39,11 @@ where
         }
 
         Self {
+            id: rand::random(),
             canon_state_notifications: self.canon_state_notifications.resubscribe(),
-            last_logs:                 RwLock::new(last_logs),
-            last_block_number:         AtomicU64::new(
-                self.last_block_number.load(Ordering::SeqCst)
-            ),
-            node_provider:             self.node_provider.clone()
+            last_logs: RwLock::new(last_logs),
+            last_block_number: AtomicU64::new(self.last_block_number.load(Ordering::SeqCst)),
+            node_provider: self.node_provider.clone()
         }
     }
 }
@@ -58,6 +58,7 @@ where
         block_number: u64
     ) -> Self {
         Self {
+            id: rand::random(),
             canon_state_notifications,
             last_logs: RwLock::new(Vec::new()),
             last_block_number: AtomicU64::new(block_number),
@@ -92,7 +93,7 @@ where
                                     .map_or_else(Vec::new, |logs| logs.cloned().collect());
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
-                                tracing::info!(?block.number,"updated number");
+                                tracing::info!(?self.id, ?block.number,"updated number");
                                 Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
                             }
                             CanonStateNotification::Reorg { old, new } => {
@@ -130,7 +131,7 @@ where
 
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
-                                tracing::info!(?block.number,"updated number");
+                                tracing::info!(?self.id, ?block.number,"updated number");
                                 Some(Some(PoolMangerBlocks::Reorg(block.number, range)))
                             }
                         };
@@ -166,7 +167,7 @@ where
     fn validate_filter(&self, filter: &Filter) -> Result<(), PoolManagerError> {
         let last_block = self.last_block_number.load(Ordering::SeqCst);
         if let FilterBlockOption::Range { from_block, to_block } = &filter.block_option {
-            tracing::debug!(?from_block, ?to_block, ?last_block);
+            tracing::debug!(?from_block, ?to_block, ?last_block, ?self.id);
 
             let from_equal_block_range = from_block.as_ref().map_or(false, |from| {
                 matches!(from, BlockNumberOrTag::Number(from_num)
