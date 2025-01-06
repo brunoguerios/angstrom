@@ -379,6 +379,7 @@ where
         provider: Arc<P>,
         tick_req: TickRangeToLoad<A>
     ) {
+        tracing::info!("starting to load more ticks in manager");
         let node_provider = provider.provider();
         let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
 
@@ -389,6 +390,7 @@ where
             .unwrap();
 
         pool.apply_ticks(ticks);
+        tracing::info!("loaded ticks, applying");
 
         // notify we have updated the liquidity
         notifier.notify_one();
