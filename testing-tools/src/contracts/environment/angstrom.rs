@@ -109,7 +109,6 @@ where
     E: TestUniswapEnv
 {
     type P = E::P;
-    type T = E::T;
 
     fn provider(&self) -> &Self::P {
         self.inner.provider()

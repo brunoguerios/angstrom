@@ -1,7 +1,7 @@
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
-    providers::{ext::AnvilApi, IpcConnect},
+    providers::ext::AnvilApi,
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, U256};
@@ -131,7 +131,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_ipc(IpcConnect::new(endpoint))
+            .on_builtin(&endpoint)
             .await?;
 
         tracing::info!("connected to anvil");
@@ -155,7 +155,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_ipc(IpcConnect::new(endpoint))
+            .on_builtin(&endpoint)
             .await?;
 
         tracing::info!("connected to anvil");

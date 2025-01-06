@@ -82,38 +82,41 @@ where
             Box::pin(async move {
                 match order_validation {
                     OrderValidation::Limit(tx, order, _) => {
-                        metrics.new_order(false, || {
-                            let mut results = cloned_state.handle_regular_order(
-                                order,
-                                block_number,
-                                metrics.clone()
-                            );
-                            results.add_gas_cost_or_invalidate(
-                                &cloned_sim,
-                                &token_conversion,
-                                true,
-                                block_number
-                            );
+                        metrics
+                            .new_order(false, || async {
+                                let mut results = cloned_state.handle_regular_order(
+                                    order,
+                                    block_number,
+                                    metrics.clone()
+                                );
+                                results.add_gas_cost_or_invalidate(
+                                    &cloned_sim,
+                                    &token_conversion,
+                                    true,
+                                    block_number
+                                );
 
-                            let _ = tx.send(results);
-                        });
+                                let _ = tx.send(results);
+                            })
+                            .await;
                     }
                     OrderValidation::Searcher(tx, order, _) => {
-                        metrics.new_order(true, || {
-                            let mut results = cloned_state.handle_regular_order(
-                                order,
-                                block_number,
-                                metrics.clone()
-                            );
-                            results.add_gas_cost_or_invalidate(
-                                &cloned_sim,
-                                &token_conversion,
-                                false,
-                                block_number
-                            );
+                        metrics
+                            .new_order(true, || async {
+                                let mut results = cloned_state
+                                    .handle_tob_order(order, block_number, metrics.clone())
+                                    .await;
 
-                            let _ = tx.send(results);
-                        });
+                                results.add_gas_cost_or_invalidate(
+                                    &cloned_sim,
+                                    &token_conversion,
+                                    false,
+                                    block_number
+                                );
+
+                                let _ = tx.send(results);
+                            })
+                            .await;
                     }
                     _ => unreachable!()
                 }

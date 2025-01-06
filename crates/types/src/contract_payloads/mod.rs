@@ -23,7 +23,7 @@ sol! {
         uint128 settle;
     }
 
-    #[derive(Debug,Default, PadeEncode, PadeDecode)]
+    #[derive(Debug, Default, PadeEncode, PadeDecode)]
     struct Pair {
         uint16 index0;
         uint16 index1;

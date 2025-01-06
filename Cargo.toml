@@ -180,7 +180,7 @@ alloy-rpc-client = { version = "0.7.3", default-features = false }
 
 
 # Uniswap math helpers
-uniswap_v3_math = { git = "https://github.com/0xKitsune/uniswap-v3-math.git" }
+uniswap_v3_math = { git = "https://github.com/0xKitsune/uniswap-v3-math.git", version = "0.5.3" }
 
 hex-literal = "0.4.1"
 
