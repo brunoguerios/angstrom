@@ -14,7 +14,9 @@ interface IBeforeInitializeHook {
     /// @param key The key for the pool being initialized
     /// @param sqrtPriceX96 The sqrt(price) of the pool as a Q64.96
     /// @return bytes4 The function selector for the hook
-    function beforeInitialize(address sender, PoolKey calldata key, uint160 sqrtPriceX96) external returns (bytes4);
+    function beforeInitialize(address sender, PoolKey calldata key, uint160 sqrtPriceX96)
+        external
+        returns (bytes4);
 }
 
 interface IAfterInitializeHook {

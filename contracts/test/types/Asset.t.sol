@@ -14,10 +14,12 @@ contract AssetTest is Test {
 
     function setUp() public {}
 
-    function test_fuzzing_referenceAssetEncoding(address addr, uint128 take, uint128 save, uint128 settle)
-        public
-        pure
-    {
+    function test_fuzzing_referenceAssetEncoding(
+        address addr,
+        uint128 take,
+        uint128 save,
+        uint128 settle
+    ) public pure {
         assertEq(
             RefAsset({addr: addr, take: take, save: save, settle: settle}).encode(),
             abi.encodePacked(addr, save, take, settle)
@@ -32,7 +34,10 @@ contract AssetTest is Test {
         this._fuzzing_sortedArrayIsAccepted(data, assets);
     }
 
-    function _fuzzing_sortedArrayIsAccepted(bytes calldata data, RefAsset[] calldata inputAssets) external pure {
+    function _fuzzing_sortedArrayIsAccepted(bytes calldata data, RefAsset[] calldata inputAssets)
+        external
+        pure
+    {
         CalldataReader reader = CalldataReaderLib.from(data);
         (, AssetArray encodedAssets) = AssetLib.readFromAndValidate(reader);
         assertEq(encodedAssets.len(), inputAssets.length);
@@ -58,7 +63,11 @@ contract AssetTest is Test {
     function _fuzzing_revertsOutOfBoundAccess(bytes calldata data, uint256 index) external {
         CalldataReader reader = CalldataReaderLib.from(data);
         (, AssetArray encodedAssets) = AssetLib.readFromAndValidate(reader);
-        vm.expectRevert(abi.encodeWithSelector(AssetLib.AssetAccessOutOfBounds.selector, index, encodedAssets.len()));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AssetLib.AssetAccessOutOfBounds.selector, index, encodedAssets.len()
+            )
+        );
         encodedAssets.get(index);
     }
 
@@ -98,7 +107,8 @@ contract AssetTest is Test {
         assets.sort();
         vm.assume(_uniqueAndOrdered(assets));
         duplicateFromIndex = bound(duplicateFromIndex, 0, assets.length - 1);
-        duplicateToIndex = (bound(duplicateToIndex, 1, assets.length - 1) + duplicateFromIndex) % assets.length;
+        duplicateToIndex =
+            (bound(duplicateToIndex, 1, assets.length - 1) + duplicateFromIndex) % assets.length;
         assertTrue(duplicateFromIndex != duplicateToIndex);
 
         assets[duplicateToIndex].addr = assets[duplicateFromIndex].addr;

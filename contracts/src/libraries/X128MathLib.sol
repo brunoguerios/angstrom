@@ -7,7 +7,11 @@ library X128MathLib {
 
     /// @dev Computes `(numerator * 2**128) / denominator` returning `0` if `denominator = 0`
     /// instead of reverting.
-    function flatDivX128(uint128 numerator, uint256 denominator) internal pure returns (uint256 result) {
+    function flatDivX128(uint128 numerator, uint256 denominator)
+        internal
+        pure
+        returns (uint256 result)
+    {
         assembly ("memory-safe") {
             result := div(shl(128, numerator), denominator)
         }

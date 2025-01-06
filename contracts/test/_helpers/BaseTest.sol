@@ -45,8 +45,11 @@ contract BaseTest is Test, HookDeployer {
         returns (address addr)
     {
         bool success;
-        (success, addr,) =
-            deployHook(bytes.concat(initcode, abi.encode(uni, controller)), ANGSTROM_HOOK_FLAGS, CREATE2_FACTORY);
+        (success, addr,) = deployHook(
+            bytes.concat(initcode, abi.encode(uni, controller)),
+            ANGSTROM_HOOK_FLAGS,
+            CREATE2_FACTORY
+        );
         assertTrue(success);
     }
 
@@ -58,8 +61,17 @@ contract BaseTest is Test, HookDeployer {
         return address(uint160(uint256(vm.load(angstrom, ANG_CONTROLLER_SLOT))));
     }
 
-    function rawGetBalance(address angstrom, address asset, address owner) internal view returns (uint256) {
-        return uint256(vm.load(angstrom, keccak256(abi.encode(owner, keccak256(abi.encode(asset, ANG_BALANCES_SLOT))))));
+    function rawGetBalance(address angstrom, address asset, address owner)
+        internal
+        view
+        returns (uint256)
+    {
+        return uint256(
+            vm.load(
+                angstrom,
+                keccak256(abi.encode(owner, keccak256(abi.encode(asset, ANG_BALANCES_SLOT))))
+            )
+        );
     }
 
     function poolKey(Angstrom angstrom, address asset0, address asset1, int24 tickSpacing)
@@ -73,7 +85,11 @@ contract BaseTest is Test, HookDeployer {
         pk.tickSpacing = tickSpacing;
     }
 
-    function poolKey(address asset0, address asset1, int24 tickSpacing) internal pure returns (PoolKey memory pk) {
+    function poolKey(address asset0, address asset1, int24 tickSpacing)
+        internal
+        pure
+        returns (PoolKey memory pk)
+    {
         pk.currency0 = Currency.wrap(asset0);
         pk.currency1 = Currency.wrap(asset1);
         pk.tickSpacing = tickSpacing;
@@ -82,7 +98,9 @@ contract BaseTest is Test, HookDeployer {
     function computeDomainSeparator(address angstrom) internal view returns (bytes32) {
         return keccak256(
             abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
                 keccak256("Angstrom"),
                 keccak256("v1"),
                 block.chainid,
@@ -208,7 +226,11 @@ contract BaseTest is Test, HookDeployer {
         }
     }
 
-    function _brutalize(uint256 seed, uint256 freeWordsToBrutalize) internal pure returns (uint256 newBrutalizeSeed) {
+    function _brutalize(uint256 seed, uint256 freeWordsToBrutalize)
+        internal
+        pure
+        returns (uint256 newBrutalizeSeed)
+    {
         assembly ("memory-safe") {
             mstore(0x00, seed)
             let free := mload(0x40)
@@ -223,11 +245,17 @@ contract BaseTest is Test, HookDeployer {
         }
     }
 
-    function sign(Account memory account, TopOfBlockOrder memory order, bytes32 domainSeparator) internal pure {
+    function sign(Account memory account, TopOfBlockOrder memory order, bytes32 domainSeparator)
+        internal
+        pure
+    {
         sign(account, order.meta, erc712Hash(domainSeparator, order.hash()));
     }
 
-    function sign(Account memory account, OrderMeta memory targetMeta, bytes32 hash) internal pure {
+    function sign(Account memory account, OrderMeta memory targetMeta, bytes32 hash)
+        internal
+        pure
+    {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(account.key, hash);
         targetMeta.isEcdsa = true;
         targetMeta.from = account.addr;
@@ -243,15 +271,21 @@ contract BaseTest is Test, HookDeployer {
 
     function uintArray(bytes memory encoded) internal pure returns (uint256[] memory) {
         uint256 length = encoded.length / 32;
-        return abi.decode(bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded), (uint256[]));
+        return
+            abi.decode(bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded), (uint256[]));
     }
 
     function addressArray(bytes memory encoded) internal pure returns (address[] memory) {
         uint256 length = encoded.length / 32;
-        return abi.decode(bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded), (address[]));
+        return
+            abi.decode(bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded), (address[]));
     }
 
-    function erc712Hash(bytes32 domainSeparator, bytes32 structHash) internal pure returns (bytes32) {
+    function erc712Hash(bytes32 domainSeparator, bytes32 structHash)
+        internal
+        pure
+        returns (bytes32)
+    {
         return TypedDataHasherLib.init(domainSeparator).hashTypedData(structHash);
     }
 
@@ -266,7 +300,10 @@ contract BaseTest is Test, HookDeployer {
     }
 
     function addrs(bytes memory encoded) internal pure returns (address[] memory) {
-        return abi.decode(bytes.concat(bytes32(uint256(0x20)), bytes32(encoded.length / 0x20), encoded), (address[]));
+        return abi.decode(
+            bytes.concat(bytes32(uint256(0x20)), bytes32(encoded.length / 0x20), encoded),
+            (address[])
+        );
     }
 
     function min(uint256 x, uint256 y) internal pure returns (uint256) {
@@ -289,12 +326,17 @@ contract BaseTest is Test, HookDeployer {
         return x > y ? x : y;
     }
 
-    function poolId(Angstrom angstrom, address asset0, address asset1) internal view returns (PoolId) {
+    function poolId(Angstrom angstrom, address asset0, address asset1)
+        internal
+        view
+        returns (PoolId)
+    {
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         address store = rawGetConfigStore(address(angstrom));
         uint256 storeIndex = PairLib.getStoreIndex(store, asset0, asset1);
-        (int24 tickSpacing,) =
-            PoolConfigStore.wrap(store).get(PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1), storeIndex);
+        (int24 tickSpacing,) = PoolConfigStore.wrap(store).get(
+            PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1), storeIndex
+        );
         return poolKey(angstrom, asset0, asset1, tickSpacing).toId();
     }
 

@@ -37,7 +37,11 @@ library IUniV4 {
     uint256 private constant _POSITION_FEE_GROWTH_OUTSIDE0_OFFSET = 1;
     uint256 private constant _POSITION_FEE_GROWTH_OUTSIDE1_OFFSET = 2;
 
-    function gudExtsload(IPoolManager self, uint256 slot) internal view returns (uint256 rawValue) {
+    function gudExtsload(IPoolManager self, uint256 slot)
+        internal
+        view
+        returns (uint256 rawValue)
+    {
         assembly ("memory-safe") {
             mstore(0x20, slot)
             mstore(0x00, EXTSLOAD_SELECTOR)
@@ -61,7 +65,11 @@ library IUniV4 {
      * @dev WARNING: use of this method with a dirty `int16` for `wordPos` may be vulnerable as the
      * value is taken as is and used in assembly. If not sign extended will result in useless slots.
      */
-    function computeBitmapWordSlot(IPoolManager, PoolId id, int16 wordPos) internal pure returns (uint256 slot) {
+    function computeBitmapWordSlot(IPoolManager, PoolId id, int16 wordPos)
+        internal
+        pure
+        returns (uint256 slot)
+    {
         assembly ("memory-safe") {
             // Pool state slot.
             mstore(0x00, id)
@@ -83,7 +91,11 @@ library IUniV4 {
      * @dev WARNING: use of this method with a dirty `int16` for `wordPos` may be vulnerable as the
      * value is taken as is and used in assembly. If not sign extended will result in useless slots.
      */
-    function getPoolBitmapInfo(IPoolManager self, PoolId id, int16 wordPos) internal view returns (uint256) {
+    function getPoolBitmapInfo(IPoolManager self, PoolId id, int16 wordPos)
+        internal
+        view
+        returns (uint256)
+    {
         uint256 slot = self.computeBitmapWordSlot(id, wordPos);
         return self.gudExtsload(slot);
     }
@@ -149,7 +161,11 @@ library IUniV4 {
     }
 
     /// @dev WARNING: Expects `owner` & `asset` to not have dirty bytes.
-    function getDelta(IPoolManager self, address owner, address asset) internal view returns (int256 delta) {
+    function getDelta(IPoolManager self, address owner, address asset)
+        internal
+        view
+        returns (int256 delta)
+    {
         bytes32 tslot;
         assembly ("memory-safe") {
             mstore(0x00, owner)

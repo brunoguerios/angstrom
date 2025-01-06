@@ -22,12 +22,14 @@ abstract contract HookDeployer is Test {
         internal
         returns (bool success, address addr, bytes memory retdata)
     {
-        Create2Params memory params =
-            Create2Params((uint256(0xff) << 160) | uint256(uint160(factory)), 0, keccak256(initcode));
+        Create2Params memory params = Create2Params(
+            (uint256(0xff) << 160) | uint256(uint160(factory)), 0, keccak256(initcode)
+        );
 
         while (true) {
             assembly ("memory-safe") {
-                addr := and(keccak256(add(params, 11), 85), 0xffffffffffffffffffffffffffffffffffffffff)
+                addr :=
+                    and(keccak256(add(params, 11), 85), 0xffffffffffffffffffffffffffffffffffffffff)
             }
             if (uint160(addr) & Hooks.ALL_HOOK_MASK == flags) break;
             unchecked {
@@ -37,7 +39,11 @@ abstract contract HookDeployer is Test {
 
         (success, retdata) = factory.call(abi.encodePacked(params.salt, initcode));
         if (success) {
-            assertEq(retdata, abi.encodePacked(addr), "Sanity check: factory returned data is not mined address");
+            assertEq(
+                retdata,
+                abi.encodePacked(addr),
+                "Sanity check: factory returned data is not mined address"
+            );
         } else {
             assembly ("memory-safe") {
                 revert(add(retdata, 0x20), mload(retdata))

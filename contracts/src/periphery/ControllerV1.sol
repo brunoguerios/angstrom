@@ -30,9 +30,13 @@ contract ControllerV1 is Ownable2Step {
     event NewControllerSet(address indexed newController);
     event NewControllerAccepted(address indexed newController);
 
-    event PoolConfigured(address indexed asset0, address indexed asset1, uint16 tickSpacing, uint24 feeInE6);
+    event PoolConfigured(
+        address indexed asset0, address indexed asset1, uint16 tickSpacing, uint24 feeInE6
+    );
 
-    event PoolRemoved(address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6);
+    event PoolRemoved(
+        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
+    );
 
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
@@ -89,7 +93,9 @@ contract ControllerV1 is Ownable2Step {
         ANGSTROM.setController(msg.sender);
     }
 
-    function configurePool(address asset0, address asset1, uint16 tickSpacing, uint24 feeInE6) external {
+    function configurePool(address asset0, address asset1, uint16 tickSpacing, uint24 feeInE6)
+        external
+    {
         _checkOwner();
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);

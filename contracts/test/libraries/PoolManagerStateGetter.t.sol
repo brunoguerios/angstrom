@@ -48,7 +48,12 @@ contract PoolManagerStateGetterTest is BaseTest {
         assertEq(retrievedWord, expectedWord, "retrieved != expected");
     }
 
-    function test_fuzzing_getTickLiquidity(PoolId id, int24 tick, uint128 liquidityGross, int128 liquidityNet) public {
+    function test_fuzzing_getTickLiquidity(
+        PoolId id,
+        int24 tick,
+        uint128 liquidityGross,
+        int128 liquidityNet
+    ) public {
         Pool.TickInfo memory info;
         info.liquidityGross = liquidityGross;
         info.liquidityNet = liquidityNet;
@@ -60,8 +65,16 @@ contract PoolManagerStateGetterTest is BaseTest {
 
         (uint128 retrievedLiquidityGross, int128 retreivedLiquidityNet) =
             PoolManagerStateGetter.getTickLiquidity(uni, id, tick);
-        assertEq(retrievedLiquidityGross, retrievedInfo.liquidityGross, "retrieved != expected (liquidity gross)");
-        assertEq(retreivedLiquidityNet, retrievedInfo.liquidityNet, "retrieved != expected (liquidity net)");
+        assertEq(
+            retrievedLiquidityGross,
+            retrievedInfo.liquidityGross,
+            "retrieved != expected (liquidity gross)"
+        );
+        assertEq(
+            retreivedLiquidityNet,
+            retrievedInfo.liquidityNet,
+            "retrieved != expected (liquidity net)"
+        );
     }
 
     function test_fuzzing_getPositionLiquidity(

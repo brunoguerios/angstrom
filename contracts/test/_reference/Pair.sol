@@ -6,7 +6,12 @@ import {Asset, AssetLib} from "./Asset.sol";
 import {RayMathLib} from "src/libraries/RayMathLib.sol";
 import {PairLib as ActualPairLib} from "src/types/Pair.sol";
 import {PriceAB} from "src/types/Price.sol";
-import {PoolConfigStore, PoolConfigStoreLib, StoreKey, STORE_HEADER_SIZE} from "src/libraries/PoolConfigStore.sol";
+import {
+    PoolConfigStore,
+    PoolConfigStoreLib,
+    StoreKey,
+    STORE_HEADER_SIZE
+} from "src/libraries/PoolConfigStore.sol";
 import {ConfigEntry, ENTRY_SIZE} from "src/types/ConfigEntry.sol";
 
 import {FormatLib} from "super-sol/libraries/FormatLib.sol";
@@ -41,7 +46,9 @@ library PairLib {
         self._checkOrdered();
         (uint16 indexA, uint16 indexB) = assets.getIndexPair(self.asset0, self.asset1);
         uint16 storeIndex = getStoreIndex(configStore, self.asset0, self.asset1);
-        b = bytes.concat(bytes2(indexA), bytes2(indexB), bytes2(storeIndex), bytes32(self.price10.into()));
+        b = bytes.concat(
+            bytes2(indexA), bytes2(indexB), bytes2(storeIndex), bytes32(self.price10.into())
+        );
         require(b.length == ActualPairLib.PAIR_CD_BYTES);
     }
 
@@ -92,7 +99,11 @@ library PairLib {
         require(index < pairs.length, "Pair not found");
     }
 
-    function getStoreIndex(address store, address asset0, address asset1) internal view returns (uint16 index) {
+    function getStoreIndex(address store, address asset0, address asset1)
+        internal
+        view
+        returns (uint16 index)
+    {
         require(asset0 < asset1, "getStoreIndex:assets unsorted");
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
         uint256 totalEntries = store.code.length / ENTRY_SIZE;
@@ -100,7 +111,9 @@ library PairLib {
         for (index = 0; index < totalEntries; index++) {
             StoreKey entryKey;
             assembly ("memory-safe") {
-                extcodecopy(configStore, 0x00, add(STORE_HEADER_SIZE, mul(ENTRY_SIZE, index)), ENTRY_SIZE)
+                extcodecopy(
+                    configStore, 0x00, add(STORE_HEADER_SIZE, mul(ENTRY_SIZE, index)), ENTRY_SIZE
+                )
                 entryKey := mload(0x00)
             }
             if (StoreKey.unwrap(entryKey) == StoreKey.unwrap(key)) return index;

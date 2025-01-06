@@ -20,7 +20,10 @@ library DeltaTrackerLib {
         delta.set(MixedSignLib.add(delta.get(), amount));
     }
 
-    function sub(DeltaTracker storage self, address asset, uint256 amount) internal returns (int256 newDelta) {
+    function sub(DeltaTracker storage self, address asset, uint256 amount)
+        internal
+        returns (int256 newDelta)
+    {
         tint256 storage delta = self.deltas[asset];
         delta.set(newDelta = MixedSignLib.sub(delta.get(), amount));
     }

@@ -7,7 +7,9 @@ import {CalldataReader, CalldataReaderLib} from "src/types/CalldataReader.sol";
 import {Pair, PairArray, PairLib} from "src/types/Pair.sol";
 import {Asset as RefAsset, AssetLib as RefAssetLib} from "test/_reference/Asset.sol";
 import {Asset, AssetArray, AssetLib} from "src/types/Asset.sol";
-import {PoolConfigStoreLib, PoolConfigStore, MAX_FEE, ONE_E6} from "src/libraries/PoolConfigStore.sol";
+import {
+    PoolConfigStoreLib, PoolConfigStore, MAX_FEE, ONE_E6
+} from "src/libraries/PoolConfigStore.sol";
 import {RayMathLib} from "../../src/libraries/RayMathLib.sol";
 
 import {console} from "forge-std/console.sol";
@@ -34,7 +36,8 @@ contract PairTest is BaseTest {
         tickSpacing = u16(bound(tickSpacing, 1, type(uint16).max));
         price1Over0 = bound(price1Over0, 0, type(uint256).max / ONE_E6);
 
-        PoolConfigStore store = PoolConfigStore.wrap(address(0)).setIntoNew(asset0, asset1, tickSpacing, feeInE6);
+        PoolConfigStore store =
+            PoolConfigStore.wrap(address(0)).setIntoNew(asset0, asset1, tickSpacing, feeInE6);
 
         RefAsset[] memory assets = new RefAsset[](2);
         assets[0].addr = asset0;
@@ -71,7 +74,8 @@ contract PairTest is BaseTest {
         reader.requireAtEndOf(data);
 
         {
-            (address asset0Out, address asset1Out, int24 tickSpacingOut) = pairs.get(0).getPoolInfo();
+            (address asset0Out, address asset1Out, int24 tickSpacingOut) =
+                pairs.get(0).getPoolInfo();
             assertEq(asset0, asset0Out);
             assertEq(asset1, asset1Out);
             assertEq(int24(uint24(tickSpacing)), tickSpacingOut, "tick spacing");
@@ -87,7 +91,8 @@ contract PairTest is BaseTest {
         }
 
         {
-            (address assetIn, address assetOut, uint256 priceOutVsIn) = pairs.get(0).getSwapInfo({zeroToOne: true});
+            (address assetIn, address assetOut, uint256 priceOutVsIn) =
+                pairs.get(0).getSwapInfo({zeroToOne: true});
             assertEq(assetIn, asset0);
             assertEq(assetOut, asset1);
             assertEq(priceOutVsIn, price1Over0 * (ONE_E6 - feeInE6) / ONE_E6, "price1Over0");
@@ -95,7 +100,11 @@ contract PairTest is BaseTest {
             (assetIn, assetOut, priceOutVsIn) = pairs.get(0).getSwapInfo({zeroToOne: false});
             assertEq(assetIn, asset1);
             assertEq(assetOut, asset0);
-            assertEq(priceOutVsIn, price1Over0.invRayUnchecked() * (ONE_E6 - feeInE6) / ONE_E6, "price0Over1");
+            assertEq(
+                priceOutVsIn,
+                price1Over0.invRayUnchecked() * (ONE_E6 - feeInE6) / ONE_E6,
+                "price0Over1"
+            );
         }
     }
 }

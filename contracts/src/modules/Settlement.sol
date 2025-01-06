@@ -99,7 +99,9 @@ abstract contract Settlement is UniConsumer {
         }
     }
 
-    function _settleOrderIn(address from, address asset, AmountIn amountIn, bool useInternal) internal {
+    function _settleOrderIn(address from, address asset, AmountIn amountIn, bool useInternal)
+        internal
+    {
         uint256 amount = amountIn.into();
         bundleDeltas.add(asset, amount);
         if (useInternal) {
@@ -109,7 +111,9 @@ abstract contract Settlement is UniConsumer {
         }
     }
 
-    function _settleOrderOut(address to, address asset, AmountOut amountOut, bool useInternal) internal {
+    function _settleOrderOut(address to, address asset, AmountOut amountOut, bool useInternal)
+        internal
+    {
         uint256 amount = amountOut.into();
         bundleDeltas.sub(asset, amount);
         if (useInternal) {

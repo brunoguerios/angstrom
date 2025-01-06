@@ -102,20 +102,28 @@ contract RewardLibTest is BaseTest {
 
     function test_fuzzing_rewardBelow_onlyOne_tickAtBoundary(uint128 amount) public {
         uni.setCurrentTick(tick = 0);
-        assertCreatesUpdates(re(TickReward(-120, amount)), MultiTickReward(0, uni.tickLiq(-120), [amount, 0].into()));
+        assertCreatesUpdates(
+            re(TickReward(-120, amount)), MultiTickReward(0, uni.tickLiq(-120), [amount, 0].into())
+        );
 
         uni.setCurrentTick(tick = 60);
-        assertCreatesUpdates(re(TickReward(0, amount)), MultiTickReward(60, uni.tickLiq(0), [amount, 0].into()));
+        assertCreatesUpdates(
+            re(TickReward(0, amount)), MultiTickReward(60, uni.tickLiq(0), [amount, 0].into())
+        );
     }
 
     function test_fuzzing_rewardBelow_onlyOneAway_tickAtBoundary(uint128 amount) public {
         uni.setCurrentTick(tick = 0);
         assertCreatesUpdates(
-            re(TickReward(-180, amount)), MultiTickReward(-120, uni.tickLiq(-180), [amount, 0, 0].into())
+            re(TickReward(-180, amount)),
+            MultiTickReward(-120, uni.tickLiq(-180), [amount, 0, 0].into())
         );
 
         uni.setCurrentTick(tick = 60);
-        assertCreatesUpdates(re(TickReward(-120, amount)), MultiTickReward(0, uni.tickLiq(-120), [amount, 0, 0].into()));
+        assertCreatesUpdates(
+            re(TickReward(-120, amount)),
+            MultiTickReward(0, uni.tickLiq(-120), [amount, 0, 0].into())
+        );
     }
 
     function test_fuzzing_rewardBelow_tickInUninitRange(uint128 amount1, uint128 amount2) public {
@@ -134,20 +142,29 @@ contract RewardLibTest is BaseTest {
 
     function test_fuzzing_rewardBelow_onlyOne_tickInInitRange(uint128 amount) public {
         uni.setCurrentTick(tick = 34);
-        assertCreatesUpdates(re(TickReward(-120, amount)), MultiTickReward(0, uni.liq(), [amount, 0].into()));
+        assertCreatesUpdates(
+            re(TickReward(-120, amount)), MultiTickReward(0, uni.liq(), [amount, 0].into())
+        );
     }
 
     function test_fuzzing_rewardBelow_tickOutOfRange(uint128 amount) public {
         uni.setCurrentTick(tick = -181);
-        assertCreatesUpdates(re(TickReward(-600, amount)), MultiTickReward(-540, uni.tickLiq(-600), [amount, 0].into()));
+        assertCreatesUpdates(
+            re(TickReward(-600, amount)),
+            MultiTickReward(-540, uni.tickLiq(-600), [amount, 0].into())
+        );
     }
 
     function test_fuzzing_rewardAbove_single_tickAtBoundary(uint128 amount) public {
         uni.setCurrentTick(tick = 0);
-        assertCreatesUpdates(re(TickReward(60, amount)), MultiTickReward(60, uni.tickLiq(60), [amount, 0].into()));
+        assertCreatesUpdates(
+            re(TickReward(60, amount)), MultiTickReward(60, uni.tickLiq(60), [amount, 0].into())
+        );
     }
 
-    function test_fuzzing_rewardAbove_many_tickAtBoundary(uint128 amount1, uint128 amount2) public {
+    function test_fuzzing_rewardAbove_many_tickAtBoundary(uint128 amount1, uint128 amount2)
+        public
+    {
         uni.setCurrentTick(tick = -120);
         assertCreatesUpdates(
             re(TickReward(0, amount1), TickReward(60, amount2)),
@@ -157,10 +174,14 @@ contract RewardLibTest is BaseTest {
 
     function test_fuzzing_rewardAbove_single_tickInInitRange(uint128 amount) public {
         uni.setCurrentTick(tick = 34);
-        assertCreatesUpdates(re(TickReward(60, amount)), MultiTickReward(60, uni.tickLiq(60), [amount, 0].into()));
+        assertCreatesUpdates(
+            re(TickReward(60, amount)), MultiTickReward(60, uni.tickLiq(60), [amount, 0].into())
+        );
     }
 
-    function test_fuzzing_rewardAbove_many_tickInInitRange(uint128 amount1, uint128 amount2) public {
+    function test_fuzzing_rewardAbove_many_tickInInitRange(uint128 amount1, uint128 amount2)
+        public
+    {
         uni.setCurrentTick(tick = -61);
         assertCreatesUpdates(
             re(TickReward(0, amount1), TickReward(60, amount2)),
@@ -168,7 +189,9 @@ contract RewardLibTest is BaseTest {
         );
     }
 
-    function test_fuzzing_rewardAbove_many_tickInUninitRange(uint128 amount1, uint128 amount2) public {
+    function test_fuzzing_rewardAbove_many_tickInUninitRange(uint128 amount1, uint128 amount2)
+        public
+    {
         uni.setCurrentTick(tick = -30);
         assertCreatesUpdates(
             re(TickReward(0, amount1), TickReward(60, amount2)),
@@ -176,7 +199,11 @@ contract RewardLibTest is BaseTest {
         );
     }
 
-    function test_fuzzing_rewardAbove_many_includingCurrent(uint128 amount1, uint128 amount2, uint128 amount3) public {
+    function test_fuzzing_rewardAbove_many_includingCurrent(
+        uint128 amount1,
+        uint128 amount2,
+        uint128 amount3
+    ) public {
         uni.setCurrentTick(tick = -30);
         assertCreatesUpdates(
             re(TickReward(120, amount1), TickReward(0, amount2), TickReward(-120, amount3)),
@@ -184,7 +211,11 @@ contract RewardLibTest is BaseTest {
         );
     }
 
-    function test_fuzzing_rewardAbove_many_tickOutOfRange(uint128 amount1, uint128 amount2, uint128 amount3) public {
+    function test_fuzzing_rewardAbove_many_tickOutOfRange(
+        uint128 amount1,
+        uint128 amount2,
+        uint128 amount3
+    ) public {
         uni.setCurrentTick(tick = -181);
         assertCreatesUpdates(
             re(TickReward(-180, amount1), TickReward(-120, amount2), TickReward(120, amount3)),
@@ -192,7 +223,10 @@ contract RewardLibTest is BaseTest {
         );
     }
 
-    function assertCreatesUpdates(TickReward[] memory r, RewardsUpdate memory expected) internal view {
+    function assertCreatesUpdates(TickReward[] memory r, RewardsUpdate memory expected)
+        internal
+        view
+    {
         RewardsUpdate[] memory updates = RewardLib.toUpdates(r, uni, id, TICK_SPACING);
         assertEq(updates.length, 1, "length != 1: Expected single update");
         RewardsUpdate memory update = updates[0];
@@ -202,7 +236,8 @@ contract RewardLibTest is BaseTest {
                     update.onlyCurrent
                         ? (update.onlyCurrentQuantity == expected.onlyCurrentQuantity)
                         : (
-                            update.startTick == expected.startTick && update.startLiquidity == expected.startLiquidity
+                            update.startTick == expected.startTick
+                                && update.startLiquidity == expected.startLiquidity
                                 && update.quantities.length == expected.quantities.length
                                 && arraysEqual(update.quantities, expected.quantities)
                         )
@@ -219,7 +254,11 @@ contract RewardLibTest is BaseTest {
         return true;
     }
 
-    function CurrentOnlyReward(uint128 amount) internal pure returns (RewardsUpdate memory update) {
+    function CurrentOnlyReward(uint128 amount)
+        internal
+        pure
+        returns (RewardsUpdate memory update)
+    {
         update.onlyCurrent = true;
         update.onlyCurrentQuantity = amount;
     }
@@ -243,7 +282,11 @@ contract RewardLibTest is BaseTest {
         r[0] = reward;
     }
 
-    function re(TickReward memory r1, TickReward memory r2) internal pure returns (TickReward[] memory r) {
+    function re(TickReward memory r1, TickReward memory r2)
+        internal
+        pure
+        returns (TickReward[] memory r)
+    {
         r = new TickReward[](2);
         r[0] = r1;
         r[1] = r2;

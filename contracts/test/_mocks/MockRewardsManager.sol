@@ -21,7 +21,10 @@ contract MockRewardsManager is UniConsumer, Settlement, PoolUpdates {
     using FormatLib for *;
     using IUniV4 for IPoolManager;
 
-    constructor(IPoolManager uniV4, address controller) UniConsumer(uniV4) TopLevelAuth(controller) {
+    constructor(IPoolManager uniV4, address controller)
+        UniConsumer(uniV4)
+        TopLevelAuth(controller)
+    {
         _checkAngstromHookFlags();
     }
 
@@ -47,7 +50,9 @@ contract MockRewardsManager is UniConsumer, Settlement, PoolUpdates {
         reader.requireAtEndOf(encoded);
     }
 
-    function updateAfterTickMove(PoolId id, int24 lastTick, int24 newTick, int24 tickSpacing) external {
+    function updateAfterTickMove(PoolId id, int24 lastTick, int24 newTick, int24 tickSpacing)
+        external
+    {
         poolRewards[id].updateAfterTickMove(id, UNI_V4, lastTick, newTick, tickSpacing);
     }
 
@@ -55,7 +60,11 @@ contract MockRewardsManager is UniConsumer, Settlement, PoolUpdates {
         poolFee = POOL_FEE;
     }
 
-    function getGrowthInsideTick(PoolId id, int24 tick, int24 tickSpacing) public view returns (uint256) {
+    function getGrowthInsideTick(PoolId id, int24 tick, int24 tickSpacing)
+        public
+        view
+        returns (uint256)
+    {
         _checkTickReal(id, tick, "tick");
         bool initialized;
         int24 nextTickUp;
@@ -66,7 +75,11 @@ contract MockRewardsManager is UniConsumer, Settlement, PoolUpdates {
         return poolRewards[id].getGrowthInside(UNI_V4.getSlot0(id).tick(), tick, nextTickUp);
     }
 
-    function getGrowthInsideRange(PoolId id, int24 lowerTick, int24 upperTick) public view returns (uint256) {
+    function getGrowthInsideRange(PoolId id, int24 lowerTick, int24 upperTick)
+        public
+        view
+        returns (uint256)
+    {
         _checkTickReal(id, lowerTick, "lowerTick");
         _checkTickReal(id, upperTick, "upperTick");
         return poolRewards[id].getGrowthInside(UNI_V4.getSlot0(id).tick(), lowerTick, upperTick);
