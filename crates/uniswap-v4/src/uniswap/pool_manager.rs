@@ -97,6 +97,7 @@ where
         pool_id: A,
         tob: &OrderWithStorageData<TopOfBlockOrder>
     ) -> eyre::Result<ToBOutcome> {
+        tracing::info!("calculate_rewards function");
         let market_snapshot = {
             let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
             pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
