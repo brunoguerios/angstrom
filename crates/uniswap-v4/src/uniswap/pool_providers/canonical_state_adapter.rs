@@ -76,6 +76,7 @@ where
     }
 
     fn subscribe_blocks(self) -> futures::stream::BoxStream<'static, Option<PoolMangerBlocks>> {
+        tracing::info!(?self.id,"subscribing blocks");
         futures_util::stream::unfold(
             self.canon_state_notifications.resubscribe(),
             move |mut notifications| {
