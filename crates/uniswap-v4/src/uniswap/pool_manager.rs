@@ -107,6 +107,7 @@ where
         loop {
             let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot);
             if outcome.is_err() {
+                tracing::info!("is error on calculating rewards");
                 let zfo = !tob.is_bid;
                 let not = Arc::new(Notify::new());
                 // scope for awaits
@@ -134,6 +135,7 @@ where
                     .await;
 
                 not.notified().await;
+                tracing::info!("loaded more ticks");
 
                 // don't loop forever
                 cnt -= 1;
