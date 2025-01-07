@@ -71,16 +71,19 @@ impl PreProposalWaitTrigger {
     }
 
     fn update_wait_duration_base(&mut self, info: LastRoundInfo) {
-        let time_to_complete = info.time_to_complete;
-        let modifier = (ETH_BLOCK_TIME - TARGET_SUBMISSION_TIME_REM - time_to_complete)
-            / SCALING_REM_ADJUSTMENT;
-        self.wait_duration += modifier;
+        let base = ETH_BLOCK_TIME - TARGET_SUBMISSION_TIME_REM;
+        let total_complete_time = self.wait_duration + info.time_to_complete;
+
+        if total_complete_time < base {
+            // if we overestimated the time, we will push our trigger back
+            self.wait_duration += (base - total_complete_time) / SCALING_REM_ADJUSTMENT;
+        } else {
+            // otherwise if we underestimated, we will move back
+            self.wait_duration -= (total_complete_time - base) * SCALING_REM_ADJUSTMENT;
+        }
+
         let mills = self.wait_duration.as_millis();
         tracing::info!(trigger = mills, "updated wait duration to trigger building");
-    }
-
-    pub fn get_wait_time(&self) -> Duration {
-        self.wait_duration
     }
 }
 
@@ -112,7 +115,5 @@ impl Future for PreProposalWaitTrigger {
 pub struct LastRoundInfo {
     /// the time from the trigger to the submission of the bundle to relays
     /// when we are the leader of the round
-    pub time_to_complete: Duration,
-    /// the total amount of orders we were running through the matching engine
-    pub total_orders:     u16
+    pub time_to_complete: Duration
 }

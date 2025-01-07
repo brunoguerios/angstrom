@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
+    time::Instant
 };
 
 use alloy::{providers::Provider, transports::Transport};
@@ -106,6 +107,7 @@ where
                 std::mem::take(&mut self.received_pre_proposals),
                 std::mem::take(&mut self.pre_proposals_aggregation),
                 handles,
+                Instant::now(),
                 cx.waker().clone()
             );
 

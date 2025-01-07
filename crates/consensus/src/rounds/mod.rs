@@ -28,7 +28,7 @@ use futures::{future::BoxFuture, FutureExt, Stream};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
-use preproposal_wait_trigger::PreProposalWaitTrigger;
+use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::AngstromValidator;
@@ -60,6 +60,10 @@ where
         handles: &mut SharedRoundState<P, T, Matching>,
         cx: &mut Context<'_>
     ) -> PollTransition<P, T, Matching>;
+
+    fn last_round_info(&mut self) -> Option<LastRoundInfo> {
+        None
+    }
 }
 
 /// Holds and progresses the consensus state machine
@@ -78,10 +82,12 @@ where
     Matching: MatchingEngineHandle
 {
     pub fn new(shared_state: SharedRoundState<P, T, Matching>) -> Self {
-        let consensus_wait_duration = PreProposalWaitTrigger::default();
+        let mut consensus_wait_duration =
+            PreProposalWaitTrigger::new(shared_state.order_storage.clone());
+
         Self {
             current_state: Box::new(BidAggregationState::new(
-                consensus_wait_duration.get_wait_time()
+                consensus_wait_duration.update_for_new_round(None)
             )),
             consensus_wait_duration,
             shared_state
@@ -89,11 +95,14 @@ where
     }
 
     pub fn reset_round(&mut self, new_block: u64, new_leader: PeerId) {
+        // grab the last round info if we were the leader.
+        let info = self.current_state.last_round_info();
+
         self.shared_state.block_height = new_block;
         self.shared_state.round_leader = new_leader;
 
         self.current_state = Box::new(BidAggregationState::new(
-            self.consensus_wait_duration.update_for_new_round(None)
+            self.consensus_wait_duration.update_for_new_round(info)
         ));
     }
 
