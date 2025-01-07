@@ -185,13 +185,6 @@ impl WeightedRoundRobin {
     }
 }
 
-#[cfg(not(test))]
-impl Drop for WeightedRoundRobin {
-    fn drop(&mut self) {
-        self.save_state().unwrap();
-    }
-}
-
 impl PartialEq for AngstromValidator {
     fn eq(&self, other: &Self) -> bool {
         self.peer_id == other.peer_id

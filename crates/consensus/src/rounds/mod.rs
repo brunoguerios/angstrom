@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::Hash,
-    marker::PhantomData,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll}
@@ -40,16 +39,16 @@ mod pre_proposal_aggregation;
 mod preproposal_wait_trigger;
 mod proposal;
 
-type PollTransition<P, T, Matching> = Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>>;
-pub trait ConsensusState<P, T, Matching>: Send
+type PollTransition<P, Matching> = Poll<Option<Box<dyn ConsensusState<P, Matching>>>>;
+
+pub trait ConsensusState<P, Matching>: Send
 where
-    P: Provider<T>,
-    T: Transport + Clone,
+    P: Provider,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, T, Matching>,
+        handles: &mut SharedRoundState<P, Matching>,
         message: StromConsensusEvent
     );
 
@@ -57,9 +56,9 @@ where
     /// round is over
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, T, Matching>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> PollTransition<P, T, Matching>;
+    ) -> PollTransition<P, Matching>;
 
     fn last_round_info(&mut self) -> Option<LastRoundInfo> {
         None
@@ -67,21 +66,20 @@ where
 }
 
 /// Holds and progresses the consensus state machine
-pub struct RoundStateMachine<P, T, Matching> {
-    current_state:           Box<dyn ConsensusState<P, T, Matching>>,
+pub struct RoundStateMachine<P, Matching> {
+    current_state:           Box<dyn ConsensusState<P, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: PreProposalWaitTrigger,
-    shared_state:            SharedRoundState<P, T, Matching>
+    shared_state:            SharedRoundState<P, Matching>
 }
 
-impl<P, T, Matching> RoundStateMachine<P, T, Matching>
+impl<P, Matching> RoundStateMachine<P, Matching>
 where
-    P: Provider<T> + 'static,
-    T: Transport + Clone,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle
 {
-    pub fn new(shared_state: SharedRoundState<P, T, Matching>) -> Self {
+    pub fn new(shared_state: SharedRoundState<P, Matching>) -> Self {
         let mut consensus_wait_duration =
             PreProposalWaitTrigger::new(shared_state.order_storage.clone());
 
@@ -119,10 +117,9 @@ where
     }
 }
 
-impl<P, T, Matching> Stream for RoundStateMachine<P, T, Matching>
+impl<P, Matching> Stream for RoundStateMachine<P, Matching>
 where
-    P: Provider<T> + 'static,
-    T: Transport + Clone + Unpin,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle
 {
     type Item = ConsensusMessage;
@@ -146,7 +143,7 @@ where
     }
 }
 
-pub struct SharedRoundState<P, T, Matching> {
+pub struct SharedRoundState<P, Matching> {
     block_height:     BlockNumber,
     angstrom_address: Address,
     matching_engine:  Matching,
@@ -157,16 +154,14 @@ pub struct SharedRoundState<P, T, Matching> {
     _metrics:         ConsensusMetricsWrapper,
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
-    provider:         Arc<MevBoostProvider<P, T>>,
-    messages:         VecDeque<ConsensusMessage>,
-    _phantom:         PhantomData<T>
+    provider:         Arc<MevBoostProvider<P>>,
+    messages:         VecDeque<ConsensusMessage>
 }
 
 // contains shared impls
-impl<P, T, Matching> SharedRoundState<P, T, Matching>
+impl<P, Matching> SharedRoundState<P, Matching>
 where
-    P: Provider<T> + 'static,
-    T: Transport + Clone,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
@@ -180,7 +175,7 @@ where
         metrics: ConsensusMetricsWrapper,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: MevBoostProvider<P, T>,
+        provider: MevBoostProvider<P>,
         matching_engine: Matching
     ) -> Self {
         Self {
@@ -195,8 +190,7 @@ where
             _metrics: metrics,
             matching_engine,
             messages: VecDeque::new(),
-            provider: Arc::new(provider),
-            _phantom: PhantomData
+            provider: Arc::new(provider)
         }
     }
 
@@ -361,3 +355,6 @@ impl From<PreProposalAggregation> for ConsensusMessage {
         Self::PropagatePreProposalAgg(value)
     }
 }
+
+#[cfg(test)]
+pub mod tests {}
