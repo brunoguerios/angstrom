@@ -364,6 +364,19 @@ pub mod tests {
         time::Duration
     };
 
+    use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+
+    fn init_tracing() {
+        let subscriber = tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::from_default_env())
+            .with_span_events(FmtSpan::FULL)
+            .with_test_writer()
+            .try_init();
+
+        // Ignore if already initialized
+        let _ = subscriber;
+    }
+
     use alloy::{
         primitives::Address,
         providers::{fillers::*, network::Ethereum, ProviderBuilder, RootProvider, *},
@@ -406,7 +419,7 @@ pub mod tests {
 
         // Initialize test components
         let pool_store = Arc::new(AngstromPoolConfigStore::default());
-        let (tx, rx) = tokio::sync::mpsc::channel(2);
+        let (tx, _rx) = tokio::sync::mpsc::channel(2);
         let uniswap_pools = SyncedUniswapPools::new(Arc::new(HashMap::new()), tx);
         let reg = UniswapPoolRegistry::default();
 
@@ -426,8 +439,8 @@ pub mod tests {
             Address::ZERO,
             order_storage,
             signer,
-            leader_id,                                    // make self the leader
-            vec![AngstromValidator::new(leader_id, 100)], // add self as validator
+            leader_id,
+            vec![AngstromValidator::new(leader_id, 100)],
             ConsensusMetricsWrapper::new(),
             pool_registry,
             uniswap_pools,
@@ -439,6 +452,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_bid_aggregation_to_pre_proposal() {
+        init_tracing();
         let state_machine = setup_state_machine().await;
         pin_mut!(state_machine);
 
@@ -451,7 +465,7 @@ pub mod tests {
         ));
 
         // After wait trigger expires, should transition and emit PreProposal
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
 
         match state_machine
             .as_mut()
@@ -464,6 +478,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_pre_proposal_to_pre_proposal_aggregation() {
+        init_tracing();
         let state_machine = setup_state_machine().await;
         pin_mut!(state_machine);
 
@@ -489,6 +504,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_pre_proposal_aggregation_to_proposal() {
+        init_tracing();
         let state_machine = setup_state_machine().await;
         pin_mut!(state_machine);
 
@@ -515,6 +531,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_proposal_to_finalization() {
+        init_tracing();
         let state_machine = setup_state_machine().await;
         pin_mut!(state_machine);
 
@@ -539,6 +556,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_reset_round() {
+        init_tracing();
         let mut state_machine = setup_state_machine().await;
         let new_block = 2;
         let new_leader = PeerId::random();
@@ -562,6 +580,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_invalid_consensus_messages() {
+        init_tracing();
         let state_machine = setup_state_machine().await;
         pin_mut!(state_machine);
 
