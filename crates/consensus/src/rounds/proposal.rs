@@ -80,6 +80,10 @@ impl ProposalState {
         T: Transport + Clone,
         Matching: MatchingEngineHandle
     {
+        self.last_round_info = Some(LastRoundInfo {
+            time_to_complete: Instant::now().duration_since(self.trigger_time)
+        });
+
         tracing::debug!("starting to build proposal");
         let Ok((pool_solution, gas_info)) = result.inspect_err(|e| {
             tracing::error!(err=%e,
@@ -118,11 +122,6 @@ impl ProposalState {
 
         let provider = handles.provider.clone();
         let signer = handles.signer.clone();
-
-        // mark the time we try to submitted
-        self.last_round_info = Some(LastRoundInfo {
-            time_to_complete: Instant::now().duration_since(self.trigger_time)
-        });
 
         let submission_future = async move {
             tracing::info!("building bundle");
