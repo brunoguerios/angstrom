@@ -1,8 +1,6 @@
 use std::{
     collections::HashSet,
-    pin::Pin,
-    task::{Context, Poll, Waker},
-    time::Duration
+    task::{Context, Poll, Waker}
 };
 
 use alloy::{providers::Provider, transports::Transport};
@@ -10,7 +8,6 @@ use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
 use futures::FutureExt;
 use matching_engine::MatchingEngineHandle;
-use tokio::time::{sleep, Sleep};
 
 use super::{
     finalization::FinalizationState, pre_proposal::PreProposalState,
