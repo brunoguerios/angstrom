@@ -533,8 +533,15 @@ pub mod tests {
         pin_mut!(state_machine);
 
         // Generate valid Proposal
+        // Generate valid PreProposalAggregation first
+        let pre_proposal_agg = PreProposalAggregationBuilder::new()
+            .for_block(1)
+            .with_secret_key(state_machine.shared_state.signer.clone())
+            .build();
+
         let proposal = ProposalBuilder::new()
             .for_block(1)
+            .preproposals(vec![pre_proposal_agg])
             .with_secret_key(state_machine.shared_state.signer.clone())
             .build();
 
@@ -547,7 +554,7 @@ pub mod tests {
             state_machine
                 .as_mut()
                 .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
-            Poll::Pending
+            Poll::Ready(None)
         ));
     }
 
