@@ -4,8 +4,7 @@ use std::{
     marker::PhantomData,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
-    time::Duration
+    task::{Context, Poll}
 };
 
 use alloy::{
@@ -29,6 +28,7 @@ use futures::{future::BoxFuture, FutureExt, Stream};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
+use preproposal_wait_trigger::PreProposalWaitTrigger;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::AngstromValidator;
@@ -37,6 +37,7 @@ mod bid_aggregation;
 mod finalization;
 mod pre_proposal;
 mod pre_proposal_aggregation;
+mod preproposal_wait_trigger;
 mod proposal;
 
 type PollTransition<P, T, Matching> = Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>>;
@@ -66,7 +67,7 @@ pub struct RoundStateMachine<P, T, Matching> {
     current_state:           Box<dyn ConsensusState<P, T, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
-    consensus_wait_duration: Duration,
+    consensus_wait_duration: PreProposalWaitTrigger,
     shared_state:            SharedRoundState<P, T, Matching>
 }
 
@@ -76,12 +77,12 @@ where
     T: Transport + Clone,
     Matching: MatchingEngineHandle
 {
-    pub fn new(
-        consensus_wait_duration: Duration,
-        shared_state: SharedRoundState<P, T, Matching>
-    ) -> Self {
+    pub fn new(shared_state: SharedRoundState<P, T, Matching>) -> Self {
+        let consensus_wait_duration = PreProposalWaitTrigger::default();
         Self {
-            current_state: Box::new(BidAggregationState::new(consensus_wait_duration)),
+            current_state: Box::new(BidAggregationState::new(
+                consensus_wait_duration.get_wait_time()
+            )),
             consensus_wait_duration,
             shared_state
         }
@@ -91,7 +92,9 @@ where
         self.shared_state.block_height = new_block;
         self.shared_state.round_leader = new_leader;
 
-        self.current_state = Box::new(BidAggregationState::new(self.consensus_wait_duration));
+        self.current_state = Box::new(BidAggregationState::new(
+            self.consensus_wait_duration.update_for_new_round(None)
+        ));
     }
 
     pub fn handle_message(&mut self, event: StromConsensusEvent) {

@@ -81,22 +81,19 @@ where
             strom_consensus_event,
             current_height,
             leader_selection,
-            consensus_round_state: RoundStateMachine::new(
-                Duration::new(7, 0),
-                SharedRoundState::new(
-                    current_height,
-                    angstrom_address,
-                    order_storage,
-                    signer,
-                    leader,
-                    validators.clone(),
-                    ConsensusMetricsWrapper::new(),
-                    pool_registry,
-                    uniswap_pools,
-                    provider,
-                    matching_engine
-                )
-            ),
+            consensus_round_state: RoundStateMachine::new(SharedRoundState::new(
+                current_height,
+                angstrom_address,
+                order_storage,
+                signer,
+                leader,
+                validators.clone(),
+                ConsensusMetricsWrapper::new(),
+                pool_registry,
+                uniswap_pools,
+                provider,
+                matching_engine
+            )),
             block_sync,
             network,
             canonical_block_stream: wrapped_broadcast_stream,
