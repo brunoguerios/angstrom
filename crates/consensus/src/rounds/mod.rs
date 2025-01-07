@@ -358,15 +358,20 @@ impl From<PreProposalAggregation> for ConsensusMessage {
 
 #[cfg(test)]
 pub mod tests {
+    use std::sync::Arc;
+
     use alloy::{primitives::Address, providers::RootProvider, transports::BoxTransport};
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_types::primitive::{AngstromSigner, PeerId};
+    use order_pool::{order_storage::OrderStorage, PoolConfig};
     use testing_tools::mocks::matching_engine::MockMatchingEngine;
 
     use super::RoundStateMachine;
     use crate::rounds::SharedRoundState;
 
     fn setup() -> RoundStateMachine<RootProvider<BoxTransport>, MockMatchingEngine> {
+        let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
+
         let shared_state = SharedRoundState::new(
             0,
             Address::ZERO,
