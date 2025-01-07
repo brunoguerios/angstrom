@@ -96,7 +96,10 @@ impl Future for PreProposalWaitTrigger {
     ) -> std::task::Poll<Self::Output> {
         while self.check_interval.poll_tick(cx).is_ready() {
             let order_cnt = self.order_storage.get_all_orders().total_orders();
-            let target_resolve = self.wait_duration - (ORDER_SCALING * order_cnt as u32);
+
+            let target_resolve = self
+                .wait_duration
+                .saturating_sub(ORDER_SCALING * order_cnt as u32);
 
             if Instant::now().duration_since(self.start_instant) > target_resolve {
                 return Poll::Ready(())
