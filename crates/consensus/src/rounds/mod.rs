@@ -8,8 +8,7 @@ use std::{
 
 use alloy::{
     primitives::{Address, BlockNumber, FixedBytes},
-    providers::Provider,
-    transports::Transport
+    providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::manager::StromConsensusEvent;
@@ -358,27 +357,57 @@ impl From<PreProposalAggregation> for ConsensusMessage {
 
 #[cfg(test)]
 pub mod tests {
-    use std::sync::Arc;
+    use std::{
+        sync::Arc,
+        task::{Context, Poll},
+        time::Duration
+    };
 
     use alloy::{primitives::Address, providers::RootProvider, transports::BoxTransport};
     use angstrom_metrics::ConsensusMetricsWrapper;
-    use angstrom_types::primitive::{AngstromSigner, PeerId};
+    use angstrom_network::manager::StromConsensusEvent;
+    use angstrom_types::{
+        consensus::{PreProposal, PreProposalAggregation, Proposal},
+        contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
+        mev_boost::MevBoostProvider,
+        primitive::{AngstromSigner, PeerId}
+    };
+    use futures::{pin_mut, Stream};
     use order_pool::{order_storage::OrderStorage, PoolConfig};
-    use testing_tools::mocks::matching_engine::MockMatchingEngine;
+    use testing_tools::{
+        mocks::matching_engine::MockMatchingEngine,
+        type_generator::consensus::{
+            pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder,
+            proposal::ProposalBuilder
+        }
+    };
+    use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-    use super::RoundStateMachine;
-    use crate::rounds::SharedRoundState;
+    use super::{ConsensusMessage, RoundStateMachine, SharedRoundState};
+    use crate::AngstromValidator;
 
-    fn setup() -> RoundStateMachine<RootProvider<BoxTransport>, MockMatchingEngine> {
+    fn setup_state_machine() -> RoundStateMachine<RootProvider<BoxTransport>, MockMatchingEngine> {
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
+        let signer = AngstromSigner::random();
+        let leader_id = signer.id();
+
+        // Initialize test components
+        let pool_store = Arc::new(AngstromPoolConfigStore::default());
+        let uniswap_pools = SyncedUniswapPools::new();
+        let pool_registry = UniswapAngstromRegistry::new(uniswap_pools.clone(), pool_store);
+        let provider = MevBoostProvider::new(
+            RootProvider::new(BoxTransport::new()),
+            Address::ZERO,
+            Address::ZERO
+        );
 
         let shared_state = SharedRoundState::new(
-            0,
+            1, // block height
             Address::ZERO,
             order_storage,
-            AngstromSigner::random(),
-            PeerId::default(),
-            vec![],
+            signer,
+            leader_id,                                    // make self the leader
+            vec![AngstromValidator::new(leader_id, 100)], // add self as validator
             ConsensusMetricsWrapper::new(),
             pool_registry,
             uniswap_pools,
@@ -386,5 +415,162 @@ pub mod tests {
             MockMatchingEngine {}
         );
         RoundStateMachine::new(shared_state)
+    }
+
+    #[tokio::test]
+    async fn test_bid_aggregation_to_pre_proposal() {
+        let mut state_machine = setup_state_machine();
+        let stream = state_machine;
+        pin_mut!(stream);
+
+        // Initial state should be BidAggregationState
+        assert!(matches!(
+            stream
+                .as_mut()
+                .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
+            Poll::Pending
+        ));
+
+        // After wait trigger expires, should transition and emit PreProposal
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        match stream
+            .as_mut()
+            .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref()))
+        {
+            Poll::Ready(Some(ConsensusMessage::PropagatePreProposal(_))) => {}
+            _ => panic!("Expected PreProposal propagation")
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pre_proposal_to_pre_proposal_aggregation() {
+        let mut state_machine = setup_state_machine();
+        let stream = state_machine;
+        pin_mut!(stream);
+
+        // Generate valid PreProposal
+        let pre_proposal = PreproposalBuilder::new()
+            .for_block(1)
+            .with_secret_key(state_machine.shared_state.signer.clone())
+            .build();
+
+        // Handle PreProposal message
+        state_machine.handle_message(StromConsensusEvent::PreProposal(
+            state_machine.shared_state.signer.id(),
+            pre_proposal
+        ));
+
+        // Should transition to PreProposalAggregation state
+        match stream
+            .as_mut()
+            .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref()))
+        {
+            Poll::Ready(Some(ConsensusMessage::PropagatePreProposalAgg(_))) => {}
+            _ => panic!("Expected PreProposalAgg propagation")
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pre_proposal_aggregation_to_proposal() {
+        let mut state_machine = setup_state_machine();
+        let stream = state_machine;
+        pin_mut!(stream);
+
+        // Generate valid PreProposalAggregation
+        let pre_proposal_agg = PreProposalAggregationBuilder::new()
+            .for_block(1)
+            .with_secret_key(state_machine.shared_state.signer.clone())
+            .build();
+
+        // Handle PreProposalAggregation message
+        state_machine.handle_message(StromConsensusEvent::PreProposalAggregation(
+            state_machine.shared_state.signer.id(),
+            pre_proposal_agg
+        ));
+
+        // Should transition to Proposal state
+        match stream
+            .as_mut()
+            .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref()))
+        {
+            Poll::Ready(Some(ConsensusMessage::PropagateProposal(_))) => {}
+            _ => panic!("Expected Proposal propagation")
+        }
+    }
+
+    #[tokio::test]
+    async fn test_proposal_to_finalization() {
+        let mut state_machine = setup_state_machine();
+        let stream = state_machine;
+        pin_mut!(stream);
+
+        // Generate valid Proposal
+        let proposal = ProposalBuilder::new()
+            .for_block(1)
+            .with_secret_key(state_machine.shared_state.signer.clone())
+            .build();
+
+        // Handle Proposal message
+        state_machine.handle_message(StromConsensusEvent::Proposal(
+            state_machine.shared_state.signer.id(),
+            proposal
+        ));
+
+        // Should transition to Finalization state
+        assert!(matches!(
+            stream
+                .as_mut()
+                .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
+            Poll::Pending
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_reset_round() {
+        let mut state_machine = setup_state_machine();
+        let new_block = 2;
+        let new_leader = PeerId::random();
+
+        // Reset round with new block and leader
+        state_machine.reset_round(new_block, new_leader);
+
+        assert_eq!(state_machine.shared_state.block_height, new_block);
+        assert_eq!(state_machine.shared_state.round_leader, new_leader);
+
+        // Should be back in BidAggregationState
+        let stream = state_machine;
+        pin_mut!(stream);
+        assert!(matches!(
+            stream
+                .as_mut()
+                .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
+            Poll::Pending
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_invalid_consensus_messages() {
+        let mut state_machine = setup_state_machine();
+        let invalid_peer = PeerId::random();
+
+        // Try PreProposal from invalid peer
+        let invalid_pre_proposal = PreproposalBuilder::new()
+            .for_block(1)
+            .with_secret_key(AngstromSigner::random()) // Different signer
+            .build();
+
+        state_machine
+            .handle_message(StromConsensusEvent::PreProposal(invalid_peer, invalid_pre_proposal));
+
+        // Should not transition state
+        let stream = state_machine;
+        pin_mut!(stream);
+        assert!(matches!(
+            stream
+                .as_mut()
+                .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
+            Poll::Pending
+        ));
     }
 }
