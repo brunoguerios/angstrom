@@ -1,18 +1,12 @@
-use std::{
-    cmp::Ordering,
-    collections::HashSet,
-    fs::File,
-    io::{self, Write}
-};
+use std::{cmp::Ordering, collections::HashSet};
 
 use alloy::primitives::BlockNumber;
 use angstrom_types::primitive::PeerId;
 
-const ROUND_ROBIN_CACHE: &str = "./";
-
 // https://github.com/tendermint/tendermint/pull/2785#discussion_r235038971
 // 1.125
 const PENALTY_FACTOR: u64 = 1125;
+/// do the math with fixed here to avoid floats
 const ONE_E3: u64 = 1000;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -175,14 +169,6 @@ impl WeightedRoundRobin {
             ((self.new_joiner_penalty_factor * total_voting_power) / ONE_E3) as i64;
         self.validators.insert(new_validator);
     }
-
-    pub fn save_state(&self) -> io::Result<()> {
-        let file_path = format!("{}/state.json", ROUND_ROBIN_CACHE);
-        let serialized = serde_json::to_string(self).unwrap();
-        let mut file = File::create(file_path)?;
-        file.write_all(serialized.as_bytes())?;
-        Ok(())
-    }
 }
 
 impl PartialEq for AngstromValidator {
@@ -286,28 +272,5 @@ mod tests {
         let after_remove_stats = simulate_rounds(&mut algo, rounds, 2001);
         assert_eq!(after_remove_stats.len(), 2);
         assert!(!after_remove_stats.contains_key(&peers["Bob"]));
-    }
-
-    #[test]
-    fn test_save_load_state() {
-        let peers = HashMap::from([
-            ("Alice".to_string(), PeerId::random()),
-            ("Bob".to_string(), PeerId::random()),
-            ("Charlie".to_string(), PeerId::random())
-        ]);
-        let validators = vec![
-            AngstromValidator::new(peers["Alice"], 100),
-            AngstromValidator::new(peers["Bob"], 200),
-            AngstromValidator::new(peers["Charlie"], 300),
-        ];
-        let algo = WeightedRoundRobin::new(validators, BlockNumber::default());
-
-        algo.save_state().unwrap();
-
-        let loaded_algo = WeightedRoundRobin::new(vec![], BlockNumber::default());
-
-        assert_eq!(algo.validators, loaded_algo.validators);
-        assert_eq!(algo.new_joiner_penalty_factor, loaded_algo.new_joiner_penalty_factor);
-        assert_eq!(algo.block_number, loaded_algo.block_number);
     }
 }
