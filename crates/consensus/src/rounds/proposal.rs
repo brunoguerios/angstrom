@@ -118,8 +118,8 @@ impl ProposalState {
 
         let provider = handles.provider.clone();
         let signer = handles.signer.clone();
-        //
-        // mark the time we try to submiited
+
+        // mark the time we try to submitted
         self.last_round_info = Some(LastRoundInfo {
             time_to_complete: Instant::now().duration_since(self.trigger_time)
         });
@@ -210,5 +210,9 @@ where
         }
 
         Poll::Pending
+    }
+
+    fn last_round_info(&mut self) -> Option<LastRoundInfo> {
+        self.last_round_info.take()
     }
 }
