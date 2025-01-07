@@ -5,7 +5,7 @@ use alloy::{
         keccak256, Address
     },
     providers::{ext::AnvilApi, Provider},
-    pubsub::PubSubFrontend
+    transports::BoxTransport
 };
 use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
@@ -19,6 +19,7 @@ use angstrom_types::{
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
 };
+use rand::{thread_rng, Rng};
 use validation::common::WETH_ADDRESS;
 
 use super::WalletProvider;
@@ -41,9 +42,9 @@ use crate::{
 pub struct AnvilInitializer {
     provider:      WalletProvider,
     angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1: ControllerV1Instance<PubSubFrontend, WalletProviderRpc>,
-    angstrom:      AngstromInstance<PubSubFrontend, WalletProviderRpc>,
-    pool_gate:     PoolGateInstance<PubSubFrontend, WalletProviderRpc>,
+    controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
+    angstrom:      AngstromInstance<BoxTransport, WalletProviderRpc>,
+    pool_gate:     PoolGateInstance<BoxTransport, WalletProviderRpc>,
     pending_state: PendingDeployedPools
 }
 
@@ -265,6 +266,7 @@ impl AnvilInitializer {
             .await?;
 
         self.pending_state.add_pending_tx(pool_gate);
+        let mut rng = thread_rng();
 
         let tick = price.to_tick()?;
         for i in 0..200 {
@@ -278,7 +280,7 @@ impl AnvilInitializer {
                     pool_key.currency1,
                     lower,
                     upper,
-                    U256::from(liquidity),
+                    U256::from(rng.gen_range(liquidity / 2..liquidity)),
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())

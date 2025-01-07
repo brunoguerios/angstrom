@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, FixedBytes, B256, U256};
+use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderStatus},
     primitive::PoolId,

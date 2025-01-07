@@ -1,4 +1,7 @@
-use alloy::primitives::{aliases::I24, Address, FixedBytes, U256};
+use alloy::{
+    primitives::{aliases::I24, Address, FixedBytes, U256},
+    transports::BoxTransport
+};
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     pool_gate::PoolGate::{self, PoolGateInstance},
@@ -50,7 +53,7 @@ where
         Ok(Self { inner, pool_manager, pool_gate })
     }
 
-    pub fn pool_gate(&self) -> PoolGateInstance<E::T, &E::P> {
+    pub fn pool_gate(&self) -> PoolGateInstance<BoxTransport, &E::P> {
         PoolGateInstance::new(self.pool_gate, self.provider())
     }
 }
@@ -66,7 +69,6 @@ where
     E: TestAnvilEnvironment
 {
     type P = E::P;
-    type T = E::T;
 
     fn provider(&self) -> &Self::P {
         self.inner.provider()

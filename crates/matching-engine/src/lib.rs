@@ -3,7 +3,7 @@ use std::{
     sync::Arc
 };
 
-use alloy::{providers::Provider, transports::Transport};
+use alloy::providers::Provider;
 use alloy_primitives::{Address, BlockNumber};
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
@@ -51,14 +51,19 @@ pub fn build_book(id: PoolId, amm: Option<PoolSnapshot>, orders: HashSet<BookOrd
     OrderBook::new(id, amm, bids, asks, Some(book::sort::SortStrategy::ByPriceByVolume))
 }
 
-pub async fn configure_uniswap_manager<T: Transport + Clone, BlockSync: BlockSyncConsumer>(
-    provider: Arc<impl Provider<T>>,
+pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
+    provider: Arc<impl Provider + 'static>,
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
     current_block: BlockNumber,
     block_sync: BlockSync,
     pool_manager_address: Address
-) -> UniswapPoolManager<CanonicalStateAdapter, BlockSync, DataLoader<PoolId>, PoolId> {
+) -> UniswapPoolManager<
+    CanonicalStateAdapter<impl Provider + 'static>,
+    BlockSync,
+    DataLoader<PoolId>,
+    PoolId
+> {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
         .keys()
@@ -81,12 +86,8 @@ pub async fn configure_uniswap_manager<T: Transport + Clone, BlockSync: BlockSyn
             .unwrap();
     }
 
-    let state_change_buffer = 100;
-    UniswapPoolManager::new(
-        uniswap_pools,
-        current_block,
-        state_change_buffer,
-        Arc::new(CanonicalStateAdapter::new(state_notification)),
-        block_sync
-    )
+    let notifier =
+        Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
+
+    UniswapPoolManager::new(uniswap_pools, current_block, notifier, block_sync)
 }
