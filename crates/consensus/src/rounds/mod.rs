@@ -364,19 +364,6 @@ pub mod tests {
         time::Duration
     };
 
-    use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
-
-    fn init_tracing() {
-        let subscriber = tracing_subscriber::fmt()
-            .with_env_filter(EnvFilter::from_default_env())
-            .with_span_events(FmtSpan::FULL)
-            .with_test_writer()
-            .try_init();
-
-        // Ignore if already initialized
-        let _ = subscriber;
-    }
-
     use alloy::{
         primitives::Address,
         providers::{fillers::*, network::Ethereum, ProviderBuilder, RootProvider, *},
@@ -398,10 +385,12 @@ pub mod tests {
             proposal::ProposalBuilder
         }
     };
+    use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
     use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
     use super::{ConsensusMessage, RoundStateMachine, SharedRoundState};
     use crate::AngstromValidator;
+
     type ProviderDef = FillProvider<
         JoinFill<
             Identity,
@@ -411,6 +400,14 @@ pub mod tests {
         BoxTransport,
         Ethereum
     >;
+
+    fn init_tracing() {
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::from_default_env())
+            .with_span_events(FmtSpan::FULL)
+            .with_test_writer()
+            .try_init();
+    }
 
     async fn setup_state_machine() -> RoundStateMachine<ProviderDef, MockMatchingEngine> {
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
