@@ -357,4 +357,13 @@ impl From<PreProposalAggregation> for ConsensusMessage {
 }
 
 #[cfg(test)]
-pub mod tests {}
+pub mod tests {
+    use alloy::{providers::RootProvider, transports::BoxTransport};
+    use testing_tools::mocks::matching_engine::MockMatchingEngine;
+
+    use super::RoundStateMachine;
+
+    fn setup() -> RoundStateMachine<RootProvider<BoxTransport>, MockMatchingEngine> {
+        todo!()
+    }
+}
