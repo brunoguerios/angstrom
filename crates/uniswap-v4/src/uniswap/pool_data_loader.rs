@@ -122,6 +122,10 @@ impl<A> DataLoader<A> {
     pub fn pool_registry(&self) -> Option<UniswapPoolRegistry> {
         self.pool_registry.clone()
     }
+
+    pub fn pool_manager_opt(&self) -> Option<Address> {
+        self.pool_manager
+    }
 }
 
 pub trait PoolDataLoader<A>: Clone {
