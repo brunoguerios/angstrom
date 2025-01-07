@@ -4,8 +4,7 @@ use std::{
     marker::PhantomData,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker},
-    time::Duration
+    task::{Context, Poll, Waker}
 };
 
 use alloy::{

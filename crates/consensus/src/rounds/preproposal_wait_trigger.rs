@@ -1,12 +1,11 @@
 use std::{
     future::Future,
-    pin::Pin,
     sync::Arc,
-    task::{Poll, Waker},
+    task::Poll,
     time::{Duration, Instant}
 };
 
-use tokio::time::{interval, Interval, Sleep};
+use tokio::time::{interval, Interval};
 
 use crate::rounds::OrderStorage;
 
@@ -44,7 +43,7 @@ pub struct PreProposalWaitTrigger {
 impl Clone for PreProposalWaitTrigger {
     fn clone(&self) -> Self {
         Self {
-            wait_duration:  self.wait_duration.clone(),
+            wait_duration:  self.wait_duration,
             start_instant:  Instant::now(),
             order_storage:  self.order_storage.clone(),
             check_interval: interval(CHECK_INTERVAL)
