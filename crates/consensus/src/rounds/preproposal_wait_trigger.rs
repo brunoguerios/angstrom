@@ -81,7 +81,10 @@ impl PreProposalWaitTrigger {
         }
 
         let mills = self.wait_duration.as_millis();
-        tracing::info!(trigger = mills, "updated wait duration to trigger building");
+        tracing::info!(
+            trigger = mills,
+            "updated wait duration to trigger building!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        );
     }
 }
 
