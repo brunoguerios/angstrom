@@ -83,6 +83,14 @@ where
         }
     }
 
+    pub fn sync_swap_with_sim(&self) -> bool {
+        self.sync_swap_with_sim
+    }
+
+    pub fn initial_ticks_per_side(&self) -> u16 {
+        self.initial_ticks_per_side
+    }
+
     pub fn data_loader(&self) -> Loader {
         self.data_loader.clone()
     }
