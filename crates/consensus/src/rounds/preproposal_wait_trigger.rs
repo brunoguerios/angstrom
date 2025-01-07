@@ -71,14 +71,13 @@ impl PreProposalWaitTrigger {
 
     fn update_wait_duration_base(&mut self, info: LastRoundInfo) {
         let base = ETH_BLOCK_TIME - TARGET_SUBMISSION_TIME_REM;
-        let total_complete_time = self.wait_duration + info.time_to_complete;
 
-        if total_complete_time < base {
+        if info.time_to_complete < base {
             // if we overestimated the time, we will push our trigger back
-            self.wait_duration += (base - total_complete_time) / SCALING_REM_ADJUSTMENT;
+            self.wait_duration += (base - info.time_to_complete) / SCALING_REM_ADJUSTMENT;
         } else {
             // otherwise if we underestimated, we will move back
-            self.wait_duration -= (total_complete_time - base) * SCALING_REM_ADJUSTMENT;
+            self.wait_duration -= (info.time_to_complete - base) * SCALING_REM_ADJUSTMENT;
         }
 
         let mills = self.wait_duration.as_millis();
@@ -115,7 +114,6 @@ impl Future for PreProposalWaitTrigger {
 /// we scale the timeout estimation linearly.
 #[derive(Debug)]
 pub struct LastRoundInfo {
-    /// the time from the trigger to the submission of the bundle to relays
-    /// when we are the leader of the round
+    /// the start of the round to submitting the bundle
     pub time_to_complete: Duration
 }

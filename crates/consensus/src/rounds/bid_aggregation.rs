@@ -29,6 +29,7 @@ pub struct BidAggregationState {
     /// we collect these here given that the leader could be running behind.
     pre_proposals_aggregation: HashSet<PreProposalAggregation>,
     proposal:                  Option<Proposal>,
+    start_time:                Instant,
     transition_timeout:        PreProposalWaitTrigger,
     waker:                     Option<Waker>
 }
@@ -42,6 +43,7 @@ impl BidAggregationState {
             received_pre_proposals: HashSet::default(),
             pre_proposals_aggregation: HashSet::default(),
             transition_timeout,
+            start_time: Instant::now(),
             proposal: None,
             waker: None
         }
@@ -107,7 +109,7 @@ where
                 std::mem::take(&mut self.received_pre_proposals),
                 std::mem::take(&mut self.pre_proposals_aggregation),
                 handles,
-                Instant::now(),
+                self.start_time,
                 cx.waker().clone()
             );
 
