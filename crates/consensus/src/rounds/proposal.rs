@@ -1,12 +1,12 @@
 use std::{
     collections::HashSet,
     task::{Context, Poll, Waker},
-    time::Duration
+    time::{Duration, Instant}
 };
 
 use alloy::{
     network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest,
-    sol_types::SolCall, transports::Transport
+    sol_types::SolCall
 };
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
@@ -20,7 +20,7 @@ use matching_engine::MatchingEngineHandle;
 use pade::PadeEncode;
 
 use super::{ConsensusState, SharedRoundState};
-use crate::rounds::ConsensusMessage;
+use crate::rounds::{preproposal_wait_trigger::LastRoundInfo, ConsensusMessage};
 
 type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 
@@ -36,18 +36,20 @@ pub struct ProposalState {
     submission_future:      Option<BoxFuture<'static, bool>>,
     pre_proposal_aggs:      Vec<PreProposalAggregation>,
     proposal:               Option<Proposal>,
+    last_round_info:        Option<LastRoundInfo>,
+    trigger_time:           Instant,
     waker:                  Waker
 }
 
 impl ProposalState {
-    pub fn new<P, T, Matching>(
+    pub fn new<P, Matching>(
         pre_proposal_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, T, Matching>,
+        handles: &mut SharedRoundState<P, Matching>,
+        trigger_time: Instant,
         waker: Waker
     ) -> Self
     where
-        P: Provider<T> + 'static,
-        T: Transport + Clone,
+        P: Provider + 'static,
         Matching: MatchingEngineHandle
     {
         // queue building future
@@ -58,23 +60,28 @@ impl ProposalState {
             matching_engine_future: Some(
                 handles.matching_engine_output(pre_proposal_aggregation.clone())
             ),
+            last_round_info: None,
             pre_proposal_aggs: pre_proposal_aggregation.into_iter().collect::<Vec<_>>(),
             submission_future: None,
             proposal: None,
+            trigger_time,
             waker
         }
     }
 
-    fn try_build_proposal<P, T, Matching>(
+    fn try_build_proposal<P, Matching>(
         &mut self,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
-        handles: &mut SharedRoundState<P, T, Matching>
+        handles: &mut SharedRoundState<P, Matching>
     ) -> bool
     where
-        P: Provider<T> + 'static,
-        T: Transport + Clone,
+        P: Provider + 'static,
         Matching: MatchingEngineHandle
     {
+        self.last_round_info = Some(LastRoundInfo {
+            time_to_complete: Instant::now().duration_since(self.trigger_time)
+        });
+
         tracing::debug!("starting to build proposal");
         let Ok((pool_solution, gas_info)) = result.inspect_err(|e| {
             tracing::error!(err=%e,
@@ -151,15 +158,14 @@ impl ProposalState {
     }
 }
 
-impl<P, T, Matching> ConsensusState<P, T, Matching> for ProposalState
+impl<P, Matching> ConsensusState<P, Matching> for ProposalState
 where
-    P: Provider<T> + 'static,
-    T: Transport + Clone,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        _: &mut SharedRoundState<P, T, Matching>,
+        _: &mut SharedRoundState<P, Matching>,
         _: StromConsensusEvent
     ) {
         // No messages at this point can effect the consensus round and thus are
@@ -168,9 +174,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, T, Matching>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, T, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(state) => {
@@ -200,5 +206,9 @@ where
         }
 
         Poll::Pending
+    }
+
+    fn last_round_info(&mut self) -> Option<LastRoundInfo> {
+        self.last_round_info.take()
     }
 }
