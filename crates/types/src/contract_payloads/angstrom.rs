@@ -161,6 +161,10 @@ pub struct StandingValidation {
 }
 
 impl StandingValidation {
+    pub fn new(nonce: u64, deadline: u64) -> Self {
+        Self { nonce, deadline }
+    }
+
     pub fn nonce(&self) -> u64 {
         self.nonce
     }
