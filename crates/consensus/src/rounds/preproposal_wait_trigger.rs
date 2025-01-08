@@ -78,7 +78,7 @@ impl PreProposalWaitTrigger {
     fn update_wait_duration_base(&mut self, info: LastRoundInfo) {
         let base = ETH_BLOCK_TIME - TARGET_SUBMISSION_TIME_REM;
 
-        if info.time_to_complete < base {
+        if info.time_to_complete < base && self.wait_duration < base {
             // if we overestimated the time, we will push our trigger back
             self.wait_duration += (base - info.time_to_complete) / SCALING_REM_ADJUSTMENT;
         } else {
