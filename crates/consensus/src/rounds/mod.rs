@@ -603,28 +603,79 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_invalid_consensus_messages() {
+    async fn test_invalid_messages_in_bid_aggregation_state() {
         init_tracing();
         let state_machine = setup_state_machine().await;
+        let invalid_peer = PeerId::random();
+        let invalid_signer = AngstromSigner::random();
+
         pin_mut!(state_machine);
 
-        let invalid_peer = PeerId::random();
-
-        // Try PreProposal from invalid peer
         let invalid_pre_proposal = PreproposalBuilder::new()
             .for_block(1)
-            .with_secret_key(AngstromSigner::random()) // Different signer
+            .with_secret_key(invalid_signer)
             .build();
 
         state_machine
             .handle_message(StromConsensusEvent::PreProposal(invalid_peer, invalid_pre_proposal));
 
-        // Should not transition state
+        // Should not transition state or emit messages
         assert!(matches!(
             state_machine
                 .as_mut()
                 .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
             Poll::Pending
         ));
+        assert!(state_machine.shared_state.messages.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_invalid_messages_in_pre_proposal_aggregation_state() {
+        init_tracing();
+        let mut state_machine = setup_state_machine().await;
+        let invalid_peer = PeerId::random();
+        let invalid_signer = AngstromSigner::random();
+
+        let handles = &mut state_machine.shared_state;
+        let state = Box::new(PreProposalAggregationState::new(
+            HashSet::default(),
+            HashSet::default(),
+            handles,
+            Instant::now(),
+            futures::task::noop_waker_ref().to_owned()
+        )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
+
+        handles.messages.clear();
+        state_machine.set_state_machine_at(state);
+        pin_mut!(state_machine);
+
+        // Test invalid pre-proposal
+        let invalid_pre_proposal = PreproposalBuilder::new()
+            .for_block(1)
+            .with_secret_key(invalid_signer.clone())
+            .build();
+
+        state_machine
+            .handle_message(StromConsensusEvent::PreProposal(invalid_peer, invalid_pre_proposal));
+
+        // Test invalid pre-proposal aggregation
+        let invalid_pre_proposal_agg = PreProposalAggregationBuilder::new()
+            .for_block(1)
+            .with_secret_key(invalid_signer)
+            .build();
+
+        state_machine.handle_message(StromConsensusEvent::PreProposalAgg(
+            invalid_peer,
+            invalid_pre_proposal_agg
+        ));
+
+        // Should not transition state or emit messages
+        assert!(matches!(
+            state_machine
+                .as_mut()
+                .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
+            Poll::Pending
+        ));
+        assert!(state_machine.shared_state.messages.is_empty());
     }
 }
