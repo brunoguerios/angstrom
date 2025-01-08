@@ -72,6 +72,10 @@ impl<'a> VolumeFillMatcher<'a> {
         &self.results
     }
 
+    pub fn cur_debt(&self) -> Option<&Debt> {
+        self.debt.as_ref()
+    }
+
     /// Save our current solve state to an internal checkpoint
     fn save_checkpoint(&mut self) {
         let checkpoint = Self {

@@ -184,6 +184,21 @@ fn amm_provides_last_mile_liquidity() {
 }
 
 #[test]
+fn debt_is_created() {
+    let book = make_books(
+        vec![TestOrder { q: 100, p: raw_price(1000) }],
+        vec![TestOrder { q: 100, p: raw_price(10) }],
+        None
+    );
+    let mut matcher = VolumeFillMatcher::new(&book);
+    let _ = matcher.run_match();
+    let checkpoint = matcher.from_checkpoint().expect("No checkpoint created");
+    assert!(checkpoint.cur_debt().is_some(), "No debt found");
+    let solution = checkpoint.solution(None);
+    assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
+}
+
+#[test]
 fn debt_price_is_final_price() {
     let book = OrderBook::new(
         FixedBytes::random(),
