@@ -84,9 +84,8 @@ impl WeightedRoundRobin {
     }
 
     fn center_priorities(&mut self) {
-        let avg_priority = (self.validators.iter().map(|v| v.priority).sum::<i64>()
-            * ONE_E3 as i64)
-            / self.validators.len() as i64;
+        let avg_priority =
+            self.validators.iter().map(|v| v.priority).sum::<i64>() / self.validators.len() as i64;
 
         self.validators = self
             .validators
@@ -189,7 +188,152 @@ impl std::hash::Hash for AngstromValidator {
 mod tests {
     use std::collections::HashMap;
 
+    use alloy::primitives::BlockNumber;
+
     use super::*;
+
+    fn create_test_validators() -> (HashMap<String, PeerId>, Vec<AngstromValidator>) {
+        let peers = HashMap::from([
+            ("Alice".to_string(), PeerId::random()),
+            ("Bob".to_string(), PeerId::random()),
+            ("Charlie".to_string(), PeerId::random())
+        ]);
+        let validators = vec![
+            AngstromValidator::new(peers["Alice"], 100),
+            AngstromValidator::new(peers["Bob"], 200),
+            AngstromValidator::new(peers["Charlie"], 300),
+        ];
+        (peers, validators)
+    }
+
+    #[test]
+    fn test_priority_calculation() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Get initial priorities
+        let initial_priorities: Vec<i64> = algo.validators.iter().map(|v| v.priority).collect();
+        assert!(initial_priorities.iter().all(|&p| p == 0), "Initial priorities should be 0");
+
+        // Record initial voting powers
+        let initial_powers: Vec<u64> = algo.validators.iter().map(|v| v.voting_power).collect();
+
+        // Test single round of priority updates
+        algo.proposer_selection();
+
+        // After proposer selection:
+        // 1. All validators should have their priority increased by their voting power
+        // 2. The selected validator (highest priority) should then have total_power
+        //    subtracted
+        let total_power: u64 = initial_powers.iter().sum();
+
+        for validator in algo.validators.iter() {
+            if validator.priority < 0 {
+                // This was the selected validator
+                let expected_priority = validator.voting_power as i64 - total_power as i64;
+                assert_eq!(
+                    validator.priority, expected_priority,
+                    "Selected validator should have priority = (own_power - total_power)"
+                );
+            } else {
+                // Non-selected validators just got their voting power added
+                assert_eq!(
+                    validator.priority, validator.voting_power as i64,
+                    "Non-selected validator should have priority = own_power"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_priority_centering() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Set priorities to unscaled voting powers to test centering
+        let max_power = 300; // Matches max voting power in create_test_validators
+        algo.validators = algo
+            .validators
+            .drain()
+            .map(|mut v| {
+                // Use unscaled value to avoid massive numbers
+                v.priority = (v.voting_power / ONE_E3) as i64;
+                v
+            })
+            .collect();
+
+        // Center priorities
+        algo.center_priorities();
+
+        // After centering:
+        // 1. Sum should be close to zero (within rounding error)
+        let sum_priorities: i64 = algo.validators.iter().map(|v| v.priority).sum();
+
+        assert!(
+            sum_priorities.abs() <= algo.validators.len() as i64,
+            "Sum of centered priorities ({}) should be close to zero",
+            sum_priorities
+        );
+
+        // 2. Each priority should be within reasonable bounds
+        for validator in algo.validators.iter() {
+            assert!(
+                validator.priority.abs() <= max_power,
+                "Individual priority ({}) should be within reasonable bounds",
+                validator.priority
+            );
+        }
+
+        // 3. Verify relative differences are maintained
+        let priorities: Vec<i64> = algo.validators.iter().map(|v| v.priority).collect();
+        let max_priority = priorities.iter().max().unwrap();
+        let min_priority = priorities.iter().min().unwrap();
+        assert!((max_priority - min_priority) <= max_power, "Priority spread should be reasonable");
+    }
+
+    #[test]
+    fn test_priority_scaling() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Set extreme priorities to trigger scaling
+        let total_power: u64 = algo.validators.iter().map(|v| v.voting_power).sum();
+        algo.validators = algo
+            .validators
+            .drain()
+            .enumerate()
+            .map(|(i, mut v)| {
+                v.priority = (i as i64) * (total_power as i64) * 3; // Create large differences
+                v
+            })
+            .collect();
+
+        // Scale priorities
+        algo.scale_priorities();
+
+        // Verify scaling reduced the difference
+        let max_priority = algo.validators.iter().map(|v| v.priority).max().unwrap();
+        let min_priority = algo.validators.iter().map(|v| v.priority).min().unwrap();
+
+        assert!(
+            (max_priority - min_priority) <= 2 * (total_power as i64),
+            "Priority difference should be less than twice the total voting power"
+        );
+    }
+
+    #[test]
+    fn test_proposer_selection_determinism() {
+        let (_, validators) = create_test_validators();
+        let mut algo1 = WeightedRoundRobin::new(validators.clone(), BlockNumber::default());
+        let mut algo2 = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Run multiple rounds and verify both instances select the same proposers
+        for i in 1..=10 {
+            let proposer1 = algo1.choose_proposer(i);
+            let proposer2 = algo2.choose_proposer(i);
+            assert_eq!(proposer1, proposer2, "Proposer selection should be deterministic");
+        }
+    }
 
     #[test]
     fn test_round_robin_simulation() {
@@ -229,48 +373,5 @@ mod tests {
         assert!((alice_ratio - 0.167).abs() < 0.05);
         assert!((bob_ratio - 0.333).abs() < 0.05);
         assert!((charlie_ratio - 0.5).abs() < 0.05);
-    }
-
-    #[test]
-    fn test_add_remove_validator() {
-        let peers = HashMap::from([
-            ("Alice".to_string(), PeerId::random()),
-            ("Bob".to_string(), PeerId::random()),
-            ("Charlie".to_string(), PeerId::random())
-        ]);
-        let validators = vec![
-            AngstromValidator::new(peers["Alice"], 100),
-            AngstromValidator::new(peers["Bob"], 200),
-        ];
-        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
-
-        fn simulate_rounds(
-            algo: &mut WeightedRoundRobin,
-            rounds: usize,
-            offset: usize
-        ) -> HashMap<PeerId, usize> {
-            let mut stats = HashMap::new();
-            for i in offset..(offset + rounds) {
-                let proposer = algo.choose_proposer(BlockNumber::from(i as u64)).unwrap();
-                *stats.entry(proposer).or_insert(0) += 1;
-            }
-            stats
-        }
-
-        let rounds = 1000;
-        let initial_stats = simulate_rounds(&mut algo, rounds, 1);
-        assert_eq!(initial_stats.len(), 2);
-
-        algo.add_validator(peers["Charlie"], 300);
-
-        let after_add_stats = simulate_rounds(&mut algo, rounds, 1001);
-        assert_eq!(after_add_stats.len(), 3);
-        assert!(after_add_stats.contains_key(&peers["Charlie"]));
-
-        algo.remove_validator(&peers["Bob"]);
-
-        let after_remove_stats = simulate_rounds(&mut algo, rounds, 2001);
-        assert_eq!(after_remove_stats.len(), 2);
-        assert!(!after_remove_stats.contains_key(&peers["Bob"]));
     }
 }

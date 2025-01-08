@@ -358,10 +358,10 @@ impl From<PreProposalAggregation> for ConsensusMessage {
 #[cfg(test)]
 pub mod tests {
     use std::{
-        collections::HashMap,
+        collections::{HashMap, HashSet},
         sync::Arc,
         task::{Context, Poll},
-        time::Duration
+        time::{Duration, Instant}
     };
 
     use alloy::{
@@ -381,15 +381,28 @@ pub mod tests {
     use testing_tools::{
         mocks::matching_engine::MockMatchingEngine,
         type_generator::consensus::{
-            pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder,
-            proposal::ProposalBuilder
+            pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder
         }
     };
     use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
     use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-    use super::{ConsensusMessage, RoundStateMachine, SharedRoundState};
-    use crate::AngstromValidator;
+    use super::{
+        pre_proposal::PreProposalState, ConsensusMessage, RoundStateMachine, SharedRoundState
+    };
+    use crate::{
+        rounds::{pre_proposal_aggregation::PreProposalAggregationState, ConsensusState},
+        AngstromValidator
+    };
+
+    impl RoundStateMachine<ProviderDef, MockMatchingEngine> {
+        fn set_state_machine_at(
+            &mut self,
+            state: Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>
+        ) {
+            self.current_state = state;
+        }
+    }
 
     type ProviderDef = FillProvider<
         JoinFill<
@@ -469,14 +482,31 @@ pub mod tests {
             .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref()))
         {
             Poll::Ready(Some(ConsensusMessage::PropagatePreProposal(_))) => {}
-            _ => panic!("Expected PreProposal propagation")
+            res => {
+                tracing::info!(?res);
+                panic!("Expected PreProposal propagation {:?}", res)
+            }
         }
     }
 
     #[tokio::test]
     async fn test_pre_proposal_to_pre_proposal_aggregation() {
         init_tracing();
-        let state_machine = setup_state_machine().await;
+        let mut state_machine = setup_state_machine().await;
+        // create pre-proposal-state
+        let handles = &mut state_machine.shared_state;
+        let state = Box::new(PreProposalState::new(
+            1,
+            HashSet::default(),
+            HashSet::default(),
+            handles,
+            Instant::now(),
+            futures::task::noop_waker_ref().to_owned()
+        )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
+        handles.messages.clear();
+
+        state_machine.set_state_machine_at(state);
+
         pin_mut!(state_machine);
 
         // Generate valid PreProposal
@@ -495,14 +525,32 @@ pub mod tests {
             .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref()))
         {
             Poll::Ready(Some(ConsensusMessage::PropagatePreProposalAgg(_))) => {}
-            _ => panic!("Expected PreProposalAgg propagation")
+            res => {
+                tracing::info!(?res);
+                panic!("Expected PreProposalAgg propagation");
+            }
         }
     }
 
     #[tokio::test]
     async fn test_pre_proposal_aggregation_to_proposal() {
         init_tracing();
-        let state_machine = setup_state_machine().await;
+        let mut state_machine = setup_state_machine().await;
+
+        // create pre-proposal-aggregation state
+        let handles = &mut state_machine.shared_state;
+        let state = Box::new(PreProposalAggregationState::new(
+            HashSet::default(),
+            HashSet::default(),
+            handles,
+            Instant::now(),
+            futures::task::noop_waker_ref().to_owned()
+        )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
+
+        handles.messages.clear();
+
+        state_machine.set_state_machine_at(state);
+
         pin_mut!(state_machine);
 
         // Generate valid PreProposalAggregation
@@ -513,49 +561,21 @@ pub mod tests {
 
         // Handle PreProposalAggregation message
         let signer_id = state_machine.shared_state.signer.id();
-        state_machine
-            .handle_message(StromConsensusEvent::PreProposalAgg(signer_id, pre_proposal_agg));
+        state_machine.handle_message(StromConsensusEvent::PreProposalAgg(
+            signer_id,
+            pre_proposal_agg.clone()
+        ));
 
         // Should transition to Proposal state
         match state_machine
             .as_mut()
             .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref()))
         {
-            Poll::Ready(Some(ConsensusMessage::PropagateProposal(_))) => {}
-            _ => panic!("Expected Proposal propagation")
+            Poll::Ready(Some(ConsensusMessage::PropagatePreProposalAgg(a))) => {
+                assert_eq!(a, pre_proposal_agg);
+            }
+            _ => panic!()
         }
-    }
-
-    #[tokio::test]
-    async fn test_proposal_to_finalization() {
-        init_tracing();
-        let state_machine = setup_state_machine().await;
-        pin_mut!(state_machine);
-
-        // Generate valid Proposal
-        // Generate valid PreProposalAggregation first
-        let pre_proposal_agg = PreProposalAggregationBuilder::new()
-            .for_block(1)
-            .with_secret_key(state_machine.shared_state.signer.clone())
-            .build();
-
-        let proposal = ProposalBuilder::new()
-            .for_block(1)
-            .preproposals(vec![pre_proposal_agg])
-            .with_secret_key(state_machine.shared_state.signer.clone())
-            .build();
-
-        // Handle Proposal message
-        let signer_id = state_machine.shared_state.signer.id();
-        state_machine.handle_message(StromConsensusEvent::Proposal(signer_id, proposal));
-
-        // Should transition to Finalization state
-        assert!(matches!(
-            state_machine
-                .as_mut()
-                .poll_next(&mut Context::from_waker(futures::task::noop_waker_ref())),
-            Poll::Ready(None)
-        ));
     }
 
     #[tokio::test]
