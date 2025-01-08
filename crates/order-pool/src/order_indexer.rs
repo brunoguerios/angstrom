@@ -632,8 +632,9 @@ mod tests {
 
     use alloy::primitives::U256;
     use angstrom_types::{
-        orders::OrderId,
-        sol_bindings::grouped_orders::{GroupedVanillaOrder, StandingOrder}
+        contract_bindings::angstrom::Angstrom::PoolKey,
+        contract_payloads::angstrom::AngstromPoolConfigStore, orders::OrderId,
+        sol_bindings::grouped_orders::GroupedVanillaOrder
     };
     use rand::Rng;
     use testing_tools::{
@@ -645,26 +646,45 @@ mod tests {
     use crate::PoolConfig;
 
     fn setup_test_indexer() -> OrderIndexer<MockValidator> {
-        let validator = MockValidator::default();
         let (tx, _) = broadcast::channel(100);
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
         let validator = MockValidator::default();
-        let pools_tracker = AngstromPoolsTracker::new();
+        let pools_tracker =
+            AngstromPoolsTracker::new(Address::ZERO, Arc::new(AngstromPoolConfigStore::default()));
 
         OrderIndexer::new(validator, order_storage, 1, tx, pools_tracker)
     }
 
-    fn create_test_order(from: Address, pool_id: PoolId) -> AllOrders {
-        let mut rng = rand::thread_rng();
-        let is_standing = rng.gen_bool(0.5);
+    #[derive(Default)]
+    struct OrderValidity {
+        valid_until: Option<U256>,
+        flash_block: Option<u64>,
+        is_standing: bool
+    }
 
-        let builder = UserOrderBuilder::new()
-            .asset_in(Address::random())
-            .asset_out(Address::random())
+    fn create_test_order(
+        from: Address,
+        pool_id: PoolKey,
+        validity: Option<OrderValidity>
+    ) -> AllOrders {
+        let validity = validity.unwrap_or_default();
+
+        let mut builder = UserOrderBuilder::new()
+            .asset_in(pool_id.currency0)
+            .asset_out(pool_id.currency1)
             .amount(900)
             .recipient(from);
 
-        let order = if is_standing { builder.standing() } else { builder.kill_or_fill() }.build();
+        if let Some(valid_until) = validity.valid_until {
+            builder = builder.valid_until(valid_until);
+        }
+
+        if let Some(flash_block) = validity.flash_block {
+            builder = builder.flash_block(flash_block);
+        }
+
+        let order =
+            if validity.is_standing { builder.standing() } else { builder.kill_or_fill() }.build();
 
         match order {
             GroupedVanillaOrder::Standing(o) => AllOrders::Standing(o),
@@ -677,20 +697,22 @@ mod tests {
     async fn test_expired_orders_handling() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
-        let pool_id = PoolId::random();
+        let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let pool_id = pool_key.generate_id();
 
         // Create an order that expires in the next block
-        let mut order = create_test_order(from, pool_id);
-        if let AllOrders::Standing(ref mut standing_order) = order {
-            // Set valid_until to current timestamp + 1 second
-            standing_order.valid_until = U256::from(
+        let validity = OrderValidity {
+            valid_until: Some(U256::from(
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
                     + 1
-            );
-        }
+            )),
+            flash_block: None,
+            is_standing: true
+        };
+        let order = create_test_order(from, pool_key, Some(validity));
 
         // Submit and validate the order
         let (tx, _) = tokio::sync::oneshot::channel();
@@ -731,12 +753,26 @@ mod tests {
         assert!(expired_hashes.contains(&order_hash));
         assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
     }
+
     #[tokio::test]
     async fn test_block_transitions() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
         let pool_id = PoolId::random();
-        let order = create_test_order(from, pool_id);
+        let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let validity = OrderValidity {
+            valid_until: Some(U256::from(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600 // Valid for 1 hour
+            )),
+            flash_block: None,
+            is_standing: true
+        };
+
+        let order = create_test_order(from, pool_key, Some(validity));
         let order_hash = order.order_hash();
 
         // Submit and validate order
@@ -763,17 +799,42 @@ mod tests {
         let address_changes = vec![from];
 
         indexer.start_new_block_processing(2, completed_orders.clone(), address_changes.clone());
-        indexer.finish_new_block_processing(2, completed_orders, address_changes);
+        let validity = OrderValidity {
+            valid_until: Some(U256::from(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600
+            )),
+            flash_block: None,
+            is_standing: true
+        };
+        let order = create_test_order(from, pool_id, Some(validity));
+        let peer_id = PeerId::random();
 
         // Verify order was removed
         assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
     }
+
     #[tokio::test]
     async fn test_network_order_handling() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
         let pool_id = PoolId::random();
-        let order = create_test_order(from, pool_id);
+        let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let validity = OrderValidity {
+            valid_until: Some(U256::from(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600
+            )),
+            flash_block: None,
+            is_standing: true
+        };
+        let order = create_test_order(from, pool_key, Some(validity));
         let peer_id = PeerId::random();
 
         // Submit network order
@@ -803,12 +864,14 @@ mod tests {
         // Verify peer tracking is cleared after validation
         assert!(!indexer.order_hash_to_peer_id.contains_key(&order_hash));
     }
+
     #[tokio::test]
     async fn test_invalid_orders() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
         let pool_id = PoolId::random();
-        let order = create_test_order(from, pool_id);
+        let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
         // Submit order and mark as invalid
@@ -838,6 +901,7 @@ mod tests {
             _ => panic!("Expected invalid order result")
         }
     }
+
     #[tokio::test]
     async fn test_pool_management() {
         let mut indexer = setup_test_indexer();
@@ -851,7 +915,7 @@ mod tests {
 
         // Add order to pool
         let from = Address::random();
-        let order = create_test_order(from, pool_id);
+        let order = create_test_order(from, pool_id, None);
         let (tx, _) = tokio::sync::oneshot::channel();
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
 
@@ -889,7 +953,8 @@ mod tests {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
         let pool_id = PoolId::random();
-        let order = create_test_order(from, pool_id);
+        let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let order = create_test_order(from, pool_key);
         let order_hash = order.order_hash();
 
         // Create a channel for validation results
@@ -924,7 +989,8 @@ mod tests {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
         let pool_id = PoolId::random();
-        let order = create_test_order(from, pool_id);
+        let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
         // Submit and validate the order first
@@ -965,7 +1031,8 @@ mod tests {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
         let pool_id = PoolId::random();
-        let order = create_test_order(from, pool_id);
+        let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
         // Submit the order first time
