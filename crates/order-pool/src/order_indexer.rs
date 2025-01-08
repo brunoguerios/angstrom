@@ -625,3 +625,386 @@ pub enum PoolError {
     #[error("Duplicate order")]
     DuplicateOrder
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use alloy::primitives::U256;
+    use angstrom_types::{
+        orders::OrderId,
+        sol_bindings::grouped_orders::{GroupedVanillaOrder, StandingOrder}
+    };
+    use tokio::sync::broadcast;
+
+    use super::*;
+
+    // Mock OrderValidatorHandle implementation for testing
+    #[derive(Clone)]
+    struct MockValidator;
+
+    impl OrderValidatorHandle for MockValidator {
+        type Order = AllOrders;
+
+        fn validate_order(&self, _origin: OrderOrigin, _order: Self::Order) {}
+
+        fn on_new_block(&self, _block: u64, _orders: Vec<B256>, _addresses: Vec<Address>) {}
+
+        fn notify_validation_on_changes(
+            &self,
+            _block: u64,
+            _orders: Vec<B256>,
+            _addresses: Vec<Address>
+        ) {
+        }
+    }
+
+    fn setup_test_indexer() -> OrderIndexer<MockValidator> {
+        let (tx, _) = broadcast::channel(100);
+        let order_storage = Arc::new(OrderStorage::default());
+        let validator = MockValidator;
+        let pools_tracker = AngstromPoolsTracker::default();
+
+        OrderIndexer::new(validator, order_storage, 1, tx, pools_tracker)
+    }
+
+    fn create_test_order(from: Address, pool_id: PoolId) -> AllOrders {
+        let standing_order = StandingOrder {
+            from,
+            pool_id,
+            token_in: Address::random(),
+            token_out: Address::random(),
+            min_amount_out: U256::from(900),
+            valid_until: U256::from(u64::MAX),
+            nonce: U256::ZERO,
+            signature: FixedBytes::default()
+        };
+
+        AllOrders::Standing(standing_order)
+    }
+    #[tokio::test]
+    async fn test_expired_orders_handling() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_id = PoolId::random();
+
+        // Create an order that expires in the next block
+        let mut order = create_test_order(from, pool_id);
+        if let AllOrders::Standing(ref mut standing_order) = order {
+            // Set valid_until to current timestamp + 1 second
+            standing_order.valid_until = U256::from(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 1
+            );
+        }
+
+        // Submit and validate the order
+        let (tx, _) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
+
+        let order_hash = order.order_hash();
+        indexer
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
+                order.clone(),
+                OrderId {
+                    hash: order_hash,
+                    pool_id,
+                    location: OrderLocation::Limit,
+                    deadline: Some(U256::from(
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs()
+                            + 1
+                    )),
+                    flash_block: None
+                },
+                from,
+                1
+            )))
+            .unwrap();
+
+        // Verify order was added
+        assert!(indexer.order_hash_to_order_id.contains_key(&order_hash));
+
+        // Wait for order to expire
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+        // Simulate block transition
+        let expired_hashes = indexer.remove_expired_orders(2);
+
+        // Verify order was removed
+        assert!(expired_hashes.contains(&order_hash));
+        assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
+    }
+    #[tokio::test]
+    async fn test_block_transitions() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_id = PoolId::random();
+        let order = create_test_order(from, pool_id);
+        let order_hash = order.order_hash();
+
+        // Submit and validate order
+        let (tx, _) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
+
+        indexer
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
+                order.clone(),
+                OrderId {
+                    hash: order_hash,
+                    pool_id,
+                    location: OrderLocation::Limit,
+                    deadline: None,
+                    flash_block: None
+                },
+                from,
+                1
+            )))
+            .unwrap();
+
+        // Simulate block transition with completed orders
+        let completed_orders = vec![order_hash];
+        let address_changes = vec![from];
+
+        indexer.start_new_block_processing(2, completed_orders.clone(), address_changes.clone());
+        indexer.finish_new_block_processing(2, completed_orders, address_changes);
+
+        // Verify order was removed
+        assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
+    }
+    #[tokio::test]
+    async fn test_network_order_handling() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_id = PoolId::random();
+        let order = create_test_order(from, pool_id);
+        let peer_id = PeerId::random();
+
+        // Submit network order
+        indexer.new_network_order(peer_id, OrderOrigin::Network, order.clone());
+        let order_hash = order.order_hash();
+
+        // Verify peer tracking
+        assert!(indexer.order_hash_to_peer_id.contains_key(&order_hash));
+        assert_eq!(indexer.order_hash_to_peer_id[&order_hash], vec![peer_id]);
+
+        // Validate order
+        indexer
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
+                order.clone(),
+                OrderId {
+                    hash: order_hash,
+                    pool_id,
+                    location: OrderLocation::Limit,
+                    deadline: None,
+                    flash_block: None
+                },
+                from,
+                1
+            )))
+            .unwrap();
+
+        // Verify peer tracking is cleared after validation
+        assert!(!indexer.order_hash_to_peer_id.contains_key(&order_hash));
+    }
+    #[tokio::test]
+    async fn test_invalid_orders() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_id = PoolId::random();
+        let order = create_test_order(from, pool_id);
+        let order_hash = order.order_hash();
+
+        // Submit order and mark as invalid
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
+
+        indexer
+            .handle_validated_order(OrderValidationResults::Invalid(order_hash))
+            .unwrap();
+
+        // Verify order was marked as invalid
+        assert!(indexer.seen_invalid_orders.contains(&order_hash));
+
+        // Verify validation result
+        match rx.await {
+            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
+            _ => panic!("Expected invalid order result")
+        }
+
+        // Try to submit the same order again
+        let (tx2, rx2) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx2);
+
+        // Verify duplicate invalid order is rejected
+        match rx2.await {
+            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
+            _ => panic!("Expected invalid order result")
+        }
+    }
+    #[tokio::test]
+    async fn test_pool_management() {
+        let mut indexer = setup_test_indexer();
+        let pool_id = PoolId::random();
+
+        // Create a new pool
+        let new_pool =
+            NewInitializedPool { pool_id, token0: Address::random(), token1: Address::random() };
+
+        indexer.new_pool(new_pool);
+
+        // Add order to pool
+        let from = Address::random();
+        let order = create_test_order(from, pool_id);
+        let (tx, _) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
+
+        // Validate order
+        let order_hash = order.order_hash();
+        indexer
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
+                order.clone(),
+                OrderId {
+                    hash: order_hash,
+                    pool_id,
+                    location: OrderLocation::Limit,
+                    deadline: None,
+                    flash_block: None
+                },
+                from,
+                1
+            )))
+            .unwrap();
+
+        // Verify order is in pool
+        let pool_orders = indexer.orders_by_pool(pool_id, OrderLocation::Limit);
+        assert!(!pool_orders.is_empty());
+
+        // Remove pool
+        indexer.remove_pool(pool_id);
+
+        // Verify orders were removed
+        let pool_orders = indexer.orders_by_pool(pool_id, OrderLocation::Limit);
+        assert!(pool_orders.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_new_order_basic() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_id = PoolId::random();
+        let order = create_test_order(from, pool_id);
+        let order_hash = order.order_hash();
+
+        // Create a channel for validation results
+        let (tx, rx) = tokio::sync::oneshot::channel();
+
+        // Submit the order
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
+
+        // Simulate validation completion
+        indexer
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
+                order.clone(),
+                OrderId {
+                    hash: order_hash,
+                    pool_id,
+                    location: OrderLocation::Limit,
+                    deadline: None,
+                    flash_block: None
+                },
+                from,
+                1
+            )))
+            .unwrap();
+
+        // Verify order was added
+        assert!(indexer.order_hash_to_order_id.contains_key(&order_hash));
+        assert!(indexer.address_to_orders.contains_key(&from));
+    }
+
+    #[tokio::test]
+    async fn test_cancel_order() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_id = PoolId::random();
+        let order = create_test_order(from, pool_id);
+        let order_hash = order.order_hash();
+
+        // Submit and validate the order first
+        let (tx, _) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
+
+        indexer
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
+                order.clone(),
+                OrderId {
+                    hash: order_hash,
+                    pool_id,
+                    location: OrderLocation::Limit,
+                    deadline: None,
+                    flash_block: None
+                },
+                from,
+                1
+            )))
+            .unwrap();
+
+        // Cancel the order
+        let cancel_request = angstrom_types::orders::CancelOrderRequest {
+            order_id:     order_hash,
+            user_address: from,
+            valid_until:  u64::MAX,
+            signature:    vec![]
+        };
+
+        let result = indexer.cancel_order(&cancel_request);
+        assert!(result);
+        assert!(indexer.cancelled_orders.contains_key(&order_hash));
+        assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
+    }
+
+    #[tokio::test]
+    async fn test_duplicate_order_rejection() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_id = PoolId::random();
+        let order = create_test_order(from, pool_id);
+        let order_hash = order.order_hash();
+
+        // Submit the order first time
+        let (tx1, _) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx1);
+
+        // Validate first order
+        indexer
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
+                order.clone(),
+                OrderId {
+                    hash: order_hash,
+                    pool_id,
+                    location: OrderLocation::Limit,
+                    deadline: None,
+                    flash_block: None
+                },
+                from,
+                1
+            )))
+            .unwrap();
+
+        // Try to submit the same order again
+        let (tx2, rx2) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx2);
+
+        // The duplicate order should be rejected
+        match rx2.await {
+            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
+            _ => panic!("Expected invalid order result")
+        }
+    }
+}
