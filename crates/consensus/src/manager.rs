@@ -1,7 +1,6 @@
 use std::{
     collections::HashSet,
     future::Future,
-    marker::PhantomData,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker}
@@ -9,8 +8,7 @@ use std::{
 
 use alloy::{
     primitives::{Address, BlockNumber},
-    providers::Provider,
-    transports::Transport
+    providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{manager::StromConsensusEvent, StromMessage, StromNetworkHandle};
@@ -34,24 +32,22 @@ use crate::{
 
 const MODULE_NAME: &str = "Consensus";
 
-pub struct ConsensusManager<P, T, Matching, BlockSync> {
+pub struct ConsensusManager<P, Matching, BlockSync> {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    consensus_round_state:  RoundStateMachine<P, T, Matching>,
+    consensus_round_state:  RoundStateMachine<P, Matching>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
     block_sync:             BlockSync,
 
     /// Track broadcasted messages to avoid rebroadcasting
-    broadcasted_messages: HashSet<StromConsensusEvent>,
-    _phantom:             PhantomData<T>
+    broadcasted_messages: HashSet<StromConsensusEvent>
 }
 
-impl<P, T, Matching, BlockSync> ConsensusManager<P, T, Matching, BlockSync>
+impl<P, Matching, BlockSync> ConsensusManager<P, Matching, BlockSync>
 where
-    P: Provider<T> + 'static,
-    T: Transport + Clone,
+    P: Provider + 'static,
     BlockSync: BlockSyncConsumer,
     Matching: MatchingEngineHandle
 {
@@ -65,7 +61,7 @@ where
         angstrom_address: Address,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: MevBoostProvider<P, T>,
+        provider: MevBoostProvider<P>,
         matching_engine: Matching,
         block_sync: BlockSync
     ) -> Self {
@@ -96,8 +92,7 @@ where
             block_sync,
             network,
             canonical_block_stream: wrapped_broadcast_stream,
-            broadcasted_messages: HashSet::new(),
-            _phantom: PhantomData
+            broadcasted_messages: HashSet::new()
         }
     }
 
@@ -148,10 +143,9 @@ where
     }
 }
 
-impl<P, T, Matching, BlockSync> Future for ConsensusManager<P, T, Matching, BlockSync>
+impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>
 where
-    P: Provider<T> + 'static,
-    T: Transport + Clone + Unpin,
+    P: Provider + 'static,
     Matching: MatchingEngineHandle,
     BlockSync: BlockSyncConsumer
 {

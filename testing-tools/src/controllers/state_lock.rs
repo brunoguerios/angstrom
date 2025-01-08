@@ -29,8 +29,7 @@ use crate::{
 pub(crate) struct TestnetStateFutureLock<C, T> {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C>>,
-    strom_consensus:
-        StateLockInner<ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>>,
+    strom_consensus:       StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>,
     validation:            StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>
 }
 
@@ -48,7 +47,7 @@ where
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C>,
-        consensus: ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>,
+        consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync>,
         validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>
     ) -> Self {
         Self {
@@ -89,14 +88,14 @@ where
 
     pub(crate) fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus.on_inner(f)
     }
 
     pub(crate) fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T, BoxTransport, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus.on_inner_mut(f)
     }

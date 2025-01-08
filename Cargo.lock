@@ -2841,6 +2841,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
  "uniswap-v4",
  "url",
  "validation",
