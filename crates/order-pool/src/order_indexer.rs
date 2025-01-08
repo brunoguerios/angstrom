@@ -633,8 +633,9 @@ mod tests {
     use alloy::primitives::U256;
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
-        contract_payloads::angstrom::AngstromPoolConfigStore, orders::OrderId,
-        sol_bindings::grouped_orders::GroupedVanillaOrder
+        contract_payloads::angstrom::AngstromPoolConfigStore,
+        orders::OrderId,
+        sol_bindings::{grouped_orders::GroupedVanillaOrder, RespendAvoidanceMethod}
     };
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
@@ -726,6 +727,8 @@ mod tests {
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
                 order.clone(),
                 OrderId {
+                    address: from,
+                    reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
                     pool_id,
                     location: OrderLocation::Limit,
@@ -766,7 +769,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key);
+        let pool_id = PoolId::from(pool_key.clone());
         let validity = OrderValidity {
             valid_until: Some(U256::from(
                 SystemTime::now()
@@ -790,6 +793,8 @@ mod tests {
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
                 order.clone(),
                 OrderId {
+                    address: from,
+                    reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
                     pool_id,
                     location: OrderLocation::Limit,
@@ -817,7 +822,7 @@ mod tests {
             flash_block: None,
             is_standing: true
         };
-        let order = create_test_order(from, pool_id, Some(validity));
+        let order = create_test_order(from, pool_key, Some(validity));
         let peer_id = PeerId::random();
 
         // Verify order was removed
@@ -833,7 +838,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key);
+        let pool_id = PoolId::from(pool_key.clone());
 
         let validity = OrderValidity {
             valid_until: Some(U256::from(
@@ -863,6 +868,8 @@ mod tests {
                 order.clone(),
                 OrderId {
                     hash: order_hash,
+                    address: from,
+                    reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     pool_id,
                     location: OrderLocation::Limit,
                     deadline: None,
@@ -886,7 +893,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key);
+        let pool_id = PoolId::from(pool_key.clone());
         let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
@@ -921,17 +928,26 @@ mod tests {
     #[tokio::test]
     async fn test_pool_management() {
         let mut indexer = setup_test_indexer();
-        let pool_id = PoolId::random();
+
+        let pool_key = PoolKey {
+            currency0: Address::random(),
+            currency1: Address::random(),
+            ..Default::default()
+        };
+        let pool_id = PoolId::from(pool_key.clone());
 
         // Create a new pool
-        let new_pool =
-            NewInitializedPool { pool_id, token0: Address::random(), token1: Address::random() };
+        let new_pool = NewInitializedPool {
+            id:           pool_id,
+            currency_in:  pool_key.currency0,
+            currency_out: pool_key.currency1
+        };
 
         indexer.new_pool(new_pool);
 
         // Add order to pool
         let from = Address::random();
-        let order = create_test_order(from, pool_id, None);
+        let order = create_test_order(from, pool_key, None);
         let (tx, _) = tokio::sync::oneshot::channel();
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
 
@@ -941,6 +957,8 @@ mod tests {
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
                 order.clone(),
                 OrderId {
+                    address: from,
+                    reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
                     pool_id,
                     location: OrderLocation::Limit,
@@ -974,8 +992,8 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key);
-        let order = create_test_order(from, pool_key);
+        let pool_id = PoolId::from(pool_key.clone());
+        let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
         // Create a channel for validation results
@@ -989,6 +1007,8 @@ mod tests {
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
                 order.clone(),
                 OrderId {
+                    address: from,
+                    reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
                     pool_id,
                     location: OrderLocation::Limit,
@@ -1015,7 +1035,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key);
+        let pool_id = PoolId::from(pool_key.clone());
         let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
@@ -1027,6 +1047,8 @@ mod tests {
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
                 order.clone(),
                 OrderId {
+                    address: from,
+                    reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
                     pool_id,
                     location: OrderLocation::Limit,
@@ -1062,7 +1084,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key);
+        let pool_id = PoolId::from(pool_key.clone());
         let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
@@ -1075,6 +1097,8 @@ mod tests {
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
                 order.clone(),
                 OrderId {
+                    address: from,
+                    reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
                     pool_id,
                     location: OrderLocation::Limit,
