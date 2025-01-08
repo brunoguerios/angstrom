@@ -702,7 +702,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key);
+        let pool_id = PoolId::from(pool_key.clone());
 
         // Create an order that expires in the next block
         let validity = OrderValidity {
@@ -724,9 +724,9 @@ mod tests {
 
         let order_hash = order.order_hash();
         indexer
-            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
-                order.clone(),
-                OrderId {
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                order: order.clone(),
+                order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
@@ -741,9 +741,15 @@ mod tests {
                     )),
                     flash_block: None
                 },
-                from,
-                1
-            )))
+                valid_block: 1,
+                pool_id,
+                is_bid: true,
+                is_currently_valid: true,
+                is_valid: true,
+                priority_data: Default::default(),
+                invalidates: vec![],
+                tob_reward: U256::ZERO
+            }))
             .unwrap();
 
         // Verify order was added
@@ -782,7 +788,7 @@ mod tests {
             is_standing: true
         };
 
-        let order = create_test_order(from, pool_key, Some(validity));
+        let order = create_test_order(from, pool_key.clone(), Some(validity));
         let order_hash = order.order_hash();
 
         // Submit and validate order
@@ -790,9 +796,9 @@ mod tests {
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
 
         indexer
-            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
-                order.clone(),
-                OrderId {
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                order: order.clone(),
+                order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
@@ -801,9 +807,15 @@ mod tests {
                     deadline: None,
                     flash_block: None
                 },
-                from,
-                1
-            )))
+                valid_block: 1,
+                pool_id,
+                is_bid: true,
+                is_currently_valid: true,
+                is_valid: true,
+                priority_data: Default::default(),
+                invalidates: vec![],
+                tob_reward: U256::ZERO
+            }))
             .unwrap();
 
         // Simulate block transition with completed orders
@@ -864,9 +876,9 @@ mod tests {
 
         // Validate order
         indexer
-            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
-                order.clone(),
-                OrderId {
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                order: order.clone(),
+                order_id: OrderId {
                     hash: order_hash,
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
@@ -875,9 +887,15 @@ mod tests {
                     deadline: None,
                     flash_block: None
                 },
-                from,
-                1
-            )))
+                valid_block: 1,
+                pool_id,
+                is_bid: true,
+                is_currently_valid: true,
+                is_valid: true,
+                priority_data: Default::default(),
+                invalidates: vec![],
+                tob_reward: U256::ZERO
+            }))
             .unwrap();
 
         // Verify peer tracking is cleared after validation
@@ -954,9 +972,9 @@ mod tests {
         // Validate order
         let order_hash = order.order_hash();
         indexer
-            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
-                order.clone(),
-                OrderId {
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                order: order.clone(),
+                order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
@@ -965,9 +983,15 @@ mod tests {
                     deadline: None,
                     flash_block: None
                 },
-                from,
-                1
-            )))
+                valid_block: 1,
+                pool_id,
+                is_bid: true,
+                is_currently_valid: true,
+                is_valid: true,
+                priority_data: Default::default(),
+                invalidates: vec![],
+                tob_reward: U256::ZERO
+            }))
             .unwrap();
 
         // Verify order is in pool
@@ -1004,9 +1028,9 @@ mod tests {
 
         // Simulate validation completion
         indexer
-            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
-                order.clone(),
-                OrderId {
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                order: order.clone(),
+                order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
@@ -1015,9 +1039,15 @@ mod tests {
                     deadline: None,
                     flash_block: None
                 },
-                from,
-                1
-            )))
+                valid_block: 1,
+                pool_id,
+                is_bid: true,
+                is_currently_valid: true,
+                is_valid: true,
+                priority_data: Default::default(),
+                invalidates: vec![],
+                tob_reward: U256::ZERO
+            }))
             .unwrap();
 
         // Verify order was added
@@ -1044,9 +1074,9 @@ mod tests {
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
 
         indexer
-            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
-                order.clone(),
-                OrderId {
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                order: order.clone(),
+                order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
@@ -1055,9 +1085,15 @@ mod tests {
                     deadline: None,
                     flash_block: None
                 },
-                from,
-                1
-            )))
+                valid_block: 1,
+                pool_id,
+                is_bid: true,
+                is_currently_valid: true,
+                is_valid: true,
+                priority_data: Default::default(),
+                invalidates: vec![],
+                tob_reward: U256::ZERO
+            }))
             .unwrap();
 
         // Cancel the order
@@ -1094,9 +1130,9 @@ mod tests {
 
         // Validate first order
         indexer
-            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData::new(
-                order.clone(),
-                OrderId {
+            .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                order: order.clone(),
+                order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
                     hash: order_hash,
@@ -1105,9 +1141,15 @@ mod tests {
                     deadline: None,
                     flash_block: None
                 },
-                from,
-                1
-            )))
+                valid_block: 1,
+                pool_id,
+                is_bid: true,
+                is_currently_valid: true,
+                is_valid: true,
+                priority_data: Default::default(),
+                invalidates: vec![],
+                tob_reward: U256::ZERO
+            }))
             .unwrap();
 
         // Try to submit the same order again
