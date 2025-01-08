@@ -83,7 +83,7 @@ where
         }
     }
 
-    pub fn sync_swap_with_sim(&self) -> bool {
+    pub fn is_sync_swap_with_sim(&self) -> bool {
         self.sync_swap_with_sim
     }
 
