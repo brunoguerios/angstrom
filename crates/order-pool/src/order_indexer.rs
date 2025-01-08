@@ -635,53 +635,44 @@ mod tests {
         orders::OrderId,
         sol_bindings::grouped_orders::{GroupedVanillaOrder, StandingOrder}
     };
+    use rand::Rng;
+    use testing_tools::{
+        mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
+    };
     use tokio::sync::broadcast;
 
     use super::*;
-
-    // Mock OrderValidatorHandle implementation for testing
-    #[derive(Clone)]
-    struct MockValidator;
-
-    impl OrderValidatorHandle for MockValidator {
-        type Order = AllOrders;
-
-        fn validate_order(&self, _origin: OrderOrigin, _order: Self::Order) {}
-
-        fn on_new_block(&self, _block: u64, _orders: Vec<B256>, _addresses: Vec<Address>) {}
-
-        fn notify_validation_on_changes(
-            &self,
-            _block: u64,
-            _orders: Vec<B256>,
-            _addresses: Vec<Address>
-        ) {
-        }
-    }
+    use crate::PoolConfig;
 
     fn setup_test_indexer() -> OrderIndexer<MockValidator> {
+        let validator = MockValidator::default();
         let (tx, _) = broadcast::channel(100);
-        let order_storage = Arc::new(OrderStorage::default());
-        let validator = MockValidator;
-        let pools_tracker = AngstromPoolsTracker::default();
+        let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
+        let validator = MockValidator::default();
+        let pools_tracker = AngstromPoolsTracker::new();
 
         OrderIndexer::new(validator, order_storage, 1, tx, pools_tracker)
     }
 
     fn create_test_order(from: Address, pool_id: PoolId) -> AllOrders {
-        let standing_order = StandingOrder {
-            from,
-            pool_id,
-            token_in: Address::random(),
-            token_out: Address::random(),
-            min_amount_out: U256::from(900),
-            valid_until: U256::from(u64::MAX),
-            nonce: U256::ZERO,
-            signature: FixedBytes::default()
-        };
+        let mut rng = rand::thread_rng();
+        let is_standing = rng.gen_bool(0.5);
 
-        AllOrders::Standing(standing_order)
+        let builder = UserOrderBuilder::new()
+            .asset_in(Address::random())
+            .asset_out(Address::random())
+            .amount(900)
+            .recipient(from);
+
+        let order = if is_standing { builder.standing() } else { builder.kill_or_fill() }.build();
+
+        match order {
+            GroupedVanillaOrder::Standing(o) => AllOrders::Standing(o),
+            GroupedVanillaOrder::KillOrFill(o) => AllOrders::Flash(o),
+            _ => unreachable!()
+        }
     }
+
     #[tokio::test]
     async fn test_expired_orders_handling() {
         let mut indexer = setup_test_indexer();
