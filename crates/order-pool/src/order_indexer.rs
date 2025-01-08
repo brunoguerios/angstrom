@@ -698,7 +698,7 @@ mod tests {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
         let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
-        let pool_id = pool_key.generate_id();
+        let pool_id = PoolId::from(pool_key);
 
         // Create an order that expires in the next block
         let validity = OrderValidity {
@@ -758,8 +758,8 @@ mod tests {
     async fn test_block_transitions() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
-        let pool_id = PoolId::random();
         let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let pool_id = PoolId::from(pool_key);
         let validity = OrderValidity {
             valid_until: Some(U256::from(
                 SystemTime::now()
@@ -821,8 +821,9 @@ mod tests {
     async fn test_network_order_handling() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
-        let pool_id = PoolId::random();
         let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let pool_id = PoolId::from(pool_key);
+
         let validity = OrderValidity {
             valid_until: Some(U256::from(
                 SystemTime::now()
@@ -869,8 +870,8 @@ mod tests {
     async fn test_invalid_orders() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
-        let pool_id = PoolId::random();
         let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let pool_id = PoolId::from(pool_key);
         let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
@@ -952,8 +953,9 @@ mod tests {
     async fn test_new_order_basic() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
-        let pool_id = PoolId::random();
         let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+
+        let pool_id = PoolId::from(pool_key);
         let order = create_test_order(from, pool_key);
         let order_hash = order.order_hash();
 
@@ -988,8 +990,8 @@ mod tests {
     async fn test_cancel_order() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
-        let pool_id = PoolId::random();
         let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let pool_id = PoolId::from(pool_key);
         let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
@@ -1030,8 +1032,8 @@ mod tests {
     async fn test_duplicate_order_rejection() {
         let mut indexer = setup_test_indexer();
         let from = Address::random();
-        let pool_id = PoolId::random();
         let pool_key = PoolKey { currency0: Address::random(), currency1: Address::random() };
+        let pool_id = PoolId::from(pool_key);
         let order = create_test_order(from, pool_key, None);
         let order_hash = order.order_hash();
 
