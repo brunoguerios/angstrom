@@ -336,6 +336,143 @@ mod tests {
     }
 
     #[test]
+    fn test_validator_management() {
+        let (peers, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Test removing validator
+        algo.remove_validator(&peers["Alice"]);
+        assert_eq!(algo.validators.len(), 2);
+
+        // Test adding validator
+        let new_peer = PeerId::random();
+        algo.add_validator(new_peer, 150);
+        assert_eq!(algo.validators.len(), 3);
+
+        // Verify new validator has penalty applied
+        let new_validator = algo
+            .validators
+            .iter()
+            .find(|v| v.peer_id == new_peer)
+            .unwrap();
+        assert!(
+            new_validator.priority < 0,
+            "New validator should have negative priority due to penalty"
+        );
+    }
+
+    #[test]
+    fn test_reorg_behavior() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, 10);
+
+        // Normal progression
+        let proposer1 = algo.choose_proposer(11);
+        let proposer2 = algo.choose_proposer(12);
+        assert!(proposer1.is_some());
+        assert!(proposer2.is_some());
+
+        // Reorg to lower block
+        let reorg_proposer = algo.choose_proposer(11);
+        assert_eq!(reorg_proposer, proposer1, "Should return same proposer on reorg");
+    }
+
+    #[test]
+    fn test_empty_validator_set() {
+        let mut algo = WeightedRoundRobin::new(vec![], BlockNumber::default());
+        assert_eq!(algo.validators.len(), 0);
+
+        // Should handle empty validator set gracefully
+        let proposer = algo.choose_proposer(1);
+        assert!(proposer.is_none());
+    }
+
+    #[test]
+    fn test_single_validator() {
+        let peer_id = PeerId::random();
+        let validators = vec![AngstromValidator::new(peer_id, 100)];
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Single validator should always be chosen
+        for i in 1..=5 {
+            let proposer = algo.choose_proposer(i);
+            assert_eq!(proposer, Some(peer_id));
+        }
+    }
+
+    #[test]
+    fn test_equal_voting_power() {
+        let peers = HashMap::from([
+            ("Node1".to_string(), PeerId::random()),
+            ("Node2".to_string(), PeerId::random()),
+            ("Node3".to_string(), PeerId::random())
+        ]);
+
+        let validators = vec![
+            AngstromValidator::new(peers["Node1"], 100),
+            AngstromValidator::new(peers["Node2"], 100),
+            AngstromValidator::new(peers["Node3"], 100),
+        ];
+
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Track selections over multiple rounds
+        let mut selections = HashMap::new();
+        for i in 1..=30 {
+            let proposer = algo.choose_proposer(i).unwrap();
+            *selections.entry(proposer).or_insert(0) += 1;
+        }
+
+        // With equal voting power, each validator should be selected roughly equally
+        for count in selections.values() {
+            assert!(*count >= 9 && *count <= 11, "Selection should be roughly equal");
+        }
+    }
+
+    #[test]
+    fn test_large_block_jump() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, 10);
+
+        // Jump many blocks ahead
+        let proposer = algo.choose_proposer(1000);
+        assert!(proposer.is_some());
+        assert_eq!(algo.block_number, 1000);
+    }
+
+    #[test]
+    fn test_extreme_voting_power_differences() {
+        let peers = HashMap::from([
+            ("Whale".to_string(), PeerId::random()),
+            ("Minnow".to_string(), PeerId::random())
+        ]);
+
+        let validators = vec![
+            AngstromValidator::new(peers["Whale"], 1000000), // Very high voting power
+            AngstromValidator::new(peers["Minnow"], 1),      // Minimal voting power
+        ];
+
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        let mut whale_count = 0;
+        let mut minnow_count = 0;
+
+        // Run for 100 rounds
+        for i in 1..=100 {
+            let proposer = algo.choose_proposer(i).unwrap();
+            if proposer == peers["Whale"] {
+                whale_count += 1;
+            } else {
+                minnow_count += 1;
+            }
+        }
+
+        // Whale should be selected significantly more often
+        assert!(whale_count > 95, "High voting power validator should dominate selection");
+        assert!(minnow_count < 5, "Low voting power validator should rarely be selected");
+    }
+
+    #[test]
     fn test_round_robin_simulation() {
         let peers = HashMap::from([
             ("Alice".to_string(), PeerId::random()),
