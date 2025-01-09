@@ -279,9 +279,7 @@ pub mod test {
     const TOKEN2: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc1");
     const TOKEN3: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc5");
     const TOKEN4: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc0");
-    const TOKEN5: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc6"); // 8 decimals token
-                                                                                  // const TOKEN6: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc7");
-                                                                                  // // 24 decimals token
+    const TOKEN5: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc6");
 
     /// sets up pools with prices for all scenarios
     fn setup() -> TokenPriceGenerator {
