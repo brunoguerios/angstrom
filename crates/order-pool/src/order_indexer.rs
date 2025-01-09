@@ -721,6 +721,11 @@ mod tests {
             flash_block: None,
             is_standing: true
         };
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           pool_id
+        });
         let order = create_test_order(from, pool_key, Some(validity), None);
 
         // Submit and validate the order
@@ -792,6 +797,11 @@ mod tests {
             flash_block: None,
             is_standing: true
         };
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           pool_id
+        });
 
         let order = create_test_order(from, pool_key.clone(), Some(validity), None);
         let order_hash = order.order_hash();
@@ -827,7 +837,7 @@ mod tests {
         let completed_orders = vec![order_hash];
         let address_changes = vec![from];
 
-        indexer.start_new_block_processing(2, completed_orders.clone(), address_changes.clone());
+        indexer.finish_new_block_processing(2, completed_orders.clone(), address_changes.clone());
 
         // Verify order was removed
         assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
@@ -855,7 +865,13 @@ mod tests {
             flash_block: None,
             is_standing: true
         };
-        let order = create_test_order(from, pool_key, Some(validity), None);
+        let order = create_test_order(from, pool_key.clone(), Some(validity), None);
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           pool_id
+        });
+
         let peer_id = PeerId::random();
 
         // Submit network order
@@ -903,8 +919,13 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let order = create_test_order(from, pool_key, None, None);
+        let order = create_test_order(from, pool_key.clone(), None, None);
         let order_hash = order.order_hash();
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
+        });
 
         // Submit order and mark as invalid
         let (tx, rx) = tokio::sync::oneshot::channel();
@@ -1008,6 +1029,11 @@ mod tests {
             ..Default::default()
         };
         let pool_id = PoolId::from(pool_key.clone());
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
+        });
         let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
 
@@ -1056,6 +1082,11 @@ mod tests {
             ..Default::default()
         };
         let pool_id = PoolId::from(pool_key.clone());
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
+        });
         let signer = AngstromSigner::random();
         let from = signer.address();
 
@@ -1116,6 +1147,11 @@ mod tests {
             ..Default::default()
         };
         let pool_id = PoolId::from(pool_key.clone());
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
+        });
         let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
 
