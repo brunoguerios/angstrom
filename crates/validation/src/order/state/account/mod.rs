@@ -93,7 +93,6 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             })
             .unwrap_or_default();
 
-        tracing::trace!(?invalid_orders);
         // invalidate orders with clashing nonces
         invalid_orders.extend(conflicting_orders.into_iter().map(|o| o.order_hash));
 
@@ -186,7 +185,8 @@ pub mod tests {
     fn test_baseline_order_verification_for_single_order() {
         let processor = setup_test_account_processor();
 
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
 
         let token0 = Address::random();
         let token1 = Address::random();
@@ -203,6 +203,7 @@ pub mod tests {
             .asset_out(token1)
             .nonce(420)
             .recipient(user)
+            .signing_key(Some(sk.clone()))
             .build();
 
         // wrap order with details
@@ -228,7 +229,8 @@ pub mod tests {
     fn test_failure_on_duplicate_pending_nonce() {
         let processor = setup_test_account_processor();
 
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
 
         let token0 = Address::random();
         let token1 = Address::random();
@@ -243,6 +245,7 @@ pub mod tests {
             .asset_in(token0)
             .asset_out(token1)
             .nonce(420)
+            .signing_key(Some(sk.clone()))
             .recipient(user)
             .build();
 
@@ -367,7 +370,8 @@ pub mod tests {
     #[test]
     fn test_flash_order_block_validation() {
         let processor = setup_test_account_processor();
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
         let token0 = Address::random();
         let token1 = Address::random();
         let mock_pool = MockPoolTracker::default();
@@ -381,6 +385,7 @@ pub mod tests {
             .asset_out(token1)
             .block(421)
             .recipient(user)
+            .signing_key(Some(sk.clone()))
             .build();
 
         let pool_info = mock_pool
@@ -410,7 +415,8 @@ pub mod tests {
     #[test]
     fn test_insufficient_balance_invalidation() {
         let processor = setup_test_account_processor();
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
         let token0 = Address::random();
         let token1 = Address::random();
         let mock_pool = MockPoolTracker::default();
@@ -421,6 +427,7 @@ pub mod tests {
             .standing()
             .asset_in(token0)
             .asset_out(token1)
+            .signing_key(Some(sk.clone()))
             .nonce(420)
             .amount(1000)
             .recipient(user)
@@ -451,7 +458,8 @@ pub mod tests {
     #[test]
     fn test_insufficient_approval_invalidation() {
         let processor = setup_test_account_processor();
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
         let token0 = Address::random();
         let token1 = Address::random();
         let mock_pool = MockPoolTracker::default();
@@ -462,6 +470,7 @@ pub mod tests {
             .standing()
             .asset_in(token0)
             .asset_out(token1)
+            .signing_key(Some(sk.clone()))
             .nonce(420)
             .amount(1000)
             .recipient(user)
@@ -492,7 +501,8 @@ pub mod tests {
     #[test]
     fn test_multiple_orders_same_block() {
         let processor = setup_test_account_processor();
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
         let token0 = Address::random();
         let token1 = Address::random();
         let mock_pool = MockPoolTracker::default();
@@ -505,6 +515,7 @@ pub mod tests {
             .asset_in(token0)
             .asset_out(token1)
             .block(421)
+            .signing_key(Some(sk.clone()))
             .amount(500)
             .recipient(user)
             .build();
@@ -515,6 +526,7 @@ pub mod tests {
             .asset_out(token1)
             .block(421)
             .amount(400)
+            .signing_key(Some(sk.clone()))
             .recipient(user)
             .build();
 
@@ -542,7 +554,8 @@ pub mod tests {
     #[test]
     fn test_prepare_for_new_block() {
         let processor = setup_test_account_processor();
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
         let token0 = Address::random();
         let token1 = Address::random();
         let mock_pool = MockPoolTracker::default();
@@ -554,6 +567,7 @@ pub mod tests {
             .asset_in(token0)
             .asset_out(token1)
             .nonce(420)
+            .signing_key(Some(sk.clone()))
             .recipient(user)
             .build();
 
@@ -582,6 +596,246 @@ pub mod tests {
             .expect("order should be valid after state clear");
 
         assert!(result.is_currently_valid, "Order should be valid after state clear");
+    }
+
+    #[test]
+    fn test_order_invalidation_chain() {
+        let processor = setup_test_account_processor();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        // Create three orders with decreasing nonces
+        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(300)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(200)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let order3: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(100)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order1)
+            .expect("pool tracker should have valid state");
+
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(500));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(500));
+
+        // Submit orders in sequence
+        let _result1 = processor
+            .verify_order(order1.clone(), pool_info.clone(), 420)
+            .expect("first order should be valid");
+        let result2 = processor
+            .verify_order(order2.clone(), pool_info.clone(), 420)
+            .expect("second order should be valid");
+
+        let result3 = processor
+            .verify_order(order3, pool_info, 420)
+            .expect("third order should be valid");
+
+        // Verify that each order invalidates all previous orders
+        assert!(result2.invalidates.contains(&order1.hash()));
+        assert!(result3.invalidates.contains(&order2.hash()));
+        assert!(result3.invalidates.contains(&order1.hash()));
+    }
+
+    #[test]
+    fn test_balance_sharing_between_orders() {
+        let processor = setup_test_account_processor();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        // Create two orders that together exceed available balance
+        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(100)
+            .amount(600)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(101)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order1)
+            .expect("pool tracker should have valid state");
+
+        // Set balance that's enough for first order but not both
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(800));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(1500));
+
+        let result1 = processor
+            .verify_order(order1, pool_info.clone(), 420)
+            .expect("first order should be valid");
+
+        let result2 = processor
+            .verify_order(order2, pool_info, 420)
+            .expect("second order should complete verification");
+
+        assert!(result1.is_currently_valid, "First order should be valid");
+
+        assert!(
+            !result2.is_currently_valid,
+            "Second order should be invalid due to insufficient remaining balance"
+        );
+    }
+
+    #[test]
+    fn test_flash_order_sequence() {
+        let processor = setup_test_account_processor();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        // Create sequence of flash orders for consecutive blocks
+        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+            .kill_or_fill()
+            .asset_in(token0)
+            .asset_out(token1)
+            .block(421)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+            .kill_or_fill()
+            .asset_in(token0)
+            .asset_out(token1)
+            .block(422)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order1)
+            .expect("pool tracker should have valid state");
+
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(1000));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(1000));
+
+        // Verify orders for their respective blocks
+        let result1 = processor
+            .verify_order(order1, pool_info.clone(), 420)
+            .expect("first order should be valid");
+        let result2 = processor
+            .verify_order(order2, pool_info, 421)
+            .expect("second order should be valid");
+
+        assert!(result1.is_currently_valid, "First flash order should be valid");
+        assert!(result2.is_currently_valid, "Second flash order should be valid");
+    }
+
+    #[test]
+    fn test_mixed_order_types() {
+        let processor = setup_test_account_processor();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        // Create mix of standing and flash orders
+        let standing_order: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(100)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let flash_order: GroupedVanillaOrder = UserOrderBuilder::new()
+            .kill_or_fill()
+            .asset_in(token0)
+            .asset_out(token1)
+            .block(421)
+            .amount(500)
+            .recipient(user)
+            .signing_key(Some(sk.clone()))
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&standing_order)
+            .expect("pool tracker should have valid state");
+
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(1000));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(1000));
+
+        let standing_result = processor
+            .verify_order(standing_order, pool_info.clone(), 420)
+            .expect("standing order should be valid");
+        let flash_result = processor
+            .verify_order(flash_order, pool_info, 420)
+            .expect("flash order should be valid");
+
+        assert!(standing_result.is_currently_valid, "Standing order should be valid");
+        assert!(flash_result.is_currently_valid, "Flash order should be valid");
     }
 
     #[test]
