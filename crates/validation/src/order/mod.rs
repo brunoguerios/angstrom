@@ -132,7 +132,6 @@ impl OrderValidationResults {
             + Sync,
         <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
     {
-        // TODO: this can be done without a clone but is super annoying
         let this = self.clone();
         if let Self::Valid(order) = this {
             let order_hash = order.order_hash();
