@@ -205,7 +205,6 @@ impl UserAccounts {
     }
 
     fn fetch_all_invalidated_orders(&self, user: UserAddress, token: TokenAddress) -> Vec<B256> {
-        // there are no orders
         let Some(baseline) = self.last_known_state.get(&user) else { return vec![] };
 
         let mut baseline_approval = *baseline.token_approval.get(&token).unwrap();
@@ -481,6 +480,109 @@ mod tests {
         let invalidated = accounts.insert_pending_user_action(user, action2.clone());
 
         // The second action should be invalidated due to insufficient balance
+        assert!(invalidated.contains(&action2.order_hash));
+    }
+
+    #[test]
+    fn test_new_block_with_empty_state() {
+        let accounts = setup_test_accounts();
+        accounts.new_block(vec![], vec![]);
+        assert!(accounts.pending_actions.is_empty());
+        assert!(accounts.last_known_state.is_empty());
+    }
+
+    #[test]
+    fn test_cancel_nonexistent_user() {
+        let accounts = setup_test_accounts();
+        let user = address!("1234567890123456789012345678901234567890");
+        assert!(!accounts.cancel_order(&user, &B256::random()));
+    }
+
+    #[test]
+    fn test_respend_conflicts_with_block_avoidance() {
+        let accounts = setup_test_accounts();
+        let user = address!("1234567890123456789012345678901234567890");
+        let token = address!("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
+
+        let action =
+            create_test_pending_action(token, U256::from(100), U256::from(0), U256::from(100), 1);
+        accounts.insert_pending_user_action(user, action);
+
+        let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Block(1));
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_live_state_with_multiple_tokens() {
+        let accounts = setup_test_accounts();
+        let user = address!("1234567890123456789012345678901234567890");
+        let token1 = address!("1111111111111111111111111111111111111111");
+        let token2 = address!("2222222222222222222222222222222222222222");
+
+        // Set up initial state for multiple tokens
+        let mut baseline = BaselineState::default();
+        baseline.token_approval.insert(token1, U256::from(1000));
+        baseline.token_balance.insert(token1, U256::from(1000));
+        baseline.angstrom_balance.insert(token1, U256::from(1000));
+        baseline.token_approval.insert(token2, U256::from(2000));
+        baseline.token_balance.insert(token2, U256::from(2000));
+        baseline.angstrom_balance.insert(token2, U256::from(2000));
+        accounts.last_known_state.insert(user, baseline);
+
+        // Add pending actions for different tokens
+        let action1 =
+            create_test_pending_action(token1, U256::from(100), U256::from(50), U256::from(100), 1);
+        let action2 = create_test_pending_action(
+            token2,
+            U256::from(200),
+            U256::from(100),
+            U256::from(200),
+            1
+        );
+
+        accounts.insert_pending_user_action(user, action1);
+        accounts.insert_pending_user_action(user, action2);
+
+        // Check live state for token1
+        let live_state = accounts
+            .try_fetch_live_pending_state(user, token1, RespendAvoidanceMethod::Nonce(1))
+            .unwrap();
+        assert_eq!(live_state.approval, U256::from(900));
+        assert_eq!(live_state.balance, U256::from(900));
+        assert_eq!(live_state.angstrom_balance, U256::from(950));
+
+        // Check live state for token2
+        let live_state = accounts
+            .try_fetch_live_pending_state(user, token2, RespendAvoidanceMethod::Nonce(1))
+            .unwrap();
+        assert_eq!(live_state.approval, U256::from(1800));
+        assert_eq!(live_state.balance, U256::from(1800));
+        assert_eq!(live_state.angstrom_balance, U256::from(1900));
+    }
+
+    #[test]
+    fn test_fetch_all_invalidated_orders_with_overflow() {
+        let accounts = setup_test_accounts();
+        let user = address!("1234567890123456789012345678901234567890");
+        let token = address!("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
+
+        // Set up initial state with maximum values
+        let mut baseline = BaselineState::default();
+        baseline.token_approval.insert(token, U256::MAX);
+        baseline.token_balance.insert(token, U256::MAX);
+        baseline.angstrom_balance.insert(token, U256::MAX);
+        accounts.last_known_state.insert(user, baseline);
+
+        // Add action that would cause overflow
+        let action = create_test_pending_action(token, U256::MAX, U256::MAX, U256::MAX, 1);
+        accounts.insert_pending_user_action(user, action.clone());
+
+        // Add another action that should be invalidated
+        let action2 =
+            create_test_pending_action(token, U256::from(1), U256::from(1), U256::from(1), 2);
+        accounts.insert_pending_user_action(user, action2.clone());
+
+        let invalidated = accounts.fetch_all_invalidated_orders(user, token);
         assert!(invalidated.contains(&action2.order_hash));
     }
 }
