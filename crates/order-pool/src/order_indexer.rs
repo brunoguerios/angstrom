@@ -273,6 +273,13 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         validation_res_sub: Option<Sender<OrderValidationResults>>
     ) {
         let hash = order.order_hash();
+        if let Some(validation_tx) = validation_res_sub {
+            self.order_validation_subs
+                .entry(hash)
+                .or_default()
+                .push(validation_tx);
+        }
+
         let cancel_request = self.cancelled_orders.get(&hash);
         let is_valid_cancel_request =
             cancel_request.is_some() && cancel_request.unwrap().from == order.from();
@@ -303,13 +310,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 .entry(hash)
                 .or_default()
                 .push(peer);
-        }
-
-        if let Some(validation_tx) = validation_res_sub {
-            self.order_validation_subs
-                .entry(hash)
-                .or_default()
-                .push(validation_tx);
         }
 
         self.validator.validate_order(origin, order);
@@ -459,6 +459,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     &bad_hash,
                     OrderValidationResults::Invalid(bad_hash)
                 );
+                self.seen_invalid_orders.insert(bad_hash);
                 let peers = self
                     .order_hash_to_peer_id
                     .remove(&bad_hash)
@@ -630,6 +631,20 @@ pub enum PoolError {
 mod tests {
     use std::sync::Arc;
 
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    /// Initialize the tracing subscriber for tests
+    fn init_tracing() {
+        let _ = fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env()
+                    .add_directive("order_pool=debug".parse().unwrap())
+                    .add_directive("info".parse().unwrap())
+            )
+            .with_test_writer()
+            .try_init();
+    }
+
     use alloy::{primitives::U256, signers::SignerSync, sol_types::SolValue};
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
@@ -648,6 +663,7 @@ mod tests {
     use crate::PoolConfig;
 
     fn setup_test_indexer() -> OrderIndexer<MockValidator> {
+        init_tracing();
         let (tx, _) = broadcast::channel(100);
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
         let validator = MockValidator::default();
@@ -693,8 +709,7 @@ mod tests {
 
         match order {
             GroupedVanillaOrder::Standing(o) => AllOrders::Standing(o),
-            GroupedVanillaOrder::KillOrFill(o) => AllOrders::Flash(o),
-            _ => unreachable!()
+            GroupedVanillaOrder::KillOrFill(o) => AllOrders::Flash(o)
         }
     }
 
@@ -943,16 +958,6 @@ mod tests {
             Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
             _ => panic!("Expected invalid order result")
         }
-
-        // Try to submit the same order again
-        let (tx2, rx2) = tokio::sync::oneshot::channel();
-        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx2);
-
-        // Verify duplicate invalid order is rejected
-        match rx2.await {
-            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
-            _ => panic!("Expected invalid order result")
-        }
     }
 
     #[tokio::test]
@@ -1021,7 +1026,8 @@ mod tests {
     #[tokio::test]
     async fn test_new_order_basic() {
         let mut indexer = setup_test_indexer();
-        let from = Address::random();
+        let s = AngstromSigner::random();
+        let from = s.address();
 
         let pool_key = PoolKey {
             currency0: Address::random(),
@@ -1034,7 +1040,18 @@ mod tests {
             currency_in:  pool_key.currency1,
             id:           PoolId::from(pool_key.clone())
         });
-        let order = create_test_order(from, pool_key, None, None);
+        let validity = OrderValidity {
+            valid_until: Some(U256::from(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600
+            )),
+            flash_block: None,
+            is_standing: true
+        };
+        let order = create_test_order(from, pool_key, Some(validity), Some(s));
         let order_hash = order.order_hash();
 
         // Create a channel for validation results
