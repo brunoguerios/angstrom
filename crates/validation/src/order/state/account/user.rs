@@ -40,7 +40,7 @@ impl LiveState {
             }
             (amount_in, U256::ZERO)
         } else {
-            if self.approval < amount_in && self.balance < amount_in {
+            if self.approval < amount_in || self.balance < amount_in {
                 return None;
             }
             (U256::ZERO, amount_in)
@@ -59,7 +59,7 @@ impl LiveState {
 }
 
 /// deltas to be applied to the base user action
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PendingUserAction {
     /// hash of order
     pub order_hash:     B256,

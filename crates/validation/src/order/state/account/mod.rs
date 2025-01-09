@@ -66,6 +66,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         {
             return Err(UserAccountVerificationError::DuplicateNonce(order_hash))
         }
+        tracing::trace!(?conflicting_orders);
 
         // if new order has lower hash cancel all orders with the same nonce
         conflicting_orders.iter().for_each(|order| {
@@ -433,6 +434,8 @@ pub mod tests {
             .recipient(user)
             .build();
 
+        let h = order.hash();
+        info!(?h);
         let pool_info = mock_pool
             .fetch_pool_info_for_order(&order)
             .expect("pool tracker should have valid state");
@@ -451,7 +454,8 @@ pub mod tests {
 
         assert!(
             !result.is_currently_valid,
-            "Order should be marked as invalid due to insufficient balance"
+            "Order should be marked as invalid due to insufficient balance {:?}",
+            result
         );
     }
 
