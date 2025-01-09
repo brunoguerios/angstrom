@@ -143,6 +143,7 @@ impl UserOrderBuilder {
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
                     max_extra_fee_asset0: self.amount,
+                    nonce: self.nonce,
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     deadline: U40::from(self.deadline.to::<u32>()),

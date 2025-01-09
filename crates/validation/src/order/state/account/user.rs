@@ -17,6 +17,7 @@ pub struct BaselineState {
     angstrom_balance: HashMap<TokenAddress, Amount>
 }
 
+#[derive(Debug)]
 pub struct LiveState {
     pub token:            TokenAddress,
     pub approval:         Amount,
@@ -200,12 +201,13 @@ impl UserAccounts {
         drop(entry);
 
         // iterate through all vales collected the orders that
-
         self.fetch_all_invalidated_orders(user, token)
     }
 
     fn fetch_all_invalidated_orders(&self, user: UserAddress, token: TokenAddress) -> Vec<B256> {
-        let baseline = self.last_known_state.get(&user).unwrap();
+        // there are no orders
+        let Some(baseline) = self.last_known_state.get(&user) else { return vec![] };
+
         let mut baseline_approval = *baseline.token_approval.get(&token).unwrap();
         let mut baseline_balance = *baseline.token_balance.get(&token).unwrap();
         let mut baseline_angstrom_balance = *baseline.angstrom_balance.get(&token).unwrap();
@@ -384,6 +386,10 @@ mod tests {
         let user = address!("1234567890123456789012345678901234567890");
         let token = address!("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
 
+        // Test with empty state first
+        let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Nonce(1));
+        assert!(conflicts.is_empty(), "Should return empty vec when no actions exist");
+
         // Create actions with same nonce
         let action1 =
             create_test_pending_action(token, U256::from(100), U256::from(0), U256::from(100), 1);
@@ -392,21 +398,22 @@ mod tests {
         let action3 =
             create_test_pending_action(token, U256::from(300), U256::from(0), U256::from(300), 2);
 
+        // Insert actions one by one and verify
         accounts.insert_pending_user_action(user, action1.clone());
-        accounts.insert_pending_user_action(user, action2.clone());
-        accounts.insert_pending_user_action(user, action3);
-
-        // Test finding conflicts for nonce 1
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Nonce(1));
-        assert_eq!(conflicts.len(), 2);
+        assert_eq!(conflicts.len(), 1, "Should find one conflict for nonce 1");
 
-        // Test finding conflicts for nonce 2
+        accounts.insert_pending_user_action(user, action2.clone());
+        let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Nonce(1));
+        assert_eq!(conflicts.len(), 2, "Should find two conflicts for nonce 1");
+
+        accounts.insert_pending_user_action(user, action3.clone());
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Nonce(2));
-        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts.len(), 1, "Should find one conflict for nonce 2");
 
-        // Test block-based respend avoidance (should return empty)
+        // Test block-based respend avoidance
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Block(1));
-        assert!(conflicts.is_empty());
+        assert!(conflicts.is_empty(), "Block-based respend should return empty vec");
     }
 
     #[test]

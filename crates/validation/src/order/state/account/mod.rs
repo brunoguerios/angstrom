@@ -66,11 +66,14 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         {
             return Err(UserAccountVerificationError::DuplicateNonce(order_hash))
         }
+
         // if new order has lower hash cancel all orders with the same nonce
         conflicting_orders.iter().for_each(|order| {
             self.user_accounts.cancel_order(&user, &order.order_hash);
         });
 
+        // get the live state sorted up to the nonce, level, doesn't check orders above
+        // that
         let live_state = self.user_accounts.get_live_state_for_order(
             user,
             pool_info.token,
@@ -90,6 +93,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             })
             .unwrap_or_default();
 
+        tracing::trace!(?invalid_orders);
         // invalidate orders with clashing nonces
         invalid_orders.extend(conflicting_orders.into_iter().map(|o| o.order_hash));
 
@@ -146,18 +150,32 @@ pub mod tests {
 
     use alloy::primitives::{Address, U256};
     use angstrom_types::{
-        primitive::PoolId,
+        primitive::{AngstromSigner, PoolId},
         sol_bindings::{grouped_orders::GroupedVanillaOrder, RawPoolOrder}
     };
     use testing_tools::type_generator::orders::UserOrderBuilder;
+    use tracing::info;
+    use tracing_subscriber::{fmt, EnvFilter};
 
     use super::{UserAccountProcessor, UserAccountVerificationError, UserAccounts};
     use crate::order::state::{
         db_state_utils::test_fetching::MockFetch,
         pools::{pool_tracker_mock::MockPoolTracker, PoolsTracker}
     };
+    /// Initialize the tracing subscriber for tests
+    fn init_tracing() {
+        let _ = fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env()
+                    .add_directive("validation=trace".parse().unwrap())
+                    .add_directive("info".parse().unwrap())
+            )
+            .with_test_writer()
+            .try_init();
+    }
 
     fn setup_test_account_processor() -> UserAccountProcessor<MockFetch> {
+        init_tracing();
         UserAccountProcessor {
             user_accounts: UserAccounts::new(),
             fetch_utils:   MockFetch::default()
@@ -259,13 +277,16 @@ pub mod tests {
     }
 
     #[test]
-    fn test_order_replacement_on_lower_nonce() {
+    fn proper_nonce_invalidation_with_lower_nonce_order() {
         let processor = setup_test_account_processor();
 
-        let user = Address::random();
+        let sk = AngstromSigner::random();
+        let user = sk.address();
+        info!(?user, "Created random user address");
 
         let token0 = Address::random();
         let token1 = Address::random();
+        info!(?token0, ?token1, "Created random token addresses");
 
         let mock_pool = MockPoolTracker::default();
         let pool = PoolId::default();
@@ -276,16 +297,23 @@ pub mod tests {
             .standing()
             .asset_in(token0)
             .asset_out(token1)
+            .amount(500)
             .nonce(420)
             .recipient(user)
+            .signing_key(Some(sk.clone()))
             .build();
+        info!("Created order0 with nonce 420");
+
         let order1: GroupedVanillaOrder = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
+            .amount(500)
             .nonce(90)
+            .signing_key(Some(sk.clone()))
             .recipient(user)
             .build();
+        info!("Created order1 with nonce 90");
         // wrap order with details
         let pool_info0 = mock_pool
             .fetch_pool_info_for_order(&order0)
@@ -294,6 +322,7 @@ pub mod tests {
             .fetch_pool_info_for_order(&order1)
             .expect("pool tracker should have valid state");
 
+        // make it so that no balance
         processor.fetch_utils.set_balance_for_user(
             user,
             token0,
@@ -306,17 +335,33 @@ pub mod tests {
         );
 
         let order0_hash = order0.hash();
+        let order1_hash = order1.hash();
+        info!(?order0_hash, "Generated hash for order0");
+        info!(?order1_hash, "Generated hash for order1");
+
         // first time verifying should pass
-        processor
+        let verify_result0 = processor
             .verify_order(order0, pool_info0, 420)
             .expect("order should be valid");
+        info!(?verify_result0, "Verified order0");
 
-        // very second order and that order0 hash is in the invalid_orders
-        // second time should fail
+        // verify second order and check that order0 hash is in the invalid_orders
         let res = processor
             .verify_order(order1, pool_info1, 420)
             .expect("should be valid");
-        assert_eq!(res.invalidates, vec![order0_hash]);
+        info!(?res, "Verified order1");
+
+        info!(
+            expected_invalidates = ?vec![order0_hash],
+            actual_invalidates = ?res.invalidates,
+            "Comparing invalidates vectors"
+        );
+
+        assert_eq!(
+            res.invalidates,
+            vec![order0_hash],
+            "order1 should invalidate order0 due to lower nonce"
+        );
     }
 
     #[test]
@@ -542,23 +587,25 @@ pub mod tests {
     #[test]
     fn test_nonce_rejection() {
         let processor = setup_test_account_processor();
-
-        let user = Address::random();
-
         let token0 = Address::random();
         let token1 = Address::random();
-
         let mock_pool = MockPoolTracker::default();
         let pool = PoolId::default();
+
+        let sk = AngstromSigner::random();
+        let user = sk.address();
 
         mock_pool.add_pool(token0, token1, pool);
 
         let order: GroupedVanillaOrder = UserOrderBuilder::new()
             .standing()
+            .recipient(user)
             .asset_in(token0)
             .asset_out(token1)
             .nonce(420)
             .recipient(user)
+            .amount(1000)
+            .signing_key(Some(sk.clone()))
             .build();
 
         // wrap order with details
@@ -566,14 +613,27 @@ pub mod tests {
             .fetch_pool_info_for_order(&order)
             .expect("pool tracker should have valid state");
 
+        // Set up proper balance and approval
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(order.amount_in()));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(order.amount_in()));
+
+        // Mark nonce as already used
         processor
             .fetch_utils
             .set_used_nonces(user, HashSet::from([420]));
 
-        let Err(e) = processor.verify_order(order, pool_info, 420) else {
-            panic!("verifying order should of failed")
-        };
+        // Verify the order fails due to duplicate nonce
+        let result = processor.verify_order(order, pool_info, 420);
 
-        assert!(matches!(e, UserAccountVerificationError::DuplicateNonce(..)));
+        // Assert we get the expected error
+        assert!(
+            matches!(result, Err(UserAccountVerificationError::DuplicateNonce(..))),
+            "Expected DuplicateNonce error, got {:?}",
+            result
+        );
     }
 }
