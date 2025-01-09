@@ -320,6 +320,226 @@ pub mod tests {
     }
 
     #[test]
+    fn test_flash_order_block_validation() {
+        let processor = setup_test_account_processor();
+        let user = Address::random();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        // Create flash order for block 421 (current block + 1)
+        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+            .kill_or_fill()
+            .asset_in(token0)
+            .asset_out(token1)
+            .block(421)
+            .recipient(user)
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order)
+            .expect("pool tracker should have valid state");
+
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(order.amount_in()));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(order.amount_in()));
+
+        // Should succeed for current block 420 (order block is 421)
+        processor
+            .verify_order(order.clone(), pool_info.clone(), 420)
+            .expect("order should be valid for next block");
+
+        // Should fail for wrong current block
+        let Err(UserAccountVerificationError::BadBlock(..)) =
+            processor.verify_order(order.clone(), pool_info.clone(), 419)
+        else {
+            panic!("should fail for wrong block");
+        };
+    }
+
+    #[test]
+    fn test_insufficient_balance_invalidation() {
+        let processor = setup_test_account_processor();
+        let user = Address::random();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(420)
+            .amount(1000)
+            .recipient(user)
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order)
+            .expect("pool tracker should have valid state");
+
+        // Set balance lower than required
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(500));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(1000));
+
+        let result = processor
+            .verify_order(order, pool_info, 420)
+            .expect("verification should complete");
+
+        assert!(
+            !result.is_currently_valid,
+            "Order should be marked as invalid due to insufficient balance"
+        );
+    }
+
+    #[test]
+    fn test_insufficient_approval_invalidation() {
+        let processor = setup_test_account_processor();
+        let user = Address::random();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(420)
+            .amount(1000)
+            .recipient(user)
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order)
+            .expect("pool tracker should have valid state");
+
+        // Set approval lower than required
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(1000));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(500));
+
+        let result = processor
+            .verify_order(order, pool_info, 420)
+            .expect("verification should complete");
+
+        assert!(
+            !result.is_currently_valid,
+            "Order should be marked as invalid due to insufficient approval"
+        );
+    }
+
+    #[test]
+    fn test_multiple_orders_same_block() {
+        let processor = setup_test_account_processor();
+        let user = Address::random();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        // Create two flash orders for the same block
+        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+            .kill_or_fill()
+            .asset_in(token0)
+            .asset_out(token1)
+            .block(421)
+            .amount(500)
+            .recipient(user)
+            .build();
+
+        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+            .kill_or_fill()
+            .asset_in(token0)
+            .asset_out(token1)
+            .block(421)
+            .amount(400)
+            .recipient(user)
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order1)
+            .expect("pool tracker should have valid state");
+
+        // Set enough balance for both orders
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(1000));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(1000));
+
+        // Both orders should be valid
+        processor
+            .verify_order(order1, pool_info.clone(), 420)
+            .expect("first order should be valid");
+        processor
+            .verify_order(order2, pool_info, 420)
+            .expect("second order should be valid");
+    }
+
+    #[test]
+    fn test_prepare_for_new_block() {
+        let processor = setup_test_account_processor();
+        let user = Address::random();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPoolTracker::default();
+        let pool = PoolId::default();
+        mock_pool.add_pool(token0, token1, pool);
+
+        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+            .standing()
+            .asset_in(token0)
+            .asset_out(token1)
+            .nonce(420)
+            .recipient(user)
+            .build();
+
+        let pool_info = mock_pool
+            .fetch_pool_info_for_order(&order)
+            .expect("pool tracker should have valid state");
+
+        processor
+            .fetch_utils
+            .set_balance_for_user(user, token0, U256::from(order.amount_in()));
+        processor
+            .fetch_utils
+            .set_approval_for_user(user, token0, U256::from(order.amount_in()));
+
+        // Add order
+        processor
+            .verify_order(order.clone(), pool_info.clone(), 420)
+            .expect("order should be valid");
+
+        // Prepare for new block
+        processor.prepare_for_new_block(vec![user], vec![order.hash()]);
+
+        // Try to add same order again - should succeed because state was cleared
+        let result = processor
+            .verify_order(order, pool_info, 420)
+            .expect("order should be valid after state clear");
+
+        assert!(result.is_currently_valid, "Order should be valid after state clear");
+    }
+
+    #[test]
     fn test_nonce_rejection() {
         let processor = setup_test_account_processor();
 
