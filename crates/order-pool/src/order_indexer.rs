@@ -630,13 +630,15 @@ pub enum PoolError {
 mod tests {
     use std::sync::Arc;
 
-    use alloy::primitives::U256;
+    use alloy::{primitives::U256, signers::SignerSync, sol_types::SolValue};
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
         contract_payloads::angstrom::AngstromPoolConfigStore,
         orders::OrderId,
+        primitive::AngstromSigner,
         sol_bindings::{grouped_orders::GroupedVanillaOrder, RespendAvoidanceMethod}
     };
+    use revm::primitives::keccak256;
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
     };
@@ -665,7 +667,8 @@ mod tests {
     fn create_test_order(
         from: Address,
         pool_id: PoolKey,
-        validity: Option<OrderValidity>
+        validity: Option<OrderValidity>,
+        signer: Option<AngstromSigner>
     ) -> AllOrders {
         let validity = validity.unwrap_or_default();
 
@@ -673,14 +676,16 @@ mod tests {
             .asset_in(pool_id.currency0)
             .asset_out(pool_id.currency1)
             .amount(900)
+            .signing_key(signer)
             .recipient(from);
 
         if let Some(valid_until) = validity.valid_until {
-            builder = builder.valid_until(valid_until);
+            builder = builder.deadline(valid_until);
+            builder = builder.is_standing(true);
         }
 
         if let Some(flash_block) = validity.flash_block {
-            builder = builder.flash_block(flash_block);
+            builder = builder.block(flash_block);
         }
 
         let order =
@@ -716,7 +721,7 @@ mod tests {
             flash_block: None,
             is_standing: true
         };
-        let order = create_test_order(from, pool_key, Some(validity));
+        let order = create_test_order(from, pool_key, Some(validity), None);
 
         // Submit and validate the order
         let (tx, _) = tokio::sync::oneshot::channel();
@@ -788,7 +793,7 @@ mod tests {
             is_standing: true
         };
 
-        let order = create_test_order(from, pool_key.clone(), Some(validity));
+        let order = create_test_order(from, pool_key.clone(), Some(validity), None);
         let order_hash = order.order_hash();
 
         // Submit and validate order
@@ -823,19 +828,6 @@ mod tests {
         let address_changes = vec![from];
 
         indexer.start_new_block_processing(2, completed_orders.clone(), address_changes.clone());
-        let validity = OrderValidity {
-            valid_until: Some(U256::from(
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-                    + 3600
-            )),
-            flash_block: None,
-            is_standing: true
-        };
-        let order = create_test_order(from, pool_key, Some(validity));
-        let peer_id = PeerId::random();
 
         // Verify order was removed
         assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
@@ -863,11 +855,11 @@ mod tests {
             flash_block: None,
             is_standing: true
         };
-        let order = create_test_order(from, pool_key, Some(validity));
+        let order = create_test_order(from, pool_key, Some(validity), None);
         let peer_id = PeerId::random();
 
         // Submit network order
-        indexer.new_network_order(peer_id, OrderOrigin::Network, order.clone());
+        indexer.new_network_order(peer_id, OrderOrigin::External, order.clone());
         let order_hash = order.order_hash();
 
         // Verify peer tracking
@@ -911,8 +903,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
-        let order = create_test_order(from, pool_key, None);
+        let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
 
         // Submit order and mark as invalid
@@ -965,7 +956,7 @@ mod tests {
 
         // Add order to pool
         let from = Address::random();
-        let order = create_test_order(from, pool_key, None);
+        let order = create_test_order(from, pool_key, None, None);
         let (tx, _) = tokio::sync::oneshot::channel();
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
 
@@ -1017,11 +1008,11 @@ mod tests {
             ..Default::default()
         };
         let pool_id = PoolId::from(pool_key.clone());
-        let order = create_test_order(from, pool_key, None);
+        let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
 
         // Create a channel for validation results
-        let (tx, rx) = tokio::sync::oneshot::channel();
+        let (tx, _) = tokio::sync::oneshot::channel();
 
         // Submit the order
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
@@ -1058,7 +1049,6 @@ mod tests {
     #[tokio::test]
     async fn test_cancel_order() {
         let mut indexer = setup_test_indexer();
-        let from = Address::random();
 
         let pool_key = PoolKey {
             currency0: Address::random(),
@@ -1066,7 +1056,10 @@ mod tests {
             ..Default::default()
         };
         let pool_id = PoolId::from(pool_key.clone());
-        let order = create_test_order(from, pool_key, None);
+        let signer = AngstromSigner::random();
+        let from = signer.address();
+
+        let order = create_test_order(from, pool_key, None, Some(signer.clone()));
         let order_hash = order.order_hash();
 
         // Submit and validate the order first
@@ -1096,12 +1089,14 @@ mod tests {
             }))
             .unwrap();
 
+        let hash = keccak256((from, order_hash).abi_encode());
+        let sig = signer.sign_hash_sync(&hash).unwrap();
+
         // Cancel the order
         let cancel_request = angstrom_types::orders::CancelOrderRequest {
             order_id:     order_hash,
             user_address: from,
-            valid_until:  u64::MAX,
-            signature:    vec![]
+            signature:    sig
         };
 
         let result = indexer.cancel_order(&cancel_request);
@@ -1121,7 +1116,7 @@ mod tests {
             ..Default::default()
         };
         let pool_id = PoolId::from(pool_key.clone());
-        let order = create_test_order(from, pool_key, None);
+        let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
 
         // Submit the order first time
