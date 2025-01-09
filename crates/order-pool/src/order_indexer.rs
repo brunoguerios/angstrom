@@ -631,20 +631,6 @@ pub enum PoolError {
 mod tests {
     use std::sync::Arc;
 
-    use tracing_subscriber::{fmt, EnvFilter};
-
-    /// Initialize the tracing subscriber for tests
-    fn init_tracing() {
-        let _ = fmt()
-            .with_env_filter(
-                EnvFilter::from_default_env()
-                    .add_directive("order_pool=debug".parse().unwrap())
-                    .add_directive("info".parse().unwrap())
-            )
-            .with_test_writer()
-            .try_init();
-    }
-
     use alloy::{primitives::U256, signers::SignerSync, sol_types::SolValue};
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
@@ -658,6 +644,7 @@ mod tests {
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
     };
     use tokio::sync::broadcast;
+    use tracing_subscriber::{fmt, EnvFilter};
 
     use super::*;
     use crate::PoolConfig;
@@ -671,6 +658,17 @@ mod tests {
             AngstromPoolsTracker::new(Address::ZERO, Arc::new(AngstromPoolConfigStore::default()));
 
         OrderIndexer::new(validator, order_storage, 1, tx, pools_tracker)
+    }
+    /// Initialize the tracing subscriber for tests
+    fn init_tracing() {
+        let _ = fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env()
+                    .add_directive("order_pool=debug".parse().unwrap())
+                    .add_directive("info".parse().unwrap())
+            )
+            .with_test_writer()
+            .try_init();
     }
 
     #[derive(Default)]

@@ -330,7 +330,8 @@ pub fn mine_address_with_factory(
     (final_address, salt)
 }
 
-#[cfg(test)]
+// need a reth connection for this
+#[cfg(all(test, feature = "reth-db-dep-tests"))]
 pub mod test {
     // test to see proper gas_calculations
     use std::{
