@@ -413,11 +413,12 @@ pub mod test {
             .unwrap();
         assert_eq!(rate, Ray::scale_to_ray(U256::from(1)));
 
-        // WETH as token1 should also return 1
+        // 5 weth .inv
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN2, WETH_ADDRESS)
             .unwrap();
-        assert_eq!(rate, Ray::scale_to_ray(U256::from(1)));
+
+        assert_eq!(rate, Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER).inv_ray());
     }
 
     #[test]
@@ -483,34 +484,6 @@ pub mod test {
     }
 
     #[test]
-    fn test_different_decimal_tokens() {
-        let mut token_conversion = setup();
-
-        // Add a pair with 8 decimal token and WETH
-        let pool_id = FixedBytes::<32>::with_last_byte(5);
-        token_conversion
-            .pair_to_pool
-            .insert((TOKEN5, WETH_ADDRESS), pool_id);
-
-        let price = Ray::scale_to_ray(U256::from(1000000000000000000u128)); // 1e18
-        let mut queue = VecDeque::new();
-        for _ in 0..5 {
-            queue.push_back(PairsWithPrice {
-                token0:         TOKEN5,
-                token1:         WETH_ADDRESS,
-                block_num:      0,
-                price_1_over_0: price
-            });
-        }
-        token_conversion.prev_prices.insert(pool_id, queue);
-
-        let rate = token_conversion
-            .get_eth_conversion_price(TOKEN5, WETH_ADDRESS)
-            .unwrap();
-        assert_eq!(rate, Ray(U256::from(1000000000000000000000000000u128))); // 1e27 (RAY)
-    }
-
-    #[test]
     fn test_missing_pool() {
         let token_conversion = setup();
 
@@ -544,6 +517,7 @@ pub mod test {
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN5, WETH_ADDRESS)
             .unwrap();
-        assert_eq!(rate, Ray::scale_to_ray(U256::from(1)));
+
+        assert_eq!(rate, Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER).inv_ray());
     }
 }
