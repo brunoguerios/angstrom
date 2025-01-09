@@ -444,7 +444,13 @@ pub mod test {
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN2, TOKEN0)
             .unwrap();
-        let expected = Ray::scale_to_ray(U256::from(3) * WEI_IN_ETHER).inv_ray();
+
+        let mut sum = Ray::default();
+        for i in 1..=5 {
+            sum += Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER).inv_ray();
+        }
+        let expected = sum / U256::from(5);
+
         assert_eq!(rate, expected);
     }
 
