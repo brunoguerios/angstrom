@@ -44,7 +44,7 @@ impl WeightedRoundRobin {
         }
     }
 
-    fn proposer_selection(&mut self) -> PeerId {
+    fn proposer_selection(&mut self) -> Option<PeerId> {
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
 
         //  apply all priorities.
@@ -58,18 +58,40 @@ impl WeightedRoundRobin {
             .collect();
 
         // find the max
-        let mut proposer = self
-            .validators
-            .iter()
-            .max_by(Self::priority)
-            .unwrap()
-            .clone();
+        let mut proposer = self.validators.iter().max_by(Self::priority)?.clone();
+
         proposer.priority -= total_voting_power as i64;
         let proposer_name = proposer.peer_id;
 
         self.validators.replace(proposer);
 
-        proposer_name
+        Some(proposer_name)
+    }
+
+    fn reverse_proposer_selection(&mut self) -> Option<PeerId> {
+        let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
+
+        // find the min (the last proposer will have the lowest priority)
+        let mut proposer = self.validators.iter().min_by(Self::priority)?.clone();
+
+        // undo the total_voting_power subtraction
+        proposer.priority += total_voting_power as i64;
+        let proposer_name = proposer.peer_id;
+
+        // undo the priority additions for all validators first
+        self.validators = self
+            .validators
+            .drain()
+            .map(|mut validator| {
+                validator.priority -= validator.voting_power as i64;
+                validator
+            })
+            .collect();
+
+        // then replace the proposer with updated priority
+        self.validators.replace(proposer);
+
+        Some(proposer_name)
     }
 
     fn priority(a: &&AngstromValidator, b: &&AngstromValidator) -> Ordering {
@@ -84,6 +106,11 @@ impl WeightedRoundRobin {
     }
 
     fn center_priorities(&mut self) {
+        if self.validators.is_empty() {
+            tracing::error!("no validators are set");
+            return
+        }
+
         let avg_priority =
             self.validators.iter().map(|v| v.priority).sum::<i64>() / self.validators.len() as i64;
 
@@ -97,7 +124,28 @@ impl WeightedRoundRobin {
             .collect();
     }
 
+    fn uncenter_priorities(&mut self, target_avg: i64) {
+        if self.validators.is_empty() {
+            tracing::error!("no validators are set");
+            return
+        }
+
+        self.validators = self
+            .validators
+            .drain()
+            .map(|mut validator| {
+                validator.priority += target_avg;
+                validator
+            })
+            .collect();
+    }
+
     fn scale_priorities(&mut self) {
+        if self.validators.is_empty() {
+            tracing::error!("no validators are set");
+            return
+        }
+
         let max_priority = self
             .validators
             .iter()
@@ -128,28 +176,102 @@ impl WeightedRoundRobin {
         }
     }
 
+    fn unscale_priorities(&mut self) -> i64 {
+        if self.validators.is_empty() {
+            tracing::error!("no validators are set");
+            return 0
+        }
+
+        let max_priority = self
+            .validators
+            .iter()
+            .map(|v| v.priority)
+            .fold(i64::MIN, i64::max);
+
+        let min_priority = self
+            .validators
+            .iter()
+            .map(|v| v.priority)
+            .fold(i64::MAX, i64::min);
+
+        let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
+        let diff = max_priority.saturating_sub(min_priority);
+        let threshold = 2 * total_voting_power as i64;
+
+        // Preserve relative ratios while keeping values in reasonable bounds
+        if diff != 0 {
+            let scale =
+                if diff > threshold { (diff * ONE_E3 as i64) / threshold } else { ONE_E3 as i64 };
+
+            self.validators = self
+                .validators
+                .drain()
+                .map(|mut validator| {
+                    validator.priority = if scale != ONE_E3 as i64 {
+                        (validator.priority * threshold) / diff
+                    } else {
+                        validator.priority
+                    };
+                    validator
+                })
+                .collect();
+        }
+
+        self.validators.iter().map(|v| v.priority).sum::<i64>() / self.validators.len() as i64
+    }
+
+    // pub fn choose_proposer(&mut self, block_number: BlockNumber) ->
+    // Option<PeerId> {     if block_number <= self.block_number {
+    //         if self.last_proposer.is_none() {
+    //             self.last_proposer = Some(self.proposer_selection()?);
+    //         }
+    //
+    //         return self.last_proposer
+    //     }
+    //
+    //     let rounds_to_catchup = (block_number - self.block_number) as usize;
+    //     let mut leader = None;
+    //     for _ in 0..rounds_to_catchup {
+    //         self.center_priorities();
+    //         self.scale_priorities();
+    //         leader = Some(self.proposer_selection()?);
+    //         self.last_proposer = leader
+    //     }
+    //     self.block_number = block_number;
+    //     leader
+    // }
+
     pub fn choose_proposer(&mut self, block_number: BlockNumber) -> Option<PeerId> {
-        // 1. this is not ideal, since on multi-block reorgs the same proposer will be
-        //    chosen for the length of the reorg
-        // 2. reverting the block number (self.block_number = block_number) is also not
-        //    ideal, since nodes who were offline will not have seen the reorg, thus
-        //    would not have executed the extra rounds after this if statement
-        if block_number <= self.block_number {
+        if block_number == self.block_number {
             if self.last_proposer.is_none() {
-                self.last_proposer = Some(self.proposer_selection());
+                self.last_proposer = Some(self.proposer_selection()?);
             }
-
-            return self.last_proposer
+            return self.last_proposer;
         }
 
-        let rounds_to_catchup = (block_number - self.block_number) as usize;
+        // Reset state to handle both forward and backward transitions consistently
         let mut leader = None;
-        for _ in 0..rounds_to_catchup {
-            self.center_priorities();
-            self.scale_priorities();
-            leader = Some(self.proposer_selection());
-            self.last_proposer = leader
+        let target_block = block_number;
+
+        // Start from a known state
+        let mut current_block = self.block_number;
+
+        while current_block != target_block {
+            if current_block < target_block {
+                self.center_priorities();
+                self.scale_priorities();
+                self.last_proposer = Some(self.proposer_selection()?);
+                current_block += 1;
+            } else {
+                let target_avg = self.unscale_priorities();
+                self.uncenter_priorities(target_avg);
+                self.last_proposer = Some(self.reverse_proposer_selection()?);
+                current_block -= 1;
+            }
+            leader = Some(self.proposer_selection()?);
+            self.last_proposer = leader;
         }
+
         self.block_number = block_number;
         leader
     }
@@ -470,6 +592,240 @@ mod tests {
         // Whale should be selected significantly more often
         assert!(whale_count > 95, "High voting power validator should dominate selection");
         assert!(minnow_count < 5, "Low voting power validator should rarely be selected");
+    }
+
+    #[test]
+    fn test_priority_uncenter_unscale() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Set some initial priorities
+        algo.validators = algo
+            .validators
+            .drain()
+            .enumerate()
+            .map(|(i, mut v)| {
+                v.priority = i as i64 * 1000;
+                v
+            })
+            .collect();
+
+        // Save initial priorities
+        let initial_priorities: Vec<i64> = algo.validators.iter().map(|v| v.priority).collect();
+
+        // Apply centering and scaling
+        algo.center_priorities();
+        algo.scale_priorities();
+
+        // Save intermediate state
+
+        // Apply unscaling and uncentering
+        let avg = algo.unscale_priorities();
+        algo.uncenter_priorities(avg);
+
+        // Get final priorities
+        let final_priorities: Vec<i64> = algo.validators.iter().map(|v| v.priority).collect();
+
+        // Verify priorities are restored within reasonable bounds
+        for (initial, final_pri) in initial_priorities.iter().zip(final_priorities.iter()) {
+            // Allow for some rounding error due to integer division
+            let difference = (initial - final_pri).abs();
+            assert!(
+                difference <= 10,
+                "Priority difference too large: initial={}, final={}, diff={}",
+                initial,
+                final_pri,
+                difference
+            );
+        }
+    }
+
+    #[test]
+    fn test_unscale_edge_cases() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Test with zero priorities
+        algo.validators = algo
+            .validators
+            .drain()
+            .map(|mut v| {
+                v.priority = 0;
+                v
+            })
+            .collect();
+
+        algo.unscale_priorities();
+        assert!(
+            algo.validators.iter().all(|v| v.priority == 0),
+            "Zero priorities should remain zero after unscaling"
+        );
+
+        // Test with equal priorities
+        algo.validators = algo
+            .validators
+            .drain()
+            .map(|mut v| {
+                v.priority = 100;
+                v
+            })
+            .collect();
+
+        algo.unscale_priorities();
+        assert!(
+            algo.validators.iter().all(|v| v.priority == 100),
+            "Equal priorities should remain equal after unscaling"
+        );
+    }
+
+    #[test]
+    fn test_uncenter_edge_cases() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Test with zero priorities
+        algo.validators = algo
+            .validators
+            .drain()
+            .map(|mut v| {
+                v.priority = 0;
+                v
+            })
+            .collect();
+
+        algo.uncenter_priorities(100);
+        assert!(
+            algo.validators.iter().all(|v| v.priority == 100),
+            "All priorities should be equal to target average after uncentering from zero"
+        );
+
+        // Test with negative target average
+        algo.uncenter_priorities(-100);
+        assert!(
+            algo.validators.iter().all(|v| v.priority == 0),
+            "Priorities should be restored to original after opposite uncentering"
+        );
+    }
+
+    #[test]
+    fn test_proposer_rollback_consistency() {
+        let (peers, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, 1);
+
+        // Move forward and collect proposers
+        let mut forward_proposers = Vec::new();
+        for block in 1..=5 {
+            let proposer = algo.choose_proposer(block).unwrap();
+            forward_proposers.push(proposer);
+        }
+
+        // Roll back and verify we get the same proposers in reverse
+        for block in (1..=4).rev() {
+            let proposer = algo.choose_proposer(block).unwrap();
+            assert_eq!(
+                proposer,
+                forward_proposers[block as usize - 1],
+                "Rolling back to block {} should yield same proposer as forward pass",
+                block
+            );
+        }
+    }
+
+    #[test]
+    fn test_proposer_alternating_directions() {
+        let (peers, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, 5);
+
+        // Forward 2, back 1, forward 3, back 2 pattern
+        let transitions = vec![7, 6, 9, 7];
+        let mut expected_at_7 = None;
+
+        for block in transitions {
+            let proposer = algo.choose_proposer(block);
+
+            // Remember proposer at block 7 for consistency check
+            if block == 7 {
+                if expected_at_7.is_none() {
+                    expected_at_7 = proposer;
+                } else {
+                    assert_eq!(
+                        proposer, expected_at_7,
+                        "Proposer at block 7 should be consistent across transitions"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_proposer_large_jumps() {
+        let (peers, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, 1000);
+
+        // Test large forward jump
+        let forward_proposer = algo.choose_proposer(5000).unwrap();
+
+        // Test large backward jump
+        let backward_proposer = algo.choose_proposer(2000).unwrap();
+
+        // Jump forward to same block again
+        let repeat_proposer = algo.choose_proposer(5000).unwrap();
+
+        assert_eq!(
+            forward_proposer, repeat_proposer,
+            "Same block number should yield same proposer regardless of jump direction"
+        );
+    }
+
+    #[test]
+    fn test_proposer_sequence_stability() {
+        let (peers, validators) = create_test_validators();
+        let mut algo1 = WeightedRoundRobin::new(validators.clone(), 1);
+        let mut algo2 = WeightedRoundRobin::new(validators, 1);
+
+        // First sequence: 1->5->3->7
+        for block in [1, 5, 3, 7] {
+            algo1.choose_proposer(block);
+        }
+
+        // Second sequence: 1->3->5->7
+        for block in [1, 3, 5, 7] {
+            algo2.choose_proposer(block);
+        }
+
+        // Both should end up with the same proposer at block 7
+        assert_eq!(
+            algo1.choose_proposer(7),
+            algo2.choose_proposer(7),
+            "Different paths to same block should yield same proposer"
+        );
+    }
+
+    #[test]
+    fn test_proposer_boundary_transitions() {
+        let (peers, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, 1);
+
+        // Test transitions around zero
+        let proposer_at_1 = algo.choose_proposer(1).unwrap();
+        let proposer_at_0 = algo.choose_proposer(0).unwrap();
+        let proposer_at_1_again = algo.choose_proposer(1).unwrap();
+
+        assert_eq!(
+            proposer_at_1, proposer_at_1_again,
+            "Proposer should be consistent after crossing block zero"
+        );
+
+        // Test transitions with max block number
+        let high_block = BlockNumber::from(u64::MAX - 2);
+        let proposer_high = algo.choose_proposer(high_block).unwrap();
+        let proposer_lower = algo.choose_proposer(1000).unwrap();
+        let proposer_high_again = algo.choose_proposer(high_block).unwrap();
+
+        assert_eq!(
+            proposer_high, proposer_high_again,
+            "Proposer should be consistent after large block number transitions"
+        );
     }
 
     #[test]
