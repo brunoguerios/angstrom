@@ -29,11 +29,11 @@ where
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
         let angstrom = Self::deploy_angstrom(&inner, nodes).await?;
-        Self::deploy_controller_v1(&inner, angstrom).await?;
+        let controller_v1 = Self::deploy_controller_v1(&inner, angstrom).await?;
 
         info!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom, controller_v1: CONTROLLER_V1_ADDRESS })
+        Ok(Self { inner, angstrom, controller_v1 })
     }
 
     async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
@@ -64,7 +64,7 @@ where
         Ok(angstrom_addr)
     }
 
-    async fn deploy_controller_v1(inner: &E, angstrom_addr: Address) -> eyre::Result<()> {
+    async fn deploy_controller_v1(inner: &E, angstrom_addr: Address) -> eyre::Result<Address> {
         debug!("Deploying ControllerV1...");
         let controller_v1_addr = *inner
             .execute_then_mine(ControllerV1::deploy(
@@ -75,11 +75,7 @@ where
             .await?
             .address();
 
-        inner
-            .override_address(controller_v1_addr, CONTROLLER_V1_ADDRESS)
-            .await?;
-
-        debug!("ControllerV1 deployed at: {}", CONTROLLER_V1_ADDRESS);
+        debug!("ControllerV1 deployed at: {}", controller_v1_addr);
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
@@ -93,7 +89,7 @@ where
             )
             .await?;
 
-        Ok(())
+        Ok(controller_v1_addr)
     }
 
     pub fn angstrom(&self) -> Address {
