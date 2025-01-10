@@ -7,9 +7,7 @@ use angstrom_types::contract_bindings::{
 use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
-use crate::contracts::{
-    deploy::angstrom::deploy_angstrom, environment::CONTROLLER_V1_ADDRESS, DebugTransaction
-};
+use crate::contracts::{deploy::angstrom::deploy_angstrom, DebugTransaction};
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
     fn angstrom(&self) -> Address;

@@ -12,7 +12,7 @@ use tracing::debug;
 use super::TestAnvilEnvironment;
 use crate::{
     contracts::{
-        environment::{POOL_GATE_ADDRESS, POOL_MANAGER_ADDRESS},
+        // environment::{POOL_GATE_ADDRESS, POOL_MANAGER_ADDRESS},
         DebugTransaction
     },
     providers::WalletProvider
@@ -44,39 +44,35 @@ where
     E: TestAnvilEnvironment
 {
     pub async fn new(inner: E) -> eyre::Result<Self> {
-        Self::deploy_pool_manager(&inner).await?;
-        Self::deploy_pool_gate(&inner).await?;
+        let pool_manager = Self::deploy_pool_manager(&inner).await?;
+        let pool_gate = Self::deploy_pool_gate(&inner).await?;
 
-        Ok(Self { inner, pool_manager: POOL_MANAGER_ADDRESS, pool_gate: POOL_GATE_ADDRESS })
+        Ok(Self { inner, pool_manager, pool_gate })
     }
 
-    async fn deploy_pool_manager(inner: &E) -> eyre::Result<()> {
+    async fn deploy_pool_manager(inner: &E) -> eyre::Result<Address> {
         debug!("Deploying pool manager...");
         let pool_manager_addr = *inner
             .execute_then_mine(PoolManager::deploy(inner.provider(), inner.controller()))
             .await?
             .address();
 
-        inner
-            .override_address(pool_manager_addr, POOL_MANAGER_ADDRESS)
-            .await?;
-
-        debug!("Pool manager deployed at: {}", POOL_MANAGER_ADDRESS);
-        Ok(())
+        debug!("Pool manager deployed at: {}", pool_manager_addr);
+        Ok(pool_manager_addr)
     }
 
-    async fn deploy_pool_gate(inner: &E) -> eyre::Result<()> {
+    async fn deploy_pool_gate(inner: &E, pool_manager_addr: Address) -> eyre::Result<Address> {
         debug!("Deploying pool gate...");
         let pool_gate_instance = inner
-            .execute_then_mine(PoolGate::deploy(inner.provider(), POOL_MANAGER_ADDRESS))
+            .execute_then_mine(PoolGate::deploy(inner.provider(), pool_manager_addr))
             .await?;
         let pool_gate_addr = *pool_gate_instance.address();
 
         inner
-            .override_address(pool_gate_addr, POOL_GATE_ADDRESS)
+            .override_address(pool_gate_addr, pool_gate_addr)
             .await?;
-        debug!("Pool gate deployed at: {}", POOL_GATE_ADDRESS);
-        Ok(())
+        debug!("Pool gate deployed at: {}", pool_gate_addr);
+        Ok(pool_gate_addr)
     }
 
     pub fn pool_gate(&self) -> PoolGateInstance<BoxTransport, &E::P> {
