@@ -139,14 +139,8 @@ impl AnvilInitializer {
 
         // lets load the bytecode of the second token, then use the bytecode to override
         // the weth address
-        let code = self
-            .provider
-            .rpc_provider()
-            .get_code_at(second_token)
-            .await?;
         self.provider
-            .rpc_provider()
-            .anvil_set_code(WETH_ADDRESS, code)
+            .override_address(second_token, WETH_ADDRESS)
             .await?;
         second_token = WETH_ADDRESS;
 
