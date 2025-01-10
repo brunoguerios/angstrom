@@ -36,5 +36,6 @@ pub fn mine_address_with_factory(
         }
     }
     let final_address = factory.create2(B256::from(salt), init_code_hash);
+    println!("ADDRESS: {final_address:?} -- SALT: {salt:?}");
     (final_address, salt)
 }

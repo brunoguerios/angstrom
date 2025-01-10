@@ -46,10 +46,6 @@ where
             ))
             .await;
 
-        // inner
-        //     .override_address(angstrom_addr, ANGSTROM_ADDRESS)
-        //     .await?;
-
         debug!("Angstrom deployed at: {}", angstrom_addr);
         // gotta toggle nodes
         let ang_i = AngstromInstance::new(angstrom_addr, &provider);
