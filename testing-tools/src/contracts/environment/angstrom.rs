@@ -8,9 +8,7 @@ use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
 use crate::contracts::{
-    deploy::angstrom::deploy_angstrom,
-    environment::{ANGSTROM_ADDRESS, CONTROLLER_V1_ADDRESS},
-    DebugTransaction
+    deploy::angstrom::deploy_angstrom, environment::CONTROLLER_V1_ADDRESS, DebugTransaction
 };
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
@@ -35,7 +33,7 @@ where
 
         info!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1: CONTROLLER_V1_ADDRESS })
+        Ok(Self { inner, angstrom, controller_v1: CONTROLLER_V1_ADDRESS })
     }
 
     async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
