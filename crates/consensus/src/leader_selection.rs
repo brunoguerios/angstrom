@@ -26,7 +26,7 @@ impl AngstromValidator {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct WeightedRoundRobin {
     validators:                HashSet<AngstromValidator>,
     new_joiner_penalty_factor: u64,
@@ -71,7 +71,7 @@ impl WeightedRoundRobin {
     fn reverse_proposer_selection(&mut self) -> Option<PeerId> {
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
 
-        // find the min (the last proposer will have the lowest priority)
+        // grab the last proposeer
         let mut proposer = self.validators.iter().min_by(Self::priority)?.clone();
 
         // undo the total_voting_power subtraction
@@ -195,27 +195,43 @@ impl WeightedRoundRobin {
             .fold(i64::MAX, i64::min);
 
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
-        let diff = max_priority.saturating_sub(min_priority);
+        let diff = max_priority - min_priority;
         let threshold = 2 * total_voting_power as i64;
 
-        // Preserve relative ratios while keeping values in reasonable bounds
-        if diff != 0 {
-            let scale =
-                if diff > threshold { (diff * ONE_E3 as i64) / threshold } else { ONE_E3 as i64 };
+        if diff > threshold {
+            let scale = (diff * ONE_E3 as i64) / threshold;
 
             self.validators = self
                 .validators
                 .drain()
                 .map(|mut validator| {
-                    validator.priority = if scale != ONE_E3 as i64 {
-                        (validator.priority * threshold) / diff
-                    } else {
-                        validator.priority
-                    };
+                    // validator.priority = (validator.priority * ONE_E3 as i64) / scale;
+                    // p = (x * c) / s
+                    validator.priority = (validator.priority * scale) / (ONE_E3 as i64);
                     validator
                 })
                 .collect();
         }
+
+        // Preserve relative ratios while keeping values in reasonable bounds
+        // if diff != 0 {
+        //     let scale =
+        //         if diff > threshold { (diff * ONE_E3 as i64) / threshold } else {
+        // ONE_E3 as i64 };
+        //
+        //     self.validators = self
+        //         .validators
+        //         .drain()
+        //         .map(|mut validator| {
+        //             validator.priority = if scale != ONE_E3 as i64 {
+        //                 (validator.priority * threshold) / diff
+        //             } else {
+        //                 validator.priority
+        //             };
+        //             validator
+        //         })
+        //         .collect();
+        // }
 
         self.validators.iter().map(|v| v.priority).sum::<i64>() / self.validators.len() as i64
     }
@@ -610,33 +626,23 @@ mod tests {
             })
             .collect();
 
-        // Save initial priorities
-        let initial_priorities: Vec<i64> = algo.validators.iter().map(|v| v.priority).collect();
+        let init = algo.clone();
 
-        // Apply centering and scaling
-        algo.center_priorities();
-        algo.scale_priorities();
+        // Apply centering and scaling 10 times
+        for _ in 0..10 {
+            algo.scale_priorities();
+            algo.center_priorities();
+        }
 
-        // Save intermediate state
+        // unscale 10 times
+        for _ in 0..10 {
+            let avg = algo.unscale_priorities();
+            algo.uncenter_priorities(avg);
+        }
 
-        // Apply unscaling and uncentering
-        let avg = algo.unscale_priorities();
-        algo.uncenter_priorities(avg);
-
-        // Get final priorities
-        let final_priorities: Vec<i64> = algo.validators.iter().map(|v| v.priority).collect();
-
-        // Verify priorities are restored within reasonable bounds
-        for (initial, final_pri) in initial_priorities.iter().zip(final_priorities.iter()) {
-            // Allow for some rounding error due to integer division
-            let difference = (initial - final_pri).abs();
-            assert!(
-                difference <= 10,
-                "Priority difference too large: initial={}, final={}, diff={}",
-                initial,
-                final_pri,
-                difference
-            );
+        for v in algo.validators {
+            let start = init.validators.get(&v).unwrap();
+            assert_eq!(&v, start)
         }
     }
 
@@ -826,6 +832,25 @@ mod tests {
             proposer_high, proposer_high_again,
             "Proposer should be consistent after large block number transitions"
         );
+    }
+
+    #[test]
+    fn test_scale_unscale_priorities() {
+        // Create test validators with specific voting powers
+        let validators = vec![
+            AngstromValidator::new(PeerId::random(), 100),
+            AngstromValidator::new(PeerId::random(), 200),
+            AngstromValidator::new(PeerId::random(), 300),
+        ];
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+        let start = algo.clone();
+        algo.scale_priorities();
+        let _ = algo.unscale_priorities();
+
+        for v in start.validators {
+            let cur = algo.validators.get(&v).unwrap();
+            assert_eq!(&v, cur);
+        }
     }
 
     #[test]
