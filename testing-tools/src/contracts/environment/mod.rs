@@ -23,7 +23,7 @@ pub mod uniswap;
 pub const ANGSTROM_ADDRESS: alloy_primitives::Address =
     alloy_primitives::address!("9a59a6d48aae9B192ac58871e112D9e441f86A80");
 
-// pub const ANGSTROM_ADDRESS_SALT: U256 = u256!(11412);
+pub const ANGSTROM_ADDRESS_SALT: u64 = 11412;
 
 // pub const POOL_GATE_ADDRESS: alloy_primitives::Address =
 //     alloy_primitives::address!("63757b2554C200A9b45892965D257D4a44427231");
