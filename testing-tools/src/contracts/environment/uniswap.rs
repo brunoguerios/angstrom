@@ -45,7 +45,7 @@ where
 {
     pub async fn new(inner: E) -> eyre::Result<Self> {
         let pool_manager = Self::deploy_pool_manager(&inner).await?;
-        let pool_gate = Self::deploy_pool_gate(&inner).await?;
+        let pool_gate = Self::deploy_pool_gate(&inner, pool_manager).await?;
 
         Ok(Self { inner, pool_manager, pool_gate })
     }
