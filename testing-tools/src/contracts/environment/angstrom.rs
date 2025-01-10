@@ -8,7 +8,9 @@ use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
 use crate::contracts::{
-    deploy::angstrom::deploy_angstrom, environment::CONTROLLER_V1_ADDRESS, DebugTransaction
+    deploy::angstrom::deploy_angstrom,
+    environment::{ANGSTROM_ADDRESS, CONTROLLER_V1_ADDRESS},
+    DebugTransaction
 };
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
@@ -28,15 +30,15 @@ where
     E: TestUniswapEnv
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
-        let angstrom = Self::deploy_angstrom(&inner, nodes).await?;
-        Self::deploy_controller_v1(&inner, angstrom).await?;
+        Self::deploy_angstrom(&inner, nodes).await?;
+        Self::deploy_controller_v1(&inner).await?;
 
         info!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom, controller_v1: CONTROLLER_V1_ADDRESS })
+        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1: CONTROLLER_V1_ADDRESS })
     }
 
-    async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
+    async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<()> {
         let provider = inner.provider();
         debug!("Deploying Angstrom...");
         let angstrom_addr = inner
@@ -48,28 +50,28 @@ where
             ))
             .await;
 
-        // inner
-        //     .override_address(angstrom_addr, ANGSTROM_ADDRESS)
-        //     .await?;
+        inner
+            .override_address(angstrom_addr, ANGSTROM_ADDRESS)
+            .await?;
 
-        debug!("Angstrom deployed at: {}", angstrom_addr);
+        debug!("Angstrom deployed at: {}", ANGSTROM_ADDRESS);
         // gotta toggle nodes
-        let ang_i = AngstromInstance::new(angstrom_addr, &provider);
+        let ang_i = AngstromInstance::new(ANGSTROM_ADDRESS, &provider);
 
         let _ = ang_i
             .toggleNodes(nodes)
             .from(inner.controller())
             .run_safe()
             .await?;
-        Ok(angstrom_addr)
+        Ok(())
     }
 
-    async fn deploy_controller_v1(inner: &E, angstrom_addr: Address) -> eyre::Result<()> {
+    async fn deploy_controller_v1(inner: &E) -> eyre::Result<()> {
         debug!("Deploying ControllerV1...");
         let controller_v1_addr = *inner
             .execute_then_mine(ControllerV1::deploy(
                 inner.provider(),
-                angstrom_addr,
+                ANGSTROM_ADDRESS,
                 inner.controller()
             ))
             .await?
@@ -87,7 +89,7 @@ where
         inner
             .execute_then_mine(
                 pool_gate_instance
-                    .setHook(angstrom_addr)
+                    .setHook(ANGSTROM_ADDRESS)
                     .from(inner.controller())
                     .run_safe()
             )
