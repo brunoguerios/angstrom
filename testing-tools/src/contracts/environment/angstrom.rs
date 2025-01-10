@@ -7,7 +7,11 @@ use angstrom_types::contract_bindings::{
 use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
-use crate::contracts::{deploy::angstrom::deploy_angstrom, DebugTransaction};
+use crate::contracts::{
+    deploy::angstrom::deploy_angstrom,
+    environment::{ANGSTROM_ADDRESS, CONTROLLER_V1_ADDRESS},
+    DebugTransaction
+};
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
     fn angstrom(&self) -> Address;
@@ -26,15 +30,15 @@ where
     E: TestUniswapEnv
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
-        let angstrom = Self::deploy_angstrom(&inner, nodes).await?;
-        let controller_v1 = Self::deploy_controller_v1(&inner, angstrom).await?;
+        Self::deploy_angstrom(&inner, nodes).await?;
+        Self::deploy_controller_v1(&inner).await?;
 
         info!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom, controller_v1 })
+        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1: CONTROLLER_V1_ADDRESS })
     }
 
-    async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
+    async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<()> {
         let provider = inner.provider();
         debug!("Deploying Angstrom...");
         let angstrom_addr = inner
@@ -55,21 +59,25 @@ where
             .from(inner.controller())
             .run_safe()
             .await?;
-        Ok(angstrom_addr)
+        Ok(())
     }
 
-    async fn deploy_controller_v1(inner: &E, angstrom_addr: Address) -> eyre::Result<Address> {
+    async fn deploy_controller_v1(inner: &E) -> eyre::Result<()> {
         debug!("Deploying ControllerV1...");
         let controller_v1_addr = *inner
             .execute_then_mine(ControllerV1::deploy(
                 inner.provider(),
-                angstrom_addr,
+                ANGSTROM_ADDRESS,
                 inner.controller()
             ))
             .await?
             .address();
 
-        debug!("ControllerV1 deployed at: {}", controller_v1_addr);
+        debug!("ControllerV1 deployed at: {}", CONTROLLER_V1_ADDRESS);
+
+        inner
+            .override_address(controller_v1_addr, CONTROLLER_V1_ADDRESS)
+            .await?;
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
@@ -77,13 +85,13 @@ where
         inner
             .execute_then_mine(
                 pool_gate_instance
-                    .setHook(angstrom_addr)
+                    .setHook(ANGSTROM_ADDRESS)
                     .from(inner.controller())
                     .run_safe()
             )
             .await?;
 
-        Ok(controller_v1_addr)
+        Ok(())
     }
 
     pub fn angstrom(&self) -> Address {
