@@ -71,6 +71,7 @@ impl AnvilInitializer {
 
         let angstrom =
             AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
+
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
