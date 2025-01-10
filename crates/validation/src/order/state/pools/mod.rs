@@ -15,7 +15,7 @@ pub trait PoolsTracker: Send + Unpin {
     fn fetch_pool_info_for_order<O: RawPoolOrder>(&self, order: &O) -> Option<UserOrderPoolInfo>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UserOrderPoolInfo {
     // token in for pool
     pub token:   Address,

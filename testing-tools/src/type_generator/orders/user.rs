@@ -1,4 +1,8 @@
-use alloy::{primitives::Address, signers::SignerSync};
+use alloy::{
+    primitives::{Address, U256},
+    signers::SignerSync
+};
+use alloy_primitives::aliases::U40;
 use angstrom_types::{
     matching::Ray,
     primitive::{AngstromSigner, ANGSTROM_DOMAIN},
@@ -28,6 +32,7 @@ pub struct UserOrderBuilder {
     asset_out:   Address,
     amount:      u128,
     min_price:   Ray,
+    deadline:    U256,
     signing_key: Option<AngstromSigner>
 }
 
@@ -64,6 +69,10 @@ impl UserOrderBuilder {
 
     pub fn block(self, block: u64) -> Self {
         Self { block, ..self }
+    }
+
+    pub fn deadline(self, deadline: U256) -> Self {
+        Self { deadline, ..self }
     }
 
     pub fn nonce(self, nonce: u64) -> Self {
@@ -114,7 +123,7 @@ impl UserOrderBuilder {
                     recipient: self.recipient,
                     nonce: self.nonce,
                     exact_in: self.exact_in,
-
+                    deadline: U40::from(self.deadline.to::<u32>()),
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
@@ -134,8 +143,10 @@ impl UserOrderBuilder {
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
                     max_extra_fee_asset0: self.amount,
+                    nonce: self.nonce,
                     min_price: *self.min_price,
                     recipient: self.recipient,
+                    deadline: U40::from(self.deadline.to::<u32>()),
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {

@@ -6216,6 +6216,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "tracing-subscriber",
  "validation",
 ]
 
@@ -11878,6 +11879,7 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+ "tracing-subscriber",
  "uniswap-v4",
 ]
 
