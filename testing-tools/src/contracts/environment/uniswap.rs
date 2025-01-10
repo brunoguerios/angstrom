@@ -68,7 +68,7 @@ where
     async fn deploy_pool_gate(inner: &E) -> eyre::Result<()> {
         debug!("Deploying pool gate...");
         let pool_gate_instance = inner
-            .execute_then_mine(PoolGate::deploy(inner.provider(), POOL_GATE_ADDRESS))
+            .execute_then_mine(PoolGate::deploy(inner.provider(), POOL_MANAGER_ADDRESS))
             .await?;
         let pool_gate_addr = *pool_gate_instance.address();
 
