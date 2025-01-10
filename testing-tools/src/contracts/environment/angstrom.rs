@@ -4,7 +4,7 @@ use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
     pool_gate::PoolGate::PoolGateInstance
 };
-use tracing::debug;
+use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
 use crate::contracts::{
@@ -30,8 +30,17 @@ where
     E: TestUniswapEnv
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
+        Self::deploy_angstrom(&inner, nodes).await?;
+        Self::deploy_controller_v1(&inner).await?;
+
+        info!("Environment deploy complete!");
+
+        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1: CONTROLLER_V1_ADDRESS })
+    }
+
+    async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<()> {
         let provider = inner.provider();
-        debug!("Deploying mock rewards manager...");
+        debug!("Deploying Angstrom...");
         let angstrom_addr = inner
             .execute_then_mine(deploy_angstrom(
                 &provider,
@@ -54,10 +63,14 @@ where
             .from(inner.controller())
             .run_safe()
             .await?;
+        Ok(())
+    }
 
+    async fn deploy_controller_v1(inner: &E) -> eyre::Result<()> {
+        debug!("Deploying ControllerV1...");
         let controller_v1_addr = *inner
             .execute_then_mine(ControllerV1::deploy(
-                &provider,
+                inner.provider(),
                 ANGSTROM_ADDRESS,
                 inner.controller()
             ))
@@ -72,7 +85,7 @@ where
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
-        let pool_gate_instance = PoolGateInstance::new(inner.pool_gate(), &provider);
+        let pool_gate_instance = PoolGateInstance::new(inner.pool_gate(), inner.provider());
         inner
             .execute_then_mine(
                 pool_gate_instance
@@ -82,9 +95,7 @@ where
             )
             .await?;
 
-        debug!("Environment deploy complete!");
-
-        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1: CONTROLLER_V1_ADDRESS })
+        Ok(())
     }
 
     pub fn angstrom(&self) -> Address {
