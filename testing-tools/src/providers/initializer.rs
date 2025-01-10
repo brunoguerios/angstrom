@@ -332,6 +332,10 @@ impl AnvilInitializer {
 
     pub async fn initialize_state_no_bytes(&mut self) -> eyre::Result<InitialTestnetState> {
         let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
+        self.provider
+            .provider()
+            .anvil_mine(Some(U256::from(1)), None)
+            .await?;
 
         let state = InitialTestnetState::new(
             self.angstrom_env.angstrom(),

@@ -59,6 +59,7 @@ pub trait TestAnvilEnvironment: Clone {
 
         let code = provider.get_code_at(from_addr).await?;
         provider.anvil_set_code(to_addr, code).await?;
+
         //provider.anvil_mine(Some(U256::from(1)), None).await?;
 
         Ok(())
