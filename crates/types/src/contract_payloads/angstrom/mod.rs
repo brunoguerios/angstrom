@@ -40,7 +40,7 @@ use crate::{
 
 mod order;
 mod tob;
-pub use order::UserOrder;
+pub use order::{OrderQuantities, UserOrder};
 pub use tob::*;
 
 #[derive(Debug, PadeEncode, PadeDecode)]
@@ -549,7 +549,12 @@ impl AngstromBundle {
 
         // this should never underflow. if it does. means that there is underlying
         // problem with the gas delegation module
-        assert!(gas_details.total_gas_cost_wei > total_gas);
+        assert!(
+            gas_details.total_gas_cost_wei > total_gas,
+            "Total gas cost '{}' greater than total gas '{}'",
+            gas_details.total_gas_cost_wei,
+            total_gas
+        );
         if total_swaps == 0 {
             return Err(eyre::eyre!("have a total swaps count of 0"));
         }

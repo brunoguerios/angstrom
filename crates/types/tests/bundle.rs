@@ -16,7 +16,7 @@ use angstrom_types::{
         rewards::PoolUpdate,
         Asset, Pair, Signature
     },
-    matching::{uniswap::LiqRange, SqrtPriceX96},
+    matching::{uniswap::LiqRange, Ray, SqrtPriceX96},
     primitive::AngstromSigner
 };
 use pade::PadeEncode;
@@ -354,7 +354,24 @@ async fn use_raw_bundle() {
     let uniswap = UniswapEnv::new(anvil).await.unwrap();
     let env = AngstromEnv::new(uniswap, vec![controller]).await.unwrap();
     let ang_instance = AngstromInstance::new(env.angstrom(), env.provider());
-    let encoded = alloy_primitives::Bytes::from(raw_bundle().pade_encode());
+    // Make our addresses and sort them to be low address first
+    let a0 = Address::random();
+    let a1 = Address::random();
+    let (t0, t1) = match a0.cmp(&a1) {
+        std::cmp::Ordering::Greater => (a1, a0),
+        _ => (a0, a1)
+    };
+    let raw_c0 = MintableMockERC20::deploy(env.provider()).await.unwrap();
+
+    let raw_c1 = MintableMockERC20::deploy(env.provider()).await.unwrap();
+    let (currency0, currency1) = match raw_c0.address().cmp(raw_c1.address()) {
+        std::cmp::Ordering::Greater => (*raw_c1.address(), *raw_c0.address()),
+        _ => (*raw_c0.address(), *raw_c1.address())
+    };
+
+    let pool_gate = PoolGateInstance::new(env.pool_gate(), env.provider());
+
+    let encoded = alloy_primitives::Bytes::from(raw_bundle(currency0, currency1).pade_encode());
     ang_instance.execute(encoded).run_safe().await.unwrap();
     ()
 }
@@ -418,6 +435,12 @@ async fn similar_to_prev() {
         .unwrap();
     let salt: FixedBytes<32> = FixedBytes::default();
     pool_gate
+        .tickSpacing(I24::unchecked_from(10))
+        .from(controller)
+        .run_safe()
+        .await
+        .unwrap();
+    pool_gate
         .addLiquidity(
             pool.currency0,
             pool.currency1,
@@ -434,6 +457,7 @@ async fn similar_to_prev() {
     // Get our ToB address and money it up
     // let tob_address = Address::random();
     // println!("TOB address: {:?}", tob_address);
+    println!("--- Building Pools");
     raw_c0
         .mint(env.angstrom(), U256::from(1_000_000_000_000_000_000_u128))
         .run_safe()
@@ -453,6 +477,7 @@ async fn similar_to_prev() {
     let pool = Pool::new(pool, amm.clone(), controller);
     let pools = vec![pool.clone()];
     let current_block = env.provider().get_block_number().await.unwrap();
+    println!("--- Building Proposal");
     let proposal = ProposalBuilder::new()
         .for_pools(pools)
         .order_count(10)
@@ -460,14 +485,25 @@ async fn similar_to_prev() {
         .with_secret_key(controller_signing_key)
         .for_block(current_block + 2)
         .build();
-    println!("Proposal solutions:\n{:?}", proposal.solutions);
+    // println!("Proposal solutions:\n{:?}", proposal.solutions);
     let pools = HashMap::from([(pool.id(), (pool.token0(), pool.token1(), amm, 0))]);
-    let bundle =
-        AngstromBundle::from_proposal(&proposal, BundleGasDetails::default(), &pools).unwrap();
+    let bundle = AngstromBundle::from_proposal(
+        &proposal,
+        BundleGasDetails::new(
+            HashMap::from([(
+                (pool.token0(), pool.token1()),
+                Ray::from(SqrtPriceX96::at_tick(-100000).unwrap())
+            )]),
+            16415544926496907170
+        ),
+        &pools
+    )
+    .unwrap();
     println!("Bundle: {:?}", bundle);
     let encoded = bundle.pade_encode();
 
     angstrom.toggleNodes(nodes).run_safe().await.unwrap();
+    println!("--- Nodes toggled");
     angstrom
         .execute(Bytes::from(encoded))
         .from(controller)
