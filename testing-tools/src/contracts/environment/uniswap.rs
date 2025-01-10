@@ -10,7 +10,13 @@ use angstrom_types::contract_bindings::{
 use tracing::debug;
 
 use super::TestAnvilEnvironment;
-use crate::{contracts::DebugTransaction, providers::WalletProvider};
+use crate::{
+    contracts::{
+        environment::{POOL_GATE_ADDRESS, POOL_MANAGER_ADDRESS},
+        DebugTransaction
+    },
+    providers::WalletProvider
+};
 
 pub trait TestUniswapEnv: TestAnvilEnvironment {
     fn pool_manager(&self) -> Address;
@@ -39,18 +45,27 @@ where
 {
     pub async fn new(inner: E) -> eyre::Result<Self> {
         debug!("Deploying pool manager...");
-        let pool_manager = *inner
+        let pool_manager_addr = *inner
             .execute_then_mine(PoolManager::deploy(inner.provider(), inner.controller()))
             .await?
             .address();
-        debug!("Pool manager deployed at: {}", pool_manager);
+
+        inner
+            .override_address(pool_manager_addr, POOL_MANAGER_ADDRESS)
+            .await?;
+
+        debug!("Pool manager deployed at: {}", POOL_MANAGER_ADDRESS);
         debug!("Deploying pool gate...");
         let pool_gate_instance = inner
-            .execute_then_mine(PoolGate::deploy(inner.provider(), pool_manager))
+            .execute_then_mine(PoolGate::deploy(inner.provider(), POOL_MANAGER_ADDRESS))
             .await?;
-        let pool_gate = *pool_gate_instance.address();
-        debug!("Pool gate deployed at: {}", pool_gate);
-        Ok(Self { inner, pool_manager, pool_gate })
+        let pool_gate_addr = *pool_gate_instance.address();
+
+        inner
+            .override_address(pool_gate_addr, POOL_GATE_ADDRESS)
+            .await?;
+        debug!("Pool gate deployed at: {}", POOL_GATE_ADDRESS);
+        Ok(Self { inner, pool_manager: POOL_MANAGER_ADDRESS, pool_gate: POOL_GATE_ADDRESS })
     }
 
     pub fn pool_gate(&self) -> PoolGateInstance<BoxTransport, &E::P> {

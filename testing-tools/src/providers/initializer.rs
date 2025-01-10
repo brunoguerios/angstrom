@@ -14,7 +14,8 @@ use angstrom_types::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
         mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance
+        pool_gate::PoolGate::PoolGateInstance,
+        pool_manager::PoolManager::PoolManagerInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
@@ -45,6 +46,7 @@ pub struct AnvilInitializer {
     controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
     angstrom:      AngstromInstance<BoxTransport, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<BoxTransport, WalletProviderRpc>,
+    pool_manager:  PoolManagerInstance<BoxTransport, WalletProviderRpc>,
     pending_state: PendingDeployedPools
 }
 
@@ -57,7 +59,11 @@ impl AnvilInitializer {
 
         tracing::debug!("deploying UniV4 enviroment");
         let uniswap_env = UniswapEnv::new(provider.clone()).await?;
+
         tracing::info!("deployed UniV4 enviroment");
+
+        let pool_manager =
+            PoolManagerInstance::new(uniswap_env.pool_manager(), provider.provider().clone());
 
         tracing::debug!("deploying Angstrom enviroment");
         let angstrom_env = AngstromEnv::new(uniswap_env, nodes).await?;
@@ -74,8 +80,15 @@ impl AnvilInitializer {
 
         let pending_state = PendingDeployedPools::new();
 
-        let this =
-            Self { provider, controller_v1, angstrom_env, angstrom, pool_gate, pending_state };
+        let this = Self {
+            provider,
+            controller_v1,
+            angstrom_env,
+            angstrom,
+            pending_state,
+            pool_manager,
+            pool_gate
+        };
 
         Ok((this, anvil))
     }
@@ -130,8 +143,7 @@ impl AnvilInitializer {
             .provider
             .rpc_provider()
             .get_code_at(second_token)
-            .await
-            .unwrap();
+            .await?;
         self.provider
             .rpc_provider()
             .anvil_set_code(WETH_ADDRESS, code)

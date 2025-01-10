@@ -4,7 +4,7 @@ use alloy::{
     network::EthereumWallet,
     node_bindings::AnvilInstance,
     primitives::{Address, U256},
-    providers::{ext::AnvilApi, ProviderBuilder},
+    providers::{ext::AnvilApi, Provider, ProviderBuilder},
     signers::local::PrivateKeySigner
 };
 use futures::Future;
@@ -17,13 +17,25 @@ pub mod angstrom;
 pub mod mockreward;
 pub mod uniswap;
 
+pub const CONTROLLER_V1_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("9414F5757626C7ACa0AFe917F52E6c12527EC0ad");
+
+pub const ANGSTROM_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("9a59a6d48aae9B192ac58871e112D9e441f86A80");
+
+pub const POOL_GATE_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("63757b2554C200A9b45892965D257D4a44427231");
+
+pub const POOL_MANAGER_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("8C9dEB82c3a581d1e7c8b2c99bD04E22BDc37812");
+
+#[allow(async_fn_in_trait)]
 pub trait TestAnvilEnvironment: Clone {
     type P: alloy::providers::Provider;
 
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;
 
-    #[allow(async_fn_in_trait)]
     async fn execute_then_mine<O>(&self, f: impl Future<Output = O> + Send) -> O {
         let mut fut = Box::pin(f);
         // poll for 500 ms. if  not resolves then we mine and join
@@ -38,6 +50,15 @@ pub trait TestAnvilEnvironment: Clone {
         let mine_one_fut = self.provider().anvil_mine(Some(U256::from(1)), None);
         let (res, _) = futures::join!(fut, mine_one_fut);
         res
+    }
+
+    async fn override_address(&self, from_addr: Address, to_addr: Address) -> eyre::Result<()> {
+        let provider = self.provider();
+
+        let code = provider.get_code_at(from_addr).await?;
+        provider.anvil_set_code(to_addr, code).await?;
+
+        Ok(())
     }
 }
 
