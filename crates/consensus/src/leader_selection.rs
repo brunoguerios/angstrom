@@ -213,27 +213,12 @@ impl WeightedRoundRobin {
                 .collect();
         }
 
-        // Preserve relative ratios while keeping values in reasonable bounds
-        // if diff != 0 {
-        //     let scale =
-        //         if diff > threshold { (diff * ONE_E3 as i64) / threshold } else {
-        // ONE_E3 as i64 };
-        //
-        //     self.validators = self
-        //         .validators
-        //         .drain()
-        //         .map(|mut validator| {
-        //             validator.priority = if scale != ONE_E3 as i64 {
-        //                 (validator.priority * threshold) / diff
-        //             } else {
-        //                 validator.priority
-        //             };
-        //             validator
-        //         })
-        //         .collect();
-        // }
-
-        self.validators.iter().map(|v| v.priority).sum::<i64>() / self.validators.len() as i64
+        (self
+            .validators
+            .iter()
+            .map(|v| v.priority as i128)
+            .sum::<i128>()
+            / self.validators.len() as i128) as i64
     }
 
     // pub fn choose_proposer(&mut self, block_number: BlockNumber) ->
@@ -851,6 +836,33 @@ mod tests {
             let cur = algo.validators.get(&v).unwrap();
             assert_eq!(&v, cur);
         }
+    }
+
+    #[test]
+    fn test_proposer_selection_inverse() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Save initial state
+        let initial_state: HashSet<AngstromValidator> = algo.validators.clone();
+
+        // Apply proposer selection
+        let proposer = algo.proposer_selection().unwrap();
+
+        // Apply reverse selection
+        let reverse_proposer = algo.reverse_proposer_selection().unwrap();
+
+        // Check that we got back the same proposer
+        assert_eq!(
+            proposer, reverse_proposer,
+            "Forward and reverse selections should return same proposer"
+        );
+
+        // Check that final state matches initial state
+        assert_eq!(
+            algo.validators, initial_state,
+            "State should be restored after inverse operations"
+        );
     }
 
     #[test]
