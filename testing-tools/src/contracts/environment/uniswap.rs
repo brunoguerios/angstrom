@@ -11,10 +11,7 @@ use angstrom_types::contract_bindings::{
 use tracing::debug;
 
 use super::TestAnvilEnvironment;
-use crate::{
-    contracts::{environment::POOL_MANAGER_ADDRESS, DebugTransaction},
-    providers::WalletProvider
-};
+use crate::{contracts::DebugTransaction, providers::WalletProvider};
 
 pub trait TestUniswapEnv: TestAnvilEnvironment {
     fn pool_manager(&self) -> Address;
