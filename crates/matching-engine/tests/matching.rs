@@ -185,10 +185,12 @@ fn amm_provides_last_mile_liquidity() {
 
 #[test]
 fn debt_is_created() {
-    let book = make_books(
-        vec![TestOrder { q: 100, p: raw_price(1000) }],
-        vec![TestOrder { q: 100, p: raw_price(10) }],
-        None
+    let book = OrderBook::new(
+        FixedBytes::random(),
+        None,
+        vec![TestOrder::exact_bid(1000000000000000000000000000_u128, raw_price(500))],
+        vec![TestOrder::exact_inverse_ask(100, raw_price(100))],
+        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let _ = matcher.run_match();
@@ -218,15 +220,18 @@ fn debt_price_is_final_price() {
 
 #[test]
 fn annihilating_debt() {
-    let bids = vec![(TestOrder { q: 1000, p: raw_price(50) }).to_inverse_order(true)];
-    let asks = vec![(TestOrder { q: 1000, p: raw_price(10) }).to_inverse_order(false)];
-    println!("{:?}", asks);
-    println!("{:?}", bids);
+    let response_offer = 1_000_000_000_000_000_000_000_000_000_u128 + 99_u128;
     let book = OrderBook::new(
         FixedBytes::random(),
         None,
-        bids,
-        asks,
+        vec![
+            TestOrder::exact_bid(1000000000000000000000000000_u128, raw_price(500)),
+            TestOrder::exact_inverse_bid(100000000000000000000000000, raw_price(1000)),
+        ],
+        vec![
+            TestOrder::exact_inverse_ask(100, raw_price(100)),
+            TestOrder::exact_ask(response_offer, raw_price(100)),
+        ],
         Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
     );
     let mut matcher = VolumeFillMatcher::new(&book);

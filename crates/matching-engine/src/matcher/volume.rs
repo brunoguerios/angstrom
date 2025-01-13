@@ -380,8 +380,10 @@ impl<'a> VolumeFillMatcher<'a> {
             matched
         } else {
             match (bid.inverse_order(), ask.inverse_order()) {
-                (true, false) => 0,
-                (false, true) => 0,
+                // For an inverse bid the listed quantity is the T1
+                (true, false) => bid.raw_book_quantity(),
+                // For an inverse ask the listed quantity is the
+                (false, true) => ask.raw_book_quantity(),
                 _ => 0
             }
         };
@@ -427,6 +429,8 @@ impl<'a> VolumeFillMatcher<'a> {
                 self.debt += net_debt;
             }
         }
+
+        println!("Debt currently: {:?}", self.debt);
 
         // Then we deal with fixing up our book orders
         match bid_q.cmp(&ask_q) {
