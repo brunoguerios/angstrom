@@ -42,24 +42,24 @@ where
     E: TestAnvilEnvironment
 {
     pub async fn new(inner: E) -> eyre::Result<Self> {
-        Self::deploy_pool_manager(&inner).await?;
+        let pool_manager = Self::deploy_pool_manager(&inner).await?;
         let pool_gate = Self::deploy_pool_gate(&inner).await?;
 
-        Ok(Self { inner, pool_manager: POOL_MANAGER_ADDRESS, pool_gate })
+        Ok(Self { inner, pool_manager, pool_gate })
     }
 
-    async fn deploy_pool_manager(inner: &E) -> eyre::Result<()> {
+    async fn deploy_pool_manager(inner: &E) -> eyre::Result<Address> {
         debug!("Deploying pool manager...");
         let pool_manager_addr = *inner
             .execute_then_mine(PoolManager::deploy(inner.provider(), inner.controller()))
             .await?
             .address();
 
-        inner
-            .override_address(pool_manager_addr, POOL_MANAGER_ADDRESS)
-            .await?;
-        debug!("Pool manager deployed at: {}", POOL_MANAGER_ADDRESS);
-        Ok(())
+        // inner
+        //     .override_address(pool_manager_addr, POOL_MANAGER_ADDRESS)
+        //     .await?;
+        debug!("Pool manager deployed at: {}", pool_manager_addr);
+        Ok(pool_manager_addr)
     }
 
     async fn deploy_pool_gate(inner: &E) -> eyre::Result<Address> {

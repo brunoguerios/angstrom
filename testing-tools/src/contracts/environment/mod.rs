@@ -28,8 +28,8 @@ pub const ANGSTROM_ADDRESS_SALT: u64 = 11412;
 // pub const POOL_GATE_ADDRESS: alloy_primitives::Address =
 //     alloy_primitives::address!("cD7AB7cFd92481C6AfF1E79F90A3Ac6056bd7A6e");
 
-pub const POOL_MANAGER_ADDRESS: alloy_primitives::Address =
-    alloy_primitives::address!("691841C2B3b60c309ad7D97813bE591412b87167");
+// pub const POOL_MANAGER_ADDRESS: alloy_primitives::Address =
+//     alloy_primitives::address!("691841C2B3b60c309ad7D97813bE591412b87167");
 
 #[allow(async_fn_in_trait)]
 pub trait TestAnvilEnvironment: Clone {
