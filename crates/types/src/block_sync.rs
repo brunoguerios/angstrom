@@ -91,14 +91,6 @@ impl GlobalBlockSync {
 }
 impl BlockSyncProducer for GlobalBlockSync {
     fn new_block(&self, block_number: u64) {
-        // add to pending state. this will trigger everyone to stop and start dealing
-        // with new blocks
-        let cur_block = self.block_number.load(Ordering::SeqCst);
-        if cur_block + 1 >= block_number {
-            tracing::warn!(%cur_block, %block_number, "got invalid new block");
-            return
-        }
-
         let modules = self.registered_modules.len();
         tracing::info!(%block_number, mod_cnt=modules,"new block proposal");
 
