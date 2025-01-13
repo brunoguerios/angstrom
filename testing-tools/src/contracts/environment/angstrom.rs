@@ -1,4 +1,4 @@
-use alloy::primitives::Address;
+use alloy::{primitives::Address, providers::Provider};
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
@@ -78,6 +78,12 @@ where
         inner
             .override_address(controller_v1_addr, CONTROLLER_V1_ADDRESS)
             .await?;
+
+        let controller_v1_acct = inner.provider().get_account(controller_v1_addr).await?;
+
+        //.get_account(CONTROLLER_V1_ADDRESS).await?;
+
+        println!("{:?}", 0);
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");

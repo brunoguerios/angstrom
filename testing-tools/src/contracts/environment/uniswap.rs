@@ -1,5 +1,6 @@
 use alloy::{
     primitives::{aliases::I24, Address, FixedBytes, U256},
+    providers::Provider,
     transports::BoxTransport
 };
 use alloy_primitives::TxHash;
@@ -11,10 +12,7 @@ use tracing::debug;
 
 use super::TestAnvilEnvironment;
 use crate::{
-    contracts::{
-        environment::{POOL_GATE_ADDRESS, POOL_MANAGER_ADDRESS},
-        DebugTransaction
-    },
+    contracts::{environment::POOL_MANAGER_ADDRESS, DebugTransaction},
     providers::WalletProvider
 };
 
@@ -45,9 +43,9 @@ where
 {
     pub async fn new(inner: E) -> eyre::Result<Self> {
         Self::deploy_pool_manager(&inner).await?;
-        Self::deploy_pool_gate(&inner).await?;
+        let pool_gate = Self::deploy_pool_gate(&inner).await?;
 
-        Ok(Self { inner, pool_manager: POOL_MANAGER_ADDRESS, pool_gate: POOL_GATE_ADDRESS })
+        Ok(Self { inner, pool_manager: POOL_MANAGER_ADDRESS, pool_gate })
     }
 
     async fn deploy_pool_manager(inner: &E) -> eyre::Result<()> {
@@ -64,18 +62,18 @@ where
         Ok(())
     }
 
-    async fn deploy_pool_gate(inner: &E) -> eyre::Result<()> {
+    async fn deploy_pool_gate(inner: &E) -> eyre::Result<Address> {
         debug!("Deploying pool gate...");
         let pool_gate_instance = inner
             .execute_then_mine(PoolGate::deploy(inner.provider(), POOL_MANAGER_ADDRESS))
             .await?;
         let pool_gate_addr = *pool_gate_instance.address();
 
-        inner
-            .override_address(pool_gate_addr, POOL_GATE_ADDRESS)
-            .await?;
-        debug!("Pool gate deployed at: {}", POOL_GATE_ADDRESS);
-        Ok(())
+        // inner
+        //     .override_address(pool_gate_addr, POOL_GATE_ADDRESS)
+        //     .await?;
+        debug!("Pool gate deployed at: {}", pool_gate_addr);
+        Ok(pool_gate_addr)
     }
 
     pub fn pool_gate(&self) -> PoolGateInstance<BoxTransport, &E::P> {
