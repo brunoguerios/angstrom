@@ -55,7 +55,7 @@ where
             .from(inner.controller())
             .run_safe()
             .await?;
-        Ok(())
+        Ok(angstrom_addr)
     }
 
     async fn deploy_controller_v1(inner: &E, angstrom: Address) -> eyre::Result<Address> {
