@@ -7,9 +7,7 @@ use angstrom_types::contract_bindings::{
 use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
-use crate::contracts::{
-    deploy::angstrom::deploy_angstrom, environment::ANGSTROM_ADDRESS, DebugTransaction
-};
+use crate::contracts::{deploy::angstrom::deploy_angstrom, DebugTransaction};
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
     fn angstrom(&self) -> Address;
@@ -28,15 +26,15 @@ where
     E: TestUniswapEnv
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
-        Self::deploy_angstrom(&inner, nodes).await?;
+        let angstrom = Self::deploy_angstrom(&inner, nodes).await?;
         let controller_v1 = Self::deploy_controller_v1(&inner).await?;
 
         info!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1 })
+        Ok(Self { inner, angstrom, controller_v1 })
     }
 
-    async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<()> {
+    async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
         let provider = inner.provider();
         debug!("Deploying Angstrom...");
         let angstrom_addr = inner
@@ -60,14 +58,10 @@ where
         Ok(())
     }
 
-    async fn deploy_controller_v1(inner: &E) -> eyre::Result<Address> {
+    async fn deploy_controller_v1(inner: &E, angstrom: Address) -> eyre::Result<Address> {
         debug!("Deploying ControllerV1...");
         let controller_v1_addr = *inner
-            .execute_then_mine(ControllerV1::deploy(
-                inner.provider(),
-                ANGSTROM_ADDRESS,
-                inner.controller()
-            ))
+            .execute_then_mine(ControllerV1::deploy(inner.provider(), angstrom, inner.controller()))
             .await?
             .address();
 
@@ -88,7 +82,7 @@ where
         inner
             .execute_then_mine(
                 pool_gate_instance
-                    .setHook(ANGSTROM_ADDRESS)
+                    .setHook(angstrom)
                     .from(inner.controller())
                     .run_safe()
             )

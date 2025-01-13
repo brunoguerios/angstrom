@@ -1,6 +1,6 @@
 use alloy::primitives::{address, keccak256, Address, Bytes, B256, U160, U256};
 
-use super::environment::{ANGSTROM_ADDRESS, ANGSTROM_ADDRESS_SALT};
+// use super::environment::{ANGSTROM_ADDRESS, ANGSTROM_ADDRESS_SALT};
 
 pub mod angstrom;
 pub mod mockreward;
@@ -37,7 +37,7 @@ pub fn mine_address_with_factory(
             panic!("We tried this too many times!")
         }
     }
-    // let final_address = factory.create2(B256::from(salt), init_code_hash);
-    // (final_address, salt)
-    (ANGSTROM_ADDRESS, U256::from(ANGSTROM_ADDRESS_SALT))
+    let final_address = factory.create2(B256::from(salt), init_code_hash);
+    (final_address, salt)
+    // (ANGSTROM_ADDRESS, U256::from(ANGSTROM_ADDRESS_SALT))
 }
