@@ -241,6 +241,7 @@ impl AnvilInitializer {
             .await?;
         self.pending_state.add_pending_tx(configure_pool);
 
+        tracing::debug!("adding to pool map");
         let controller_configure_pool = self
             .controller_v1
             .addPoolToMap(pool_key.currency0, pool_key.currency1)

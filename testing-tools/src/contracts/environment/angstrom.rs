@@ -8,9 +8,7 @@ use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
 use crate::contracts::{
-    deploy::angstrom::deploy_angstrom,
-    environment::{ANGSTROM_ADDRESS, CONTROLLER_V1_ADDRESS},
-    DebugTransaction
+    deploy::angstrom::deploy_angstrom, environment::ANGSTROM_ADDRESS, DebugTransaction
 };
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
@@ -31,11 +29,11 @@ where
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
         Self::deploy_angstrom(&inner, nodes).await?;
-        Self::deploy_controller_v1(&inner).await?;
+        let controller_v1 = Self::deploy_controller_v1(&inner).await?;
 
         info!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1: CONTROLLER_V1_ADDRESS })
+        Ok(Self { inner, angstrom: ANGSTROM_ADDRESS, controller_v1 })
     }
 
     async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<()> {
@@ -62,7 +60,7 @@ where
         Ok(())
     }
 
-    async fn deploy_controller_v1(inner: &E) -> eyre::Result<()> {
+    async fn deploy_controller_v1(inner: &E) -> eyre::Result<Address> {
         debug!("Deploying ControllerV1...");
         let controller_v1_addr = *inner
             .execute_then_mine(ControllerV1::deploy(
@@ -73,17 +71,16 @@ where
             .await?
             .address();
 
-        debug!("ControllerV1 deployed at: {}", CONTROLLER_V1_ADDRESS);
+        debug!("ControllerV1 deployed at: {}", controller_v1_addr);
 
-        inner
-            .override_address(controller_v1_addr, CONTROLLER_V1_ADDRESS)
-            .await?;
+        // inner
+        //     .override_address(controller_v1_addr, CONTROLLER_V1_ADDRESS)
+        //     .await?;
 
-        let controller_v1_acct = inner.provider().get_account(controller_v1_addr).await?;
+        // let controller_v1_acct =
+        // inner.provider().get_account(controller_v1_addr).await?;
 
         //.get_account(CONTROLLER_V1_ADDRESS).await?;
-
-        println!("{:?}", 0);
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
@@ -97,7 +94,7 @@ where
             )
             .await?;
 
-        Ok(())
+        Ok(controller_v1_addr)
     }
 
     pub fn angstrom(&self) -> Address {
