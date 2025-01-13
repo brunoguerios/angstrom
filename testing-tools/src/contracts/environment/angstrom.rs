@@ -27,7 +27,7 @@ where
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
         let angstrom = Self::deploy_angstrom(&inner, nodes).await?;
-        let controller_v1 = Self::deploy_controller_v1(&inner).await?;
+        let controller_v1 = Self::deploy_controller_v1(&inner, angstrom).await?;
 
         info!("Environment deploy complete!");
 
