@@ -1,6 +1,5 @@
 use std::{pin::Pin, sync::Arc};
 
-use alloy::pubsub::PubSubFrontend;
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
@@ -64,7 +63,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         block_sync: GlobalBlockSync
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, PubSubFrontend, MatcherHandle, GlobalBlockSync>,
+        ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>,
         TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where
@@ -145,13 +144,11 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         .await;
 
         let uniswap_pools = uniswap_pool_manager.pools();
-        tokio::spawn(
-            async move { uniswap_pool_manager.watch_state_changes().await }.instrument(span!(
-                tracing::Level::ERROR,
-                "pool manager",
-                node_config.node_id
-            ))
-        );
+        tokio::spawn(uniswap_pool_manager.instrument(span!(
+            tracing::Level::ERROR,
+            "pool manager",
+            node_config.node_id
+        )));
 
         let token_conversion = TokenPriceGenerator::new(
             Arc::new(state_provider.rpc_provider()),

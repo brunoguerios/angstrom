@@ -1,4 +1,10 @@
-use std::{cmp::Ordering, collections::HashMap, fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{hash_map::Entry, HashMap},
+    fmt::Debug,
+    marker::PhantomData,
+    sync::Arc
+};
 
 use alloy::{
     hex,
@@ -15,7 +21,7 @@ use uniswap_v3_math::{
     tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK}
 };
 
-use super::pool_data_loader::PoolData;
+use super::{pool_data_loader::PoolData, pool_manager::TickRangeToLoad};
 use crate::uniswap::{
     i32_to_i24,
     pool_data_loader::{DataLoader, ModifyPositionEvent, PoolDataLoader, TickData},
@@ -91,6 +97,14 @@ where
             .await
     }
 
+    pub fn fetch_lowest_tick(&self) -> i32 {
+        *self.ticks.keys().min().unwrap()
+    }
+
+    pub fn fetch_highest_tick(&self) -> i32 {
+        *self.ticks.keys().max().unwrap()
+    }
+
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, PoolSnapshot), PoolError> {
         if !self.data_is_populated() {
             return Err(PoolError::PoolNotInitialized)
@@ -154,6 +168,43 @@ where
             .await?;
 
         Ok((tick_data, block_number))
+    }
+
+    pub fn apply_ticks(&mut self, mut fetched_ticks: Vec<TickData>) {
+        fetched_ticks.sort_by_key(|k| k.tick);
+
+        fetched_ticks
+            .into_iter()
+            .filter(|tick| tick.initialized)
+            .for_each(|tick| {
+                self.ticks.insert(
+                    tick.tick.as_i32(),
+                    TickInfo {
+                        initialized:     tick.initialized,
+                        liquidity_gross: tick.liquidityGross,
+                        liquidity_net:   tick.liquidityNet
+                    }
+                );
+                self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
+            });
+    }
+
+    pub async fn load_more_ticks<P: Provider<T>, T: Transport + Clone>(
+        &self,
+        tick_data: TickRangeToLoad<A>,
+        block_number: Option<BlockNumber>,
+        provider: Arc<P>
+    ) -> Result<Vec<TickData>, PoolError> {
+        Ok(self
+            .get_tick_data_batch_request(
+                i32_to_i24(tick_data.start_tick)?,
+                tick_data.zfo,
+                tick_data.tick_count,
+                block_number,
+                provider
+            )
+            .await?
+            .0)
     }
 
     async fn sync_ticks<P: Provider<T>, T: Transport + Clone>(
@@ -588,7 +639,12 @@ where
     }
 
     pub fn update_tick(&mut self, tick: i32, liquidity_delta: i128, upper: bool) -> bool {
-        let info = self.ticks.entry(tick).or_default();
+        let Entry::Occupied(mut e) = self.ticks.entry(tick) else {
+            // we return false here because if the tick hasn't been loaded by the loader.
+            // Initializing from this log will lead to incorrect data.
+            return false;
+        };
+        let info = e.get_mut();
 
         let liquidity_gross_before = info.liquidity_gross;
 

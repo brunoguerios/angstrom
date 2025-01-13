@@ -73,6 +73,7 @@ impl ToBOutcome {
             .collect::<Vec<_>>();
         let start_tick = I24::try_from(donations.first().map(|(a, _)| *a + 1).unwrap_or_default())
             .unwrap_or_default();
+
         match quantities.len() {
             0 | 1 => RewardsUpdate::CurrentOnly {
                 amount: quantities.first().copied().unwrap_or_default()

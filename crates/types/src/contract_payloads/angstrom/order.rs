@@ -39,6 +39,16 @@ pub struct StandingValidation {
     deadline: u64
 }
 
+impl StandingValidation {
+    pub fn nonce(&self) -> u64 {
+        self.nonce
+    }
+
+    pub fn deadline(&self) -> u64 {
+        self.deadline
+    }
+}
+
 #[derive(Debug, PadeEncode, PadeDecode)]
 pub struct UserOrder {
     pub ref_id:               u32,

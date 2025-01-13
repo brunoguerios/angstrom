@@ -1,7 +1,7 @@
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
-    providers::{ext::AnvilApi, IpcConnect},
+    providers::ext::AnvilApi,
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, U256};
@@ -21,7 +21,8 @@ pub struct TestingNodeConfig<C> {
     pub global_config: C,
     pub pub_key:       PublicKey,
     pub secret_key:    SecretKey,
-    pub voting_power:  u64
+    pub voting_power:  u64,
+    base_port_rand:    u8
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
@@ -32,7 +33,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             global_config,
             pub_key: secret_key.public_key(&Secp256k1::default()),
             voting_power,
-            secret_key
+            secret_key,
+            base_port_rand: rand::random()
         }
     }
 
@@ -41,7 +43,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     pub fn strom_rpc_port(&self) -> u64 {
-        4200 + self.node_id
+        self.base_port_rand as u64 + self.node_id
     }
 
     pub fn signing_key(&self) -> PrivateKeySigner {
@@ -131,7 +133,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_ipc(IpcConnect::new(endpoint))
+            .on_builtin(&endpoint)
             .await?;
 
         tracing::info!("connected to anvil");
@@ -155,7 +157,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_ipc(IpcConnect::new(endpoint))
+            .on_builtin(&endpoint)
             .await?;
 
         tracing::info!("connected to anvil");

@@ -23,7 +23,7 @@ sol! {
         uint128 settle;
     }
 
-    #[derive(Debug,Default, PadeEncode, PadeDecode)]
+    #[derive(Debug, Default, PadeEncode, PadeDecode)]
     struct Pair {
         uint16 index0;
         uint16 index1;
@@ -62,7 +62,7 @@ impl Default for Signature {
 
 impl From<alloy::primitives::PrimitiveSignature> for Signature {
     fn from(value: alloy::primitives::PrimitiveSignature) -> Self {
-        let v = value.v() as u8;
+        let v = 27 + value.v() as u8;
         let r: FixedBytes<32> = value.r().into();
         let s: FixedBytes<32> = value.s().into();
         Self::Ecdsa { v, r, s }

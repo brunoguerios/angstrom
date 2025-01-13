@@ -1,6 +1,9 @@
-use alloy::primitives::{
-    aliases::{I24, U24},
-    Address, U256
+use alloy::{
+    primitives::{
+        aliases::{I24, U24},
+        Address, U256
+    },
+    transports::BoxTransport
 };
 use alloy_primitives::TxHash;
 use angstrom_types::{
@@ -88,7 +91,7 @@ where
         Ok(pool_key)
     }
 
-    pub fn mock_reward(&self) -> MockRewardsManagerInstance<E::T, &E::P> {
+    pub fn mock_reward(&self) -> MockRewardsManagerInstance<BoxTransport, &E::P> {
         MockRewardsManagerInstance::new(self.mock_reward, self.provider())
     }
 
@@ -147,7 +150,6 @@ where
     E: TestUniswapEnv
 {
     type P = E::P;
-    type T = E::T;
 
     fn provider(&self) -> &Self::P {
         self.inner.provider()

@@ -95,9 +95,9 @@ where
         changed_addresses: Vec<Address>
     ) {
         tracing::info!("notify validation on changes");
-        assert!(matches!(self, Self::WaitingForStorageCleanup { .. }));
         let Self::WaitingForStorageCleanup { validator, waiting_for_new_block } = self else {
-            unreachable!()
+            tracing::error!("should not happen");
+            return
         };
         let validator_clone = validator.clone();
         tracing::info!("informing validation that we got a new block");
