@@ -98,7 +98,7 @@ impl<DB: Database> Inspector<DB> for CallDataInspector {
     ) -> Option<revm::interpreter::CallOutcome> {
         if inputs.target_address == CONSOLE_LOG_ADDR {
             let bytes = inputs.input.to_vec();
-            tracing::info!(?bytes);
+            tracing::info!("{:x}", bytes);
         }
         None
     }
