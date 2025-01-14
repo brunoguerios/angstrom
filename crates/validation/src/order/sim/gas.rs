@@ -24,6 +24,9 @@ use revm::{
 };
 
 use super::gas_inspector::{GasSimulationInspector, GasUsed};
+use crate::order::state::db_state_utils::finders::{
+    find_slot_offset_for_approval, find_slot_offset_for_balance
+};
 
 /// A address we can use to deploy contracts
 const DEFAULT_FROM: Address = address!("aa250d5630b4cf539739df2c5dacb4c659f2488d");
@@ -247,7 +250,7 @@ where
     fn execute_on_revm<F>(
         &self,
         offsets: &HashMap<usize, usize>,
-        _overrides: OverridesForTestAngstrom,
+        overrides: OverridesForTestAngstrom,
         f: F
     ) -> eyre::Result<GasUsed>
     where
@@ -257,10 +260,21 @@ where
         let mut evm_handler = EnvWithHandlerCfg::default();
 
         f(&mut evm_handler);
+        let mut db = self.db.clone();
+
+        apply_slot_overrides_for_tokens(
+            &mut db,
+            overrides.token_in,
+            overrides.token_out,
+            overrides.amount_in,
+            overrides.amount_out,
+            overrides.user_address,
+            self.angstrom_address
+        );
 
         {
             let mut evm = revm::Evm::builder()
-                .with_ref_db(self.db.clone())
+                .with_ref_db(db)
                 .with_external_context(&mut inspector)
                 .with_env_with_handler_cfg(evm_handler)
                 .append_handler_register(inspector_handle_register)
@@ -288,6 +302,41 @@ where
 
         Ok(inspector.into_gas_used())
     }
+}
+
+fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
+    db: &mut CacheDB<Arc<DB>>,
+    token_in: Address,
+    token_out: Address,
+    amount_in: U256,
+    amount_out: U256,
+    user: Address,
+    angstrom: Address
+) where
+    <DB as revm::DatabaseRef>::Error: Debug
+{
+    let balance_slot_in = find_slot_offset_for_balance(&db, token_in);
+    let balance_slot_out = find_slot_offset_for_balance(&db, token_out);
+
+    let approval_slot_in = find_slot_offset_for_approval(&db, token_in);
+
+    // first thing we will do is setup the users token_in balance.
+    let user_balance_slot = keccak256((user, balance_slot_in).abi_encode());
+    let user_approval_slot =
+        keccak256((angstrom, keccak256((user, approval_slot_in).abi_encode())).abi_encode());
+    // now that we have the above slots, we want to set slots for angstrom to have
+    // the funds to transfer out
+    let angstrom_balance_out = keccak256((angstrom, balance_slot_out).abi_encode());
+
+    // set the users balance on the token_in
+    db.insert_account_storage(token_in, user_balance_slot.into(), amount_in)
+        .unwrap();
+    // give angstrom approval
+    db.insert_account_storage(token_in, user_approval_slot.into(), amount_in)
+        .unwrap();
+    // give angstrom funds on token_out
+    db.insert_account_storage(token_out, angstrom_balance_out.into(), U256::from(2) * amount_out)
+        .unwrap();
 }
 
 struct ConfiguredRevm<DB> {
