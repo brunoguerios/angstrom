@@ -44,7 +44,7 @@ where
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
         let hash = order.order_hash();
         let user = order.from();
-        let span = tracing::trace_span!("tob", ?hash, ?user);
+        let span = error_span!("tob", ?hash, ?user);
         span.in_scope(|| {
             self.metrics.fetch_gas_for_user(true, || {
                 let gas_in_wei = self.gas_calculator.gas_of_tob_order(order, block)?;
