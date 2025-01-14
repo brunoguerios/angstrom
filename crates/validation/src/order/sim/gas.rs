@@ -90,6 +90,7 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        tracing::info!(?tob.order);
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {

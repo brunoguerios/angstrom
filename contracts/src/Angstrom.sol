@@ -215,6 +215,7 @@ contract Angstrom is
         PairArray pairs
     ) internal returns (CalldataReader) {
         UserOrderVariantMap variantMap;
+
         // Load variant map, ref id and set use internal.
         (reader, variantMap) = buffer.init(reader);
 
@@ -270,13 +271,13 @@ contract Angstrom is
         } else {
             _invalidateOrderHash(orderHash, from);
         }
+        console.log(buffer.assetIn, buffer.assetOut, buffer.recipient);
 
         // Push before hook as a potential loan.
         address to = buffer.recipient;
         assembly ("memory-safe") {
             to := or(mul(iszero(to), from), to)
         }
-        console.log(from);
 
         _settleOrderOut(to, buffer.assetOut, amountOut, buffer.useInternal);
 
