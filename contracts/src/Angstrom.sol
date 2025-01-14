@@ -299,4 +299,13 @@ contract Angstrom is
     function _erc712Hasher() internal view returns (TypedDataHasher) {
         return TypedDataHasherLib.init(_domainSeparator());
     }
+
+    function recoverAddr(
+        bytes32 msgHash,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external pure returns (address) {
+        return ecrecover(msgHash, v, r, s);
+    }
 }

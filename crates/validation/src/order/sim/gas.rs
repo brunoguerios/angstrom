@@ -2,20 +2,25 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
     primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
+    signers::Signature,
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
-    contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
+    contract_bindings::{
+        angstrom,
+        mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall}
+    },
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
+    primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
+        rpc_orders::{OmitOrderMeta, TopOfBlockOrder},
         RawPoolOrder
     }
 };
 use eyre::eyre;
-use pade::PadeEncode;
+use pade::{PadeDecode, PadeEncode};
 use reth_provider::BlockNumReader;
 use revm::{
     db::CacheDB,
@@ -85,6 +90,36 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        self.execute_on_revm(
+            &HashMap::default(),
+            OverridesForTestAngstrom {
+                flipped_order: Address::ZERO,
+                amount_in:     U256::from(tob.amount_in()),
+                amount_out:    U256::from(tob.quantity_out),
+                token_out:     tob.token_out(),
+                token_in:      tob.token_in(),
+                user_address:  tob.from()
+            },
+            |execution_env| {
+                let sig_bytes = tob.meta.signature.to_vec();
+                let decoded_signature = alloy::primitives::PrimitiveSignature::pade_decode(
+                    &mut sig_bytes.as_slice(),
+                    None
+                )
+                .unwrap();
+                let signature = Signature::from(decoded_signature);
+                let hash = tob.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+                // grab the sig
+                // let hash = tob.meta.
+                let call = angstrom::Angstrom::recoverAddrCall::new((
+                    hash,
+                    27 + signature.v() as u8,
+                    signature.r().into(),
+                    signature.s().into()
+                ));
+            }
+        );
+
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -289,6 +324,7 @@ where
             let result = evm
                 .transact()
                 .map_err(|e| eyre!("failed to transact with revm: {e:?}"))?;
+            tracing::info!(?result);
 
             if !result.result.is_success() {
                 let output = result.result.output().unwrap().to_vec();
