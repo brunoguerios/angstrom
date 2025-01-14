@@ -319,7 +319,6 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     let balance_slot_in = find_slot_offset_for_balance(&db, token_in);
     let balance_slot_out = find_slot_offset_for_balance(&db, token_out);
     let approval_slot_in = find_slot_offset_for_approval(&db, token_in);
-    tracing::info!(?balance_slot_out, ?balance_slot_in, ?approval_slot_in);
 
     // first thing we will do is setup the users token_in balance.
     let user_balance_slot = keccak256((user, balance_slot_in).abi_encode());
