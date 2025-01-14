@@ -24,7 +24,7 @@ use revm::{
     DatabaseRef
 };
 
-use super::gas_inspector::{GasSimulationInspector, GasUsed};
+use super::gas_inspector::{CallDataInspector, GasSimulationInspector, GasUsed};
 use crate::order::state::db_state_utils::finders::{
     find_slot_offset_for_approval, find_slot_offset_for_balance
 };
@@ -258,6 +258,8 @@ where
         F: FnOnce(&mut EnvWithHandlerCfg)
     {
         let mut inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
+        let mut console_log_inspector = CallDataInspector {};
+
         let mut evm_handler = EnvWithHandlerCfg::default();
 
         f(&mut evm_handler);
@@ -275,7 +277,7 @@ where
 
         {
             let mut evm = revm::Evm::builder()
-                .with_external_context(&mut inspector)
+                .with_external_context(&mut console_log_inspector)
                 .with_ref_db(db)
                 .with_env_with_handler_cfg(evm_handler)
                 .append_handler_register(inspector_handle_register)
