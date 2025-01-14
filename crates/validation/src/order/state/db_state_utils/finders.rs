@@ -24,13 +24,6 @@ where
 
     let mut db = CacheDB::new(db);
     let evm_handler = EnvWithHandlerCfg::default();
-    // let mut evm = revm::Evm::builder()
-    //     .with_ref_db(db.clone())
-    //     .with_env_with_handler_cfg(evm_handler)
-    //     .modify_env(|env| {
-    //         env.cfg.disable_balance_check = true;
-    //     })
-    //     .build();
 
     // check the first 100 offsets
     for offset in 0..100 {
@@ -74,13 +67,6 @@ where
 
     let mut db = CacheDB::new(db);
     let evm_handler = EnvWithHandlerCfg::default();
-    // let mut evm = revm::Evm::builder()
-    //     .with_ref_db(db.clone())
-    //     .with_env_with_handler_cfg(evm_handler)
-    //     .modify_env(|env| {
-    //         env.cfg.disable_balance_check = true;
-    //     })
-    //     .build();
 
     // check the first 100 offsets
     for offset in 0..100 {
