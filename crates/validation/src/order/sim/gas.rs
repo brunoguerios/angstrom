@@ -324,6 +324,9 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     let user_balance_slot = keccak256((user, balance_slot_in).abi_encode());
     let user_approval_slot =
         keccak256((angstrom, keccak256((user, approval_slot_in).abi_encode())).abi_encode());
+
+    let user_approval_slot2 =
+        keccak256((user, keccak256((angstrom, approval_slot_in).abi_encode())).abi_encode());
     // now that we have the above slots, we want to set slots for angstrom to have
     // the funds to transfer out
     let angstrom_balance_out = keccak256((angstrom, balance_slot_out).abi_encode());
@@ -333,6 +336,8 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
         .unwrap();
     // give angstrom approval
     db.insert_account_storage(token_in, user_approval_slot.into(), U256::from(2) * amount_in)
+        .unwrap();
+    db.insert_account_storage(token_in, user_approval_slot2.into(), U256::from(2) * amount_in)
         .unwrap();
     // give angstrom funds on token_out
     db.insert_account_storage(token_out, angstrom_balance_out.into(), U256::from(2) * amount_out)
