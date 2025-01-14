@@ -324,7 +324,8 @@ where
             let result = evm
                 .transact()
                 .map_err(|e| eyre!("failed to transact with revm: {e:?}"))?;
-            tracing::info!(?result);
+            let o = result.result.output();
+            tracing::info!(?o);
 
             if !result.result.is_success() {
                 let output = result.result.output().unwrap().to_vec();
