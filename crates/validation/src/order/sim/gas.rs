@@ -108,13 +108,17 @@ where
 
                 // grab the sig
                 // let hash = tob.meta.
+                tracing::info!(?address);
                 let call = angstrom::Angstrom::recoverAddrCall::new((
                     hash,
                     27 + signature.v() as u8,
                     signature.r().into(),
                     signature.s().into()
                 ));
-                tracing::info!(?address);
+                let tx = &mut execution_env.tx;
+                tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
+                tx.transact_to = TxKind::Call(self.angstrom_address);
+                tx.data = call.abi_encode().into();
             }
         );
 
