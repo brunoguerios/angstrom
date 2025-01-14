@@ -502,8 +502,8 @@ pub mod test {
     const USER_WITH_FUNDS: Address = address!("d02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
 
     const ANGSTROM_DOMAIN: alloy::sol_types::Eip712Domain = alloy::sol_types::eip712_domain! {
-        name: "angstrom",
-        version: "1",
+        name: "Angstrom",
+        version: "v1",
         chain_id: 1,
     };
 
