@@ -316,6 +316,7 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
 ) where
     <DB as revm::DatabaseRef>::Error: Debug
 {
+    tracing::info!(?user);
     let balance_slot_in = find_slot_offset_for_balance(&db, token_in);
     let balance_slot_out = find_slot_offset_for_balance(&db, token_out);
     let approval_slot_in = find_slot_offset_for_approval(&db, token_in);
