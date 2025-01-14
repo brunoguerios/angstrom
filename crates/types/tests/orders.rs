@@ -18,7 +18,7 @@ fn handles_inverse_quantities() {
     assert!(!order.is_bid(), "Order defined as an ask but registers itself as a bid");
     // For an ask order that wants 1000 out at a price of 100 t1 / 1 t0, we should
     // have a quantity of 10 t0 we can offer to the market
-    assert!(order.quantity() == 10, "Incorrect quantity reported");
+    assert!(order.quantity_t0() == 10, "Incorrect quantity reported");
 
     let order = UserOrderBuilder::new()
         .asset_in(t1)
@@ -31,7 +31,7 @@ fn handles_inverse_quantities() {
     assert!(order.is_bid(), "Order defined as a bid but registers itself as an ask");
     // For a bid order that wants to put 1000 in at a price of 1 t0 / 100 t1, we
     // should have a quantity of 10 t0 we can buy from the market
-    assert!(order.quantity() == 10, "Incorrect quantity reported");
+    assert!(order.quantity_t0() == 10, "Incorrect quantity reported");
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn rounds_inverse_quantities_properly() {
     assert!(!order.is_bid(), "Order defined as an ask but registers itself as a bid");
     // For an ask order that wants 999 out at a price of 100 t1 / 1 t0, we should
     // have a quantity of 10 t0 we can offer to the market as we should round up
-    assert!(order.quantity() == 10, "Incorrect quantity reported");
+    assert!(order.quantity_t0() == 10, "Incorrect quantity reported");
 
     let order = UserOrderBuilder::new()
         .asset_in(t0)
@@ -63,7 +63,7 @@ fn rounds_inverse_quantities_properly() {
     assert!(!order.is_bid(), "Order defined as an ask but registers itself as a bid");
     // For an ask order that wants 1001 out at a price of 100 t1 / 1 t0, we should
     // have a quantity of 11 t0 we can offer to the market as we should round up
-    assert!(order.quantity() == 11, "Incorrect quantity reported");
+    assert!(order.quantity_t0() == 11, "Incorrect quantity reported");
 
     let order = UserOrderBuilder::new()
         .asset_in(t1)
@@ -76,7 +76,7 @@ fn rounds_inverse_quantities_properly() {
     assert!(order.is_bid(), "Order defined as a bid but registers itself as an ask");
     // For a bid order that wants to put 999 in at a price of 1 t0 / 100 t1, we
     // should have a quantity of 9 t0 we can buy from the market
-    assert!(order.quantity() == 9, "Incorrect quantity reported");
+    assert!(order.quantity_t0() == 9, "Incorrect quantity reported");
 
     let order = UserOrderBuilder::new()
         .asset_in(t1)
@@ -89,5 +89,5 @@ fn rounds_inverse_quantities_properly() {
     assert!(order.is_bid(), "Order defined as a bid but registers itself as an ask");
     // For a bid order that wants to put 1001 in at a price of 1 t0 / 100 t1, we
     // should have a quantity of 10 t0 we can buy from the market
-    assert!(order.quantity() == 10, "Incorrect quantity reported");
+    assert!(order.quantity_t0() == 10, "Incorrect quantity reported");
 }

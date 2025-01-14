@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{fmt::Debug, ops::Deref};
 
 use eyre::eyre;
 use serde::{Deserialize, Serialize};
@@ -51,7 +51,7 @@ impl LiqRange {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct LiqRangeRef<'a> {
     pub(super) pool_snap: &'a PoolSnapshot,
     pub(super) range:     &'a LiqRange,
@@ -130,5 +130,14 @@ impl<'a> LiqRangeRef<'a> {
             Direction::BuyingT0 => self.pool_snap.get_range_for_tick(self.range.upper_tick),
             Direction::SellingT0 => self.pool_snap.get_range_for_tick(self.range.lower_tick - 1)
         }
+    }
+}
+
+impl<'a> Debug for LiqRangeRef<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut builder = f.debug_struct("LiqRangeRef");
+        builder.field("range", &self.range);
+        builder.field("range_idx", &self.range_idx);
+        builder.finish()
     }
 }

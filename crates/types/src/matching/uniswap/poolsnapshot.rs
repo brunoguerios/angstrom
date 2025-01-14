@@ -1,4 +1,4 @@
-use std::slice::Iter;
+use std::{fmt::Debug, slice::Iter};
 
 use eyre::{eyre, Context, OptionExt};
 use serde::{Deserialize, Serialize};

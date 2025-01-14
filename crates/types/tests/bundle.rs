@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, io::Read, str::FromStr};
 
 use alloy::{providers::Provider, signers::local::PrivateKeySigner};
 use alloy_primitives::{
@@ -388,9 +388,9 @@ async fn similar_to_prev() {
     let nodes: Vec<Address> = spawned_anvil.anvil.addresses().to_vec();
     let controller = nodes[7];
 
-    let controller_signing_key = AngstromSigner::new(
-        PrivateKeySigner::from_slice(&spawned_anvil.anvil.keys()[7].clone().to_bytes()).unwrap()
-    );
+    let pk_slice = spawned_anvil.anvil.keys()[7].to_bytes();
+    let controller_signing_key =
+        AngstromSigner::new(PrivateKeySigner::from_slice(pk_slice.as_slice()).unwrap());
 
     let uniswap = UniswapEnv::new(anvil).await.unwrap();
     let env = AngstromEnv::new(uniswap, vec![]).await.unwrap();

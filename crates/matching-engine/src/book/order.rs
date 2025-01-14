@@ -239,6 +239,14 @@ impl<'a> OrderContainer<'a> {
         }
     }
 
+    pub fn composite_quantities_to_price(&self, target_price: OrderPrice) -> (u128, u128) {
+        if let Self::Composite(c) = self {
+            c.calc_quantities(target_price.into())
+        } else {
+            (0, 0)
+        }
+    }
+
     /// Retrieve the quantity available within the bounds of a given order
     pub fn quantity(&self, opposed_order: &OrderContainer, debt: Option<&Debt>) -> OrderVolume {
         let target_price = opposed_order.price();
@@ -282,6 +290,16 @@ impl<'a> OrderContainer<'a> {
         match self {
             Self::Composite(c) => c.negative_quantity(target_price.into()),
             _ => 0
+        }
+    }
+
+    /// Gets the amount of T1 a composite order needs to self-fill in order to
+    /// move to a new target price
+    pub fn negative_quantity_t1(&self, target_price: OrderPrice) -> OrderVolume {
+        if let Self::Composite(c) = self {
+            c.negative_quantity_t1(target_price.into())
+        } else {
+            0
         }
     }
 

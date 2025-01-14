@@ -347,6 +347,22 @@ impl<'a> Add<DebtType> for &'a Debt {
     }
 }
 
+impl PartialEq<Ray> for Debt {
+    fn eq(&self, other: &Ray) -> bool {
+        self.valid_for_price(*other)
+    }
+}
+
+impl PartialOrd<Ray> for Debt {
+    fn partial_cmp(&self, other: &Ray) -> Option<std::cmp::Ordering> {
+        if self == other {
+            Some(std::cmp::Ordering::Equal)
+        } else {
+            Some(self.price().cmp(other))
+        }
+    }
+}
+
 impl<'a> PartialEq<PoolPrice<'a>> for Debt {
     fn eq(&self, other: &PoolPrice<'a>) -> bool {
         self.valid_for_price(other.as_ray())

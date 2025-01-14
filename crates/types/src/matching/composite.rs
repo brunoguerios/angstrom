@@ -42,7 +42,7 @@ impl<'a> CompositeOrder<'a> {
         self.bound_price
     }
 
-    fn calc_quantities(&self, target_price: Ray) -> (u128, u128) {
+    pub fn calc_quantities(&self, target_price: Ray) -> (u128, u128) {
         let amm_q = self
             .amm
             .as_ref()
@@ -115,6 +115,20 @@ impl<'a> CompositeOrder<'a> {
         } else {
             0
         }
+    }
+
+    pub fn negative_quantity_t1(&self, external_bound: Ray) -> u128 {
+        // cur_q - amm contribution * external_bound.inverse_quantity
+        if let Some(d) = self.debt {
+            let target_price = self.find_closest_bound(external_bound);
+            let (amm_q, _) = self.calc_quantities(target_price);
+            if let Some(Direction::BuyingT0) = self.debt_direction(target_price) {
+                let t0_f = d.current_t0().saturating_sub(amm_q);
+                let t1_f = target_price.quantity(t0_f, false);
+                return t1_f.saturating_sub(d.magnitude());
+            }
+        }
+        0
     }
 
     /// Compute the final state for the AMM and for the Debt when we partially

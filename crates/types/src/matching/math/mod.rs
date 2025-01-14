@@ -152,9 +152,9 @@ pub fn quadratic_solve(
     match (denom_plus == Integer::ZERO, denom_minus == Integer::ZERO) {
         (true, true) => panic!("Both denominators in quadratic solve were zero, this math sucks"),
         // Just one that's valid, return that
-        (true, false) => numerator.div_round(&denom_plus, RoundingMode::Nearest).0,
+        (false, true) => numerator.div_round(&denom_plus, RoundingMode::Nearest).0,
         // Just one that's valid, return that
-        (false, true) => numerator.div_round(&denom_minus, RoundingMode::Nearest).0,
+        (true, false) => numerator.div_round(&denom_minus, RoundingMode::Nearest).0,
         // Both valid, compare and return the best option
         (false, false) => {
             let answer_plus = numerator
