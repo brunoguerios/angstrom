@@ -35,7 +35,7 @@ where
     // check the first 100 offsets
     for offset in 0..100 {
         // set balance
-        let balance_slot = keccak256((probe_address, offset).abi_encode());
+        let balance_slot = keccak256((probe_address, offset as u64).abi_encode());
         db.insert_account_storage(token_address, balance_slot.into(), U256::from(123456789))
             .unwrap();
         // execute revm to see if we hit the slot
@@ -82,7 +82,7 @@ where
     for offset in 0..100 {
         // set approval
         let approval_slot = keccak256(
-            (probe_contract_address, keccak256((probe_user_address, offset).abi_encode()))
+            (probe_contract_address, keccak256((probe_user_address, offset as u64).abi_encode()))
                 .abi_encode()
         );
 
