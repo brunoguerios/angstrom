@@ -101,44 +101,6 @@ where
                 user_address:  tob.from()
             },
             |execution_env| {
-                let sig_bytes = tob.meta.signature.to_vec();
-                let decoded_signature = alloy::primitives::PrimitiveSignature::pade_decode(
-                    &mut sig_bytes.as_slice(),
-                    None
-                )
-                .unwrap();
-                let signature = Signature::from(decoded_signature);
-
-                let recoded = signature.pade_encode();
-                assert_eq!(sig_bytes, recoded);
-
-                let hash = tob.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-                // grab the sig
-                // let hash = tob.meta.
-                let call = angstrom::Angstrom::recoverAddrCall::new((
-                    hash,
-                    27 + signature.v() as u8,
-                    signature.r().into(),
-                    signature.s().into()
-                ));
-                let tx = &mut execution_env.tx;
-                tx.caller = self.node_address.unwrap_or(DEFAULT_FROM);
-                tx.transact_to = TxKind::Call(self.angstrom_address);
-                tx.data = call.abi_encode().into();
-            }
-        );
-
-        self.execute_on_revm(
-            &HashMap::default(),
-            OverridesForTestAngstrom {
-                flipped_order: Address::ZERO,
-                amount_in:     U256::from(tob.amount_in()),
-                amount_out:    U256::from(tob.quantity_out),
-                token_out:     tob.token_out(),
-                token_in:      tob.token_in(),
-                user_address:  tob.from()
-            },
-            |execution_env| {
                 let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
                     .unwrap()
                     .pade_encode();
@@ -300,7 +262,7 @@ where
     where
         F: FnOnce(&mut EnvWithHandlerCfg)
     {
-        let mut inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
+        let inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
         let mut console_log_inspector = CallDataInspector {};
 
         let mut evm_handler = EnvWithHandlerCfg::default();
