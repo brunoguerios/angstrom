@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
     primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
-    signers::Signature,
+    signers::{Signature, SignerSync},
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
@@ -12,7 +12,7 @@ use angstrom_types::{
     },
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
-    primitive::ANGSTROM_DOMAIN,
+    primitive::{AngstromSigner, ANGSTROM_DOMAIN},
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::{OmitOrderMeta, TopOfBlockOrder},
@@ -101,18 +101,11 @@ where
                 user_address:  tob.from()
             },
             |execution_env| {
-                let sig_bytes = tob.meta.signature.to_vec();
-                let decoded_signature = alloy::primitives::PrimitiveSignature::pade_decode(
-                    &mut sig_bytes.as_slice(),
-                    None
-                )
-                .unwrap();
-                let signature = Signature::from(decoded_signature);
+                let hash = keccak256(1281281.abi_encode());
+                let random_signer = AngstromSigner::random();
+                let address = random_signer.address();
+                let signature = random_signer.sign_hash_sync(&hash).unwrap();
 
-                let recoded = signature.pade_encode();
-                assert_eq!(sig_bytes, recoded);
-
-                let hash = tob.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
                 // grab the sig
                 // let hash = tob.meta.
                 let call = angstrom::Angstrom::recoverAddrCall::new((
@@ -121,6 +114,7 @@ where
                     signature.r().into(),
                     signature.s().into()
                 ));
+                tracing::info!(?address);
             }
         );
 
