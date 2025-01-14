@@ -5,6 +5,7 @@ use alloy::{
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
+    contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
     sol_bindings::{
@@ -337,6 +338,89 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     // give angstrom funds on token_out
     db.insert_account_storage(token_out, angstrom_balance_out.into(), U256::from(2) * amount_out)
         .unwrap();
+
+    // verify that everything is setup as we want
+    verify_overrides(db, token_in, token_out, amount_in, amount_out, user, angstrom);
+}
+
+fn verify_overrides<DB: revm::DatabaseRef + Clone>(
+    db: &CacheDB<Arc<DB>>,
+    token_in: Address,
+    token_out: Address,
+    amount_in: U256,
+    amount_out: U256,
+    user: Address,
+    angstrom: Address
+) where
+    <DB as revm::DatabaseRef>::Error: Debug
+{
+    let evm_handler = EnvWithHandlerCfg::default();
+
+    // user balance
+    let mut evm = revm::Evm::builder()
+        .with_ref_db(db.clone())
+        .with_env_with_handler_cfg(evm_handler.clone())
+        .modify_env(|env| {
+            env.cfg.disable_balance_check = true;
+        })
+        .modify_tx_env(|tx| {
+            tx.caller = user;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data = balanceOfCall::new((user,)).abi_encode().into();
+            tx.value = U256::from(0);
+            tx.nonce = None;
+        })
+        .build();
+
+    let output = evm.transact().unwrap().result.output().unwrap().to_vec();
+    let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
+    if return_data._0 != amount_in {
+        panic!("failed to set user balance");
+    }
+
+    // angstrom balance
+    let mut evm = revm::Evm::builder()
+        .with_ref_db(db.clone())
+        .with_env_with_handler_cfg(evm_handler.clone())
+        .modify_env(|env| {
+            env.cfg.disable_balance_check = true;
+        })
+        .modify_tx_env(|tx| {
+            tx.caller = user;
+            tx.transact_to = TxKind::Call(token_out);
+            tx.data = balanceOfCall::new((angstrom,)).abi_encode().into();
+            tx.value = U256::from(0);
+            tx.nonce = None;
+        })
+        .build();
+
+    let output = evm.transact().unwrap().result.output().unwrap().to_vec();
+    let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
+    if return_data._0 != (amount_out * U256::from(2)) {
+        panic!("failed to set angstrom balance");
+    }
+
+    // verify approval
+    let mut evm = revm::Evm::builder()
+        .with_ref_db(db.clone())
+        .with_env_with_handler_cfg(evm_handler.clone())
+        .modify_env(|env| {
+            env.cfg.disable_balance_check = true;
+        })
+        .modify_tx_env(|tx| {
+            tx.caller = user;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data = allowanceCall::new((user, angstrom)).abi_encode().into();
+            tx.value = U256::from(0);
+            tx.nonce = None;
+        })
+        .build();
+
+    let output = evm.transact().unwrap().result.output().unwrap().to_vec();
+    let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
+    if return_data._0 != amount_in {
+        panic!("angstrom doesn't have proper allowance");
+    }
 }
 
 struct ConfiguredRevm<DB> {
