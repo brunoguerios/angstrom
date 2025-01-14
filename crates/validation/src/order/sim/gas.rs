@@ -329,10 +329,10 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     let angstrom_balance_out = keccak256((angstrom, balance_slot_out).abi_encode());
 
     // set the users balance on the token_in
-    db.insert_account_storage(token_in, user_balance_slot.into(), amount_in)
+    db.insert_account_storage(token_in, user_balance_slot.into(), U256::from(2) * amount_in)
         .unwrap();
     // give angstrom approval
-    db.insert_account_storage(token_in, user_approval_slot.into(), amount_in)
+    db.insert_account_storage(token_in, user_approval_slot.into(), U256::from(2) * amount_in)
         .unwrap();
     // give angstrom funds on token_out
     db.insert_account_storage(token_out, angstrom_balance_out.into(), U256::from(2) * amount_out)
@@ -373,7 +373,7 @@ fn verify_overrides<DB: revm::DatabaseRef + Clone>(
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
-    if return_data._0 != amount_in {
+    if return_data._0 != U256::from(2) * amount_in {
         panic!("failed to set user balance");
     }
 
@@ -417,7 +417,7 @@ fn verify_overrides<DB: revm::DatabaseRef + Clone>(
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
-    if return_data._0 != amount_in {
+    if return_data._0 != U256::from(2) * amount_in {
         panic!("angstrom doesn't have proper allowance");
     }
 }
