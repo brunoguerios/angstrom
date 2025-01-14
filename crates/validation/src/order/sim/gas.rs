@@ -275,8 +275,8 @@ where
 
         {
             let mut evm = revm::Evm::builder()
-                .with_ref_db(db)
                 .with_external_context(&mut inspector)
+                .with_ref_db(db)
                 .with_env_with_handler_cfg(evm_handler)
                 .append_handler_register(inspector_handle_register)
                 .modify_env(|env| {
