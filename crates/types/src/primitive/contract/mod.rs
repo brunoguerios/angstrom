@@ -17,7 +17,7 @@ use crate::primitive::PoolId;
 // object :)
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
-    version: "v1",
+    version: "1",
     chain_id: 1,
 );
 
