@@ -7,8 +7,6 @@ use alloy::{
 };
 use serde::{Deserialize, Serialize};
 
-// use super::Ray;
-
 sol! {
 
     #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

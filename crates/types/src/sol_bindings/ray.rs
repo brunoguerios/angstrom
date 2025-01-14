@@ -17,7 +17,6 @@ use malachite::{
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
-use super::rpc_orders::SolRay;
 use crate::matching::{
     const_1e27, const_1e54, const_2_192, uniswap::PoolPrice, MatchingPrice, SqrtPriceX96
 };
@@ -34,12 +33,6 @@ fn min_tick_ray() -> &'static Ray {
 #[derive(Copy, Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ray(pub U256);
 
-impl From<SolRay> for Ray {
-    fn from(value: SolRay) -> Self {
-        Self(value.into())
-    }
-}
-
 impl Sum for Ray {
     fn sum<I: Iterator<Item = Ray>>(iter: I) -> Self {
         let mut acc = Ray::default();
@@ -53,12 +46,6 @@ impl Sum for Ray {
 impl From<Ray> for Natural {
     fn from(value: Ray) -> Self {
         Natural::from_limbs_asc(value.0.as_limbs())
-    }
-}
-
-impl From<Ray> for SolRay {
-    fn from(value: Ray) -> Self {
-        SolRay::from(value.0)
     }
 }
 
