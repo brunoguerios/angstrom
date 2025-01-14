@@ -4,6 +4,7 @@ use std::{
 };
 
 use alloy::primitives::U256;
+use alloy_primitives::serde_hex;
 use angstrom_types::{
     matching::{
         uniswap::{Direction, PoolPrice, PoolPriceVec},
@@ -12,6 +13,7 @@ use angstrom_types::{
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
+use base64::Engine;
 
 use super::Solution;
 use crate::book::{order::OrderContainer, BookOrder, OrderBook};
@@ -135,6 +137,10 @@ impl<'a> VolumeFillMatcher<'a> {
     }
 
     pub fn run_match(&mut self) -> VolumeFillMatchEndReason {
+        // Output our book data so we can do stuff with it
+        let json = serde_json::to_string(self.book).unwrap();
+        let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+        println!("--- BOOK DATA ---\n{}\n-----------------", b64_output);
         // Run our match over and over until we get an end reason
         loop {
             if let Some(r) = self.single_match() {

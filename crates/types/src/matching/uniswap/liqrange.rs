@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use eyre::eyre;
+use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_TICK, MIN_TICK};
 
 use super::{Direction, PoolPrice, PoolSnapshot, Tick};
@@ -8,7 +9,7 @@ use crate::matching::SqrtPriceX96;
 
 /// A LiqRange describes the liquidity conditions within a specific range of
 /// ticks.  A LiqRange covers ticks [lower_tick, upper_tick)
-#[derive(Default, Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
 pub struct LiqRange {
     /// Lower tick for this range
     pub(super) lower_tick: Tick,
