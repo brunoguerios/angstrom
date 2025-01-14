@@ -108,6 +108,10 @@ where
                 )
                 .unwrap();
                 let signature = Signature::from(decoded_signature);
+
+                let recoded = signature.pade_encode();
+                assert_eq!(sig_bytes, recoded);
+
                 let hash = tob.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
                 // grab the sig
                 // let hash = tob.meta.
