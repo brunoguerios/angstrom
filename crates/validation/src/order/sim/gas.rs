@@ -108,7 +108,7 @@ where
 
                 // grab the sig
                 // let hash = tob.meta.
-                tracing::info!(?address);
+                tracing::info!(?address, "should be signer");
                 let call = angstrom::Angstrom::recoverAddrCall::new((
                     hash,
                     27 + signature.v() as u8,
