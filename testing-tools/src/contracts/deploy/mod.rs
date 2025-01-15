@@ -46,7 +46,7 @@ pub fn mine_address_with_factory(
     }
     // let final_address = factory.create2(B256::from(salt), init_code_hash);
     //let salt = U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT);
-    let final_address = calc_addr(&**DEFAULT_CREATE2_FACTORY, &salt.to_le_bytes::<32>()).into();
+    let final_address = calc_addr(&**deployer, &salt.to_le_bytes::<32>()).into();
     // (address.into(), salt)
     (final_address, salt)
     // (
