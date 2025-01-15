@@ -67,9 +67,9 @@ where
             .await?
             .address();
 
-        inner
-            .override_address(&mut controller_v1_addr, CONTROLLER_V1_ADDRESS)
-            .await?;
+        // inner
+        //     .override_address(&mut controller_v1_addr, CONTROLLER_V1_ADDRESS)
+        //     .await?;
 
         debug!("ControllerV1 deployed at: {}", controller_v1_addr);
 

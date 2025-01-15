@@ -58,9 +58,9 @@ where
             .await?
             .address();
 
-        inner
-            .override_address(&mut pool_manager_addr, POOL_MANAGER_ADDRESS)
-            .await?;
+        // inner
+        //     .override_address(&mut pool_manager_addr, POOL_MANAGER_ADDRESS)
+        //     .await?;
         debug!("Pool manager deployed at: {}", pool_manager_addr);
         Ok(pool_manager_addr)
     }
@@ -72,9 +72,9 @@ where
             .await?;
         let mut pool_gate_addr = *pool_gate_instance.address();
 
-        inner
-            .override_address(&mut pool_gate_addr, POOL_GATE_ADDRESS)
-            .await?;
+        // inner
+        //     .override_address(&mut pool_gate_addr, POOL_GATE_ADDRESS)
+        //     .await?;
         debug!("Pool gate deployed at: {}", pool_gate_addr);
         Ok(pool_gate_addr)
     }
