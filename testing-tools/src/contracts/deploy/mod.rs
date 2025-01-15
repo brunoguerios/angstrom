@@ -1,5 +1,5 @@
 use alloy::primitives::{address, keccak256, Address, Bytes, B256, U160, U256};
-use create3::calc_addr_with_bytes;
+use create3::{calc_addr, calc_addr_with_bytes};
 
 // use super::environment::{ANGSTROM_ADDRESS, ANGSTROM_ADDRESS_SALT};
 
@@ -46,8 +46,7 @@ pub fn mine_address_with_factory(
     }
     // let final_address = factory.create2(B256::from(salt), init_code_hash);
     //let salt = U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT);
-    let final_address =
-        calc_addr_with_bytes(&**DEFAULT_CREATE2_FACTORY, &salt.to_le_bytes()).into();
+    let final_address = calc_addr(&**DEFAULT_CREATE2_FACTORY, &salt.to_le_bytes()).into();
     // (address.into(), salt)
     (final_address, salt)
     // (
