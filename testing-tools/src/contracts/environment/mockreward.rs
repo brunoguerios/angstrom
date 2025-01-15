@@ -47,7 +47,7 @@ where
         let provider = inner.provider();
         debug!("Deploying mock rewards manager...");
         let mock_reward =
-            deploy_mock_rewards_manager(&provider, inner.pool_manager(), inner.controller()).await;
+            deploy_mock_rewards_manager(provider, inner.pool_manager(), inner.controller()).await;
         debug!("Mock rewards manager deployed at: {}", mock_reward);
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");

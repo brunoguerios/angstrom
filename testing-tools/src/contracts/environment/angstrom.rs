@@ -41,7 +41,7 @@ where
         debug!("Deploying Angstrom...");
         let angstrom_addr = inner
             .execute_then_mine(deploy_angstrom(
-                &provider,
+                provider,
                 inner.pool_manager(),
                 inner.controller(),
                 Address::default()

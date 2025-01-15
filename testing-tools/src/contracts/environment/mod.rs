@@ -33,7 +33,7 @@ pub const POOL_MANAGER_ADDRESS: alloy_primitives::Address =
 
 #[allow(async_fn_in_trait)]
 pub trait TestAnvilEnvironment: Clone {
-    type P: alloy::providers::Provider;
+    type P: alloy::providers::Provider + alloy::providers::WalletProvider;
 
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;

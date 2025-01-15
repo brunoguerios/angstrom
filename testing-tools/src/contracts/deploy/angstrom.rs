@@ -6,7 +6,7 @@ use super::{mine_address, uniswap_flags::UniswapFlags, DEFAULT_CREATE2_FACTORY};
 
 pub async fn deploy_angstrom<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider<N>,
     N: alloy::contract::private::Network
 >(
     provider: &P,
@@ -26,7 +26,7 @@ pub async fn deploy_angstrom<
 
 pub async fn deploy_angstrom_with_factory<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider<N>,
     N: alloy::contract::private::Network
 >(
     provider: &P,
@@ -43,8 +43,12 @@ pub async fn deploy_angstrom_with_factory<
 
     let mock_builder = Angstrom::deploy_builder(&provider, pool_manager, controller);
 
-    let (mock_tob_address, salt) =
-        mine_address(flags, UniswapFlags::mask(), mock_builder.calldata());
+    let (mock_tob_address, salt) = mine_address(
+        provider.default_signer_address(),
+        flags,
+        UniswapFlags::mask(),
+        mock_builder.calldata()
+    );
     // println!("mock_builder.calldata(): {:?}", mock_builder.calldata());
     let final_mock_initcode = [salt.abi_encode(), mock_builder.calldata().to_vec()].concat();
     // println!("final_mock_initcode: {:?}",
