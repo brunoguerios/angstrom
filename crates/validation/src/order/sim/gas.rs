@@ -105,9 +105,14 @@ where
                 user_address:  tob.from()
             },
             |execution_env| {
-                let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
-                    .unwrap()
-                    .pade_encode();
+                let bundle = AngstromBundle::build_dummy_for_tob_gas(tob).unwrap();
+                let sig = bundle
+                    .top_of_block_orders
+                    .first()
+                    .map(|v| v.signature.clone());
+                tracing::info!("{:?}", sig);
+
+                let bundle = bundle.pade_encode();
                 let bundle_bytes: Bytes = bundle.into();
                 execution_env.block.number = U256::from(block + 1);
 
