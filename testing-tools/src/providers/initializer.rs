@@ -142,9 +142,8 @@ impl AnvilInitializer {
         // lets load the bytecode of the second token, then use the bytecode to override
         // the weth address
         self.provider
-            .override_address(second_token, WETH_ADDRESS)
+            .override_address(&mut second_token, WETH_ADDRESS)
             .await?;
-        second_token = WETH_ADDRESS;
 
         let (currency0, currency1) = if first_token < second_token {
             (first_token, second_token)

@@ -7,7 +7,9 @@ use angstrom_types::contract_bindings::{
 use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
-use crate::contracts::{deploy::angstrom::deploy_angstrom, DebugTransaction};
+use crate::contracts::{
+    deploy::angstrom::deploy_angstrom, environment::CONTROLLER_V1_ADDRESS, DebugTransaction
+};
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
     fn angstrom(&self) -> Address;
@@ -60,21 +62,16 @@ where
 
     async fn deploy_controller_v1(inner: &E, angstrom: Address) -> eyre::Result<Address> {
         debug!("Deploying ControllerV1...");
-        let controller_v1_addr = *inner
+        let mut controller_v1_addr = *inner
             .execute_then_mine(ControllerV1::deploy(inner.provider(), angstrom, inner.controller()))
             .await?
             .address();
 
+        inner
+            .override_address(&mut controller_v1_addr, CONTROLLER_V1_ADDRESS)
+            .await?;
+
         debug!("ControllerV1 deployed at: {}", controller_v1_addr);
-
-        // inner
-        //     .override_address(controller_v1_addr, CONTROLLER_V1_ADDRESS)
-        //     .await?;
-
-        // let controller_v1_acct =
-        // inner.provider().get_account(controller_v1_addr).await?;
-
-        //.get_account(CONTROLLER_V1_ADDRESS).await?;
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
