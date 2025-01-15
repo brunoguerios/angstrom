@@ -58,7 +58,7 @@ pub async fn deploy_angstrom_with_factory<
         .await
         .unwrap();
 
-    panic!();
+    // panic!();
 
     mock_tob_address
 }
