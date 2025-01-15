@@ -2,7 +2,7 @@ use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc};
 
 use alloy::{
     primitives::Address,
-    providers::{ext::AnvilApi, WalletProvider}
+    providers::{ext::AnvilApi, WalletProvider as _}
 };
 use alloy_primitives::U256;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
