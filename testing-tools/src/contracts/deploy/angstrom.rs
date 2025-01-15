@@ -45,9 +45,10 @@ pub async fn deploy_angstrom_with_factory<
 
     let (mock_tob_address, salt) =
         mine_address(flags, UniswapFlags::mask(), mock_builder.calldata());
-    println!("mock_builder.calldata(): {:?}", mock_builder.calldata());
+    // println!("mock_builder.calldata(): {:?}", mock_builder.calldata());
     let final_mock_initcode = [salt.abi_encode(), mock_builder.calldata().to_vec()].concat();
-    println!("final_mock_initcode: {:?}", Bytes::from(final_mock_initcode.clone()));
+    // println!("final_mock_initcode: {:?}",
+    // Bytes::from(final_mock_initcode.clone()));
     RawCallBuilder::new_raw(&provider, final_mock_initcode.into())
         .to(factory)
         .gas(50e6 as u64)
