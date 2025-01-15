@@ -15,6 +15,11 @@ use crate::{
     types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig}
 };
 
+const TESTNET_LEADER_SECRET_KEY: [u8; 32] = [
+    102, 27, 190, 55, 135, 232, 40, 136, 200, 139, 236, 174, 205, 166, 147, 166, 128, 135, 124,
+    214, 190, 241, 2, 235, 9, 139, 91, 116, 204, 130, 120, 159
+];
+
 #[derive(Debug, Clone)]
 pub struct TestingNodeConfig<C> {
     pub node_id:       u64,
@@ -30,10 +35,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let secret_key = if matches!(global_config.config_type(), TestingConfigKind::Testnet)
             && global_config.is_leader(node_id)
         {
-            // SecretKey::from_slice(&[]);
-            let sk = SecretKey::new(&mut rand::thread_rng());
-            println!("{:?}", sk.secret_bytes());
-            sk
+            SecretKey::from_slice(&TESTNET_LEADER_SECRET_KEY);
         } else {
             SecretKey::new(&mut rand::thread_rng())
         };
