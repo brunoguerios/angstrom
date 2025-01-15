@@ -35,7 +35,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let secret_key = if matches!(global_config.config_type(), TestingConfigKind::Testnet)
             && global_config.is_leader(node_id)
         {
-            SecretKey::from_slice(&TESTNET_LEADER_SECRET_KEY);
+            SecretKey::from_slice(&TESTNET_LEADER_SECRET_KEY).unwrap()
         } else {
             SecretKey::new(&mut rand::thread_rng())
         };
