@@ -27,7 +27,17 @@ pub struct TestingNodeConfig<C> {
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     pub fn new(node_id: u64, global_config: C, voting_power: u64) -> Self {
-        let secret_key = SecretKey::new(&mut rand::thread_rng());
+        let secret_key = if matches!(global_config.config_type(), TestingConfigKind::Testnet)
+            && global_config.is_leader(node_id)
+        {
+            // SecretKey::from_slice(&[]);
+            SecretKey::new(&mut rand::thread_rng())
+        } else {
+            SecretKey::new(&mut rand::thread_rng())
+        };
+
+        println!("{:?}", secret_key.secret_bytes());
+
         Self {
             node_id,
             global_config,
