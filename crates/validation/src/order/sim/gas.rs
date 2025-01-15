@@ -128,7 +128,6 @@ where
     ) -> eyre::Result<GasUsed> {
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
-        tracing::info!(?bundle);
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
