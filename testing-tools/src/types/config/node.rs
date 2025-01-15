@@ -31,12 +31,12 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             && global_config.is_leader(node_id)
         {
             // SecretKey::from_slice(&[]);
-            SecretKey::new(&mut rand::thread_rng())
+            let sk = SecretKey::new(&mut rand::thread_rng());
+            println!("{:?}", sk.secret_bytes());
+            sk
         } else {
             SecretKey::new(&mut rand::thread_rng())
         };
-
-        println!("{:?}", secret_key.secret_bytes());
 
         Self {
             node_id,
