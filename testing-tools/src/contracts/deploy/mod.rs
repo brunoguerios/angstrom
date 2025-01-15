@@ -38,6 +38,22 @@ pub fn mine_address_with_factory(
         }
     }
     let final_address = factory.create2(B256::from(salt), init_code_hash);
-    (final_address, salt)
-    // (ANGSTROM_ADDRESS, U256::from(ANGSTROM_ADDRESS_SALT))
+    // (final_address, salt)
+    (
+        crate::contracts::environment::ANGSTROM_ADDRESS,
+        U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT)
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::uniswap_flags::UniswapFlags;
+
+    #[test]
+    fn test_deploy_addresses() {
+        let flags = UniswapFlags::BeforeSwap
+            | UniswapFlags::BeforeInitialize
+            | UniswapFlags::BeforeAddLiquidity
+            | UniswapFlags::BeforeRemoveLiquidity;
+    }
 }
