@@ -1,4 +1,5 @@
 use alloy::primitives::{address, keccak256, Address, Bytes, B256, U160, U256};
+use create3::calc_addr_with_bytes;
 
 // use super::environment::{ANGSTROM_ADDRESS, ANGSTROM_ADDRESS_SALT};
 
@@ -12,11 +13,17 @@ const DEFAULT_CREATE2_FACTORY: Address = address!("4e59b44847b379578588920cA78Fb
 /// Attempt to find a target address that includes the appropriate flags
 /// Returns the address found and the salt needed to pad the initcode to
 /// deploy to that address
-pub fn mine_address(flags: U160, mask: U160, initcode: &Bytes) -> (Address, U256) {
-    mine_address_with_factory(DEFAULT_CREATE2_FACTORY, flags, mask, initcode)
+pub fn mine_address(
+    deployer: Address,
+    flags: U160,
+    mask: U160,
+    initcode: &Bytes
+) -> (Address, U256) {
+    mine_address_with_factory(deployer, DEFAULT_CREATE2_FACTORY, flags, mask, initcode)
 }
 
 pub fn mine_address_with_factory(
+    deployer: Address,
     factory: Address,
     flags: U160,
     mask: U160,
@@ -38,11 +45,14 @@ pub fn mine_address_with_factory(
         }
     }
     let final_address = factory.create2(B256::from(salt), init_code_hash);
+    let salt = U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT);
+    let address = calc_addr_with_bytes(&**deployer, &salt.to_le_bytes());
+    (address.into(), salt)
     // (final_address, salt)
-    (
-        crate::contracts::environment::ANGSTROM_ADDRESS,
-        U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT)
-    )
+    // (
+    //     crate::contracts::environment::ANGSTROM_ADDRESS,
+    //     U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT)
+    // )
 }
 
 #[cfg(test)]

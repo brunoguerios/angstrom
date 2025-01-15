@@ -2974,6 +2974,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "create3"
+version = "0.1.0"
+source = "git+https://github.com/AmanRaj1608/create3#09f5a6243a2ab3b5935b6b78ed1b725537e8589f"
+dependencies = [
+ "hex",
+ "rand",
+ "sha3",
+]
+
+[[package]]
 name = "criterion"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10919,6 +10929,7 @@ dependencies = [
  "angstrom-utils",
  "clap",
  "consensus",
+ "create3",
  "enr 0.10.0",
  "eyre",
  "futures",
