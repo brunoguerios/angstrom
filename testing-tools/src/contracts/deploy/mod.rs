@@ -38,11 +38,11 @@ pub fn mine_address_with_factory(
         }
     }
     let final_address = factory.create2(B256::from(salt), init_code_hash);
-    // (final_address, salt)
-    (
-        crate::contracts::environment::ANGSTROM_ADDRESS,
-        U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT)
-    )
+    (final_address, salt)
+    // (
+    //     crate::contracts::environment::ANGSTROM_ADDRESS,
+    //     U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT)
+    // )
 }
 
 #[cfg(test)]
