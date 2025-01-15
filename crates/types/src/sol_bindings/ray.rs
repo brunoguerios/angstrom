@@ -374,13 +374,9 @@ impl Ray {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::U160;
-    use alloy_primitives::I256;
-    use malachite::num::arithmetic::traits::{FloorSqrt, Square};
     use rand::{thread_rng, Rng};
-    use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 
     use super::*;
-    use crate::matching::{const_2_96, debt::Debt};
 
     // #[test]
     // fn another_math_test() {

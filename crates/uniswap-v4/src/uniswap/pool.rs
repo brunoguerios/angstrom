@@ -299,13 +299,6 @@ where
     ///       to try out all of the combinations below, to know exactly with
     ///       which set of zeroForOne x amountSpecified parameters the sim
     ///       method was called
-    ///
-    ///       let combinations = [
-    ///           (pool.token_a, swap_event.amount0),
-    ///           (pool.token_b, swap_event.amount0),
-    ///           (pool.token_a, swap_event.amount1),
-    ///           (pool.token_b, swap_event.amount1),
-    ///       ];
     fn _simulate_swap(
         &self,
         token_in: Address,
