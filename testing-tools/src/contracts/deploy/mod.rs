@@ -33,7 +33,7 @@ pub fn mine_address_with_factory(
     let mut salt = U256::ZERO;
     let mut counter: u128 = 0;
     loop {
-        let target_address: Address = calc_addr_with_bytes(&**deployer, &salt.to_le_bytes()).into();
+        let target_address: Address = calc_addr_with_bytes(&**factory, &salt.to_le_bytes()).into();
         let u_address: U160 = target_address.into();
         if (u_address & mask) == flags {
             break;
@@ -46,7 +46,7 @@ pub fn mine_address_with_factory(
     }
     // let final_address = factory.create2(B256::from(salt), init_code_hash);
     //let salt = U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT);
-    let final_address = calc_addr_with_bytes(&**deployer, &salt.to_le_bytes()).into();
+    let final_address = calc_addr_with_bytes(&**factory, &salt.to_le_bytes()).into();
     // (address.into(), salt)
     (final_address, salt)
     // (
