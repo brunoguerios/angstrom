@@ -90,7 +90,10 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        tracing::info!(?tob.order);
+        // need to grab the order hash
+        let hash = tob.order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        tracing::info!(?tob.order, signing_hash=?hash);
+
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
