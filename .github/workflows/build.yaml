@@ -95,32 +95,6 @@ jobs:
       - name: "test"
         run: cargo test
 
-  build-tests:
-    name: 'Build Tests'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          profile: minimal
-          override: true
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Update Submodules
-        run: git submodule update --init --recursive
-
-      - name: Build Tests
-        run: cargo build --tests
-
   contracts:
     name: 'Build, Format & Test Contracts'
     runs-on: ubuntu-latest
