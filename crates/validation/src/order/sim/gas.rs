@@ -105,6 +105,7 @@ where
                 let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
                     .unwrap()
                     .pade_encode();
+                tracing::info!(?bundle);
                 let bundle_bytes: Bytes = bundle.into();
                 execution_env.block.number = U256::from(block + 1);
 
