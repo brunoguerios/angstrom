@@ -92,7 +92,8 @@ where
     ) -> eyre::Result<GasUsed> {
         // need to grab the order hash
         let hash = tob.order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
-        tracing::info!(?tob.order, signing_hash=?hash);
+        let domain_sep_hash = ANGSTROM_DOMAIN.hash_struct();
+        tracing::info!(?tob.order, signing_hash=?hash,?domain_sep_hash);
 
         self.execute_on_revm(
             &HashMap::default(),

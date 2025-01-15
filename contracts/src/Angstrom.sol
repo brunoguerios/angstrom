@@ -152,7 +152,7 @@ contract Angstrom is
         bytes32 orderHash = typedHasher.hashTypedData(buffer.hash());
 
         // log, check order hash
-        console.logBytes32(orderHash);
+        console.log(uint256(orderHash));
         // load then log sig
         uint8 v;
         bytes32 r;
@@ -312,6 +312,9 @@ contract Angstrom is
     }
 
     function _erc712Hasher() internal view returns (TypedDataHasher) {
+        bytes32 sep = _domainSeparator();
+        console.log(uint256(sep), uint256(0x69));
+
         return TypedDataHasherLib.init(_domainSeparator());
     }
 
