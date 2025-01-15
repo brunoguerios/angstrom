@@ -19,21 +19,23 @@ pub fn mine_address(
     mask: U160,
     initcode: &Bytes
 ) -> (Address, U256) {
-    mine_address_with_factory_create3(deployer, DEFAULT_CREATE2_FACTORY, flags, mask, initcode)
+    // mine_address_with_factory_create3(deployer, DEFAULT_CREATE2_FACTORY, flags,
+    // mask);
+    mine_address_with_factory_create2(DEFAULT_CREATE2_FACTORY, flags, mask, initcode)
 }
 
 pub fn mine_address_with_factory_create3(
     deployer: Address,
     factory: Address,
     flags: U160,
-    mask: U160,
-    initcode: &Bytes
+    mask: U160
 ) -> (Address, U256) {
-    let init_code_hash = keccak256(initcode);
     let mut salt = U256::ZERO;
     let mut counter: u128 = 0;
     loop {
-        let target_address: Address = calc_addr(&**factory, &salt.to_le_bytes_vec()).into();
+        // i tried both variants of these
+        let target_address: Address = sanity_calculate(deployer, salt.to_le_bytes());
+        // let target_address: Address = sanity_calculate(factory, salt.to_le_bytes());
         let u_address: U160 = target_address.into();
         if (u_address & mask) == flags {
             break;
@@ -44,14 +46,17 @@ pub fn mine_address_with_factory_create3(
             panic!("We tried this too many times!")
         }
     }
-    //let salt = U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT);
-    let final_address = calc_addr(&**factory, &salt.to_le_bytes_vec()).into();
-    // (address.into(), salt)
+    // i tried both variants of these
+    let final_address = sanity_calculate(deployer, salt.to_le_bytes());
+    // let final_address: Address = sanity_calculate(factory, salt.to_le_bytes());
+
     (final_address, salt)
-    // (
-    //     crate::contracts::environment::ANGSTROM_ADDRESS,
-    //     U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT)
-    // )
+}
+
+fn sanity_calculate(deployer: Address, salt: [u8; 32]) -> Address {
+    // i tried both variants of these
+    calc_addr(&**deployer, &salt).into()
+    // calc_addr_with_bytes(&**deployer, &salt).into()
 }
 
 pub fn mine_address_with_factory_create2(
