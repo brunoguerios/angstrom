@@ -33,6 +33,39 @@ pub fn mine_address_with_factory(
     let mut salt = U256::ZERO;
     let mut counter: u128 = 0;
     loop {
+        let target_address: Address = calc_addr(&**deployer, &salt.to_le_bytes_vec()).into();
+        let u_address: U160 = target_address.into();
+        if (u_address & mask) == flags {
+            break;
+        }
+        salt += U256::from(1_u8);
+        counter += 1;
+        if counter > 100_000 {
+            panic!("We tried this too many times!")
+        }
+    }
+    // let final_address = factory.create2(B256::from(salt), init_code_hash);
+    //let salt = U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT);
+    let final_address = calc_addr(&**deployer, &salt.to_le_bytes::<32>()).into();
+    // (address.into(), salt)
+    (final_address, salt)
+    // (
+    //     crate::contracts::environment::ANGSTROM_ADDRESS,
+    //     U256::from(crate::contracts::environment::ANGSTROM_ADDRESS_SALT)
+    // )
+}
+
+pub fn mine_address_with_factory2(
+    deployer: Address,
+    factory: Address,
+    flags: U160,
+    mask: U160,
+    initcode: &Bytes
+) -> (Address, U256) {
+    let init_code_hash = keccak256(initcode);
+    let mut salt = U256::ZERO;
+    let mut counter: u128 = 0;
+    loop {
         let target_address: Address = factory.create2(B256::from(salt), init_code_hash);
         let u_address: U160 = target_address.into();
         if (u_address & mask) == flags {
