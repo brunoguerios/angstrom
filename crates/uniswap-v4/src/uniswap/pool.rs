@@ -691,6 +691,16 @@ where
     pub fn calculate_word_pos_bit_pos(&self, compressed: i32) -> (i16, u8) {
         uniswap_v3_math::tick_bitmap::position(compressed)
     }
+
+    #[cfg(test)]
+    pub fn set_sqrt_price_x96(&mut self, price: u128) {
+        self.sqrt_price = U256::from(price);
+    }
+
+    #[cfg(test)]
+    pub fn get_sqrt_price_x96(&self) -> u128 {
+        self.sqrt_price.to()
+    }
 }
 
 #[derive(Error, Debug)]

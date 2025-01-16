@@ -258,11 +258,13 @@ where
                         // then immediately after there is a chain reorg to 95,
                         // we can not roll back the state changes for an accurate state
                         // space. In this case, we return an error
+                        tracing::warn!(addr=?pool.address(),"cache.get(0) == None");
                         return Err(PoolManagerError::NoStateChangesInCache)
                     }
                 }
             }
         } else {
+            tracing::warn!("get_mut failed");
             Err(PoolManagerError::NoStateChangesInCache)
         }
     }
@@ -561,6 +563,12 @@ mod annoying_tests {
 
     #[tokio::test]
     async fn test_handle_new_block() {
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_test_writer()
+            .try_init();
+
+        tracing::info!("Starting test_handle_new_block");
         let provider = Arc::new(MockProvider::new().await);
         let block_sync = MockBlockSync;
 
@@ -596,43 +604,78 @@ mod annoying_tests {
         assert!(cache.contains_key(&pool_id));
     }
 
+    /// NOTE: when reorgs occur, lets say we reorg back 2 blocks from 100 to 98,
+    /// the system will roll back to block 97.
     #[tokio::test]
     async fn test_handle_reorg() {
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_test_writer()
+            .try_init();
+
+        tracing::info!("Starting test_handle_reorg");
         let provider = Arc::new(MockProvider::new().await);
         let block_sync = MockBlockSync;
 
-        // Create a mock pool
+        // Create a mock pool with a specific pool_id
         let pool = EnhancedUniswapPool::<DataLoader<PoolId>, PoolId>::default();
         let pool_id = PoolId::default();
 
         let mut manager = UniswapPoolManager::new(
             vec![pool],
-            100, // Start at block 100
+            95, // Start at block 95
             provider.clone(),
             block_sync
         );
 
-        // Initialize the state change cache with an initial state
+        // Initialize the state change cache with multiple state changes
         {
+            tracing::info!("Initializing state change cache");
             let mut cache = manager.state_change_cache.write().unwrap();
             let mut deque: ArrayDeque<StateChange<DataLoader<PoolId>, PoolId>, 150> =
                 ArrayDeque::new();
 
-            deque
-                .push_front(StateChange::new(None, 100))
-                .expect("Failed to add initial state");
+            // Create distinct mock pool states for each block
+            for block in 95..=100 {
+                // Reverse order to match how real state changes would be added
+                tracing::debug!("Creating mock pool state for block {}", block);
+                let mut mock_pool = EnhancedUniswapPool::<DataLoader<PoolId>, PoolId>::default();
+                mock_pool.set_sqrt_price_x96(block as u128 * 1_000_000);
+
+                deque
+                    .push_front(StateChange::new(Some(mock_pool), block))
+                    .expect("Failed to add state");
+            }
+            tracing::info!(?pool_id, "Inserting state changes into cache");
             cache.insert(pool_id, deque);
+            tracing::info!(len=?cache.len());
         }
 
-        manager.handle_new_block_info(PoolMangerBlocks::Reorg(95, 95..=100));
+        manager.latest_synced_block = 100;
+
+        tracing::info!("Triggering reorg from block 100 back to 95");
+        manager.handle_new_block_info(PoolMangerBlocks::Reorg(96, 96..=100));
 
         // Verify state was rolled back
-        assert_eq!(manager.latest_synced_block, 95);
+        tracing::info!("Verifying state rollback");
+        assert_eq!(manager.latest_synced_block, 96);
 
         // Verify state changes reflect reorg
+        tracing::info!("Verifying state changes after reorg");
         let cache = manager.state_change_cache.read().unwrap();
         if let Some(changes) = cache.get(&pool_id) {
-            assert!(changes.iter().all(|change| change.block_number <= 95));
+            // Verify we only have states up to block 96
+            tracing::debug!("Verifying all state changes are <= block 96");
+            assert!(changes.iter().all(|change| change.block_number <= 96));
+
+            // Verify the current pool state matches block 95 given the reorg starts at 96
+            tracing::debug!("Verifying current pool state matches block 96");
+            if let Some(front) = changes.front() {
+                if let Some(state) = &front.state_change {
+                    assert_eq!(state.get_sqrt_price_x96(), 95 * 1_000_000);
+                    assert_eq!(front.block_number, 95);
+                }
+            }
         }
     }
 }
