@@ -19,8 +19,10 @@ pub fn mine_address(
     mask: U160,
     initcode: &Bytes
 ) -> (Address, U256) {
-    // mine_address_with_factory_create3(deployer, DEFAULT_CREATE2_FACTORY, flags,
-    // mask);
+    // this one DOES NOT works with create3
+    mine_address_with_factory_create3(deployer, DEFAULT_CREATE2_FACTORY, flags, mask);
+
+    // this one works with create2
     mine_address_with_factory_create2(DEFAULT_CREATE2_FACTORY, flags, mask, initcode)
 }
 
