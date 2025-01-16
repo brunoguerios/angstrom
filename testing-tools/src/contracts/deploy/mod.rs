@@ -59,11 +59,11 @@ pub fn mine_create3_address(owner: Address) -> (Address, U256, u8) {
     (addr, salt, nonce)
 }
 
-const SUB_ZERO_FACTORY: Address = address!("000000000000b361194cfe6312ee3210d53c15aa");
+pub const SUB_ZERO_FACTORY: Address = address!("000000000000b361194cfe6312ee3210d53c15aa");
 const DEPLOY_PROXY_INITHASH: B256 =
     fixed_bytes!("1decbcf04b355d500cbc3bd83c892545b4df34bd5b2c9d91b9f7f8165e2095c3");
 
-pub fn angstrom_addr_valid(addr: Address) -> bool {
+fn angstrom_addr_valid(addr: Address) -> bool {
     use UniswapFlags::*;
     if !has_any_permission(addr, BeforeInitialize | AfterInitialize) {
         return false;
@@ -82,7 +82,7 @@ pub fn angstrom_addr_valid(addr: Address) -> bool {
 }
 
 /// Assumes hook with fee of **0**.
-pub fn hook_addr_valid(addr: Address) -> bool {
+fn hook_addr_valid(addr: Address) -> bool {
     use UniswapFlags::*;
     if !has_permission(addr, BeforeSwap) && has_permission(addr, BeforeSwapReturnsDelta) {
         return false;
