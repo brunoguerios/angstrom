@@ -54,11 +54,9 @@ impl UniswapFlags {
     pub fn mask() -> U160 {
         (U160::from(1_u8) << 14) - U160::from(1_u8)
     }
-}
 
-impl From<UniswapFlags> for U160 {
-    fn from(value: UniswapFlags) -> U160 {
-        let bitshift: usize = match value {
+    pub fn flag(&self) -> U160 {
+        let bitshift: usize = match self {
             UniswapFlags::BeforeInitialize => 13,
             UniswapFlags::AfterInitialize => 12,
             UniswapFlags::BeforeAddLiquidity => 11,
@@ -82,7 +80,7 @@ impl BitOr for UniswapFlags {
     type Output = U160;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        Into::<U160>::into(self) | Into::<U160>::into(rhs)
+        self.flag() | rhs.flag()
     }
 }
 
@@ -90,7 +88,7 @@ impl BitOr<UniswapFlags> for U160 {
     type Output = U160;
 
     fn bitor(self, rhs: UniswapFlags) -> Self::Output {
-        self | Into::<U160>::into(rhs)
+        self | rhs.flag()
     }
 }
 
@@ -98,6 +96,6 @@ impl BitOr<U160> for UniswapFlags {
     type Output = U160;
 
     fn bitor(self, rhs: U160) -> Self::Output {
-        Into::<U160>::into(self) | rhs
+        self.flag() | rhs
     }
 }
