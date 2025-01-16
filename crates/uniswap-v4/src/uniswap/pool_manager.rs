@@ -500,7 +500,6 @@ mod annoying_tests {
                     .on_builtin("https://eth.llamarpc.com")
                     .await
                     .unwrap()
-                    .into()
             }
         }
 
@@ -575,8 +574,7 @@ mod annoying_tests {
             block_sync
         );
 
-        let log =
-            Log { address: Address::default(), data: LogData::default(), ..Default::default() };
+        let log = Log { address: Address::default(), data: LogData::default() };
         provider.add_logs(vec![log]);
 
         // Process new block
