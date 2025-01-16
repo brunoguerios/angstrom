@@ -9,7 +9,7 @@ use super::{
 
 pub async fn deploy_angstrom<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider<N>,
     N: alloy::contract::private::Network
 >(
     provider: &P,
@@ -29,7 +29,7 @@ pub async fn deploy_angstrom<
 
 pub async fn deploy_angstrom_with_factory<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider<N>,
     N: alloy::contract::private::Network
 >(
     provider: &P,
@@ -62,14 +62,14 @@ pub async fn deploy_angstrom_with_factory<
 
 pub async fn deploy_angstrom_create3<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider<N>,
     N: alloy::contract::private::Network
 >(
     provider: &P,
-    owner: Address,
     pool_manager: Address,
     controller: Address
 ) -> Address {
+    let owner = provider.default_signer_address();
     let mock_builder = Angstrom::deploy_builder(&provider, pool_manager, controller);
     let (mock_tob_address, salt, nonce) = mine_create3_address(owner);
 

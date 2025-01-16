@@ -8,7 +8,9 @@ use tracing::{debug, info};
 
 use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
 use crate::contracts::{
-    deploy::angstrom::deploy_angstrom, environment::CONTROLLER_V1_ADDRESS, DebugTransaction
+    deploy::angstrom::{deploy_angstrom, deploy_angstrom_create3},
+    environment::CONTROLLER_V1_ADDRESS,
+    DebugTransaction
 };
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
@@ -39,12 +41,20 @@ where
     async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
         let provider = inner.provider();
         debug!("Deploying Angstrom...");
+        // let angstrom_addr = inner
+        //     .execute_then_mine(deploy_angstrom(
+        //         provider,
+        //         inner.pool_manager(),
+        //         inner.controller(),
+        //         Address::default()
+        //     ))
+        //     .await;
+
         let angstrom_addr = inner
-            .execute_then_mine(deploy_angstrom(
+            .execute_then_mine(deploy_angstrom_create3(
                 provider,
                 inner.pool_manager(),
-                inner.controller(),
-                Address::default()
+                inner.controller()
             ))
             .await;
 
@@ -62,7 +72,7 @@ where
 
     async fn deploy_controller_v1(inner: &E, angstrom: Address) -> eyre::Result<Address> {
         debug!("Deploying ControllerV1...");
-        let mut controller_v1_addr = *inner
+        let controller_v1_addr = *inner
             .execute_then_mine(ControllerV1::deploy(inner.provider(), angstrom, inner.controller()))
             .await?
             .address();

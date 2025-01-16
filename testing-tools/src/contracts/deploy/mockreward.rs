@@ -37,12 +37,8 @@ pub async fn deploy_mock_rewards_manager_with_factory<
         | UniswapFlags::BeforeRemoveLiquidity;
 
     let mock_builder = MockRewardsManager::deploy_builder(&provider, pool_manager, controller);
-    let (mock_tob_address, salt) = mine_address(
-        provider.default_signer_address(),
-        flags,
-        UniswapFlags::mask(),
-        mock_builder.calldata()
-    );
+    let (mock_tob_address, salt) =
+        mine_address(flags, UniswapFlags::mask(), mock_builder.calldata());
     let final_mock_initcode = [salt.abi_encode(), mock_builder.calldata().to_vec()].concat();
     RawCallBuilder::new_raw(&provider, final_mock_initcode.into())
         .to(factory)
