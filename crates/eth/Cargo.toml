@@ -13,6 +13,7 @@ exclude.workspace = true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
 pade.workspace = true
+itertools.workspace = true
 
 reth-primitives.workspace = true
 tokio.workspace = true
