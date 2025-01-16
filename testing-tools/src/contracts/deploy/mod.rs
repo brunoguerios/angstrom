@@ -54,6 +54,7 @@ pub fn mine_create3_address(owner: Address) -> (Address, U256, u8) {
         if angstrom_addr_valid(addr) {
             break;
         }
+        salt += uint!(1U256);
     }
     (addr, salt, nonce)
 }
