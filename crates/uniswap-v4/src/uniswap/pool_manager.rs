@@ -305,7 +305,8 @@ where
         let (chain_head_block_number, block_range, is_reorg) = match block_info {
             PoolMangerBlocks::NewBlock(block) => (block, None, false),
             PoolMangerBlocks::Reorg(tip, range) => {
-                self.latest_synced_block = tip - range.end();
+                // Handle potential overflow by ensuring we don't go below 0
+                self.latest_synced_block = tip.saturating_sub(*range.end());
                 tracing::trace!(
                     tip,
                     self.latest_synced_block,
@@ -574,6 +575,13 @@ mod annoying_tests {
             block_sync
         );
 
+        // Initialize the state change cache with an empty state change
+        {
+            let mut cache = manager.state_change_cache.write().unwrap();
+            StateChange::<DataLoader<PoolId>, PoolId>::new(None, 100);
+            cache.insert(pool_id, ArrayDeque::new());
+        }
+
         let log = Log { address: Address::default(), data: LogData::default() };
         provider.add_logs(vec![log]);
 
@@ -603,6 +611,18 @@ mod annoying_tests {
             provider.clone(),
             block_sync
         );
+
+        // Initialize the state change cache with an initial state
+        {
+            let mut cache = manager.state_change_cache.write().unwrap();
+            let mut deque: ArrayDeque<StateChange<DataLoader<PoolId>, PoolId>, 150> =
+                ArrayDeque::new();
+
+            deque
+                .push_front(StateChange::new(None, 100))
+                .expect("Failed to add initial state");
+            cache.insert(pool_id, deque);
+        }
 
         manager.handle_new_block_info(PoolMangerBlocks::Reorg(95, 95..=100));
 
