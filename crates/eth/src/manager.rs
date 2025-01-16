@@ -889,4 +889,105 @@ pub mod test {
         assert!(eth.angstrom_tokens.contains(&asset1));
         assert_eq!(eth.pool_store.length(), 0); // Should be removed
     }
+
+    #[test]
+    fn test_non_angstrom_token_transfers() {
+        let ang_addr = Address::random();
+        let token_addr = Address::random();
+        let non_tracked_token = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
+
+        // Create transfer for non-tracked token
+        let transfer = Transfer {
+            _from:  Address::random(),
+            _to:    Address::random(),
+            _value: U256::from(100)
+        };
+
+        let logs = vec![Log {
+            address: non_tracked_token, // Using non-tracked token address
+            data:    transfer.encode_log_data()
+        }];
+
+        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        let eoas = eth.get_eoa(mock_chain);
+        assert!(eoas.is_empty()); // Should ignore non-tracked token transfers
+    }
+
+    #[test]
+    fn test_duplicate_pool_removal() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+        eth.angstrom_address = ang_addr;
+
+        let asset0 = Address::random();
+        let asset1 = Address::random();
+        let fee = U24::try_from(3000).unwrap();
+        let tick_spacing = 60u16;
+
+        // Create pool and remove it twice
+        let configure = PoolConfigured { asset0, asset1, feeInE6: fee, tickSpacing: tick_spacing };
+        let remove = PoolRemoved {
+            asset0,
+            asset1,
+            feeInE6: fee,
+            tickSpacing: I24::try_from(tick_spacing).unwrap()
+        };
+
+        let logs = vec![
+            Log { address: periphery_addr, data: configure.encode_log_data() },
+            Log { address: periphery_addr, data: remove.encode_log_data() },
+            Log { address: periphery_addr, data: remove.encode_log_data() }, // Duplicate removal
+        ];
+
+        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        // Should handle duplicate removal gracefully
+        eth.apply_periphery_logs(&*mock_chain);
+        assert_eq!(eth.pool_store.length(), 0);
+    }
+
+    #[test]
+    fn test_remove_non_existent_node() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+
+        let non_existent_node = Address::random();
+        let node_removed = NodeRemoved { node: non_existent_node };
+        let removed_log = Log { address: periphery_addr, data: node_removed.encode_log_data() };
+
+        let mock_recip = Receipt { logs: vec![removed_log], ..Default::default() };
+
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        // Should handle removal of non-existent node gracefully
+        eth.apply_periphery_logs(&*mock_chain);
+        assert!(!eth.node_set.contains(&non_existent_node));
+    }
+
+    #[test]
+    fn test_malformed_transaction_input() {
+        let angstrom_address = Address::random();
+        let eth = setup_non_subscription_eth_manager(Some(angstrom_address));
+
+        let mut mock_tx = TransactionSigned::default();
+        if let Transaction::Legacy(leg) = &mut mock_tx.transaction {
+            leg.to = TxKind::Call(angstrom_address);
+            leg.input = vec![0, 1, 2, 3].into(); // Invalid input data
+        }
+
+        let mock_chain = MockChain { transactions: vec![mock_tx], ..Default::default() };
+
+        // Should handle malformed input gracefully
+        let filled_set = eth.fetch_filled_order(&mock_chain).collect::<HashSet<_>>();
+        assert!(filled_set.is_empty());
+    }
 }
