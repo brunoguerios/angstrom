@@ -11738,6 +11738,7 @@ dependencies = [
  "testing-tools",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-stream",
  "tracing",
  "tracing-subscriber",
  "uniswap_v3_math",

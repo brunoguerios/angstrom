@@ -599,7 +599,12 @@ where
         Loader::event_signatures()
     }
 
-    pub fn update_position(&mut self, tick_lower: i32, tick_upper: i32, liquidity_delta: i128) {
+    pub(crate) fn update_position(
+        &mut self,
+        tick_lower: i32,
+        tick_upper: i32,
+        liquidity_delta: i128
+    ) {
         let mut flipped_lower = false;
         let mut flipped_upper = false;
 
@@ -725,7 +730,7 @@ pub enum PoolError {
 
 #[cfg(test)]
 mod tests {
-    use std::{future::Future, sync::Once};
+    use std::sync::Once;
 
     use tracing_subscriber::{fmt, EnvFilter};
     use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
