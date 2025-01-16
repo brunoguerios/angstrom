@@ -1489,6 +1489,7 @@ dependencies = [
  "auto_impl",
  "futures",
  "futures-util",
+ "itertools 0.12.1",
  "pade",
  "rand",
  "reth-primitives",
