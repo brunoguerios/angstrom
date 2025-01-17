@@ -288,28 +288,43 @@ impl AnvilInitializer {
         self.pending_state.add_pending_tx(pool_gate);
         let mut rng = thread_rng();
 
-        let tick = price.to_tick()?;
-        for i in 0..200 {
-            let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
-            let upper = lower + pool_key.tickSpacing;
+        // let (_, tx_hash) = self.pending_state.finalize_pending_txs().await?;
+        // for hash in tx_hash {
+        //     let transaction = self
+        //         .provider
+        //         .provider
+        //         .get_transaction_receipt(hash)
+        //         .await
+        //         .unwrap()
+        //         .unwrap();
+        //     let status = transaction.status();
+        //     if !status {
+        //         tracing::warn!(?hash, "transaction hash failed");
+        //     }
+        // }
 
-            let add_liq = self
-                .pool_gate
-                .addLiquidity(
-                    pool_key.currency0,
-                    pool_key.currency1,
-                    lower,
-                    upper,
-                    U256::from(rng.gen_range(liquidity / 2..liquidity)),
-                    FixedBytes::<32>::default()
-                )
-                .from(self.provider.controller())
-                .nonce(nonce + 4 + (i as u64))
-                .deploy_pending()
-                .await?;
-
-            self.pending_state.add_pending_tx(add_liq);
-        }
+        // let tick = price.to_tick()?;
+        // for i in 0..200 {
+        //     let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() *
+        // (101 - i)));     let upper = lower + pool_key.tickSpacing;
+        //
+        //     let add_liq = self
+        //         .pool_gate
+        //         .addLiquidity(
+        //             pool_key.currency0,
+        //             pool_key.currency1,
+        //             lower,
+        //             upper,
+        //             U256::from(rng.gen_range(liquidity / 2..liquidity)),
+        //             FixedBytes::<32>::default()
+        //         )
+        //         .from(self.provider.controller())
+        //         .nonce(nonce + 4 + (i as u64))
+        //         .deploy_pending()
+        //         .await?;
+        //
+        //     self.pending_state.add_pending_tx(add_liq);
+        // }
 
         Ok(())
     }
