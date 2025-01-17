@@ -61,6 +61,9 @@ where
                 inner.controller()
             ))
             .await;
+        // assert code is set
+        let code = provider.get_code_at(angstrom_addr).await.unwrap();
+        tracing::info!(?code);
 
         debug!("Angstrom deployed at: {}", angstrom_addr);
         // gotta toggle nodes
