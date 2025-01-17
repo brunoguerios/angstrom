@@ -239,6 +239,9 @@ impl AnvilInitializer {
             .nonce(nonce)
             .deploy_pending()
             .await?;
+
+        let hash = configure_pool.tx_hash();
+        tracing::info!(?hash, "configure_pool");
         self.pending_state.add_pending_tx(configure_pool);
 
         tracing::debug!("adding to pool map");
@@ -255,15 +258,21 @@ impl AnvilInitializer {
             .nonce(nonce + 1)
             .deploy_pending()
             .await?;
+        let hash = controller_configure_pool.tx_hash();
+        tracing::info!(?hash, "configure pool controller");
         self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
-        self.angstrom
+        let i = self
+            .angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 2)
             .deploy_pending()
             .await?;
+        let hash = i.tx_hash();
+        tracing::info!(?hash, "initalize pool");
+        self.pending_state.add_pending_tx(i);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
@@ -273,6 +282,8 @@ impl AnvilInitializer {
             .nonce(nonce + 3)
             .deploy_pending()
             .await?;
+        let hash = pool_gate.tx_hash();
+        tracing::info!(?hash, "tickspacing");
 
         self.pending_state.add_pending_tx(pool_gate);
         let mut rng = thread_rng();
@@ -314,25 +325,26 @@ impl AnvilInitializer {
             pool_keys.clone()
         );
 
-        for key in pool_keys {
-            let out = self
-                .pool_gate
-                .isInitialized(key.currency0, key.currency1)
-                .call()
-                .await?;
-
-            if !out._0 {
-                tracing::warn!(?key, "pool is still not initalized, even after deploying state");
-            }
-        }
-
         tracing::info!("initalized angstrom pool state");
 
         Ok(state)
     }
 
     pub async fn initialize_state_no_bytes(&mut self) -> eyre::Result<InitialTestnetState> {
-        let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
+        let (pool_keys, tx_hash) = self.pending_state.finalize_pending_txs().await?;
+        for hash in tx_hash {
+            let transaction = self
+                .provider
+                .provider
+                .get_transaction_receipt(hash)
+                .await
+                .unwrap()
+                .unwrap();
+            let status = transaction.status();
+            if !status {
+                tracing::warn!(?hash, "transaction hash failed");
+            }
+        }
 
         let state = InitialTestnetState::new(
             self.angstrom_env.angstrom(),
