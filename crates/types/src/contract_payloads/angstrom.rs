@@ -376,25 +376,39 @@ impl UserOrder {
         outcome: &OrderOutcome,
         pair_index: u16
     ) -> Self {
-        let order_quantities = match &order.order {
+        let (order_quantities, standing_validation) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(_) => OrderQuantities::Exact { quantity: order.quantity() },
-                FlashVariants::Partial(p_o) => OrderQuantities::Partial {
-                    min_quantity_in: p_o.min_amount_in,
-                    max_quantity_in: p_o.max_amount_in,
-                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                FlashVariants::Exact(_) => {
+                    (OrderQuantities::Exact { quantity: order.quantity() }, None)
                 }
+                FlashVariants::Partial(p_o) => (
+                    OrderQuantities::Partial {
+                        min_quantity_in: p_o.min_amount_in,
+                        max_quantity_in: p_o.max_amount_in,
+                        filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                    },
+                    None
+                )
             },
             GroupedVanillaOrder::Standing(o) => match o {
-                StandingVariants::Exact(_) => OrderQuantities::Exact { quantity: order.quantity() },
+                StandingVariants::Exact(e) => (
+                    OrderQuantities::Exact { quantity: order.quantity() },
+                    Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() })
+                ),
                 StandingVariants::Partial(p_o) => {
                     let max_quantity_in = p_o.max_amount_in;
                     let filled_quantity = outcome.fill_amount(p_o.max_amount_in);
-                    OrderQuantities::Partial {
-                        min_quantity_in: p_o.min_amount_in,
-                        max_quantity_in,
-                        filled_quantity
-                    }
+                    (
+                        OrderQuantities::Partial {
+                            min_quantity_in: p_o.min_amount_in,
+                            max_quantity_in,
+                            filled_quantity
+                        },
+                        Some(StandingValidation {
+                            nonce:    p_o.nonce,
+                            deadline: p_o.deadline.to()
+                        })
+                    )
                 }
             }
         };
@@ -407,6 +421,7 @@ impl UserOrder {
         let decoded_signature =
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
+
         Self {
             ref_id: 0,
             use_internal: false,
@@ -415,7 +430,7 @@ impl UserOrder {
             recipient: None,
             hook_data,
             zero_for_one: !order.is_bid,
-            standing_validation: None,
+            standing_validation,
             order_quantities,
             max_extra_fee_asset0: order.max_gas_token_0(),
             extra_fee_asset0: order.max_gas_token_0(),
