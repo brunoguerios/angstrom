@@ -45,22 +45,22 @@ where
         let provider = inner.provider();
         let key = provider.default_signer_address();
         debug!(?key, "Deploying Angstrom...");
-        let angstrom_addr = inner
-            .execute_then_mine(deploy_angstrom(
-                provider,
-                inner.pool_manager(),
-                inner.controller(),
-                Address::default()
-            ))
-            .await;
-
         // let angstrom_addr = inner
-        //     .execute_then_mine(deploy_angstrom_create3(
+        //     .execute_then_mine(deploy_angstrom(
         //         provider,
         //         inner.pool_manager(),
-        //         inner.controller()
+        //         inner.controller(),
+        //         Address::default()
         //     ))
         //     .await;
+
+        let angstrom_addr = inner
+            .execute_then_mine(deploy_angstrom_create3(
+                provider,
+                inner.pool_manager(),
+                inner.controller()
+            ))
+            .await;
 
         debug!("Angstrom deployed at: {}", angstrom_addr);
         // gotta toggle nodes
