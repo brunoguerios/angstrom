@@ -31,7 +31,8 @@ use crate::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
             TestAnvilEnvironment
-        }
+        },
+        DebugTransaction
     },
     types::{
         config::TestingNodeConfig,
@@ -237,30 +238,26 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            .deploy_pending()
+            .run_safe()
             .await?;
+        // .deploy_pending()
+        // .await?;
 
-        let hash = configure_pool.tx_hash();
-        tracing::info!(?hash, "configure_pool");
-        self.pending_state.add_pending_tx(configure_pool);
+        // let hash = configure_pool.tx_hash();
+        // tracing::info!(?hash, "configure_pool");
+        // self.pending_state.add_pending_tx(configure_pool);
 
         tracing::debug!("adding to pool map");
         let controller_configure_pool = self
             .controller_v1
             .addPoolToMap(pool_key.currency0, pool_key.currency1)
-            // .configurePool(
-            //     pool_key.currency0,
-            //     pool_key.currency1,
-            //     pool_key.tickSpacing.as_i32() as u16,
-            //     pool_key.fee
-            // )
             .from(self.provider.controller())
             .nonce(nonce + 1)
-            .deploy_pending()
+            .run_safe()
             .await?;
-        let hash = controller_configure_pool.tx_hash();
-        tracing::info!(?hash, "configure pool controller");
-        self.pending_state.add_pending_tx(controller_configure_pool);
+        // let hash = controller_configure_pool.tx_hash();
+        // tracing::info!(?hash, "configure pool controller");
+        // self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
         let i = self
@@ -268,11 +265,11 @@ impl AnvilInitializer {
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 2)
-            .deploy_pending()
+            .run_safe()
             .await?;
-        let hash = i.tx_hash();
-        tracing::info!(?hash, "initalize pool");
-        self.pending_state.add_pending_tx(i);
+        // let hash = i.tx_hash();
+        // tracing::info!(?hash, "initalize pool");
+        // self.pending_state.add_pending_tx(i);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
@@ -280,51 +277,36 @@ impl AnvilInitializer {
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
             .nonce(nonce + 3)
-            .deploy_pending()
+            .run_safe()
             .await?;
-        let hash = pool_gate.tx_hash();
-        tracing::info!(?hash, "tickspacing");
-
-        self.pending_state.add_pending_tx(pool_gate);
+        // let hash = pool_gate.tx_hash();
+        // tracing::info!(?hash, "tickspacing");
+        //
+        // self.pending_state.add_pending_tx(pool_gate);
         let mut rng = thread_rng();
 
-        // let (_, tx_hash) = self.pending_state.finalize_pending_txs().await?;
-        // for hash in tx_hash {
-        //     let transaction = self
-        //         .provider
-        //         .provider
-        //         .get_transaction_receipt(hash)
-        //         .await
-        //         .unwrap()
-        //         .unwrap();
-        //     let status = transaction.status();
-        //     if !status {
-        //         tracing::warn!(?hash, "transaction hash failed");
-        //     }
-        // }
+        let tick = price.to_tick()?;
+        for i in 0..200 {
+            let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
+            let upper = lower + pool_key.tickSpacing;
 
-        // let tick = price.to_tick()?;
-        // for i in 0..200 {
-        //     let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() *
-        // (101 - i)));     let upper = lower + pool_key.tickSpacing;
-        //
-        //     let add_liq = self
-        //         .pool_gate
-        //         .addLiquidity(
-        //             pool_key.currency0,
-        //             pool_key.currency1,
-        //             lower,
-        //             upper,
-        //             U256::from(rng.gen_range(liquidity / 2..liquidity)),
-        //             FixedBytes::<32>::default()
-        //         )
-        //         .from(self.provider.controller())
-        //         .nonce(nonce + 4 + (i as u64))
-        //         .deploy_pending()
-        //         .await?;
-        //
-        //     self.pending_state.add_pending_tx(add_liq);
-        // }
+            let add_liq = self
+                .pool_gate
+                .addLiquidity(
+                    pool_key.currency0,
+                    pool_key.currency1,
+                    lower,
+                    upper,
+                    U256::from(rng.gen_range(liquidity / 2..liquidity)),
+                    FixedBytes::<32>::default()
+                )
+                .from(self.provider.controller())
+                .nonce(nonce + 4 + (i as u64))
+                .deploy_pending()
+                .await?;
+
+            self.pending_state.add_pending_tx(add_liq);
+        }
 
         Ok(())
     }
