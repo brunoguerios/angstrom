@@ -79,7 +79,11 @@ pub async fn deploy_angstrom_create3<
     controller: Address
 ) -> Address {
     let owner = provider.default_signer_address();
-    let mock_builder = Angstrom::deploy_builder(&provider, pool_manager, controller);
+    // let mock_builder = Angstrom::deploy_builder(&provider, pool_manager,
+    // controller);
+
+    let mut code = Angstrom::BYTECODE.to_vec();
+    code.append(&mut (pool_manager, controller).abi_encode().to_vec());
 
     let (mock_tob_address, salt, nonce) = mine_create3_address(owner);
 
@@ -96,9 +100,7 @@ pub async fn deploy_angstrom_create3<
         .await
         .unwrap();
 
-    let final_mock_initcode = [salt.abi_encode(), mock_builder.calldata().to_vec()].concat();
-
-    let deploy_call = _private::deployCall { id: salt, initcode: final_mock_initcode.into() };
+    let deploy_call = _private::deployCall { id: salt, initcode: code.into() };
 
     let hash = RawCallBuilder::new_raw(&provider, deploy_call.abi_encode().into())
         .from(owner)
