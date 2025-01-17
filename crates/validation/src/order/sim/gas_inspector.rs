@@ -97,7 +97,7 @@ impl<DB: Database> Inspector<DB> for CallDataInspector {
         inputs: &mut revm::interpreter::CallInputs
     ) -> Option<revm::interpreter::CallOutcome> {
         if inputs.target_address == CONSOLE_LOG_ADDR {
-            let bytes = alloy::hex::encode(inputs.input.to_vec());
+            let bytes = alloy::hex::encode(&inputs.input);
 
             tracing::info!("{}", bytes);
         }

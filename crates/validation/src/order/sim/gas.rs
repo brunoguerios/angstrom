@@ -2,25 +2,20 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
     primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
-    signers::Signature,
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
-    contract_bindings::{
-        angstrom,
-        mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall}
-    },
+    contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
-    primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::{OmitOrderMeta, TopOfBlockOrder},
+        rpc_orders::TopOfBlockOrder,
         RawPoolOrder
     }
 };
 use eyre::eyre;
-use pade::{PadeDecode, PadeEncode};
+use pade::PadeEncode;
 use reth_provider::BlockNumReader;
 use revm::{
     db::CacheDB,
@@ -29,7 +24,7 @@ use revm::{
     DatabaseRef
 };
 
-use super::gas_inspector::{CallDataInspector, GasSimulationInspector, GasUsed};
+use super::gas_inspector::{GasSimulationInspector, GasUsed};
 use crate::order::state::db_state_utils::finders::{
     find_slot_offset_for_approval, find_slot_offset_for_balance
 };
