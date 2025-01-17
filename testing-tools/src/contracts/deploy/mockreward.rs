@@ -5,7 +5,7 @@ use super::{mine_address, uniswap_flags::UniswapFlags, DEFAULT_CREATE2_FACTORY};
 
 pub async fn deploy_mock_rewards_manager<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider,
     N: alloy::contract::private::Network
 >(
     provider: &P,
@@ -23,7 +23,7 @@ pub async fn deploy_mock_rewards_manager<
 
 pub async fn deploy_mock_rewards_manager_with_factory<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider,
     N: alloy::contract::private::Network
 >(
     provider: &P,

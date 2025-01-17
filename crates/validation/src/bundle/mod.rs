@@ -78,10 +78,19 @@ where
                     })
                     .build();
 
-                let result = evm
+                let result = match evm
                     .transact()
-                    .map_err(|_| eyre!("failed to transact with revm"))
-                    .unwrap();
+                    .map_err(|e| eyre!("failed to transact with revm - {e:?}"))
+                {
+                    Ok(r) => r,
+                    Err(e) => {
+                        let _ = sender.send(Err(eyre!(
+                            "transaction simulation failed - failed to transaction with revm - \
+                             {e:?}"
+                        )));
+                        return
+                    }
+                };
 
                 if !result.result.is_success() {
                     tracing::warn!(?result.result);
