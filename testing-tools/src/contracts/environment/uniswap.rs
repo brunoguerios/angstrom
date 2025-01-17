@@ -11,13 +11,7 @@ use angstrom_types::contract_bindings::{
 use tracing::debug;
 
 use super::TestAnvilEnvironment;
-use crate::{
-    contracts::{
-        environment::{POOL_GATE_ADDRESS, POOL_MANAGER_ADDRESS},
-        DebugTransaction
-    },
-    providers::WalletProvider
-};
+use crate::{contracts::DebugTransaction, providers::WalletProvider};
 
 pub trait TestUniswapEnv: TestAnvilEnvironment {
     fn pool_manager(&self) -> Address;
@@ -53,7 +47,7 @@ where
 
     async fn deploy_pool_manager(inner: &E) -> eyre::Result<Address> {
         debug!("Deploying pool manager...");
-        let mut pool_manager_addr = *inner
+        let pool_manager_addr = *inner
             .execute_then_mine(PoolManager::deploy(inner.provider(), inner.controller()))
             .await?
             .address();
@@ -70,7 +64,7 @@ where
         let pool_gate_instance = inner
             .execute_then_mine(PoolGate::deploy(inner.provider(), pool_manager))
             .await?;
-        let mut pool_gate_addr = *pool_gate_instance.address();
+        let pool_gate_addr = *pool_gate_instance.address();
 
         // inner
         //     .override_address(&mut pool_gate_addr, POOL_GATE_ADDRESS)

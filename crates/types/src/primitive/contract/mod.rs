@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::{dyn_abi::Eip712Domain, sol, sol_types::eip712_domain};
+use alloy::{dyn_abi::Eip712Domain, primitives::Address, sol, sol_types::eip712_domain};
 
 use crate::contract_bindings::angstrom::Angstrom::PoolKey;
 
@@ -12,6 +12,8 @@ ERC20,
 pub use ERC20::*;
 
 use crate::primitive::PoolId;
+const TESTNET_ANGSTROM_ADDRESS: Address =
+    alloy::primitives::address!("efa489c72885095170b02ca2d826c22fecb51a90");
 
 // The `eip712_domain` macro lets you easily define an EIP-712 domain
 // object :)
@@ -19,6 +21,7 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
     version: "v1",
     chain_id: 1,
+    verifying_contract: TESTNET_ANGSTROM_ADDRESS,
 );
 
 #[derive(Default, Clone)]

@@ -47,7 +47,7 @@ pub fn mine_address_with_factory(
 pub fn mine_create3_address(owner: Address) -> (Address, U256, u8) {
     let mut salt = U256::from(Into::<U160>::into(owner));
     let nonce = 0u8;
-    salt = salt << 96;
+    salt <<= 96;
     let mut addr;
     loop {
         addr = sub_zero_create3(salt.into(), nonce);

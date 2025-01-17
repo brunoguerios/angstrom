@@ -1,13 +1,5 @@
 use alloy::{
-    contract::RawCallBuilder,
-    network::Ethereum,
-    primitives::Address,
-    providers::ext::DebugApi,
-    rpc::types::trace::geth::{
-        GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions,
-        GethDefaultTracingOptions
-    },
-    sol_types::SolValue
+    contract::RawCallBuilder, network::Ethereum, primitives::Address, sol_types::SolValue
 };
 use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom;
