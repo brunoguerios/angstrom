@@ -163,15 +163,16 @@ impl<'a> OrderContainer<'a> {
     ) -> Option<u128> {
         // We only have a t1 quantity to report if or order is on the T1 side
         if order.is_bid() == order.exact_in() {
+            // Let's short circuit this for now
+            return Some(order.max_q());
+            // If we have a debt and the debt has slack, we add it to what this order can
+            // offer
             if let Some(d) = debt {
                 if order.is_bid() == d.bid_side() {
-                    Some(order.max_q() + d.slack())
-                } else {
-                    Some(order.max_q().saturating_sub(d.slack()))
+                    return Some(order.max_q() + d.slack());
                 }
-            } else {
-                Some(order.max_q())
             }
+            Some(order.max_q())
         } else {
             None
         }
@@ -263,7 +264,9 @@ impl<'a> OrderContainer<'a> {
         }
     }
 
-    /// Retrieve the quantity of direct t1 match available for this order
+    /// Retrieve the quantity of direct t1 match available for this order.
+    /// Right now this is only called when we're matching 2 T1 book orders
+    /// against each other
     pub fn quantity_t1(&self, debt: Option<&Debt>) -> Option<OrderVolume> {
         match self {
             Self::BookOrder { order, state: OrderFillState::PartialFill(partial_q) } => {
@@ -277,9 +280,22 @@ impl<'a> OrderContainer<'a> {
 
     /// Get back the maximum amount of T1 we can match against our opposed order
     /// for a given amount of T0 matched
-    pub fn max_t1_for_t0(&self, debt: Option<&Debt>) -> Option<OrderVolume> {
+    pub fn max_t1_for_t0(&self, t0: u128, debt: Option<&Debt>) -> Option<OrderVolume> {
         match self {
-            Self::BookOrder { order, state } => None,
+            Self::BookOrder { order, .. } => {
+                // If I'm not an inverse order, I can never produce any T1 for T0
+                if !self.inverse_order() {
+                    return None
+                }
+                let (t0_consumed, debt_t1) = debt
+                    .map(|d| (std::cmp::min(t0, d.current_t0()), d.freed_t1(t0)))
+                    .unwrap_or_default();
+                let order_t0 = t0.saturating_sub(t0_consumed);
+                let order_t1 = order
+                    .price_for_book_side(order.is_bid())
+                    .quantity(order_t0, order.is_bid);
+                Some(debt_t1 + order_t1)
+            }
             _ => None
         }
     }

@@ -567,6 +567,8 @@ impl GroupedVanillaOrder {
         }
     }
 
+    /// Provides the LITERAL price as specified in the order.  Note that for
+    /// bids this can be inverse
     pub fn price(&self) -> Ray {
         match self {
             Self::Standing(o) => o.limit_price().into(),

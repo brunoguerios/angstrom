@@ -4,12 +4,12 @@ use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
 use testing_tools::type_generator::consensus::{pool::PoolBuilder, proposal::ProposalBuilder};
 
 mod booklib;
-use booklib::{DEBT_WRONG_SIDE, GOOD_BOOK};
+use booklib::{DEBT_WRONG_SIDE, GOOD_BOOK, ZERO_ASK_BOOK};
 
 #[test]
 fn build_and_ship_random_bundle() {
     let bytes = base64::prelude::BASE64_STANDARD
-        .decode(DEBT_WRONG_SIDE)
+        .decode(ZERO_ASK_BOOK)
         .unwrap();
     let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
     println!("Book: {:?}", book);

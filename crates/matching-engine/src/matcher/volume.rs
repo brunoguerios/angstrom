@@ -394,6 +394,7 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // Determine how much we matched and if our orders totally annihilated
         let matched = ask_q.min(bid_q);
+        println!("Matched quantity: {}", matched);
 
         // --- Instrumentation for benchmarking needs updating ---
         // Store the amount we matched
@@ -454,11 +455,17 @@ impl<'a> VolumeFillMatcher<'a> {
         let t1_matched = if t1_context {
             matched
         } else {
+            // Our matched quantity is in T0 so we have to convert it into the appropriate
+            // T1 quantity for our book order
             match (bid.inverse_order(), ask.inverse_order()) {
                 // For an inverse bid the listed quantity is the T1
-                (true, false) => bid.raw_book_quantity(),
+                (true, false) => bid
+                    .max_t1_for_t0(matched, self.debt.as_ref())
+                    .expect("Somehow no T1 available"),
                 // For an inverse ask the listed quantity is the
-                (false, true) => ask.raw_book_quantity(),
+                (false, true) => ask
+                    .max_t1_for_t0(matched, self.debt.as_ref())
+                    .expect("Somehow no T1 available"),
                 _ => 0
             }
         };
@@ -564,7 +571,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 }
                 // Set our ask outcome to be partial
                 if ask.is_book() {
-                    let partial_q = if bid.inverse_order() { t1_matched } else { matched };
+                    let partial_q = if ask.inverse_order() { t1_matched } else { matched };
                     self.ask_outcomes[self.ask_idx.get()] =
                         self.ask_outcomes[self.ask_idx.get()].partial_fill(partial_q);
                     // A partial fill of a partial-safe order is checkpointable
@@ -686,7 +693,12 @@ impl<'a> VolumeFillMatcher<'a> {
                 }
                 // Debt is more advantageous than book but less advantageous than the AMM, wherever
                 // it might be
-                _ => panic!("Debt should never be on the wrong side of the AMM")
+                _ => panic!(
+                    "Debt should never be on the wrong side of the AMM\nDebt price: {:?}\nAMM \
+                     price: {:?}",
+                    debt.map(|d| d.price()),
+                    amm.map(|a| Ray::from(a.price()))
+                )
             }
         }
 

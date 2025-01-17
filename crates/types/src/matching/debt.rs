@@ -57,7 +57,14 @@ impl DebtType {
 
     pub fn slack_at_price<T: Into<Ray>>(&self, price: T) -> u128 {
         let ray_price: Ray = price.into();
-        ray_price.inverse_remainder(self.magnitude())
+        // If I'm on the Ask side (ExactOut debt) I need to substract 1 from my slack
+        let ask_side = match self {
+            Self::ExactIn(_) => 0,
+            Self::ExactOut(_) => 1
+        };
+        ray_price
+            .inverse_remainder(self.magnitude())
+            .saturating_sub(ask_side)
     }
 
     pub fn same_side(&self, other: &Self) -> bool {
@@ -182,10 +189,13 @@ impl Debt {
         }
     }
 
+    /// The current amount of T0 this debt is obligated to fill
     pub fn current_t0(&self) -> u128 {
         self.magnitude.t0_at_price(self.cur_price)
     }
 
+    /// Returns the amount of T0 that needs to be reallocated for a given change
+    /// in a debt's T1 value
     pub fn freed_t0(&self, t1_change: u128) -> u128 {
         let i_t0 = self.current_t0();
         let f_t0 = self
@@ -193,6 +203,22 @@ impl Debt {
             .same_type(self.magnitude.magnitude().saturating_sub(t1_change))
             .t0_at_price(self.cur_price);
         i_t0.saturating_sub(f_t0)
+    }
+
+    /// Returns the amount of T1 that needs to be reallocated for a given change
+    /// in a debt's T0 value
+    pub fn freed_t1(&self, t0_change: u128) -> u128 {
+        // The amount of T1 we can free from this is equal to the quantity of T1 used at
+        // this price plus our slack
+        if t0_change >= self.current_t0() {
+            self.magnitude()
+        } else {
+            let round_up = self.bid_side();
+            std::cmp::min(
+                self.magnitude(),
+                self.price().quantity(t0_change, round_up) + self.slack()
+            )
+        }
     }
 
     /// Create a new Debt object based on the price change created by filling
