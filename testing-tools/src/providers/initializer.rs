@@ -302,10 +302,10 @@ impl AnvilInitializer {
                 )
                 .from(self.provider.controller())
                 .nonce(nonce + 4 + (i as u64))
-                .deploy_pending()
+                .run_safe()
                 .await?;
 
-            self.pending_state.add_pending_tx(add_liq);
+            // self.pending_state.add_pending_tx(add_liq);
         }
 
         Ok(())
