@@ -7,7 +7,6 @@ use alloy::{
 use alloy_primitives::{Address, U256};
 use angstrom_types::primitive::AngstromSigner;
 use consensus::AngstromValidator;
-use rand::random;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
 use super::TestingConfigKind;
@@ -89,7 +88,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .chain_id(1)
             .arg("--host")
             .arg("0.0.0.0")
-            .port(((random::<u8>() as u64) + self.node_id) as u16)
+            .port(self.global_config.leader_eth_rpc_port())
             .fork(self.global_config.eth_ws_url())
             .arg("--ipc")
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))

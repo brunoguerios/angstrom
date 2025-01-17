@@ -67,4 +67,8 @@ impl GlobalTestingConfig for DevnetConfig {
     fn pool_keys(&self) -> Vec<PartialConfigPoolKey> {
         Vec::new()
     }
+
+    fn leader_eth_rpc_port(&self) -> u16 {
+        unreachable!("only available in Testnet mode");
+    }
 }

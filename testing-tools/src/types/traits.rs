@@ -23,4 +23,6 @@ pub trait GlobalTestingConfig: Debug + Clone + Send + Sync {
     fn node_count(&self) -> u64;
 
     fn pool_keys(&self) -> Vec<PartialConfigPoolKey>;
+
+    fn leader_eth_rpc_port(&self) -> u16;
 }
