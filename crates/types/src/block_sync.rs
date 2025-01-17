@@ -91,16 +91,6 @@ impl GlobalBlockSync {
 }
 impl BlockSyncProducer for GlobalBlockSync {
     fn new_block(&self, block_number: u64) {
-        // add to pending state. this will trigger everyone to stop and start dealing
-        // with new blocks
-
-        // let cur_block = self.block_number.load(Ordering::SeqCst);
-        // if cur_block + 1 != block_number {
-        //     tracing::warn!(%cur_block, %block_number, "got invalid new block");
-        //     return
-        // }
-        self.block_number.store(block_number, Ordering::SeqCst);
-
         let modules = self.registered_modules.len();
         tracing::info!(%block_number, mod_cnt=modules,"new block proposal");
 
@@ -213,8 +203,10 @@ impl BlockSyncConsumer for GlobalBlockSync {
 
             drop(lock);
 
-            tracing::info!(handled_state=?new_state, "new block has been handled successfully");
-            self.block_number.fetch_add(1, Ordering::SeqCst);
+            if let GlobalBlockState::PendingProgression(block_number) = new_state {
+                tracing::info!(handled_state=?new_state, "new block has been handled successfully");
+                self.block_number.store(block_number, Ordering::SeqCst);
+            }
 
             // reset sign off state
             self.registered_modules.iter_mut().for_each(|mut v| {
@@ -305,10 +297,13 @@ impl Eq for SignOffState {}
 
 #[cfg(test)]
 pub mod test {
+    use std::{sync::Arc, thread, time::Duration};
+
     use crate::block_sync::{BlockSyncConsumer, BlockSyncProducer, GlobalBlockSync};
 
     const MOD1: &str = "Sick Module";
     const MOD2: &str = "Sick Module Two";
+    const MOD3: &str = "Sick Module Three";
 
     #[test]
     fn test_block_progression() {
@@ -445,5 +440,174 @@ pub mod test {
         assert!(global_sync.has_proposal());
 
         global_sync.sign_off_reorg(MOD1, 10..=12u64, None);
+    }
+
+    #[test]
+    fn test_concurrent_block_progression() {
+        let global_sync = Arc::new(GlobalBlockSync::new(10));
+        let global_sync2 = global_sync.clone();
+        let global_sync3 = global_sync.clone();
+
+        global_sync.register(MOD1);
+        global_sync.register(MOD2);
+        global_sync.finalize_modules();
+
+        global_sync.new_block(11);
+
+        let handle1 = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(10));
+            global_sync2.sign_off_on_block(MOD1, 11, None);
+        });
+
+        let handle2 = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(5));
+            global_sync3.sign_off_on_block(MOD2, 11, None);
+        });
+
+        handle1.join().unwrap();
+        handle2.join().unwrap();
+
+        assert!(global_sync.can_operate());
+        assert!(!global_sync.has_proposal());
+        assert_eq!(global_sync.current_block_number(), 11);
+    }
+
+    #[test]
+    fn test_concurrent_reorg_and_block() {
+        let global_sync = Arc::new(GlobalBlockSync::new(10));
+
+        global_sync.register(MOD1);
+        global_sync.register(MOD2);
+        global_sync.finalize_modules();
+
+        let sync1 = global_sync.clone();
+        let sync2 = global_sync.clone();
+
+        let handle1 = thread::spawn(move || {
+            sync1.new_block(11);
+            sync1.sign_off_on_block(MOD1, 11, None);
+        });
+
+        let handle2 = thread::spawn(move || {
+            sync2.reorg(9..=10);
+            sync2.sign_off_reorg(MOD2, 9..=10, None);
+        });
+
+        handle1.join().unwrap();
+        handle2.join().unwrap();
+
+        // Both proposals should be in the queue
+        assert!(global_sync.has_proposal());
+        assert!(!global_sync.can_operate());
+    }
+
+    #[test]
+    fn test_late_module_registration() {
+        let global_sync = GlobalBlockSync::new(10);
+
+        global_sync.register(MOD1);
+        global_sync.new_block(11);
+
+        // Try to register after proposal
+        global_sync.register(MOD2);
+
+        global_sync.sign_off_on_block(MOD1, 11, None);
+        global_sync.sign_off_on_block(MOD2, 11, None);
+
+        assert_eq!(global_sync.current_block_number(), 11);
+    }
+
+    #[test]
+    fn test_multiple_block_proposals() {
+        let global_sync = GlobalBlockSync::new(10);
+
+        global_sync.register(MOD1);
+        global_sync.register(MOD2);
+        global_sync.finalize_modules();
+
+        global_sync.new_block(11);
+        global_sync.new_block(12); // Should not affect current proposal
+
+        assert!(global_sync.has_proposal());
+        let proposal = global_sync.fetch_current_proposal().unwrap();
+        assert!(matches!(proposal, crate::block_sync::GlobalBlockState::PendingProgression(11)));
+    }
+
+    #[test]
+    fn test_registration_after_finalization() {
+        let global_sync = GlobalBlockSync::new(10);
+
+        global_sync.register(MOD1);
+        global_sync.finalize_modules();
+
+        // This registration should be ignored
+        global_sync.register(MOD3);
+
+        global_sync.new_block(11);
+        global_sync.sign_off_on_block(MOD1, 11, None);
+
+        assert_eq!(global_sync.current_block_number(), 11);
+    }
+
+    #[test]
+    fn test_rapid_block_progression() {
+        let global_sync = GlobalBlockSync::new(10);
+
+        global_sync.register(MOD1);
+        global_sync.register(MOD2);
+        global_sync.finalize_modules();
+
+        for i in 11..=15 {
+            global_sync.new_block(i);
+            global_sync.sign_off_on_block(MOD1, i, None);
+            global_sync.sign_off_on_block(MOD2, i, None);
+        }
+
+        assert_eq!(global_sync.current_block_number(), 15);
+        assert!(!global_sync.has_proposal());
+    }
+
+    #[test]
+    fn test_overlapping_reorgs() {
+        let global_sync = GlobalBlockSync::new(10);
+
+        global_sync.register(MOD1);
+        global_sync.register(MOD2);
+        global_sync.finalize_modules();
+
+        global_sync.reorg(8..=10);
+        global_sync.reorg(7..=10); // Should not affect first reorg
+
+        let proposal = global_sync.fetch_current_proposal().unwrap();
+        assert!(
+            matches!(proposal, crate::block_sync::GlobalBlockState::PendingReorg(r) if r == (8..=10))
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_sign_off_without_proposal() {
+        let global_sync = GlobalBlockSync::new(10);
+        global_sync.register(MOD1);
+        global_sync.finalize_modules();
+
+        // Should panic because there's no active proposal
+        global_sync.sign_off_on_block(MOD1, 11, None);
+    }
+
+    #[test]
+    fn test_clear_pending_state() {
+        let global_sync = GlobalBlockSync::new(10);
+
+        global_sync.register(MOD1);
+        global_sync.register(MOD2);
+        global_sync.finalize_modules();
+
+        global_sync.new_block(11);
+        assert!(global_sync.has_proposal());
+
+        global_sync.clear();
+        assert!(!global_sync.has_proposal());
+        assert!(global_sync.can_operate());
     }
 }

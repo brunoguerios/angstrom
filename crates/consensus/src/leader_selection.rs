@@ -134,7 +134,7 @@ impl WeightedRoundRobin {
         // 2. reverting the block number (self.block_number = block_number) is also not
         //    ideal, since nodes who were offline will not have seen the reorg, thus
         //    would not have executed the extra rounds after this if statement
-        if block_number <= self.block_number {
+        if block_number == self.block_number {
             if self.last_proposer.is_none() {
                 self.last_proposer = Some(self.proposer_selection());
             }
@@ -191,6 +191,115 @@ mod tests {
     use alloy::primitives::BlockNumber;
 
     use super::*;
+
+    #[test]
+    fn test_validator_equality() {
+        let peer_id = PeerId::random();
+        let v1 = AngstromValidator::new(peer_id, 100);
+        let v2 = AngstromValidator::new(peer_id, 200);
+        let v3 = AngstromValidator::new(PeerId::random(), 100);
+
+        assert_eq!(v1, v2, "Validators with same peer_id should be equal");
+        assert_ne!(v1, v3, "Validators with different peer_id should not be equal");
+    }
+
+    #[test]
+    fn test_validator_hash() {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher}
+        };
+
+        let peer_id = PeerId::random();
+        let v1 = AngstromValidator::new(peer_id, 100);
+        let v2 = AngstromValidator::new(peer_id, 200);
+
+        let mut hasher1 = DefaultHasher::new();
+        let mut hasher2 = DefaultHasher::new();
+        v1.hash(&mut hasher1);
+        v2.hash(&mut hasher2);
+
+        assert_eq!(hasher1.finish(), hasher2.finish(), "Hash should only depend on peer_id");
+    }
+
+    #[test]
+    fn test_add_remove_validator() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
+
+        // Test adding new validator
+        let new_peer = PeerId::random();
+        let initial_count = algo.validators.len();
+        algo.add_validator(new_peer, 150);
+        assert_eq!(algo.validators.len(), initial_count + 1);
+
+        // Verify penalty was applied
+        let new_validator = algo
+            .validators
+            .iter()
+            .find(|v| v.peer_id == new_peer)
+            .unwrap();
+        assert!(new_validator.priority < 0, "New validator should have negative priority");
+
+        // Test removing validator
+        algo.remove_validator(&new_peer);
+        assert_eq!(algo.validators.len(), initial_count);
+        assert!(algo.validators.iter().all(|v| v.peer_id != new_peer));
+    }
+
+    #[test]
+    fn test_priority_comparison() {
+        let peer1 = PeerId::random();
+        let peer2 = PeerId::random();
+
+        let v1 =
+            AngstromValidator { peer_id: peer1, voting_power: 100 * ONE_E3, priority: 10 };
+
+        let v2 =
+            AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 10 };
+
+        let v3 =
+            AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 20 };
+
+        // Test equal priorities
+        assert_eq!(
+            WeightedRoundRobin::priority(&&v1, &&v2),
+            peer1.cmp(&peer2),
+            "Equal priorities should compare peer_ids"
+        );
+
+        // Test different priorities
+        assert_eq!(
+            WeightedRoundRobin::priority(&&v1, &&v3),
+            Ordering::Less,
+            "Different priorities should compare normally"
+        );
+    }
+
+    #[test]
+    fn test_choose_proposer_same_block() {
+        let (_, validators) = create_test_validators();
+        let mut algo = WeightedRoundRobin::new(validators, 5);
+
+        // First call should select a proposer
+        let first_proposer = algo.choose_proposer(5).unwrap();
+
+        // Subsequent calls for same block should return the same proposer
+        for _ in 0..5 {
+            assert_eq!(
+                algo.choose_proposer(5).unwrap(),
+                first_proposer,
+                "Same block number should return same proposer"
+            );
+        }
+    }
+
+    #[test]
+    fn test_voting_power_scaling() {
+        let peer_id = PeerId::random();
+        let validator = AngstromValidator::new(peer_id, 100);
+        assert_eq!(validator.voting_power, 100 * ONE_E3, "Voting power should be scaled by ONE_E3");
+    }
 
     fn create_test_validators() -> (HashMap<String, PeerId>, Vec<AngstromValidator>) {
         let peers = HashMap::from([

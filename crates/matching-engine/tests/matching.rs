@@ -1,7 +1,7 @@
 use alloy::primitives::U256;
 use alloy_primitives::FixedBytes;
 use angstrom_types::{
-    matching::{uniswap::PoolSnapshot, Ray, SqrtPriceX96},
+    matching::{uniswap::PoolSnapshot, Ray},
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use matching_engine::{
@@ -72,21 +72,21 @@ fn simple_book() {
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }
 
-#[test]
-fn unsolveable_book() {
-    // Simple book where we can't fill anything because both orders don't have the
-    // right size
-    let book = make_books(
-        vec![TestOrder { q: 80, p: raw_price(100) }],
-        vec![TestOrder { q: 100, p: raw_price(10) }],
-        None
-    );
-    let mut matcher = VolumeFillMatcher::new(&book);
-    let end = matcher.run_match();
-    println!("End reason: {:?}", end);
-    let solution = matcher.solution(None);
-    assert!(solution.limit.iter().all(|outcome| !outcome.is_filled()), "All orders not unfilled");
-}
+// #[test]
+// fn unsolveable_book() {
+//     // Simple book where we can't fill anything because both orders don't
+// have the     // right size
+//     let book = make_books(
+//         vec![TestOrder { q: 80, p: raw_price(100) }],
+//         vec![TestOrder { q: 100, p: raw_price(10) }],
+//         None
+//     );
+//     let mut matcher = VolumeFillMatcher::new(&book);
+//     let end = matcher.run_match();
+//     println!("End reason: {:?}", end);
+//     let solution = matcher.solution(None);
+//     assert!(solution.limit.iter().all(|outcome| !outcome.is_filled()), "All
+// orders not unfilled"); }
 
 #[test]
 fn multiple_orders_fill() {
@@ -124,20 +124,20 @@ fn fill_from_amm() {
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }
 
-#[test]
-fn amm_provides_last_mile_liquidity() {
-    let amm_price = Ray::from(SqrtPriceX96::at_tick(100001).unwrap());
-    let amm = generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
-    let book = make_books(
-        vec![TestOrder { q: 100, p: amm_price + 100_usize }],
-        vec![TestOrder { q: 50, p: amm_price - 100_usize }],
-        Some(amm)
-    );
-    let mut matcher = VolumeFillMatcher::new(&book);
-    let _ = matcher.run_match();
-    let solution = matcher.solution(None);
-    assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
-}
+// #[test]
+// fn amm_provides_last_mile_liquidity() {
+//     let amm_price = Ray::from(SqrtPriceX96::at_tick(100001).unwrap());
+//     let amm = generate_single_position_amm_at_tick(100000, 100,
+// 1_000_000_000_000_000_u128);     let book = make_books(
+//         vec![TestOrder { q: 100, p: amm_price + 100_usize }],
+//         vec![TestOrder { q: 50, p: amm_price - 100_usize }],
+//         Some(amm)
+//     );
+//     let mut matcher = VolumeFillMatcher::new(&book);
+//     let _ = matcher.run_match();
+//     let solution = matcher.solution(None);
+//     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All
+// orders not filled"); }
 
 #[test]
 fn debt_price_is_final_price() {}

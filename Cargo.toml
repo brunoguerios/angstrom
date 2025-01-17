@@ -16,13 +16,7 @@ members = [
   "crates/uniswap-v4",
 ]
 
-
-#default-members = ["bin/angstrom"]
-
-# Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021
-# https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
 resolver = "2"
-
 
 [workspace.package]
 version = "0.1.0"
@@ -201,7 +195,7 @@ strum = "0.26.2"
 rayon = "1.7"
 itertools = "0.12.1"
 parking_lot = "0.12"
-metrics = "0.21.1"                                                           # Needed for `metrics-macro` to resolve the crate using `::metrics` notation
+metrics = "0.21.1"
 anyhow = "1.0.85"
 url = "2.4.1"
 auto_impl = "1.1.0"

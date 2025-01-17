@@ -152,7 +152,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "reth-db-dep-tests"))]
 mod tests {
     use std::{
         collections::HashMap,

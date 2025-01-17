@@ -68,17 +68,17 @@ jobs:
         env: 
           RUSTFLAGS: -D warnings
 
-  build-tests:
-    name: 'Build Tests'
+  tests:
+    name: "tests"
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
         with:
+          components: clippy,rustfmt
           toolchain: nightly
-          profile: minimal
-          override: true
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -87,12 +87,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          key: "clippy-nightly"
 
       - name: Update Submodules
         run: git submodule update --init --recursive
 
-      - name: Build Tests
-        run: cargo build --tests
+      - name: "test"
+        run: cargo test
 
   contracts:
     name: 'Build, Format & Test Contracts'

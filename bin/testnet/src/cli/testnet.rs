@@ -24,7 +24,7 @@ pub struct TestnetCli {
     #[clap(short, long, default_value = "3")]
     pub nodes_in_network: u64,
     /// eth rpc/ipc fork url
-    #[clap(short, long)]
+    #[clap(short, long, default_value = "ws://localhost:8546")]
     pub eth_fork_url:     String,
     /// path to the toml file with the pool keys
     #[clap(short, long, default_value = "./bin/testnet/pool_key_config.toml")]
