@@ -361,236 +361,234 @@ impl Ray {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::U160;
-    use alloy_primitives::I256;
-    use malachite::num::arithmetic::traits::{FloorSqrt, Square};
     use rand::{thread_rng, Rng};
-    use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 
     use super::*;
-    use crate::matching::{const_2_96, debt::Debt};
 
-    #[test]
-    fn another_math_test() {
-        // AMM Setup
-        let liquidity = 1_000_000_000_000_000_000_u128;
-        let price_amm_initial = SqrtPriceX96::at_tick(100000).unwrap();
-        let price_amm_final = SqrtPriceX96::at_tick(100001).unwrap();
-        let delta_0 = uniswap_v3_math::sqrt_price_math::_get_amount_0_delta(
-            price_amm_initial.into(),
-            price_amm_final.into(),
-            liquidity,
-            false
-        )
-        .unwrap();
-        println!("Start price:  {:?}\nEnd price: {:?}", price_amm_initial, price_amm_final);
-        println!("Delta zero: {}", delta_0);
-        let amm_delta = delta_0.to::<u128>() / 4_u128;
-        let amount_remaining = I256::unchecked_from(amm_delta) * I256::MINUS_ONE;
-        println!("Fraction delta: {:?}\nConverted: {:?}", amm_delta, amount_remaining);
-        let step = uniswap_v3_math::swap_math::compute_swap_step(
-            price_amm_initial.into(),
-            price_amm_final.into(),
-            liquidity,
-            amount_remaining,
-            0
-        )
-        .unwrap();
-        println!("Step {:?}", step);
-        println!("Computed final: {:?}", price_amm_final);
-        let (end_price, ..) = step;
-        let end_sqrt = SqrtPriceX96::from(end_price);
-        let final_price = Ray::from(end_sqrt);
-
-        // Debt setup
-        let debt_t0_start = U256::from(1_000_000_000_000_u128);
-        let debt_fixed_t1: u128 = Ray::from(price_amm_initial)
-            .mul_quantity(debt_t0_start)
-            .to();
-        let debt =
-            Debt::new(crate::matching::debt::DebtType::ExactOut(debt_fixed_t1), price_amm_initial);
-        println!("Debt start T0: {}\nDebt start T1: {}", debt_t0_start, debt_fixed_t1);
-        let calculated_price = Ray::calc_price(debt_t0_start, U256::from(debt_fixed_t1));
-
-        // Prove that our calculated price is as accurate as possible.  The precision is
-        // limited by the precision of our input debt numbers which is why it's
-        // not perfectly precise. Rounding is going to be a long-term challenge
-        // here
-        let calculated_price_plus_one =
-            Ray::calc_price(U256::from(1_000_000_000_000_u128 + 1_u128), U256::from(debt_fixed_t1));
-        let calculated_price_minus_one =
-            Ray::calc_price(U256::from(1_000_000_000_000_u128 - 1_u128), U256::from(debt_fixed_t1));
-        println!(
-            "Start price:  {:?}\nCalc'd Price: {:?}\nCalc'd P+one: {:?}\nCalc'd P-one: {:?}",
-            Ray::from(price_amm_initial),
-            calculated_price,
-            calculated_price_plus_one,
-            calculated_price_minus_one
-        );
-        // Figure out how much t0 we should have at the end price to match
-        let debt_t0_final = Ray::from(price_amm_final).inverse_quantity(debt_fixed_t1, true);
-        let calculated_price_final =
-            Ray::calc_price(U256::from(debt_t0_final), U256::from(debt_fixed_t1));
-
-        // Prove that our calculated final price is as accurate as possible.  Rounding
-        // remains a long-term challenge
-        let calculated_price_final_plus_one = Ray::calc_price(
-            U256::from(debt_t0_final) + U256::from(1_u128),
-            U256::from(debt_fixed_t1)
-        );
-        let calculated_price_final_minus_one = Ray::calc_price(
-            U256::from(debt_t0_final) - U256::from(1_u128),
-            U256::from(debt_fixed_t1)
-        );
-        println!(
-            "Final price:  {:?}\nCalc'd Price: {:?}\nCalc'd P+one: {:?}\nCalc'd P-one: {:?}",
-            Ray::from(price_amm_final),
-            calculated_price_final,
-            calculated_price_final_plus_one,
-            calculated_price_final_minus_one
-        );
-
-        // Start doing some math!
-        let debt_sqrt_t1_x96 = (Natural::from(debt_fixed_t1) * const_2_192()).floor_sqrt();
-        let debt_sqrt_t0_start_x96 =
-            (Natural::from_limbs_asc(debt_t0_start.as_limbs()) * const_2_192()).floor_sqrt();
-        println!(
-            "Token1: {}\tSqrtToken1: {}",
-            debt_fixed_t1,
-            debt_sqrt_t1_x96
-                .clone()
-                .div_round(const_2_96(), RoundingMode::Nearest)
-                .0
-        );
-
-        let a_num_portion_1 = Natural::from(amm_delta) * debt_sqrt_t1_x96.clone();
-        println!(
-            "----- Num portion 1\nRaw: {}\nReduced: {}\n-----",
-            a_num_portion_1,
-            a_num_portion_1
-                .clone()
-                .div_round(const_2_96(), RoundingMode::Nearest)
-                .0
-        );
-
-        let a_num_portion_2 = Natural::from(liquidity) * debt_sqrt_t0_start_x96.clone();
-        println!(
-            "----- Num portion 2\nRaw: {}\nReduced: {}\n-----",
-            a_num_portion_2,
-            a_num_portion_2
-                .clone()
-                .div_round(const_2_96(), RoundingMode::Nearest)
-                .0
-        );
-
-        let a_numerator_sum = a_num_portion_2 - a_num_portion_1;
-        println!(
-            "----- Num sum\nRaw: {}\nReduced: {}\n-----",
-            a_numerator_sum,
-            a_numerator_sum
-                .clone()
-                .div_round(const_2_96(), RoundingMode::Nearest)
-                .0
-        );
-
-        let a_denominator = Natural::from(liquidity);
-        let (a_fraction, _) = a_numerator_sum
-            .clone()
-            .div_round(a_denominator.clone(), RoundingMode::Nearest);
-        println!(
-            "--- Fraction calc ---\nNumerator: {}\nDenominator: {}\nResult: {}\nRounded result: \
-             {}\n--------------------",
-            a_numerator_sum,
-            a_denominator,
-            a_fraction,
-            a_fraction
-                .clone()
-                .div_round(const_2_96(), RoundingMode::Nearest)
-                .0
-        );
-
-        // if A = sqrt(x + dX) then we have to square A and subtract the original X
-        let debt_delta_t0 = Natural::from_limbs_asc(debt_t0_start.as_limbs())
-            - a_fraction
-                .pow(2)
-                .div_round(const_2_192(), RoundingMode::Ceiling)
-                .0;
-        // let debt_delta_t0_u256 =
-        // U256::from_limbs_slice(&debt_delta_t0.to_limbs_asc());
-
-        let debt_delta_t0_u256 = U256::from(debt.calc_proportion(amm_delta, liquidity, true));
-        println!("AMM  delta: {:?}", amm_delta);
-        println!("Debt delta: {:?}", debt_delta_t0);
-        let half_calc_price =
-            Ray::calc_price(debt_t0_start - debt_delta_t0_u256, U256::from(debt_fixed_t1));
-        let half_plus_one = Ray::calc_price(
-            debt_t0_start - debt_delta_t0_u256 + U256::from(1_u128),
-            U256::from(debt_fixed_t1)
-        );
-        let half_minus_one = Ray::calc_price(
-            debt_t0_start - debt_delta_t0_u256 - U256::from(1_u128),
-            U256::from(debt_fixed_t1)
-        );
-        println!(
-            "BegPrice: {:?}\nHalfCa+1: {:?}\nHalfCalc: {:?}\nHalfCa-1: {:?}\nAMM half: \
-             {:?}\nEndPrice: {:?}",
-            Ray::from(price_amm_initial),
-            half_minus_one,
-            half_calc_price,
-            half_plus_one,
-            final_price,
-            Ray::from(price_amm_final)
-        );
-        println!(
-            "Start T0: {}\nFinal T0: {}\nExpec T0: {}\nOur   T0: {}",
-            debt_t0_start,
-            debt_delta_t0_u256,
-            final_price.inverse_quantity(debt_fixed_t1, true),
-            half_calc_price.inverse_quantity(debt_fixed_t1, true)
-        );
-    }
-
-    #[allow(non_snake_case)]
-    #[test]
-    fn insano_math_test() {
-        let l = 1_000_u128;
-        let price_amm_initial = get_sqrt_ratio_at_tick(100000).unwrap();
-        let price_debt_initial = Ray::from(SqrtPriceX96::at_tick(99999).unwrap());
-        let numerator_a = Natural::from(1_u32);
-        let denominator_a = Natural::from(l);
-        let p_amm = Natural::from_limbs_asc(price_amm_initial.as_limbs());
-        let y = Natural::from(l) * p_amm.clone();
-        let (x, _): (Natural, _) =
-            Rational::from_naturals(Natural::from(l), p_amm).rounding_into(RoundingMode::Ceiling);
-        let d1 = Natural::from(1_000_000_000_000_u128);
-        let d0 = Natural::from_limbs_asc(
-            price_debt_initial
-                .mul_quantity(U256::from(1000_u128))
-                .as_limbs()
-        );
-
-        let a = Rational::from_naturals(numerator_a.clone(), denominator_a.pow(2));
-        let b = Rational::from_naturals(numerator_a.clone(), d1.clone())
-            - Rational::from_naturals(Natural::from(2_u32), y.clone());
-        let c = Rational::from_naturals(d0, d1) - Rational::from_naturals(x, y);
-        println!("Made them all!\na: {}\nb: {}\n c:{}", a, b, c);
-
-        let FOUR = Rational::from_naturals(Natural::from(4_u128), numerator_a.clone());
-        let TWO = Rational::from_naturals(Natural::from(2_u128), numerator_a.clone());
-        println!("bsquared: {}", b.clone().square());
-        println!("4ac: {}", (a.clone() * c.clone() * FOUR.clone()));
-        let a_squared: Rational = a.clone().pow(2_u64);
-        let (v, _): (Natural, _) = (((a.clone() * c * FOUR) - b.clone().square()) * a_squared)
-            .rounding_into(RoundingMode::Ceiling);
-        println!("v: {}", v);
-        let v_sqrt = v.floor_sqrt();
-        let nat_b: Natural = b.rounding_into(RoundingMode::Nearest).0;
-        println!("V_sqrt: {}\nNat_b: {}", v_sqrt, nat_b);
-        let numerator = v_sqrt - nat_b;
-        let (denominator, _): (Natural, _) = (TWO * a).rounding_into(RoundingMode::Nearest);
-        println!("Numerator: {}\nDenominator: {}", numerator, denominator);
-        let solution = Rational::from_naturals(numerator, denominator);
-        println!("Kinda found something: {}", solution);
-    }
+    // #[test]
+    // fn another_math_test() {
+    //     // AMM Setup
+    //     let liquidity = 1_000_000_000_000_000_000_u128;
+    //     let price_amm_initial = SqrtPriceX96::at_tick(100000).unwrap();
+    //     let price_amm_final = SqrtPriceX96::at_tick(100001).unwrap();
+    //     let delta_0 = uniswap_v3_math::sqrt_price_math::_get_amount_0_delta(
+    //         price_amm_initial.into(),
+    //         price_amm_final.into(),
+    //         liquidity,
+    //         false
+    //     )
+    //     .unwrap();
+    //     println!("Start price:  {:?}\nEnd price: {:?}", price_amm_initial,
+    // price_amm_final);     println!("Delta zero: {}", delta_0);
+    //     let amm_delta = delta_0.to::<u128>() / 4_u128;
+    //     let amount_remaining = I256::unchecked_from(amm_delta) * I256::MINUS_ONE;
+    //     println!("Fraction delta: {:?}\nConverted: {:?}", amm_delta,
+    // amount_remaining);     let step =
+    // uniswap_v3_math::swap_math::compute_swap_step(         price_amm_initial.
+    // into(),         price_amm_final.into(),
+    //         liquidity,
+    //         amount_remaining,
+    //         0
+    //     )
+    //     .unwrap();
+    //     println!("Step {:?}", step);
+    //     println!("Computed final: {:?}", price_amm_final);
+    //     let (end_price, ..) = step;
+    //     let end_sqrt = SqrtPriceX96::from(end_price);
+    //     let final_price = Ray::from(end_sqrt);
+    //
+    //     // Debt setup
+    //     let debt_t0_start = U256::from(1_000_000_000_000_u128);
+    //     let debt_fixed_t1: u128 = Ray::from(price_amm_initial)
+    //         .mul_quantity(debt_t0_start)
+    //         .to();
+    //     let debt =
+    //         Debt::new(crate::matching::debt::DebtType::ExactOut(debt_fixed_t1),
+    // price_amm_initial);     println!("Debt start T0: {}\nDebt start T1: {}",
+    // debt_t0_start, debt_fixed_t1);     let calculated_price =
+    // Ray::calc_price(debt_t0_start, U256::from(debt_fixed_t1));
+    //
+    //     // Prove that our calculated price is as accurate as possible.  The
+    // precision is     // limited by the precision of our input debt numbers
+    // which is why it's     // not perfectly precise. Rounding is going to be a
+    // long-term challenge     // here
+    //     let calculated_price_plus_one =
+    //         Ray::calc_price(U256::from(1_000_000_000_000_u128 + 1_u128),
+    // U256::from(debt_fixed_t1));     let calculated_price_minus_one =
+    //         Ray::calc_price(U256::from(1_000_000_000_000_u128 - 1_u128),
+    // U256::from(debt_fixed_t1));     println!(
+    //         "Start price:  {:?}\nCalc'd Price: {:?}\nCalc'd P+one: {:?}\nCalc'd
+    // P-one: {:?}",         Ray::from(price_amm_initial),
+    //         calculated_price,
+    //         calculated_price_plus_one,
+    //         calculated_price_minus_one
+    //     );
+    //     // Figure out how much t0 we should have at the end price to match
+    //     let debt_t0_final =
+    // Ray::from(price_amm_final).inverse_quantity(debt_fixed_t1, true);     let
+    // calculated_price_final =
+    //         Ray::calc_price(U256::from(debt_t0_final),
+    // U256::from(debt_fixed_t1));
+    //
+    //     // Prove that our calculated final price is as accurate as possible.
+    // Rounding     // remains a long-term challenge
+    //     let calculated_price_final_plus_one = Ray::calc_price(
+    //         U256::from(debt_t0_final) + U256::from(1_u128),
+    //         U256::from(debt_fixed_t1)
+    //     );
+    //     let calculated_price_final_minus_one = Ray::calc_price(
+    //         U256::from(debt_t0_final) - U256::from(1_u128),
+    //         U256::from(debt_fixed_t1)
+    //     );
+    //     println!(
+    //         "Final price:  {:?}\nCalc'd Price: {:?}\nCalc'd P+one: {:?}\nCalc'd
+    // P-one: {:?}",         Ray::from(price_amm_final),
+    //         calculated_price_final,
+    //         calculated_price_final_plus_one,
+    //         calculated_price_final_minus_one
+    //     );
+    //
+    //     // Start doing some math!
+    //     let debt_sqrt_t1_x96 = (Natural::from(debt_fixed_t1) *
+    // const_2_192()).floor_sqrt();     let debt_sqrt_t0_start_x96 =
+    //         (Natural::from_limbs_asc(debt_t0_start.as_limbs()) *
+    // const_2_192()).floor_sqrt();     println!(
+    //         "Token1: {}\tSqrtToken1: {}",
+    //         debt_fixed_t1,
+    //         debt_sqrt_t1_x96
+    //             .clone()
+    //             .div_round(const_2_96(), RoundingMode::Nearest)
+    //             .0
+    //     );
+    //
+    //     let a_num_portion_1 = Natural::from(amm_delta) *
+    // debt_sqrt_t1_x96.clone();     println!(
+    //         "----- Num portion 1\nRaw: {}\nReduced: {}\n-----",
+    //         a_num_portion_1,
+    //         a_num_portion_1
+    //             .clone()
+    //             .div_round(const_2_96(), RoundingMode::Nearest)
+    //             .0
+    //     );
+    //
+    //     let a_num_portion_2 = Natural::from(liquidity) *
+    // debt_sqrt_t0_start_x96.clone();     println!(
+    //         "----- Num portion 2\nRaw: {}\nReduced: {}\n-----",
+    //         a_num_portion_2,
+    //         a_num_portion_2
+    //             .clone()
+    //             .div_round(const_2_96(), RoundingMode::Nearest)
+    //             .0
+    //     );
+    //
+    //     let a_numerator_sum = a_num_portion_2 - a_num_portion_1;
+    //     println!(
+    //         "----- Num sum\nRaw: {}\nReduced: {}\n-----",
+    //         a_numerator_sum,
+    //         a_numerator_sum
+    //             .clone()
+    //             .div_round(const_2_96(), RoundingMode::Nearest)
+    //             .0
+    //     );
+    //
+    //     let a_denominator = Natural::from(liquidity);
+    //     let (a_fraction, _) = a_numerator_sum
+    //         .clone()
+    //         .div_round(a_denominator.clone(), RoundingMode::Nearest);
+    //     println!(
+    //         "--- Fraction calc ---\nNumerator: {}\nDenominator: {}\nResult:
+    // {}\nRounded result: \          {}\n--------------------",
+    //         a_numerator_sum,
+    //         a_denominator,
+    //         a_fraction,
+    //         a_fraction
+    //             .clone()
+    //             .div_round(const_2_96(), RoundingMode::Nearest)
+    //             .0
+    //     );
+    //
+    //     // if A = sqrt(x + dX) then we have to square A and subtract the original
+    // X     let debt_delta_t0 =
+    // Natural::from_limbs_asc(debt_t0_start.as_limbs())
+    //         - a_fraction .pow(2) .div_round(const_2_192(), RoundingMode::Ceiling)
+    //           .0;
+    //     // let debt_delta_t0_u256 =
+    //     // U256::from_limbs_slice(&debt_delta_t0.to_limbs_asc());
+    //
+    //     let debt_delta_t0_u256 = U256::from(debt.calc_proportion(amm_delta,
+    // liquidity, true));     println!("AMM  delta: {:?}", amm_delta);
+    //     println!("Debt delta: {:?}", debt_delta_t0);
+    //     let half_calc_price =
+    //         Ray::calc_price(debt_t0_start - debt_delta_t0_u256,
+    // U256::from(debt_fixed_t1));     let half_plus_one = Ray::calc_price(
+    //         debt_t0_start - debt_delta_t0_u256 + U256::from(1_u128),
+    //         U256::from(debt_fixed_t1)
+    //     );
+    //     let half_minus_one = Ray::calc_price(
+    //         debt_t0_start - debt_delta_t0_u256 - U256::from(1_u128),
+    //         U256::from(debt_fixed_t1)
+    //     );
+    //     println!(
+    //         "BegPrice: {:?}\nHalfCa+1: {:?}\nHalfCalc: {:?}\nHalfCa-1: {:?}\nAMM
+    // half: \          {:?}\nEndPrice: {:?}",
+    //         Ray::from(price_amm_initial),
+    //         half_minus_one,
+    //         half_calc_price,
+    //         half_plus_one,
+    //         final_price,
+    //         Ray::from(price_amm_final)
+    //     );
+    //     println!(
+    //         "Start T0: {}\nFinal T0: {}\nExpec T0: {}\nOur   T0: {}",
+    //         debt_t0_start,
+    //         debt_delta_t0_u256,
+    //         final_price.inverse_quantity(debt_fixed_t1, true),
+    //         half_calc_price.inverse_quantity(debt_fixed_t1, true)
+    //     );
+    // }
+    //
+    // #[allow(non_snake_case)]
+    // #[test]
+    // fn insano_math_test() {
+    //     let l = 1_000_u128;
+    //     let price_amm_initial = get_sqrt_ratio_at_tick(100000).unwrap();
+    //     let price_debt_initial =
+    // Ray::from(SqrtPriceX96::at_tick(99999).unwrap());     let numerator_a =
+    // Natural::from(1_u32);     let denominator_a = Natural::from(l);
+    //     let p_amm = Natural::from_limbs_asc(price_amm_initial.as_limbs());
+    //     let y = Natural::from(l) * p_amm.clone();
+    //     let (x, _): (Natural, _) =
+    //         Rational::from_naturals(Natural::from(l),
+    // p_amm).rounding_into(RoundingMode::Ceiling);     let d1 =
+    // Natural::from(1_000_000_000_000_u128);     let d0 =
+    // Natural::from_limbs_asc(         price_debt_initial
+    //             .mul_quantity(U256::from(1000_u128))
+    //             .as_limbs()
+    //     );
+    //
+    //     let a = Rational::from_naturals(numerator_a.clone(),
+    // denominator_a.pow(2));     let b =
+    // Rational::from_naturals(numerator_a.clone(), d1.clone())
+    //         - Rational::from_naturals(Natural::from(2_u32), y.clone());
+    //     let c = Rational::from_naturals(d0, d1) - Rational::from_naturals(x, y);
+    //     println!("Made them all!\na: {}\nb: {}\n c:{}", a, b, c);
+    //
+    //     let FOUR = Rational::from_naturals(Natural::from(4_u128),
+    // numerator_a.clone());     let TWO =
+    // Rational::from_naturals(Natural::from(2_u128), numerator_a.clone());
+    //     println!("bsquared: {}", b.clone().square());
+    //     println!("4ac: {}", (a.clone() * c.clone() * FOUR.clone()));
+    //     let a_squared: Rational = a.clone().pow(2_u64);
+    //     let (v, _): (Natural, _) = (((a.clone() * c * FOUR) - b.clone().square())
+    // * a_squared)         .rounding_into(RoundingMode::Ceiling); println!("v: {}",
+    //   v); let v_sqrt = v.floor_sqrt(); let nat_b: Natural =
+    //   b.rounding_into(RoundingMode::Nearest).0; println!("V_sqrt: {}\nNat_b: {}",
+    //   v_sqrt, nat_b); let numerator = v_sqrt - nat_b; let (denominator, _):
+    //   (Natural, _) = (TWO *
+    // a).rounding_into(RoundingMode::Nearest);     println!("Numerator:
+    // {}\nDenominator: {}", numerator, denominator);     let solution =
+    // Rational::from_naturals(numerator, denominator);     println!("Kinda
+    // found something: {}", solution); }
 
     #[test]
     fn converts_to_and_from_f64() {

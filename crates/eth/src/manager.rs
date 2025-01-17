@@ -20,6 +20,7 @@ use angstrom_types::{
 };
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
+use itertools::Itertools;
 use pade::PadeDecode;
 use reth_primitives::{Receipt, SealedBlockWithSenders, TransactionSigned};
 use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain};
@@ -34,7 +35,7 @@ alloy::sol!(
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 );
 
-const MAX_REORG_DEPTH: u64 = 30;
+const MAX_REORG_DEPTH: u64 = 150;
 
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
@@ -185,17 +186,17 @@ where
         let periphery_address = self.periphery_address;
         chain
             .receipts_by_block_hash(chain.tip_hash())
-            .unwrap()
+            .unwrap_or_default()
             .into_iter()
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| log.address == periphery_address)
             .for_each(|log| {
                 if let Ok(remove_node) = NodeRemoved::decode_log(log, true) {
-                    self.node_set.remove(&remove_node.address);
+                    self.node_set.remove(&remove_node.node);
                     self.send_events(EthEvent::RemovedNode(remove_node.node));
                 }
                 if let Ok(added_node) = NodeAdded::decode_log(log, true) {
-                    self.node_set.insert(added_node.address);
+                    self.node_set.insert(added_node.node);
                     self.send_events(EthEvent::AddedNode(added_node.node));
                 }
                 if let Ok(removed_pool) = PoolRemoved::decode_log(log, true) {
@@ -244,8 +245,6 @@ where
             });
     }
 
-    /// TODO: check contract for state change. if there is change. fetch the
-    /// transaction on Angstrom and process call-data to pull order-hashes.
     fn fetch_filled_order<'a>(
         &'a self,
         chain: &'a impl ChainExt
@@ -268,7 +267,7 @@ where
     fn get_eoa(&self, chain: Arc<impl ChainExt>) -> Vec<Address> {
         chain
             .receipts_by_block_hash(chain.tip_hash())
-            .unwrap()
+            .unwrap_or_default()
             .into_iter()
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| self.angstrom_tokens.contains(&log.address))
@@ -277,6 +276,7 @@ where
                     .map(|log| log._from)
                     .or_else(|_| Approval::decode_log(logs, true).map(|log| log._owner))
             })
+            .unique()
             .collect()
     }
 }
@@ -347,7 +347,7 @@ impl ChainExt for Chain {
 
     fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>> {
         let tip = new.tip_number();
-        // search 30 blocks back;
+        // search 150 blocks back;
         let start = tip - MAX_REORG_DEPTH;
 
         let mut range = self
@@ -393,10 +393,14 @@ impl ChainExt for Chain {
 pub mod test {
     use alloy::{
         hex,
-        primitives::{b256, TxKind, U256}
+        primitives::{aliases::U24, b256, Log, TxKind, U256},
+        sol_types::SolEvent
     };
     use angstrom_types::{
         block_sync::*,
+        contract_bindings::controller_v_1::ControllerV1::{
+            NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved
+        },
         contract_payloads::{
             angstrom::{TopOfBlockOrder, UserOrder},
             Asset, Pair
@@ -406,7 +410,7 @@ pub mod test {
         sol_bindings::grouped_orders::OrderWithStorageData
     };
     use pade::PadeEncode;
-    use reth_primitives::Transaction;
+    use reth_primitives::{LogData, Transaction};
     use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
     use super::*;
@@ -416,7 +420,7 @@ pub mod test {
         pub hash:         BlockHash,
         pub number:       BlockNumber,
         pub transactions: Vec<TransactionSigned>,
-        pub receipts:     Option<Vec<&'a Receipt>>
+        pub receipts:     Vec<&'a Receipt>
     }
 
     impl ChainExt for MockChain<'_> {
@@ -433,7 +437,7 @@ pub mod test {
         }
 
         fn receipts_by_block_hash(&self, _: BlockHash) -> Option<Vec<&Receipt>> {
-            self.receipts.clone()
+            Some(self.receipts.clone())
         }
 
         fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
@@ -533,6 +537,154 @@ pub mod test {
     }
 
     #[test]
+    fn test_periphery_node_events() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+
+        // Test node added event
+        let node_addr = Address::random();
+        let node_added = NodeAdded { node: node_addr };
+        let added_log = Log { address: periphery_addr, data: node_added.encode_log_data() };
+
+        // Test node removed event
+        let node_removed = NodeRemoved { node: node_addr };
+        let removed_log = Log { address: periphery_addr, data: node_removed.encode_log_data() };
+
+        let mock_recip =
+            Receipt { logs: vec![added_log.clone(), removed_log.clone()], ..Default::default() };
+
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        // Verify initial state
+        assert!(!eth.node_set.contains(&node_addr));
+
+        // Process the logs
+        eth.apply_periphery_logs(&*mock_chain);
+
+        // Verify node was added then removed
+        assert!(!eth.node_set.contains(&node_addr));
+    }
+
+    #[test]
+    fn test_periphery_pool_events() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+        eth.angstrom_address = ang_addr;
+
+        // Test pool configured event
+        let asset0 = Address::random();
+        let asset1 = Address::random();
+        let fee = U24::try_from(3000).unwrap();
+        let tick_spacing = 60u16;
+
+        let pool_configured =
+            PoolConfigured { asset0, asset1, feeInE6: fee, tickSpacing: tick_spacing };
+        let configured_log =
+            Log { address: periphery_addr, data: pool_configured.encode_log_data() };
+
+        // Test pool removed event
+        let pool_removed = PoolRemoved {
+            asset0,
+            asset1,
+            feeInE6: fee,
+            tickSpacing: I24::try_from(tick_spacing).unwrap()
+        };
+        let removed_log = Log { address: periphery_addr, data: pool_removed.encode_log_data() };
+
+        let mock_recip = Receipt {
+            logs: vec![configured_log.clone(), removed_log.clone()],
+            ..Default::default()
+        };
+
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        // Verify initial state
+        assert!(!eth.angstrom_tokens.contains(&asset0));
+        assert!(!eth.angstrom_tokens.contains(&asset1));
+        assert_eq!(eth.pool_store.length(), 0);
+
+        // Process the logs
+        eth.apply_periphery_logs(&*mock_chain);
+
+        // Verify final state after add and remove
+        assert!(eth.angstrom_tokens.contains(&asset0));
+        assert!(eth.angstrom_tokens.contains(&asset1));
+        assert_eq!(eth.pool_store.length(), 0); // Should be 0 after removal
+    }
+
+    #[test]
+    fn test_handle_reorg() {
+        let ang_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+
+        // Create mock chains for old and new state
+        let old_chain =
+            Arc::new(MockChain { number: 100, hash: BlockHash::random(), ..Default::default() });
+
+        let new_chain =
+            Arc::new(MockChain { number: 95, hash: BlockHash::random(), ..Default::default() });
+
+        // Add a test event listener
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        eth.event_listeners.push(tx);
+
+        // Trigger reorg
+        eth.handle_reorg(old_chain, new_chain);
+
+        // Should receive both NewBlockTransitions and ReorgedOrders events
+        let mut received_transitions = false;
+        let mut received_reorg = false;
+
+        for _ in 0..2 {
+            match rx.try_recv().expect("Should receive two events") {
+                EthEvent::NewBlockTransitions { block_number, .. } => {
+                    assert_eq!(block_number, 95);
+                    received_transitions = true;
+                }
+                EthEvent::ReorgedOrders(_, range) => {
+                    assert_eq!(*range.start(), 95);
+                    assert_eq!(*range.end(), 95);
+                    received_reorg = true;
+                }
+                _ => panic!("Unexpected event type")
+            }
+        }
+
+        assert!(received_transitions, "Should have received NewBlockTransitions event");
+        assert!(received_reorg, "Should have received ReorgedOrders event");
+    }
+
+    #[test]
+    fn test_handle_commit() {
+        let ang_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+
+        let new_chain =
+            Arc::new(MockChain { number: 100, hash: BlockHash::random(), ..Default::default() });
+
+        // Add a test event listener
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        eth.event_listeners.push(tx);
+
+        // Handle commit
+        eth.handle_commit(new_chain);
+
+        // Verify new block transitions event was sent
+        match rx.try_recv().expect("Should receive an event") {
+            EthEvent::NewBlockTransitions { block_number, filled_orders, address_changeset } => {
+                assert_eq!(block_number, 100);
+                assert!(filled_orders.is_empty());
+                assert!(address_changeset.is_empty());
+            }
+            _ => panic!("Expected NewBlockTransitions event")
+        }
+    }
+
+    #[test]
     fn test_fetch_eoa_balance_approval_changes() {
         let ang_addr = Address::random();
         let transfer_addr = Address::random();
@@ -555,12 +707,287 @@ pub mod test {
 
         let mock_recip = Receipt { logs: vec![transfer_log], ..Default::default() };
 
-        let mock_chain =
-            Arc::new(MockChain { receipts: Some(vec![&mock_recip]), ..Default::default() });
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
         let filled_set = eth.get_eoa(mock_chain);
 
         for change in changeset {
             assert!(filled_set.contains(&change));
         }
+    }
+
+    #[test]
+    fn test_multiple_transfers_same_block() {
+        let ang_addr = Address::random();
+        let token_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
+
+        let addr1 = Address::random();
+        let addr2 = Address::random();
+        let addr3 = Address::random();
+
+        // Create multiple transfer logs
+        let transfer1 = Transfer { _from: addr1, _to: addr2, _value: U256::from(100) };
+        let transfer2 = Transfer { _from: addr2, _to: addr3, _value: U256::from(50) };
+        let approval = Approval { _owner: addr1, _spender: addr3, _value: U256::from(200) };
+
+        let logs = vec![
+            Log { address: token_addr, data: transfer1.encode_log_data() },
+            Log { address: token_addr, data: transfer2.encode_log_data() },
+            Log { address: token_addr, data: approval.encode_log_data() },
+        ];
+
+        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        let eoas = eth.get_eoa(mock_chain);
+
+        assert!(eoas.contains(&addr1));
+        assert!(eoas.contains(&addr2));
+        assert_eq!(eoas.len(), 2); // addr3 only appears as recipient/spender
+    }
+
+    #[test]
+    fn test_invalid_log_handling() {
+        let ang_addr = Address::random();
+        let token_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
+
+        // Create an invalid log
+        let invalid_log = Log {
+            address: token_addr,
+            data:    LogData::new_unchecked(vec![B256::random()], vec![1, 2, 3].into())
+        };
+
+        let valid_transfer = Transfer {
+            _from:  Address::random(),
+            _to:    Address::random(),
+            _value: U256::from(100)
+        };
+        let valid_log = Log { address: token_addr, data: valid_transfer.encode_log_data() };
+
+        let mock_recip = Receipt { logs: vec![invalid_log, valid_log], ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        let eoas = eth.get_eoa(mock_chain);
+        assert_eq!(eoas.len(), 1); // Should only process the valid log
+    }
+
+    #[test]
+    fn test_empty_block_handling() {
+        let ang_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+
+        // Test with empty receipts
+        let mock_chain =
+            Arc::new(MockChain { receipts: vec![], number: 100, ..Default::default() });
+
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        eth.event_listeners.push(tx);
+
+        eth.handle_commit(mock_chain);
+
+        match rx.try_recv().expect("Should receive an event") {
+            EthEvent::NewBlockTransitions { block_number, filled_orders, address_changeset } => {
+                assert_eq!(block_number, 100);
+                assert!(filled_orders.is_empty());
+                assert!(address_changeset.is_empty());
+            }
+            _ => panic!("Expected NewBlockTransitions event")
+        }
+    }
+
+    #[test]
+    fn test_multiple_node_changes() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+
+        let node1 = Address::random();
+        let node2 = Address::random();
+        let node3 = Address::random();
+
+        // Create multiple node events
+        enum NodeEvent {
+            Added(NodeAdded),
+            Removed(NodeRemoved)
+        }
+
+        let events = vec![
+            NodeEvent::Added(NodeAdded { node: node1 }),
+            NodeEvent::Added(NodeAdded { node: node2 }),
+            NodeEvent::Removed(NodeRemoved { node: node1 }),
+            NodeEvent::Removed(NodeRemoved { node: node2 }),
+            NodeEvent::Added(NodeAdded { node: node3 }),
+        ];
+
+        let logs: Vec<Log> = events
+            .into_iter()
+            .map(|event| match event {
+                NodeEvent::Added(added) => {
+                    Log { address: periphery_addr, data: added.encode_log_data() }
+                }
+                NodeEvent::Removed(removed) => {
+                    Log { address: periphery_addr, data: removed.encode_log_data() }
+                }
+            })
+            .collect();
+
+        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        eth.apply_periphery_logs(&*mock_chain);
+
+        assert!(!eth.node_set.contains(&node1));
+        assert!(!eth.node_set.contains(&node2));
+        assert!(eth.node_set.contains(&node3));
+    }
+
+    #[test]
+    fn test_pool_config_edge_cases() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+        eth.angstrom_address = ang_addr;
+
+        let asset0 = Address::random();
+        let asset1 = Address::random();
+        let fee = U24::try_from(3000).unwrap();
+        let tick_spacing = 60u16;
+
+        // Test reconfiguring same pool
+        let configure1 = PoolConfigured { asset0, asset1, feeInE6: fee, tickSpacing: tick_spacing };
+        let configure2 = PoolConfigured {
+            asset0,
+            asset1,
+            feeInE6: fee,
+            tickSpacing: tick_spacing * 2 // Different spacing
+        };
+        let remove = PoolRemoved {
+            asset0,
+            asset1,
+            feeInE6: fee,
+            tickSpacing: I24::try_from(tick_spacing).unwrap()
+        };
+
+        let logs = vec![
+            Log { address: periphery_addr, data: configure1.encode_log_data() },
+            Log { address: periphery_addr, data: configure2.encode_log_data() },
+            Log { address: periphery_addr, data: remove.encode_log_data() },
+        ];
+
+        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        eth.apply_periphery_logs(&*mock_chain);
+
+        // Verify final state
+        assert!(eth.angstrom_tokens.contains(&asset0));
+        assert!(eth.angstrom_tokens.contains(&asset1));
+        assert_eq!(eth.pool_store.length(), 0); // Should be removed
+    }
+
+    #[test]
+    fn test_non_angstrom_token_transfers() {
+        let ang_addr = Address::random();
+        let token_addr = Address::random();
+        let non_tracked_token = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
+
+        // Create transfer for non-tracked token
+        let transfer = Transfer {
+            _from:  Address::random(),
+            _to:    Address::random(),
+            _value: U256::from(100)
+        };
+
+        let logs = vec![Log {
+            address: non_tracked_token, // Using non-tracked token address
+            data:    transfer.encode_log_data()
+        }];
+
+        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        let eoas = eth.get_eoa(mock_chain);
+        assert!(eoas.is_empty()); // Should ignore non-tracked token transfers
+    }
+
+    #[test]
+    fn test_duplicate_pool_removal() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+        eth.angstrom_address = ang_addr;
+
+        let asset0 = Address::random();
+        let asset1 = Address::random();
+        let fee = U24::try_from(3000).unwrap();
+        let tick_spacing = 60u16;
+
+        // Create pool and remove it twice
+        let configure = PoolConfigured { asset0, asset1, feeInE6: fee, tickSpacing: tick_spacing };
+        let remove = PoolRemoved {
+            asset0,
+            asset1,
+            feeInE6: fee,
+            tickSpacing: I24::try_from(tick_spacing).unwrap()
+        };
+
+        let logs = vec![
+            Log { address: periphery_addr, data: configure.encode_log_data() },
+            Log { address: periphery_addr, data: remove.encode_log_data() },
+            Log { address: periphery_addr, data: remove.encode_log_data() }, // Duplicate removal
+        ];
+
+        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        // Should handle duplicate removal gracefully
+        eth.apply_periphery_logs(&*mock_chain);
+        assert_eq!(eth.pool_store.length(), 0);
+    }
+
+    #[test]
+    fn test_remove_non_existent_node() {
+        let ang_addr = Address::random();
+        let periphery_addr = Address::random();
+        let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
+        eth.periphery_address = periphery_addr;
+
+        let non_existent_node = Address::random();
+        let node_removed = NodeRemoved { node: non_existent_node };
+        let removed_log = Log { address: periphery_addr, data: node_removed.encode_log_data() };
+
+        let mock_recip = Receipt { logs: vec![removed_log], ..Default::default() };
+
+        let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
+
+        // Should handle removal of non-existent node gracefully
+        eth.apply_periphery_logs(&*mock_chain);
+        assert!(!eth.node_set.contains(&non_existent_node));
+    }
+
+    #[test]
+    fn test_malformed_transaction_input() {
+        let angstrom_address = Address::random();
+        let eth = setup_non_subscription_eth_manager(Some(angstrom_address));
+
+        let mut mock_tx = TransactionSigned::default();
+        if let Transaction::Legacy(leg) = &mut mock_tx.transaction {
+            leg.to = TxKind::Call(angstrom_address);
+            leg.input = vec![0, 1, 2, 3].into(); // Invalid input data
+        }
+
+        let mock_chain = MockChain { transactions: vec![mock_tx], ..Default::default() };
+
+        // Should handle malformed input gracefully
+        let filled_set = eth.fetch_filled_order(&mock_chain).collect::<HashSet<_>>();
+        assert!(filled_set.is_empty());
     }
 }

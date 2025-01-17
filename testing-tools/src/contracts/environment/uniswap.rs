@@ -38,19 +38,38 @@ where
     E: TestAnvilEnvironment
 {
     pub async fn new(inner: E) -> eyre::Result<Self> {
+        let pool_manager = Self::deploy_pool_manager(&inner).await?;
+        let pool_gate = Self::deploy_pool_gate(&inner, pool_manager).await?;
+
+        Ok(Self { inner, pool_manager, pool_gate })
+    }
+
+    async fn deploy_pool_manager(inner: &E) -> eyre::Result<Address> {
         debug!("Deploying pool manager...");
-        let pool_manager = *inner
+        let pool_manager_addr = *inner
             .execute_then_mine(PoolManager::deploy(inner.provider(), inner.controller()))
             .await?
             .address();
-        debug!("Pool manager deployed at: {}", pool_manager);
+
+        // inner
+        //     .override_address(&mut pool_manager_addr, POOL_MANAGER_ADDRESS)
+        //     .await?;
+        debug!("Pool manager deployed at: {}", pool_manager_addr);
+        Ok(pool_manager_addr)
+    }
+
+    async fn deploy_pool_gate(inner: &E, pool_manager: Address) -> eyre::Result<Address> {
         debug!("Deploying pool gate...");
         let pool_gate_instance = inner
             .execute_then_mine(PoolGate::deploy(inner.provider(), pool_manager))
             .await?;
-        let pool_gate = *pool_gate_instance.address();
-        debug!("Pool gate deployed at: {}", pool_gate);
-        Ok(Self { inner, pool_manager, pool_gate })
+        let pool_gate_addr = *pool_gate_instance.address();
+
+        // inner
+        //     .override_address(&mut pool_gate_addr, POOL_GATE_ADDRESS)
+        //     .await?;
+        debug!("Pool gate deployed at: {}", pool_gate_addr);
+        Ok(pool_gate_addr)
     }
 
     pub fn pool_gate(&self) -> PoolGateInstance<BoxTransport, &E::P> {

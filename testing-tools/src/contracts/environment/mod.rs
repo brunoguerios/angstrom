@@ -4,7 +4,7 @@ use alloy::{
     network::EthereumWallet,
     node_bindings::AnvilInstance,
     primitives::{Address, U256},
-    providers::{ext::AnvilApi, ProviderBuilder},
+    providers::{ext::AnvilApi, Provider, ProviderBuilder},
     signers::local::PrivateKeySigner
 };
 use futures::Future;
@@ -17,13 +17,27 @@ pub mod angstrom;
 pub mod mockreward;
 pub mod uniswap;
 
+pub const CONTROLLER_V1_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("20Cc09ac7E8d13Dd39177786f4f4e9a802fe69a3");
+
+pub const ANGSTROM_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("9a59a6d48aae9B192ac58871e112D9e441f86A80");
+
+pub const ANGSTROM_ADDRESS_SALT: u64 = 11412;
+
+pub const POOL_GATE_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("cD7AB7cFd92481C6AfF1E79F90A3Ac6056bd7A6e");
+
+pub const POOL_MANAGER_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("691841C2B3b60c309ad7D97813bE591412b87167");
+
+#[allow(async_fn_in_trait)]
 pub trait TestAnvilEnvironment: Clone {
-    type P: alloy::providers::Provider;
+    type P: alloy::providers::Provider + alloy::providers::WalletProvider;
 
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;
 
-    #[allow(async_fn_in_trait)]
     async fn execute_then_mine<O>(&self, f: impl Future<Output = O> + Send) -> O {
         let mut fut = Box::pin(f);
         // poll for 500 ms. if  not resolves then we mine and join
@@ -38,6 +52,23 @@ pub trait TestAnvilEnvironment: Clone {
         let mine_one_fut = self.provider().anvil_mine(Some(U256::from(1)), None);
         let (res, _) = futures::join!(fut, mine_one_fut);
         res
+    }
+
+    async fn override_address(
+        &self,
+        from_addr: &mut Address,
+        to_addr: Address
+    ) -> eyre::Result<()> {
+        let provider = self.provider();
+
+        let code = provider.get_code_at(*from_addr).await?;
+        provider.anvil_set_code(to_addr, code).await?;
+
+        *from_addr = to_addr;
+
+        //provider.anvil_mine(Some(U256::from(1)), None).await?;
+
+        Ok(())
     }
 }
 

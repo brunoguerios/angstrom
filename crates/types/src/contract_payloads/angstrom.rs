@@ -152,7 +152,7 @@ impl TopOfBlockOrder {
     }
 }
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode)]
 pub struct StandingValidation {
     nonce:    u64,
     // 40 bits wide in reality
@@ -161,6 +161,10 @@ pub struct StandingValidation {
 }
 
 impl StandingValidation {
+    pub fn new(nonce: u64, deadline: u64) -> Self {
+        Self { nonce, deadline }
+    }
+
     pub fn nonce(&self) -> u64 {
         self.nonce
     }
@@ -170,7 +174,7 @@ impl StandingValidation {
     }
 }
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode)]
 pub enum OrderQuantities {
     Exact { quantity: u128 },
     Partial { min_quantity_in: u128, max_quantity_in: u128, filled_quantity: u128 }
@@ -185,7 +189,7 @@ impl OrderQuantities {
     }
 }
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode)]
 pub struct UserOrder {
     pub ref_id:               u32,
     pub use_internal:         bool,

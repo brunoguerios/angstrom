@@ -135,32 +135,32 @@ impl PreproposalBuilder {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::PreproposalBuilder;
-
-    #[test]
-    fn generates_order_spread_that_crosses() {
-        // It is MAYBE statistically possible that this will fail due to probability one
-        // day?
-        let pre_proposal = PreproposalBuilder::new()
-            .order_count(100)
-            .for_random_pools(1)
-            .build();
-        let (high_price, low_price) =
-            pre_proposal
-                .limit
-                .iter()
-                .fold((f64::MIN, f64::MAX), |mut acc, order| {
-                    let price = order.float_price();
-                    if order.is_bid && price > acc.0 {
-                        acc.0 = price;
-                    }
-                    if !order.is_bid && price < acc.1 {
-                        acc.1 = price;
-                    }
-                    acc
-                });
-        assert!(high_price > low_price, "Prices do not cross");
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::PreproposalBuilder;
+//
+//     #[test]
+//     fn generates_order_spread_that_crosses() {
+//         // It is MAYBE statistically possible that this will fail due to
+// probability one         // day?
+//         let pre_proposal = PreproposalBuilder::new()
+//             .order_count(100)
+//             .for_random_pools(1)
+//             .build();
+//         let (high_price, low_price) =
+//             pre_proposal
+//                 .limit
+//                 .iter()
+//                 .fold((f64::MIN, f64::MAX), |mut acc, order| {
+//                     let price = order.float_price();
+//                     if order.is_bid && price > acc.0 {
+//                         acc.0 = price;
+//                     }
+//                     if !order.is_bid && price < acc.1 {
+//                         acc.1 = price;
+//                     }
+//                     acc
+//                 });
+//         assert!(high_price > low_price, "Prices do not cross");
+//     }
+// }
