@@ -1,4 +1,7 @@
-use alloy::{primitives::Address, providers::Provider};
+use alloy::{
+    primitives::Address,
+    providers::{Provider, WalletProvider}
+};
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
@@ -40,7 +43,8 @@ where
 
     async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
         let provider = inner.provider();
-        debug!("Deploying Angstrom...");
+        let key = provider.default_signer_address();
+        debug!(?key, "Deploying Angstrom...");
         // let angstrom_addr = inner
         //     .execute_then_mine(deploy_angstrom(
         //         provider,
