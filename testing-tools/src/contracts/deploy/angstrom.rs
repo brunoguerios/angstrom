@@ -1,4 +1,6 @@
-use alloy::{contract::RawCallBuilder, primitives::Address, sol_types::SolValue};
+use alloy::{
+    contract::RawCallBuilder, network::Ethereum, primitives::Address, sol_types::SolValue
+};
 use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom;
 
@@ -62,8 +64,7 @@ pub async fn deploy_angstrom_with_factory<
 
 pub async fn deploy_angstrom_create3<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N> + alloy::providers::WalletProvider<N>,
-    N: alloy::contract::private::Network
+    P: alloy::contract::private::Provider<T, Ethereum> + alloy::providers::WalletProvider<Ethereum>
 >(
     provider: &P,
     pool_manager: Address,
@@ -71,12 +72,12 @@ pub async fn deploy_angstrom_create3<
 ) -> Address {
     let owner = provider.default_signer_address();
     let mock_builder = Angstrom::deploy_builder(&provider, pool_manager, controller);
+
     let (mock_tob_address, salt, nonce) = mine_create3_address(owner);
 
     let mint_call = _private::mintCall { to: owner, id: salt, nonce };
-    let code = provider.get_code_at(SUB_ZERO_FACTORY).await.unwrap();
-    tracing::info!(?code, "SUB ZERO MF");
-    RawCallBuilder::new_raw(&provider, mint_call.abi_encode().into())
+
+    let hash = RawCallBuilder::new_raw(&provider, mint_call.abi_encode().into())
         .to(SUB_ZERO_FACTORY)
         .from(owner)
         .gas(50e6 as u64)
@@ -86,12 +87,18 @@ pub async fn deploy_angstrom_create3<
         .watch()
         .await
         .unwrap();
+    let recp = provider
+        .get_transaction_receipt(hash)
+        .await
+        .unwrap()
+        .unwrap();
+    tracing::info!(?recp, "mint");
 
     let final_mock_initcode = [salt.abi_encode(), mock_builder.calldata().to_vec()].concat();
 
     let deploy_call = _private::deployCall { id: salt, initcode: final_mock_initcode.into() };
 
-    RawCallBuilder::new_raw(&provider, deploy_call.abi_encode().into())
+    let hash = RawCallBuilder::new_raw(&provider, deploy_call.abi_encode().into())
         .from(owner)
         .gas(50e6 as u64)
         .to(SUB_ZERO_FACTORY)
@@ -102,6 +109,14 @@ pub async fn deploy_angstrom_create3<
         .watch()
         .await
         .unwrap();
+
+    let recp = provider
+        .get_transaction_receipt(hash)
+        .await
+        .unwrap()
+        .unwrap();
+    tracing::info!(?recp, "deploy");
+
     mock_tob_address
 }
 
