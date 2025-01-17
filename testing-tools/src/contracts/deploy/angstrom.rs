@@ -1,5 +1,13 @@
 use alloy::{
-    contract::RawCallBuilder, network::Ethereum, primitives::Address, sol_types::SolValue
+    contract::RawCallBuilder,
+    network::Ethereum,
+    primitives::Address,
+    providers::ext::DebugApi,
+    rpc::types::trace::geth::{
+        GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions,
+        GethDefaultTracingOptions
+    },
+    sol_types::SolValue
 };
 use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom;
@@ -87,12 +95,6 @@ pub async fn deploy_angstrom_create3<
         .watch()
         .await
         .unwrap();
-    let recp = provider
-        .get_transaction_receipt(hash)
-        .await
-        .unwrap()
-        .unwrap();
-    tracing::info!(?recp, "mint");
 
     let final_mock_initcode = [salt.abi_encode(), mock_builder.calldata().to_vec()].concat();
 
@@ -110,12 +112,29 @@ pub async fn deploy_angstrom_create3<
         .await
         .unwrap();
 
-    let recp = provider
+    let receipt = provider
         .get_transaction_receipt(hash)
         .await
         .unwrap()
         .unwrap();
-    tracing::info!(?recp, "deploy");
+
+    let default_options = GethDebugTracingOptions::default();
+    let _call_options = GethDebugTracingOptions {
+        config: GethDefaultTracingOptions {
+            disable_storage: Some(true),
+            enable_memory: Some(false),
+            ..Default::default()
+        },
+        tracer: Some(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer)),
+        ..Default::default()
+    };
+    let result = provider
+        .debug_trace_transaction(receipt.transaction_hash, default_options)
+        .await
+        .unwrap();
+
+    tracing::warn!("TRACE: {result:?}");
+    // We can make this do a cool backtrace later
 
     mock_tob_address
 }
