@@ -129,6 +129,7 @@ where
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
 
+        // if exact in is true, we fail?????
         let (amount_in, amount_out) = if order.exact_in() {
             (U256::from(order.amount_in()), {
                 let price = Ray::from(U256::from(order.limit_price()));
