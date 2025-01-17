@@ -45,15 +45,16 @@ where
         let provider = inner.provider();
         let key = provider.default_signer_address();
         debug!(?key, "Deploying Angstrom...");
-        // let angstrom_addr = inner
-        //     .execute_then_mine(deploy_angstrom(
-        //         provider,
-        //         inner.pool_manager(),
-        //         inner.controller(),
-        //         Address::default()
-        //     ))
-        //     .await;
-
+        let angstrom_addr = inner
+            .execute_then_mine(deploy_angstrom(
+                provider,
+                inner.pool_manager(),
+                inner.controller(),
+                Address::default()
+            ))
+            .await;
+        let code = provider.get_code_at(angstrom_addr).await.unwrap();
+        tracing::info!(?code, "default create2");
         let angstrom_addr = inner
             .execute_then_mine(deploy_angstrom_create3(
                 provider,
@@ -63,7 +64,7 @@ where
             .await;
         // assert code is set
         let code = provider.get_code_at(angstrom_addr).await.unwrap();
-        tracing::info!(?code);
+        tracing::info!(?code, "create3");
 
         debug!("Angstrom deployed at: {}", angstrom_addr);
         // gotta toggle nodes
