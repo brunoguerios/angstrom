@@ -128,18 +128,32 @@ where
     ) -> eyre::Result<GasUsed> {
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
-        self.execute_on_revm(
-            &HashMap::default(),
-            OverridesForTestAngstrom {
-                amount_in:     U256::from(order.amount_in()),
-                amount_out:    {
+
+        let (amount_in, amount_out) = if order.exact_in() {
+            (U256::from(order.amount_in()), {
+                let price = Ray::from(U256::from(order.limit_price()));
+
+                price.mul_quantity(U256::from(order.amount_in()))
+            })
+        } else {
+            (
+                {
                     let price = Ray::from(U256::from(order.limit_price()));
 
                     price.mul_quantity(U256::from(order.amount_in()))
                 },
-                token_out:     order.token_out(),
-                token_in:      order.token_in(),
-                user_address:  order.from(),
+                U256::from(order.amount_in())
+            )
+        };
+
+        self.execute_on_revm(
+            &HashMap::default(),
+            OverridesForTestAngstrom {
+                amount_in,
+                amount_out,
+                token_out: order.token_out(),
+                token_in: order.token_in(),
+                user_address: order.from(),
                 flipped_order: Address::default()
             },
             |execution_env| {
