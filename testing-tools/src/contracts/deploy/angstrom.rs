@@ -74,6 +74,8 @@ pub async fn deploy_angstrom_create3<
     let (mock_tob_address, salt, nonce) = mine_create3_address(owner);
 
     let mint_call = _private::mintCall { to: owner, id: salt, nonce };
+    let code = provider.get_code_at(SUB_ZERO_FACTORY).await.unwrap();
+    tracing::info!(?code, "SUB ZERO MF");
     RawCallBuilder::new_raw(&provider, mint_call.abi_encode().into())
         .to(SUB_ZERO_FACTORY)
         .from(owner)
