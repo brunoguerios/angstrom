@@ -1,7 +1,4 @@
-use alloy::{
-    primitives::Address,
-    providers::{Provider, WalletProvider}
-};
+use alloy::{primitives::Address, providers::WalletProvider};
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,

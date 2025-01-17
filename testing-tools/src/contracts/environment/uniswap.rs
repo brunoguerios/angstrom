@@ -1,6 +1,5 @@
 use alloy::{
     primitives::{aliases::I24, Address, FixedBytes, U256},
-    providers::Provider,
     transports::BoxTransport
 };
 use alloy_primitives::TxHash;

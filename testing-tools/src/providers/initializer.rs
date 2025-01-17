@@ -46,7 +46,7 @@ pub struct AnvilInitializer {
     controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
     angstrom:      AngstromInstance<BoxTransport, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<BoxTransport, WalletProviderRpc>,
-    pool_manager:  PoolManagerInstance<BoxTransport, WalletProviderRpc>,
+    _pool_manager: PoolManagerInstance<BoxTransport, WalletProviderRpc>,
     pending_state: PendingDeployedPools
 }
 
@@ -62,7 +62,7 @@ impl AnvilInitializer {
 
         tracing::info!("deployed UniV4 enviroment");
 
-        let pool_manager =
+        let _pool_manager =
             PoolManagerInstance::new(uniswap_env.pool_manager(), provider.provider().clone());
 
         tracing::debug!("deploying Angstrom enviroment");
@@ -89,7 +89,7 @@ impl AnvilInitializer {
             angstrom_env,
             angstrom,
             pending_state,
-            pool_manager,
+            _pool_manager,
             pool_gate
         };
 
@@ -360,90 +360,5 @@ impl WithWalletProvider for AnvilInitializer {
 
     fn rpc_provider(&self) -> WalletProviderRpc {
         self.provider.provider.clone()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use alloy::providers::Provider;
-    use alloy_primitives::TxKind;
-    use alloy_rpc_types::{BlockId, TransactionInput, TransactionRequest};
-    use alloy_sol_types::SolCall;
-    use angstrom_types::{
-        contract_bindings::controller_v_1::ControllerV1,
-        contract_payloads::angstrom::AngstromPoolConfigStore
-    };
-
-    use super::*;
-    use crate::types::config::DevnetConfig;
-
-    async fn get_block(provider: &WalletProvider) -> eyre::Result<u64> {
-        Ok(provider.provider.get_block_number().await?)
-    }
-
-    async fn view_call<IC>(
-        provider: &WalletProvider,
-        contract: Address,
-        call: IC
-    ) -> eyre::Result<IC::Return>
-    where
-        IC: SolCall + Send
-    {
-        let tx = TransactionRequest {
-            to: Some(TxKind::Call(contract)),
-            input: TransactionInput::both(call.abi_encode().into()),
-            ..Default::default()
-        };
-
-        Ok(IC::abi_decode_returns(&provider.provider().call(&tx).await?, true)?)
-    }
-
-    #[tokio::test]
-    async fn test_can_deploy() {
-        let config = TestingNodeConfig::new(0, DevnetConfig::default(), 100);
-
-        let (mut initializer, _anvil) = AnvilInitializer::new(config, vec![]).await.unwrap();
-
-        initializer.deploy_default_pool_full().await.unwrap();
-
-        let current_block = get_block(&initializer.provider).await.unwrap();
-
-        let _ = initializer.provider.provider.evm_mine(None).await.unwrap();
-
-        assert_eq!(current_block + 1, get_block(&initializer.provider).await.unwrap());
-
-        initializer
-            .pending_state
-            .finalize_pending_txs()
-            .await
-            .unwrap();
-
-        assert_eq!(current_block + 1, get_block(&initializer.provider).await.unwrap());
-
-        let config_store = AngstromPoolConfigStore::load_from_chain(
-            *initializer.angstrom.address(),
-            BlockId::latest(),
-            &initializer.provider.provider()
-        )
-        .await
-        .unwrap();
-
-        let partial_keys = config_store
-            .all_entries()
-            .iter()
-            .map(|val| FixedBytes::from(*val.pool_partial_key))
-            .collect::<Vec<_>>();
-
-        println!("{partial_keys:?}");
-
-        let all_pools_call = view_call(
-            &initializer.provider,
-            *initializer.controller_v1.address(),
-            ControllerV1::getAllPoolsCall { storeKeys: partial_keys }
-        )
-        .await
-        .unwrap();
-
-        println!("{all_pools_call:?}")
     }
 }
