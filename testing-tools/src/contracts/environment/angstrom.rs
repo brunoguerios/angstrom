@@ -45,6 +45,7 @@ where
         let provider = inner.provider();
         let key = provider.default_signer_address();
         debug!(?key, "Deploying Angstrom...");
+
         let angstrom_addr = inner
             .execute_then_mine(deploy_angstrom(
                 provider,
@@ -53,8 +54,7 @@ where
                 Address::default()
             ))
             .await;
-        let code = provider.get_code_at(angstrom_addr).await.unwrap();
-        tracing::info!(?code, "default create2");
+
         let angstrom_addr = inner
             .execute_then_mine(deploy_angstrom_create3(
                 provider,

@@ -118,18 +118,20 @@ pub async fn deploy_angstrom_create3<
         .unwrap()
         .unwrap();
 
-    let default_options = GethDebugTracingOptions::default();
-    let _call_options = GethDebugTracingOptions {
+    // let default_options = GethDebugTracingOptions::default();
+    let call_options = GethDebugTracingOptions {
         config: GethDefaultTracingOptions {
-            disable_storage: Some(true),
-            enable_memory: Some(false),
+            disable_storage: Some(false),
+            enable_memory: Some(true),
+            debug: Some(true),
+            disable_stack: Some(false),
             ..Default::default()
         },
         tracer: Some(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer)),
         ..Default::default()
     };
     let result = provider
-        .debug_trace_transaction(receipt.transaction_hash, default_options)
+        .debug_trace_transaction(receipt.transaction_hash, call_options)
         .await
         .unwrap();
 
