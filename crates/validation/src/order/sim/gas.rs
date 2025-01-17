@@ -136,10 +136,13 @@ where
                 price.mul_quantity(U256::from(order.amount_in()))
             })
         } else {
-            (U256::from(order.amount_in()), {
-                let price = Ray::from(U256::from(order.limit_price()));
-                price.mul_quantity(U256::from(order.amount_in()))
-            })
+            (
+                {
+                    let price = Ray::from(U256::from(order.limit_price()));
+                    price.mul_quantity(U256::from(order.amount_in()))
+                },
+                U256::from(order.amount_in())
+            )
         };
 
         self.execute_on_revm(

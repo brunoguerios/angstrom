@@ -419,7 +419,7 @@ impl UserOrder {
             order_quantities,
             max_extra_fee_asset0: order.max_gas_token_0(),
             extra_fee_asset0: order.max_gas_token_0(),
-            exact_in: false,
+            exact_in: order.exact_in(),
             signature: Signature::from(decoded_signature)
         }
     }
