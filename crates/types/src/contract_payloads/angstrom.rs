@@ -376,10 +376,10 @@ impl UserOrder {
         outcome: &OrderOutcome,
         pair_index: u16
     ) -> Self {
-        let (order_quantities, standing_validation) = match &order.order {
+        let (order_quantities, standing_validation, recipient) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(_) => {
-                    (OrderQuantities::Exact { quantity: order.quantity() }, None)
+                FlashVariants::Exact(e) => {
+                    (OrderQuantities::Exact { quantity: order.quantity() }, None, e.recipient)
                 }
                 FlashVariants::Partial(p_o) => (
                     OrderQuantities::Partial {
@@ -387,13 +387,15 @@ impl UserOrder {
                         max_quantity_in: p_o.max_amount_in,
                         filled_quantity: outcome.fill_amount(p_o.max_amount_in)
                     },
-                    None
+                    None,
+                    p_o.recipient
                 )
             },
             GroupedVanillaOrder::Standing(o) => match o {
                 StandingVariants::Exact(e) => (
                     OrderQuantities::Exact { quantity: order.quantity() },
-                    Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() })
+                    Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
+                    e.recipient
                 ),
                 StandingVariants::Partial(p_o) => {
                     let max_quantity_in = p_o.max_amount_in;
@@ -407,7 +409,8 @@ impl UserOrder {
                         Some(StandingValidation {
                             nonce:    p_o.nonce,
                             deadline: p_o.deadline.to()
-                        })
+                        }),
+                        p_o.recipient
                     )
                 }
             }
@@ -422,12 +425,15 @@ impl UserOrder {
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
 
+        let user = order.from();
+        let recipient = (user != recipient).then_some(recipient);
+
         Self {
             ref_id: 0,
             use_internal: false,
             pair_index,
             min_price: *order.price(),
-            recipient: None,
+            recipient,
             hook_data,
             zero_for_one: !order.is_bid,
             standing_validation,
