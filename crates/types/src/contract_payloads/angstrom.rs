@@ -616,8 +616,12 @@ impl AngstromBundle {
         );
 
         asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(), {
-            let price = Ray::from(user_order.limit_price());
-            price.mul_quantity(U256::from(user_order.amount_in())).to()
+            if user_order.exact_in() {
+                user_order.amount_in()
+            } else {
+                let price = Ray::from(user_order.limit_price());
+                price.mul_quantity(U256::from(user_order.amount_in())).to()
+            }
         });
 
         {
