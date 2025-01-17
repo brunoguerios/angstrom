@@ -89,7 +89,7 @@ pub async fn deploy_angstrom_create3<
 
     let mint_call = _private::mintCall { to: owner, id: salt, nonce };
 
-    let hash = RawCallBuilder::new_raw(&provider, mint_call.abi_encode().into())
+    RawCallBuilder::new_raw(&provider, mint_call.abi_encode().into())
         .to(SUB_ZERO_FACTORY)
         .from(owner)
         .gas(50e6 as u64)
@@ -102,7 +102,7 @@ pub async fn deploy_angstrom_create3<
 
     let deploy_call = _private::deployCall { id: salt, initcode: code.into() };
 
-    let hash = RawCallBuilder::new_raw(&provider, deploy_call.abi_encode().into())
+    RawCallBuilder::new_raw(&provider, deploy_call.abi_encode().into())
         .from(owner)
         .gas(50e6 as u64)
         .to(SUB_ZERO_FACTORY)
@@ -113,32 +113,6 @@ pub async fn deploy_angstrom_create3<
         .watch()
         .await
         .unwrap();
-
-    let receipt = provider
-        .get_transaction_receipt(hash)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // let default_options = GethDebugTracingOptions::default();
-    let call_options = GethDebugTracingOptions {
-        config: GethDefaultTracingOptions {
-            disable_storage: Some(false),
-            enable_memory: Some(true),
-            debug: Some(true),
-            disable_stack: Some(false),
-            ..Default::default()
-        },
-        tracer: Some(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer)),
-        ..Default::default()
-    };
-    let result = provider
-        .debug_trace_transaction(receipt.transaction_hash, call_options)
-        .await
-        .unwrap();
-
-    tracing::warn!("TRACE: {result:?}");
-    // We can make this do a cool backtrace later
 
     mock_tob_address
 }

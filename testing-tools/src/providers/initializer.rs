@@ -238,14 +238,9 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            .run_safe()
+            .deploy_pending()
             .await?;
-        // .deploy_pending()
-        // .await?;
-
-        // let hash = configure_pool.tx_hash();
-        // tracing::info!(?hash, "configure_pool");
-        // self.pending_state.add_pending_tx(configure_pool);
+        self.pending_state.add_pending_tx(configure_pool);
 
         tracing::debug!("adding to pool map");
         let controller_configure_pool = self
@@ -253,11 +248,9 @@ impl AnvilInitializer {
             .addPoolToMap(pool_key.currency0, pool_key.currency1)
             .from(self.provider.controller())
             .nonce(nonce + 1)
-            .run_safe()
+            .deploy_pending()
             .await?;
-        // let hash = controller_configure_pool.tx_hash();
-        // tracing::info!(?hash, "configure pool controller");
-        // self.pending_state.add_pending_tx(controller_configure_pool);
+        self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
         let i = self
@@ -265,11 +258,9 @@ impl AnvilInitializer {
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 2)
-            .run_safe()
+            .deploy_pending()
             .await?;
-        // let hash = i.tx_hash();
-        // tracing::info!(?hash, "initalize pool");
-        // self.pending_state.add_pending_tx(i);
+        self.pending_state.add_pending_tx(i);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
@@ -277,12 +268,10 @@ impl AnvilInitializer {
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
             .nonce(nonce + 3)
-            .run_safe()
+            .deploy_pending()
             .await?;
-        // let hash = pool_gate.tx_hash();
-        // tracing::info!(?hash, "tickspacing");
-        //
-        // self.pending_state.add_pending_tx(pool_gate);
+        self.pending_state.add_pending_tx(pool_gate);
+
         let mut rng = thread_rng();
 
         let tick = price.to_tick()?;
