@@ -118,7 +118,13 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     amount: self.amount,
-                    max_extra_fee_asset0: self.amount,
+                    max_extra_fee_asset0: if self.exact_in {
+                        self.amount
+                    } else {
+                        self.min_price
+                            .mul_quantity(U256::from(self.amount))
+                            .to::<u128>()
+                    },
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     nonce: self.nonce,
@@ -165,7 +171,14 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
-                    max_extra_fee_asset0: self.amount,
+
+                    max_extra_fee_asset0: if self.exact_in {
+                        self.amount
+                    } else {
+                        self.min_price
+                            .mul_quantity(U256::from(self.amount))
+                            .to::<u128>()
+                    },
                     amount: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,

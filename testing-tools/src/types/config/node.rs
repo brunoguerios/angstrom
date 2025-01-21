@@ -28,7 +28,7 @@ pub struct TestingNodeConfig<C> {
     pub pub_key:       PublicKey,
     pub secret_key:    SecretKey,
     pub voting_power:  u64,
-    base_port_rand:    u8
+    base_port_rand:    u16
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
@@ -47,7 +47,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             pub_key: secret_key.public_key(&Secp256k1::default()),
             voting_power,
             secret_key,
-            base_port_rand: rand::random()
+            base_port_rand: (rand::random::<u8>() as u16) * 4
         }
     }
 
@@ -89,7 +89,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .chain_id(1)
             .arg("--host")
             .arg("0.0.0.0")
-            .port(((random::<u8>() as u64) + self.node_id) as u16)
+            .port(((random::<u8>() as u64) * 4 + self.node_id) as u16)
             .fork(self.global_config.eth_ws_url())
             .arg("--ipc")
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))

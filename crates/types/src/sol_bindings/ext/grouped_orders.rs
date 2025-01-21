@@ -237,6 +237,13 @@ impl GroupedUserOrder {
 }
 
 impl RawPoolOrder for StandingVariants {
+    fn exact_in(&self) -> bool {
+        match self {
+            StandingVariants::Exact(e) => e.exact_in(),
+            StandingVariants::Partial(p) => p.exact_in()
+        }
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         match self {
             StandingVariants::Exact(e) => e.max_gas_token_0(),
@@ -331,6 +338,13 @@ impl RawPoolOrder for StandingVariants {
 }
 
 impl RawPoolOrder for FlashVariants {
+    fn exact_in(&self) -> bool {
+        match self {
+            FlashVariants::Exact(e) => e.exact_in(),
+            FlashVariants::Partial(p) => p.exact_in()
+        }
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         match self {
             FlashVariants::Exact(e) => e.max_extra_fee_asset0,
@@ -559,6 +573,10 @@ impl GroupedComposableOrder {
 }
 
 impl RawPoolOrder for TopOfBlockOrder {
+    fn exact_in(&self) -> bool {
+        true
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         self.max_gas_asset0
     }
@@ -625,6 +643,10 @@ impl RawPoolOrder for TopOfBlockOrder {
 }
 
 impl RawPoolOrder for PartialStandingOrder {
+    fn exact_in(&self) -> bool {
+        true
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         self.max_extra_fee_asset0
     }
@@ -694,6 +716,10 @@ impl RawPoolOrder for PartialStandingOrder {
 }
 
 impl RawPoolOrder for ExactStandingOrder {
+    fn exact_in(&self) -> bool {
+        self.exact_in
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         self.max_extra_fee_asset0
     }
@@ -763,6 +789,10 @@ impl RawPoolOrder for ExactStandingOrder {
 }
 
 impl RawPoolOrder for PartialFlashOrder {
+    fn exact_in(&self) -> bool {
+        true
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         self.max_extra_fee_asset0
     }
@@ -832,6 +862,10 @@ impl RawPoolOrder for PartialFlashOrder {
 }
 
 impl RawPoolOrder for ExactFlashOrder {
+    fn exact_in(&self) -> bool {
+        self.exact_in
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         self.max_extra_fee_asset0
     }
@@ -901,6 +935,14 @@ impl RawPoolOrder for ExactFlashOrder {
 }
 
 impl RawPoolOrder for AllOrders {
+    fn exact_in(&self) -> bool {
+        match self {
+            AllOrders::Standing(p) => p.exact_in(),
+            AllOrders::Flash(kof) => kof.exact_in(),
+            AllOrders::TOB(tob) => tob.exact_in()
+        }
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         match self {
             AllOrders::Standing(p) => p.max_gas_token_0(),
@@ -1015,6 +1057,13 @@ impl RawPoolOrder for AllOrders {
 }
 
 impl RawPoolOrder for GroupedVanillaOrder {
+    fn exact_in(&self) -> bool {
+        match self {
+            GroupedVanillaOrder::Standing(p) => p.exact_in(),
+            GroupedVanillaOrder::KillOrFill(kof) => kof.exact_in()
+        }
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         match self {
             GroupedVanillaOrder::Standing(p) => p.max_gas_token_0(),
@@ -1115,6 +1164,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
 }
 
 impl RawPoolOrder for GroupedComposableOrder {
+    fn exact_in(&self) -> bool {
+        match self {
+            GroupedComposableOrder::Partial(p) => p.exact_in(),
+            GroupedComposableOrder::KillOrFill(kof) => kof.exact_in()
+        }
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         match self {
             GroupedComposableOrder::Partial(p) => p.max_gas_token_0(),
