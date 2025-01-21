@@ -353,15 +353,15 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     let angstrom_balance_out = keccak256((angstrom, balance_slot_out).abi_encode());
 
     // set the users balance on the token_in
-    db.insert_account_storage(token_in, user_balance_slot.into(), U256::from(2) * amount_in)
+    db.insert_account_storage(token_in, user_balance_slot.into(), amount_out * amount_in)
         .unwrap();
     // give angstrom approval
-    db.insert_account_storage(token_in, user_approval_slot.into(), U256::from(2) * amount_in)
+    db.insert_account_storage(token_in, user_approval_slot.into(), amount_out * amount_in)
         .unwrap();
-    db.insert_account_storage(token_in, user_approval_slot2.into(), U256::from(2) * amount_in)
+    db.insert_account_storage(token_in, user_approval_slot2.into(), amount_out * amount_in)
         .unwrap();
     // give angstrom funds on token_out
-    db.insert_account_storage(token_out, angstrom_balance_out.into(), U256::from(2) * amount_out)
+    db.insert_account_storage(token_out, angstrom_balance_out.into(), amount_out * amount_in)
         .unwrap();
 
     // verify that everything is setup as we want
