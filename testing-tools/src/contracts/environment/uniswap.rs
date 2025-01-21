@@ -51,9 +51,6 @@ where
             .await?
             .address();
 
-        // inner
-        //     .override_address(&mut pool_manager_addr, POOL_MANAGER_ADDRESS)
-        //     .await?;
         debug!("Pool manager deployed at: {}", pool_manager_addr);
         Ok(pool_manager_addr)
     }
