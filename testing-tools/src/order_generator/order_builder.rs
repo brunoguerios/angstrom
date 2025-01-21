@@ -108,7 +108,7 @@ impl OrderBuilder {
             .asset_in(if direction { token0 } else { token1 })
             .asset_out(if !direction { token0 } else { token1 })
             .is_standing(false)
-            .exact_in(direction)
+            .exact_in(zfo)
             .min_price(unshifted_price)
             .block(block_number)
             .amount(amount)
