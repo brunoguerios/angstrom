@@ -121,7 +121,10 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        // tracing::info!(?order);
+        let exact_in = order.exact_in();
+        let t_in_lt = order.token_in() < order.token_out();
+        let from = order.from();
+        tracing::info!(?exact_in, ?t_in_lt, ?from);
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
 
