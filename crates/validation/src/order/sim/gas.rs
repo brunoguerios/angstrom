@@ -124,12 +124,13 @@ where
         let exact_in = order.exact_in();
         let t_in_lt = order.token_in() < order.token_out();
         let hash = order.order_hash();
+
         tracing::info!(?exact_in, ?t_in_lt, ?hash);
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
 
         // if exact in is true, we fail?????
-        let (amount_in, amount_out) = if order.token_in() < order.token_out() {
+        let (amount_in, amount_out) = if order.token_in() > order.token_out() {
             (U256::from(order.amount_in()), {
                 let price = Ray::from(U256::from(order.limit_price()));
                 price.mul_quantity(U256::from(order.amount_in()))
