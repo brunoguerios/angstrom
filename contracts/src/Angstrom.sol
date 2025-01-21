@@ -271,7 +271,6 @@ contract Angstrom is
         } else {
             _invalidateOrderHash(orderHash, from);
         }
-        console.log(buffer.assetIn, buffer.assetOut, buffer.recipient);
 
         // Push before hook as a potential loan.
         address to = buffer.recipient;
