@@ -130,7 +130,10 @@ where
         let bundle = bundle.pade_encode();
 
         // if exact in is true, we fail?????
-        let (amount_in, amount_out) = if exact_in && t_in_lt {
+        // if t_in < t_out then we are going zfo
+        // exact true, t_in false == error
+
+        let (amount_in, amount_out) = if (exact_in && t_in_lt) || (exact_in && !t_in_lt) {
             (U256::from(order.amount_in()), {
                 let price = Ray::from(U256::from(order.limit_price()));
                 price.mul_quantity(U256::from(order.amount_in()))
