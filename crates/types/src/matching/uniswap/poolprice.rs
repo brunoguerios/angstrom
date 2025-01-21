@@ -353,7 +353,7 @@ mod test {
                     upper_tick: 100200
                 },
             ],
-            SqrtPriceX96::at_tick(100099).unwrap()
+            SqrtPriceX96::at_tick(100100).unwrap()
         )
         .unwrap();
         let cur_price = amm.current_price();

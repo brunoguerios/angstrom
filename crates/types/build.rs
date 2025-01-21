@@ -31,7 +31,7 @@ fn main() {
     let mut src_dir = base_dir.clone();
     src_dir.push(SRC_DIRECTORY);
     if let Some(src_dir_str) = src_dir.to_str() {
-        println!("cargo::rerun-if-changed={}", src_dir_str);
+        println!("cargo:rerun-if-changed={}", src_dir_str);
     }
 
     let mut out_dir = base_dir.clone();
@@ -77,7 +77,7 @@ pub mod {mod_name} {{
     alloy::sol!(
         #[allow(missing_docs)]
         #[sol(rpc)]
-        #[derive(Debug,Default, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Default, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
         {name},
         "{path_of_contracts}"
     );

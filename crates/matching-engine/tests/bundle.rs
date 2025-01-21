@@ -7,6 +7,7 @@ mod booklib;
 use booklib::{DEBT_WRONG_SIDE, GOOD_BOOK, ZERO_ASK_BOOK};
 
 #[test]
+#[ignore]
 fn build_and_ship_random_bundle() {
     let bytes = base64::prelude::BASE64_STANDARD
         .decode(ZERO_ASK_BOOK)

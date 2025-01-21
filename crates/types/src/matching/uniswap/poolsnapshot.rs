@@ -16,7 +16,7 @@ use crate::matching::{math::low_to_high, SqrtPriceX96};
 pub struct PoolSnapshot {
     /// Known tick ranges and liquidity positions gleaned from the market
     /// snapshot
-    pub(crate) ranges:         Vec<LiqRange>,
+    pub ranges:                Vec<LiqRange>,
     /// The current SqrtPriceX96 for this pairing as of this snapshot
     /// (𝛥Token1/𝛥Token0)
     pub(crate) sqrt_price_x96: SqrtPriceX96,

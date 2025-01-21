@@ -15,26 +15,36 @@ use crate::{
     types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig}
 };
 
+const TESTNET_LEADER_SECRET_KEY: [u8; 32] = [
+    102, 27, 190, 55, 135, 232, 40, 136, 200, 139, 236, 174, 205, 166, 147, 166, 128, 135, 124,
+    214, 190, 241, 2, 235, 9, 139, 91, 116, 204, 130, 120, 159
+];
+
 #[derive(Debug, Clone)]
 pub struct TestingNodeConfig<C> {
     pub node_id:       u64,
     pub global_config: C,
     pub pub_key:       PublicKey,
     pub secret_key:    SecretKey,
-    pub voting_power:  u64,
-    base_port_rand:    u8
+    pub voting_power:  u64
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     pub fn new(node_id: u64, global_config: C, voting_power: u64) -> Self {
-        let secret_key = SecretKey::new(&mut rand::thread_rng());
+        let secret_key = if matches!(global_config.config_type(), TestingConfigKind::Testnet)
+            && global_config.is_leader(node_id)
+        {
+            SecretKey::from_slice(&TESTNET_LEADER_SECRET_KEY).unwrap()
+        } else {
+            SecretKey::new(&mut rand::thread_rng())
+        };
+
         Self {
             node_id,
             global_config,
             pub_key: secret_key.public_key(&Secp256k1::default()),
             voting_power,
-            secret_key,
-            base_port_rand: rand::random()
+            secret_key
         }
     }
 
@@ -43,7 +53,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     pub fn strom_rpc_port(&self) -> u64 {
-        self.base_port_rand as u64 + self.node_id
+        self.global_config.base_angstrom_rpc_port() as u64 + self.node_id
     }
 
     pub fn signing_key(&self) -> PrivateKeySigner {
@@ -76,7 +86,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .chain_id(1)
             .arg("--host")
             .arg("0.0.0.0")
-            .port((9545 + self.node_id) as u16)
+            .port(self.global_config.leader_eth_rpc_port())
             .fork(self.global_config.eth_ws_url())
             .arg("--ipc")
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))

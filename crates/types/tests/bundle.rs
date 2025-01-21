@@ -346,6 +346,7 @@ fn raw_bundle(t0: Address, t1: Address) -> AngstromBundle {
 }
 
 #[tokio::test]
+#[cfg(feature = "anvil")]
 async fn use_raw_bundle() {
     let anvil = LocalAnvil::new("http://127.0.0.1:8545".to_owned())
         .await
@@ -377,6 +378,7 @@ async fn use_raw_bundle() {
 }
 
 #[tokio::test]
+#[cfg(feature = "anvil")]
 async fn similar_to_prev() {
     // Create our anvil environment and grab the nodes and provider
     let anvil = LocalAnvil::new("http://localhost:8545".to_owned())

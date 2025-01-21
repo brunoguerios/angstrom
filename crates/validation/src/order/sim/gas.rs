@@ -5,6 +5,7 @@ use alloy::{
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
+    contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
     contract_payloads::angstrom::AngstromBundle,
     matching::{uniswap::UniswapFlags, Ray},
     sol_bindings::{
@@ -24,6 +25,9 @@ use revm::{
 };
 
 use super::gas_inspector::{GasSimulationInspector, GasUsed};
+use crate::order::state::db_state_utils::finders::{
+    find_slot_offset_for_approval, find_slot_offset_for_balance
+};
 
 /// A address we can use to deploy contracts
 const DEFAULT_FROM: Address = address!("aa250d5630b4cf539739df2c5dacb4c659f2488d");
@@ -81,6 +85,7 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        // need to grab the order hash
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
@@ -92,9 +97,9 @@ where
                 user_address:  tob.from()
             },
             |execution_env| {
-                let bundle = AngstromBundle::build_dummy_for_tob_gas(tob)
-                    .unwrap()
-                    .pade_encode();
+                let bundle = AngstromBundle::build_dummy_for_tob_gas(tob).unwrap();
+
+                let bundle = bundle.pade_encode();
                 let bundle_bytes: Bytes = bundle.into();
                 execution_env.block.number = U256::from(block + 1);
 
@@ -108,7 +113,7 @@ where
                 .into();
             }
         )
-        .map_err(|e| eyre!("tob order err={}", e))
+        .map_err(|e| eyre!("tob order err={} {:?}", e, tob.from()))
     }
 
     pub fn gas_of_book_order(
@@ -116,20 +121,33 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        let exact_in = order.exact_in();
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
+
         let bundle = bundle.pade_encode();
+        let (amount_in, amount_out) = if exact_in {
+            (U256::from(order.amount_in()), {
+                let price = Ray::from(U256::from(order.limit_price()));
+                price.mul_quantity(U256::from(order.amount_in()))
+            })
+        } else {
+            (
+                {
+                    let price = Ray::from(U256::from(order.limit_price()));
+                    price.mul_quantity(U256::from(order.amount_in()))
+                },
+                U256::from(order.amount_in())
+            )
+        };
+
         self.execute_on_revm(
             &HashMap::default(),
             OverridesForTestAngstrom {
-                amount_in:     U256::from(order.amount_in()),
-                amount_out:    {
-                    let price = Ray::from(U256::from(order.limit_price()));
-
-                    price.mul_quantity(U256::from(order.amount_in()))
-                },
-                token_out:     order.token_out(),
-                token_in:      order.token_in(),
-                user_address:  order.from(),
+                amount_in,
+                amount_out,
+                token_out: order.token_out(),
+                token_in: order.token_in(),
+                user_address: order.from(),
                 flipped_order: Address::default()
             },
             |execution_env| {
@@ -145,7 +163,7 @@ where
                 .into();
             }
         )
-        .map_err(|e| eyre!("user order err={}", e))
+        .map_err(|e| eyre!("user order err={} {:?}", e, order.from()))
     }
 
     fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) -> eyre::Result<(ResultAndState, D)>
@@ -247,25 +265,39 @@ where
     fn execute_on_revm<F>(
         &self,
         offsets: &HashMap<usize, usize>,
-        _overrides: OverridesForTestAngstrom,
+        overrides: OverridesForTestAngstrom,
         f: F
     ) -> eyre::Result<GasUsed>
     where
         F: FnOnce(&mut EnvWithHandlerCfg)
     {
         let mut inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
+        // let mut console_log_inspector = CallDataInspector {};
+
         let mut evm_handler = EnvWithHandlerCfg::default();
 
         f(&mut evm_handler);
+        let mut db = self.db.clone();
+
+        apply_slot_overrides_for_tokens(
+            &mut db,
+            overrides.token_in,
+            overrides.token_out,
+            overrides.amount_in,
+            overrides.amount_out,
+            overrides.user_address,
+            self.angstrom_address
+        );
 
         {
             let mut evm = revm::Evm::builder()
-                .with_ref_db(self.db.clone())
                 .with_external_context(&mut inspector)
+                .with_ref_db(db)
                 .with_env_with_handler_cfg(evm_handler)
                 .append_handler_register(inspector_handle_register)
                 .modify_env(|env| {
                     env.cfg.disable_balance_check = true;
+                    env.cfg.chain_id = 1;
                 })
                 .build();
 
@@ -276,6 +308,7 @@ where
             if !result.result.is_success() {
                 let output = result.result.output().unwrap().to_vec();
                 let allowed_revert = alloy::primitives::hex!("cc67af53");
+
                 if output[0..4] != allowed_revert {
                     return Err(eyre::eyre!(
                         "gas simulation had a revert. cannot guarantee the proper gas was \
@@ -287,6 +320,128 @@ where
         }
 
         Ok(inspector.into_gas_used())
+    }
+}
+
+fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
+    db: &mut CacheDB<Arc<DB>>,
+    token_in: Address,
+    token_out: Address,
+    amount_in: U256,
+    amount_out: U256,
+    user: Address,
+    angstrom: Address
+) where
+    <DB as revm::DatabaseRef>::Error: Debug
+{
+    let balance_slot_in = find_slot_offset_for_balance(&db, token_in);
+    let balance_slot_out = find_slot_offset_for_balance(&db, token_out);
+    let approval_slot_in = find_slot_offset_for_approval(&db, token_in);
+
+    // first thing we will do is setup the users token_in balance.
+    let user_balance_slot = keccak256((user, balance_slot_in).abi_encode());
+    let user_approval_slot =
+        keccak256((angstrom, keccak256((user, approval_slot_in).abi_encode())).abi_encode());
+
+    let user_approval_slot2 =
+        keccak256((user, keccak256((angstrom, approval_slot_in).abi_encode())).abi_encode());
+    // now that we have the above slots, we want to set slots for angstrom to have
+    // the funds to transfer out
+    let angstrom_balance_out = keccak256((angstrom, balance_slot_out).abi_encode());
+
+    // set the users balance on the token_in
+    db.insert_account_storage(token_in, user_balance_slot.into(), U256::from(2) * amount_in)
+        .unwrap();
+    // give angstrom approval
+    db.insert_account_storage(token_in, user_approval_slot.into(), U256::from(2) * amount_in)
+        .unwrap();
+    db.insert_account_storage(token_in, user_approval_slot2.into(), U256::from(2) * amount_in)
+        .unwrap();
+    // give angstrom funds on token_out
+    db.insert_account_storage(token_out, angstrom_balance_out.into(), U256::from(2) * amount_out)
+        .unwrap();
+
+    // verify that everything is setup as we want
+    verify_overrides(db, token_in, token_out, amount_in, amount_out, user, angstrom);
+}
+
+fn verify_overrides<DB: revm::DatabaseRef + Clone>(
+    db: &CacheDB<Arc<DB>>,
+    token_in: Address,
+    token_out: Address,
+    amount_in: U256,
+    amount_out: U256,
+    user: Address,
+    angstrom: Address
+) where
+    <DB as revm::DatabaseRef>::Error: Debug
+{
+    let evm_handler = EnvWithHandlerCfg::default();
+
+    // user balance
+    let mut evm = revm::Evm::builder()
+        .with_ref_db(db.clone())
+        .with_env_with_handler_cfg(evm_handler.clone())
+        .modify_env(|env| {
+            env.cfg.disable_balance_check = true;
+        })
+        .modify_tx_env(|tx| {
+            tx.caller = user;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data = balanceOfCall::new((user,)).abi_encode().into();
+            tx.value = U256::from(0);
+            tx.nonce = None;
+        })
+        .build();
+
+    let output = evm.transact().unwrap().result.output().unwrap().to_vec();
+    let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
+    if return_data._0 != U256::from(2) * amount_in {
+        panic!("failed to set user balance");
+    }
+
+    // angstrom balance
+    let mut evm = revm::Evm::builder()
+        .with_ref_db(db.clone())
+        .with_env_with_handler_cfg(evm_handler.clone())
+        .modify_env(|env| {
+            env.cfg.disable_balance_check = true;
+        })
+        .modify_tx_env(|tx| {
+            tx.caller = user;
+            tx.transact_to = TxKind::Call(token_out);
+            tx.data = balanceOfCall::new((angstrom,)).abi_encode().into();
+            tx.value = U256::from(0);
+            tx.nonce = None;
+        })
+        .build();
+
+    let output = evm.transact().unwrap().result.output().unwrap().to_vec();
+    let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
+    if return_data._0 != (amount_out * U256::from(2)) {
+        panic!("failed to set angstrom balance");
+    }
+
+    // verify approval
+    let mut evm = revm::Evm::builder()
+        .with_ref_db(db.clone())
+        .with_env_with_handler_cfg(evm_handler.clone())
+        .modify_env(|env| {
+            env.cfg.disable_balance_check = true;
+        })
+        .modify_tx_env(|tx| {
+            tx.caller = user;
+            tx.transact_to = TxKind::Call(token_in);
+            tx.data = allowanceCall::new((user, angstrom)).abi_encode().into();
+            tx.value = U256::from(0);
+            tx.nonce = None;
+        })
+        .build();
+
+    let output = evm.transact().unwrap().result.output().unwrap().to_vec();
+    let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
+    if return_data._0 != U256::from(2) * amount_in {
+        panic!("angstrom doesn't have proper allowance");
     }
 }
 
@@ -363,8 +518,8 @@ pub mod test {
     const USER_WITH_FUNDS: Address = address!("d02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
 
     const ANGSTROM_DOMAIN: alloy::sol_types::Eip712Domain = alloy::sol_types::eip712_domain! {
-        name: "angstrom",
-        version: "1",
+        name: "Angstrom",
+        version: "v1",
         chain_id: 1,
     };
 

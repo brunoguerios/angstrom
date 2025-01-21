@@ -2,7 +2,7 @@ pub mod approvals;
 pub mod balances;
 pub mod nonces;
 
-mod finders;
+pub mod finders;
 
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 

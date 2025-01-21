@@ -87,3 +87,7 @@ parking_lot.workspace = true
 clap = { version = "4.5.4", features = ["derive"] }
 eyre.workspace = true
 uniswap_v3_math.workspace = true
+create3 = { git = "https://github.com/AmanRaj1608/create3" }
+
+[features]
+reth-db-dep-tests = []

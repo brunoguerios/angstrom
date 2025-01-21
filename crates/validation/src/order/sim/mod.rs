@@ -9,6 +9,7 @@ use angstrom_types::sol_bindings::{
 };
 use gas::OrderGasCalculations;
 use revm::primitives::ruint::aliases::U256;
+use tracing::error_span;
 
 use crate::{common::TokenPriceGenerator, order::sim::gas_inspector::GasUsed};
 
@@ -41,19 +42,25 @@ where
         conversion: &TokenPriceGenerator,
         block: u64
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
-        self.metrics.fetch_gas_for_user(true, || {
-            let gas_in_wei = self.gas_calculator.gas_of_tob_order(order, block)?;
-            // grab order tokens;
-            let (token0, token1) = if order.asset_in < order.asset_out {
-                (order.asset_in, order.asset_out)
-            } else {
-                (order.asset_out, order.asset_in)
-            };
+        let hash = order.order_hash();
+        let user = order.from();
+        let span = error_span!("tob", ?hash, ?user);
+        span.in_scope(|| {
+            self.metrics.fetch_gas_for_user(true, || {
+                let gas_in_wei = self.gas_calculator.gas_of_tob_order(order, block)?;
+                // grab order tokens;
+                let (token0, token1) = if order.asset_in < order.asset_out {
+                    (order.asset_in, order.asset_out)
+                } else {
+                    (order.asset_out, order.asset_in)
+                };
 
-            // grab price conversion
-            let conversion_factor = conversion.get_eth_conversion_price(token0, token1).unwrap();
+                // grab price conversion
+                let conversion_factor =
+                    conversion.get_eth_conversion_price(token0, token1).unwrap();
 
-            Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
+                Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
+            })
         })
     }
 
@@ -63,19 +70,25 @@ where
         conversion: &TokenPriceGenerator,
         block: u64
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
-        self.metrics.fetch_gas_for_user(false, || {
-            let gas_in_wei = self.gas_calculator.gas_of_book_order(order, block)?;
-            // grab order tokens;
-            let (token0, token1) = if order.token_in() < order.token_out() {
-                (order.token_in(), order.token_out())
-            } else {
-                (order.token_out(), order.token_in())
-            };
+        let hash = order.order_hash();
+        let user = order.from();
+        let span = error_span!("user", ?hash, ?user);
+        span.in_scope(|| {
+            self.metrics.fetch_gas_for_user(false, || {
+                let gas_in_wei = self.gas_calculator.gas_of_book_order(order, block)?;
+                // grab order tokens;
+                let (token0, token1) = if order.token_in() < order.token_out() {
+                    (order.token_in(), order.token_out())
+                } else {
+                    (order.token_out(), order.token_in())
+                };
 
-            // grab price conversion
-            let conversion_factor = conversion.get_eth_conversion_price(token0, token1).unwrap();
+                // grab price conversion
+                let conversion_factor =
+                    conversion.get_eth_conversion_price(token0, token1).unwrap();
 
-            Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
+                Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
+            })
         })
     }
 }

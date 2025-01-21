@@ -118,7 +118,6 @@ fn unsolveable_book() {
         vec![TestOrder { q: 100, p: raw_price(10) }],
         None
     );
-    println!("Book: {:?}", book);
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
     println!("End reason: {:?}", end);

@@ -57,7 +57,7 @@ impl ToBOrderBuilder {
             quantity_out: self.quantity_out.unwrap_or_default(),
             valid_for_block: self.valid_block.unwrap_or_default(),
             recipient: self.recipient.unwrap_or_else(|| Address::random()),
-            max_gas_asset0: self.quantity_in.unwrap_or_default(),
+            max_gas_asset0: 0,
             ..Default::default()
         };
         if let Some(signer) = self.signing_key {

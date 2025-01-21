@@ -1,6 +1,9 @@
 use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc};
 
-use alloy::{primitives::Address, providers::ext::AnvilApi};
+use alloy::{
+    primitives::Address,
+    providers::{ext::AnvilApi, WalletProvider as _}
+};
 use alloy_primitives::U256;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, StreamExt};
@@ -202,6 +205,8 @@ where
         )
         .await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());
+
+        tracing::debug!(leader_address = ?provider.rpc_provider().default_signer_address());
 
         let initializer = provider.provider_mut().provider_mut();
         initializer.deploy_pool_fulls(config.pool_keys()).await?;

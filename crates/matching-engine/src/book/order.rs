@@ -287,6 +287,10 @@ impl<'a> OrderContainer<'a> {
                 if !self.inverse_order() {
                     return None
                 }
+                // If the debt is opposed, we can consume that first
+                if let Some(d) = debt {
+                    //
+                }
                 let (t0_consumed, debt_t1) = debt
                     .map(|d| (std::cmp::min(t0, d.current_t0()), d.freed_t1(t0)))
                     .unwrap_or_default();
@@ -343,5 +347,10 @@ mod tests {
         let order = UserOrderBuilder::new().with_storage().build();
         let debt = None;
         let q = OrderContainer::book_order_q_t0(&order, debt);
+    }
+
+    #[test]
+    fn max_t1_for_t0() {
+        // OrderContainer::max_t1_for_t0(&self, t0, debt)
     }
 }

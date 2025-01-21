@@ -24,23 +24,20 @@ where
 
     let mut db = CacheDB::new(db);
     let evm_handler = EnvWithHandlerCfg::default();
-    let mut evm = revm::Evm::builder()
-        .with_ref_db(db.clone())
-        .with_env_with_handler_cfg(evm_handler)
-        .modify_env(|env| {
-            env.cfg.disable_balance_check = true;
-        })
-        .build();
 
     // check the first 100 offsets
     for offset in 0..100 {
         // set balance
-        let balance_slot = keccak256((probe_address, offset).abi_encode());
+        let balance_slot = keccak256((probe_address, offset as u64).abi_encode());
         db.insert_account_storage(token_address, balance_slot.into(), U256::from(123456789))
             .unwrap();
         // execute revm to see if we hit the slot
-        evm = evm
-            .modify()
+        let mut evm = revm::Evm::builder()
+            .with_ref_db(db.clone())
+            .with_env_with_handler_cfg(evm_handler.clone())
+            .modify_env(|env| {
+                env.cfg.disable_balance_check = true;
+            })
             .modify_tx_env(|tx| {
                 tx.caller = probe_address;
                 tx.transact_to = TxKind::Call(token_address);
@@ -70,27 +67,24 @@ where
 
     let mut db = CacheDB::new(db);
     let evm_handler = EnvWithHandlerCfg::default();
-    let mut evm = revm::Evm::builder()
-        .with_ref_db(db.clone())
-        .with_env_with_handler_cfg(evm_handler)
-        .modify_env(|env| {
-            env.cfg.disable_balance_check = true;
-        })
-        .build();
 
     // check the first 100 offsets
     for offset in 0..100 {
         // set approval
         let approval_slot = keccak256(
-            (probe_contract_address, keccak256((probe_user_address, offset).abi_encode()))
+            (probe_contract_address, keccak256((probe_user_address, offset as u64).abi_encode()))
                 .abi_encode()
         );
 
         db.insert_account_storage(token_address, approval_slot.into(), U256::from(123456789))
             .unwrap();
         // execute revm to see if we hit the slot
-        evm = evm
-            .modify()
+        let mut evm = revm::Evm::builder()
+            .with_ref_db(db.clone())
+            .with_env_with_handler_cfg(evm_handler.clone())
+            .modify_env(|env| {
+                env.cfg.disable_balance_check = true;
+            })
             .modify_tx_env(|tx| {
                 tx.caller = probe_user_address;
                 tx.transact_to = TxKind::Call(token_address);

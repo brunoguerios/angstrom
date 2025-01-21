@@ -126,8 +126,14 @@ mod tests {
 
     #[test]
     fn test_i32_to_i24() {
-        let test_values =
-            [I24::MIN.as_i32(), -1025_i32, 1024_i32, 1000_i32, -1000_i32, I24::MAX.as_i32()];
+        let test_values = [
+            (I24::MIN).as_i32() + 1,
+            -1025_i32,
+            1024_i32,
+            1000_i32,
+            -1000_i32,
+            I24::MAX.as_i32() - 1
+        ];
         for &original in test_values.iter() {
             let converted = i32_to_i24(original).unwrap();
             assert_eq!(

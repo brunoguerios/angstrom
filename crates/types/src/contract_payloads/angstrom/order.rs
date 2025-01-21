@@ -16,7 +16,7 @@ use crate::{
     }
 };
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode)]
 pub enum OrderQuantities {
     Exact { quantity: u128 },
     Partial { min_quantity_in: u128, max_quantity_in: u128, filled_quantity: u128 }
@@ -31,7 +31,7 @@ impl OrderQuantities {
     }
 }
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode)]
 pub struct StandingValidation {
     nonce:    u64,
     // 40 bits wide in reality
@@ -40,6 +40,10 @@ pub struct StandingValidation {
 }
 
 impl StandingValidation {
+    pub fn new(nonce: u64, deadline: u64) -> Self {
+        Self { nonce, deadline }
+    }
+
     pub fn nonce(&self) -> u64 {
         self.nonce
     }
@@ -49,7 +53,7 @@ impl StandingValidation {
     }
 }
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode)]
 pub struct UserOrder {
     pub ref_id:               u32,
     pub use_internal:         bool,
@@ -236,25 +240,42 @@ impl UserOrder {
         outcome: &OrderOutcome,
         pair_index: u16
     ) -> Self {
-        let order_quantities = match &order.order {
+        let (order_quantities, standing_validation, recipient) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(_) => OrderQuantities::Exact { quantity: order.max_q() },
-                FlashVariants::Partial(p_o) => OrderQuantities::Partial {
-                    min_quantity_in: p_o.min_amount_in,
-                    max_quantity_in: p_o.max_amount_in,
-                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                FlashVariants::Exact(e) => {
+                    (OrderQuantities::Exact { quantity: order.quantity_t0() }, None, e.recipient)
                 }
+                FlashVariants::Partial(p_o) => (
+                    OrderQuantities::Partial {
+                        min_quantity_in: p_o.min_amount_in,
+                        max_quantity_in: p_o.max_amount_in,
+                        filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                    },
+                    None,
+                    p_o.recipient
+                )
             },
             GroupedVanillaOrder::Standing(o) => match o {
-                StandingVariants::Exact(_) => OrderQuantities::Exact { quantity: order.max_q() },
+                StandingVariants::Exact(e) => (
+                    OrderQuantities::Exact { quantity: order.quantity_t0() },
+                    Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
+                    e.recipient
+                ),
                 StandingVariants::Partial(p_o) => {
                     let max_quantity_in = p_o.max_amount_in;
                     let filled_quantity = outcome.fill_amount(p_o.max_amount_in);
-                    OrderQuantities::Partial {
-                        min_quantity_in: p_o.min_amount_in,
-                        max_quantity_in,
-                        filled_quantity
-                    }
+                    (
+                        OrderQuantities::Partial {
+                            min_quantity_in: p_o.min_amount_in,
+                            max_quantity_in,
+                            filled_quantity
+                        },
+                        Some(StandingValidation {
+                            nonce:    p_o.nonce,
+                            deadline: p_o.deadline.to()
+                        }),
+                        p_o.recipient
+                    )
                 }
             }
         };
@@ -267,19 +288,23 @@ impl UserOrder {
         let decoded_signature =
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
+
+        let user = order.from();
+        let recipient = (user != recipient).then_some(recipient);
+
         Self {
             ref_id: 0,
             use_internal: false,
             pair_index,
             min_price: *order.price(),
-            recipient: None,
+            recipient,
             hook_data,
             zero_for_one: !order.is_bid,
-            standing_validation: None,
+            standing_validation,
             order_quantities,
             max_extra_fee_asset0: order.max_gas_token_0(),
             extra_fee_asset0: order.max_gas_token_0(),
-            exact_in: false,
+            exact_in: order.exact_in(),
             signature: Signature::from(decoded_signature)
         }
     }

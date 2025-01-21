@@ -28,7 +28,7 @@ strum = { workspace = true, features = ["derive"] }
 bincode = { workspace = true }
 
 # misc
-jsonrpsee = { workspace = true, features = ["server", "macros"] }
+jsonrpsee = { workspace = true, features = ["server", "macros", "ws-client"] }
 serde_json.workspace = true
 serde.workspace = true
 alloy-primitives = { workspace = true, features = ["serde"] }

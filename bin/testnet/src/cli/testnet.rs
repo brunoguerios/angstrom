@@ -19,23 +19,34 @@ use testing_tools::types::{config::TestnetConfig, initial_state::PartialConfigPo
 #[derive(Debug, Clone, Default, clap::Parser)]
 pub struct TestnetCli {
     #[clap(long)]
-    pub mev_guard:        bool,
+    pub mev_guard:              bool,
+    #[clap(short, long, default_value = "9445")]
+    pub leader_eth_rpc_port:    u16,
+    #[clap(short, long)]
+    pub angstrom_base_rpc_port: Option<u16>,
     /// the amount of testnet nodes that will be spawned and connected to.
     #[clap(short, long, default_value = "3")]
-    pub nodes_in_network: u64,
+    pub nodes_in_network:       u64,
     /// eth rpc/ipc fork url
-    #[clap(short, long)]
-    pub eth_fork_url:     String,
+    #[clap(short, long, default_value = "ws://localhost:8546")]
+    pub eth_fork_url:           String,
     /// path to the toml file with the pool keys
     #[clap(short, long, default_value = "./bin/testnet/pool_key_config.toml")]
-    pub pool_key_config:  PathBuf
+    pub pool_key_config:        PathBuf
 }
 
 impl TestnetCli {
     pub(crate) fn make_config(&self) -> eyre::Result<TestnetConfig> {
         let pool_keys = AllPoolKeyInners::load_pool_keys(&self.pool_key_config)?;
 
-        Ok(TestnetConfig::new(self.nodes_in_network, pool_keys, &self.eth_fork_url, self.mev_guard))
+        Ok(TestnetConfig::new(
+            self.nodes_in_network,
+            pool_keys,
+            &self.eth_fork_url,
+            self.mev_guard,
+            self.leader_eth_rpc_port,
+            self.angstrom_base_rpc_port
+        ))
     }
 }
 

@@ -1020,7 +1020,7 @@ mod tests {
     #[test]
     fn ask_side_debt_has_zero_quantity() {
         let debt = Some(Debt::new(
-            DebtType::ExactIn(100000000),
+            DebtType::ExactOut(100000000),
             Ray::from(SqrtPriceX96::at_tick(100000).unwrap())
         ));
         let index = Cell::new(0);
@@ -1044,7 +1044,7 @@ mod tests {
         let debt_price = Ray::from(SqrtPriceX96::at_tick(90000).unwrap());
         let ask_target_price = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
         let bid_target_price = Ray::from(SqrtPriceX96::at_tick(110000).unwrap());
-        let debt = Some(Debt::new(DebtType::ExactIn(100000), debt_price));
+        let debt = Some(Debt::new(DebtType::ExactOut(100000), debt_price));
         if let Some(ref d) = debt {
             assert!(!d.valid_for_price(ask_target_price), "Debt already at ask price");
         }

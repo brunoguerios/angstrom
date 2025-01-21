@@ -4,7 +4,7 @@ use alloy::{
     network::EthereumWallet,
     node_bindings::AnvilInstance,
     primitives::{Address, U256},
-    providers::{ext::AnvilApi, ProviderBuilder},
+    providers::{ext::AnvilApi, Provider, ProviderBuilder},
     signers::local::PrivateKeySigner
 };
 use futures::Future;
@@ -14,16 +14,15 @@ use super::anvil::WalletProviderRpc;
 use crate::contracts::anvil::{spawn_anvil, LocalAnvilRpc};
 
 pub mod angstrom;
-pub mod mockreward;
 pub mod uniswap;
 
+#[allow(async_fn_in_trait)]
 pub trait TestAnvilEnvironment: Clone {
-    type P: alloy::providers::Provider;
+    type P: alloy::providers::Provider + alloy::providers::WalletProvider;
 
     fn provider(&self) -> &Self::P;
     fn controller(&self) -> Address;
 
-    #[allow(async_fn_in_trait)]
     async fn execute_then_mine<O>(&self, f: impl Future<Output = O> + Send) -> O {
         let mut fut = Box::pin(f);
         // poll for 500 ms. if  not resolves then we mine and join
@@ -38,6 +37,21 @@ pub trait TestAnvilEnvironment: Clone {
         let mine_one_fut = self.provider().anvil_mine(Some(U256::from(1)), None);
         let (res, _) = futures::join!(fut, mine_one_fut);
         res
+    }
+
+    async fn override_address(
+        &self,
+        from_addr: &mut Address,
+        to_addr: Address
+    ) -> eyre::Result<()> {
+        let provider = self.provider();
+
+        let code = provider.get_code_at(*from_addr).await?;
+        provider.anvil_set_code(to_addr, code).await?;
+
+        *from_addr = to_addr;
+
+        Ok(())
     }
 }
 
