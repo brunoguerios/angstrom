@@ -19,7 +19,7 @@ impl TestnetConfig {
         pool_keys: Vec<PartialConfigPoolKey>,
         eth_ws_url: impl ToString,
         mev_guard: bool,
-        leader_eth_rpc_port: u16,
+        leader_eth_rpc_port: Option<u16>,
         angstrom_base_rpc_port: Option<u16>
     ) -> Self {
         Self {
@@ -28,7 +28,7 @@ impl TestnetConfig {
             eth_ws_url: eth_ws_url.to_string(),
             mev_guard,
             seed: rand::random(),
-            leader_eth_rpc_port,
+            leader_eth_rpc_port: leader_eth_rpc_port.unwrap_or_else(rand::random),
             angstrom_base_rpc_port: angstrom_base_rpc_port.unwrap_or_else(rand::random)
         }
     }

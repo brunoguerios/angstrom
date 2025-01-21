@@ -20,8 +20,8 @@ use testing_tools::types::{config::TestnetConfig, initial_state::PartialConfigPo
 pub struct TestnetCli {
     #[clap(long)]
     pub mev_guard:              bool,
-    #[clap(short, long, default_value = "9445")]
-    pub leader_eth_rpc_port:    u16,
+    #[clap(short, long)]
+    pub leader_eth_rpc_port:    Option<u16>,
     #[clap(short, long)]
     pub angstrom_base_rpc_port: Option<u16>,
     /// the amount of testnet nodes that will be spawned and connected to.
