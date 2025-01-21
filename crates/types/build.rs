@@ -14,7 +14,8 @@ const WANTED_CONTRACTS: [&str; 6] = [
     "PoolGate.sol",
     "MockRewardsManager.sol",
     "MintableMockERC20.sol",
-    "ControllerV1.sol"
+    "ControllerV1.sol",
+    "PositionFetcher.sol"
 ];
 
 // builds the contracts crate. then goes and generates bindings on this
