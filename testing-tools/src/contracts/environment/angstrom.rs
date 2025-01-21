@@ -1,4 +1,4 @@
-use alloy::{primitives::Address, providers::WalletProvider};
+use alloy::primitives::Address;
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
@@ -89,7 +89,7 @@ where
         let position_fetcher_addr = *inner
             .execute_then_mine(PositionFetcher::deploy(
                 inner.provider(),
-                inner.pool_manager(),
+                inner.position_manager(),
                 angstrom
             ))
             .await?
@@ -123,6 +123,10 @@ where
 
     fn pool_gate(&self) -> Address {
         self.inner.pool_gate()
+    }
+
+    fn position_manager(&self) -> Address {
+        self.inner.position_manager()
     }
 
     async fn add_liquidity_position(
