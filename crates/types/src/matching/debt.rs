@@ -189,6 +189,14 @@ impl Debt {
         }
     }
 
+    pub fn validate_and_set_price(&mut self, price: Ray) -> bool {
+        let res = self.valid_for_price(price);
+        if res {
+            self.cur_price = price;
+        }
+        res
+    }
+
     /// The current amount of T0 this debt is obligated to fill
     pub fn current_t0(&self) -> u128 {
         self.magnitude.t0_at_price(self.cur_price)

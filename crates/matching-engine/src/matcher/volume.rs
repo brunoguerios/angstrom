@@ -161,7 +161,7 @@ impl<'a> VolumeFillMatcher<'a> {
         let Some(bid) = Self::next_order(
             true,
             &self.bid_idx,
-            &self.debt,
+            &mut self.debt,
             self.amm_price.as_ref(),
             self.book.bids(),
             &self.bid_outcomes
@@ -172,7 +172,7 @@ impl<'a> VolumeFillMatcher<'a> {
         let Some(ask) = Self::next_order(
             false,
             &self.ask_idx,
-            &self.debt,
+            &mut self.debt,
             self.amm_price.as_ref(),
             self.book.asks(),
             &self.ask_outcomes
@@ -213,7 +213,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 &self.ask_idx,
                 // Deliberately no debt here, we want what the next available order would be
                 // WITHOUT our debt
-                &None,
+                &mut None,
                 self.amm_price.as_ref(),
                 self.book.asks(),
                 &self.ask_outcomes
@@ -616,7 +616,7 @@ impl<'a> VolumeFillMatcher<'a> {
     fn next_order(
         bid: bool,
         book_idx: &Cell<usize>,
-        debt: &Option<Debt>,
+        debt: &mut Option<Debt>,
         amm: Option<&PoolPrice<'a>>,
         book: &'a [BookOrder],
         fill_state: &[OrderFillState]
@@ -650,11 +650,18 @@ impl<'a> VolumeFillMatcher<'a> {
         let this_side_debt = debt.filter(|d| d.bid_side() == bid);
         // If we have some debt that is at a better price, then we're going to be making
         // a debt order
-        if let Some(d) = this_side_debt {
+        if let Some(mut d) = this_side_debt {
             // Compare our debt to our book price, debt is more advantageous if there's no
             // book order
             let debt_book_cmp = book_order
-                .map(|b| d.price().cmp(&b.price_for_book_side(bid)))
+                .map(|b| {
+                    let book_price = b.price_for_book_side(bid);
+                    if d.validate_and_set_price(book_price) {
+                        Ordering::Equal
+                    } else {
+                        d.price().cmp(&book_price)
+                    }
+                })
                 .unwrap_or(more_advantageous);
             // Compare our debt to our AMM, debt is more advantageous if there's no AMM
             let debt_amm_cmp = amm
@@ -895,10 +902,11 @@ mod tests {
     fn gets_next_bid_order() {
         let index = Cell::new(0);
         let (book, fill_state) = basic_order_book(true, 10, Ray::from(10000_usize), 10);
-        let debt = None;
+        let mut debt = None;
         let amm = None;
         let next_order =
-            VolumeFillMatcher::next_order(true, &index, &debt, amm, &book, &fill_state).unwrap();
+            VolumeFillMatcher::next_order(true, &index, &mut debt, amm, &book, &fill_state)
+                .unwrap();
         if let OrderContainer::BookOrder { order, .. } = next_order {
             assert_eq!(*order, book[0], "Next order selected was not first order in book");
         } else {
@@ -912,13 +920,14 @@ mod tests {
             generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
         let amm_price = market.current_price();
         let amm = Some(&amm_price);
-        let debt = None;
+        let mut debt = None;
         let index = Cell::new(0);
         let (book, fill_state) =
             basic_order_book(true, 10, Ray::from(SqrtPriceX96::at_tick(99999).unwrap()), 10);
 
         let next_order =
-            VolumeFillMatcher::next_order(true, &index, &debt, amm, &book, &fill_state).unwrap();
+            VolumeFillMatcher::next_order(true, &index, &mut debt, amm, &book, &fill_state)
+                .unwrap();
 
         assert!(matches!(next_order, OrderContainer::Composite(_)), "Composite order not created!");
         if let OrderContainer::Composite(c) = next_order {
@@ -936,7 +945,7 @@ mod tests {
             generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
         let amm_price = market.current_price();
         let amm = Some(&amm_price);
-        let debt = Some(Debt::new(
+        let mut debt = Some(Debt::new(
             DebtType::ExactIn(100000000),
             Ray::from(SqrtPriceX96::at_tick(101001).unwrap())
         ));
@@ -945,7 +954,8 @@ mod tests {
             basic_order_book(true, 10, Ray::from(SqrtPriceX96::at_tick(99999).unwrap()), 10);
 
         let next_order =
-            VolumeFillMatcher::next_order(true, &index, &debt, amm, &book, &fill_state).unwrap();
+            VolumeFillMatcher::next_order(true, &index, &mut debt, amm, &book, &fill_state)
+                .unwrap();
         let order_q_target = max(book[0].price(), amm_price.as_ray());
 
         assert!(matches!(next_order, OrderContainer::Composite(_)), "Composite order not created!");
@@ -966,7 +976,7 @@ mod tests {
             generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
         let amm_price = market.current_price();
         let amm = Some(&amm_price);
-        let debt = Some(Debt::new(
+        let mut debt = Some(Debt::new(
             DebtType::ExactIn(100000000),
             Ray::from(SqrtPriceX96::at_tick(10001).unwrap())
         ));
@@ -975,7 +985,8 @@ mod tests {
             basic_order_book(true, 10, Ray::from(SqrtPriceX96::at_tick(100100).unwrap()), 10);
 
         let next_order =
-            VolumeFillMatcher::next_order(true, &index, &debt, amm, &book, &fill_state).unwrap();
+            VolumeFillMatcher::next_order(true, &index, &mut debt, amm, &book, &fill_state)
+                .unwrap();
 
         assert!(matches!(next_order, OrderContainer::BookOrder { .. }), "Book order not chosen");
         if let OrderContainer::BookOrder { order: b, .. } = next_order {
@@ -991,7 +1002,7 @@ mod tests {
             generate_single_position_amm_at_tick(99999, 100, 1_000_000_000_000_000_u128);
         let amm_price = market.current_price();
         let amm = Some(&amm_price);
-        let debt = Some(Debt::new(
+        let mut debt = Some(Debt::new(
             DebtType::ExactIn(100000000),
             Ray::from(SqrtPriceX96::at_tick(101001).unwrap())
         ));
@@ -1000,7 +1011,8 @@ mod tests {
             basic_order_book(true, 10, Ray::from(SqrtPriceX96::at_tick(100000).unwrap()), 10);
 
         let next_order =
-            VolumeFillMatcher::next_order(true, &index, &debt, amm, &book, &fill_state).unwrap();
+            VolumeFillMatcher::next_order(true, &index, &mut debt, amm, &book, &fill_state)
+                .unwrap();
 
         let order_q_target = max(book[0].price(), amm_price.as_ray());
 
@@ -1018,7 +1030,7 @@ mod tests {
 
     #[test]
     fn ask_side_debt_has_zero_quantity() {
-        let debt = Some(Debt::new(
+        let mut debt = Some(Debt::new(
             DebtType::ExactOut(100000000),
             Ray::from(SqrtPriceX96::at_tick(100000).unwrap())
         ));
@@ -1027,7 +1039,8 @@ mod tests {
             basic_order_book(false, 10, Ray::from(SqrtPriceX96::at_tick(101000).unwrap()), 10);
 
         let next_order =
-            VolumeFillMatcher::next_order(false, &index, &debt, None, &book, &fill_state).unwrap();
+            VolumeFillMatcher::next_order(false, &index, &mut debt, None, &book, &fill_state)
+                .unwrap();
 
         assert!(matches!(next_order, OrderContainer::Composite(_)), "Composite order not created!");
         if let OrderContainer::Composite(c) = next_order {
