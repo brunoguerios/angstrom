@@ -125,8 +125,8 @@ where
         let t_in_lt = order.token_in() < order.token_out();
         let hash = order.order_hash();
 
-        tracing::info!(?exact_in, ?t_in_lt, ?hash);
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
+        tracing::info!(?exact_in, ?t_in_lt, ?hash, ?bundle);
         let bundle = bundle.pade_encode();
 
         // if exact in is true, we fail?????
