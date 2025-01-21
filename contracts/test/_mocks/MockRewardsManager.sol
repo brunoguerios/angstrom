@@ -10,7 +10,6 @@ import {Settlement} from "src/modules/Settlement.sol";
 import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
 import {UniConsumer} from "src/modules/UniConsumer.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
-import {POOL_FEE} from "src/Constants.sol";
 import {IUniV4, IPoolManager} from "src/interfaces/IUniV4.sol";
 
 import {console} from "forge-std/console.sol";

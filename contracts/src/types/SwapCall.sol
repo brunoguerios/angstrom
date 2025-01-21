@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
-import {POOL_FEE} from "src/Constants.sol";
 
 // forgefmt: disable-next-item
 struct SwapCall {
@@ -41,7 +40,7 @@ library SwapCallLib {
 
     function newSwapCall(address hook) internal pure returns (SwapCall memory swapCall) {
         swapCall.leftPaddedSelector = uint256(uint32(IPoolManager.swap.selector));
-        swapCall.fee = POOL_FEE;
+        swapCall.fee = 0;
         swapCall.hook = hook;
         swapCall.hookDataRelativeOffset = HOOK_DATA_CD_REL_OFFSET;
     }

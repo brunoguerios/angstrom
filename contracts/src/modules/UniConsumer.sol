@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import {IPoolManager} from "../interfaces/IUniV4.sol";
 import {Hooks, IHooks} from "v4-core/src/libraries/Hooks.sol";
 import {Currency} from "v4-core/src/types/Currency.sol";
-import {POOL_FEE} from "src/Constants.sol";
 
 /// @author philogy <https://github.com/philogy>
 abstract contract UniConsumer {
@@ -52,7 +51,7 @@ function hasAngstromHookFlags(address addr) pure returns (bool) {
     if (hook.hasPermission(Hooks.AFTER_REMOVE_LIQUIDITY_FLAG)) return false;
 
     // Ensure that we have some hook preventing 3rd party swapping.
-    if (!hook.hasPermission(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG)) return false;
+    if (!hook.hasPermission(Hooks.BEFORE_SWAP_FLAG)) return false;
 
     return hook.isValidHookAddress(POOL_FEE);
 }

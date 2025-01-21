@@ -12,10 +12,15 @@ import {PartialStandingOrder, ExactFlashOrder} from "test/_reference/OrderTypes.
 import {PriceAB as Price10} from "src/types/Price.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 
+import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
+import {Hooks} from "v4-core/src/libraries/Hooks.sol";
+
 import {console} from "forge-std/console.sol";
 
 /// @author philogy <https://github.com/philogy>
 contract AngstromTest is BaseTest {
+    using Hooks for IHooks;
+
     using PairLib for Pair[];
     using AssetLib for Asset[];
 

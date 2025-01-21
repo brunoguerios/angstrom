@@ -8,7 +8,7 @@ import {PoolConfigStore, PoolConfigStoreLib, StoreKey} from "../libraries/PoolCo
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {SafeCastLib} from "solady/src/utils/SafeCastLib.sol";
-import {POOL_FEE} from "src/Constants.sol";
+import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 /// @author philogy <https://github.com/philogy>
@@ -48,7 +48,13 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(assetA, assetB);
         (int24 tickSpacing,) = _configStore.get(key, storeIndex);
         UNI_V4.initialize(
-            PoolKey(_c(assetA), _c(assetB), POOL_FEE, tickSpacing, IHooks(address(this))),
+            PoolKey(
+                _c(assetA),
+                _c(assetB),
+                LPFeeLibrary.DYNAMIC_FEE_FLAG,
+                tickSpacing,
+                IHooks(address(this))
+            ),
             sqrtPriceX96
         );
     }
@@ -81,6 +87,10 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
             address node = nodes[i];
             _isNode[node] = !_isNode[node];
         }
+    }
+
+    function _isUnlocked() internal view returns (bool) {
+        return _lastBlockUpdated == block.number;
     }
 
     function _onlyController() internal view {
