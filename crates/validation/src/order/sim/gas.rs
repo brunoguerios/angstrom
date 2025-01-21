@@ -131,7 +131,7 @@ where
 
         // if exact in is true, we fail?????
         // if t_in < t_out then we are going zfo
-        // exact true, t_in false == error
+        // (exact true, t_in false ==) error
 
         let (amount_in, amount_out) = if exact_in {
             (U256::from(order.amount_in()), {

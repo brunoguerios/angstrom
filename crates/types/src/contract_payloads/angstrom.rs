@@ -654,7 +654,7 @@ impl AngstromBundle {
                 if token_in < token_out {
                     (token_in, token_out)
                 } else {
-                    (token_out, token_in)
+                    (token_in, token_out)
                 }
             };
             // Make sure the involved assets are in our assets array and we have the
