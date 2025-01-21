@@ -29,7 +29,7 @@ impl TestnetConfig {
             mev_guard,
             seed: rand::random(),
             leader_eth_rpc_port,
-            angstrom_base_rpc_port: angstrom_base_rpc_port.unwrap_or_else(|| rand::random())
+            angstrom_base_rpc_port: angstrom_base_rpc_port.unwrap_or_else(rand::random)
         }
     }
 }
