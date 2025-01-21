@@ -2,7 +2,7 @@ use alloy::{primitives::Address, providers::WalletProvider};
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
-    pool_gate::PoolGate::PoolGateInstance
+    pool_gate::PoolGate::PoolGateInstance, position_fetcher::PositionFetcher
 };
 use tracing::{debug, info};
 
@@ -16,9 +16,10 @@ pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
 #[derive(Clone)]
 pub struct AngstromEnv<E: TestUniswapEnv> {
     #[allow(dead_code)]
-    inner:         E,
-    angstrom:      Address,
-    controller_v1: Address
+    inner:            E,
+    angstrom:         Address,
+    controller_v1:    Address,
+    position_fetcher: Address
 }
 
 impl<E> AngstromEnv<E>
@@ -28,10 +29,11 @@ where
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
         let angstrom = Self::deploy_angstrom(&inner, nodes).await?;
         let controller_v1 = Self::deploy_controller_v1(&inner, angstrom).await?;
+        let position_fetcher = Self::deploy_position_fetcher(&inner, angstrom).await?;
 
         info!("Environment deploy complete!");
 
-        Ok(Self { inner, angstrom, controller_v1 })
+        Ok(Self { inner, angstrom, controller_v1, position_fetcher })
     }
 
     async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
@@ -83,12 +85,32 @@ where
         Ok(controller_v1_addr)
     }
 
+    async fn deploy_position_fetcher(inner: &E, angstrom: Address) -> eyre::Result<Address> {
+        debug!("Deploying PositionFetcher...");
+        let position_fetcher_addr = *inner
+            .execute_then_mine(PositionFetcher::deploy(
+                inner.provider(),
+                inner.pool_manager(),
+                angstrom
+            ))
+            .await?
+            .address();
+
+        debug!("PositionFetcher deployed at: {}", position_fetcher_addr);
+
+        Ok(position_fetcher_addr)
+    }
+
     pub fn angstrom(&self) -> Address {
         self.angstrom
     }
 
     pub fn controller_v1(&self) -> Address {
         self.controller_v1
+    }
+
+    pub fn position_fetcher(&self) -> Address {
+        self.position_fetcher
     }
 }
 
