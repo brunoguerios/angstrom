@@ -146,7 +146,7 @@ mod tests {
         let pool = PoolBuilder::new().build();
         let pools = vec![pool.clone()];
         let current_block = 10;
-        let proposal = ProposalBuilder::new()
+        let _proposal = ProposalBuilder::new()
             .for_pools(pools)
             .order_count(10)
             .preproposal_count(1)
