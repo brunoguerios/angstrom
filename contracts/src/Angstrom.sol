@@ -151,20 +151,6 @@ contract Angstrom is
 
         bytes32 orderHash = typedHasher.hashTypedData(buffer.hash());
 
-        // log, check order hash
-        console.log(uint256(orderHash));
-        // load then log sig
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-        assembly ("memory-safe") {
-            v := byte(0, calldataload(reader))
-            r := calldataload(add(reader, 1))
-            s := calldataload(add(reader, 33))
-        }
-
-        console.log(v, uint256(r), uint256(s));
-
         address from;
         (reader, from) = variantMap.isEcdsa()
             ? SignatureLib.readAndCheckEcdsa(reader, orderHash)
