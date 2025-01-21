@@ -65,9 +65,6 @@ where
             .await?;
         let pool_gate_addr = *pool_gate_instance.address();
 
-        // inner
-        //     .override_address(&mut pool_gate_addr, POOL_GATE_ADDRESS)
-        //     .await?;
         debug!("Pool gate deployed at: {}", pool_gate_addr);
         Ok(pool_gate_addr)
     }

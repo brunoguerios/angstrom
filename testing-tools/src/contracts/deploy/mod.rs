@@ -1,16 +1,10 @@
 use alloy::primitives::{address, fixed_bytes, uint, Address, B256, U160, U256};
 
-// use super::environment::{ANGSTROM_ADDRESS, ANGSTROM_ADDRESS_SALT};
-
 pub mod angstrom;
-pub mod mockreward;
 pub mod tokens;
 pub mod uniswap_flags;
 
 use uniswap_flags::UniswapFlags;
-
-// const DEFAULT_CREATE2_FACTORY: Address =
-// address!("4e59b44847b379578588920cA78FbF26c0B4956C");
 
 /// Attempt to find a target address that includes the appropriate flags
 /// Returns the address found and the salt needed to pad the initcode to
