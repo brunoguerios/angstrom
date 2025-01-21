@@ -198,6 +198,13 @@ impl Debt {
     /// in a debt's T1 value
     pub fn freed_t0(&self, t1_change: u128) -> u128 {
         let i_t0 = self.current_t0();
+        // If we're freeing as much as is in the debt or more, we're freeing the whole
+        // amount
+        if t1_change >= self.magnitude() {
+            return i_t0;
+        }
+        // Otherwise we figure out how much t0 we still need at the new magnitude and
+        // return the difference
         let f_t0 = self
             .magnitude
             .same_type(self.magnitude.magnitude().saturating_sub(t1_change))

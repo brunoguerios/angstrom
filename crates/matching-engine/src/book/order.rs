@@ -207,14 +207,15 @@ impl<'a> OrderContainer<'a> {
                     // currently filling the opposed debt and then, once we have eliminated all of
                     // that debt's T1, we can start our own T1 debt at our order price and fill T0
                     // from that.
-                    // Round up is inverted because we use the debt's setting for this
-                    let debt_portion = d
-                        .price()
-                        .inverse_quantity(d.magnitude().min(raw_q), !round_up);
+                    let debt_portion = d.freed_t0(raw_q);
                     // If the debt is greater than the order, our order portion should be zero
                     let order_portion = raw_q
                         .checked_sub(d.magnitude())
-                        .map(|q| order.price().inverse_quantity(q, round_up))
+                        .map(|q| {
+                            order
+                                .price_for_book_side(order.is_bid())
+                                .inverse_quantity(q, round_up)
+                        })
                         .unwrap_or_default();
                     debt_portion + order_portion
                 }
