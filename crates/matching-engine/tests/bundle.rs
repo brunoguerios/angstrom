@@ -16,7 +16,9 @@ fn build_and_ship_random_bundle() {
     println!("Book: {:?}", book);
     let mut matcher = VolumeFillMatcher::new(&book);
     let solve = matcher.run_match();
+    let solution = matcher.from_checkpoint().unwrap().solution(None);
     println!("EndReason: {:?}", solve);
+    println!("Solution: {:?}", solution);
     // Will migrate things to here later, right now we have other tests to work
     // on
 

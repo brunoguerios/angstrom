@@ -504,9 +504,10 @@ impl<'a> VolumeFillMatcher<'a> {
             // compared orders' debts - if both have debt it annihilates and if neither does
             // we don't need to do it
             if let Some(net_debt) = ask
-                .as_debt(Some(t1_matched))
-                .xor(bid.as_debt(Some(t1_matched)))
+                .as_debt(Some(t1_matched), false)
+                .xor(bid.as_debt(Some(t1_matched), true))
             {
+                println!("Adding net debt for {} t1 matched: {:?}", t1_matched, net_debt);
                 self.debt += net_debt;
             }
         }
@@ -656,9 +657,16 @@ impl<'a> VolumeFillMatcher<'a> {
             let debt_book_cmp = book_order
                 .map(|b| {
                     let book_price = b.price_for_book_side(bid);
+                    println!(
+                        "Comparing debt price {:?} with book price {:?}",
+                        d.price(),
+                        book_price
+                    );
                     if d.validate_and_set_price(book_price) {
+                        println!("Prices found as equal");
                         Ordering::Equal
                     } else {
+                        println!("Prices found as not equal");
                         d.price().cmp(&book_price)
                     }
                 })

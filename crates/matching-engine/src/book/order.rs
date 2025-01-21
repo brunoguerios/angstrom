@@ -100,7 +100,7 @@ impl<'a> OrderContainer<'a> {
 
     /// Represents an applicable book order as a debt at its current price,
     /// taking partial fill into account
-    pub fn as_debt(&self, limit: Option<u128>) -> Option<Debt> {
+    pub fn as_debt(&self, limit: Option<u128>, is_bid: bool) -> Option<Debt> {
         if self.inverse_order() {
             if let Self::BookOrder { order: o, state } = self {
                 let partial_fill = if let OrderFillState::PartialFill(y) = state { *y } else { 0 };
@@ -110,9 +110,8 @@ impl<'a> OrderContainer<'a> {
                 let debt_q = limit
                     .map(|l| std::cmp::min(l, whole_order))
                     .unwrap_or(whole_order);
-                let magnitude =
-                    if o.is_bid { DebtType::exact_in(debt_q) } else { DebtType::exact_out(debt_q) };
-                return Some(Debt::new(magnitude, o.price()))
+                let magnitude = DebtType::new(debt_q, is_bid);
+                return Some(Debt::new(magnitude, o.price_for_book_side(is_bid)))
             }
         }
         None

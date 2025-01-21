@@ -19,12 +19,28 @@ pub enum DebtType {
 }
 
 impl DebtType {
+    pub fn new(q: u128, is_bid: bool) -> Self {
+        if is_bid {
+            Self::ExactIn(q)
+        } else {
+            Self::ExactOut(q)
+        }
+    }
+
     pub fn exact_in(q: u128) -> Self {
         Self::ExactIn(q)
     }
 
     pub fn exact_out(q: u128) -> Self {
         Self::ExactOut(q)
+    }
+
+    /// Whether or not price calculations for this debt type should round up
+    pub fn round_up(&self) -> bool {
+        match self {
+            Self::ExactIn(_) => false,
+            Self::ExactOut(_) => true
+        }
     }
 
     pub fn same_type(&self, q: u128) -> Self {
@@ -116,6 +132,12 @@ impl Debt {
         Self { cur_price, magnitude }
     }
 
+    pub fn from_quantities(t0_q: u128, t1_q: u128, exact_in: bool) -> Self {
+        let magnitude = if exact_in { DebtType::exact_in(t1_q) } else { DebtType::exact_out(t1_q) };
+        let price = Ray::calc_price_generic(t0_q, t1_q, magnitude.round_up());
+        Debt::new(magnitude, price)
+    }
+
     /// Creates a new Debt item at the price provided with the same quantity as
     /// the current Debt
     pub fn set_price(&self, new_price: Ray) -> Self {
@@ -160,19 +182,22 @@ impl Debt {
             DebtType::ExactIn(_) => current_amount + 1,
             DebtType::ExactOut(_) => current_amount.saturating_sub(1)
         };
+        println!("Ranging prices between {} and {}", current_amount, bound_amount);
         let (current_price, bound_price) = match (current_amount, bound_amount) {
             // If both values are zero, something is hecka wrong
             (0, 0) => (Ray::min_uniswap_price(), Ray::max_uniswap_price()),
             // If either value is 0, one of our bounds is max price
-            (0, p) | (p, 0) => {
-                (Ray::max_uniswap_price(), Ray::calc_price_generic(p, self.magnitude()))
-            }
+            (0, p) | (p, 0) => (
+                Ray::max_uniswap_price(),
+                Ray::calc_price_generic(p, self.magnitude(), self.magnitude.round_up())
+            ),
             // Otherwise we can just do our normal math
             (c, b) => (
-                Ray::calc_price_generic(c, self.magnitude()),
-                Ray::calc_price_generic(b, self.magnitude())
+                Ray::calc_price_generic(c, self.magnitude(), self.magnitude.round_up()),
+                Ray::calc_price_generic(b, self.magnitude(), self.magnitude.round_up())
             )
         };
+        println!("Found {:?} - {:?}", current_price, bound_price);
         let (low, high) = low_to_high(&current_price, &bound_price);
         (*low, *high)
     }
@@ -182,6 +207,7 @@ impl Debt {
     /// transaction
     pub fn valid_for_price(&self, price: Ray) -> bool {
         let (low, high) = self.price_range();
+        println!("Validating for price range low {:?} high {:?}", low, high);
 
         match self.magnitude {
             DebtType::ExactIn(_) => price > low && price <= high,
@@ -240,11 +266,17 @@ impl Debt {
     /// the debt with a specified amount of t0
     pub fn partial_fill(&self, q: u128) -> Self {
         // P' = P + (y/q) = self.cur_price + Ray::calc_price(y, q)
-        let price_diff = Ray::calc_price_generic(self.magnitude(), q);
-        let new_price = match self.magnitude {
-            DebtType::ExactIn(_) => self.cur_price + price_diff,
-            DebtType::ExactOut(_) => self.cur_price - price_diff
+        let (new_t0, current_t1) = match self.magnitude {
+            DebtType::ExactIn(m) => {
+                let t0 = self.current_t0() + q;
+                (t0, m)
+            }
+            DebtType::ExactOut(m) => {
+                let t0 = self.current_t0().saturating_sub(q);
+                (t0, m)
+            }
         };
+        let new_price = Ray::calc_price_generic(new_t0, current_t1, self.magnitude.round_up());
         Self { magnitude: self.magnitude, cur_price: new_price }
     }
 
@@ -253,7 +285,8 @@ impl Debt {
     pub fn partial_fill_t1(&self, q: u128) -> Self {
         let current_t0 = self.current_t0();
         let new_t1 = self.magnitude - q;
-        let new_price = Ray::calc_price_generic(current_t0, new_t1.magnitude());
+        let new_price =
+            Ray::calc_price_generic(current_t0, new_t1.magnitude(), self.magnitude.round_up());
         Self { magnitude: new_t1, cur_price: new_price }
     }
 
@@ -417,5 +450,36 @@ impl<'a> PartialOrd<PoolPrice<'a>> for Debt {
         } else {
             Some(self.price().cmp(&other.as_ray()))
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Debt;
+    use crate::matching::Ray;
+
+    #[test]
+    fn debt_t0_magnitude_calculation() {
+        let t0_q = 2214_u128;
+        let t1_q = 55383699_u128;
+        let price = Ray::calc_price_generic(t0_q, t1_q, false);
+        let debt = Debt::new(super::DebtType::ExactIn(t1_q), price);
+        assert!(debt.magnitude() == t1_q, "ExactIn Debt magnitude is not as initialized");
+        assert!(
+            debt.current_t0() == t0_q,
+            "ExactIn Debt T0 fill is not as initialized: {} vs {}",
+            debt.current_t0(),
+            t0_q
+        );
+
+        let eo_price = Ray::calc_price_generic(t0_q, t1_q, true);
+        let debt_out = Debt::new(super::DebtType::ExactOut(t1_q), eo_price);
+        assert!(debt_out.magnitude() == t1_q, "ExactOut Debt magnitude is not as initialized");
+        assert!(
+            debt_out.current_t0() == t0_q,
+            "ExactOut Debt T0 fill is not as initialized: {} vs {}",
+            debt_out.current_t0(),
+            t0_q
+        );
     }
 }
