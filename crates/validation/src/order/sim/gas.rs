@@ -121,7 +121,7 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        tracing::info!(?order);
+        // tracing::info!(?order);
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
 
