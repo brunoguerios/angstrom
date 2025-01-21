@@ -224,8 +224,8 @@ fn annihilating_debt() {
         FixedBytes::random(),
         None,
         vec![
-            TestOrder::exact_bid(1000000000000000000000000000_u128, raw_price(500)),
-            TestOrder::exact_inverse_bid(100000000000000000000000000, raw_price(1000)),
+            TestOrder::exact_bid(1000000000000000000000000_u128, raw_price(500000)),
+            TestOrder::exact_inverse_bid(100000000000000000000000, raw_price(1000000)),
         ],
         vec![
             TestOrder::exact_inverse_ask(100, raw_price(100)),
