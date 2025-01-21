@@ -24,7 +24,7 @@ use revm::{
     DatabaseRef
 };
 
-use super::gas_inspector::{CallDataInspector, GasSimulationInspector, GasUsed};
+use super::gas_inspector::{GasSimulationInspector, GasUsed};
 use crate::order::state::db_state_utils::finders::{
     find_slot_offset_for_approval, find_slot_offset_for_balance
 };
