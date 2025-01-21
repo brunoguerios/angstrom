@@ -47,6 +47,8 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     fn use_internal(&self) -> bool;
 
     fn order_signature(&self) -> eyre::Result<PrimitiveSignature>;
+
+    fn exact_in(&self) -> bool;
 }
 
 pub trait GenerateFlippedOrder: Send + Sync + Clone + Unpin + 'static {

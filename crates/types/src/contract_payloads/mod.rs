@@ -46,7 +46,7 @@ impl Signature {
                 let sig = alloy::primitives::PrimitiveSignature::new(
                     U256::from_be_slice(&**r),
                     U256::from_be_slice(&**s),
-                    *v == 1
+                    *v == 28
                 );
                 sig.recover_address_from_prehash(&hash).unwrap()
             }

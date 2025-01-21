@@ -376,25 +376,42 @@ impl UserOrder {
         outcome: &OrderOutcome,
         pair_index: u16
     ) -> Self {
-        let order_quantities = match &order.order {
+        let (order_quantities, standing_validation, recipient) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(_) => OrderQuantities::Exact { quantity: order.quantity() },
-                FlashVariants::Partial(p_o) => OrderQuantities::Partial {
-                    min_quantity_in: p_o.min_amount_in,
-                    max_quantity_in: p_o.max_amount_in,
-                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                FlashVariants::Exact(e) => {
+                    (OrderQuantities::Exact { quantity: order.quantity() }, None, e.recipient)
                 }
+                FlashVariants::Partial(p_o) => (
+                    OrderQuantities::Partial {
+                        min_quantity_in: p_o.min_amount_in,
+                        max_quantity_in: p_o.max_amount_in,
+                        filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                    },
+                    None,
+                    p_o.recipient
+                )
             },
             GroupedVanillaOrder::Standing(o) => match o {
-                StandingVariants::Exact(_) => OrderQuantities::Exact { quantity: order.quantity() },
+                StandingVariants::Exact(e) => (
+                    OrderQuantities::Exact { quantity: order.quantity() },
+                    Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
+                    e.recipient
+                ),
                 StandingVariants::Partial(p_o) => {
                     let max_quantity_in = p_o.max_amount_in;
                     let filled_quantity = outcome.fill_amount(p_o.max_amount_in);
-                    OrderQuantities::Partial {
-                        min_quantity_in: p_o.min_amount_in,
-                        max_quantity_in,
-                        filled_quantity
-                    }
+                    (
+                        OrderQuantities::Partial {
+                            min_quantity_in: p_o.min_amount_in,
+                            max_quantity_in,
+                            filled_quantity
+                        },
+                        Some(StandingValidation {
+                            nonce:    p_o.nonce,
+                            deadline: p_o.deadline.to()
+                        }),
+                        p_o.recipient
+                    )
                 }
             }
         };
@@ -407,19 +424,23 @@ impl UserOrder {
         let decoded_signature =
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
+
+        let user = order.from();
+        let recipient = (user != recipient).then_some(recipient);
+
         Self {
             ref_id: 0,
             use_internal: false,
             pair_index,
             min_price: *order.price(),
-            recipient: None,
+            recipient,
             hook_data,
             zero_for_one: !order.is_bid,
-            standing_validation: None,
+            standing_validation,
             order_quantities,
             max_extra_fee_asset0: order.max_gas_token_0(),
             extra_fee_asset0: order.max_gas_token_0(),
-            exact_in: false,
+            exact_in: order.exact_in(),
             signature: Signature::from(decoded_signature)
         }
     }
@@ -608,17 +629,6 @@ impl AngstromBundle {
         let mut pairs = Vec::new();
         let mut user_orders = Vec::new();
         let mut asset_builder = AssetBuilder::new();
-
-        asset_builder.allocate(
-            AssetBuilderStage::UserOrder,
-            user_order.token_in(),
-            user_order.amount_in()
-        );
-
-        asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(), {
-            let price = Ray::from(user_order.limit_price());
-            price.mul_quantity(U256::from(user_order.amount_in())).to()
-        });
 
         {
             // Get the information for the pool or skip this solution if we can't find a
@@ -1306,7 +1316,58 @@ mod test {
     }
 
     #[test]
-    fn can_be_cretaed_from_proposal() {
-        // AngstromBundle::from_proposal(proposal, pools);
+    fn decode_tob_angstrom_bundle() {
+        let bundle: [u8; 376] = [
+            0, 0, 136, 122, 185, 133, 215, 244, 70, 250, 54, 98, 245, 212, 171, 94, 242, 10, 107,
+            160, 94, 237, 29, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 42,
+            170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 237, 67, 85, 63, 95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 237, 67, 85, 63, 95, 0, 0, 38, 0, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 1, 0, 0, 35, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 237, 67, 85, 63, 95, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 152, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 3, 183, 17, 221, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 237, 67, 85, 63, 95, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 12, 193, 120, 139, 238, 5, 82, 51, 29, 109, 124, 113, 245, 142, 31, 6, 216,
+            47, 227, 99, 27, 110, 150, 112, 234, 129, 56, 107, 225, 163, 117, 76, 121, 246, 253,
+            249, 39, 68, 131, 150, 103, 127, 217, 176, 52, 185, 222, 70, 255, 251, 186, 8, 243,
+            112, 12, 12, 247, 87, 89, 190, 161, 56, 9, 90, 204, 75, 252, 28, 228, 93, 15, 115, 133,
+            106, 184, 0, 241, 21, 160, 212, 52, 123, 21, 16, 129, 0, 0, 0
+        ];
+        let slice = &mut bundle.as_slice();
+
+        let mut bundle: AngstromBundle = pade::PadeDecode::pade_decode(slice, None).unwrap();
+        println!("{bundle:?}");
+        let tob = bundle.top_of_block_orders.remove(0);
+        println!("{tob:?}");
+    }
+
+    #[test]
+    fn decode_user_angstrom_bundle() {
+        let bundle: [u8; 373] = [
+            0, 0, 136, 57, 251, 60, 242, 199, 91, 76, 34, 70, 86, 22, 254, 22, 128, 255, 34, 164,
+            166, 244, 51, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 204, 100, 109, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 204, 100, 109,
+            192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108,
+            194, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 64, 15, 29, 48, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 64, 15, 29, 48, 25, 0, 0, 38, 0, 0,
+            0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 16, 67, 96, 206,
+            21, 193, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 184, 168, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 16, 67, 96, 206, 21, 193, 48, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 3, 204, 100, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 204, 100, 109, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 204, 100, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            3, 204, 100, 109, 27, 173, 77, 129, 8, 3, 181, 255, 66, 55, 66, 206, 216, 73, 59, 189,
+            66, 160, 50, 207, 190, 202, 63, 115, 71, 92, 14, 98, 123, 109, 168, 226, 241, 91, 144,
+            45, 255, 160, 52, 65, 145, 173, 31, 90, 90, 206, 232, 240, 156, 123, 216, 158, 62, 155,
+            36, 55, 255, 111, 67, 204, 109, 84, 52, 115, 11
+        ];
+        let slice = &mut bundle.as_slice();
+
+        let mut bundle: AngstromBundle = pade::PadeDecode::pade_decode(slice, None).unwrap();
+        println!("{bundle:?}");
+        let user = bundle.user_orders.remove(0);
+        println!("{user:?}");
     }
 }
