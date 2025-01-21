@@ -271,8 +271,8 @@ where
     where
         F: FnOnce(&mut EnvWithHandlerCfg)
     {
-        let inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
-        let mut console_log_inspector = CallDataInspector {};
+        let mut inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
+        // let mut console_log_inspector = CallDataInspector {};
 
         let mut evm_handler = EnvWithHandlerCfg::default();
 
@@ -291,7 +291,7 @@ where
 
         {
             let mut evm = revm::Evm::builder()
-                .with_external_context(&mut console_log_inspector)
+                .with_external_context(&mut inspector)
                 .with_ref_db(db)
                 .with_env_with_handler_cfg(evm_handler)
                 .append_handler_register(inspector_handle_register)
@@ -310,8 +310,6 @@ where
                 let allowed_revert = alloy::primitives::hex!("cc67af53");
 
                 if output[0..4] != allowed_revert {
-                    let b = result.result.output();
-                    tracing::info!(?b);
                     return Err(eyre::eyre!(
                         "gas simulation had a revert. cannot guarantee the proper gas was \
                          estimated err={:?}",
