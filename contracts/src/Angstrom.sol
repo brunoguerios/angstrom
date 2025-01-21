@@ -298,9 +298,6 @@ contract Angstrom is
     }
 
     function _erc712Hasher() internal view returns (TypedDataHasher) {
-        bytes32 sep = _domainSeparator();
-        console.log(uint256(sep), uint256(0x69));
-
         return TypedDataHasherLib.init(_domainSeparator());
     }
 
