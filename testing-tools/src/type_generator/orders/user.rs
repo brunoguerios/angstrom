@@ -128,7 +128,7 @@ impl UserOrderBuilder {
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     nonce: self.nonce,
-                    exact_in: self.exact_in,
+                    exact_in: self.asset_in < self.asset_out,
                     deadline: U40::from(self.deadline.to::<u32>()),
                     ..Default::default()
                 };
@@ -182,7 +182,7 @@ impl UserOrderBuilder {
                     amount: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
-                    exact_in: self.exact_in,
+                    exact_in: self.asset_in < self.asset_out,
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
