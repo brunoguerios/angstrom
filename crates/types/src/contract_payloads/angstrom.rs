@@ -630,21 +630,6 @@ impl AngstromBundle {
         let mut user_orders = Vec::new();
         let mut asset_builder = AssetBuilder::new();
 
-        // asset_builder.allocate(
-        //     AssetBuilderStage::UserOrder,
-        //     user_order.token_in(),
-        //     {
-        //
-        //     if user_order.exact_in() {
-        //         let price = Ray::from(user_order.limit_price());
-        //         price.mul_quantity(U256::from(user_order.amount_in())).to()
-        //     } else {
-        //         user_order.amount_in()
-        //     }
-        //     }
-        //     user_order.amount_in()
-        // );
-
         asset_builder.allocate(AssetBuilderStage::UserOrder, user_order.token_out(), {
             if user_order.exact_in() {
                 let price = Ray::from(user_order.limit_price());
