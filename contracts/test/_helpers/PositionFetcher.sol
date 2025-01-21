@@ -27,10 +27,12 @@ contract PositionFetcher {
 
     uint256 internal constant _POSITION_STRUCT_SIZE = 0x80;
 
-    function getPositions(address owner, uint256 tokenId, uint256 lastTokenId, uint256 maxResults)
-        public
-        returns (uint256, uint256, Position[] memory)
-    {
+    function getPositions(
+        address owner,
+        uint256 tokenId,
+        uint256 lastTokenId,
+        uint256 maxResults
+    ) public returns (uint256, uint256, Position[] memory) {
         if (lastTokenId == 0) lastTokenId = _MANAGER.nextTokenId();
 
         if (maxResults == 0) return (tokenId, lastTokenId, new Position[](0));
@@ -38,7 +40,13 @@ contract PositionFetcher {
         uint256 returnData_ptr;
         assembly ("memory-safe") {
             returnData_ptr := mload(0x40)
-            mstore(0x40, add(add(returnData_ptr, 0x80), mul(maxResults, _POSITION_STRUCT_SIZE)))
+            mstore(
+                0x40,
+                add(
+                    add(returnData_ptr, 0x80),
+                    mul(maxResults, _POSITION_STRUCT_SIZE)
+                )
+            )
             mstore(add(returnData_ptr, 0x20), lastTokenId)
             mstore(add(returnData_ptr, 0x40), 0x60)
             mstore(add(returnData_ptr, 0x60), 0)
@@ -51,17 +59,23 @@ contract PositionFetcher {
         for (; tokenId < lastTokenId; tokenId++) {
             address tokenOwner;
             assembly ("memory-safe") {
-                mstore(0x00, 0x6352211e /* ownerOf(uint256) */ )
+                mstore(0x00, 0x6352211e /* ownerOf(uint256) */)
                 mstore(0x20, tokenId)
-                noError := and(noError, staticcall(gas(), m, 0x1c, 0x24, 0x00, 0x20))
+                noError := and(
+                    noError,
+                    staticcall(gas(), m, 0x1c, 0x24, 0x00, 0x20)
+                )
                 tokenOwner := mload(0x00)
             }
             if (tokenOwner != owner) continue;
 
             PositionInfo info;
             assembly ("memory-safe") {
-                mstore(0x00, 0x89097a6a /* positionInfo(uint256) */ )
-                noError := and(noError, staticcall(gas(), m, 0x1c, 0x24, 0x00, 0x20))
+                mstore(0x00, 0x89097a6a /* positionInfo(uint256) */)
+                noError := and(
+                    noError,
+                    staticcall(gas(), m, 0x1c, 0x24, 0x00, 0x20)
+                )
                 info := mload(0x00)
             }
 
@@ -77,9 +91,12 @@ contract PositionFetcher {
                 address a = _ANGSTROM;
                 address hook;
                 assembly ("memory-safe") {
-                    mstore(0x00, 0x86b6be7d /* poolKeys(bytes25) */ )
+                    mstore(0x00, 0x86b6be7d /* poolKeys(bytes25) */)
                     mstore(0x20, poolId)
-                    noError := and(noError, staticcall(gas(), m, 0x1c, 0x24, 0x00, 0x00))
+                    noError := and(
+                        noError,
+                        staticcall(gas(), m, 0x1c, 0x24, 0x00, 0x00)
+                    )
                     returndatacopy(0x00, 0x80, 0x20)
                     hook := mload(0x00)
                     idStatus := add(eq(hook, a), 1)
@@ -91,7 +108,10 @@ contract PositionFetcher {
             uint256 length;
             assembly ("memory-safe") {
                 length := mload(add(returnData_ptr, 0x60))
-                pos := add(add(returnData_ptr, 0x80), mul(length, _POSITION_STRUCT_SIZE))
+                pos := add(
+                    add(returnData_ptr, 0x80),
+                    mul(length, _POSITION_STRUCT_SIZE)
+                )
             }
             pos.tokenId = tokenId;
             pos.tickLower = info.tickLower();
@@ -115,7 +135,11 @@ contract PositionFetcher {
             let length := mload(add(returnData_ptr, 0x60))
             mstore(returnData_ptr, tokenId)
             return(
-                returnData_ptr, add(add(returnData_ptr, 0x80), mul(length, _POSITION_STRUCT_SIZE))
+                returnData_ptr,
+                add(
+                    add(returnData_ptr, 0x80),
+                    mul(length, _POSITION_STRUCT_SIZE)
+                )
             )
         }
     }

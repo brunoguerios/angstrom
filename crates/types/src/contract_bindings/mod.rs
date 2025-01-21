@@ -58,7 +58,6 @@ pub mod pool_manager {
         "../../contracts/out/PoolManager.sol/PoolManager.json"
     );
 }
-
 #[rustfmt::skip]
 pub mod position_fetcher {
     alloy::sol!(
