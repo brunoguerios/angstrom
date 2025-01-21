@@ -1,9 +1,5 @@
 use angstrom_types::{
-    matching::{
-        max_t1_for_t0,
-        uniswap::{Direction, PoolPriceVec},
-        CompositeOrder, Debt, DebtType
-    },
+    matching::{max_t1_for_t0, uniswap::Direction, CompositeOrder, Debt, DebtType},
     orders::{OrderFillState, OrderId, OrderPrice, OrderVolume},
     sol_bindings::{
         grouped_orders::{
@@ -159,20 +155,20 @@ impl<'a> OrderContainer<'a> {
 
     fn book_order_q_t1(
         order: &OrderWithStorageData<GroupedVanillaOrder>,
-        debt: Option<&Debt>
+        _debt: Option<&Debt>
     ) -> Option<u128> {
         // We only have a t1 quantity to report if or order is on the T1 side
         if order.is_bid() == order.exact_in() {
             // Let's short circuit this for now
-            return Some(order.max_q());
-            // If we have a debt and the debt has slack, we add it to what this order can
-            // offer
-            if let Some(d) = debt {
-                if order.is_bid() == d.bid_side() {
-                    return Some(order.max_q() + d.slack());
-                }
-            }
             Some(order.max_q())
+            // If we have a debt and the debt has slack, we add it to what this
+            // order can offer
+            // if let Some(d) = debt {
+            //     if order.is_bid() == d.bid_side() {
+            //         return Some(order.max_q() + d.slack());
+            //     }
+            // }
+            // Some(order.max_q())
         } else {
             None
         }
@@ -274,8 +270,7 @@ impl<'a> OrderContainer<'a> {
                 Self::book_order_q_t1(order, debt).map(|q| q.saturating_sub(*partial_q))
             }
             Self::BookOrder { order, .. } => Self::book_order_q_t1(order, debt),
-            Self::Composite(c) => None,
-            _ => None
+            Self::Composite(_) => None
         }
     }
 
@@ -289,9 +284,9 @@ impl<'a> OrderContainer<'a> {
                     return None
                 }
                 // If the debt is opposed, we can consume that first
-                if let Some(d) = debt {
-                    //
-                }
+                // if let Some(d) = debt {
+                //     //
+                // }
                 let (t0_consumed, debt_t1) = debt
                     .map(|d| (std::cmp::min(t0, d.current_t0()), d.freed_t1(t0)))
                     .unwrap_or_default();

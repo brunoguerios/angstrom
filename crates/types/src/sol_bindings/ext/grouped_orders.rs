@@ -64,10 +64,9 @@ impl StandingVariants {
     }
 
     /// The quantity available for this order to match in terms of T0
-    pub fn quantity(&self, debt: Option<&Debt>) -> u128 {
+    pub fn quantity(&self, _debt: Option<&Debt>) -> u128 {
         let is_bid = self.is_bid();
         let exact_in = self.exact_in();
-        let target_price = debt.unwrap();
         let raw_q = match self {
             Self::Exact(o) => o.amount,
             Self::Partial(o) => o.max_amount_in
@@ -162,7 +161,7 @@ impl FlashVariants {
     pub fn exact_in(&self) -> bool {
         match self {
             FlashVariants::Exact(o) => o.exact_in,
-            FlashVariants::Partial(o) => true
+            FlashVariants::Partial(_) => true
         }
     }
 }

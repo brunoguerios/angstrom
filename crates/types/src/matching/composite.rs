@@ -133,7 +133,7 @@ impl<'a> CompositeOrder<'a> {
 
     /// Compute the final state for the AMM and for the Debt when we partially
     /// fill this order with T1
-    pub fn partial_fill_t1(&self, partial_q_t1: u128) -> Self {
+    pub fn partial_fill_t1(&self, _partial_q_t1: u128) -> Self {
         self.clone()
     }
 

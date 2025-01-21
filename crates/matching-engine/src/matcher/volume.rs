@@ -4,11 +4,10 @@ use std::{
 };
 
 use alloy::primitives::U256;
-use alloy_primitives::serde_hex;
 use angstrom_types::{
     matching::{
         uniswap::{Direction, PoolPrice, PoolPriceVec},
-        CompositeOrder, Debt, MatchingPrice, Ray
+        CompositeOrder, Debt, Ray
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
