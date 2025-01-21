@@ -68,8 +68,6 @@ pub async fn deploy_angstrom_create3<
     controller: Address
 ) -> Address {
     let owner = provider.default_signer_address();
-    // let mock_builder = Angstrom::deploy_builder(&provider, pool_manager,
-    // controller);
 
     let mut code = Angstrom::BYTECODE.to_vec();
     code.append(&mut (pool_manager, controller).abi_encode().to_vec());
