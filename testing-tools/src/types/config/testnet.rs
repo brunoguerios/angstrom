@@ -71,4 +71,3 @@ impl GlobalTestingConfig for TestnetConfig {
         self.angstrom_base_rpc_port
     }
 }
-//
