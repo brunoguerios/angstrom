@@ -24,7 +24,7 @@ use revm::{
     DatabaseRef
 };
 
-use super::gas_inspector::{GasSimulationInspector, GasUsed};
+use super::gas_inspector::{CallDataInspector, GasSimulationInspector, GasUsed};
 use crate::order::state::db_state_utils::finders::{
     find_slot_offset_for_approval, find_slot_offset_for_balance
 };
@@ -121,6 +121,7 @@ where
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        tracing::info!(?order);
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
         let bundle = bundle.pade_encode();
 
@@ -271,8 +272,8 @@ where
     where
         F: FnOnce(&mut EnvWithHandlerCfg)
     {
-        let mut inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
-        // let mut console_log_inspector = CallDataInspector {};
+        let inspector = GasSimulationInspector::new(self.angstrom_address, offsets);
+        let mut console_log_inspector = CallDataInspector {};
 
         let mut evm_handler = EnvWithHandlerCfg::default();
 
@@ -291,7 +292,7 @@ where
 
         {
             let mut evm = revm::Evm::builder()
-                .with_external_context(&mut inspector)
+                .with_external_context(&mut console_log_inspector)
                 .with_ref_db(db)
                 .with_env_with_handler_cfg(evm_handler)
                 .append_handler_register(inspector_handle_register)
@@ -308,7 +309,10 @@ where
             if !result.result.is_success() {
                 let output = result.result.output().unwrap().to_vec();
                 let allowed_revert = alloy::primitives::hex!("cc67af53");
+
                 if output[0..4] != allowed_revert {
+                    let b = result.result.output();
+                    tracing::info!(?b);
                     return Err(eyre::eyre!(
                         "gas simulation had a revert. cannot guarantee the proper gas was \
                          estimated err={:?}",
