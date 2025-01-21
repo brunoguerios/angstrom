@@ -64,7 +64,6 @@ pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, Walle
 
     let endpoint = "/tmp/anvil.ipc";
     tracing::info!(?endpoint);
-    // let ipc = IpcConnect::new(endpoint.to_string());
     let sk: PrivateKeySigner = anvil.keys()[anvil_key].clone().into();
 
     let wallet = EthereumWallet::new(sk);

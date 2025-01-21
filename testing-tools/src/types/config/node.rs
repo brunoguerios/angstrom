@@ -7,7 +7,6 @@ use alloy::{
 use alloy_primitives::{Address, U256};
 use angstrom_types::primitive::AngstromSigner;
 use consensus::AngstromValidator;
-use rand::random;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
 use super::TestingConfigKind;
@@ -27,8 +26,7 @@ pub struct TestingNodeConfig<C> {
     pub global_config: C,
     pub pub_key:       PublicKey,
     pub secret_key:    SecretKey,
-    pub voting_power:  u64,
-    base_port_rand:    u16
+    pub voting_power:  u64
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
@@ -46,8 +44,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             global_config,
             pub_key: secret_key.public_key(&Secp256k1::default()),
             voting_power,
-            secret_key,
-            base_port_rand: (rand::random::<u8>() as u16) * 4
+            secret_key
         }
     }
 
@@ -56,7 +53,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     pub fn strom_rpc_port(&self) -> u64 {
-        self.base_port_rand as u64 + self.node_id
+        self.global_config.base_angstrom_rpc_port() as u64 + self.node_id
     }
 
     pub fn signing_key(&self) -> PrivateKeySigner {
@@ -89,7 +86,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             .chain_id(1)
             .arg("--host")
             .arg("0.0.0.0")
-            .port(((random::<u8>() as u64) * 4 + self.node_id) as u16)
+            .port(self.global_config.leader_eth_rpc_port())
             .fork(self.global_config.eth_ws_url())
             .arg("--ipc")
             .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
