@@ -122,17 +122,9 @@ where
         block: u64
     ) -> eyre::Result<GasUsed> {
         let exact_in = order.exact_in();
-        let t_in_lt = order.token_in() < order.token_out();
-        let hash = order.order_hash();
-
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
-        tracing::info!(?exact_in, ?t_in_lt, ?hash, ?bundle);
+
         let bundle = bundle.pade_encode();
-
-        // if exact in is true, we fail?????
-        // if t_in < t_out then we are going zfo
-        // (exact true, t_in false ==) error
-
         let (amount_in, amount_out) = if exact_in {
             (U256::from(order.amount_in()), {
                 let price = Ray::from(U256::from(order.limit_price()));
