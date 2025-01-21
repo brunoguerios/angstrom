@@ -14,7 +14,9 @@ pub trait ComparableOrder {
             // Both BookT0 is a t0 match
             (OrderType::BookT0, OrderType::BookT0) => (0, 0),
             // Mixed match is a t0 match
-            (OrderType::BookT1, OrderType::BookT0) | (OrderType::BookT0, OrderType::BookT1) => (0, 0),
+            (OrderType::BookT1, OrderType::BookT0) | (OrderType::BookT0, OrderType::BookT1) => {
+                (0, 0)
+            }
             // Both BookT1 is a t1 match
             (OrderType::BookT1, OrderType::BookT1) => (0, 0),
 
