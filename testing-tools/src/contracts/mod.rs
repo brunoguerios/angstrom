@@ -21,8 +21,6 @@ use futures::Future;
 pub mod anvil;
 pub mod deploy;
 pub mod environment;
-//mod reward;
-//pub use reward::RewardTestEnv;
 
 /// This trait is used to provide safe run and potentially debug capabilities
 /// for our local contract runs.
