@@ -59,6 +59,16 @@ impl<'a> Ord for PoolPrice<'a> {
 }
 
 impl<'a> PoolPrice<'a> {
+    pub fn checked_new(liq_range: LiqRangeRef<'a>, price: SqrtPriceX96, tick: i32) -> Self {
+        if tick < liq_range.lower_tick || tick > liq_range.upper_tick {
+            panic!("Created PoolPrice with out of range tick!");
+        }
+        if get_tick_at_sqrt_ratio(price.into()).unwrap() != tick {
+            panic!("Created PoolPrice with price that doesn't match the given tick!");
+        }
+        Self { liq_range, price, tick }
+    }
+
     pub fn tick(&self) -> Tick {
         self.tick
     }
@@ -108,7 +118,17 @@ impl<'a> PoolPrice<'a> {
                 // compute_swap_step)
                 Direction::SellingT0 => I256::unchecked_from(cur_quantity)
             };
+            println!(
+                "Current liq range {} - {}",
+                cur_liq_range.lower_tick, cur_liq_range.upper_tick
+            );
+            println!(
+                "Current liq prices {:?} - {:?}",
+                SqrtPriceX96::at_tick(cur_liq_range.lower_tick).unwrap(),
+                SqrtPriceX96::at_tick(cur_liq_range.upper_tick).unwrap()
+            );
             let sqrt_ratio_target_x_96 = cur_liq_range.end_price(direction).price.into();
+            println!("Target price: {:?}", sqrt_ratio_target_x_96);
             println!("Cur_q: {}, amount_remaining: {:?}", cur_quantity, amount_remaining);
             let (new_price, amount_in, amount_out, _) = compute_swap_step(
                 sqrt_ratio_current_x_96,
@@ -117,6 +137,23 @@ impl<'a> PoolPrice<'a> {
                 amount_remaining,
                 0
             )?;
+
+            // If we didn't hit our target and we didn't use all of our quantity then we've
+            // hit a weird error
+            if new_price != sqrt_ratio_current_x_96 {
+                match direction {
+                    Direction::BuyingT0 => {
+                        if amount_out < cur_quantity {
+                            return Err(eyre!("Bad stuff"));
+                        }
+                    }
+                    Direction::SellingT0 => {
+                        if amount_in < cur_quantity {
+                            return Err(eyre!("Bad stuff"));
+                        }
+                    }
+                }
+            }
             println!(
                 "new_price: {:?}\namount_in: {}\namount_out: {}",
                 new_price, amount_in, amount_out
@@ -136,7 +173,8 @@ impl<'a> PoolPrice<'a> {
             eyre!("Somehow have no active liquidity range despite iterationg - should never happen")
         })?;
         println!("End price: {:?}", price);
-        Ok(PoolPrice { liq_range, price, tick })
+        let new_price = PoolPrice::checked_new(liq_range, price, tick);
+        Ok(new_price)
     }
 
     /// Create a PoolPriceVec from the current price to a specific target price

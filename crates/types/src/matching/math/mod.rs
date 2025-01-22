@@ -64,15 +64,18 @@ pub fn amm_debt_same_move_solve(
 
     // c = -T
     let c = match direction {
-        // If we're buying T0 then we are on the bid side.  T is negative so -T is positive
-        Direction::BuyingT0 => Integer::from(quantity_moved),
-        // If we're selling T0 then we are on the ask side.  T is positive so -T is negative
-        Direction::SellingT0 => Integer::from(quantity_moved).neg()
+        // If the market is selling T0 to us, then we are on the bid side.  T is negative so -T is
+        // positive
+        Direction::SellingT0 => Integer::from(quantity_moved),
+        // If the market is buying T0 from us, then we are on the ask side.  T is positive so -T is
+        // negative
+        Direction::BuyingT0 => Integer::from(quantity_moved).neg()
     } << precision;
 
     println!("c: {:?}", c);
 
     let solution = quadratic_solve(a, b, c, precision);
+    println!("Got solutions: {:?}", solution);
     let answer = solution
         .0
         .filter(|i| match direction {
@@ -89,7 +92,8 @@ pub fn amm_debt_same_move_solve(
             })
             .map(|i| resolve_precision(precision, i, RoundingMode::Ceiling))
             .filter(|i| *i < quantity_moved))
-        .unwrap();
+        // If nothing else works, we can presume it all goes to the AMM?
+        .unwrap_or(quantity_moved);
     answer
 }
 

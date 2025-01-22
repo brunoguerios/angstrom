@@ -2,13 +2,27 @@ use base64::Engine;
 use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
 
 mod booklib;
-use booklib::AMM_SIDE_BOOK;
+use booklib::{AMM_SIDE_BOOK, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, ZERO_ASK_BOOK};
+
+#[test]
+#[ignore]
+fn check_all_existing_books() {
+    for input in [ZERO_ASK_BOOK, MATH_ZERO, GOOD_BOOK, AMM_SIDE_BOOK] {
+        let bytes = base64::prelude::BASE64_STANDARD.decode(input).unwrap();
+        let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
+        let mut matcher = VolumeFillMatcher::new(&book);
+        let solve = matcher.run_match();
+        let solution = matcher.from_checkpoint().unwrap().solution(None);
+        println!("EndReason: {:?}", solve);
+        println!("Solution: {:?}", solution);
+    }
+}
 
 #[test]
 #[ignore]
 fn build_and_ship_random_bundle() {
     let bytes = base64::prelude::BASE64_STANDARD
-        .decode(AMM_SIDE_BOOK)
+        .decode(DEBT_WRONG_SIDE)
         .unwrap();
     let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
     println!("Book: {:?}", book);

@@ -149,7 +149,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 return r
             }
             i += 1;
-            if i > 100 {
+            if i > 1000 {
                 panic!("100 iterations!");
             }
         }
@@ -240,7 +240,7 @@ impl<'a> VolumeFillMatcher<'a> {
                         &mut self.results,
                         &mut self.amm_outcome,
                         amm_q,
-                        Direction::SellingT0
+                        Direction::BuyingT0
                     )
                     .is_err()
                     {
@@ -318,7 +318,7 @@ impl<'a> VolumeFillMatcher<'a> {
                         &mut self.results,
                         &mut self.amm_outcome,
                         matched,
-                        Direction::SellingT0
+                        Direction::BuyingT0
                     )
                     .is_err()
                     {
@@ -414,9 +414,9 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // Find our AMM order
         let amm_order = if bid.is_amm() {
-            Some((&bid, Direction::BuyingT0))
+            Some((&bid, Direction::SellingT0))
         } else if ask.is_amm() {
-            Some((&ask, Direction::SellingT0))
+            Some((&ask, Direction::BuyingT0))
         } else {
             None
         };
@@ -474,9 +474,9 @@ impl<'a> VolumeFillMatcher<'a> {
         // Adjust our debt
         // Find our debt order
         let debt_order = if bid.is_debt() {
-            Some((&bid, Direction::BuyingT0))
+            Some((&bid, Direction::SellingT0))
         } else if ask.is_debt() {
-            Some((&ask, Direction::SellingT0))
+            Some((&ask, Direction::BuyingT0))
         } else {
             None
         };

@@ -43,6 +43,7 @@ impl<'a> CompositeOrder<'a> {
     }
 
     pub fn calc_quantities(&self, target_price: Ray) -> (u128, u128) {
+        println!("Calculating quantities to price: {:?}", target_price);
         let amm_q = self
             .amm
             .as_ref()
@@ -52,6 +53,17 @@ impl<'a> CompositeOrder<'a> {
             .debt
             .map(|d| d.dq_to_price(&target_price))
             .unwrap_or_default();
+        println!("Calculated quantities - amm: {} - debt: {}", amm_q, debt_q);
+        if let Some(a) = self.amm.as_ref() {
+            println!(
+                "Amm current price: {:?} - liquidity: {}",
+                Ray::from(a.price()),
+                a.liquidity()
+            );
+        }
+        if let Some(d) = self.debt.as_ref() {
+            println!("Debt current price: {:?}", d.price());
+        }
         (amm_q, debt_q)
     }
 
