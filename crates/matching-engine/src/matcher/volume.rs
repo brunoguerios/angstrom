@@ -1152,8 +1152,8 @@ mod tests {
     fn get_match_quantities_works_properly() {
         let bid_price = Ray::from(SqrtPriceX96::at_tick(110000).unwrap());
         let ask_price = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
-        let (bid_book, bid_states) = basic_order_book(true, 10, bid_price, 10);
-        let (ask_book, ask_states) = basic_order_book(false, 10, ask_price, 10);
+        let (bid_book, _) = basic_order_book(true, 10, bid_price, 10);
+        let (ask_book, _) = basic_order_book(false, 10, ask_price, 10);
         let bid = OrderContainer::from(&bid_book[0]);
         let ask = OrderContainer::from(&ask_book[0]);
         println!("Bid order: {:?}\nAsk order: {:?}", bid, ask);

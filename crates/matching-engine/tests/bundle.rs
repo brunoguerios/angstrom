@@ -1,10 +1,8 @@
-use angstrom_types::contract_payloads::angstrom::AngstromBundle;
 use base64::Engine;
 use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
-use testing_tools::type_generator::consensus::{pool::PoolBuilder, proposal::ProposalBuilder};
 
 mod booklib;
-use booklib::{DEBT_WRONG_SIDE, GOOD_BOOK, ZERO_ASK_BOOK};
+use booklib::ZERO_ASK_BOOK;
 
 #[test]
 #[ignore]

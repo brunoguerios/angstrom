@@ -384,7 +384,6 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     use super::*;
-    use crate::matching::{const_2_96, debt::Debt};
 
     #[test]
     fn inverts_properly() {

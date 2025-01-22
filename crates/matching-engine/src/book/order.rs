@@ -331,9 +331,7 @@ impl<'a> OrderContainer<'a> {
 // Make some tests for book_order_quantity
 #[cfg(test)]
 mod tests {
-    use testing_tools::type_generator::{
-        amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder
-    };
+    use testing_tools::type_generator::orders::UserOrderBuilder;
 
     use super::OrderContainer;
 
@@ -341,7 +339,7 @@ mod tests {
     fn t1_quantity_calculation() {
         let order = UserOrderBuilder::new().with_storage().build();
         let debt = None;
-        let q = OrderContainer::book_order_q_t0(&order, debt);
+        let _ = OrderContainer::book_order_q_t0(&order, debt);
     }
 
     #[test]
