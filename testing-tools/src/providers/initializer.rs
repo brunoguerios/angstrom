@@ -236,9 +236,14 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(configure_pool);
+            .send()
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap();
+        println!("{configure_pool:?}\n\n");
+        // self.pending_state.add_pending_tx(configure_pool);
 
         // tracing::debug!("adding to pool map");
         let controller_configure_pool = self
