@@ -59,7 +59,8 @@ where
             .await?
             .address();
 
-        debug!("Pool manager deployed at: {}", pool_manager_addr);
+        // debug!("Pool manager deployed at: {}", pool_manager_addr);
+        debug!("Pool manager deployed");
         Ok(pool_manager_addr)
     }
 

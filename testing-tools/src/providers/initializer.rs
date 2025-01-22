@@ -15,8 +15,7 @@ use angstrom_types::{
         controller_v_1::ControllerV1::ControllerV1Instance,
         mintable_mock_erc_20::MintableMockERC20,
         pool_gate::PoolGate::PoolGateInstance,
-        pool_manager::PoolManager::PoolManagerInstance,
-        position_fetcher::PositionFetcher::PositionFetcherInstance
+        pool_manager::PoolManager::PoolManagerInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
