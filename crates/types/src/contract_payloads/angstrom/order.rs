@@ -4,7 +4,7 @@ use pade_macro::{PadeDecode, PadeEncode};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
-    orders::{OrderFillState, OrderOutcome},
+    orders::OrderOutcome,
     sol_bindings::{
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants

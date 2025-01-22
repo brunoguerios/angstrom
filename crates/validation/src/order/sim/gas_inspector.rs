@@ -1,10 +1,7 @@
-use std::{collections::HashMap, sync::LazyLock};
+use std::collections::HashMap;
 
-use alloy::{
-    primitives::{Address, Selector},
-    sol_types::SolInterface
-};
-use revm::{primitives::address, Database, Inspector};
+use alloy::primitives::Address;
+use revm::{Database, Inspector};
 
 pub type GasUsed = u64;
 
