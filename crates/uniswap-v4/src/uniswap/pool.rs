@@ -760,7 +760,7 @@ mod tests {
 
     fn setup_tracing() {
         INIT.call_once(|| {
-            fmt()
+            let _ = fmt()
                 .with_env_filter(
                     EnvFilter::from_default_env()
                         .add_directive("uniswap_v4=debug".parse().unwrap())

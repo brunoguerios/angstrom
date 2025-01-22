@@ -1,40 +1,45 @@
-use std::{collections::HashMap, io::Read, str::FromStr};
-
-use alloy::{providers::Provider, signers::local::PrivateKeySigner};
-use alloy_primitives::{
-    aliases::{I24, U24},
-    Address, Bytes, FixedBytes, U256
-};
-use angstrom_types::{
-    contract_bindings::{
-        angstrom::Angstrom::{AngstromInstance, PoolKey},
-        mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance
+#[cfg(feature = "anvil")]
+use {
+    alloy::{providers::Provider, signers::local::PrivateKeySigner},
+    alloy_primitives::{
+        aliases::{I24, U24},
+        Address, Bytes, FixedBytes, U256
     },
-    contract_payloads::{
-        angstrom::{AngstromBundle, BundleGasDetails, OrderQuantities, TopOfBlockOrder, UserOrder},
-        rewards::PoolUpdate,
-        Asset, Pair, Signature
-    },
-    matching::{uniswap::LiqRange, Ray, SqrtPriceX96},
-    primitive::AngstromSigner
-};
-use pade::PadeEncode;
-use testing_tools::{
-    contracts::{
-        environment::{
-            angstrom::AngstromEnv,
-            uniswap::{TestUniswapEnv, UniswapEnv},
-            LocalAnvil, SpawnedAnvil, TestAnvilEnvironment
+    angstrom_types::{
+        contract_bindings::{
+            angstrom::Angstrom::{AngstromInstance, PoolKey},
+            mintable_mock_erc_20::MintableMockERC20,
+            pool_gate::PoolGate::PoolGateInstance
         },
-        DebugTransaction
+        contract_payloads::{
+            angstrom::{
+                AngstromBundle, BundleGasDetails, OrderQuantities, TopOfBlockOrder, UserOrder
+            },
+            rewards::PoolUpdate,
+            Asset, Pair, Signature
+        },
+        matching::{uniswap::LiqRange, Ray, SqrtPriceX96},
+        primitive::AngstromSigner
     },
-    type_generator::{
-        amm::AMMSnapshotBuilder,
-        consensus::{pool::Pool, proposal::ProposalBuilder}
+    pade::PadeEncode,
+    std::{collections::HashMap, str::FromStr},
+    testing_tools::{
+        contracts::{
+            environment::{
+                angstrom::AngstromEnv,
+                uniswap::{TestUniswapEnv, UniswapEnv},
+                LocalAnvil, SpawnedAnvil, TestAnvilEnvironment
+            },
+            DebugTransaction
+        },
+        type_generator::{
+            amm::AMMSnapshotBuilder,
+            consensus::{pool::Pool, proposal::ProposalBuilder}
+        }
     }
 };
 
+#[cfg(feature = "anvil")]
 fn raw_bundle(t0: Address, t1: Address) -> AngstromBundle {
     AngstromBundle {
         assets:              vec![
@@ -356,12 +361,12 @@ async fn use_raw_bundle() {
     let env = AngstromEnv::new(uniswap, vec![controller]).await.unwrap();
     let ang_instance = AngstromInstance::new(env.angstrom(), env.provider());
     // Make our addresses and sort them to be low address first
-    let a0 = Address::random();
-    let a1 = Address::random();
-    let (t0, t1) = match a0.cmp(&a1) {
-        std::cmp::Ordering::Greater => (a1, a0),
-        _ => (a0, a1)
-    };
+    // let a0 = Address::random();
+    // let a1 = Address::random();
+    // let (t0, t1) = match a0.cmp(&a1) {
+    //     std::cmp::Ordering::Greater => (a1, a0),
+    //     _ => (a0, a1)
+    // };
     let raw_c0 = MintableMockERC20::deploy(env.provider()).await.unwrap();
 
     let raw_c1 = MintableMockERC20::deploy(env.provider()).await.unwrap();
@@ -370,11 +375,10 @@ async fn use_raw_bundle() {
         _ => (*raw_c0.address(), *raw_c1.address())
     };
 
-    let pool_gate = PoolGateInstance::new(env.pool_gate(), env.provider());
+    let _pool_gate = PoolGateInstance::new(env.pool_gate(), env.provider());
 
     let encoded = alloy_primitives::Bytes::from(raw_bundle(currency0, currency1).pade_encode());
     ang_instance.execute(encoded).run_safe().await.unwrap();
-    ()
 }
 
 #[tokio::test]

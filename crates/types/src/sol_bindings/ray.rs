@@ -325,8 +325,9 @@ impl Ray {
         Self::calc_price_inner(t0, t1, RoundingMode::Ceiling)
     }
 
-    pub fn calc_price_generic<T: Into<Natural>>(t0: T, t1: T) -> Self {
-        Self::calc_price_inner(t0.into(), t1.into(), RoundingMode::Ceiling)
+    pub fn calc_price_generic<T: Into<Natural>>(t0: T, t1: T, round_up: bool) -> Self {
+        let rm = if round_up { RoundingMode::Ceiling } else { RoundingMode::Floor };
+        Self::calc_price_inner(t0.into(), t1.into(), rm)
     }
 
     fn calc_price_inner(t0: Natural, t1: Natural, rm: RoundingMode) -> Self {
@@ -383,7 +384,6 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     use super::*;
-    use crate::matching::{const_2_96, debt::Debt};
 
     #[test]
     fn inverts_properly() {

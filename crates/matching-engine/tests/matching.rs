@@ -234,7 +234,7 @@ fn annihilating_debt() {
         Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
     );
     let mut matcher = VolumeFillMatcher::new(&book);
-    let end = matcher.run_match();
+    let _end = matcher.run_match();
     let solution = matcher.solution(None);
     assert!(solution.limit.iter().all(|outcome| outcome.is_filled()), "All orders not filled");
 }

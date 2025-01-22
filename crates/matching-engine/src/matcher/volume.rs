@@ -504,9 +504,10 @@ impl<'a> VolumeFillMatcher<'a> {
             // compared orders' debts - if both have debt it annihilates and if neither does
             // we don't need to do it
             if let Some(net_debt) = ask
-                .as_debt(Some(t1_matched))
-                .xor(bid.as_debt(Some(t1_matched)))
+                .as_debt(Some(t1_matched), false)
+                .xor(bid.as_debt(Some(t1_matched), true))
             {
+                println!("Adding net debt for {} t1 matched: {:?}", t1_matched, net_debt);
                 self.debt += net_debt;
             }
         }
@@ -656,9 +657,16 @@ impl<'a> VolumeFillMatcher<'a> {
             let debt_book_cmp = book_order
                 .map(|b| {
                     let book_price = b.price_for_book_side(bid);
+                    println!(
+                        "Comparing debt price {:?} with book price {:?}",
+                        d.price(),
+                        book_price
+                    );
                     if d.validate_and_set_price(book_price) {
+                        println!("Prices found as equal");
                         Ordering::Equal
                     } else {
+                        println!("Prices found as not equal");
                         d.price().cmp(&book_price)
                     }
                 })
@@ -1144,8 +1152,8 @@ mod tests {
     fn get_match_quantities_works_properly() {
         let bid_price = Ray::from(SqrtPriceX96::at_tick(110000).unwrap());
         let ask_price = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
-        let (bid_book, bid_states) = basic_order_book(true, 10, bid_price, 10);
-        let (ask_book, ask_states) = basic_order_book(false, 10, ask_price, 10);
+        let (bid_book, _) = basic_order_book(true, 10, bid_price, 10);
+        let (ask_book, _) = basic_order_book(false, 10, ask_price, 10);
         let bid = OrderContainer::from(&bid_book[0]);
         let ask = OrderContainer::from(&ask_book[0]);
         println!("Bid order: {:?}\nAsk order: {:?}", bid, ask);
