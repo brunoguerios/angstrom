@@ -65,10 +65,16 @@ contract Angstrom is
             _configStore
         );
 
+        console.log("read pairs and assets");
         _takeAssets(assets);
+        console.log("took assets");
+
         reader = _updatePools(reader, pairs);
+        console.log("updated pools");
         reader = _validateAndExecuteToBOrders(reader, pairs);
+        console.log("exectued tob");
         reader = _validateAndExecuteUserOrders(reader, pairs);
+        console.log("executed user");
         reader.requireAtEndOf(data);
         _saveAndSettle(assets);
 
