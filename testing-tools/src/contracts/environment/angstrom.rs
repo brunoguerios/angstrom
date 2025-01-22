@@ -1,8 +1,10 @@
 use alloy::primitives::Address;
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
-    angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
-    pool_gate::PoolGate::PoolGateInstance, position_fetcher::PositionFetcher
+    angstrom::Angstrom::AngstromInstance,
+    controller_v_1::ControllerV1::{self, ControllerV1Instance},
+    pool_gate::PoolGate::PoolGateInstance,
+    position_fetcher::PositionFetcher
 };
 use tracing::{debug, info};
 
@@ -60,14 +62,25 @@ where
         Ok(angstrom_addr)
     }
 
-    async fn deploy_controller_v1(inner: &E, angstrom: Address) -> eyre::Result<Address> {
+    async fn deploy_controller_v1(inner: &E, angstrom_addr: Address) -> eyre::Result<Address> {
         debug!("Deploying ControllerV1...");
         let controller_v1_addr = *inner
-            .execute_then_mine(ControllerV1::deploy(inner.provider(), angstrom, inner.controller()))
+            .execute_then_mine(ControllerV1::deploy(
+                inner.provider(),
+                angstrom_addr,
+                inner.controller()
+            ))
             .await?
             .address();
 
         debug!("ControllerV1 deployed at: {}", controller_v1_addr);
+
+        let angstrom = AngstromInstance::new(angstrom_addr, inner.provider());
+        let _ = *angstrom
+            .setController(controller_v1_addr)
+            .from(inner.controller())
+            .run_safe()
+            .await?;
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
@@ -75,7 +88,7 @@ where
         inner
             .execute_then_mine(
                 pool_gate_instance
-                    .setHook(angstrom)
+                    .setHook(angstrom_addr)
                     .from(inner.controller())
                     .run_safe()
             )
