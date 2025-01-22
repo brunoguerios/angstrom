@@ -196,15 +196,15 @@ where
     }
 
     fn account_code(&self, addr: &Address) -> reth_provider::ProviderResult<Option<Bytecode>> {
-        self.0.latest()?.account_code(&addr)
+        self.0.latest()?.account_code(addr)
     }
 
     fn account_nonce(&self, addr: &Address) -> reth_provider::ProviderResult<Option<u64>> {
-        self.0.latest()?.account_nonce(&addr)
+        self.0.latest()?.account_nonce(addr)
     }
 
     fn account_balance(&self, addr: &Address) -> reth_provider::ProviderResult<Option<U256>> {
-        self.0.latest()?.account_balance(&addr)
+        self.0.latest()?.account_balance(addr)
     }
 
     fn bytecode_by_hash(

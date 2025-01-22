@@ -14,8 +14,7 @@ use angstrom_types::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
         mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance,
-        pool_manager::PoolManager::PoolManagerInstance
+        pool_gate::PoolGate::PoolGateInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
@@ -46,7 +45,6 @@ pub struct AnvilInitializer {
     controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
     angstrom:      AngstromInstance<BoxTransport, WalletProviderRpc>,
     pool_gate:     PoolGateInstance<BoxTransport, WalletProviderRpc>,
-    _pool_manager: PoolManagerInstance<BoxTransport, WalletProviderRpc>,
     pending_state: PendingDeployedPools
 }
 
@@ -61,9 +59,6 @@ impl AnvilInitializer {
         let uniswap_env = UniswapEnv::new(provider.clone()).await?;
 
         tracing::info!("deployed UniV4 enviroment");
-
-        let _pool_manager =
-            PoolManagerInstance::new(uniswap_env.pool_manager(), provider.provider().clone());
 
         tracing::debug!("deploying Angstrom enviroment");
         let angstrom_env = AngstromEnv::new(uniswap_env, nodes).await?;
@@ -82,15 +77,8 @@ impl AnvilInitializer {
 
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self {
-            provider,
-            controller_v1,
-            angstrom_env,
-            angstrom,
-            pending_state,
-            _pool_manager,
-            pool_gate
-        };
+        let this =
+            Self { provider, controller_v1, angstrom_env, angstrom, pending_state, pool_gate };
 
         Ok((this, anvil))
     }
