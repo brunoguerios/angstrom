@@ -223,7 +223,7 @@ impl AnvilInitializer {
                 pool_key.fee
             )
             .from(self.provider.controller())
-            .nonce(nonce + 0)
+            .nonce(nonce)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(controller_configure_pool);
