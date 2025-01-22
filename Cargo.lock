@@ -8947,7 +8947,6 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.1.5#3212af2d85a54eb2076
 dependencies = [
  "alloy-consensus 0.9.2",
  "alloy-eips 0.9.2",
- "alloy-network 0.9.2",
  "alloy-primitives 0.8.19",
  "alloy-rlp",
  "alloy-rpc-types 0.9.2",
