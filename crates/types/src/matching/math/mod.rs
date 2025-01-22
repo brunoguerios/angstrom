@@ -30,7 +30,7 @@ pub fn amm_debt_same_move_solve(
     debt_fixed_t1: u128,
     quantity_moved: u128,
     direction: Direction
-) -> Integer {
+) -> u128 {
     let l = Integer::from(amm_liquidity);
     let l_squared = (&l).pow(2);
 
@@ -72,7 +72,25 @@ pub fn amm_debt_same_move_solve(
 
     println!("c: {:?}", c);
 
-    quadratic_solve(a, b, c, precision, direction)
+    let solution = quadratic_solve(a, b, c, precision);
+    let answer = solution
+        .0
+        .filter(|i| match direction {
+            Direction::BuyingT0 => *i <= Integer::ZERO,
+            Direction::SellingT0 => *i >= Integer::ZERO
+        })
+        .map(|i| resolve_precision(precision, i, RoundingMode::Ceiling))
+        .filter(|i| *i < quantity_moved)
+        .or(solution
+            .1
+            .filter(|i| match direction {
+                Direction::BuyingT0 => *i <= Integer::ZERO,
+                Direction::SellingT0 => *i >= Integer::ZERO
+            })
+            .map(|i| resolve_precision(precision, i, RoundingMode::Ceiling))
+            .filter(|i| *i < quantity_moved))
+        .unwrap();
+    answer
 }
 
 /// Given an AMM with a constant liquidity and a debt, this will find the
@@ -127,16 +145,16 @@ pub fn price_intersect_solve(
     let c = Integer::rounding_from(c_part_1 - c_part_2, RoundingMode::Nearest).0;
     println!("C: {}", c);
 
-    quadratic_solve(a, b, c, precision, direction)
+    let solution = quadratic_solve(a, b, c, precision);
+    solution.0.or(solution.1).unwrap()
 }
 
 pub fn quadratic_solve(
     a: Integer,
     b: Integer,
     c: Integer,
-    precision: usize,
-    direction: Direction
-) -> Integer {
+    precision: usize
+) -> (Option<Integer>, Option<Integer>) {
     let numerator = (&c * &Integer::TWO) << precision;
     let b_squared = b.clone().pow(2);
     let four_a_c = Integer::from(4_u128) * a * c;
@@ -152,9 +170,9 @@ pub fn quadratic_solve(
     match (denom_plus == Integer::ZERO, denom_minus == Integer::ZERO) {
         (true, true) => panic!("Both denominators in quadratic solve were zero, this math sucks"),
         // Just one that's valid, return that
-        (false, true) => numerator.div_round(&denom_plus, RoundingMode::Nearest).0,
+        (false, true) => (None, Some(numerator.div_round(&denom_plus, RoundingMode::Nearest).0)),
         // Just one that's valid, return that
-        (true, false) => numerator.div_round(&denom_minus, RoundingMode::Nearest).0,
+        (true, false) => (Some(numerator.div_round(&denom_minus, RoundingMode::Nearest).0), None),
         // Both valid, compare and return the best option
         (false, false) => {
             let answer_plus = numerator
@@ -162,10 +180,7 @@ pub fn quadratic_solve(
                 .div_round(&denom_plus, RoundingMode::Nearest)
                 .0;
             let answer_minus = numerator.div_round(&denom_minus, RoundingMode::Nearest).0;
-            match direction {
-                Direction::BuyingT0 => Integer::min(answer_plus, answer_minus),
-                Direction::SellingT0 => Integer::max(answer_plus, answer_minus)
-            }
+            (Some(answer_minus), Some(answer_plus))
         }
     }
 }

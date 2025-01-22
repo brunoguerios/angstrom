@@ -432,7 +432,9 @@ impl<'a> VolumeFillMatcher<'a> {
                 } else {
                     // Move the AMM by the portion of the matched T0
                     // Can unwrap here as we've checked to be sure the order is valid
-                    a_o.composite_t0_quantities(matched, direction).0.unwrap()
+                    let quantities = a_o.composite_t0_quantities(matched, direction);
+                    println!("Found mixed quantities {:?}", quantities);
+                    quantities.0.unwrap()
                 };
                 if Self::fill_amm(
                     amm,

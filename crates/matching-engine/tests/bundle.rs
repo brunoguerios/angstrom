@@ -2,13 +2,13 @@ use base64::Engine;
 use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
 
 mod booklib;
-use booklib::ZERO_ASK_BOOK;
+use booklib::AMM_SIDE_BOOK;
 
 #[test]
 #[ignore]
 fn build_and_ship_random_bundle() {
     let bytes = base64::prelude::BASE64_STANDARD
-        .decode(ZERO_ASK_BOOK)
+        .decode(AMM_SIDE_BOOK)
         .unwrap();
     let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
     println!("Book: {:?}", book);

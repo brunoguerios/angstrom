@@ -150,7 +150,7 @@ impl<'a> CompositeOrder<'a> {
             (Some(_), None) => (Some(t0_input), None),
             (None, Some(_)) => (None, Some(t0_input)),
             (Some(a), Some(d)) => {
-                let result = amm_debt_same_move_solve(
+                let amm_portion = amm_debt_same_move_solve(
                     a.liquidity(),
                     d.current_t0(),
                     d.magnitude(),
@@ -158,7 +158,6 @@ impl<'a> CompositeOrder<'a> {
                     direction
                 );
                 // Maybe build in some safety here around partial quantities
-                let amm_portion = resolve_precision(192, result, RoundingMode::Nearest);
                 let debt_portion = t0_input.saturating_sub(amm_portion);
                 (Some(amm_portion), Some(debt_portion))
             }
