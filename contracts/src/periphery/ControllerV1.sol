@@ -31,11 +31,17 @@ contract ControllerV1 is Ownable2Step {
     event NewControllerAccepted(address indexed newController);
 
     event PoolConfigured(
-        address indexed asset0, address indexed asset1, uint16 tickSpacing, uint24 feeInE6
+        address indexed asset0,
+        address indexed asset1,
+        uint16 tickSpacing,
+        uint24 feeInE6
     );
 
     event PoolRemoved(
-        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
+        address indexed asset0,
+        address indexed asset1,
+        int24 tickSpacing,
+        uint24 feeInE6
     );
 
     event NodeAdded(address indexed node);
@@ -59,25 +65,11 @@ contract ControllerV1 is Ownable2Step {
 
     mapping(StoreKey key => Pool) public pools;
 
-    constructor(IAngstromAuth angstrom, address initialOwner) Ownable(initialOwner) {
+    constructor(
+        IAngstromAuth angstrom,
+        address initialOwner
+    ) Ownable(initialOwner) {
         ANGSTROM = angstrom;
-    }
-
-    function getAllPools(StoreKey[] calldata storeKeys) external view returns (Pool[] memory) {
-        Pool[] memory allPools = new Pool[](storeKeys.length);
-
-        for (uint256 i = 0; i < storeKeys.length; i++) {
-            allPools[i] = pools[storeKeys[i]];
-        }
-
-        return allPools;
-    }
-
-    function addPoolToMap(address asset0, address asset1) external {
-        _checkOwner();
-        if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
-        pools[key] = Pool(asset0, asset1);
     }
 
     function setNewController(address newController) public {
@@ -93,12 +85,18 @@ contract ControllerV1 is Ownable2Step {
         ANGSTROM.setController(msg.sender);
     }
 
-    function configurePool(address asset0, address asset1, uint16 tickSpacing, uint24 feeInE6)
-        external
-    {
+    function configurePool(
+        address asset0,
+        address asset1,
+        uint16 tickSpacing,
+        uint24 feeInE6
+    ) external {
         _checkOwner();
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
+            asset0,
+            asset1
+        );
         pools[key] = Pool(asset0, asset1);
         emit PoolConfigured(asset0, asset1, tickSpacing, feeInE6);
         ANGSTROM.configurePool(asset0, asset1, tickSpacing, feeInE6);
@@ -108,7 +106,10 @@ contract ControllerV1 is Ownable2Step {
         _checkOwner();
 
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
+            asset0,
+            asset1
+        );
         address configStore = _configStore();
         uint256 poolIndex = 0;
 
@@ -116,7 +117,11 @@ contract ControllerV1 is Ownable2Step {
         uint24 feeInE6;
 
         while (true) {
-            ConfigEntry entry = _getAndCheckStoreEntry(configStore, poolIndex, key);
+            ConfigEntry entry = _getAndCheckStoreEntry(
+                configStore,
+                poolIndex,
+                key
+            );
             if (entry.matchingStoreKey(asset0, asset1)) {
                 tickSpacing = entry.tickSpacing();
                 feeInE6 = entry.feeInE6();
@@ -180,11 +185,11 @@ contract ControllerV1 is Ownable2Step {
         }
     }
 
-    function _getAndCheckStoreEntry(address configStore, uint256 index, StoreKey key)
-        internal
-        view
-        returns (ConfigEntry entry)
-    {
+    function _getAndCheckStoreEntry(
+        address configStore,
+        uint256 index,
+        StoreKey key
+    ) internal view returns (ConfigEntry entry) {
         uint256 offset = STORE_HEADER_SIZE + index * ENTRY_SIZE;
         assembly ("memory-safe") {
             extcodecopy(configStore, 0x00, offset, ENTRY_SIZE)

@@ -80,7 +80,6 @@ impl AnvilInitializer {
             angstrom_env.controller_v1(),
             angstrom_env.provider().clone()
         );
-        tracing::info!(ang_addr=?angstrom_env.angstrom());
 
         let pending_state = PendingDeployedPools::new();
 
