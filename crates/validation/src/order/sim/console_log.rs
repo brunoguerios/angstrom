@@ -34,9 +34,7 @@ impl<DB: Database> Inspector<DB> for CallDataInspector {
             patch_hh_console_selector(&mut input);
 
             let out = console_log::ConsoleLog::ConsoleLogCalls::abi_decode(&input, false);
-            if let Ok(out) = out {
-                tracing::info!(?out);
-            }
+            tracing::info!(?out);
         }
         None
     }
