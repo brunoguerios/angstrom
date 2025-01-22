@@ -9,7 +9,10 @@ use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetai
 use eyre::eyre;
 use futures::Future;
 use pade::PadeEncode;
-use revm::primitives::{EnvWithHandlerCfg, TxKind};
+use revm::{
+    inspector_handle_register,
+    primitives::{EnvWithHandlerCfg, TxKind}
+};
 use tokio::runtime::Handle;
 
 use crate::{
@@ -66,6 +69,7 @@ where
                     .with_ref_db(db.clone())
                     .with_external_context(&mut console_log_inspector)
                     .with_env_with_handler_cfg(EnvWithHandlerCfg::default())
+                    .append_handler_register(inspector_handle_register)
                     .modify_env(|env| {
                         env.cfg.disable_balance_check = true;
                     })
