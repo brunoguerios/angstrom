@@ -226,24 +226,24 @@ impl AnvilInitializer {
         tracing::info!(?pool_key, ?encoded, ?price);
 
         tracing::debug!("configuring pool");
-        let configure_pool = self
-            .angstrom
-            .configurePool(
-                pool_key.currency0,
-                pool_key.currency1,
-                pool_key.tickSpacing.as_i32() as u16,
-                pool_key.fee
-            )
-            .from(self.provider.controller())
-            .nonce(nonce)
-            .send()
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap();
-        println!("{configure_pool:?}\n\n");
-        // self.pending_state.add_pending_tx(configure_pool);
+        // let configure_pool = self
+        //     .angstrom
+        //     .configurePool(
+        //         pool_key.currency0,
+        //         pool_key.currency1,
+        //         pool_key.tickSpacing.as_i32() as u16,
+        //         pool_key.fee
+        //     )
+        //     .from(self.provider.controller())
+        //     .nonce(nonce)
+        //     .send()
+        //     .await
+        //     .unwrap()
+        //     .get_receipt()
+        //     .await
+        //     .unwrap();
+        // println!("{configure_pool:?}\n\n");
+        // // self.pending_state.add_pending_tx(configure_pool);
 
         // tracing::debug!("adding to pool map");
         let controller_configure_pool = self
@@ -255,7 +255,7 @@ impl AnvilInitializer {
                 pool_key.fee
             )
             .from(self.provider.controller())
-            .nonce(nonce + 1)
+            .nonce(nonce + 0)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(controller_configure_pool);
@@ -265,7 +265,7 @@ impl AnvilInitializer {
             .angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
-            .nonce(nonce + 2)
+            .nonce(nonce + 1)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(i);
@@ -275,7 +275,7 @@ impl AnvilInitializer {
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            .nonce(nonce + 3)
+            .nonce(nonce + 2)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(pool_gate);
@@ -298,7 +298,7 @@ impl AnvilInitializer {
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())
-                .nonce(nonce + 4 + (i as u64))
+                .nonce(nonce + 3 + (i as u64))
                 .deploy_pending()
                 .await?;
 
