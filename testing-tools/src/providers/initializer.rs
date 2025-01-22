@@ -226,26 +226,6 @@ impl AnvilInitializer {
         tracing::info!(?pool_key, ?encoded, ?price);
 
         tracing::debug!("configuring pool");
-        // let configure_pool = self
-        //     .angstrom
-        //     .configurePool(
-        //         pool_key.currency0,
-        //         pool_key.currency1,
-        //         pool_key.tickSpacing.as_i32() as u16,
-        //         pool_key.fee
-        //     )
-        //     .from(self.provider.controller())
-        //     .nonce(nonce)
-        //     .send()
-        //     .await
-        //     .unwrap()
-        //     .get_receipt()
-        //     .await
-        //     .unwrap();
-        // println!("{configure_pool:?}\n\n");
-        // // self.pending_state.add_pending_tx(configure_pool);
-
-        // tracing::debug!("adding to pool map");
         let controller_configure_pool = self
             .controller_v1
             .configurePool(

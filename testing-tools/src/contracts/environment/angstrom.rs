@@ -1,10 +1,8 @@
 use alloy::primitives::Address;
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
-    angstrom::Angstrom::AngstromInstance,
-    controller_v_1::ControllerV1::{self, ControllerV1Instance},
-    pool_gate::PoolGate::PoolGateInstance,
-    position_fetcher::PositionFetcher
+    angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
+    pool_gate::PoolGate::PoolGateInstance, position_fetcher::PositionFetcher
 };
 use tracing::{debug, info};
 
