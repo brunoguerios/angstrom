@@ -245,7 +245,12 @@ impl AnvilInitializer {
         tracing::debug!("adding to pool map");
         let controller_configure_pool = self
             .controller_v1
-            .addPoolToMap(pool_key.currency0, pool_key.currency1)
+            .configurePool(
+                pool_key.currency0,
+                pool_key.currency1,
+                pool_key.tickSpacing.as_i32() as u16,
+                pool_key.fee
+            )
             .from(self.provider.controller())
             .nonce(nonce + 1)
             .deploy_pending()
