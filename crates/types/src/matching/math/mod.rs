@@ -277,15 +277,13 @@ mod tests {
         println!("Debt initial T0: {}", debt_initial_t0);
         let amm_liquidity = 1_000_000_000_000_000_u128;
         let total_input = 1_000_000_000_u128;
-        let output = amm_debt_same_move_solve(
+        let amm_portion = amm_debt_same_move_solve(
             amm_liquidity,
             debt_initial_t0,
             debt_fixed_t1,
             total_input,
             Direction::SellingT0
         );
-        println!("{:?}", output);
-        let amm_portion = resolve_precision(192, output, RoundingMode::Nearest);
         println!("AMM portion: {}", amm_portion);
         let debt_portion = total_input - amm_portion;
         println!("Debt portion: {}", debt_portion);
