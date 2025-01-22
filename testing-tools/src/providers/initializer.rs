@@ -236,11 +236,16 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(configure_pool);
-
-        // let nonce = nonce - 1;
+            .send()
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap();
+        panic!("{configure_pool:?}\n\n");
+        // .deploy_pending()
+        // .await?;
+        // self.pending_state.add_pending_tx(configure_pool);
 
         // tracing::debug!("adding to pool map");
         let controller_configure_pool = self
@@ -259,11 +264,9 @@ impl AnvilInitializer {
             .get_receipt()
             .await
             .unwrap();
-        // .deploy_pending()
-        // .await?.await.unwrap()
+        // .deploy_pending().await?;
 
         panic!("{controller_configure_pool:?}");
-        // panic!("CREATED TX: {controller_configure_pool:?}");
         //self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
