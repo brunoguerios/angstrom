@@ -59,8 +59,7 @@ where
             .await?
             .address();
 
-        // debug!("Pool manager deployed at: {}", pool_manager_addr);
-        debug!("Pool manager deployed");
+        debug!("Pool manager deployed at: {}", pool_manager_addr);
         Ok(pool_manager_addr)
     }
 
@@ -93,7 +92,8 @@ where
             .await?;
         let position_manager_addr = *position_manager.address();
 
-        debug!("Position manager at: {}", position_manager_addr);
+        //debug!("Position manager deployed at: {}", position_manager_addr);
+        debug!("Position manager deployed");
         Ok(position_manager_addr)
     }
 
