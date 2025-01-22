@@ -240,6 +240,8 @@ impl AnvilInitializer {
         //     .await?;
         // self.pending_state.add_pending_tx(configure_pool);
 
+        let nonce = nonce - 1;
+
         // tracing::debug!("adding to pool map");
         let controller_configure_pool = self
             .controller_v1
