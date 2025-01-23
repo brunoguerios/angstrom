@@ -36,8 +36,13 @@ contract PairTest is BaseTest {
         tickSpacing = u16(bound(tickSpacing, 1, type(uint16).max));
         price1Over0 = bound(price1Over0, 0, type(uint256).max / ONE_E6);
 
-        PoolConfigStore store =
-            PoolConfigStore.wrap(address(0)).setIntoNew(asset0, asset1, tickSpacing, feeInE6);
+        PoolConfigStore store = PoolConfigStore.wrap(address(0)).setIntoNew(
+            PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1),
+            asset0,
+            asset1,
+            tickSpacing,
+            feeInE6
+        );
 
         RefAsset[] memory assets = new RefAsset[](2);
         assets[0].addr = asset0;

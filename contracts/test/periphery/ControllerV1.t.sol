@@ -116,9 +116,9 @@ contract ControllerV1Test is BaseTest {
         LibSort.sort(assets);
 
         vm.expectEmit(true, true, true, true);
-        emit ControllerV1.PoolConfigured(assets[0], assets[2], 100, 0);
+        emit ControllerV1.PoolConfigured(assets[0], assets[2], 100, 0, 0);
         vm.prank(controller_owner);
-        controller.configurePool(assets[0], assets[2], 100, 0);
+        controller.configurePool(assets[0], assets[2], 100, 0, 0);
 
         PoolConfigStore store = PoolConfigStore.wrap(rawGetConfigStore(address(angstrom)));
         assertEq(store.totalEntries(), 1);
@@ -131,7 +131,7 @@ contract ControllerV1Test is BaseTest {
         assertEq(asset1, assets[2]);
 
         vm.expectEmit(true, true, true, true);
-        emit ControllerV1.PoolRemoved(assets[0], assets[2], 100, 0);
+        emit ControllerV1.PoolRemoved(assets[0], assets[2]);
         vm.prank(controller_owner);
         controller.removePool(assets[0], assets[2]);
     }

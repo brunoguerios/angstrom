@@ -76,7 +76,7 @@ contract Angstrom is
 
     /// @dev Load arbitrary storage slot from this contract, enables on-chain introspection without
     /// view methods.
-    function extsload(bytes32 slot) external view returns (bytes32) {
+    function extsload(uint256 slot) external view returns (uint256) {
         assembly ("memory-safe") {
             mstore(0x00, sload(slot))
             return(0x00, 0x20)

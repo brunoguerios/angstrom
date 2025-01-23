@@ -51,7 +51,7 @@ contract AngstromTest is BaseTest {
         uint256 fee = 0.002e6;
 
         vm.prank(controller);
-        angstrom.configurePool(asset0, asset1, 1, uint24(fee));
+        angstrom.configurePool(asset0, asset1, 1, uint24(fee), 0);
 
         console.log("asset0: %s", asset0);
         console.log("asset1: %s", asset1);
