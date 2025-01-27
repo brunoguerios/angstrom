@@ -48,7 +48,9 @@ contract Angstrom is
 
     function execute(bytes calldata encoded) external {
         _nodeBundleLock();
-        UNI_V4.unlock(encoded);
+        if (encoded.length > 0) {
+            UNI_V4.unlock(encoded);
+        }
     }
 
     function unlockCallback(bytes calldata data) external override returns (bytes memory) {
