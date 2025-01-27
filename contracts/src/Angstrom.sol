@@ -5,6 +5,7 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 import {TopLevelAuth} from "./modules/TopLevelAuth.sol";
 import {Settlement} from "./modules/Settlement.sol";
 import {PoolUpdates} from "./modules/PoolUpdates.sol";
+import {UnlockHook} from "./modules/UnlockHook.sol";
 import {OrderInvalidation} from "./modules/OrderInvalidation.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {UniConsumer} from "./modules/UniConsumer.sol";
@@ -31,6 +32,7 @@ contract Angstrom is
     OrderInvalidation,
     Settlement,
     PoolUpdates,
+    UnlockHook,
     IUnlockCallback,
     PermitSubmitterHook
 {

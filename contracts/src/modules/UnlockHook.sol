@@ -11,7 +11,7 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {BeforeSwapDelta} from "v4-core/src/types/BeforeSwapDelta.sol";
 
 /// @author philogy <https://github.com/philogy>
-abstract contract SandwichResistantHook is UniConsumer, TopLevelAuth, IBeforeSwapHook {
+abstract contract UnlockHook is UniConsumer, TopLevelAuth, IBeforeSwapHook {
     error CannotSwapWhileLocked();
 
     function beforeSwap(
