@@ -188,14 +188,14 @@ pub async fn initialize_strom_components<Node, AddOns>(
 
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
-    let block_id = querying_provider.get_block_number().await.unwrap() - 1;
+    let block_id = querying_provider.get_block_number().await.unwrap();
 
     let global_block_sync = GlobalBlockSync::new(block_id);
 
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
             node_config.angstrom_address,
-            BlockId::Number(BlockNumberOrTag::Number(block_id)),
+            BlockId::Number(BlockNumberOrTag::Latest),
             &querying_provider
         )
         .await

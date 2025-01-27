@@ -1,6 +1,7 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy::{
+    eips::BlockId,
     primitives::{aliases::I24, Address, BlockNumber, U256},
     providers::Provider,
     sol,
@@ -193,7 +194,7 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
         let res = if let Some(block_number) = block_number {
             deployer.block(block_number.into()).call_raw().await?
         } else {
-            deployer.call_raw().await?
+            deployer.block(BlockId::latest()).call_raw().await?
         };
 
         let pool_data = PoolData::abi_decode(&res, true)?;
