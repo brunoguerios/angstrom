@@ -31,7 +31,6 @@ contract FullBundleBenchmark is BaseTest {
     address asset0;
     address asset1;
 
-    address fee_master = makeAddr("fee_master");
     address controller = makeAddr("controller");
     address node = makeAddr("the_one");
 

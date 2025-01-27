@@ -110,9 +110,9 @@ contract TopLevelAuthTest is BaseTest {
         vm.prank(controller);
         // forgefmt: disable-next-item
         angstrom.removePool(
-            indexToRemove == 0 ? PoolConfigStoreLib.keyFromAssetsUnchecked(assets[0], assets[1]) :
-            indexToRemove == 1 ? PoolConfigStoreLib.keyFromAssetsUnchecked(assets[3], assets[31]) :
-                                 PoolConfigStoreLib.keyFromAssetsUnchecked(assets[4], assets[7])
+            indexToRemove == 0 ? skey(assets[0], assets[1]) :
+            indexToRemove == 1 ? skey(assets[3], assets[31]) :
+                                 skey(assets[4], assets[7])
             ,
             store,
             indexToRemove
@@ -159,9 +159,8 @@ contract TopLevelAuthTest is BaseTest {
         PoolConfigStore store = angstrom.configStore();
 
         (asset0, asset1) = sort(asset0, asset1);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
         vm.prank(controller);
-        angstrom.removePool(key, store, 0);
+        angstrom.removePool(skey(asset0, asset1), store, 0);
 
         PoolConfigStore newStore = angstrom.configStore();
         assertEq(newStore.totalEntries(), 0);
