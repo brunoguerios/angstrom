@@ -190,7 +190,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
 
     let block_id = querying_provider.get_block_number().await.unwrap();
 
-    let global_block_sync = GlobalBlockSync::new(block_id);
+    let global_block_sync = GlobalBlockSync::new(block_id - 1);
 
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
