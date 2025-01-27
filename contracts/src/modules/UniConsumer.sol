@@ -61,6 +61,7 @@ function hasAngstromHookFlags(address addr) pure returns (bool) {
 
     // Ensure that we have some hook preventing 3rd party swapping.
     if (!hook.hasPermission(Hooks.BEFORE_SWAP_FLAG)) return false;
+    if (hook.hasPermission(Hooks.AFTER_SWAP_FLAG)) return false;
 
     return hook.isValidHookAddress(ANGSTROM_INIT_HOOK_FEE);
 }
