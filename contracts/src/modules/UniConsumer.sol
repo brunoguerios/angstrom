@@ -6,6 +6,8 @@ import {Hooks, IHooks} from "v4-core/src/libraries/Hooks.sol";
 import {Currency} from "v4-core/src/types/Currency.sol";
 import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
 
+uint24 constant ANGSTROM_INIT_HOOK_FEE = LPFeeLibrary.DYNAMIC_FEE_FLAG;
+
 /// @author philogy <https://github.com/philogy>
 abstract contract UniConsumer {
     using Hooks for IHooks;
@@ -14,7 +16,7 @@ abstract contract UniConsumer {
 
     IPoolManager internal immutable UNI_V4;
 
-    uint24 internal constant HOOK_FEE = LPFeeLibrary.DYNAMIC_FEE_FLAG;
+    uint24 internal constant INIT_HOOK_FEE = ANGSTROM_INIT_HOOK_FEE;
 
     error InvalidHookPermissions();
 
@@ -60,5 +62,5 @@ function hasAngstromHookFlags(address addr) pure returns (bool) {
     // Ensure that we have some hook preventing 3rd party swapping.
     if (!hook.hasPermission(Hooks.BEFORE_SWAP_FLAG)) return false;
 
-    return true;
+    return hook.isValidHookAddress(ANGSTROM_INIT_HOOK_FEE);
 }

@@ -152,7 +152,7 @@ contract TopLevelAuthTest is BaseTest {
     ) public {
         vm.assume(asset0 != asset1);
         tickSpacing = uint16(bound(tickSpacing, 1, type(uint16).max));
-        bundleFee = boundE6(bundleFee);
+        bundleFee = boundE6(bundleFee, MAX_FEE);
 
         vm.prank(controller);
         angstrom.configurePool(asset0, asset1, tickSpacing, bundleFee, 0);
@@ -160,6 +160,7 @@ contract TopLevelAuthTest is BaseTest {
 
         (asset0, asset1) = sort(asset0, asset1);
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+        vm.prank(controller);
         angstrom.removePool(key, store, 0);
 
         PoolConfigStore newStore = angstrom.configStore();

@@ -356,8 +356,10 @@ contract SettlementTest is BaseTest {
         addFee(bundle, asset, amount);
         enablePool(asset, otherAsset);
 
+        bytes memory encodedPayload = bundle.encode(rawGetConfigStore(address(angstrom)));
+
         vm.prank(validator);
-        angstrom.execute(bundle.encode(rawGetConfigStore(address(angstrom))));
+        angstrom.execute(encodedPayload);
 
         vm.expectRevert(TopLevelAuth.NotController.selector);
         vm.prank(puller);

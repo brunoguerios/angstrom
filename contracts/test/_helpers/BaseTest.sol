@@ -16,7 +16,7 @@ import {stdError} from "forge-std/StdError.sol";
 import {OrderMeta, TopOfBlockOrder} from "test/_reference/OrderTypes.sol";
 import {TickLib} from "src/libraries/TickLib.sol";
 import {HookDeployer} from "./HookDeployer.sol";
-import {hasAngstromHookFlags} from "src/modules/UniConsumer.sol";
+import {hasAngstromHookFlags, ANGSTROM_INIT_HOOK_FEE} from "src/modules/UniConsumer.sol";
 import {TypedDataHasherLib} from "src/types/TypedDataHasher.sol";
 import {PoolConfigStore, PoolConfigStoreLib, StoreKey} from "src/libraries/PoolConfigStore.sol";
 import {PairLib} from "test/_reference/Pair.sol";
@@ -81,6 +81,7 @@ contract BaseTest is Test, HookDeployer {
         pk.currency0 = Currency.wrap(asset0);
         pk.currency1 = Currency.wrap(asset1);
         pk.tickSpacing = tickSpacing;
+        pk.fee = address(angstrom) == address(0) ? 0 : ANGSTROM_INIT_HOOK_FEE;
     }
 
     function poolKey(address asset0, address asset1, int24 tickSpacing)
@@ -344,7 +345,11 @@ contract BaseTest is Test, HookDeployer {
     }
 
     function boundE6(uint24 fee) internal pure returns (uint24) {
-        return uint24(bound(fee, 0, 1e6));
+        return boundE6(fee, 1e6);
+    }
+
+    function boundE6(uint24 fee, uint24 upperBound) internal pure returns (uint24) {
+        return uint24(bound(fee, 0, upperBound));
     }
 
     function sort(address asset0, address asset1) internal pure returns (address, address) {
