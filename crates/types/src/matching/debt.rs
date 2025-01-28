@@ -333,11 +333,6 @@ impl Debt {
         let sqrt_t1_x96 = ((&t1 << 192) as Natural).floor_sqrt();
         let sqrt_t0_start_x96 = ((&t0_start << 192) as Natural).floor_sqrt();
 
-        /* - Very succinct but the order depends on what we're doing
-        let numerator = (Natural::from(amm_delta) * &sqrt_t1_x96)
-            .add_mul(Natural::from(amm_liquidity), &sqrt_t0_start_x96);
-        */
-
         let a_num_portion_1 = &dx * &sqrt_t1_x96;
         let a_num_portion_2 = &l * &sqrt_t0_start_x96;
         let a_numerator_sum = if amm_positive_delta {
