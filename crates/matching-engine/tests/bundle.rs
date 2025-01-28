@@ -3,6 +3,16 @@ use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
 
 mod booklib;
 use booklib::{AMM_SIDE_BOOK, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, ZERO_ASK_BOOK};
+use tracing::Level;
+
+pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .with_line_number(true)
+        .with_file(true)
+        .finish();
+    tracing::subscriber::with_default(subscriber, f)
+}
 
 #[test]
 #[ignore]
@@ -21,16 +31,18 @@ fn check_all_existing_books() {
 #[test]
 #[ignore]
 fn build_and_ship_random_bundle() {
-    let bytes = base64::prelude::BASE64_STANDARD
-        .decode(DEBT_WRONG_SIDE)
-        .unwrap();
-    let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
-    println!("Book: {:?}", book);
-    let mut matcher = VolumeFillMatcher::new(&book);
-    let solve = matcher.run_match();
-    let solution = matcher.from_checkpoint().unwrap().solution(None);
-    println!("EndReason: {:?}", solve);
-    println!("Solution: {:?}", solution);
+    with_tracing(|| {
+        let bytes = base64::prelude::BASE64_STANDARD
+            .decode(DEBT_WRONG_SIDE)
+            .unwrap();
+        let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
+        println!("Book: {:?}", book);
+        let mut matcher = VolumeFillMatcher::new(&book);
+        let solve = matcher.run_match();
+        let solution = matcher.from_checkpoint().unwrap().solution(None);
+        println!("EndReason: {:?}", solve);
+        println!("Solution: {:?}", solution);
+    });
     // Will migrate things to here later, right now we have other tests to work
     // on
 

@@ -86,7 +86,6 @@ impl<'a> LiqRangeRef<'a> {
         if let Ok(price_tick) = price.to_tick() {
             price_tick >= self.lower_tick && price_tick < self.upper_tick
         } else {
-            println!("Default false");
             false
         }
     }

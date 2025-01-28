@@ -7,6 +7,7 @@ use alloy::primitives::U256;
 use alloy_primitives::I256;
 use eyre::eyre;
 use malachite::rounding_modes::RoundingMode;
+use tracing::debug;
 use uniswap_v3_math::{
     swap_math::compute_swap_step,
     tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio}
@@ -90,14 +91,14 @@ impl<'a> PoolPrice<'a> {
         }
         // Otherwise let's calculate
         let mut sqrt_ratio_current_x_96 = self.price.into();
-        println!("Current price: {:?}", sqrt_ratio_current_x_96);
+        debug!(current_price = ?sqrt_ratio_current_x_96, "Current price");
         let mut active_liq_range: Option<LiqRangeRef<'a>> = None;
         let mut cur_quantity = U256::from(quantity);
         while cur_quantity > U256::ZERO {
-            println!("Starting new loop");
+            debug!("Starting new loop");
             // There might be a more suave way to do this
             let cur_liq_range = if let Some(lqr) = active_liq_range.as_mut() {
-                println!("Bumping forward liquidity range");
+                debug!("Bumping forward liquidity range");
                 // If we already tested a liquidity range let's move to the next one
                 let new_lqr = lqr.next(direction).ok_or_else(|| {
                     eyre!("Unable to find liquidity ranges that span the whole transaction")
@@ -118,18 +119,13 @@ impl<'a> PoolPrice<'a> {
                 // compute_swap_step)
                 Direction::SellingT0 => I256::unchecked_from(cur_quantity)
             };
-            println!(
-                "Current liq range {} - {}",
-                cur_liq_range.lower_tick, cur_liq_range.upper_tick
-            );
-            println!(
-                "Current liq prices {:?} - {:?}",
-                SqrtPriceX96::at_tick(cur_liq_range.lower_tick).unwrap(),
-                SqrtPriceX96::at_tick(cur_liq_range.upper_tick).unwrap()
+            debug!(
+                lower_tick = cur_liq_range.lower_tick,
+                upper_tick = cur_liq_range.upper_tick,
+                "Current liq range"
             );
             let sqrt_ratio_target_x_96 = cur_liq_range.end_price(direction).price.into();
-            println!("Target price: {:?}", sqrt_ratio_target_x_96);
-            println!("Cur_q: {}, amount_remaining: {:?}", cur_quantity, amount_remaining);
+            debug!(cur_quantity = ?cur_quantity, amount_remaining = ?amount_remaining, target_price = ?sqrt_ratio_target_x_96, "Settings before compute_swap_step");
             let (new_price, amount_in, amount_out, _) = compute_swap_step(
                 sqrt_ratio_current_x_96,
                 sqrt_ratio_target_x_96,
@@ -154,10 +150,7 @@ impl<'a> PoolPrice<'a> {
                     }
                 }
             }
-            println!(
-                "new_price: {:?}\namount_in: {}\namount_out: {}",
-                new_price, amount_in, amount_out
-            );
+            debug!(next_price = ?new_price, amount_in = ?amount_in, amount_out = ?amount_out, "Settings after compute_swap_step");
             // Update our current quantity
             match direction {
                 Direction::BuyingT0 => cur_quantity -= amount_out,
@@ -172,7 +165,7 @@ impl<'a> PoolPrice<'a> {
         let liq_range = active_liq_range.ok_or_else(|| {
             eyre!("Somehow have no active liquidity range despite iterationg - should never happen")
         })?;
-        println!("End price: {:?}", price);
+        debug!(final_price = ?price, "Final price");
         let new_price = PoolPrice::checked_new(liq_range, price, tick);
         Ok(new_price)
     }
@@ -215,9 +208,9 @@ impl<'a> PoolPrice<'a> {
             debt.price(),
             Direction::BuyingT0
         );
-        println!("Solve: {}", solve);
+        debug!(solve = ?solve, "Solve");
         let step = resolve_precision(192, solve, RoundingMode::Floor);
-        println!("Step: {}", step);
+        debug!(step, "Step");
         if step < t0_to_upper {
             return Ok(step)
         }

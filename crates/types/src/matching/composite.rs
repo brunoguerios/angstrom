@@ -1,8 +1,8 @@
-use malachite::rounding_modes::RoundingMode;
+use tracing::debug;
 
 use super::{
     debt::Debt,
-    math::{amm_debt_same_move_solve, resolve_precision},
+    math::amm_debt_same_move_solve,
     uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
     Ray
 };
@@ -43,7 +43,7 @@ impl<'a> CompositeOrder<'a> {
     }
 
     pub fn calc_quantities(&self, target_price: Ray) -> (u128, u128) {
-        println!("Calculating quantities to price: {:?}", target_price);
+        debug!(target_price = ?target_price, "Calculating quantities to target price");
         let amm_q = self
             .amm
             .as_ref()
@@ -53,16 +53,12 @@ impl<'a> CompositeOrder<'a> {
             .debt
             .map(|d| d.dq_to_price(&target_price))
             .unwrap_or_default();
-        println!("Calculated quantities - amm: {} - debt: {}", amm_q, debt_q);
+        debug!(amm_q, debt_q, "Calculated quantities");
         if let Some(a) = self.amm.as_ref() {
-            println!(
-                "Amm current price: {:?} - liquidity: {}",
-                Ray::from(a.price()),
-                a.liquidity()
-            );
+            debug!(amm_price = ?Ray::from(a.price()), liquidity = a.liquidity(), "AMM final stats");
         }
         if let Some(d) = self.debt.as_ref() {
-            println!("Debt current price: {:?}", d.price());
+            debug!(debt_price = ?d.price(), "Debt final stats");
         }
         (amm_q, debt_q)
     }

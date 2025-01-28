@@ -8,6 +8,7 @@ use malachite::{
     rounding_modes::RoundingMode,
     Natural
 };
+use tracing::debug;
 
 use super::{math::low_to_high, uniswap::PoolPrice, Ray};
 use crate::matching::const_2_192;
@@ -182,7 +183,7 @@ impl Debt {
             DebtType::ExactIn(_) => current_amount + 1,
             DebtType::ExactOut(_) => current_amount.saturating_sub(1)
         };
-        println!("Ranging prices between {} and {}", current_amount, bound_amount);
+        debug!(current_amount, bound_amount, "Getting price range between targets");
         let (current_price, bound_price) = match (current_amount, bound_amount) {
             // If both values are zero, something is hecka wrong
             (0, 0) => (Ray::min_uniswap_price(), Ray::max_uniswap_price()),
@@ -197,7 +198,6 @@ impl Debt {
                 Ray::calc_price_generic(b, self.magnitude(), self.magnitude.round_up())
             )
         };
-        println!("Found {:?} - {:?}", current_price, bound_price);
         let (low, high) = low_to_high(&current_price, &bound_price);
         (*low, *high)
     }
@@ -207,7 +207,7 @@ impl Debt {
     /// transaction
     pub fn valid_for_price(&self, price: Ray) -> bool {
         let (low, high) = self.price_range();
-        println!("Validating for price range low {:?} high {:?}", low, high);
+        debug!(low = ?low, high = ?high, "Validating for price range");
 
         match self.magnitude {
             DebtType::ExactIn(_) => price > low && price <= high,
@@ -254,10 +254,14 @@ impl Debt {
         if t0_change >= self.current_t0() {
             self.magnitude()
         } else {
+            let discriminant = if self.bid_side() { 1_u128 } else { 0_u128 };
+            let target_amount = t0_change.saturating_add(discriminant);
             let round_up = self.bid_side();
             std::cmp::min(
                 self.magnitude(),
-                self.price().quantity(t0_change, round_up) + self.slack()
+                self.price()
+                    .quantity(target_amount, round_up)
+                    .saturating_sub(discriminant)
             )
         }
     }
@@ -335,39 +339,20 @@ impl Debt {
         */
 
         let a_num_portion_1 = &dx * &sqrt_t1_x96;
-        println!(
-            "----- Num portion 1\nRaw: {}\nReduced: {}\n-----",
-            a_num_portion_1,
-            &a_num_portion_1 >> 96
-        );
-
         let a_num_portion_2 = &l * &sqrt_t0_start_x96;
-        println!(
-            "----- Num portion 2\nRaw: {}\nReduced: {}\n-----",
-            a_num_portion_2,
-            &a_num_portion_2 >> 96
-        );
         let a_numerator_sum = if amm_positive_delta {
             a_num_portion_1 + a_num_portion_2
         } else {
             a_num_portion_2 - a_num_portion_1
         };
 
-        // let a_numerator_sum = a_num_portion_2 - a_num_portion_1;
-        println!(
-            "----- Num sum\nRaw: {}\nReduced: {}\n-----",
-            a_numerator_sum,
-            &a_numerator_sum >> 96
-        );
-
         let (a_fraction, _) = (&a_numerator_sum).div_round(&l, RoundingMode::Nearest);
-        println!(
-            "--- Fraction calc ---\nNumerator: {}\nDenominator: {}\nResult: {}\nRounded result: \
-             {}\n--------------------",
-            a_numerator_sum,
-            &l,
-            a_fraction,
-            &a_fraction >> 96
+        debug!(
+            numerator_sum = ?a_numerator_sum,
+            denominator = ?l,
+            result = ?&a_fraction,
+            rounded = ?(&a_fraction >> 96),
+            "Fraction calculation"
         );
 
         // if A = sqrt(x + dX) then we have to square A and subtract the original X

@@ -13,6 +13,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use base64::Engine;
+use tracing::{debug, info};
 
 use super::Solution;
 use crate::book::{order::OrderContainer, BookOrder, OrderBook};
@@ -48,7 +49,7 @@ impl<'a> VolumeFillMatcher<'a> {
     pub fn new(book: &'a OrderBook) -> Self {
         let bid_cnt = book.bids().len();
         let ask_cnt = book.asks().len();
-        tracing::info!(?bid_cnt, ?ask_cnt);
+        info!(?bid_cnt, ?ask_cnt, "Book size");
         let bid_outcomes = vec![OrderFillState::Unfilled; book.bids().len()];
         let ask_outcomes = vec![OrderFillState::Unfilled; book.asks().len()];
         let amm_price = book.amm().map(|a| a.current_price());
@@ -122,7 +123,7 @@ impl<'a> VolumeFillMatcher<'a> {
         quantity: u128,
         direction: Direction
     ) -> eyre::Result<()> {
-        println!("Filling AMM for {} in {:?}", quantity, direction);
+        debug!(quantity, direction = ?direction, "Executing AMM fill");
         let new_amm = amm.d_t0(quantity, direction)?;
         let final_amm_order = PoolPriceVec::from_price_range(amm.clone(), new_amm.clone())?;
         *amm = new_amm.clone();
@@ -140,7 +141,7 @@ impl<'a> VolumeFillMatcher<'a> {
         // Output our book data so we can do stuff with it
         let json = serde_json::to_string(self.book).unwrap();
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
-        println!("--- BOOK DATA ---\n{}\n-----------------", b64_output);
+        debug!(data = b64_output, "Raw book data");
         // Run our match over and over until we get an end reason
         let mut i: usize = 0;
         loop {
@@ -180,7 +181,7 @@ impl<'a> VolumeFillMatcher<'a> {
             return Some(VolumeFillMatchEndReason::NoMoreAsks)
         };
 
-        println!("------RAW ORDERS------\n{:?}\n{:?}\n----------------------", bid, ask);
+        debug!(bid = ?bid, ask = ?ask, "Raw orders");
 
         // Check to see if we've hit an end state
         // If we're talking to the AMM on both sides, we're done
@@ -199,13 +200,12 @@ impl<'a> VolumeFillMatcher<'a> {
         // more explicit about this, but they will always be in the SAME amount
         let (bid_q, ask_q) = Self::get_match_quantities(&bid, &ask, self.debt.as_ref());
 
-        println!("Got bid: {} @ {:?}", bid_q, bid.price());
-        println!("Got ask: {} @ {:?}", ask_q, ask.price());
+        debug!(bid_q, ask_q, bid_price = ?bid.price(), ask_price = ?ask.price(), "Bid and ask stats");
 
         // Check to see if we have a 0-quantity ask and need to do an ask-side fill
         // This is only applicable if our ask order has the debt in it
         if ask_q == 0 && ask.is_debt() {
-            println!("Doing ask-side backmatch");
+            debug!("Executing ask-side backmatch");
 
             // Ind our next available order
             let Some(next_ask) = Self::next_order(
@@ -221,17 +221,14 @@ impl<'a> VolumeFillMatcher<'a> {
                 return Some(VolumeFillMatchEndReason::NoMoreAsks);
             };
 
-            println!(
-                "Starting ask-side backmatch\nOriginal order\n{:?}\nNext order\n{:?}",
-                ask, next_ask
-            );
+            debug!(original = ?ask, next = ?next_ask, "Orders for ask-side backmatch");
 
             // First we check if we have a combination AMM/Debt Composite order.  If we do,
             // we're here because the AMM can't provide more T0 than it costs to move the
             // debt.  In this case, we should use all the AMM liquidity possible to move the
             // debt FIRST before we do any kind of backmatch
             if ask.is_amm() {
-                println!("Composite is is combo AMM and Debt");
+                debug!("Composite is combination AMM and Debt");
                 // Move the AMM
                 let (amm_q, _) = ask.composite_quantities_to_price(next_ask.price());
                 if let Some(amm) = self.amm_price.as_mut() {
@@ -251,7 +248,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 // Update the debt
                 self.debt = self.debt.map(|d| d.partial_fill(amm_q));
 
-                println!("Sold {} from the AMM into the debt", amm_q);
+                debug!(quantity = amm_q, "Sold quantity from the AMM into the debt");
 
                 // Start a new cycle
                 return None;
@@ -297,11 +294,11 @@ impl<'a> VolumeFillMatcher<'a> {
             };
 
             if cur_ask_q == 0 {
-                println!("No positive quantity, but no negative quantity?");
+                debug!("No positive quantity but no negative quantity");
                 return Some(VolumeFillMatchEndReason::ErrorEncountered);
             }
 
-            println!("Backmatching\nCur: {}\nNxt: {}", cur_ask_q, next_ask_q);
+            debug!(current = cur_ask_q, next = next_ask_q, "Backmatch quantities");
 
             let matched = next_ask_q.min(cur_ask_q);
 
@@ -329,7 +326,7 @@ impl<'a> VolumeFillMatcher<'a> {
 
             match next_ask_q.cmp(&cur_ask_q) {
                 Ordering::Equal => {
-                    println!("Equal match");
+                    debug!("Equal match quantities");
                     // We annihilated in which case the debt price has moved to the next_ask price
                     self.results.price = Some(next_ask.price());
                     // Mark as filled if non-AMM order
@@ -342,7 +339,7 @@ impl<'a> VolumeFillMatcher<'a> {
                     self.save_checkpoint();
                 }
                 Ordering::Greater => {
-                    println!("Greater match");
+                    debug!("Next ask greater than current ask");
                     // Our next order is greater than our debt.  The debt has been moved to next_ask
                     // price without consuming the entirety of next_ask
                     // The end point is our next ask's price
@@ -358,7 +355,7 @@ impl<'a> VolumeFillMatcher<'a> {
                     // completely filled
                 }
                 Ordering::Less => {
-                    println!("Less match");
+                    debug!("Next ask less than current ask");
                     // Our debt is greater than the order
                     // Find the end price of the debt and move it there
                     if let Some(cur_debt) = self.debt.as_mut() {
@@ -381,7 +378,7 @@ impl<'a> VolumeFillMatcher<'a> {
             return None;
         }
 
-        println!("Normal match of bid_q: {} vs ask_q: {}", bid_q, ask_q);
+        debug!(bid_quantity = bid_q, ask_quantity = ask_q, "Executing normal match");
 
         // If either quantity is zero at this point we should break
         // I actually think this might be OK - there are some edge cases where this is
@@ -393,7 +390,7 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // Determine how much we matched and if our orders totally annihilated
         let matched = ask_q.min(bid_q);
-        println!("Matched quantity: {}", matched);
+        debug!(matched, "Mathed normal quantity");
 
         // --- Instrumentation for benchmarking needs updating ---
         // Store the amount we matched
@@ -433,7 +430,7 @@ impl<'a> VolumeFillMatcher<'a> {
                     // Move the AMM by the portion of the matched T0
                     // Can unwrap here as we've checked to be sure the order is valid
                     let quantities = a_o.composite_t0_quantities(matched, direction);
-                    println!("Found mixed quantities {:?}", quantities);
+                    debug!(quantities = ?quantities, "Found mixed quantities");
                     quantities.0.unwrap()
                 };
                 if Self::fill_amm(
@@ -509,17 +506,17 @@ impl<'a> VolumeFillMatcher<'a> {
                 .as_debt(Some(t1_matched), false)
                 .xor(bid.as_debt(Some(t1_matched), true))
             {
-                println!("Adding net debt for {} t1 matched: {:?}", t1_matched, net_debt);
+                debug!(limit_t1 = t1_matched, net_debt = ?net_debt, "Adding net debt");
                 self.debt += net_debt;
             }
         }
 
-        println!("Debt currently: {:?}", self.debt);
+        debug!(debt = ?self.debt, "Current debt");
 
         // Then we deal with fixing up our book orders
         match bid_q.cmp(&ask_q) {
             Ordering::Equal => {
-                println!("Equal match");
+                debug!("Equal match");
                 // We annihilated
 
                 // If we have a debt price, this is our current price, otherwise we get a price
@@ -544,7 +541,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 // the next round
             }
             Ordering::Greater => {
-                println!("Greater than match");
+                debug!("Greater than match");
                 self.results.price = Some(bid.price());
                 // Ask was completely filled, remainder bid
                 if ask.is_book() {
@@ -565,7 +562,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 }
             }
             Ordering::Less => {
-                println!("Less than match");
+                debug!("Less than match");
                 self.results.price = Some(ask.price());
                 // Bid was completely filled, remainder ask
                 if bid.is_book() {
@@ -624,7 +621,7 @@ impl<'a> VolumeFillMatcher<'a> {
         book: &'a [BookOrder],
         fill_state: &[OrderFillState]
     ) -> Option<OrderContainer<'a>> {
-        println!("Getting next order for bid {} and debt {:?}", bid, debt);
+        debug!(is_bid = bid, debt = ?debt, "Getting next order");
         // If we have a fragment, that takes priority
         if let Some(state @ OrderFillState::PartialFill(_)) = fill_state.get(book_idx.get()) {
             return book
@@ -659,16 +656,12 @@ impl<'a> VolumeFillMatcher<'a> {
             let debt_book_cmp = book_order
                 .map(|b| {
                     let book_price = b.price_for_book_side(bid);
-                    println!(
-                        "Comparing debt price {:?} with book price {:?}",
-                        d.price(),
-                        book_price
-                    );
+                    debug!(debt_price = ?d.price(), book_price = ?book_price, "Comparing debt with book price");
                     if d.validate_and_set_price(book_price) {
-                        println!("Prices found as equal");
+                        debug!("Debt and book equal");
                         Ordering::Equal
                     } else {
-                        println!("Prices found as not equal");
+                        debug!("Debt and book not equal");
                         d.price().cmp(&book_price)
                     }
                 })
@@ -720,18 +713,14 @@ impl<'a> VolumeFillMatcher<'a> {
 
         // If we have an AMM price, see if it takes precedence over our book order
         amm.and_then(|a| {
-            println!("Comparing AMM to book order");
+            debug!("Comparing AMM to book");
             let bound_price = if let Some(o) = book_order {
-                println!(
-                    "AMM price:  {:?}\nBook price: {:?}",
-                    a.as_ray(),
-                    o.price_for_book_side(bid)
-                );
+                debug!(amm_price = ?a.as_ray(), book_price = ?o.price_for_book_side(bid), "Amm and book prices");
                 if o.price_for_book_side(bid).cmp(&a.as_ray()) != less_advantageous {
-                    println!("Book order better than AMM price");
+                    debug!("Book order better than AMM");
                     return None
                 } else {
-                    println!("Amm price better than book price");
+                    debug!("AMM order better than book");
                 }
                 Some(o.price_for_book_side(bid))
             } else {

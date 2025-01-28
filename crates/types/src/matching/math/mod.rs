@@ -9,6 +9,7 @@ use malachite::{
     rounding_modes::RoundingMode,
     Integer, Natural, Rational
 };
+use tracing::debug;
 
 use super::{const_1e27, uniswap::Direction, Ray, SqrtPriceX96};
 
@@ -43,7 +44,7 @@ pub fn amm_debt_same_move_solve(
         Rational::from_integers_ref(&(Integer::from(debt_fixed_t1) << precision), &l_squared);
     let a = Integer::rounding_from(a_frac, RoundingMode::Nearest).0;
 
-    println!("a: {:?}", a);
+    debug!(a = ?a, "A factor");
 
     // b = 2(sqrt(t0Debt * t1Debt)/L) + 1
     let dt0 = Integer::from(debt_initial_t0) << precision;
@@ -60,7 +61,7 @@ pub fn amm_debt_same_move_solve(
     // let b = debt_numerator.div_round(l, RoundingMode::Nearest).0 + (Integer::ONE
     // << precision);
 
-    println!("b: {:?}", b);
+    debug!(b = ?b, "B factor");
 
     // c = -T
     let c = match direction {
@@ -72,7 +73,7 @@ pub fn amm_debt_same_move_solve(
         Direction::BuyingT0 => Integer::from(quantity_moved).neg()
     } << precision;
 
-    println!("c: {:?}", c);
+    debug!(c = ?c, "C factor");
 
     let solution = quadratic_solve(a, b, c, precision);
     println!("Got solutions: {:?}", solution);
@@ -107,11 +108,7 @@ pub fn price_intersect_solve(
     debt_price: Ray,
     direction: Direction
 ) -> Integer {
-    println!(
-        "Doing a price intersect solve:\nAMM Liquidity: {}\nAMM Price: {:?}\nDebt T1: {}\nDebt \
-         Price: {:?}",
-        amm_liquidity, amm_price, debt_fixed_t1, debt_price
-    );
+    debug!(amm_liquidity, amm_price = ?amm_price, debt_t1 = debt_fixed_t1, debt_price = ?debt_price, "Price intersect solve");
     let l = Integer::from(amm_liquidity);
     let l_squared = (&l).pow(2);
     let amm_sqrt_price_x96 = Integer::from(Natural::from_limbs_asc(amm_price.as_limbs()));
@@ -124,7 +121,7 @@ pub fn price_intersect_solve(
     // a = 1/L^2
     let a_frac = Rational::from_integers_ref(&(Integer::ONE << precision), &l_squared);
     let a = Integer::rounding_from(a_frac, RoundingMode::Nearest).0;
-    println!("A: {}", a);
+    debug!(a = ?a, "A factor");
 
     // b = [ 2/(L*sqrt(Pa)) - 1/(T1d) ]
     let b_first_part = Rational::from_integers_ref(
@@ -133,7 +130,7 @@ pub fn price_intersect_solve(
     );
     let b_second_part = Rational::from_integers_ref(&(Integer::ONE << precision), &debt_magnitude);
     let b = Integer::rounding_from(b_first_part - b_second_part, RoundingMode::Nearest).0;
-    println!("B: {}", b);
+    debug!(b = ?b, "B factor");
 
     // c = [ 1/Pa - 1/Pd ]
     // Precision is x96
@@ -147,7 +144,7 @@ pub fn price_intersect_solve(
         Integer::from(Natural::from_limbs_asc(debt_price.as_limbs()))
     );
     let c = Integer::rounding_from(c_part_1 - c_part_2, RoundingMode::Nearest).0;
-    println!("C: {}", c);
+    debug!(c = ?c, "C factor");
 
     let solution = quadratic_solve(a, b, c, precision);
     solution.0.or(solution.1).unwrap()
@@ -168,7 +165,7 @@ pub fn quadratic_solve(
     // Find our denominators for both the + and - solution
     let denom_minus = &neg_b - &sqrt_b24ac;
     let denom_plus = &neg_b + &sqrt_b24ac;
-    println!("Numerator: {}\nDenom Plus: {}\nDenom Minus: {}", numerator, denom_plus, denom_minus);
+    debug!(numerator = ?numerator, denom_plus = ?denom_plus, denom_minus = ?denom_minus, "Quadratic solve factors");
 
     // Save ourselves from zeroes
     match (denom_plus == Integer::ZERO, denom_minus == Integer::ZERO) {
@@ -238,10 +235,10 @@ mod tests {
             debt_price,
             Direction::BuyingT0
         );
-        println!("Solve answer: {}", res);
+        debug!(result = ?res, "Solution");
         // RoundingMode has to be UP here we want the greater value at all times
         let quantity = resolve_precision(192, res, RoundingMode::Up);
-        println!("Quantity found: {}", quantity);
+        debug!(quantity, "Quantity found");
 
         // Validate that the quantity returned brings the two prices as close together
         // as possible.  We do this by checking the result against result+1 and result-1
