@@ -13,7 +13,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use base64::Engine;
-use tracing::{debug, info, trace};
+use tracing::{trace, debug, info};
 
 use super::Solution;
 use crate::book::{order::OrderContainer, BookOrder, OrderBook};
