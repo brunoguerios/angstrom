@@ -249,21 +249,23 @@ impl Debt {
     /// Returns the amount of T1 that needs to be reallocated for a given change
     /// in a debt's T0 value
     pub fn freed_t1(&self, t0_change: u128) -> u128 {
-        // The amount of T1 we can free from this is equal to the quantity of T1 used at
-        // this price plus our slack
-        if t0_change >= self.current_t0() {
-            self.magnitude()
-        } else {
-            let discriminant = if self.bid_side() { 1_u128 } else { 0_u128 };
-            let target_amount = t0_change.saturating_add(discriminant);
-            let round_up = self.bid_side();
-            std::cmp::min(
-                self.magnitude(),
-                self.price()
-                    .quantity(target_amount, round_up)
-                    .saturating_sub(discriminant)
-            )
+        let target_t0 = self.current_t0().saturating_sub(t0_change);
+        // If it's all of it, it's all of it
+        if target_t0 == 0 {
+            return self.magnitude();
         }
+        // Otherwise let's figure out the difference between the T1 we have and the T1
+        // we need to keep
+        let target_t1 = match self.bid_side() {
+            // The smallest quantity for a given T0 on the bid side is Price (x)
+            true => self.price().quantity(target_t0, true),
+            // The smallest quantity for a given T0 on the ask side is Price (x-1) + 1
+            false => self
+                .price()
+                .quantity(target_t0.saturating_sub(1), false)
+                .saturating_add(1)
+        };
+        self.magnitude().saturating_sub(target_t1)
     }
 
     /// Create a new Debt object based on the price change created by filling
@@ -436,7 +438,7 @@ impl<'a> PartialOrd<PoolPrice<'a>> for Debt {
 #[cfg(test)]
 mod test {
     use super::Debt;
-    use crate::matching::Ray;
+    use crate::matching::{DebtType, Ray};
 
     #[test]
     fn debt_t0_magnitude_calculation() {
@@ -461,5 +463,19 @@ mod test {
             debt_out.current_t0(),
             t0_q
         );
+    }
+
+    #[test]
+    fn test_freed_amounts() {
+        let price = Ray::calc_price_generic(100u64, 200u64, false);
+        let debt = Debt::new(DebtType::ExactIn(200), price);
+
+        assert_eq!(debt.freed_t0(50), 25);
+        assert_eq!(debt.freed_t0(200), 100);
+        assert_eq!(debt.freed_t0(300), 100);
+
+        assert_eq!(debt.freed_t1(25), 50); // panics here, returns 51
+        assert_eq!(debt.freed_t1(100), 200);
+        assert_eq!(debt.freed_t1(150), 200);
     }
 }
