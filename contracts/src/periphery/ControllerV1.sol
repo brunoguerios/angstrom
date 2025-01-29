@@ -42,7 +42,9 @@ contract ControllerV1 is Ownable2Step {
         uint24 unlockedFee
     );
 
-    event PoolRemoved(address indexed asset0, address indexed asset1);
+    event PoolRemoved(
+        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
+    );
 
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
@@ -107,13 +109,15 @@ contract ControllerV1 is Ownable2Step {
         uint256 poolIndex = 0;
 
         uint256 totalEntries = configStore.totalEntries();
+        ConfigEntry entry;
         while (true) {
-            if (!configStore.getWithDefaultEmpty(key, poolIndex).isEmpty()) break;
+            entry = configStore.getWithDefaultEmpty(key, poolIndex);
+            if (!entry.isEmpty()) break;
             poolIndex++;
             if (poolIndex >= totalEntries) revert NonexistentPool(asset0, asset1);
         }
 
-        emit PoolRemoved(asset0, asset1);
+        emit PoolRemoved(asset0, asset1, entry.tickSpacing(), entry.bundleFee());
         ANGSTROM.removePool(key, configStore, poolIndex);
     }
 
