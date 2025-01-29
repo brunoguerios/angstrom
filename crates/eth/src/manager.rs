@@ -218,14 +218,14 @@ where
                     let entry = AngPoolConfigEntry {
                         pool_partial_key: AngstromPoolConfigStore::derive_store_key(asset0, asset1),
                         tick_spacing:     added_pool.tickSpacing,
-                        fee_in_e6:        added_pool.feeInE6.to(),
+                        fee_in_e6:        added_pool.bundleFee.to(),
                         store_index:      self.pool_store.length()
                     };
 
                     let pool_key = PoolKey {
                         currency1:   asset1,
                         currency0:   asset0,
-                        fee:         added_pool.feeInE6,
+                        fee:         added_pool.bundleFee,
                         tickSpacing: I24::try_from_be_slice(&{
                             let bytes = added_pool.tickSpacing.to_be_bytes();
                             let mut a = [0u8; 3];
