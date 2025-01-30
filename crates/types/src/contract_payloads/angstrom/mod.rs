@@ -455,13 +455,20 @@ impl AngstromBundle {
             .searcher
             .as_ref()
             .map(|tob| {
-                let swap = if tob.is_bid {
-                    (t1_idx, t0_idx, tob.quantity_in, tob.quantity_out)
+                trace!(tob_order = ?tob, "Mapping TOB Swap");
+                let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
+                // Make sure the input for our swap is precisely what's used in the swap portion
+                let input = if let Some(ref o) = outcome {
+                    o.total_cost.clone().saturating_to()
                 } else {
-                    (t0_idx, t1_idx, tob.quantity_in, tob.quantity_out)
+                    tob.quantity_in
+                };
+                let swap = if tob.is_bid {
+                    (t1_idx, t0_idx, input, tob.quantity_out)
+                } else {
+                    (t0_idx, t1_idx, input, tob.quantity_out)
                 };
                 // We swallow an error here
-                let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
                 (Some(swap), outcome)
             })
             .unwrap_or_default();
@@ -475,7 +482,7 @@ impl AngstromBundle {
                 } else {
                     // If they're in opposite directions then we see if we have to flip them
                     if tob.2 > amm.3 {
-                        Some((tob.0, tob.1, tob.2 - amm.2, tob.3 - amm.3))
+                        Some((tob.0, tob.1, tob.2 - amm.3, tob.3 - amm.2))
                     } else {
                         Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
                     }
