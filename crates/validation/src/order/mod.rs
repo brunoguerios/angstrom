@@ -188,9 +188,9 @@ impl OrderValidationResults {
     }
 }
 
-impl Into<OrderPoolNewOrderResult> for OrderValidationResults {
-    fn into(self) -> OrderPoolNewOrderResult {
-        match self {
+impl From<OrderValidationResults> for OrderPoolNewOrderResult {
+    fn from(val: OrderValidationResults) -> Self {
+        match val {
             OrderValidationResults::Valid(_) => OrderPoolNewOrderResult::Valid,
             OrderValidationResults::Invalid(_) => OrderPoolNewOrderResult::Invalid,
             OrderValidationResults::TransitionedToBlock => {
