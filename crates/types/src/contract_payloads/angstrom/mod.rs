@@ -308,9 +308,9 @@ impl AngstromBundle {
 
         let orders_by_pool: HashMap<
             alloy_primitives::FixedBytes<32>,
-            Vec<OrderWithStorageData<GroupedVanillaOrder>>
+            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
         > = limit.iter().fold(HashMap::new(), |mut acc, x| {
-            acc.entry(x.pool_id).or_default().push(x.clone());
+            acc.entry(x.pool_id).or_default().insert(x.clone());
             acc
         });
 
@@ -330,152 +330,21 @@ impl AngstromBundle {
                 );
                 continue;
             };
-            println!("Processing pair {} - {}", t0, t1);
-            // Make sure the involved assets are in our assets array and we have the
-            // appropriate asset index for them
-            let t0_idx = asset_builder.add_or_get_asset(*t0) as u16;
-            let t1_idx = asset_builder.add_or_get_asset(*t1) as u16;
-            // Build our Pair featuring our uniform clearing price
-            // This price is in Ray format as requested.
-            // TODO:  Get the store index so this can be correct
-            let ucp: U256 = *solution.ucp;
-            let pair = Pair {
-                index0:       t0_idx,
-                index1:       t1_idx,
-                store_index:  *store_index,
-                price_1over0: ucp
-            };
-            pairs.push(pair);
-
-            let pair_idx = pairs.len() - 1;
-
-            // Pull out our net AMM order
-            let net_amm_order = solution
-                .amm_quantity
-                .as_ref()
-                .map(|amm_o| amm_o.to_order_tuple(t0_idx, t1_idx));
-            // Pull out our TOB swap and TOB reward
-            let (tob_swap, tob_rewards) = solution
-                .searcher
-                .as_ref()
-                .map(|tob| {
-                    let swap = if tob.is_bid {
-                        (t1_idx, t0_idx, tob.quantity_in, tob.quantity_out)
-                    } else {
-                        (t0_idx, t1_idx, tob.quantity_in, tob.quantity_out)
-                    };
-                    // We swallow an error here
-                    let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
-                    (Some(swap), outcome)
-                })
-                .unwrap_or_default();
-            // Merge our net AMM order with the TOB swap
-            trace!(tob_swap = ?tob_swap, net_amm_order = ?net_amm_order, "Merging Net AMM with TOB Swap");
-            let merged_amm_swap = match (net_amm_order, tob_swap) {
-                (Some(amm), Some(tob)) => {
-                    if amm.0 == tob.0 {
-                        // If they're in the same direction we just sum them
-                        Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
-                    } else {
-                        // If they're in opposite directions then we see if we have to flip them
-                        if tob.2 > amm.3 {
-                            Some((tob.0, tob.1, tob.2 - amm.2, tob.3 - amm.3))
-                        } else {
-                            Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
-                        }
-                    }
-                }
-                (net_amm_order, tob_swap) => net_amm_order.or(tob_swap)
-            };
-            trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
-            // Unwrap our merged amm order or provide a zero default
-            let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
-                merged_amm_swap.unwrap_or((t0_idx, t1_idx, 0_u128, 0_u128));
-            // If we don't have a rewards update, we insert a default "empty" struct
-            let tob_outcome = tob_rewards.unwrap_or_default();
-
-            // Account for our net AMM Order
-            asset_builder.uniswap_swap(
-                AssetBuilderStage::Swap,
-                asset_in_index as usize,
-                asset_out_index as usize,
-                quantity_in,
-                quantity_out
-            );
-            // Account for our reward
-            asset_builder.allocate(AssetBuilderStage::Reward, *t0, tob_outcome.total_reward.to());
-            let rewards_update = tob_outcome.to_rewards_update();
-            // Push the pool update
-            pool_updates.push(PoolUpdate {
-                zero_for_one: false,
-                pair_index: pair_idx as u16,
-                swap_in_quantity: quantity_in,
-                rewards_update
-            });
-            // Add the ToB order to our tob order list - This is currently converting
-            // between two ToB order formats
-            if let Some(tob) = solution.searcher.as_ref() {
-                // Account for our ToB order
-                let (asset_in, asset_out) = if tob.is_bid { (*t1, *t0) } else { (*t0, *t1) };
-                asset_builder.external_swap(
-                    AssetBuilderStage::TopOfBlock,
-                    asset_in,
-                    asset_out,
-                    tob.quantity_in,
-                    tob.quantity_out
-                );
-                let contract_tob = TopOfBlockOrder::of_max_gas(tob, pair_idx as u16);
-                top_of_block_orders.push(contract_tob);
-            }
-
-            // Get our list of user orders, if we have any
-            let mut order_list: Vec<&OrderWithStorageData<GroupedVanillaOrder>> = orders_by_pool
-                .get(&solution.id)
-                .map(|order_set| order_set.iter().collect())
-                .unwrap_or_default();
-
-            // Sort the user order list so we can properly associate it with our
-            // OrderOutcomes.  First bids by price then asks by price.
-            order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
-                (true, true) => a.priority_data.cmp(&b.priority_data),
-                (false, false) => a.priority_data.cmp(&b.priority_data),
-                (..) => b.is_bid.cmp(&a.is_bid)
-            });
-            // Loop through our filled user orders, do accounting, and add them to our user
-            // order list
-            for (outcome, order) in solution
-                .limit
-                .iter()
-                .zip(order_list.iter())
-                .filter(|(outcome, _)| outcome.is_filled())
-            {
-                assert_eq!(outcome.id.hash, order.order_id.hash);
-
-                let quantity_out = match outcome.outcome {
-                    OrderFillState::PartialFill(p) => p,
-                    _ => order.max_q()
-                };
-                // Calculate the price of this order given the amount filled and the UCP
-                let quantity_in = if order.is_bid {
-                    Ray::from(ucp).mul_quantity(U256::from(quantity_out))
-                } else {
-                    U256::from(Ray::from(ucp).inverse_quantity(quantity_out, true))
-                };
-                // Account for our user order
-                let (asset_in, asset_out) = if order.is_bid { (*t1, *t0) } else { (*t0, *t1) };
-                asset_builder.external_swap(
-                    AssetBuilderStage::UserOrder,
-                    asset_in,
-                    asset_out,
-                    quantity_in.to(),
-                    quantity_out
-                );
-                user_orders.push(UserOrder::from_internal_order_max_gas(
-                    order,
-                    outcome,
-                    pair_idx as u16
-                ));
-            }
+            // Call our processing function with a fixed amount of shared gas
+            Self::process_solution(
+                &mut pairs,
+                &mut asset_builder,
+                &mut user_orders,
+                &orders_by_pool,
+                &mut top_of_block_orders,
+                &mut pool_updates,
+                solution,
+                snapshot,
+                *t0,
+                *t1,
+                *store_index,
+                None
+            )?;
         }
         Ok(Self::new(
             asset_builder.get_asset_array(),
@@ -531,6 +400,182 @@ impl AngstromBundle {
             })
     }
 
+    pub fn process_solution(
+        pairs: &mut Vec<Pair>,
+        asset_builder: &mut AssetBuilder,
+        user_orders: &mut Vec<UserOrder>,
+        orders_by_pool: &HashMap<
+            FixedBytes<32>,
+            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
+        >,
+        top_of_block_orders: &mut Vec<TopOfBlockOrder>,
+        pool_updates: &mut Vec<PoolUpdate>,
+        solution: &PoolSolution,
+        snapshot: &PoolSnapshot,
+        t0: Address,
+        t1: Address,
+        store_index: u16,
+        shared_gas: Option<U256>
+    ) -> eyre::Result<()> {
+        // Dump the solution
+        let json = serde_json::to_string(&solution).unwrap();
+        let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+        trace!(data = b64_output, "Raw solution data");
+
+        debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
+
+        // Make sure the involved assets are in our assets array and we have the
+        // appropriate asset index for them
+        let t0_idx = asset_builder.add_or_get_asset(t0) as u16;
+        let t1_idx = asset_builder.add_or_get_asset(t1) as u16;
+
+        // Build our Pair featuring our uniform clearing price
+        // This price is in Ray format as requested.
+        let ucp: U256 = *solution.ucp;
+        let pair = Pair { index0: t0_idx, index1: t1_idx, store_index, price_1over0: ucp };
+        pairs.push(pair);
+        let pair_idx = pairs.len() - 1;
+
+        // Pull out our net AMM order
+        let net_amm_order = solution
+            .amm_quantity
+            .as_ref()
+            .map(|amm_o| amm_o.to_order_tuple(t0_idx, t1_idx));
+        // Pull out our TOB swap and TOB reward
+        let (tob_swap, tob_rewards) = solution
+            .searcher
+            .as_ref()
+            .map(|tob| {
+                let swap = if tob.is_bid {
+                    (t1_idx, t0_idx, tob.quantity_in, tob.quantity_out)
+                } else {
+                    (t0_idx, t1_idx, tob.quantity_in, tob.quantity_out)
+                };
+                // We swallow an error here
+                let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
+                (Some(swap), outcome)
+            })
+            .unwrap_or_default();
+        // Merge our net AMM order with the TOB swap
+        trace!(tob_swap = ?tob_swap, net_amm_order = ?net_amm_order, "Merging Net AMM with TOB Swap");
+        let merged_amm_swap = match (net_amm_order, tob_swap) {
+            (Some(amm), Some(tob)) => {
+                if amm.0 == tob.0 {
+                    // If they're in the same direction we just sum them
+                    Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
+                } else {
+                    // If they're in opposite directions then we see if we have to flip them
+                    if tob.2 > amm.3 {
+                        Some((tob.0, tob.1, tob.2 - amm.2, tob.3 - amm.3))
+                    } else {
+                        Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
+                    }
+                }
+            }
+            (net_amm_order, tob_swap) => net_amm_order.or(tob_swap)
+        };
+        trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
+        // Unwrap our merged amm order or provide a zero default
+        let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
+            merged_amm_swap.unwrap_or((t0_idx, t1_idx, 0_u128, 0_u128));
+        // If we don't have a rewards update, we insert a default "empty" struct
+        let tob_outcome = tob_rewards.unwrap_or_default();
+
+        // Account for our net AMM Order
+        asset_builder.uniswap_swap(
+            AssetBuilderStage::Swap,
+            asset_in_index as usize,
+            asset_out_index as usize,
+            quantity_in,
+            quantity_out
+        );
+        // Account for our reward
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward.to());
+        let rewards_update = tob_outcome.to_rewards_update();
+        // Push the pool update
+        pool_updates.push(PoolUpdate {
+            zero_for_one: false,
+            pair_index: pair_idx as u16,
+            swap_in_quantity: quantity_in,
+            rewards_update
+        });
+
+        // Add the ToB order to our tob order list - This is currently converting
+        // between two ToB order formats
+        if let Some(tob) = solution.searcher.as_ref() {
+            // Account for our ToB order
+            let (asset_in, asset_out) = if tob.is_bid { (t1, t0) } else { (t0, t1) };
+
+            asset_builder.external_swap(
+                AssetBuilderStage::TopOfBlock,
+                asset_in,
+                asset_out,
+                tob.quantity_in,
+                tob.quantity_out
+            );
+            let contract_tob = if let Some(g) = shared_gas {
+                TopOfBlockOrder::of(tob, g, pair_idx as u16)?
+            } else {
+                TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
+            };
+            top_of_block_orders.push(contract_tob);
+        }
+
+        // Get our list of user orders, if we have any
+        let mut order_list: Vec<&OrderWithStorageData<GroupedVanillaOrder>> = orders_by_pool
+            .get(&solution.id)
+            .map(|order_set| order_set.iter().collect())
+            .unwrap_or_default();
+        // Sort the user order list so we can properly associate it with our
+        // OrderOutcomes.  First bids by price then asks by price.
+        order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
+            (true, true) => a.priority_data.cmp(&b.priority_data),
+            (false, false) => a.priority_data.cmp(&b.priority_data),
+            (..) => b.is_bid.cmp(&a.is_bid)
+        });
+        // Loop through our filled user orders, do accounting, and add them to our user
+        // order list
+        let ray_ucp = Ray::from(ucp);
+        for (outcome, order) in solution
+            .limit
+            .iter()
+            .zip(order_list.iter())
+            .filter(|(outcome, _)| outcome.is_filled())
+        {
+            // Calculate our final amounts based on whether the order is in T0 or T1 context
+            let inverse_order = order.is_bid() == order.exact_in();
+            assert_eq!(outcome.id.hash, order.order_id.hash);
+            let (t0_moving, t1_moving) = if inverse_order {
+                let t1_moving = outcome.fill_amount(order.max_q());
+                let t0_moving = ray_ucp.inverse_quantity(t1_moving, !order.is_bid());
+                (U256::from(t0_moving), U256::from(t1_moving))
+            } else {
+                let t0_moving = U256::from(outcome.fill_amount(order.max_q()));
+                let t1_moving = Ray::from(ucp).mul_quantity(t0_moving);
+                (t0_moving, t1_moving)
+            };
+
+            let (quantity_in, quantity_out) =
+                if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
+            // Account for our user order
+            let (asset_in, asset_out) = if order.is_bid { (t1, t0) } else { (t0, t1) };
+            asset_builder.external_swap(
+                AssetBuilderStage::UserOrder,
+                asset_in,
+                asset_out,
+                quantity_in.to(),
+                quantity_out.to()
+            );
+            let user_order = if let Some(g) = shared_gas {
+                UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
+            } else {
+                UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
+            };
+            user_orders.push(user_order);
+        }
+        Ok(())
+    }
+
     pub fn from_proposal(
         proposal: &Proposal,
         gas_details: BundleGasDetails,
@@ -569,10 +614,6 @@ impl AngstromBundle {
         // fetch gas used
         // Walk through our solutions to add them to the structure
         for solution in proposal.solutions.iter() {
-            // Output our book data so we can do stuff with it
-            let json = serde_json::to_string(&solution).unwrap();
-            let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
-            trace!(data = b64_output, "Raw solution data");
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
             let Some((t0, t1, snapshot, store_index)) = pools.get(&solution.id) else {
@@ -584,168 +625,34 @@ impl AngstromBundle {
                 );
                 continue;
             };
-            debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
 
+            // Get our shared gas information
             let conversion_rate_to_token0 =
                 gas_details.token_price_per_wei.get(&(*t0, *t1)).expect(
                     "don't have price for a critical pair. should be unreachable since no orders \
                      would get validated. this would always be skipped"
                 );
 
-            // Make sure the involved assets are in our assets array and we have the
-            // appropriate asset index for them
-            let t0_idx = asset_builder.add_or_get_asset(*t0) as u16;
-            let t1_idx = asset_builder.add_or_get_asset(*t1) as u16;
-
-            // Build our Pair featuring our uniform clearing price
-            // This price is in Ray format as requested.
-            let ucp: U256 = *solution.ucp;
-            let pair = Pair {
-                index0:       t0_idx,
-                index1:       t1_idx,
-                store_index:  *store_index,
-                price_1over0: ucp
-            };
-            pairs.push(pair);
-            let pair_idx = pairs.len() - 1;
-
-            // Pull out our net AMM order
-            let net_amm_order = solution
-                .amm_quantity
-                .as_ref()
-                .map(|amm_o| amm_o.to_order_tuple(t0_idx, t1_idx));
-            // Pull out our TOB swap and TOB reward
-            let (tob_swap, tob_rewards) = solution
-                .searcher
-                .as_ref()
-                .map(|tob| {
-                    let swap = if tob.is_bid {
-                        (t1_idx, t0_idx, tob.quantity_in, tob.quantity_out)
-                    } else {
-                        (t0_idx, t1_idx, tob.quantity_in, tob.quantity_out)
-                    };
-                    // We swallow an error here
-                    let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
-                    (Some(swap), outcome)
-                })
-                .unwrap_or_default();
-            // Merge our net AMM order with the TOB swap
-            trace!(tob_swap = ?tob_swap, net_amm_order = ?net_amm_order, "Merging Net AMM with TOB Swap");
-            let merged_amm_swap = match (net_amm_order, tob_swap) {
-                (Some(amm), Some(tob)) => {
-                    if amm.0 == tob.0 {
-                        // If they're in the same direction we just sum them
-                        Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
-                    } else {
-                        // If they're in opposite directions then we see if we have to flip them
-                        if tob.2 > amm.3 {
-                            Some((tob.0, tob.1, tob.2 - amm.2, tob.3 - amm.3))
-                        } else {
-                            Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
-                        }
-                    }
-                }
-                (net_amm_order, tob_swap) => net_amm_order.or(tob_swap)
-            };
-            trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
-            // Unwrap our merged amm order or provide a zero default
-            let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
-                merged_amm_swap.unwrap_or((t0_idx, t1_idx, 0_u128, 0_u128));
-            // If we don't have a rewards update, we insert a default "empty" struct
-            let tob_outcome = tob_rewards.unwrap_or_default();
-
-            // Account for our net AMM Order
-            asset_builder.uniswap_swap(
-                AssetBuilderStage::Swap,
-                asset_in_index as usize,
-                asset_out_index as usize,
-                quantity_in,
-                quantity_out
-            );
-            // Account for our reward
-            asset_builder.allocate(AssetBuilderStage::Reward, *t0, tob_outcome.total_reward.to());
-            let rewards_update = tob_outcome.to_rewards_update();
-            // Push the pool update
-            pool_updates.push(PoolUpdate {
-                zero_for_one: false,
-                pair_index: pair_idx as u16,
-                swap_in_quantity: quantity_in,
-                rewards_update
-            });
             // calculate the shared amount of gas in token 0 to share over this pool
-            let delegated_amount_in_token_0 =
-                (*conversion_rate_to_token0 * U256::from(shared_gas_in_wei)).scale_out_of_ray();
+            let shared_gas = Some(
+                (*conversion_rate_to_token0 * U256::from(shared_gas_in_wei)).scale_out_of_ray()
+            );
 
-            // Add the ToB order to our tob order list - This is currently converting
-            // between two ToB order formats
-            if let Some(tob) = solution.searcher.as_ref() {
-                // Account for our ToB order
-                let (asset_in, asset_out) = if tob.is_bid { (*t1, *t0) } else { (*t0, *t1) };
-
-                asset_builder.external_swap(
-                    AssetBuilderStage::TopOfBlock,
-                    asset_in,
-                    asset_out,
-                    tob.quantity_in,
-                    tob.quantity_out
-                );
-                let contract_tob =
-                    TopOfBlockOrder::of(tob, delegated_amount_in_token_0, pair_idx as u16)?;
-                top_of_block_orders.push(contract_tob);
-            }
-
-            // Get our list of user orders, if we have any
-            let mut order_list: Vec<&OrderWithStorageData<GroupedVanillaOrder>> = orders_by_pool
-                .get(&solution.id)
-                .map(|order_set| order_set.iter().collect())
-                .unwrap_or_default();
-            // Sort the user order list so we can properly associate it with our
-            // OrderOutcomes.  First bids by price then asks by price.
-            order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
-                (true, true) => a.priority_data.cmp(&b.priority_data),
-                (false, false) => a.priority_data.cmp(&b.priority_data),
-                (..) => b.is_bid.cmp(&a.is_bid)
-            });
-            // Loop through our filled user orders, do accounting, and add them to our user
-            // order list
-            let ray_ucp = Ray::from(ucp);
-            for (outcome, order) in solution
-                .limit
-                .iter()
-                .zip(order_list.iter())
-                .filter(|(outcome, _)| outcome.is_filled())
-            {
-                // Calculate our final amounts based on whether the order is in T0 or T1 context
-                let inverse_order = order.is_bid() == order.exact_in();
-                assert_eq!(outcome.id.hash, order.order_id.hash);
-                let (t0_moving, t1_moving) = if inverse_order {
-                    let t1_moving = outcome.fill_amount(order.max_q());
-                    let t0_moving = ray_ucp.inverse_quantity(t1_moving, !order.is_bid());
-                    (U256::from(t0_moving), U256::from(t1_moving))
-                } else {
-                    let t0_moving = U256::from(outcome.fill_amount(order.max_q()));
-                    let t1_moving = Ray::from(ucp).mul_quantity(t0_moving);
-                    (t0_moving, t1_moving)
-                };
-
-                let (quantity_in, quantity_out) =
-                    if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
-                // Account for our user order
-                let (asset_in, asset_out) = if order.is_bid { (*t1, *t0) } else { (*t0, *t1) };
-                asset_builder.external_swap(
-                    AssetBuilderStage::UserOrder,
-                    asset_in,
-                    asset_out,
-                    quantity_in.to(),
-                    quantity_out.to()
-                );
-                user_orders.push(UserOrder::from_internal_order(
-                    order,
-                    outcome,
-                    delegated_amount_in_token_0,
-                    pair_idx as u16
-                )?);
-            }
+            // Call our processing function with a fixed amount of shared gas
+            Self::process_solution(
+                &mut pairs,
+                &mut asset_builder,
+                &mut user_orders,
+                &orders_by_pool,
+                &mut top_of_block_orders,
+                &mut pool_updates,
+                solution,
+                snapshot,
+                *t0,
+                *t1,
+                *store_index,
+                shared_gas
+            )?;
         }
         Ok(Self::new(
             asset_builder.get_asset_array(),

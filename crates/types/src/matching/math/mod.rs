@@ -77,7 +77,7 @@ pub fn amm_debt_same_move_solve(
 
     let solution = quadratic_solve(a, b, c, precision);
     println!("Got solutions: {:?}", solution);
-    let answer = solution
+    solution
         .0
         .filter(|i| match direction {
             Direction::BuyingT0 => *i <= Integer::ZERO,
@@ -94,8 +94,7 @@ pub fn amm_debt_same_move_solve(
             .map(|i| resolve_precision(precision, i, RoundingMode::Ceiling))
             .filter(|i| *i < quantity_moved))
         // If nothing else works, we can presume it all goes to the AMM?
-        .unwrap_or(quantity_moved);
-    answer
+        .unwrap_or(quantity_moved)
 }
 
 /// Given an AMM with a constant liquidity and a debt, this will find the
@@ -147,7 +146,38 @@ pub fn price_intersect_solve(
     debug!(c = ?c, "C factor");
 
     let solution = quadratic_solve(a, b, c, precision);
-    solution.0.or(solution.1).unwrap()
+    // Use the direction to find the best possible solution
+    // If we're BuyingT0 we want to find the smallest negative number possible
+    // If we're SellingT0 we want to find the smallest positive number possible
+    match (direction, solution) {
+        (_, (None, None)) => panic!("No valid answer to a quadratic solve"),
+        // If there's only one valid answer, we just return that
+        (_, (Some(a), None)) | (_, (None, Some(a))) => a,
+        (Direction::BuyingT0, (Some(a), Some(b))) => {
+            if a <= Integer::ZERO {
+                if b <= Integer::ZERO {
+                    // They're both negative, we want the number with the lowest magnitude
+                    std::cmp::max(a, b)
+                } else {
+                    a
+                }
+            } else {
+                b
+            }
+        }
+        (Direction::SellingT0, (Some(a), Some(b))) => {
+            if a >= Integer::ZERO {
+                if b >= Integer::ZERO {
+                    // They're both positive, we want the number with the lowest magnitude
+                    std::cmp::min(a, b)
+                } else {
+                    a
+                }
+            } else {
+                b
+            }
+        }
+    }
 }
 
 pub fn quadratic_solve(
