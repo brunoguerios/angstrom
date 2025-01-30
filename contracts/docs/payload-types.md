@@ -171,10 +171,12 @@ enum RewardsUpdate {
     MultiTick {
         start_tick: i24,
         start_liquidity: u128,
-        quantities: List<u128>
+        quantities: List<u128>,
+        reward_checksum: u160
     },
     CurrentOnly {
-        amount: u128
+        amount: u128,
+        expected_liquidity: u128
     }
 }
 ```
