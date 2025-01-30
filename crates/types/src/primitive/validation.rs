@@ -22,3 +22,4 @@ impl<T: Into<Self>, E: std::error::Error> From<Result<T, E>> for OrderPoolNewOrd
         }
     }
 }
+//
