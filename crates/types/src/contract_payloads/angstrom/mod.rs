@@ -418,7 +418,16 @@ impl AngstromBundle {
         shared_gas: Option<U256>
     ) -> eyre::Result<()> {
         // Dump the solution
-        let json = serde_json::to_string(&solution).unwrap();
+        let json = serde_json::to_string(&(
+            solution,
+            orders_by_pool,
+            snapshot,
+            t0,
+            t1,
+            store_index,
+            shared_gas
+        ))
+        .unwrap();
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw solution data");
 

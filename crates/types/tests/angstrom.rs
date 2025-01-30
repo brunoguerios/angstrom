@@ -1,11 +1,10 @@
 // Tests around building the Angstrom bundle
 
-use std::collections::HashMap;
+mod solutionlib;
 
-use alloy::primitives::{Address, FixedBytes};
-use angstrom_types::{
-    contract_payloads::angstrom::AngstromBundle, matching::uniswap::PoolSnapshot
-};
+use angstrom_types::contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder};
+use base64::Engine;
+use solutionlib::WORKING;
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
@@ -20,7 +19,30 @@ pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
 #[test]
 fn build_bundle() {
     with_tracing(|| {
-        let pools: HashMap<FixedBytes<32>, (Address, Address, PoolSnapshot, u16)> = HashMap::new();
-        AngstromBundle::for_gas_finalization(vec![], vec![], &pools);
+        let bytes = base64::prelude::BASE64_STANDARD.decode(WORKING).unwrap();
+        let (solution, orders_by_pool, snapshot, t0, t1, store_index, shared_gas) =
+            serde_json::from_slice(&bytes).unwrap();
+
+        let mut top_of_block_orders = Vec::new();
+        let mut pool_updates = Vec::new();
+        let mut pairs = Vec::new();
+        let mut user_orders = Vec::new();
+        let mut asset_builder = AssetBuilder::new();
+
+        AngstromBundle::process_solution(
+            &mut pairs,
+            &mut asset_builder,
+            &mut user_orders,
+            &orders_by_pool,
+            &mut top_of_block_orders,
+            &mut pool_updates,
+            &solution,
+            &snapshot,
+            t0,
+            t1,
+            store_index,
+            shared_gas
+        )
+        .expect("Bundle processing failed");
     })
 }
