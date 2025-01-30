@@ -209,6 +209,7 @@ fn cmp_total_supply_vs_demand(
     } else {
         Some(false)
     };
+
     (
         (total_supply > total_demand)
             .then_some(true)
