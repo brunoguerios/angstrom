@@ -9,6 +9,7 @@
 /// matching strategy could be.
 use crate::{book::OrderBook, matcher::VolumeFillMatcher};
 
+mod binary_search;
 mod simplecheckpoint;
 pub use simplecheckpoint::SimpleCheckpointStrategy;
 

@@ -1,3 +1,4 @@
+mod binary_search;
 mod volume;
 use angstrom_types::{
     matching::SqrtPriceX96,

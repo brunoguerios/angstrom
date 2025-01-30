@@ -1,8 +1,12 @@
 //! basic book impl so we can benchmark
+use alloy_primitives::U256;
 use angstrom_types::{
     matching::uniswap::PoolSnapshot,
     primitive::PoolId,
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::{
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        Ray
+    }
 };
 
 use self::sort::SortStrategy;
@@ -49,6 +53,24 @@ impl OrderBook {
 
     pub fn amm(&self) -> Option<&PoolSnapshot> {
         self.amm.as_ref()
+    }
+
+    pub fn lowest_clearing_price(&self) -> Ray {
+        self.bids()
+            .iter()
+            .map(|bid| bid.price())
+            .chain(self.asks().iter().map(|ask| ask.price()))
+            .min()
+            .unwrap_or_default()
+    }
+
+    pub fn highest_clearing_price(&self) -> Ray {
+        self.bids()
+            .iter()
+            .map(|bid| bid.price())
+            .chain(self.asks().iter().map(|ask| ask.price()))
+            .max()
+            .unwrap_or(Ray::from(U256::MAX))
     }
 }
 

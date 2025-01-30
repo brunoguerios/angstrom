@@ -8,7 +8,10 @@ use super::{
     poolprice::PoolPrice,
     Tick
 };
-use crate::matching::{math::low_to_high, SqrtPriceX96};
+use crate::{
+    matching::{math::low_to_high, uniswap::PoolPriceVec, SqrtPriceX96},
+    sol_bindings::Ray
+};
 
 /// Snapshot of a particular Uniswap pool and a map of its liquidity.
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -125,5 +128,23 @@ impl PoolSnapshot {
 
     pub fn liquidity_at_tick(&self, tick: Tick) -> Option<u128> {
         self.get_range_for_tick(tick).map(|range| range.liquidity())
+    }
+
+    /// will return the amount of t0 if we are a bid, if an ask, will return t1
+    pub fn get_quantity_to_price(&self, price: Ray) -> Option<u128> {
+        let end_price = SqrtPriceX96::from(price);
+        let start_price = self.sqrt_price_x96;
+
+        let is_bid = start_price < end_price;
+        // grab deltas
+        let price_vec =
+            PoolPriceVec::new(self.at_price(start_price).ok()?, self.at_price(end_price).ok()?);
+
+        // if we are a bid, we are buying t0
+        if is_bid {
+            Some(price_vec.d_t0)
+        } else {
+            Some(price_vec.d_t1)
+        }
     }
 }
