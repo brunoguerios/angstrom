@@ -19,7 +19,14 @@ impl<'a> BinarySearchMatcher<'a> {
     fn fetch_concentrated_liquidity(&self, price: Ray) -> Ray {
         let Some(book) = self.book.amm() else { return Ray::default() };
         let Some(am) = book.get_quantity_to_price(price) else { return Ray::default() };
-        Ray::scale_to_ray(U256::from(am))
+        let is_bid = book.is_bid(price);
+        let mut scaled = Ray::scale_to_ray(U256::from(am));
+        // if its a bid, we need to convert to ask value
+        if is_bid {
+            scaled.div_ray_assign(price);
+        }
+
+        scaled
     }
 
     // supply
@@ -162,7 +169,7 @@ impl<'a> BinarySearchMatcher<'a> {
         return cmp_total_supply_vs_demand(total_supply, total_demand);
     }
 
-    pub fn solve_clearing_price(&self) -> Ray {
+    pub fn solve_clearing_price(&self) -> Option<Ray> {
         let ep = Ray::from(U256::from(1));
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
         let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
@@ -189,12 +196,13 @@ impl<'a> BinarySearchMatcher<'a> {
                 p_min = p_mid
             } else {
                 println!("solved based on sup, demand");
-                return p_mid
+                return Some(p_mid)
             }
             println!("min: {p_min:?} max: {p_max:?}");
         }
 
-        (p_max + p_min) / two
+        None
+        // (p_max + p_min) / two
     }
 }
 
@@ -273,7 +281,7 @@ pub mod test {
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         println!("{:#?}", book);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
+        let ucp = matcher.solve_clearing_price().unwrap();
         let bid = bid_price.inv_ray_round(true);
         assert!(
             ucp == bid,
@@ -302,7 +310,7 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
+        let ucp = matcher.solve_clearing_price().unwrap();
         assert!(
             ucp == low_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {low_price:?}"
@@ -332,7 +340,7 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
+        let ucp = matcher.solve_clearing_price().unwrap();
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
@@ -363,7 +371,7 @@ pub mod test {
 
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
+        let ucp = matcher.solve_clearing_price().unwrap();
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
@@ -397,7 +405,8 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
+        let ucp = matcher.solve_clearing_price().unwrap();
+
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
@@ -426,7 +435,7 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
+        let ucp = matcher.solve_clearing_price().unwrap();
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"

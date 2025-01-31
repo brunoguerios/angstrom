@@ -130,6 +130,13 @@ impl PoolSnapshot {
         self.get_range_for_tick(tick).map(|range| range.liquidity())
     }
 
+    pub fn is_bid(&self, price: Ray) -> bool {
+        let end_price = SqrtPriceX96::from(price);
+        let start_price = self.sqrt_price_x96;
+
+        start_price < end_price
+    }
+
     /// will return the amount of t0 if we are a bid, if an ask, will return t1
     pub fn get_quantity_to_price(&self, price: Ray) -> Option<u128> {
         let end_price = SqrtPriceX96::from(price);
@@ -140,7 +147,6 @@ impl PoolSnapshot {
         let price_vec =
             PoolPriceVec::new(self.at_price(start_price).ok()?, self.at_price(end_price).ok()?);
 
-        // if we are a bid, we are buying t0
         if is_bid {
             Some(price_vec.d_t0)
         } else {
