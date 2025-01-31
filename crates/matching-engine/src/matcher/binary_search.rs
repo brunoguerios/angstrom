@@ -171,9 +171,14 @@ impl<'a> BinarySearchMatcher<'a> {
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
     fn calculate_solver_move(&self, p_mid: Ray) -> Option<bool> {
-        let (total_supply, _) = self.total_supply_at_price(p_mid);
-        let (total_demand, _) = self.total_demand_at_price(p_mid);
-        return cmp_total_supply_vs_demand(total_supply, total_demand);
+        let (total_supply, sub_sup) = self.total_supply_at_price(p_mid);
+        let (total_demand, sub_demand) = self.total_demand_at_price(p_mid);
+        return cmp_total_supply_vs_demand(
+            total_supply,
+            total_demand,
+            sub_sup.unwrap_or_default(),
+            sub_demand.unwrap_or_default()
+        );
     }
 
     pub fn solve_clearing_price(&self) -> Option<Ray> {
@@ -207,8 +212,22 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 }
 
-fn cmp_total_supply_vs_demand(total_supply: Ray, total_demand: Ray) -> Option<bool> {
+fn cmp_total_supply_vs_demand(
+    total_supply: Ray,
+    total_demand: Ray,
+    sub_sup: Ray,
+    sub_dem: Ray
+) -> Option<bool> {
     println!("sup: {:#?} demand: {:#?}", total_supply, total_demand);
+
+    // if we can subtract the extra supply or demand and flip the equality, we have
+    // reached ucp
+    if (total_supply >= total_demand && (total_supply - sub_sup) <= total_demand)
+        || (total_supply <= total_demand && (total_demand - sub_dem) <= total_supply)
+    {
+        println!("solved partial fill");
+        return None
+    }
 
     (total_supply > total_demand)
         .then_some(true)
@@ -279,18 +298,18 @@ pub mod test {
     #[test]
     fn ask_outweighs_bid_sets_price() {
         let pool_id = PoolId::random();
-        let high_price = Ray::from(Uint::from(1_000_000_000_u128)).inv_ray_round(true);
+        let high_price = Ray::from(Uint::from(1_000_000_000_u128));
         let low_price = Ray::from(Uint::from(1_000_u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
             .amount(10)
-            .min_price(high_price)
+            .bid_min_price(high_price)
             .with_storage()
             .bid()
             .build();
         let ask_order = UserOrderBuilder::new()
             .partial()
-            .amount(10)
+            .amount(100)
             .min_price(low_price)
             .with_storage()
             .ask()
@@ -338,6 +357,7 @@ pub mod test {
     fn solve_bid_ex_in_ask_ex_out() {
         let pool_id = PoolId::random();
         let high_price = Ray::from(Uint::from(1_000_000_000_u128));
+
         let bid_order = UserOrderBuilder::new()
             .exact()
             .amount(100)
@@ -368,13 +388,13 @@ pub mod test {
     #[test]
     fn basic_solve_of_exact_orders_exact_out() {
         let pool_id = PoolId::random();
-        let high_price = Ray::from(Uint::from(100u128));
+        let high_price = Ray::from(Uint::from(100_000_000_000_000u128));
         // both exact out so bid is 100 y
 
         // demand
         let bid_order = UserOrderBuilder::new()
             .exact()
-            .amount(100)
+            .amount(100_000_000_000_000)
             .exact_in(false)
             .min_price(high_price)
             .with_storage()
@@ -384,7 +404,7 @@ pub mod test {
         // supply
         let ask_order = UserOrderBuilder::new()
             .exact()
-            .amount(1)
+            .amount(10)
             .exact_in(false)
             .min_price(high_price)
             .with_storage()
@@ -403,19 +423,19 @@ pub mod test {
     #[test]
     fn basic_solve_of_exact_orders_exact_in() {
         let pool_id = PoolId::random();
-        let high_price = Ray::from(Uint::from(1_000_000_000_u128));
+        let high_price = Ray::from(Uint::from(100_000_000_000_000u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
-            .amount(100)
-            .exact_in(false)
+            .amount(10)
+            .exact_in(true)
             .min_price(high_price)
             .with_storage()
             .bid()
             .build();
         let ask_order = UserOrderBuilder::new()
             .exact()
-            .amount(100)
-            .exact_in(false)
+            .amount(100_000_000_000_000)
+            .exact_in(true)
             .min_price(high_price)
             .with_storage()
             .ask()
