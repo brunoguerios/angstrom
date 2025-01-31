@@ -78,3 +78,13 @@ pub mod position_fetcher {
         "../../contracts/out/PositionFetcher.sol/PositionFetcher.json"
     );
 }
+#[rustfmt::skip]
+pub mod position_manager {
+    alloy::sol!(
+        #[allow(missing_docs)]
+        #[sol(rpc, abi)]
+        #[derive(Debug, Default, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
+        PositionManager,
+        "../../contracts/out/PositionManager.sol/PositionManager.json"
+    );
+}
