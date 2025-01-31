@@ -70,7 +70,7 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let controller_v1 = ControllerV1Instance::new(
+        let _controller_v1 = ControllerV1Instance::new(
             angstrom_env.controller_v1(),
             angstrom_env.provider().clone()
         );
@@ -220,6 +220,7 @@ impl AnvilInitializer {
                 pool_key.currency0,
                 pool_key.currency1,
                 pool_key.tickSpacing.as_i32() as u16,
+                pool_key.fee,
                 pool_key.fee
             )
             .from(self.provider.controller())

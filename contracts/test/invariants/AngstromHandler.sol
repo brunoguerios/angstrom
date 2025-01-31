@@ -138,12 +138,14 @@ contract AngstromHandler is BaseTest {
         uint256 asset0Index,
         uint256 asset1Index,
         int24 tickSpacing,
-        uint24 feeInE6,
+        uint24 bundleFee,
+        uint24 unlockedFee,
         uint160 startSqrtPriceX96
     ) public {
         asset0Index = bound(asset0Index, 0, e.assets.length - 1);
         asset1Index = bound(asset1Index, 0, e.assets.length - 1);
-        feeInE6 = uint24(bound(feeInE6, 0, MAX_FEE));
+        bundleFee = boundE6(bundleFee);
+        unlockedFee = boundE6(unlockedFee);
         startSqrtPriceX96 =
             uint160(bound(startSqrtPriceX96, TickMath.MIN_SQRT_PRICE, TickMath.MAX_SQRT_PRICE));
         if (asset0Index == asset1Index) {
@@ -165,7 +167,9 @@ contract AngstromHandler is BaseTest {
         address mirror1 = address(e.mirrors[asset1Index]);
 
         vm.prank(e.controller);
-        e.angstrom.configurePool(asset0, asset1, uint16(uint24(tickSpacing)), feeInE6);
+        e.angstrom.configurePool(
+            asset0, asset1, uint16(uint24(tickSpacing)), bundleFee, unlockedFee
+        );
 
         _enabledAssets.add(asset0);
         _enabledAssets.add(asset1);

@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {PoolRewardsHandler} from "../invariants/pool-rewards/PoolRewardsHandler.sol";
-import {POOL_FEE} from "src/Constants.sol";
 
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/src/types/PoolId.sol";
@@ -59,7 +58,7 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         id = PoolIdLibrary.toId(poolKey());
 
         vm.prank(gov);
-        angstrom.configurePool(address(asset0), address(asset1), uint16(uint24(TICK_SPACING)), 0);
+        angstrom.configurePool(address(asset0), address(asset1), uint16(uint24(TICK_SPACING)), 0, 0);
 
         gate.setHook(address(angstrom));
         angstrom.initializePool(
@@ -73,26 +72,22 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
     }
 
     function test_addOverExistingPosition() public {
-        console.log("1");
         address lp = makeAddr("lp");
         uint128 liq1 = 1e21;
         handler.addLiquidity(lp, -180, 180, liq1);
 
         assertEq(positionRewards(lp, -180, 180, liq1), 0);
 
-        console.log("2");
         uint128 amount1 = 23.872987e18;
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount1})));
 
         assertApproxEqAbs(positionRewards(lp, -180, 180, liq1), amount1, 1);
 
-        console.log("3");
         uint128 liq2 = 1.5e21;
         handler.addLiquidity(lp, -180, 180, liq2);
         assertApproxEqAbs(positionRewards(lp, -180, 180, liq1 + liq2), amount1, 1);
 
-        console.log("4");
         uint128 amount2 = 4.12e18;
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount2})));
