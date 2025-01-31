@@ -15,6 +15,8 @@ import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
 
+// to force compile
+import {IPositionDescriptor} from "v4-periphery/src/interfaces/IPositionDescriptor.sol";
 import {console} from "forge-std/console.sol";
 
 /// @author philogy <https://github.com/philogy>
@@ -35,7 +37,9 @@ contract AngstromTest is BaseTest {
 
     function setUp() public {
         uni = new PoolManager(address(0));
-        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
+        angstrom = Angstrom(
+            deployAngstrom(type(Angstrom).creationCode, uni, controller)
+        );
         domainSeparator = computeDomainSeparator(address(angstrom));
 
         vm.prank(controller);
@@ -106,7 +110,9 @@ contract AngstromTest is BaseTest {
         bundle.assets[1].take += 10.0e18;
         bundle.assets[1].settle += 10.0e18;
 
-        bytes memory payload = bundle.encode(rawGetConfigStore(address(angstrom)));
+        bytes memory payload = bundle.encode(
+            rawGetConfigStore(address(angstrom))
+        );
         vm.prank(node);
         angstrom.execute(payload);
     }

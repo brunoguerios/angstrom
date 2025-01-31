@@ -70,7 +70,7 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let _controller_v1 = ControllerV1Instance::new(
+        let controller_v1 = ControllerV1Instance::new(
             angstrom_env.controller_v1(),
             angstrom_env.provider().clone()
         );
