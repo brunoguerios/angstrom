@@ -81,6 +81,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             .filter(|ask| ask.is_partial())
             .filter_map(|ask| {
+                // if we are on the exact, we can partial
                 if price == ask.price() {
                     let (max, min) = match &ask.order {
                         GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
@@ -91,9 +92,11 @@ impl<'a> BinarySearchMatcher<'a> {
                         }
                         _ => panic!("not valid")
                     };
+                    let (max, min) =
+                        (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
+                    additional = Some(max - min);
 
-                    additional = Some(Ray::scale_to_ray(U256::from(max - min)));
-                    Some(Ray::scale_to_ray(U256::from(min)))
+                    Some(min)
                 } else if price > ask.price() {
                     Some(Ray::scale_to_ray(U256::from(ask.amount())))
                 } else {
@@ -114,6 +117,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             .filter(|bid| bid.is_partial())
             .filter_map(|bid| {
+                // if we are on the exact, we can partial
                 if price == bid.price() {
                     let (max, min) = match &bid.order {
                         GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
@@ -124,10 +128,11 @@ impl<'a> BinarySearchMatcher<'a> {
                         }
                         _ => panic!("not valid")
                     };
+                    let (max, min) =
+                        (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
+                    additional = Some(max.div_ray(price) - min.div_ray(price));
 
-                    additional = Some(Ray::scale_to_ray(U256::from(max - min)));
-
-                    Some(Ray::scale_to_ray(U256::from(min)).div_ray(price))
+                    Some(min.div_ray(price))
                 } else if price < bid.price().inv_ray() {
                     Some(Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
                 } else {
@@ -163,7 +168,7 @@ impl<'a> BinarySearchMatcher<'a> {
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
-    fn calculate_solver_move(&self, p_mid: Ray) -> (Option<bool>, Option<bool>) {
+    fn calculate_solver_move(&self, p_mid: Ray) -> Option<bool> {
         let (total_supply, _) = self.total_supply_at_price(p_mid);
         let (total_demand, _) = self.total_demand_at_price(p_mid);
         return cmp_total_supply_vs_demand(total_supply, total_demand);
@@ -176,19 +181,13 @@ impl<'a> BinarySearchMatcher<'a> {
 
         println!("min: {p_min:?} max: {p_max:?}");
 
-        //  if demand == zero, we round up; if supply == zero, we round down,
-        // if eq, this is none;
-        // demand == zero => Some(true), sup == zero => Some(false)
-        // let mut round_up: Option<bool> = None;
-
         let two = U256::from(2);
         while (p_max - p_min) > ep {
             // grab all supply and demand
             let p_mid = Ray::from((p_max + p_min) / two);
             println!("solving clearing price iter price = {p_mid:?}");
 
-            let (res, _round_up_next) = self.calculate_solver_move(p_mid);
-            // round_up = round_up_next;
+            let res = self.calculate_solver_move(p_mid);
 
             if res == Some(true) {
                 p_max = p_mid;
@@ -206,26 +205,12 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 }
 
-fn cmp_total_supply_vs_demand(
-    total_supply: Ray,
-    total_demand: Ray
-) -> (Option<bool>, Option<bool>) {
+fn cmp_total_supply_vs_demand(total_supply: Ray, total_demand: Ray) -> Option<bool> {
     println!("sup: {:#?} demand: {:#?}", total_supply, total_demand);
 
-    let rounding = if !(total_demand.is_zero() || total_supply.is_zero()) {
-        None
-    } else if total_demand.is_zero() {
-        Some(true)
-    } else {
-        Some(false)
-    };
-
-    (
-        (total_supply > total_demand)
-            .then_some(true)
-            .or_else(|| (total_supply < total_demand).then_some(false)),
-        rounding
-    )
+    (total_supply > total_demand)
+        .then_some(true)
+        .or_else(|| (total_supply < total_demand).then_some(false))
 }
 
 #[derive(Debug, Default)]
