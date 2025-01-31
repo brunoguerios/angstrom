@@ -3,6 +3,7 @@ use angstrom_types::sol_bindings::{
     grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
     RawPoolOrder, Ray
 };
+use rand_distr::num_traits::Zero;
 
 use crate::OrderBook;
 
@@ -96,7 +97,7 @@ impl<'a> BinarySearchMatcher<'a> {
                         (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
                     additional = Some(max - min);
 
-                    Some(min)
+                    Some(max)
                 } else if price > ask.price() {
                     Some(Ray::scale_to_ray(U256::from(ask.amount())))
                 } else {
@@ -128,11 +129,12 @@ impl<'a> BinarySearchMatcher<'a> {
                         }
                         _ => panic!("not valid")
                     };
+
                     let (max, min) =
                         (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
                     additional = Some(max.div_ray(price) - min.div_ray(price));
 
-                    Some(min.div_ray(price))
+                    Some(max.div_ray(price))
                 } else if price < bid.price().inv_ray() {
                     Some(Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
                 } else {
@@ -251,7 +253,7 @@ pub mod test {
 
         let bid_order = UserOrderBuilder::new()
             .partial()
-            .amount(100)
+            .amount(10)
             .min_price(bid_price)
             .with_storage()
             .bid()
