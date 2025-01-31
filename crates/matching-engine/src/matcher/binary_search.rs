@@ -356,6 +356,8 @@ pub mod test {
     #[test]
     fn solve_bid_ex_in_ask_ex_out() {
         let pool_id = PoolId::random();
+
+        // 0.000000000000000001
         let high_price = Ray::from(Uint::from(1_000_000_000_u128));
 
         let bid_order = UserOrderBuilder::new()
@@ -388,6 +390,7 @@ pub mod test {
     #[test]
     fn basic_solve_of_exact_orders_exact_out() {
         let pool_id = PoolId::random();
+        // 0.0000000000001 rate
         let high_price = Ray::from(Uint::from(100_000_000_000_000u128));
         // both exact out so bid is 100 y
 
@@ -423,6 +426,7 @@ pub mod test {
     #[test]
     fn basic_solve_of_exact_orders_exact_in() {
         let pool_id = PoolId::random();
+        // 0.0000000000001 rate
         let high_price = Ray::from(Uint::from(100_000_000_000_000u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
