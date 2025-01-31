@@ -22,6 +22,7 @@ impl<'a> BinarySearchMatcher<'a> {
         Ray::scale_to_ray(U256::from(am))
     }
 
+    // supply
     fn fetch_exact_in_ask_orders(&self, price: Ray) -> Ray {
         // grab all exact in ask orders where price >= limit price and then get y_in
         self.book
@@ -32,6 +33,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
+    // supply
     fn fetch_exact_out_ask_orders(&self, price: Ray) -> Ray {
         self.book
             .asks()
@@ -41,23 +43,25 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
+    // demand
     fn fetch_exact_in_bid_orders(&self, price: Ray) -> Ray {
         self.book
             .bids()
             .iter()
             // price is inv given price is always t0 / t1
-            .filter(|bid| price <= bid.price().inv_ray() && bid.exact_in())
+            .filter(|bid| price <= bid.price().inv_ray_round(true) && bid.exact_in())
             .map(|bid| Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
             .sum()
     }
 
+    // demand
     fn fetch_exact_out_bid_orders(&self, price: Ray) -> Ray {
         self.book
             .bids()
             .iter()
             // price is inv given price is always t0 / t1
-            .filter(|bid| price <= bid.price().inv_ray() && !bid.exact_in())
-            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount())).mul_ray(price))
+            .filter(|bid| price <= bid.price().inv_ray_round(true) && !bid.exact_in())
+            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount())))
             .sum()
     }
 
@@ -116,9 +120,9 @@ impl<'a> BinarySearchMatcher<'a> {
 
                     additional = Some(Ray::scale_to_ray(U256::from(max - min)));
 
-                    Some(Ray::scale_to_ray(U256::from(min)))
+                    Some(Ray::scale_to_ray(U256::from(min)).div_ray(price))
                 } else if price < bid.price().inv_ray() {
-                    Some(Ray::scale_to_ray(U256::from(bid.amount())))
+                    Some(Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
                 } else {
                     None
                 }
@@ -280,18 +284,18 @@ pub mod test {
     #[test]
     fn ask_outweighs_bid_sets_price() {
         let pool_id = PoolId::random();
-        let high_price = Ray::from(Uint::from(1_000_000_000_u128));
+        let high_price = Ray::from(Uint::from(1_000_000_000_u128)).inv_ray_round(true);
         let low_price = Ray::from(Uint::from(1_000_u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
             .amount(10)
-            .bid_min_price(high_price)
+            .min_price(high_price)
             .with_storage()
             .bid()
             .build();
         let ask_order = UserOrderBuilder::new()
             .partial()
-            .amount(100)
+            .amount(10)
             .min_price(low_price)
             .with_storage()
             .ask()
@@ -306,17 +310,18 @@ pub mod test {
     }
 
     #[test]
-    fn basic_solve_of_exact_orders_exact_in() {
+    fn solve_bid_ex_out_ask_ex_in() {
         let pool_id = PoolId::random();
         let high_price = Ray::from(Uint::from(1_000_000_000_u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
             .amount(100)
-            .exact_in(true)
+            .exact_in(false)
             .min_price(high_price)
             .with_storage()
             .bid()
             .build();
+
         let ask_order = UserOrderBuilder::new()
             .exact()
             .amount(100)
@@ -335,7 +340,72 @@ pub mod test {
     }
 
     #[test]
+    fn solve_bid_ex_in_ask_ex_out() {
+        let pool_id = PoolId::random();
+        let high_price = Ray::from(Uint::from(1_000_000_000_u128));
+        let bid_order = UserOrderBuilder::new()
+            .exact()
+            .amount(100)
+            .exact_in(true)
+            .min_price(high_price)
+            .with_storage()
+            .bid()
+            .build();
+
+        let ask_order = UserOrderBuilder::new()
+            .exact()
+            .amount(100)
+            .exact_in(false)
+            .min_price(high_price)
+            .with_storage()
+            .ask()
+            .build();
+
+        let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
+        let matcher = BinarySearchMatcher::new(&book);
+        let ucp = matcher.solve_clearing_price();
+        assert!(
+            ucp == high_price,
+            "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
+        );
+    }
+
+    #[test]
     fn basic_solve_of_exact_orders_exact_out() {
+        let pool_id = PoolId::random();
+        let high_price = Ray::from(Uint::from(100u128));
+        // both exact out so bid is 100 y
+
+        // demand
+        let bid_order = UserOrderBuilder::new()
+            .exact()
+            .amount(100)
+            .exact_in(false)
+            .min_price(high_price)
+            .with_storage()
+            .bid()
+            .build();
+
+        // supply
+        let ask_order = UserOrderBuilder::new()
+            .exact()
+            .amount(1)
+            .exact_in(false)
+            .min_price(high_price)
+            .with_storage()
+            .ask()
+            .build();
+        let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
+        let matcher = BinarySearchMatcher::new(&book);
+        let ucp = matcher.solve_clearing_price();
+        assert!(
+            ucp == high_price,
+            "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
+        );
+    }
+
+    #[test]
+    fn basic_solve_of_exact_orders_exact_in() {
         let pool_id = PoolId::random();
         let high_price = Ray::from(Uint::from(1_000_000_000_u128));
         let bid_order = UserOrderBuilder::new()
