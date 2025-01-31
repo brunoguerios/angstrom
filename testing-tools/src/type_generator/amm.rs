@@ -74,6 +74,16 @@ impl AMMSnapshotBuilder {
     }
 }
 
+pub fn generate_amm_with_liquidity(
+    tick_low: i32,
+    tick_high: i32,
+    liquidity: u128,
+    price: SqrtPriceX96
+) -> PoolSnapshot {
+    let ranges = vec![LiqRange::new(tick_low, tick_high, liquidity).unwrap()];
+    PoolSnapshot::new(ranges, price).unwrap()
+}
+
 pub fn generate_single_position_amm_at_tick(mid: i32, width: i32, liquidity: u128) -> PoolSnapshot {
     let amm_price = SqrtPriceX96::from(get_sqrt_ratio_at_tick(mid + 1).unwrap());
     let lower_tick = mid - width;

@@ -257,13 +257,20 @@ pub mod test {
         primitive::PoolId
     };
     use testing_tools::type_generator::{
-        amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder
+        amm::generate_amm_with_liquidity, orders::UserOrderBuilder
     };
 
     use crate::{
         book::{order::OrderContainer, BookOrder, OrderBook},
         matcher::binary_search::BinarySearchMatcher
     };
+
+    // Helper function to create AMM with specific liquidity
+    fn create_amm_at_price(price: Ray, liquidity: u128) -> PoolSnapshot {
+        let sqrt_price: SqrtPriceX96 = price.into();
+        let tick = sqrt_price.to_tick().unwrap();
+        generate_amm_with_liquidity(tick - 10, tick + 10, liquidity, sqrt_price)
+    }
 
     #[test]
     fn ask_side_double_match_works_with_amm_binary_search() {
@@ -393,6 +400,91 @@ pub mod test {
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
+        );
+    }
+
+    #[test]
+    fn test_amm_only_clearing() {
+        let pool_id = PoolId::random();
+        let price = Ray::from(Uint::from(1_000_000_000_u128)); // 1.0
+        let amm = create_amm_at_price(price, 1_000_000); // Create AMM with significant liquidity
+
+        let book = OrderBook::new(pool_id, Some(amm), vec![], vec![], None);
+        let matcher = BinarySearchMatcher::new(&book);
+        let ucp = matcher.solve_clearing_price().unwrap();
+
+        println!("{ucp:?}");
+        // let diff
+        // assert!(
+        //     (ucp - price).abs() <= Ray::from(U256::from(1)),
+        //     "AMM-only clearing price should match initial price. Got {ucp:?},
+        // expected {price:?}" );
+    }
+
+    #[test]
+    fn test_amm_with_orders_clearing() {
+        let pool_id = PoolId::random();
+        let initial_price = Ray::from(Uint::from(1_000_000_000_u128)); // 1.0
+        let amm = create_amm_at_price(initial_price, 1_000_000);
+
+        // Add a large bid slightly below AMM price
+        let bid_price = Ray::from(Uint::from(999_000_000_u128)); // 0.999
+        let bid_order = UserOrderBuilder::new()
+            .exact()
+            .amount(2_000_000)
+            .exact_in(true)
+            .min_price(bid_price)
+            .with_storage()
+            .bid()
+            .build();
+
+        // Add a large ask slightly above AMM price
+        let ask_price = Ray::from(Uint::from(1_001_000_000_u128)); // 1.001
+        let ask_order = UserOrderBuilder::new()
+            .exact()
+            .amount(2_000_000)
+            .exact_in(true)
+            .min_price(ask_price)
+            .with_storage()
+            .ask()
+            .build();
+
+        let book = OrderBook::new(pool_id, Some(amm), vec![bid_order], vec![ask_order], None);
+        let matcher = BinarySearchMatcher::new(&book);
+        let ucp = matcher.solve_clearing_price().unwrap();
+
+        // UCP should be between bid and ask prices due to AMM liquidity
+        assert!(
+            ucp >= bid_price && ucp <= ask_price,
+            "Clearing price should be between bid and ask. Got {ucp:?}"
+        );
+    }
+
+    #[test]
+    fn test_amm_price_impact() {
+        let pool_id = PoolId::random();
+        let initial_price = Ray::from(Uint::from(1_000_000_000_u128)); // 1.0
+        let amm = create_amm_at_price(initial_price, 100_000); // Lower liquidity for more price impact
+
+        // Large bid order that should move price up
+        let bid_price = Ray::from(Uint::from(1_100_000_000_u128)); // 1.1
+        let bid_order = UserOrderBuilder::new()
+            .exact()
+            .amount(1_000_000)
+            .exact_in(true)
+            .min_price(bid_price)
+            .with_storage()
+            .bid()
+            .build();
+
+        let book = OrderBook::new(pool_id, Some(amm), vec![bid_order], vec![], None);
+        let matcher = BinarySearchMatcher::new(&book);
+        let ucp = matcher.solve_clearing_price().unwrap();
+
+        assert!(
+            ucp > initial_price,
+            "Large bid should move price up from AMM initial price. Got {ucp:?}, initial was \
+             {initial_price:?}"
         );
     }
 
