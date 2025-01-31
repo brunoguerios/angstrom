@@ -11,7 +11,7 @@ use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
-    primitive::{NewInitializedPool, PeerId, PoolId},
+    primitive::{NewInitializedPool, OrderPoolNewOrderResult, PeerId, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
@@ -27,8 +27,7 @@ use tokio::sync::{
 };
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use validation::order::{
-    state::pools::AngstromPoolsTracker, OrderPoolNewOrderResult, OrderValidationResults,
-    OrderValidatorHandle
+    state::pools::AngstromPoolsTracker, OrderValidationResults, OrderValidatorHandle
 };
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};

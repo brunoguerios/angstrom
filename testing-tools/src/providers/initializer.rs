@@ -14,8 +14,7 @@ use angstrom_types::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
         mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance,
-        pool_manager::PoolManager::PoolManagerInstance
+        pool_gate::PoolGate::PoolGateInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
@@ -41,13 +40,12 @@ use crate::{
 };
 
 pub struct AnvilInitializer {
-    provider:       WalletProvider,
-    angstrom_env:   AngstromEnv<UniswapEnv<WalletProvider>>,
-    _controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
-    angstrom:       AngstromInstance<BoxTransport, WalletProviderRpc>,
-    pool_gate:      PoolGateInstance<BoxTransport, WalletProviderRpc>,
-    _pool_manager:  PoolManagerInstance<BoxTransport, WalletProviderRpc>,
-    pending_state:  PendingDeployedPools
+    provider:      WalletProvider,
+    angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
+    angstrom:      AngstromInstance<BoxTransport, WalletProviderRpc>,
+    pool_gate:     PoolGateInstance<BoxTransport, WalletProviderRpc>,
+    pending_state: PendingDeployedPools
 }
 
 impl AnvilInitializer {
@@ -62,9 +60,6 @@ impl AnvilInitializer {
 
         tracing::info!("deployed UniV4 enviroment");
 
-        let _pool_manager =
-            PoolManagerInstance::new(uniswap_env.pool_manager(), provider.provider().clone());
-
         tracing::debug!("deploying Angstrom enviroment");
         let angstrom_env = AngstromEnv::new(uniswap_env, nodes).await?;
         tracing::info!("deployed Angstrom enviroment");
@@ -75,23 +70,15 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let _controller_v1 = ControllerV1Instance::new(
+        let controller_v1 = ControllerV1Instance::new(
             angstrom_env.controller_v1(),
             angstrom_env.provider().clone()
         );
-        tracing::info!(ang_addr=?angstrom_env.angstrom());
 
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self {
-            provider,
-            _controller_v1,
-            angstrom_env,
-            angstrom,
-            pending_state,
-            _pool_manager,
-            pool_gate
-        };
+        let this =
+            Self { provider, controller_v1, angstrom_env, angstrom, pending_state, pool_gate };
 
         Ok((this, anvil))
     }
@@ -227,8 +214,8 @@ impl AnvilInitializer {
         tracing::info!(?pool_key, ?encoded, ?price);
 
         tracing::debug!("configuring pool");
-        let configure_pool = self
-            .angstrom
+        let controller_configure_pool = self
+            .controller_v1
             .configurePool(
                 pool_key.currency0,
                 pool_key.currency1,
@@ -240,7 +227,7 @@ impl AnvilInitializer {
             .nonce(nonce)
             .deploy_pending()
             .await?;
-        self.pending_state.add_pending_tx(configure_pool);
+        self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
         let i = self
