@@ -145,78 +145,62 @@ impl PoolSnapshot {
         let end_price = SqrtPriceX96::from(price);
         let start_price = self.sqrt_price_x96;
 
-        let is_bid = start_price < end_price;
-        // grab deltas
-        let price_vec =
-            PoolPriceVec::new(self.at_price(start_price).ok()?, self.at_price(end_price).ok()?);
-
-        if is_bid {
-            Some(price_vec.d_t0)
-        } else {
-            Some(price_vec.d_t1)
-        }
+        self.get_deltas(start_price, end_price)
     }
 
-    pub fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
+    fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
         let is_bid = start_price < end_price;
         // fetch ticks for ranges
-        let start_tick = self.current_tick;
+        let start_tick = get_tick_at_sqrt_ratio(start_price.into()).ok()?;
         let end_tick = get_tick_at_sqrt_ratio(end_price.into()).ok()?;
 
-        // we start swapping from
+        // Get all affected liquidity ranges
         let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
 
-        let mut res = 0;
-        let iter = if is_bid { liq_range.into_iter().rev().collect() } else { liq_range };
-        // bid is zero for 1
-        for tick in iter {
-            // bid means that price moving down
-            let is_start_swap = (is_bid && tick.upper_tick == start_tick)
-                || (!is_bid && tick.lower_tick == start_tick);
+        let mut total_delta = 0u128;
 
-            let is_end_swap =
-                (is_bid && tick.lower_tick <= end_tick && tick.upper_tick >= end_tick)
-                    || (!is_bid && tick.upper_tick >= end_tick && tick.lower_tick <= end_tick);
-
-            // grab ratio range
-            let (start, target) = if is_start_swap && is_bid {
-                (self.sqrt_price_x96, SqrtPriceX96::at_tick(tick.lower_tick).ok()?)
-            } else if is_start_swap && !is_bid {
-                (self.sqrt_price_x96, SqrtPriceX96::at_tick(tick.upper_tick).ok()?)
-            } else if is_end_swap && is_bid {
-                (SqrtPriceX96::at_tick(tick.upper_tick).ok()?, end_price)
-            } else if is_end_swap && !is_bid {
-                (SqrtPriceX96::at_tick(tick.lower_tick).ok()?, end_price)
-            } else if is_bid {
-                (
-                    SqrtPriceX96::at_tick(tick.upper_tick).ok()?,
-                    SqrtPriceX96::at_tick(tick.lower_tick).ok()?
-                )
+        for range in &liq_range {
+            let (range_start_price, range_end_price) = if is_bid {
+                let start = start_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
+                let end = end_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
+                (start, end)
             } else {
-                (
-                    SqrtPriceX96::at_tick(tick.lower_tick).ok()?,
-                    SqrtPriceX96::at_tick(tick.upper_tick).ok()?
-                )
+                let start = start_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
+                let end = end_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
+                (start, end)
             };
 
-            if is_start_swap {
-                if is_bid {
-                    res += _get_amount_0_delta(target.into(), start.into(), tick.liquidity, true)
-                        .ok()?
-                        .to::<u128>();
-                } else {
-                    res += _get_amount_1_delta(start.into(), target.into(), tick.liquidity, true)
-                        .ok()?
-                        .to::<u128>();
-                }
+            // Skip if the range is not relevant
+            if (is_bid && range_start_price >= range_end_price)
+                || (!is_bid && range_start_price <= range_end_price)
+            {
+                continue;
             }
 
-            if is_bid {
+            let delta = if is_bid {
+                _get_amount_0_delta(
+                    range_start_price.into(),
+                    range_end_price.into(),
+                    range.liquidity,
+                    true
+                )
+                .ok()?
+                .to::<u128>()
             } else {
-            }
+                _get_amount_1_delta(
+                    range_end_price.into(),
+                    range_start_price.into(),
+                    range.liquidity,
+                    true
+                )
+                .ok()?
+                .to::<u128>()
+            };
+
+            total_delta += delta;
         }
 
-        Some(res)
+        Some(total_delta)
     }
 }
 
