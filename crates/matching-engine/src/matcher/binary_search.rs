@@ -4,6 +4,7 @@ use angstrom_types::sol_bindings::{
     RawPoolOrder, Ray
 };
 
+use super::Solution;
 use crate::OrderBook;
 
 #[derive(Clone)]
@@ -21,6 +22,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let Some(am) = book.get_quantity_to_price(price) else { return Ray::default() };
         let is_bid = book.is_bid(price);
         let mut scaled = Ray::scale_to_ray(U256::from(am));
+
         // if its a bid, we need to convert to ask value
         if is_bid {
             scaled.div_ray_assign(price);
@@ -176,7 +178,12 @@ impl<'a> BinarySearchMatcher<'a> {
         );
     }
 
-    pub fn solve_clearing_price(&self) -> Option<Ray> {
+    pub fn solve_book(&self) -> Solution {
+        let price = self.solve_clearing_price();
+        todo!()
+    }
+
+    fn solve_clearing_price(&self) -> Option<Ray> {
         let ep = Ray::from(U256::from(1));
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
         let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
@@ -402,6 +409,7 @@ pub mod test {
             .with_storage()
             .bid()
             .build();
+
         let ask_order = UserOrderBuilder::new()
             .exact()
             .amount(100_000_000_000_000)

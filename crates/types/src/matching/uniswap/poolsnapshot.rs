@@ -1,7 +1,10 @@
 use std::slice::Iter;
 
 use eyre::{eyre, Context, OptionExt};
-use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
+use uniswap_v3_math::{
+    sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta},
+    tick_math::get_tick_at_sqrt_ratio
+};
 
 use super::{
     liqrange::{LiqRange, LiqRangeRef},
@@ -152,5 +155,58 @@ impl PoolSnapshot {
         } else {
             Some(price_vec.d_t1)
         }
+    }
+
+    pub fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
+        let is_bid = start_price < end_price;
+        // fetch ticks for ranges
+        let start_tick = self.current_tick;
+        let end_tick = get_tick_at_sqrt_ratio(end_price.into()).ok()?;
+
+        // we start swapping from
+        let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
+
+        let mut res = 0;
+        // bid is zero for 1
+        for tick in liq_range {
+            // bid means that price moving down
+            let is_start_swap = (is_bid && tick.upper_tick == start_tick)
+                || (!is_bid && tick.lower_tick == start_tick);
+
+            // grab ratio range
+            let (start, target) = if is_start_swap && is_bid {
+                (self.sqrt_price_x96, SqrtPriceX96::at_tick(tick.lower_tick).ok()?)
+            } else if is_start_swap && !is_bid {
+                (self.sqrt_price_x96, SqrtPriceX96::at_tick(tick.upper_tick).ok()?)
+            } else if is_bid {
+                (
+                    SqrtPriceX96::at_tick(tick.upper_tick).ok()?,
+                    SqrtPriceX96::at_tick(tick.lower_tick).ok()?
+                )
+            } else {
+                (
+                    SqrtPriceX96::at_tick(tick.lower_tick).ok()?,
+                    SqrtPriceX96::at_tick(tick.upper_tick).ok()?
+                )
+            };
+
+            if is_start_swap {
+                if is_bid {
+                    res += _get_amount_0_delta(target.into(), start.into(), tick.liquidity, true)
+                        .ok()?
+                        .to::<u128>();
+                } else {
+                    res += _get_amount_1_delta(start.into(), target.into(), tick.liquidity, true)
+                        .ok()?
+                        .to::<u128>();
+                }
+            }
+
+            if is_bid {
+            } else {
+            }
+        }
+
+        Some(res)
     }
 }
