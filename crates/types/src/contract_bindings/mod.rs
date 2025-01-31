@@ -19,6 +19,16 @@ pub mod controller_v_1 {
     );
 }
 #[rustfmt::skip]
+pub mod i_position_descriptor {
+    alloy::sol!(
+        #[allow(missing_docs)]
+        #[sol(rpc, abi)]
+        #[derive(Debug, Default, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
+        IPositionDescriptor,
+        "../../contracts/out/IPositionDescriptor.sol/IPositionDescriptor.json"
+    );
+}
+#[rustfmt::skip]
 pub mod mintable_mock_erc_20 {
     alloy::sol!(
         #[allow(missing_docs)]
