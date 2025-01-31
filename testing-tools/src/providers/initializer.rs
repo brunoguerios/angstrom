@@ -41,13 +41,13 @@ use crate::{
 };
 
 pub struct AnvilInitializer {
-    provider:      WalletProvider,
-    angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
-    angstrom:      AngstromInstance<BoxTransport, WalletProviderRpc>,
-    pool_gate:     PoolGateInstance<BoxTransport, WalletProviderRpc>,
-    _pool_manager: PoolManagerInstance<BoxTransport, WalletProviderRpc>,
-    pending_state: PendingDeployedPools
+    provider:       WalletProvider,
+    angstrom_env:   AngstromEnv<UniswapEnv<WalletProvider>>,
+    _controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
+    angstrom:       AngstromInstance<BoxTransport, WalletProviderRpc>,
+    pool_gate:      PoolGateInstance<BoxTransport, WalletProviderRpc>,
+    _pool_manager:  PoolManagerInstance<BoxTransport, WalletProviderRpc>,
+    pending_state:  PendingDeployedPools
 }
 
 impl AnvilInitializer {
@@ -75,7 +75,7 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let controller_v1 = ControllerV1Instance::new(
+        let _controller_v1 = ControllerV1Instance::new(
             angstrom_env.controller_v1(),
             angstrom_env.provider().clone()
         );
@@ -85,7 +85,7 @@ impl AnvilInitializer {
 
         let this = Self {
             provider,
-            controller_v1,
+            _controller_v1,
             angstrom_env,
             angstrom,
             pending_state,
@@ -233,6 +233,7 @@ impl AnvilInitializer {
                 pool_key.currency0,
                 pool_key.currency1,
                 pool_key.tickSpacing.as_i32() as u16,
+                pool_key.fee,
                 pool_key.fee
             )
             .from(self.provider.controller())
@@ -241,22 +242,12 @@ impl AnvilInitializer {
             .await?;
         self.pending_state.add_pending_tx(configure_pool);
 
-        tracing::debug!("adding to pool map");
-        let controller_configure_pool = self
-            .controller_v1
-            .addPoolToMap(pool_key.currency0, pool_key.currency1)
-            .from(self.provider.controller())
-            .nonce(nonce + 1)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(controller_configure_pool);
-
         tracing::debug!("initializing pool");
         let i = self
             .angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
-            .nonce(nonce + 2)
+            .nonce(nonce + 1)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(i);
@@ -266,7 +257,7 @@ impl AnvilInitializer {
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            .nonce(nonce + 3)
+            .nonce(nonce + 2)
             .deploy_pending()
             .await?;
         self.pending_state.add_pending_tx(pool_gate);
@@ -289,7 +280,7 @@ impl AnvilInitializer {
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())
-                .nonce(nonce + 4 + (i as u64))
+                .nonce(nonce + 3 + (i as u64))
                 .deploy_pending()
                 .await?;
 

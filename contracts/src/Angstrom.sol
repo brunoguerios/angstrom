@@ -5,6 +5,7 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 import {TopLevelAuth} from "./modules/TopLevelAuth.sol";
 import {Settlement} from "./modules/Settlement.sol";
 import {PoolUpdates} from "./modules/PoolUpdates.sol";
+import {UnlockHook} from "./modules/UnlockHook.sol";
 import {OrderInvalidation} from "./modules/OrderInvalidation.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {UniConsumer} from "./modules/UniConsumer.sol";
@@ -31,6 +32,7 @@ contract Angstrom is
     OrderInvalidation,
     Settlement,
     PoolUpdates,
+    UnlockHook,
     IUnlockCallback,
     PermitSubmitterHook
 {
@@ -46,7 +48,9 @@ contract Angstrom is
 
     function execute(bytes calldata encoded) external {
         _nodeBundleLock();
-        UNI_V4.unlock(encoded);
+        if (encoded.length > 0) {
+            UNI_V4.unlock(encoded);
+        }
     }
 
     function unlockCallback(bytes calldata data) external override returns (bytes memory) {
@@ -76,7 +80,7 @@ contract Angstrom is
 
     /// @dev Load arbitrary storage slot from this contract, enables on-chain introspection without
     /// view methods.
-    function extsload(bytes32 slot) external view returns (bytes32) {
+    function extsload(uint256 slot) external view returns (uint256) {
         assembly ("memory-safe") {
             mstore(0x00, sload(slot))
             return(0x00, 0x20)

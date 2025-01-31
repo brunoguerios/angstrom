@@ -8,13 +8,14 @@ const OUT_DIRECTORY: &str = "contracts/out/";
 const SRC_DIRECTORY: &str = "contracts/src";
 const BINDINGS_PATH: &str = "/src/contract_bindings/mod.rs";
 
-const WANTED_CONTRACTS: [&str; 6] = [
+const WANTED_CONTRACTS: [&str; 7] = [
     "Angstrom.sol",
     "PoolManager.sol",
     "PoolGate.sol",
     "MockRewardsManager.sol",
     "MintableMockERC20.sol",
-    "ControllerV1.sol"
+    "ControllerV1.sol",
+    "PositionFetcher.sol"
 ];
 
 // builds the contracts crate. then goes and generates bindings on this

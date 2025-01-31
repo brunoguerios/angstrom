@@ -4,7 +4,9 @@ pragma solidity ^0.8.0;
 import {IPoolManager} from "../interfaces/IUniV4.sol";
 import {Hooks, IHooks} from "v4-core/src/libraries/Hooks.sol";
 import {Currency} from "v4-core/src/types/Currency.sol";
-import {POOL_FEE} from "src/Constants.sol";
+import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
+
+uint24 constant ANGSTROM_INIT_HOOK_FEE = LPFeeLibrary.DYNAMIC_FEE_FLAG;
 
 /// @author philogy <https://github.com/philogy>
 abstract contract UniConsumer {
@@ -13,6 +15,8 @@ abstract contract UniConsumer {
     error NotUniswap();
 
     IPoolManager internal immutable UNI_V4;
+
+    uint24 internal constant INIT_HOOK_FEE = ANGSTROM_INIT_HOOK_FEE;
 
     error InvalidHookPermissions();
 
@@ -33,6 +37,10 @@ abstract contract UniConsumer {
     function _c(address addr) internal pure returns (Currency) {
         return Currency.wrap(addr);
     }
+
+    function _addr(Currency c) internal pure returns (address) {
+        return Currency.unwrap(c);
+    }
 }
 
 using Hooks for IHooks;
@@ -52,7 +60,8 @@ function hasAngstromHookFlags(address addr) pure returns (bool) {
     if (hook.hasPermission(Hooks.AFTER_REMOVE_LIQUIDITY_FLAG)) return false;
 
     // Ensure that we have some hook preventing 3rd party swapping.
-    if (!hook.hasPermission(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG)) return false;
+    if (!hook.hasPermission(Hooks.BEFORE_SWAP_FLAG)) return false;
+    if (hook.hasPermission(Hooks.AFTER_SWAP_FLAG)) return false;
 
-    return hook.isValidHookAddress(POOL_FEE);
+    return hook.isValidHookAddress(ANGSTROM_INIT_HOOK_FEE);
 }

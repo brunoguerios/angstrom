@@ -58,3 +58,13 @@ pub mod pool_manager {
         "../../contracts/out/PoolManager.sol/PoolManager.json"
     );
 }
+#[rustfmt::skip]
+pub mod position_fetcher {
+    alloy::sol!(
+        #[allow(missing_docs)]
+        #[sol(rpc)]
+        #[derive(Debug, Default, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
+        PositionFetcher,
+        "../../contracts/out/PositionFetcher.sol/PositionFetcher.json"
+    );
+}

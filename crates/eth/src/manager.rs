@@ -218,14 +218,14 @@ where
                     let entry = AngPoolConfigEntry {
                         pool_partial_key: AngstromPoolConfigStore::derive_store_key(asset0, asset1),
                         tick_spacing:     added_pool.tickSpacing,
-                        fee_in_e6:        added_pool.feeInE6.to(),
+                        fee_in_e6:        added_pool.bundleFee.to(),
                         store_index:      self.pool_store.length()
                     };
 
                     let pool_key = PoolKey {
                         currency1:   asset1,
                         currency0:   asset0,
-                        fee:         added_pool.feeInE6,
+                        fee:         added_pool.bundleFee,
                         tickSpacing: I24::try_from_be_slice(&{
                             let bytes = added_pool.tickSpacing.to_be_bytes();
                             let mut a = [0u8; 3];
@@ -581,8 +581,13 @@ pub mod test {
         let fee = U24::try_from(3000).unwrap();
         let tick_spacing = 60u16;
 
-        let pool_configured =
-            PoolConfigured { asset0, asset1, feeInE6: fee, tickSpacing: tick_spacing };
+        let pool_configured = PoolConfigured {
+            asset0,
+            asset1,
+            bundleFee: fee,
+            unlockedFee: fee,
+            tickSpacing: tick_spacing
+        };
         let configured_log =
             Log { address: periphery_addr, data: pool_configured.encode_log_data() };
 
@@ -859,11 +864,18 @@ pub mod test {
         let tick_spacing = 60u16;
 
         // Test reconfiguring same pool
-        let configure1 = PoolConfigured { asset0, asset1, feeInE6: fee, tickSpacing: tick_spacing };
+        let configure1 = PoolConfigured {
+            asset0,
+            asset1,
+            bundleFee: fee,
+            unlockedFee: fee,
+            tickSpacing: tick_spacing
+        };
         let configure2 = PoolConfigured {
             asset0,
             asset1,
-            feeInE6: fee,
+            bundleFee: fee,
+            unlockedFee: fee,
             tickSpacing: tick_spacing * 2 // Different spacing
         };
         let remove = PoolRemoved {
@@ -931,7 +943,13 @@ pub mod test {
         let tick_spacing = 60u16;
 
         // Create pool and remove it twice
-        let configure = PoolConfigured { asset0, asset1, feeInE6: fee, tickSpacing: tick_spacing };
+        let configure = PoolConfigured {
+            asset0,
+            asset1,
+            bundleFee: fee,
+            unlockedFee: fee,
+            tickSpacing: tick_spacing
+        };
         let remove = PoolRemoved {
             asset0,
             asset1,
