@@ -28,7 +28,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && ask.exact_in())
-            .map(|ask| Ray::scale_to_ray(U256::from(ask.amount_in())))
+            .map(|ask| Ray::scale_to_ray(U256::from(ask.amount())))
             .sum()
     }
 
@@ -37,7 +37,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && !ask.exact_in())
-            .map(|ask| Ray::scale_to_ray(U256::from(ask.amount_in())).div_ray(price))
+            .map(|ask| Ray::scale_to_ray(U256::from(ask.amount())).div_ray(price))
             .sum()
     }
 
@@ -47,7 +47,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray() && bid.exact_in())
-            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount_in())).div_ray(price))
+            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
             .sum()
     }
 
@@ -57,7 +57,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray() && !bid.exact_in())
-            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount_in())).mul_ray(price))
+            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount())).mul_ray(price))
             .sum()
     }
 
@@ -84,7 +84,7 @@ impl<'a> BinarySearchMatcher<'a> {
                     additional = Some(Ray::scale_to_ray(U256::from(max - min)));
                     Some(Ray::scale_to_ray(U256::from(min)))
                 } else if price > ask.price() {
-                    Some(Ray::scale_to_ray(U256::from(ask.amount_in())))
+                    Some(Ray::scale_to_ray(U256::from(ask.amount())))
                 } else {
                     None
                 }
@@ -118,7 +118,7 @@ impl<'a> BinarySearchMatcher<'a> {
 
                     Some(Ray::scale_to_ray(U256::from(min)))
                 } else if price < bid.price().inv_ray() {
-                    Some(Ray::scale_to_ray(U256::from(bid.amount_in())))
+                    Some(Ray::scale_to_ray(U256::from(bid.amount())))
                 } else {
                     None
                 }

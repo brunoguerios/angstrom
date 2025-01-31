@@ -90,7 +90,7 @@ where
             &HashMap::default(),
             OverridesForTestAngstrom {
                 flipped_order: Address::ZERO,
-                amount_in:     U256::from(tob.amount_in()),
+                amount_in:     U256::from(tob.amount()),
                 amount_out:    U256::from(tob.quantity_out),
                 token_out:     tob.token_out(),
                 token_in:      tob.token_in(),
@@ -126,17 +126,17 @@ where
 
         let bundle = bundle.pade_encode();
         let (amount_in, amount_out) = if exact_in {
-            (U256::from(order.amount_in()), {
+            (U256::from(order.amount()), {
                 let price = Ray::from(U256::from(order.limit_price()));
-                price.mul_quantity(U256::from(order.amount_in()))
+                price.mul_quantity(U256::from(order.amount()))
             })
         } else {
             (
                 {
                     let price = Ray::from(U256::from(order.limit_price()));
-                    price.mul_quantity(U256::from(order.amount_in()))
+                    price.mul_quantity(U256::from(order.amount()))
                 },
-                U256::from(order.amount_in())
+                U256::from(order.amount())
             )
         };
 
