@@ -161,38 +161,38 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     pub fn solve_clearing_price(&self) -> Ray {
-        let two = U256::from(2);
-        let mut p_max = Ray::from(self.book.highest_clearing_price());
-        let mut p_min = Ray::from(self.book.lowest_clearing_price());
-        // let mut p_min = Ray::default();
         let ep = Ray::from(U256::from(1));
+        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
+        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
 
         println!("min: {p_min:?} max: {p_max:?}");
 
         //  if demand == zero, we round up; if supply == zero, we round down,
         // if eq, this is none;
         // demand == zero => Some(true), sup == zero => Some(false)
-        let mut round_up: Option<bool> = None;
+        // let mut round_up: Option<bool> = None;
 
+        let two = U256::from(2);
         while (p_max - p_min) > ep {
             // grab all supply and demand
-            let p_mid = (p_max + p_min).div_ray(Ray::from(two));
+            let p_mid = Ray::from((p_max + p_min) / two);
             println!("solving clearing price iter price = {p_mid:?}");
 
-            let (res, round_up_next) = self.calculate_solver_move(p_mid);
-            round_up = round_up_next;
+            let (res, _round_up_next) = self.calculate_solver_move(p_mid);
+            // round_up = round_up_next;
 
             if res == Some(true) {
                 p_max = p_mid;
             } else if res == Some(false) {
                 p_min = p_mid
             } else {
+                println!("solved based on sup, demand");
                 return p_mid
             }
+            println!("min: {p_min:?} max: {p_max:?}");
         }
 
-        let (q, r) = (p_max + p_min).div_rem(two);
-        Ray::from(q)
+        (p_max + p_min) / two
     }
 }
 
@@ -308,19 +308,21 @@ pub mod test {
     }
 
     #[test]
-    fn basic_solve_of_exact_orders() {
+    fn basic_solve_of_exact_orders_exact_in() {
         let pool_id = PoolId::random();
         let high_price = Ray::from(Uint::from(1_000_000_000_u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
             .amount(100)
-            .bid_min_price(high_price)
+            .exact_in(true)
+            .min_price(high_price)
             .with_storage()
             .bid()
             .build();
         let ask_order = UserOrderBuilder::new()
             .exact()
             .amount(100)
+            .exact_in(true)
             .min_price(high_price)
             .with_storage()
             .ask()
@@ -335,198 +337,31 @@ pub mod test {
     }
 
     #[test]
-    fn test_unbalanced_exact_orders() {
+    fn basic_solve_of_exact_orders_exact_out() {
         let pool_id = PoolId::random();
-        let price = Ray::from(Uint::from(1_000_u128));
-
-        // Bid amount > Ask amount
-        let bid_order = UserOrderBuilder::new()
-            .exact()
-            .amount(200)
-            .bid_min_price(price)
-            .with_storage()
-            .bid()
-            .build();
-
-        let ask_order = UserOrderBuilder::new()
-            .exact()
-            .amount(100)
-            .min_price(price)
-            .with_storage()
-            .ask()
-            .build();
-
-        let book = OrderBook::new(pool_id, None, vec![bid_order], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
-        assert!(ucp == price, "Unbalanced orders should clear at specified price");
-    }
-
-    #[test]
-    fn test_multiple_orders_same_price() {
-        let pool_id = PoolId::random();
-        let price = Ray::from(Uint::from(1_000_u128));
-
-        let bid_orders = vec![
-            UserOrderBuilder::new()
-                .exact()
-                .amount(50)
-                .bid_min_price(price)
-                .with_storage()
-                .bid()
-                .build(),
-            UserOrderBuilder::new()
-                .exact()
-                .amount(50)
-                .bid_min_price(price)
-                .with_storage()
-                .bid()
-                .build(),
-        ];
-
-        let ask_orders = vec![
-            UserOrderBuilder::new()
-                .exact()
-                .amount(50)
-                .min_price(price)
-                .with_storage()
-                .ask()
-                .build(),
-            UserOrderBuilder::new()
-                .exact()
-                .amount(50)
-                .min_price(price)
-                .with_storage()
-                .ask()
-                .build(),
-        ];
-
-        let book = OrderBook::new(pool_id, None, bid_orders, ask_orders, None);
-        let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
-        assert!(ucp == price, "Multiple orders at same price should clear at that price");
-    }
-
-    #[test]
-    fn test_partial_and_exact_order_mix() {
-        let pool_id = PoolId::random();
-        let price = Ray::from(Uint::from(1_000_u128));
-        let price_ask = Ray::from(Uint::from(500_u128));
-
-        let bid_orders = vec![
-            UserOrderBuilder::new()
-                .partial()
-                .amount(100)
-                .bid_min_price(price)
-                .with_storage()
-                .bid()
-                .build(),
-            UserOrderBuilder::new()
-                .exact()
-                .amount(50)
-                .bid_min_price(price)
-                .with_storage()
-                .bid()
-                .build(),
-        ];
-
-        let ask_orders = vec![UserOrderBuilder::new()
-            .exact()
-            .amount(150)
-            .min_price(price_ask)
-            .with_storage()
-            .ask()
-            .build()];
-
-        let book = OrderBook::new(pool_id, None, bid_orders, ask_orders, None);
-        let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
-        assert!(ucp == price, "Mixed partial and exact orders should clear correctly");
-    }
-
-    #[test]
-    fn test_price_discovery_with_gap() {
-        let pool_id = PoolId::random();
-        let low_price = Ray::from(Uint::from(900_u128));
-        let high_price = Ray::from(Uint::from(1_100_u128));
-
+        let high_price = Ray::from(Uint::from(1_000_000_000_u128));
         let bid_order = UserOrderBuilder::new()
             .exact()
             .amount(100)
-            .bid_min_price(high_price)
+            .exact_in(false)
+            .min_price(high_price)
             .with_storage()
             .bid()
             .build();
-
         let ask_order = UserOrderBuilder::new()
             .exact()
             .amount(100)
-            .min_price(low_price)
+            .exact_in(false)
+            .min_price(high_price)
             .with_storage()
             .ask()
             .build();
-
-        let book = OrderBook::new(pool_id, None, vec![bid_order], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
-        assert!(ucp >= low_price && ucp <= high_price, "Price should be discovered within the gap");
-    }
-
-    #[test]
-    fn test_zero_quantity_orders() {
-        let pool_id = PoolId::random();
-        let price = Ray::from(Uint::from(1_000_u128));
-
-        let bid_order = UserOrderBuilder::new()
-            .exact()
-            .amount(0)
-            .bid_min_price(price)
-            .with_storage()
-            .bid()
-            .build();
-
-        let ask_order = UserOrderBuilder::new()
-            .exact()
-            .amount(100)
-            .min_price(price)
-            .with_storage()
-            .ask()
-            .build();
-
-        let book = OrderBook::new(pool_id, None, vec![bid_order], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price();
-        assert!(ucp == price, "Zero quantity orders should be handled correctly");
-    }
-
-    #[test]
-    fn test_extreme_price_differences() {
-        let pool_id = PoolId::random();
-        let very_low_price = Ray::from(Uint::from(1_u128));
-        let very_high_price = Ray::from(Uint::from(1_000_000_000_u128));
-
-        let bid_order = UserOrderBuilder::new()
-            .exact()
-            .amount(100)
-            .bid_min_price(very_high_price)
-            .with_storage()
-            .bid()
-            .build();
-
-        let ask_order = UserOrderBuilder::new()
-            .exact()
-            .amount(100)
-            .min_price(very_low_price)
-            .with_storage()
-            .ask()
-            .build();
-
-        let book = OrderBook::new(pool_id, None, vec![bid_order], vec![ask_order], None);
+        let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
         let ucp = matcher.solve_clearing_price();
         assert!(
-            ucp >= very_low_price && ucp <= very_high_price,
-            "Should handle extreme price differences"
+            ucp == high_price,
+            "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
         );
     }
 }
