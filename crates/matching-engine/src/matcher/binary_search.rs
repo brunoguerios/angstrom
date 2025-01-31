@@ -27,7 +27,6 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .asks()
             .iter()
-            // this is always greater given that price is always t0 / t1
             .filter(|ask| price >= ask.price() && ask.exact_in())
             .map(|ask| Ray::scale_to_ray(U256::from(ask.amount_in())))
             .sum()
@@ -37,7 +36,6 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .asks()
             .iter()
-            // this is always greater given that price is always t0 / t1
             .filter(|ask| price >= ask.price() && !ask.exact_in())
             .map(|ask| Ray::scale_to_ray(U256::from(ask.amount_in())).div_ray(price))
             .sum()
@@ -47,7 +45,7 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            // this is always greater given that price is always t0 / t1
+            // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray() && bid.exact_in())
             .map(|bid| Ray::scale_to_ray(U256::from(bid.amount_in())).div_ray(price))
             .sum()
@@ -57,7 +55,7 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            // this is always greater given that price is always t0 / t1
+            // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray() && !bid.exact_in())
             .map(|bid| Ray::scale_to_ray(U256::from(bid.amount_in())).mul_ray(price))
             .sum()
