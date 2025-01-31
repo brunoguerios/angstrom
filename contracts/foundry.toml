@@ -19,7 +19,7 @@ ignored_error_codes = [
 remappings = [
   "solady/src/=lib/solady/src/",
   "v4-core/src/=lib/v4-core/src/",
-  "v4-periphery/src/=lib/v4-periphery/src/",
+  # "v4-periphery/src/=lib/v4-periphery/src/",
   "solmate/=lib/solmate/",
 ]
 
@@ -53,7 +53,7 @@ optimizer = true
 remappings = [
   "solady/src/=lib/solady/src/",
   "v4-core/src/=lib/v4-core/src/",
-  "v4-periphery/src/=lib/v4-periphery/src/",
+  # "v4-periphery/src/=lib/v4-periphery/src/",
   "forge-std/=lib/forge-std/src",
   "core/src/=src/",
   "solmate/=lib/solmate/",
