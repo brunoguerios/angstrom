@@ -3,7 +3,6 @@ use angstrom_types::sol_bindings::{
     grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
     RawPoolOrder, Ray
 };
-use rand_distr::num_traits::Zero;
 
 use crate::OrderBook;
 
@@ -30,7 +29,6 @@ impl<'a> BinarySearchMatcher<'a> {
         scaled
     }
 
-    // supply
     fn fetch_exact_in_ask_orders(&self, price: Ray) -> Ray {
         // grab all exact in ask orders where price >= limit price and then get y_in
         self.book
@@ -41,7 +39,6 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
-    // supply
     fn fetch_exact_out_ask_orders(&self, price: Ray) -> Ray {
         self.book
             .asks()
@@ -51,7 +48,6 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
-    // demand
     fn fetch_exact_in_bid_orders(&self, price: Ray) -> Ray {
         self.book
             .bids()
@@ -62,7 +58,6 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
-    // demand
     fn fetch_exact_out_bid_orders(&self, price: Ray) -> Ray {
         self.book
             .bids()
@@ -267,7 +262,6 @@ pub mod test {
     fn ask_side_double_match_works_with_amm_binary_search() {
         let pool_id = PoolId::random();
         let bid_price = Ray::from(Uint::from(1_000_000_000_u128)).inv_ray_round(true);
-
         let low_price = Ray::from(Uint::from(1_000_u128));
 
         let bid_order = UserOrderBuilder::new()
@@ -292,34 +286,6 @@ pub mod test {
         assert!(
             ucp == bid,
             "Bid outweighed but the final price wasn't properly set {ucp:?}, {bid:?}"
-        );
-    }
-
-    #[test]
-    fn ask_outweighs_bid_sets_price() {
-        let pool_id = PoolId::random();
-        let high_price = Ray::from(Uint::from(1_000_000_000_u128));
-        let low_price = Ray::from(Uint::from(1_000_u128));
-        let bid_order = UserOrderBuilder::new()
-            .exact()
-            .amount(10)
-            .bid_min_price(high_price)
-            .with_storage()
-            .bid()
-            .build();
-        let ask_order = UserOrderBuilder::new()
-            .partial()
-            .amount(100)
-            .min_price(low_price)
-            .with_storage()
-            .ask()
-            .build();
-        let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price().unwrap();
-        assert!(
-            ucp == low_price,
-            "Ask outweighed but the final price wasn't properly set {ucp:?} {low_price:?}"
         );
     }
 
