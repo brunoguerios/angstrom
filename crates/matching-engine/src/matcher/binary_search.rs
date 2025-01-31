@@ -74,7 +74,7 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_exact_in_partial_ask(&self, price: Ray) -> PartialLiqRange {
-        let mut additional = None;
+        let mut removal = None;
 
         let filled = self
             .book
@@ -95,7 +95,7 @@ impl<'a> BinarySearchMatcher<'a> {
                     };
                     let (max, min) =
                         (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
-                    additional = Some(max - min);
+                    removal = Some(max - min);
 
                     Some(max)
                 } else if price > ask.price() {
@@ -106,11 +106,11 @@ impl<'a> BinarySearchMatcher<'a> {
             })
             .sum();
 
-        PartialLiqRange { filled_quantity: filled, optional_additional_liq: additional }
+        PartialLiqRange { filled_quantity: filled, optional_removal_liq: removal }
     }
 
     fn fetch_exact_in_partial_bid(&self, price: Ray) -> PartialLiqRange {
-        let mut additional = None;
+        let mut removal = None;
 
         let filled = self
             .book
@@ -132,7 +132,7 @@ impl<'a> BinarySearchMatcher<'a> {
 
                     let (max, min) =
                         (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
-                    additional = Some(max.div_ray(price) - min.div_ray(price));
+                    removal = Some(max.div_ray(price) - min.div_ray(price));
 
                     Some(max.div_ray(price))
                 } else if price < bid.price().inv_ray() {
@@ -143,7 +143,7 @@ impl<'a> BinarySearchMatcher<'a> {
             })
             .sum();
 
-        PartialLiqRange { filled_quantity: filled, optional_additional_liq: additional }
+        PartialLiqRange { filled_quantity: filled, optional_removal_liq: removal }
     }
 
     fn total_supply_at_price(&self, price: Ray) -> (Ray, Option<Ray>) {
@@ -153,7 +153,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 + self.fetch_exact_in_ask_orders(price)
                 + self.fetch_exact_out_ask_orders(price)
                 + partial.filled_quantity,
-            partial.optional_additional_liq
+            partial.optional_removal_liq
         )
     }
 
@@ -164,7 +164,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 + self.fetch_exact_in_bid_orders(price)
                 + self.fetch_exact_out_bid_orders(price)
                 + partial.filled_quantity,
-            partial.optional_additional_liq
+            partial.optional_removal_liq
         )
     }
 
@@ -218,9 +218,9 @@ fn cmp_total_supply_vs_demand(total_supply: Ray, total_demand: Ray) -> Option<bo
 #[derive(Debug, Default)]
 struct PartialLiqRange {
     /// the quantity that filled up to the price.
-    pub filled_quantity:         Ray,
-    /// the additional liquidity we can partial fill if  p = pr
-    pub optional_additional_liq: Option<Ray>
+    pub filled_quantity:      Ray,
+    /// the amount of supply or demand that we can remove at the current ucp
+    pub optional_removal_liq: Option<Ray>
 }
 
 #[cfg(test)]
