@@ -4,7 +4,7 @@ mod solutionlib;
 
 use angstrom_types::contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder};
 use base64::Engine;
-use solutionlib::SUBTRACTION;
+use solutionlib::DEMO_SOLUTION;
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
@@ -20,7 +20,7 @@ pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
 fn build_bundle() {
     with_tracing(|| {
         let bytes = base64::prelude::BASE64_STANDARD
-            .decode(SUBTRACTION)
+            .decode(DEMO_SOLUTION)
             .unwrap();
         let (solution, orders_by_pool, snapshot, t0, t1, store_index, shared_gas) =
             serde_json::from_slice(&bytes).unwrap();
@@ -46,5 +46,14 @@ fn build_bundle() {
             shared_gas
         )
         .expect("Bundle processing failed");
+
+        let bundle = AngstromBundle::new(
+            asset_builder.get_asset_array(),
+            pairs,
+            pool_updates,
+            top_of_block_orders,
+            user_orders
+        );
+        println!("Bundle: {:?}", bundle);
     })
 }

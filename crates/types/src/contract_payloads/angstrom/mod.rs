@@ -299,7 +299,6 @@ impl AngstromBundle {
         solutions: Vec<PoolSolution>,
         pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
     ) -> eyre::Result<Self> {
-        trace!("Starting for_gas_finalization");
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();
         let mut pairs = Vec::new();
@@ -497,6 +496,9 @@ impl AngstromBundle {
         // If we don't have a rewards update, we insert a default "empty" struct
         let tob_outcome = tob_rewards.unwrap_or_default();
 
+        // Determine whether our net AMM order is zero_for_one
+        let zero_for_one = asset_in_index == t0_idx;
+
         // Account for our net AMM Order
         asset_builder.uniswap_swap(
             AssetBuilderStage::Swap,
@@ -510,7 +512,7 @@ impl AngstromBundle {
         let rewards_update = tob_outcome.to_rewards_update();
         // Push the pool update
         pool_updates.push(PoolUpdate {
-            zero_for_one: false,
+            zero_for_one,
             pair_index: pair_idx as u16,
             swap_in_quantity: quantity_in,
             rewards_update
