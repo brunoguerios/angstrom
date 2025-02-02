@@ -18,8 +18,8 @@ sol! {
     #[derive(Debug, Default, PadeEncode, PadeDecode)]
     struct Asset {
         address addr;
-        uint128 borrow;
         uint128 save;
+        uint128 take;
         uint128 settle;
     }
 

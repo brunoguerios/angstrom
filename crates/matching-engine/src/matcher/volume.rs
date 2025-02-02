@@ -13,7 +13,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use base64::Engine;
-use tracing::{trace, debug, info};
+use tracing::{debug, info, trace, warn};
 
 use super::Solution;
 use crate::book::{order::OrderContainer, BookOrder, OrderBook};
@@ -131,9 +131,11 @@ impl<'a> VolumeFillMatcher<'a> {
         results.amm_volume += quantity;
         results.amm_final_price = Some(*new_amm.price());
         // Update our overall AMM volume
-        let is_bid = matches!(direction, Direction::BuyingT0);
-        let amm_out = amm_outcome.get_or_insert_with(|| NetAmmOrder::new(is_bid));
-        amm_out.add_quantity(U256::from(final_amm_order.d_t0), U256::from(final_amm_order.d_t1));
+        let amm_out = amm_outcome.get_or_insert_with(|| NetAmmOrder::new(direction));
+        if !amm_out.right_direction(direction) {
+            warn!(cur_amm_out = ?amm_out, "AMM being used in wrong direction");
+        }
+        amm_out.add_quantity(final_amm_order.d_t0, final_amm_order.d_t1);
         Ok(())
     }
 

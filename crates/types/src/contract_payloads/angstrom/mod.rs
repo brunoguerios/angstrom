@@ -315,6 +315,20 @@ impl AngstromBundle {
 
         // Break out our input orders into lists of orders by pool
 
+        // So we know that every solution has an associated pool, every pool has an
+        // associated pair and every pair is a pair of addresses With this we
+        // can create the data structs we need for the Angstrom payload
+        // Get the addresses from all solutions and check
+        // let new_solutions = solutions.iter().flat_map(|s| {
+        //     let Some((t0, t1, snapshot, store_index)) = pools.get(&s.id) else {
+        //         warn!(solution_id = ?s.id, pools = ?pools, "Skipped a solution as we
+        // couldn't find a pool for it");         return None;
+        //     };
+        //     None
+        // }).collect();
+        // Sort the solutions themselves by the pair idx so the pairs are added in the
+        // right order
+
         // Walk through our solutions to add them to the structure
         for solution in solutions.iter() {
             println!("Processing solution");

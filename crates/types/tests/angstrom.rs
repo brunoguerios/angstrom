@@ -25,6 +25,8 @@ fn build_bundle() {
         let (solution, orders_by_pool, snapshot, t0, t1, store_index, shared_gas) =
             serde_json::from_slice(&bytes).unwrap();
 
+        println!("Solution: {:#?}", solution);
+
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();
         let mut pairs = Vec::new();
@@ -54,6 +56,6 @@ fn build_bundle() {
             top_of_block_orders,
             user_orders
         );
-        println!("Bundle: {:?}", bundle);
+        println!("Bundle: {:#?}", bundle);
     })
 }

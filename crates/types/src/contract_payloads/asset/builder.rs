@@ -98,7 +98,7 @@ impl AssetBuilder {
             .into_iter()
             .map(|mut asset| {
                 if let Some(tracker) = combined_assets.get_asset(&asset.addr) {
-                    asset.borrow = tracker.take;
+                    asset.take = tracker.take;
                     asset.settle = tracker.settle;
                 }
                 asset
