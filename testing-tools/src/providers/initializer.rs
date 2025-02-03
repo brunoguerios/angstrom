@@ -215,7 +215,7 @@ impl AnvilInitializer {
 
         tracing::debug!("configuring pool");
         let controller_configure_pool = self
-            .controller_v1
+            .angstrom
             .configurePool(
                 pool_key.currency0,
                 pool_key.currency1,
