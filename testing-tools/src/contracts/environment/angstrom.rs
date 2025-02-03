@@ -74,11 +74,11 @@ where
         debug!("ControllerV1 deployed at: {}", controller_v1_addr);
 
         let angstrom = AngstromInstance::new(angstrom_addr, inner.provider());
-        let _ = *angstrom
-            .setController(controller_v1_addr)
-            .from(inner.controller())
-            .run_safe()
-            .await?;
+        // let _ = *angstrom
+        //     .setController(controller_v1_addr)
+        //     .from(inner.controller())
+        //     .run_safe()
+        //     .await?;
 
         // Set the PoolGate's hook to be our Mock
         debug!("Setting PoolGate hook...");
