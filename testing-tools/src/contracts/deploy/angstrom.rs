@@ -40,7 +40,6 @@ pub async fn deploy_angstrom_create3<
         .from(owner)
         .gas(50e6 as u64)
         .to(SUB_ZERO_FACTORY)
-        .gas(50e6 as u64)
         .send()
         .await
         .unwrap()
