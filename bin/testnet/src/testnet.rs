@@ -8,7 +8,7 @@ use testing_tools::{
     agents::AgentConfig, controllers::enviroments::AngstromTestnet, types::config::TestnetConfig
 };
 
-use crate::cli::testnet::TestnetCli;
+use crate::cli::{init_tracing, testnet::TestnetCli};
 
 pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre::Result<()> {
     let config = cli.make_config()?;
