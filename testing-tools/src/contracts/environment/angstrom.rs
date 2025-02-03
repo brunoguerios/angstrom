@@ -1,4 +1,7 @@
-use alloy::primitives::Address;
+use alloy::{
+    primitives::Address,
+    providers::{ext::AnvilApi, Provider}
+};
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
@@ -49,6 +52,8 @@ where
             .await;
 
         debug!("Angstrom deployed at: {}", angstrom_addr);
+        let r = provider.get_code_at(angstrom_addr).await.unwrap();
+        tracing::info!(?r, "code at angstrom address");
         // gotta toggle nodes
         let ang_i = AngstromInstance::new(angstrom_addr, &provider);
 
