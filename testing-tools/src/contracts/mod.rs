@@ -44,7 +44,8 @@ where
             let default_options = GethDebugTracingOptions::default();
             let _call_options = GethDebugTracingOptions {
                 config: GethDefaultTracingOptions {
-                    disable_storage: Some(true),
+                    disable_storage: Some(false),
+                    disable_stack: Some(false),
                     enable_memory: Some(false),
                     debug: Some(true),
                     ..Default::default()
