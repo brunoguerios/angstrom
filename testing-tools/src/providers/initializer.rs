@@ -214,7 +214,7 @@ impl AnvilInitializer {
         tracing::info!(?pool_key, ?encoded, ?price);
 
         let tick_spacing = pool_key.tickSpacing.as_i32();
-        tracing::debug!(tick_spacing?, "configuring pool");
+        tracing::debug!(tick_spacing =?tick_spacing, "configuring pool");
         let controller_configure_pool = self
             .controller_v1
             .configurePool(
