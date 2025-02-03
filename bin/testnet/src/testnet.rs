@@ -30,7 +30,7 @@ fn a<'a>(
 mod tests {
     use super::*;
 
-    #[tokio::test(flavor = "mutli_thread")]
+    #[tokio::test(flavor = "multi_thread")]
     async fn testnet_deploy() {
         init_tracing(4);
         let cli = TestnetCli::default();
