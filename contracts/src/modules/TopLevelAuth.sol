@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {console} from "forge-std/console.sol";
 import {IAngstromAuth} from "../interfaces/IAngstromAuth.sol";
 import {UniConsumer} from "./UniConsumer.sol";
 
@@ -51,10 +52,23 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
     ) external {
         _onlyController();
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(assetA, assetB);
-        _configStore = _configStore.setIntoNew(key, assetA, assetB, tickSpacing, bundleFee);
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
+            assetA,
+            assetB
+        );
+        _configStore = _configStore.setIntoNew(
+            key,
+            assetA,
+            assetB,
+            tickSpacing,
+            bundleFee
+        );
+        console.log("validating");
         unlockedFee.validate();
+
+        console.log("bit_math", assetA);
         _unlockedFeePackedSet[key] = (uint256(unlockedFee) << 1) | 1;
+        console.log("res", assetA, assetB);
     }
 
     function initializePool(
@@ -64,15 +78,28 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         uint160 sqrtPriceX96
     ) public {
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(assetA, assetB);
-        (int24 tickSpacing,) = _configStore.get(key, storeIndex);
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
+            assetA,
+            assetB
+        );
+        (int24 tickSpacing, ) = _configStore.get(key, storeIndex);
         UNI_V4.initialize(
-            PoolKey(_c(assetA), _c(assetB), INIT_HOOK_FEE, tickSpacing, IHooks(address(this))),
+            PoolKey(
+                _c(assetA),
+                _c(assetB),
+                INIT_HOOK_FEE,
+                tickSpacing,
+                IHooks(address(this))
+            ),
             sqrtPriceX96
         );
     }
 
-    function removePool(StoreKey key, PoolConfigStore expectedStore, uint256 storeIndex) external {
+    function removePool(
+        StoreKey key,
+        PoolConfigStore expectedStore,
+        uint256 storeIndex
+    ) external {
         _onlyController();
         PoolConfigStore store = _configStore;
         // Validate entry.
@@ -101,8 +128,14 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         return _lastBlockUpdated == block.number;
     }
 
-    function _unlockedFee(address asset0, address asset1) internal view returns (uint24) {
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+    function _unlockedFee(
+        address asset0,
+        address asset1
+    ) internal view returns (uint24) {
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
+            asset0,
+            asset1
+        );
         uint256 packed = _unlockedFeePackedSet[key];
         if (packed & 1 == 0) revert UnlockedFeeNotSet(key);
         return uint24(packed >> 1);

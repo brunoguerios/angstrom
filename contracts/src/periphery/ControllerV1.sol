@@ -94,17 +94,13 @@ contract ControllerV1 is Ownable2Step {
         uint24 bundleFee,
         uint24 unlockedFee
     ) external {
-        console.log("checking owner");
         _checkOwner();
-        console.log("checked owner", asset0);
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
             asset0,
             asset1
         );
-        console.log("checked owner", asset1, asset0);
         pools[key] = Pool(asset0, asset1);
-        console.log("checked owner", asset1, asset0, tickSpacing);
 
         emit PoolConfigured(
             asset0,
@@ -113,7 +109,6 @@ contract ControllerV1 is Ownable2Step {
             bundleFee,
             unlockedFee
         );
-        console.log("post log", uint(69420));
         ANGSTROM.configurePool(
             asset0,
             asset1,
@@ -121,8 +116,6 @@ contract ControllerV1 is Ownable2Step {
             bundleFee,
             unlockedFee
         );
-
-        console.log("post configure", uint(1));
     }
 
     function removePool(address asset0, address asset1) external {
