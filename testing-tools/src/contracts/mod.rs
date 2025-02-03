@@ -46,6 +46,7 @@ where
                 config: GethDefaultTracingOptions {
                     disable_storage: Some(true),
                     enable_memory: Some(false),
+                    debug: Some(true),
                     ..Default::default()
                 },
                 tracer: Some(GethDebugTracerType::BuiltInTracer(
