@@ -104,6 +104,7 @@ contract ControllerV1 is Ownable2Step {
         );
         console.log("checked owner", asset1, asset0);
         pools[key] = Pool(asset0, asset1);
+        console.log("checked owner", asset1, asset0, tickSpacing);
 
         emit PoolConfigured(
             asset0,
@@ -112,6 +113,7 @@ contract ControllerV1 is Ownable2Step {
             bundleFee,
             unlockedFee
         );
+        console.log("post log", uint(69420));
         ANGSTROM.configurePool(
             asset0,
             asset1,
