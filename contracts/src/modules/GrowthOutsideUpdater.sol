@@ -85,7 +85,7 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         {
             uint160 expectedRewardChecksum;
             (newReader, expectedRewardChecksum) = newReader.readU160();
-            if (expectedRewardChecksum != pool.rewardChecksum << 96) {
+            if (expectedRewardChecksum != pool.rewardChecksum >> 96) {
                 revert JustInTimeLiquidityChange();
             }
         }
