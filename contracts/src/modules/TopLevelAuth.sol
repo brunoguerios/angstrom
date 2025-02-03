@@ -50,12 +50,15 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         uint24 bundleFee,
         uint24 unlockedFee
     ) external {
+        console.log("cnt");
         _onlyController();
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
+        console.log("store key");
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
             assetA,
             assetB
         );
+        console.log("setIntoNew");
         _configStore = _configStore.setIntoNew(
             key,
             assetA,
