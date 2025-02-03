@@ -1,6 +1,6 @@
 use alloy_primitives::U256;
 use angstrom_types::{
-    orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, OrderVolume, PoolSolution},
+    orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
@@ -10,7 +10,6 @@ use angstrom_types::{
     }
 };
 
-use super::Solution;
 use crate::OrderBook;
 
 #[derive(Clone)]
@@ -189,81 +188,62 @@ impl<'a> BinarySearchMatcher<'a> {
     /// what way the algo's price should move if we want it too
     fn calculate_solver_move(&self, p_mid: Ray) -> SupplyDemandResult {
         let (total_supply, sub_sup, sub_id) = self.total_supply_at_price(p_mid);
-        let (total_demand, sub_demand, sub_id) = self.total_demand_at_price(p_mid);
+        let (total_demand, sub_demand, dem_id) = self.total_demand_at_price(p_mid);
 
         cmp_total_supply_vs_demand(
             total_supply,
             total_demand,
             sub_sup.unwrap_or_default(),
-            sub_demand.unwrap_or_default()
+            sub_id,
+            sub_demand.unwrap_or_default(),
+            dem_id
         )
     }
 
     /// helper functions for grabbing all orders that we filled at ucp
     fn fetch_orders_at_ucp(&self, fetch: &UcpSolution) -> Vec<OrderOutcome> {
         // we can only have partial fills when ucp is exactly on.
-        if let Some((side, amount)) = fetch.get_partial_unfill() {
-            return self
-                .book
-                .bids()
-                .iter()
-                .map(|bid| OrderOutcome {
-                    id:      bid.order_id,
-                    outcome: if !side
-                        && fetch.ucp == bid.price().inv_ray_round(true)
-                        && bid.is_partial()
-                    {
-                        OrderFillState::PartialFill(
-                            bid.amount() - amount.scale_out_of_ray().to::<u128>()
-                        )
-                    } else if fetch.ucp <= bid.price().inv_ray_round(true) {
-                        OrderFillState::CompleteFill
-                    } else {
-                        OrderFillState::Unfilled
-                    }
-                })
-                .chain(self.book.asks().iter().map(|ask| OrderOutcome {
-                    id:      ask.order_id,
-                    outcome: if fetch.ucp >= ask.price() {
-                        OrderFillState::CompleteFill
-                    } else {
-                        OrderFillState::Unfilled
-                    }
-                }))
-                .collect::<Vec<_>>()
-            // // ask side extra
-            // if side {
-            //
-            // } else {
-            //     // bid side extra
-            // }
-        } else {
-            return self
-                .book
-                .bids()
-                .iter()
-                .map(|bid| OrderOutcome {
-                    id:      bid.order_id,
-                    outcome: if fetch.ucp <= bid.price().inv_ray_round(true) {
-                        OrderFillState::CompleteFill
-                    } else {
-                        OrderFillState::Unfilled
-                    }
-                })
-                .chain(self.book.asks().iter().map(|ask| OrderOutcome {
-                    id:      ask.order_id,
-                    outcome: if fetch.ucp >= ask.price() {
-                        OrderFillState::CompleteFill
-                    } else {
-                        OrderFillState::Unfilled
-                    }
-                }))
-                .collect::<Vec<_>>()
-        }
+        let (order_id, amount) = fetch.get_partial_unfill().unzip();
+
+        self.book
+            .bids()
+            .iter()
+            .map(|bid| OrderOutcome {
+                id:      bid.order_id,
+                outcome: if order_id == Some(bid.order_id) {
+                    OrderFillState::PartialFill(
+                        bid.amount() - amount.unwrap().scale_out_of_ray().to::<u128>()
+                    )
+                } else if fetch.ucp <= bid.price().inv_ray_round(true) {
+                    OrderFillState::CompleteFill
+                } else {
+                    OrderFillState::Unfilled
+                }
+            })
+            .chain(self.book.asks().iter().map(|ask| OrderOutcome {
+                id: ask.order_id,
+
+                outcome: if order_id == Some(ask.order_id) {
+                    OrderFillState::PartialFill(
+                        ask.amount() - amount.unwrap().scale_out_of_ray().to::<u128>()
+                    )
+                } else if fetch.ucp >= ask.price() {
+                    OrderFillState::CompleteFill
+                } else {
+                    OrderFillState::Unfilled
+                }
+            }))
+            .collect::<Vec<_>>()
     }
 
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
-        None
+        let book = self.book.amm()?;
+        let (d_0, d_1) = book.get_amm_swap(ucp)?;
+        let is_bid = book.is_bid(ucp);
+        let mut amm = NetAmmOrder::new(is_bid);
+        amm.add_quantity(U256::from(d_0), U256::from(d_1));
+
+        Some(amm)
     }
 
     pub fn solution(
@@ -329,7 +309,6 @@ impl<'a> BinarySearchMatcher<'a> {
         }
 
         None
-        // (p_max + p_min) / two
     }
 }
 
@@ -348,11 +327,14 @@ fn cmp_total_supply_vs_demand(
     if (total_supply >= total_demand && (total_supply - sub_sup) <= total_demand)
         || (total_supply <= total_demand && (total_demand - sub_dem) <= total_supply)
     {
-        println!("solved partial fill");
-        return SupplyDemandResult::PartialFillEq {
-            amount_unfilled: Ray::default(),
-            id:              sub_id.unwrap_or_default()
-        }
+        let id = if total_supply > total_demand { sub_id } else { dem_id };
+        let amount_unfilled = if total_supply > total_demand {
+            total_supply - total_demand
+        } else {
+            total_demand - total_supply
+        };
+
+        return SupplyDemandResult::PartialFillEq { amount_unfilled, id: id.unwrap() }
     }
     if total_supply > total_demand {
         SupplyDemandResult::MoreSupply

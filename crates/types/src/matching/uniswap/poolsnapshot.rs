@@ -12,7 +12,7 @@ use super::{
     Tick
 };
 use crate::{
-    matching::{math::low_to_high, uniswap::PoolPriceVec, SqrtPriceX96},
+    matching::{math::low_to_high, SqrtPriceX96},
     sol_bindings::Ray
 };
 
@@ -146,6 +146,58 @@ impl PoolSnapshot {
         let start_price = self.sqrt_price_x96;
 
         self.get_deltas(start_price, end_price)
+    }
+
+    pub fn get_amm_swap(&self, price: Ray) -> Option<(u128, u128)> {
+        let end_price = SqrtPriceX96::from(price);
+        let start_price = self.sqrt_price_x96;
+        let is_bid = start_price < end_price;
+        // fetch ticks for ranges
+        let start_tick = get_tick_at_sqrt_ratio(start_price.into()).ok()?;
+        let end_tick = get_tick_at_sqrt_ratio(end_price.into()).ok()?;
+
+        // Get all affected liquidity ranges
+        let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
+
+        let mut d_0 = 0u128;
+        let mut d_1 = 0u128;
+
+        for range in &liq_range {
+            let (range_start_price, range_end_price) = if is_bid {
+                let start = start_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
+                let end = end_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
+                (start, end)
+            } else {
+                let start = start_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
+                let end = end_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
+                (start, end)
+            };
+
+            // Skip if the range is not relevant
+            if (is_bid && range_start_price >= range_end_price)
+                || (!is_bid && range_start_price <= range_end_price)
+            {
+                continue;
+            }
+
+            d_0 += _get_amount_0_delta(
+                range_start_price.into(),
+                range_end_price.into(),
+                range.liquidity,
+                true
+            )
+            .ok()?
+            .to::<u128>();
+            d_1 += _get_amount_1_delta(
+                range_start_price.into(),
+                range_end_price.into(),
+                range.liquidity,
+                true
+            )
+            .ok()?
+            .to::<u128>();
+        }
+        Some((d_0, d_1))
     }
 
     fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
