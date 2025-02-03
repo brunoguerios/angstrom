@@ -576,7 +576,7 @@ impl AngstromBundle {
         {
             // Calculate our final amounts based on whether the order is in T0 or T1 context
             let inverse_order = order.is_bid() == order.exact_in();
-            assert_eq!(outcome.id.hash, order.order_id.hash);
+            assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");
             let (t0_moving, t1_moving) = if inverse_order {
                 let t1_moving = outcome.fill_amount(order.max_q());
                 let t0_moving = ray_ucp.inverse_quantity(t1_moving, !order.is_bid());
@@ -589,6 +589,8 @@ impl AngstromBundle {
 
             let (quantity_in, quantity_out) =
                 if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
+
+            trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
             let (asset_in, asset_out) = if order.is_bid { (t1, t0) } else { (t0, t1) };
             asset_builder.external_swap(

@@ -2,7 +2,9 @@ use base64::Engine;
 use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
 
 mod booklib;
-use booklib::{AMM_SIDE_BOOK, BAD_POOL, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, ZERO_ASK_BOOK};
+use booklib::{
+    AMM_QUANT, AMM_SIDE_BOOK, BAD_POOL, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, ZERO_ASK_BOOK
+};
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
@@ -32,14 +34,14 @@ fn check_all_existing_books() {
 #[ignore]
 fn build_and_ship_random_bundle() {
     with_tracing(|| {
-        let bytes = base64::prelude::BASE64_STANDARD.decode(BAD_POOL).unwrap();
+        let bytes = base64::prelude::BASE64_STANDARD.decode(AMM_QUANT).unwrap();
         let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
-        println!("Book: {:?}", book);
+        // println!("Book: {:#?}", book);
         let mut matcher = VolumeFillMatcher::new(&book);
         let solve = matcher.run_match();
         let solution = matcher.from_checkpoint().unwrap().solution(None);
         println!("EndReason: {:?}", solve);
-        println!("Solution: {:?}", solution);
+        println!("Solution: {:#?}", solution.amm_quantity);
     });
     // Will migrate things to here later, right now we have other tests to work
     // on

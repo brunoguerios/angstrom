@@ -13,6 +13,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use base64::Engine;
+use eyre::eyre;
 use tracing::{debug, info, trace, warn};
 
 use super::Solution;
@@ -126,6 +127,12 @@ impl<'a> VolumeFillMatcher<'a> {
         debug!(quantity, direction = ?direction, "Executing AMM fill");
         let new_amm = amm.d_t0(quantity, direction)?;
         let final_amm_order = PoolPriceVec::from_price_range(amm.clone(), new_amm.clone())?;
+        if final_amm_order.d_t0 != quantity {
+            let max_liq =
+                max(final_amm_order.end_bound.liquidity(), final_amm_order.start_bound.liquidity());
+            warn!(liquidity = max_liq, "Liquidity graunlarity too high");
+            return Err(eyre!("Unable to process a pool with liquidity {}", max_liq))
+        }
         *amm = new_amm.clone();
         // Add to our solution
         results.amm_volume += quantity;
