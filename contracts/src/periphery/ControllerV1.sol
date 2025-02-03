@@ -109,6 +109,7 @@ contract ControllerV1 is Ownable2Step {
             bundleFee,
             unlockedFee
         );
+        console.log("log this shit", uint(0x10));
         ANGSTROM.configurePool(
             asset0,
             asset1,
