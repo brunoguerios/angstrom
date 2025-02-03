@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use alloy_rpc_types::{BlockId, Transaction};
+use alloy_rpc_types::Transaction;
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
