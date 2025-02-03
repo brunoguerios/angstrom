@@ -1,6 +1,6 @@
 use alloy_primitives::U256;
 use angstrom_types::{
-    orders::{NetAmmOrder, OrderOutcome, PoolSolution},
+    orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, OrderVolume, PoolSolution},
     sol_bindings::{
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
@@ -78,6 +78,7 @@ impl<'a> BinarySearchMatcher<'a> {
 
     fn fetch_exact_in_partial_ask(&self, price: Ray) -> PartialLiqRange {
         let mut removal = None;
+        let mut id = None;
 
         let filled = self
             .book
@@ -99,6 +100,7 @@ impl<'a> BinarySearchMatcher<'a> {
                     let (max, min) =
                         (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
                     removal = Some(max - min);
+                    id = Some(ask.order_id);
 
                     Some(max)
                 } else if price > ask.price() {
@@ -109,11 +111,16 @@ impl<'a> BinarySearchMatcher<'a> {
             })
             .sum();
 
-        PartialLiqRange { filled_quantity: filled, optional_removal_liq: removal }
+        PartialLiqRange {
+            filled_quantity:      filled,
+            optional_removal_liq: removal,
+            optional_removal_id:  id
+        }
     }
 
     fn fetch_exact_in_partial_bid(&self, price: Ray) -> PartialLiqRange {
         let mut removal = None;
+        let mut id = None;
 
         let filled = self
             .book
@@ -136,6 +143,7 @@ impl<'a> BinarySearchMatcher<'a> {
                     let (max, min) =
                         (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
                     removal = Some(max.div_ray(price) - min.div_ray(price));
+                    id = Some(bid.order_id);
 
                     Some(max.div_ray(price))
                 } else if price < bid.price().inv_ray() {
@@ -146,36 +154,42 @@ impl<'a> BinarySearchMatcher<'a> {
             })
             .sum();
 
-        PartialLiqRange { filled_quantity: filled, optional_removal_liq: removal }
+        PartialLiqRange {
+            filled_quantity:      filled,
+            optional_removal_liq: removal,
+            optional_removal_id:  id
+        }
     }
 
-    fn total_supply_at_price(&self, price: Ray) -> (Ray, Option<Ray>) {
+    fn total_supply_at_price(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
         let partial = self.fetch_exact_in_partial_ask(price);
         (
             self.fetch_concentrated_liquidity(price)
                 + self.fetch_exact_in_ask_orders(price)
                 + self.fetch_exact_out_ask_orders(price)
                 + partial.filled_quantity,
-            partial.optional_removal_liq
+            partial.optional_removal_liq,
+            partial.optional_removal_id
         )
     }
 
-    fn total_demand_at_price(&self, price: Ray) -> (Ray, Option<Ray>) {
+    fn total_demand_at_price(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
         let partial = self.fetch_exact_in_partial_bid(price);
         (
             self.fetch_concentrated_liquidity(price)
                 + self.fetch_exact_in_bid_orders(price)
                 + self.fetch_exact_out_bid_orders(price)
                 + partial.filled_quantity,
-            partial.optional_removal_liq
+            partial.optional_removal_liq,
+            partial.optional_removal_id
         )
     }
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
     fn calculate_solver_move(&self, p_mid: Ray) -> SupplyDemandResult {
-        let (total_supply, sub_sup) = self.total_supply_at_price(p_mid);
-        let (total_demand, sub_demand) = self.total_demand_at_price(p_mid);
+        let (total_supply, sub_sup, sub_id) = self.total_supply_at_price(p_mid);
+        let (total_demand, sub_demand, sub_id) = self.total_demand_at_price(p_mid);
 
         cmp_total_supply_vs_demand(
             total_supply,
@@ -186,8 +200,66 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     /// helper functions for grabbing all orders that we filled at ucp
-    fn fetch_orders_at_ucp(&self, ucp: Ray) -> Vec<OrderOutcome> {
-        vec![]
+    fn fetch_orders_at_ucp(&self, fetch: &UcpSolution) -> Vec<OrderOutcome> {
+        // we can only have partial fills when ucp is exactly on.
+        if let Some((side, amount)) = fetch.get_partial_unfill() {
+            return self
+                .book
+                .bids()
+                .iter()
+                .map(|bid| OrderOutcome {
+                    id:      bid.order_id,
+                    outcome: if !side
+                        && fetch.ucp == bid.price().inv_ray_round(true)
+                        && bid.is_partial()
+                    {
+                        OrderFillState::PartialFill(
+                            bid.amount() - amount.scale_out_of_ray().to::<u128>()
+                        )
+                    } else if fetch.ucp <= bid.price().inv_ray_round(true) {
+                        OrderFillState::CompleteFill
+                    } else {
+                        OrderFillState::Unfilled
+                    }
+                })
+                .chain(self.book.asks().iter().map(|ask| OrderOutcome {
+                    id:      ask.order_id,
+                    outcome: if fetch.ucp >= ask.price() {
+                        OrderFillState::CompleteFill
+                    } else {
+                        OrderFillState::Unfilled
+                    }
+                }))
+                .collect::<Vec<_>>()
+            // // ask side extra
+            // if side {
+            //
+            // } else {
+            //     // bid side extra
+            // }
+        } else {
+            return self
+                .book
+                .bids()
+                .iter()
+                .map(|bid| OrderOutcome {
+                    id:      bid.order_id,
+                    outcome: if fetch.ucp <= bid.price().inv_ray_round(true) {
+                        OrderFillState::CompleteFill
+                    } else {
+                        OrderFillState::Unfilled
+                    }
+                })
+                .chain(self.book.asks().iter().map(|ask| OrderOutcome {
+                    id:      ask.order_id,
+                    outcome: if fetch.ucp >= ask.price() {
+                        OrderFillState::CompleteFill
+                    } else {
+                        OrderFillState::Unfilled
+                    }
+                }))
+                .collect::<Vec<_>>()
+        }
     }
 
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
@@ -198,9 +270,20 @@ impl<'a> BinarySearchMatcher<'a> {
         &self,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
-        let price_and_partial_solution = self.solve_clearing_price();
+        let Some(price_and_partial_solution) = self.solve_clearing_price() else {
+            return PoolSolution { id: self.book.id(), searcher, ..Default::default() }
+        };
 
-        todo!()
+        let limit = self.fetch_orders_at_ucp(&price_and_partial_solution);
+        let amm = self.fetch_amm_movement_at_ucp(price_and_partial_solution.ucp);
+
+        PoolSolution {
+            id: self.book.id(),
+            ucp: price_and_partial_solution.ucp,
+            amm_quantity: amm,
+            limit,
+            searcher
+        }
     }
 
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
@@ -228,16 +311,16 @@ impl<'a> BinarySearchMatcher<'a> {
 
                     return Some(UcpSolution {
                         ucp:                   p_mid,
-                        partial_unfill_side:   None,
-                        partial_unfill_amount: None
+                        partial_unfill_amount: None,
+                        partial_id:            None
                     })
                 }
-                SupplyDemandResult::PartialFillEq { side, amount_unfilled } => {
+                SupplyDemandResult::PartialFillEq { amount_unfilled, id } => {
                     println!("solved based on sup, demand with partial order");
                     return Some(UcpSolution {
                         ucp:                   p_mid,
-                        partial_unfill_side:   Some(side),
-                        partial_unfill_amount: Some(amount_unfilled)
+                        partial_unfill_amount: Some(amount_unfilled),
+                        partial_id:            Some(id)
                     })
                 }
             }
@@ -254,7 +337,9 @@ fn cmp_total_supply_vs_demand(
     total_supply: Ray,
     total_demand: Ray,
     sub_sup: Ray,
-    sub_dem: Ray
+    sub_id: Option<OrderId>,
+    sub_dem: Ray,
+    dem_id: Option<OrderId>
 ) -> SupplyDemandResult {
     println!("sup: {:#?} demand: {:#?}", total_supply, total_demand);
 
@@ -265,8 +350,8 @@ fn cmp_total_supply_vs_demand(
     {
         println!("solved partial fill");
         return SupplyDemandResult::PartialFillEq {
-            side:            true,
-            amount_unfilled: Ray::default()
+            amount_unfilled: Ray::default(),
+            id:              sub_id.unwrap_or_default()
         }
     }
     if total_supply > total_demand {
@@ -281,8 +366,15 @@ fn cmp_total_supply_vs_demand(
 #[derive(Debug)]
 struct UcpSolution {
     ucp:                   Ray,
-    partial_unfill_side:   Option<bool>,
-    partial_unfill_amount: Option<Ray>
+    // true means supply
+    partial_unfill_amount: Option<Ray>,
+    partial_id:            Option<OrderId>
+}
+
+impl UcpSolution {
+    pub fn get_partial_unfill(&self) -> Option<(OrderId, Ray)> {
+        Some((self.partial_id?, self.partial_unfill_amount?))
+    }
 }
 
 #[derive(Debug)]
@@ -290,11 +382,7 @@ enum SupplyDemandResult {
     MoreSupply,
     MoreDemand,
     NaturallyEqual,
-    PartialFillEq {
-        // true is supply
-        side:            bool,
-        amount_unfilled: Ray
-    }
+    PartialFillEq { amount_unfilled: Ray, id: OrderId }
 }
 
 #[derive(Debug, Default)]
@@ -302,7 +390,9 @@ struct PartialLiqRange {
     /// the quantity that filled up to the price.
     pub filled_quantity:      Ray,
     /// the amount of supply or demand that we can remove at the current ucp
-    pub optional_removal_liq: Option<Ray>
+    pub optional_removal_liq: Option<Ray>,
+    // the order id
+    pub optional_removal_id:  Option<OrderId>
 }
 
 #[cfg(test)]
