@@ -121,6 +121,8 @@ contract ControllerV1 is Ownable2Step {
             bundleFee,
             unlockedFee
         );
+
+        console.log("post configure", uint(1));
     }
 
     function removePool(address asset0, address asset1) external {
