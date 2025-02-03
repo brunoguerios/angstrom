@@ -225,9 +225,17 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(controller_configure_pool);
+            .send()
+            .await
+            .unwrap()
+            .watch()
+            .await
+            .unwrap();
+        // .deploy_pending()
+        // .await?;
+
+        tracing::debug!("success controller_configure_pool");
+        // self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
         let i = self
@@ -235,9 +243,16 @@ impl AnvilInitializer {
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(i);
+            // .deploy_pending()
+            // .await?;
+            .send()
+            .await
+            .unwrap()
+            .watch()
+            .await
+            .unwrap();
+        tracing::debug!("success angstrom.initializePool");
+        // self.pending_state.add_pending_tx(i);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
@@ -245,8 +260,16 @@ impl AnvilInitializer {
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
             .nonce(nonce + 2)
-            .deploy_pending()
-            .await?;
+            // .deploy_pending()
+            // .await?;
+            .send()
+            .await
+            .unwrap()
+            .watch()
+            .await
+            .unwrap();
+
+        tracing::debug!("success pool_gate");
         self.pending_state.add_pending_tx(pool_gate);
 
         let mut rng = thread_rng();
