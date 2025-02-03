@@ -1,7 +1,13 @@
 use alloy_primitives::U256;
-use angstrom_types::sol_bindings::{
-    grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
-    RawPoolOrder, Ray
+use angstrom_types::{
+    orders::{NetAmmOrder, OrderOutcome, PoolSolution},
+    sol_bindings::{
+        grouped_orders::{
+            FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
+        },
+        rpc_orders::TopOfBlockOrder,
+        RawPoolOrder, Ray
+    }
 };
 
 use super::Solution;
@@ -167,30 +173,44 @@ impl<'a> BinarySearchMatcher<'a> {
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
-    fn calculate_solver_move(&self, p_mid: Ray) -> Option<bool> {
+    fn calculate_solver_move(&self, p_mid: Ray) -> SupplyDemandResult {
         let (total_supply, sub_sup) = self.total_supply_at_price(p_mid);
         let (total_demand, sub_demand) = self.total_demand_at_price(p_mid);
-        return cmp_total_supply_vs_demand(
+
+        cmp_total_supply_vs_demand(
             total_supply,
             total_demand,
             sub_sup.unwrap_or_default(),
             sub_demand.unwrap_or_default()
-        );
+        )
     }
 
-    pub fn solve_book(&self) -> Solution {
-        let price = self.solve_clearing_price();
+    /// helper functions for grabbing all orders that we filled at ucp
+    fn fetch_orders_at_ucp(&self, ucp: Ray) -> Vec<OrderOutcome> {
+        vec![]
+    }
+
+    fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
+        None
+    }
+
+    pub fn solution(
+        &self,
+        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
+    ) -> PoolSolution {
+        let price_and_partial_solution = self.solve_clearing_price();
+
         todo!()
     }
 
-    fn solve_clearing_price(&self) -> Option<Ray> {
+    fn solve_clearing_price(&self) -> Option<UcpSolution> {
         let ep = Ray::from(U256::from(1));
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
         let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
 
         println!("min: {p_min:?} max: {p_max:?}");
 
-        let two = U256::from(2);
+        let two = U256::from(1);
         while (p_max - p_min) > ep {
             // grab all supply and demand
             let p_mid = Ray::from((p_max + p_min) / two);
@@ -198,14 +218,30 @@ impl<'a> BinarySearchMatcher<'a> {
 
             let res = self.calculate_solver_move(p_mid);
 
-            if res == Some(true) {
-                p_max = p_mid;
-            } else if res == Some(false) {
-                p_min = p_mid
-            } else {
-                println!("solved based on sup, demand");
-                return Some(p_mid)
+            match res {
+                SupplyDemandResult::MoreSupply => {
+                    p_max = p_mid;
+                }
+                SupplyDemandResult::MoreDemand => p_min = p_mid,
+                SupplyDemandResult::NaturallyEqual => {
+                    println!("solved based on sup, demand no partials");
+
+                    return Some(UcpSolution {
+                        ucp:                   p_mid,
+                        partial_unfill_side:   None,
+                        partial_unfill_amount: None
+                    })
+                }
+                SupplyDemandResult::PartialFillEq { side, amount_unfilled } => {
+                    println!("solved based on sup, demand with partial order");
+                    return Some(UcpSolution {
+                        ucp:                   p_mid,
+                        partial_unfill_side:   Some(side),
+                        partial_unfill_amount: Some(amount_unfilled)
+                    })
+                }
             }
+
             println!("min: {p_min:?} max: {p_max:?}");
         }
 
@@ -219,7 +255,7 @@ fn cmp_total_supply_vs_demand(
     total_demand: Ray,
     sub_sup: Ray,
     sub_dem: Ray
-) -> Option<bool> {
+) -> SupplyDemandResult {
     println!("sup: {:#?} demand: {:#?}", total_supply, total_demand);
 
     // if we can subtract the extra supply or demand and flip the equality, we have
@@ -228,12 +264,37 @@ fn cmp_total_supply_vs_demand(
         || (total_supply <= total_demand && (total_demand - sub_dem) <= total_supply)
     {
         println!("solved partial fill");
-        return None
+        return SupplyDemandResult::PartialFillEq {
+            side:            true,
+            amount_unfilled: Ray::default()
+        }
     }
+    if total_supply > total_demand {
+        SupplyDemandResult::MoreSupply
+    } else if total_demand > total_supply {
+        SupplyDemandResult::MoreDemand
+    } else {
+        SupplyDemandResult::NaturallyEqual
+    }
+}
 
-    (total_supply > total_demand)
-        .then_some(true)
-        .or_else(|| (total_supply < total_demand).then_some(false))
+#[derive(Debug)]
+struct UcpSolution {
+    ucp:                   Ray,
+    partial_unfill_side:   Option<bool>,
+    partial_unfill_amount: Option<Ray>
+}
+
+#[derive(Debug)]
+enum SupplyDemandResult {
+    MoreSupply,
+    MoreDemand,
+    NaturallyEqual,
+    PartialFillEq {
+        // true is supply
+        side:            bool,
+        amount_unfilled: Ray
+    }
 }
 
 #[derive(Debug, Default)]

@@ -1,13 +1,20 @@
-// pub struct BinarySearchStrategy {}
-// impl<'a> MatchingStrategy<'a> for BinarySearchStrategy {
-//     fn run(book: &'a OrderBook) -> Option<VolumeFillMatcher<'a>> {
-//         let mut solver = VolumeFillMatcher::new(book);
-//         solver.run_match();
-//         Self::finalize(solver)
-//     }
-//
-//     /// Finalization function to make sure our book is in a valid state and,
-// if     /// not, do a "last mile" computation to get it there.  Will return
-//     /// `None` if the book is considered unsolveable.
-//     fn finalize(solver: VolumeFillMatcher) -> Option<VolumeFillMatcher>;
-// }
+use angstrom_types::{
+    orders::PoolSolution,
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+};
+
+use crate::{book::OrderBook, matcher::binary_search::BinarySearchMatcher};
+
+pub struct BinarySearchStrategy {}
+
+impl BinarySearchStrategy {
+    pub fn run(
+        self,
+        book: &OrderBook,
+        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
+    ) -> PoolSolution {
+        let matcher = BinarySearchMatcher::new(book);
+
+        todo!()
+    }
+}
