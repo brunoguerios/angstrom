@@ -229,28 +229,10 @@ impl AnvilInitializer {
             .await
             .unwrap();
 
-        tracing::debug!("success controller_configure_pool");
-
-        let angstrom_v1_configure_pool = self
-            .controller_v1
-            .configurePool(
-                pool_key.currency0,
-                pool_key.currency1,
-                pool_key.tickSpacing.as_i32() as u16,
-                pool_key.fee,
-                pool_key.fee
-            )
-            .from(self.provider.controller())
-            .nonce(nonce)
-            .run_safe()
-            .await
-            .unwrap();
-
         // .deploy_pending()
         // .await?;
 
-        tracing::debug!("success angstrom_v1_configure_pool");
-
+        tracing::debug!("success controller_configure_pool");
         // self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
