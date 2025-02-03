@@ -30,8 +30,9 @@ fn a<'a>(
 mod tests {
     use super::*;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "mutli_thread")]
     async fn testnet_deploy() {
+        init_tracing(4);
         let cli = TestnetCli::default();
         let testnet = AngstromTestnet::spawn_testnet(
             NoopProvider::default(),
