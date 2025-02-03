@@ -119,8 +119,7 @@ where
             .map_windows(|[(tick_lower, _), (tick_upper, tick_inner_upper)]| {
                 // ensure everything is spaced properly
                 assert_eq!((**tick_upper - **tick_lower).abs(), self.tick_spacing);
-                LiqRange::new(**tick_lower, **tick_upper, tick_inner_upper.liquidity_net as u128)
-                    .unwrap()
+                LiqRange::new(**tick_lower, **tick_upper, tick_inner_upper.liquidity_gross).unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -409,10 +408,10 @@ where
 
                     liquidity = if liquidity_net < 0 {
                         liquidity
-                            .checked_sub((-liquidity_net) as u128)
+                            .checked_sub(liquidity_net.unsigned_abs())
                             .ok_or(SwapSimulationError::LiquidityUnderflow)?
                     } else {
-                        liquidity + (liquidity_net as u128)
+                        liquidity + (liquidity_net.unsigned_abs())
                     };
                 }
 
@@ -551,9 +550,10 @@ where
 
         if liquidity_delta != 0 && self.tick > tick_lower && self.tick < tick_upper {
             self.liquidity = if liquidity_delta < 0 {
-                self.liquidity - ((-liquidity_delta) as u128)
+                self.liquidity - (liquidity_delta.unsigned_abs())
             } else {
-                self.liquidity + (liquidity_delta as u128)
+                // > 0 so we can just
+                self.liquidity + (liquidity_delta.unsigned_abs())
             }
         }
 
@@ -652,9 +652,9 @@ where
         let liquidity_gross_before = info.liquidity_gross;
 
         let liquidity_gross_after = if liquidity_delta < 0 {
-            liquidity_gross_before.saturating_sub((-liquidity_delta) as u128)
+            liquidity_gross_before.saturating_sub(liquidity_delta.unsigned_abs())
         } else {
-            liquidity_gross_before + (liquidity_delta as u128)
+            liquidity_gross_before + (liquidity_delta.unsigned_abs())
         };
 
         // we do not need to check if liqudity_gross_after > maxLiquidity because we are

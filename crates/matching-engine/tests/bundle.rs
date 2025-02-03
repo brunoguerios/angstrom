@@ -3,7 +3,8 @@ use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
 
 mod booklib;
 use booklib::{
-    AMM_QUANT, AMM_SIDE_BOOK, BAD_POOL, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, ZERO_ASK_BOOK
+    AMM_QUANT, AMM_SIDE_BOOK, BAD_POOL, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, WEIRD_BOOK,
+    ZERO_ASK_BOOK
 };
 use tracing::Level;
 
@@ -34,7 +35,7 @@ fn check_all_existing_books() {
 #[ignore]
 fn build_and_ship_random_bundle() {
     with_tracing(|| {
-        let bytes = base64::prelude::BASE64_STANDARD.decode(AMM_QUANT).unwrap();
+        let bytes = base64::prelude::BASE64_STANDARD.decode(WEIRD_BOOK).unwrap();
         let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
         // println!("Book: {:#?}", book);
         let mut matcher = VolumeFillMatcher::new(&book);
