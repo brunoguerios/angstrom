@@ -270,7 +270,7 @@ impl AnvilInitializer {
             .unwrap();
 
         tracing::debug!("success pool_gate");
-        self.pending_state.add_pending_tx(pool_gate);
+        // self.pending_state.add_pending_tx(pool_gate);
 
         let mut rng = thread_rng();
 
