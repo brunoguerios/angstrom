@@ -30,7 +30,8 @@ use crate::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
             TestAnvilEnvironment
-        }
+        },
+        DebugTransaction
     },
     types::{
         config::TestingNodeConfig,
@@ -57,7 +58,6 @@ impl AnvilInitializer {
 
         tracing::debug!("deploying UniV4 enviroment");
         let uniswap_env = UniswapEnv::new(provider.clone()).await?;
-
         tracing::info!("deployed UniV4 enviroment");
 
         tracing::debug!("deploying Angstrom enviroment");
@@ -213,8 +213,7 @@ impl AnvilInitializer {
         let encoded = keccak256(pool_key.abi_encode());
         tracing::info!(?pool_key, ?encoded, ?price);
 
-        let tick_spacing = pool_key.tickSpacing.as_i32();
-        tracing::debug!(tick_spacing =?tick_spacing, "configuring pool");
+        tracing::debug!("configuring pool");
         let controller_configure_pool = self
             .controller_v1
             .configurePool(
@@ -226,12 +225,10 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            .send()
-            .await
-            .unwrap()
-            .watch()
+            .run_safe()
             .await
             .unwrap();
+
         // .deploy_pending()
         // .await?;
 
