@@ -25,3 +25,16 @@ fn a<'a>(
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async { eyre::Ok(()) })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn testnet_deploy() {
+        let cli = TestnetCli::default();
+        let testnet =
+            AngstromTestnet::spawn_testnet(NoopProvider::default(), config, vec![a]).await;
+        assert!(testnet.is_ok());
+    }
+}
