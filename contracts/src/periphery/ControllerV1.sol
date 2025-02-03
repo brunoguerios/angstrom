@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {console} from "forge-std/console.sol";
 import {IAngstromAuth} from "../interfaces/IAngstromAuth.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {
-    PoolConfigStore,
-    PoolConfigStoreLib,
-    StoreKey,
-    STORE_HEADER_SIZE
-} from "../libraries/PoolConfigStore.sol";
+import {PoolConfigStore, PoolConfigStoreLib, StoreKey, STORE_HEADER_SIZE} from "../libraries/PoolConfigStore.sol";
 import {ConfigEntry, ENTRY_SIZE, KEY_MASK} from "../types/ConfigEntry.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
@@ -43,7 +39,10 @@ contract ControllerV1 is Ownable2Step {
     );
 
     event PoolRemoved(
-        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
+        address indexed asset0,
+        address indexed asset1,
+        int24 tickSpacing,
+        uint24 feeInE6
     );
 
     event NodeAdded(address indexed node);
@@ -68,7 +67,10 @@ contract ControllerV1 is Ownable2Step {
 
     mapping(StoreKey key => Pool) public pools;
 
-    constructor(IAngstromAuth angstrom, address initialOwner) Ownable(initialOwner) {
+    constructor(
+        IAngstromAuth angstrom,
+        address initialOwner
+    ) Ownable(initialOwner) {
         ANGSTROM = angstrom;
     }
 
@@ -92,19 +94,41 @@ contract ControllerV1 is Ownable2Step {
         uint24 bundleFee,
         uint24 unlockedFee
     ) external {
+        console.log("checking owner");
         _checkOwner();
+        console.log("checked owner", asset0);
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
+            asset0,
+            asset1
+        );
+        console.log("checked owner", asset1, asset0);
         pools[key] = Pool(asset0, asset1);
-        emit PoolConfigured(asset0, asset1, tickSpacing, bundleFee, unlockedFee);
-        ANGSTROM.configurePool(asset0, asset1, tickSpacing, bundleFee, unlockedFee);
+
+        emit PoolConfigured(
+            asset0,
+            asset1,
+            tickSpacing,
+            bundleFee,
+            unlockedFee
+        );
+        ANGSTROM.configurePool(
+            asset0,
+            asset1,
+            tickSpacing,
+            bundleFee,
+            unlockedFee
+        );
     }
 
     function removePool(address asset0, address asset1) external {
         _checkOwner();
 
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
+            asset0,
+            asset1
+        );
         PoolConfigStore configStore = ANGSTROM.configStore();
         uint256 poolIndex = 0;
 
@@ -114,10 +138,16 @@ contract ControllerV1 is Ownable2Step {
             entry = configStore.getWithDefaultEmpty(key, poolIndex);
             if (!entry.isEmpty()) break;
             poolIndex++;
-            if (poolIndex >= totalEntries) revert NonexistentPool(asset0, asset1);
+            if (poolIndex >= totalEntries)
+                revert NonexistentPool(asset0, asset1);
         }
 
-        emit PoolRemoved(asset0, asset1, entry.tickSpacing(), entry.bundleFee());
+        emit PoolRemoved(
+            asset0,
+            asset1,
+            entry.tickSpacing(),
+            entry.bundleFee()
+        );
         ANGSTROM.removePool(key, configStore, poolIndex);
     }
 
