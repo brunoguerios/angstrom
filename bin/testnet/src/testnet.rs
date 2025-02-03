@@ -33,9 +33,12 @@ mod tests {
     #[tokio::test]
     async fn testnet_deploy() {
         let cli = TestnetCli::default();
-        let testnet =
-            AngstromTestnet::spawn_testnet(NoopProvider::default(), config, vec![a]).await;
+        let testnet = AngstromTestnet::spawn_testnet(
+            NoopProvider::default(),
+            cli.make_config().unwrap(),
+            vec![a]
+        )
+        .await;
         assert!(testnet.is_ok());
     }
 }
-//

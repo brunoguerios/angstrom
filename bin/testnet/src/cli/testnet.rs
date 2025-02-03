@@ -1,4 +1,8 @@
-use std::{net::IpAddr, path::PathBuf, str::FromStr};
+use std::{
+    net::IpAddr,
+    path::{Path, PathBuf},
+    str::FromStr
+};
 
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{
@@ -58,7 +62,7 @@ impl Default for TestnetCli {
             angstrom_base_rpc_port: None,
             nodes_in_network:       3,
             eth_fork_url:           "ws://localhost:8546".to_string(),
-            pool_key_config:        "./bin/testnet/pool_key_config.toml".to_string()
+            pool_key_config:        Path::new("./bin/testnet/pool_key_config.toml").into()
         }
     }
 }
