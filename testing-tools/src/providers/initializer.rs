@@ -233,7 +233,7 @@ impl AnvilInitializer {
         // .await?;
 
         tracing::debug!("success controller_configure_pool");
-        // self.pending_state.add_pending_tx(controller_configure_pool);
+        // self.pending_state.add_pending_tx(controller_configure_pool);in
 
         tracing::debug!("initializing pool");
         let i = self
