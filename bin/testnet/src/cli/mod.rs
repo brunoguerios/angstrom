@@ -107,3 +107,15 @@ pub fn init_tracing(verbosity: u8) {
 
     tracing_subscriber::registry().with(layers).init();
 }
+
+fn layer_builder(filter_str: String) -> Box<dyn Layer<Registry> + Send + Sync> {
+    let filter = EnvFilter::builder()
+        .with_default_directive(filter_str.parse().unwrap())
+        .from_env_lossy();
+
+    tracing_subscriber::fmt::layer()
+        .with_ansi(true)
+        .with_target(true)
+        .with_filter(filter)
+        .boxed()
+}
