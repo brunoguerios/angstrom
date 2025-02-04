@@ -19,9 +19,11 @@ ignored_error_codes = [
 
 remappings = [
   "solady/src/=lib/solady/src/",
-  "v4-core/src/=lib/v4-core/src/",
-  # "v4-periphery/src/=lib/v4-periphery/src/",
+  "v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
+  "v4-periphery/src/=lib/v4-periphery/src/",
+  "forge-std/=lib/forge-std/src",
   "solmate/=lib/solmate/",
+  "core/src/=src/",
 ]
 
 [profile.default.fmt]
@@ -51,14 +53,6 @@ runs = 200
 [profile.loaders]
 show_progress = false
 optimizer = true
-remappings = [
-  "solady/src/=lib/solady/src/",
-  "v4-core/src/=lib/v4-core/src/",
-  # "v4-periphery/src/=lib/v4-periphery/src/",
-  "forge-std/=lib/forge-std/src",
-  "core/src/=src/",
-  "solmate/=lib/solmate/",
-]
 ast = true
 src = "../crates/uniswap-v4/src/uniswap/loaders"
 libs = ["lib"]
