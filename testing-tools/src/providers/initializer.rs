@@ -30,7 +30,8 @@ use crate::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
             TestAnvilEnvironment
-        }
+        },
+        DebugTransaction
     },
     types::{
         config::TestingNodeConfig,
@@ -239,13 +240,13 @@ impl AnvilInitializer {
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
-            // .run_safe()
-            // .await
-            // .unwrap();
-            .deploy_pending()
-            .await?;
+            .run_safe()
+            .await
+            .unwrap();
+        // .deploy_pending()
+        // .await?;
         // tracing::debug!("success: angstrom.initializePool");
-        self.pending_state.add_pending_tx(i);
+        // self.pending_state.add_pending_tx(i);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
