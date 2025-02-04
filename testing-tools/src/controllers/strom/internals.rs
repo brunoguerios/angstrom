@@ -152,7 +152,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let token_conversion = TokenPriceGenerator::new(
             Arc::new(state_provider.rpc_provider()),
-            block_number,
+            block_number - 1,
             uniswap_pools.clone(),
             Some(1)
         )
