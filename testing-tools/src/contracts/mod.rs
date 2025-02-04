@@ -27,6 +27,7 @@ pub mod environment;
 pub trait DebugTransaction {
     #[allow(async_fn_in_trait)] // OK because this is not for public consumption
     async fn run_safe(self) -> eyre::Result<TxHash>;
+    #[allow(async_fn_in_trait)] // OK because this is not for public consumption
     async fn run_with_results_safe(self) -> eyre::Result<TxHash>;
 }
 
