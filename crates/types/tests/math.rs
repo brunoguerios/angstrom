@@ -1,5 +1,4 @@
 use alloy_primitives::{I256, U256};
-use angstrom_types::matching::SqrtPriceX96;
 use uniswap_v3_math::sqrt_price_math::get_next_sqrt_price_from_amount_0_rounding_up;
 
 #[test]

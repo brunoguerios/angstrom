@@ -224,7 +224,7 @@ where
         c.pools = Arc::new(
             c.pools
                 .iter()
-                .map(|(k, v)| (self.convert_to_pub_id(&k), v.clone()))
+                .map(|(k, v)| (self.convert_to_pub_id(k), v.clone()))
                 .collect()
         );
 
@@ -606,8 +606,12 @@ mod annoying_tests {
         let pool = EnhancedUniswapPool::<DataLoader<PoolId>, PoolId>::default();
         let pool_id = PoolId::default();
 
+        let mut map = HashMap::new();
+        map.insert(pool_id, pool_id);
+
         let mut manager = UniswapPoolManager::new(
             vec![pool],
+            map,
             100, // Start at block 100
             provider.clone(),
             block_sync
@@ -651,8 +655,12 @@ mod annoying_tests {
         let pool = EnhancedUniswapPool::<DataLoader<PoolId>, PoolId>::default();
         let pool_id = PoolId::default();
 
+        let mut map = HashMap::new();
+        map.insert(pool_id, pool_id);
+
         let mut manager = UniswapPoolManager::new(
             vec![pool],
+            map,
             95, // Start at block 95
             provider.clone(),
             block_sync

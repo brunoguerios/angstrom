@@ -309,7 +309,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             .pool_registry
             .as_ref()
             .unwrap()
-            .get(&id)
+            .get(id)
             .unwrap()
             .clone();
 
