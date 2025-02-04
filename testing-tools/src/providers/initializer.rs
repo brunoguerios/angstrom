@@ -8,6 +8,7 @@ use alloy::{
     transports::BoxTransport
 };
 use alloy_primitives::{FixedBytes, U256};
+use alloy_rpc_types::BlockId;
 use alloy_sol_types::SolValue;
 use angstrom_types::{
     contract_bindings::{
@@ -16,6 +17,7 @@ use angstrom_types::{
         mintable_mock_erc_20::MintableMockERC20,
         pool_gate::PoolGate::PoolGateInstance
     },
+    contract_payloads::angstrom::AngstromPoolConfigStore,
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
 };
@@ -224,13 +226,13 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            // .run_safe()
-            // .await
-            // .unwrap();
-            .deploy_pending()
-            .await?;
+            .run_safe()
+            .await
+            .unwrap();
+        // .deploy_pending()
+        // .await?;
         tracing::debug!("success: controller_configure_pool");
-        self.pending_state.add_pending_tx(controller_configure_pool);
+        // self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
         let i = self
@@ -238,26 +240,35 @@ impl AnvilInitializer {
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
-            // .run_safe()
-            // .await
-            // .unwrap();
-            .deploy_pending()
-            .await?;
+            .run_safe()
+            .await
+            .unwrap();
+        // .deploy_pending()
+        // .await?;
         tracing::debug!("success: angstrom.initializePool");
-        self.pending_state.add_pending_tx(i);
+        // self.pending_state.add_pending_tx(i);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
-            // .run_safe()
-            // .await
-            // .unwrap();
-            .deploy_pending()
-            .await?;
+            .run_safe()
+            .await
+            .unwrap();
+        // .deploy_pending()
+        // .await?;
         tracing::debug!("success: pool_gate");
-        self.pending_state.add_pending_tx(pool_gate);
+        // self.pending_state.add_pending_tx(pool_gate);
+
+        let config_store = AngstromPoolConfigStore::load_from_chain(
+            *self.angstrom.address(),
+            BlockId::latest(),
+            &self.provider.provider()
+        )
+        .await
+        .unwrap();
+        tracing::error!("CONFIG STORE: {:?}", config_store);
 
         let mut rng = thread_rng();
 
@@ -280,7 +291,6 @@ impl AnvilInitializer {
                 .nonce(nonce + 3 + (i as u64))
                 .deploy_pending()
                 .await?;
-            // tracing::debug!("success: add_liq {i}");
             self.pending_state.add_pending_tx(add_liq);
         }
 
