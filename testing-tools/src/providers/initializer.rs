@@ -235,7 +235,7 @@ impl AnvilInitializer {
         self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
-        let i = self
+        let initialize_angstrom_pool = self
             .angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
@@ -246,7 +246,7 @@ impl AnvilInitializer {
         // .deploy_pending()
         // .await?;
         // tracing::debug!("success: angstrom.initializePool");
-        // self.pending_state.add_pending_tx(i);
+        // self.pending_state.add_pending_tx(initialize_angstrom_pool);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
