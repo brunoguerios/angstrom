@@ -8,7 +8,6 @@ use alloy::{
     transports::BoxTransport
 };
 use alloy_primitives::{FixedBytes, U256};
-use alloy_rpc_types::BlockId;
 use alloy_sol_types::SolValue;
 use angstrom_types::{
     contract_bindings::{
@@ -17,7 +16,6 @@ use angstrom_types::{
         mintable_mock_erc_20::MintableMockERC20,
         pool_gate::PoolGate::PoolGateInstance
     },
-    contract_payloads::angstrom::AngstromPoolConfigStore,
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
 };
@@ -32,8 +30,7 @@ use crate::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
             TestAnvilEnvironment
-        },
-        DebugTransaction
+        }
     },
     types::{
         config::TestingNodeConfig,
@@ -261,15 +258,6 @@ impl AnvilInitializer {
             .await?;
         // tracing::debug!("success: pool_gate");
         self.pending_state.add_pending_tx(pool_gate);
-
-        let config_store = AngstromPoolConfigStore::load_from_chain(
-            *self.angstrom.address(),
-            BlockId::latest(),
-            &self.provider.provider()
-        )
-        .await
-        .unwrap();
-        tracing::error!("CONFIG STORE: {:?}", config_store);
 
         let mut rng = thread_rng();
 
