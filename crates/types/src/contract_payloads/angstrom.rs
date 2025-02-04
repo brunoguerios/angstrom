@@ -1201,7 +1201,7 @@ impl AngstromPoolConfigStore {
 
         let code = provider
             .get_code_at(config_store_address)
-            //.block_id(block_id)
+            .block_id(block_id)
             .await
             .map_err(|e| format!("Error getting code: {}", e))?;
 
