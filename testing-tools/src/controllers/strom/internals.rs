@@ -117,7 +117,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         block_sync.clear();
         let block_number = b.tip().number;
 
-        tracing::debug!(block_number, "creating strom internals");
+        tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.clone().into();
 

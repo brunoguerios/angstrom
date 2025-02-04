@@ -1,5 +1,4 @@
-use alloy::primitives::Address;
-use alloy_primitives::TxHash;
+use alloy_primitives::{Address, TxHash};
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
     pool_gate::PoolGate::PoolGateInstance, position_fetcher::PositionFetcher
@@ -46,17 +45,15 @@ where
                 inner.pool_manager(),
                 inner.controller()
             ))
-            .await;
-
+            .await?;
         debug!("Angstrom deployed at: {}", angstrom_addr);
+
         // gotta toggle nodes
         let ang_i = AngstromInstance::new(angstrom_addr, &provider);
-
-        let _ = ang_i
-            .toggleNodes(nodes)
-            .from(inner.controller())
-            .run_safe()
+        let _ = inner
+            .execute_then_mine(ang_i.toggleNodes(nodes).from(inner.controller()).run_safe())
             .await?;
+
         Ok(angstrom_addr)
     }
 
@@ -70,14 +67,16 @@ where
             ))
             .await?
             .address();
-
         debug!("ControllerV1 deployed at: {}", controller_v1_addr);
 
         let angstrom = AngstromInstance::new(angstrom_addr, inner.provider());
-        let _ = *angstrom
-            .setController(controller_v1_addr)
-            .from(inner.controller())
-            .run_safe()
+        let _ = inner
+            .execute_then_mine(
+                angstrom
+                    .setController(controller_v1_addr)
+                    .from(inner.controller())
+                    .run_safe()
+            )
             .await?;
 
         // Set the PoolGate's hook to be our Mock

@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use alloy_primitives::{Address, B256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
-    primitive::PoolId,
+    primitive::{OrderPoolNewOrderResult, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
 use jsonrpsee::{core::RpcResult, PendingSubscriptionSink, SubscriptionMessage};
 use order_pool::{OrderPoolHandle, PoolManagerUpdate};
 use reth_tasks::TaskSpawner;
-use validation::order::{OrderPoolNewOrderResult, OrderValidatorHandle};
+use validation::order::OrderValidatorHandle;
 
 use crate::{
     api::{GasEstimateResponse, OrderApiServer},

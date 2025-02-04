@@ -31,6 +31,12 @@ type StoreKey is bytes27;
 
 using PoolConfigStoreLib for PoolConfigStore global;
 
+using {PoolConfigStore_neq as !=} for PoolConfigStore global;
+
+function PoolConfigStore_neq(PoolConfigStore a, PoolConfigStore b) pure returns (bool neq) {
+    return PoolConfigStore.unwrap(a) != PoolConfigStore.unwrap(b);
+}
+
 /// @author philogy <https://github.com/philogy>
 /// @dev Handles deploying and querying of "pool config store contracts", SSTORE2 contracts that
 /// store the list of configured pools in their bytecode for the sake of saving gas (cold contract
@@ -42,7 +48,7 @@ library PoolConfigStoreLib {
 
     error NoEntry();
 
-    error DuplicateAsset();
+    error InvalidAssets();
     error InvalidTickSpacing();
     error FeeAboveMax();
     error FailedToDeployNewStore();
@@ -115,19 +121,18 @@ library PoolConfigStoreLib {
     /// asset pair.
     function setIntoNew(
         PoolConfigStore previousStore,
+        StoreKey key,
         address asset0,
         address asset1,
         uint16 tickSpacing,
-        uint24 feeInE6
+        uint24 bundleFee
     ) internal returns (PoolConfigStore newStore) {
-        if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        if (asset1 == asset0) revert DuplicateAsset();
+        if (asset1 <= asset0) revert InvalidAssets();
         if (tickSpacing == 0) revert InvalidTickSpacing();
-        if (feeInE6 > MAX_FEE) revert FeeAboveMax();
+        if (bundleFee > MAX_FEE) revert FeeAboveMax();
 
         // Update store.
         uint256 total = previousStore.totalEntries();
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
         assembly ("memory-safe") {
             // Get free memory & copy in the entire store's contents.
             let free := mload(0x40)
@@ -144,7 +149,7 @@ library PoolConfigStoreLib {
                     key,
                     or(
                         shl(TICK_SPACING_OFFSET, and(tickSpacing, TICK_SPACING_MASK)),
-                        shl(FEE_OFFSET, and(feeInE6, FEE_MASK))
+                        shl(FEE_OFFSET, and(bundleFee, FEE_MASK))
                     )
                 )
             // Search pool to see if it was already configured, if so replace the entry.
@@ -179,12 +184,11 @@ library PoolConfigStoreLib {
         return PoolConfigStore.unwrap(self).code.length / ENTRY_SIZE;
     }
 
-    function get(PoolConfigStore self, StoreKey key, uint256 index)
+    function getWithDefaultEmpty(PoolConfigStore self, StoreKey key, uint256 index)
         internal
         view
-        returns (int24 tickSpacing, uint24 feeInE6)
+        returns (ConfigEntry entry)
     {
-        ConfigEntry entry;
         assembly ("memory-safe") {
             // Copy from store into scratch space.
             extcodecopy(self, 0x00, add(STORE_HEADER_SIZE, mul(ENTRY_SIZE, index)), ENTRY_SIZE)
@@ -192,9 +196,17 @@ library PoolConfigStoreLib {
             entry := mload(0x00)
             entry := mul(entry, eq(key, and(entry, KEY_MASK)))
         }
+    }
+
+    function get(PoolConfigStore self, StoreKey key, uint256 index)
+        internal
+        view
+        returns (int24 tickSpacing, uint24 bundleFee)
+    {
+        ConfigEntry entry = self.getWithDefaultEmpty(key, index);
         if (entry.isEmpty()) revert NoEntry();
         tickSpacing = entry.tickSpacing();
-        feeInE6 = entry.feeInE6();
+        bundleFee = entry.bundleFee();
     }
 
     /// @dev Computes the `StoreKey` from the inputs. WARN: Does not check that the assets are

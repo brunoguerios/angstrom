@@ -59,39 +59,7 @@ impl AngstromTestnetCli {
     }
 
     fn init_tracing(&self) {
-        let level = match self.verbosity - 1 {
-            0 => Level::ERROR,
-            1 => Level::WARN,
-            2 => Level::INFO,
-            3 => Level::DEBUG,
-            _ => Level::TRACE
-        };
-
-        let envfilter = filter::EnvFilter::builder().try_from_env().ok();
-        let format = tracing_subscriber::fmt::layer()
-            .with_ansi(true)
-            .with_target(true);
-
-        if let Some(f) = envfilter {
-            tracing_subscriber::registry().with(format).with(f).init();
-        } else {
-            let filter = filter::Targets::new()
-                .with_target("testnet", level)
-                .with_target("devnet", level)
-                .with_target("angstrom_rpc", level)
-                .with_target("angstrom", level)
-                .with_target("testing_tools", level)
-                .with_target("matching_engine", level)
-                .with_target("uniswap_v4", level)
-                .with_target("consensus", level)
-                .with_target("validation", level)
-                .with_target("order_pool", level);
-
-            tracing_subscriber::registry()
-                .with(format)
-                .with(filter)
-                .init();
-        }
+        init_tracing(self.verbosity);
     }
 }
 
@@ -113,4 +81,41 @@ impl TestnetSubcommmand {
             TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await
         }
     }
+}
+
+pub fn init_tracing(verbosity: u8) {
+    let level = match verbosity - 1 {
+        0 => Level::ERROR,
+        1 => Level::WARN,
+        2 => Level::INFO,
+        3 => Level::DEBUG,
+        _ => Level::TRACE
+    };
+
+    let layers = vec![
+        layer_builder(format!("testnet={level}")),
+        layer_builder(format!("devnet={level}")),
+        layer_builder(format!("angstrom_rpc={level}")),
+        layer_builder(format!("angstrom={level}")),
+        layer_builder(format!("testing_tools={level}")),
+        layer_builder(format!("matching_engine={level}")),
+        layer_builder(format!("uniswap_v4={level}")),
+        layer_builder(format!("consensus={level}")),
+        layer_builder(format!("validation={level}")),
+        layer_builder(format!("order_pool={level}")),
+    ];
+
+    tracing_subscriber::registry().with(layers).init();
+}
+
+fn layer_builder(filter_str: String) -> Box<dyn Layer<Registry> + Send + Sync> {
+    let filter = EnvFilter::builder()
+        .with_default_directive(filter_str.parse().unwrap())
+        .from_env_lossy();
+
+    tracing_subscriber::fmt::layer()
+        .with_ansi(true)
+        .with_target(true)
+        .with_filter(filter)
+        .boxed()
 }

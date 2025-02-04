@@ -15,6 +15,16 @@ ignored_error_codes = [
   5574, # Contract size too large
 ]
 
+
+remappings = [
+  "solady/src/=lib/solady/src/",
+  "v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
+  "v4-periphery/src/=lib/v4-periphery/src/",
+  "forge-std/=lib/forge-std/src",
+  "solmate/=lib/solmate/",
+  "core/src/=src/",
+]
+
 [profile.default.fmt]
 line_length = 100
 
@@ -44,18 +54,4 @@ show_progress = false
 optimizer = true
 ast = true
 src = "../crates/uniswap-v4/src/uniswap/loaders"
-remappings = [
-  "solady/src/=lib/solady/src/",
-  "v4-core/src/=lib/v4-core/src/",
-  "forge-std/=lib/forge-std/src",
-  "core/src/=src/",
-  "solmate/=lib/solmate/",
-]
-# remappings = [
-#   "solady/src/=lib/solady/src/",
-#   "v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
-#   "v4-periphery/src/=lib/v4-periphery/src/",
-#   "forge-std/=lib/forge-std/src",
-#   "solmate/=lib/solmate/",
-# ]
 libs = ["lib"]

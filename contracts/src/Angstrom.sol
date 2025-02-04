@@ -6,6 +6,7 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 import {TopLevelAuth} from "./modules/TopLevelAuth.sol";
 import {Settlement} from "./modules/Settlement.sol";
 import {PoolUpdates} from "./modules/PoolUpdates.sol";
+import {UnlockHook} from "./modules/UnlockHook.sol";
 import {OrderInvalidation} from "./modules/OrderInvalidation.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {UniConsumer} from "./modules/UniConsumer.sol";
@@ -18,7 +19,9 @@ import {PairArray, PairLib} from "./types/Pair.sol";
 import {TypedDataHasher, TypedDataHasherLib} from "./types/TypedDataHasher.sol";
 import {HookBuffer, HookBufferLib} from "./types/HookBuffer.sol";
 import {SignatureLib} from "./libraries/SignatureLib.sol";
-import {PriceAB as PriceOutVsIn, AmountA as AmountOut, AmountB as AmountIn} from "./types/Price.sol";
+import {
+    PriceAB as PriceOutVsIn, AmountA as AmountOut, AmountB as AmountIn
+} from "./types/Price.sol";
 import {ToBOrderBuffer} from "./types/ToBOrderBuffer.sol";
 import {ToBOrderVariantMap} from "./types/ToBOrderVariantMap.sol";
 import {UserOrderBuffer} from "./types/UserOrderBuffer.sol";
@@ -30,28 +33,29 @@ contract Angstrom is
     OrderInvalidation,
     Settlement,
     PoolUpdates,
+    UnlockHook,
     IUnlockCallback,
     PermitSubmitterHook
 {
     error LimitViolated();
     error ToBGasUsedAboveMax();
 
-    constructor(
-        IPoolManager uniV4,
-        address controller
-    ) UniConsumer(uniV4) TopLevelAuth(controller) {
+    constructor(IPoolManager uniV4, address controller)
+        UniConsumer(uniV4)
+        TopLevelAuth(controller)
+    {
         _checkAngstromHookFlags();
     }
 
     function execute(bytes calldata encoded) external {
         console.log("testing we got here");
         _nodeBundleLock();
-        UNI_V4.unlock(encoded);
+        if (encoded.length > 0) {
+            UNI_V4.unlock(encoded);
+        }
     }
 
-    function unlockCallback(
-        bytes calldata data
-    ) external override returns (bytes memory) {
+    function unlockCallback(bytes calldata data) external override returns (bytes memory) {
         _onlyUniV4();
 
         CalldataReader reader = CalldataReaderLib.from(data);
@@ -59,11 +63,7 @@ contract Angstrom is
         AssetArray assets;
         (reader, assets) = AssetLib.readFromAndValidate(reader);
         PairArray pairs;
-        (reader, pairs) = PairLib.readFromAndValidate(
-            reader,
-            assets,
-            _configStore
-        );
+        (reader, pairs) = PairLib.readFromAndValidate(reader, assets, _configStore);
 
         console.log("read pairs and assets");
         _takeAssets(assets);
@@ -88,17 +88,17 @@ contract Angstrom is
 
     /// @dev Load arbitrary storage slot from this contract, enables on-chain introspection without
     /// view methods.
-    function extsload(bytes32 slot) external view returns (bytes32) {
+    function extsload(uint256 slot) external view returns (uint256) {
         assembly ("memory-safe") {
             mstore(0x00, sload(slot))
             return(0x00, 0x20)
         }
     }
 
-    function _validateAndExecuteToBOrders(
-        CalldataReader reader,
-        PairArray pairs
-    ) internal returns (CalldataReader) {
+    function _validateAndExecuteToBOrders(CalldataReader reader, PairArray pairs)
+        internal
+        returns (CalldataReader)
+    {
         CalldataReader end;
         (reader, end) = reader.readU24End();
 
@@ -109,12 +109,7 @@ contract Angstrom is
         // Purposefully devolve into an endless loop if the specified length isn't exactly used s.t.
         // `reader == end` at some point.
         while (reader != end) {
-            reader = _validateAndExecuteToBOrder(
-                reader,
-                buffer,
-                typedHasher,
-                pairs
-            );
+            reader = _validateAndExecuteToBOrder(reader, buffer, typedHasher, pairs);
         }
 
         return reader;
@@ -147,14 +142,12 @@ contract Angstrom is
         {
             uint16 pairIndex;
             (reader, pairIndex) = reader.readU16();
-            (buffer.assetIn, buffer.assetOut) = pairs.get(pairIndex).getAssets(
-                variantMap.zeroForOne()
-            );
+            (buffer.assetIn, buffer.assetOut) =
+                pairs.get(pairIndex).getAssets(variantMap.zeroForOne());
         }
 
-        (reader, buffer.recipient) = variantMap.recipientIsSome()
-            ? reader.readAddr()
-            : (reader, address(0));
+        (reader, buffer.recipient) =
+            variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));
 
         bytes32 orderHash = typedHasher.hashTypedData(buffer.hash());
 
@@ -176,26 +169,16 @@ contract Angstrom is
         } else {
             buffer.quantityOut -= gasUsedAsset0;
         }
-        _settleOrderIn(
-            from,
-            buffer.assetIn,
-            AmountIn.wrap(buffer.quantityIn),
-            buffer.useInternal
-        );
-        _settleOrderOut(
-            to,
-            buffer.assetOut,
-            AmountOut.wrap(buffer.quantityOut),
-            buffer.useInternal
-        );
+        _settleOrderIn(from, buffer.assetIn, AmountIn.wrap(buffer.quantityIn), buffer.useInternal);
+        _settleOrderOut(to, buffer.assetOut, AmountOut.wrap(buffer.quantityOut), buffer.useInternal);
 
         return reader;
     }
 
-    function _validateAndExecuteUserOrders(
-        CalldataReader reader,
-        PairArray pairs
-    ) internal returns (CalldataReader) {
+    function _validateAndExecuteUserOrders(CalldataReader reader, PairArray pairs)
+        internal
+        returns (CalldataReader)
+    {
         TypedDataHasher typedHasher = _erc712Hasher();
         UserOrderBuffer memory buffer;
 
@@ -205,12 +188,7 @@ contract Angstrom is
         // Purposefully devolve into an endless loop if the specified length isn't exactly used s.t.
         // `reader == end` at some point.
         while (reader != end) {
-            reader = _validateAndExecuteUserOrder(
-                reader,
-                buffer,
-                typedHasher,
-                pairs
-            );
+            reader = _validateAndExecuteUserOrder(reader, buffer, typedHasher, pairs);
         }
 
         return reader;
@@ -232,24 +210,19 @@ contract Angstrom is
             uint256 priceOutVsIn;
             uint16 pairIndex;
             (reader, pairIndex) = reader.readU16();
-            (buffer.assetIn, buffer.assetOut, priceOutVsIn) = pairs
-                .get(pairIndex)
-                .getSwapInfo(variantMap.zeroForOne());
+            (buffer.assetIn, buffer.assetOut, priceOutVsIn) =
+                pairs.get(pairIndex).getSwapInfo(variantMap.zeroForOne());
             price = PriceOutVsIn.wrap(priceOutVsIn);
         }
 
         (reader, buffer.minPrice) = reader.readU256();
         if (price.into() < buffer.minPrice) revert LimitViolated();
 
-        (reader, buffer.recipient) = variantMap.recipientIsSome()
-            ? reader.readAddr()
-            : (reader, address(0));
+        (reader, buffer.recipient) =
+            variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));
 
         HookBuffer hook;
-        (reader, hook, buffer.hookDataHash) = HookBufferLib.readFrom(
-            reader,
-            variantMap.noHook()
-        );
+        (reader, hook, buffer.hookDataHash) = HookBufferLib.readFrom(reader, variantMap.noHook());
 
         // For flash orders sets the current block number as `validForBlock` so that it's
         // implicitly validated via hashing later.
@@ -257,15 +230,9 @@ contract Angstrom is
 
         AmountIn amountIn;
         AmountOut amountOut;
-        (reader, amountIn, amountOut) = buffer.loadAndComputeQuantity(
-            reader,
-            variantMap,
-            price
-        );
+        (reader, amountIn, amountOut) = buffer.loadAndComputeQuantity(reader, variantMap, price);
 
-        bytes32 orderHash = typedHasher.hashTypedData(
-            buffer.structHash(variantMap)
-        );
+        bytes32 orderHash = typedHasher.hashTypedData(buffer.structHash(variantMap));
 
         address from;
         (reader, from) = variantMap.isEcdsa()
