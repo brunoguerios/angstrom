@@ -114,7 +114,9 @@ contract ControllerV1 is Ownable2Step {
             entry = configStore.getWithDefaultEmpty(key, poolIndex);
             if (!entry.isEmpty()) break;
             poolIndex++;
-            if (poolIndex >= totalEntries) revert NonexistentPool(asset0, asset1);
+            if (poolIndex >= totalEntries) {
+                revert NonexistentPool(asset0, asset1);
+            }
         }
 
         emit PoolRemoved(asset0, asset1, entry.tickSpacing(), entry.bundleFee());
