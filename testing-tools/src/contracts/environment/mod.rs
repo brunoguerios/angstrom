@@ -31,15 +31,13 @@ pub trait TestAnvilEnvironment: Clone {
                 let _ = self.provider().anvil_mine(Some(U256::from(1)), None).await;
                 return o
             },
-            _ = tokio::time::sleep(Duration::from_millis(500)) => {
-                println!("waited 500ms, mining");
+            _ = tokio::time::sleep(Duration::from_millis(250)) => {
             }
         };
 
         let mine_one_fut = self.provider().anvil_mine(Some(U256::from(1)), None);
         let _ = mine_one_fut.await;
-        let res = fut.await;
-        res
+        fut.await
     }
 
     async fn override_address(
