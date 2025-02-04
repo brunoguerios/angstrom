@@ -10,7 +10,7 @@ use testing_tools::types::config::{DevnetConfig, TestnetConfig};
 use testnet::TestnetCli;
 use tracing::Level;
 use tracing_subscriber::{
-    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
+    filter, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
 };
 
 use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};
@@ -61,18 +61,6 @@ impl AngstromTestnetCli {
     fn init_tracing(&self) {
         init_tracing(self.verbosity);
     }
-}
-
-fn layer_builder(filter_str: String) -> Box<dyn Layer<Registry> + Send + Sync> {
-    let filter = EnvFilter::builder()
-        .with_default_directive(filter_str.parse().unwrap())
-        .from_env_lossy();
-
-    tracing_subscriber::fmt::layer()
-        .with_ansi(true)
-        .with_target(true)
-        .with_filter(filter)
-        .boxed()
 }
 
 #[derive(Debug, Subcommand, Clone)]

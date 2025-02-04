@@ -1,7 +1,7 @@
 mod fillstate;
 mod origin;
 use alloy::{
-    primitives::{keccak256, Address, FixedBytes, PrimitiveSignature, B256, U256},
+    primitives::{keccak256, Address, FixedBytes, PrimitiveSignature, B256},
     sol_types::SolValue
 };
 pub mod orderpool;
@@ -17,7 +17,7 @@ pub type OrderVolume = u128;
 pub type OrderPrice = MatchingPrice;
 
 use crate::{
-    matching::{MatchingPrice, Ray},
+    matching::{uniswap::Direction, MatchingPrice, Ray},
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
@@ -36,26 +36,34 @@ impl<Limit, Searcher> OrderSet<Limit, Searcher> {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetAmmOrder {
-    Buy(U256, U256),
-    Sell(U256, U256)
+    /// A NetAmmOrder that is Buying will be purchasing T0 from the AMM
+    Buy(u128, u128),
+    /// A NetAmmOrder that is Selling will be selling T0 to the AMM
+    Sell(u128, u128)
 }
 
 impl Default for NetAmmOrder {
     fn default() -> Self {
-        Self::Buy(U256::ZERO, U256::ZERO)
+        Self::Buy(0, 0)
     }
 }
 
 impl NetAmmOrder {
-    pub fn new(is_bid: bool) -> Self {
-        if is_bid {
-            Self::Sell(U256::ZERO, U256::ZERO)
-        } else {
-            Self::Buy(U256::ZERO, U256::ZERO)
+    pub fn new(direction: Direction) -> Self {
+        match direction {
+            Direction::BuyingT0 => Self::Sell(0, 0),
+            Direction::SellingT0 => Self::Buy(0, 0)
         }
     }
 
-    pub fn add_quantity(&mut self, quantity: U256, cost: U256) {
+    pub fn right_direction(&self, direction: Direction) -> bool {
+        match direction {
+            Direction::BuyingT0 => matches!(self, Self::Sell(_, _)),
+            Direction::SellingT0 => matches!(self, Self::Buy(_, _))
+        }
+    }
+
+    pub fn add_quantity(&mut self, quantity: u128, cost: u128) {
         let (my_quantity, my_cost) = match self {
             Self::Buy(q, c) => (q, c),
             Self::Sell(q, c) => (q, c)
@@ -64,25 +72,25 @@ impl NetAmmOrder {
         *my_quantity += quantity;
     }
 
-    fn get_directions(&self) -> (U256, U256) {
+    fn get_directions(&self) -> (u128, u128) {
         match self {
             Self::Buy(amount_out, amount_in) => (*amount_in, *amount_out),
             Self::Sell(amount_in, amount_out) => (*amount_in, *amount_out)
         }
     }
 
-    pub fn amount_in(&self) -> U256 {
+    pub fn amount_in(&self) -> u128 {
         self.get_directions().0
     }
 
-    pub fn amount_out(&self) -> U256 {
+    pub fn amount_out(&self) -> u128 {
         self.get_directions().1
     }
 
     pub fn to_order_tuple(&self, t0_idx: u16, t1_idx: u16) -> (u16, u16, u128, u128) {
         match self {
-            NetAmmOrder::Buy(q, c) => (t1_idx, t0_idx, c.to(), q.to()),
-            NetAmmOrder::Sell(q, c) => (t0_idx, t1_idx, q.to(), c.to())
+            NetAmmOrder::Buy(q, c) => (t1_idx, t0_idx, *c, *q),
+            NetAmmOrder::Sell(q, c) => (t0_idx, t1_idx, *q, *c)
         }
     }
 }

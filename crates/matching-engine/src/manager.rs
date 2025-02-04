@@ -23,6 +23,7 @@ use tokio::{
     },
     task::JoinSet
 };
+use tracing::trace;
 use validation::bundle::BundleValidatorHandle;
 
 use crate::{
@@ -183,6 +184,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         }
 
         // generate bundle without final gas known.
+        trace!("Building bundle for gas finalization");
         let bundle =
             AngstromBundle::for_gas_finalization(limit, solutions.clone(), &pool_snapshots)?;
 
