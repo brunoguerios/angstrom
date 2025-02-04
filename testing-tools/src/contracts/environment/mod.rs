@@ -31,6 +31,7 @@ pub trait TestAnvilEnvironment: Clone {
                 return o
             },
             _ = tokio::time::sleep(Duration::from_millis(500)) => {
+                panic!("call took too long")
             }
         };
 

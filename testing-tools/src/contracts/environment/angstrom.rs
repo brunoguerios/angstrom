@@ -1,7 +1,4 @@
-use alloy::{
-    primitives::Address,
-    providers::{ext::AnvilApi, Provider}
-};
+use alloy::{primitives::Address, providers::Provider};
 use alloy_primitives::TxHash;
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
@@ -49,7 +46,7 @@ where
                 inner.pool_manager(),
                 inner.controller()
             ))
-            .await;
+            .await?;
 
         debug!("Angstrom deployed at: {}", angstrom_addr);
         let r = provider.get_code_at(angstrom_addr).await.unwrap();
