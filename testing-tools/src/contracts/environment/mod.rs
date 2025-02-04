@@ -36,7 +36,8 @@ pub trait TestAnvilEnvironment: Clone {
         };
 
         let mine_one_fut = self.provider().anvil_mine(Some(U256::from(1)), None);
-        let (res, _) = futures::join!(fut, mine_one_fut);
+        let res = fut.await;
+        let _ = mine_one_fut.await;
         res
     }
 
