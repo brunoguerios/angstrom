@@ -30,8 +30,7 @@ use crate::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
             TestAnvilEnvironment
-        },
-        DebugTransaction
+        }
     },
     types::{
         config::TestingNodeConfig,
@@ -225,13 +224,8 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            // .run_safe()
-            // .await
-            // .unwrap();
             .deploy_pending()
             .await?;
-
-        // tracing::debug!("success controller_configure_pool");
         self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
@@ -242,13 +236,6 @@ impl AnvilInitializer {
             .nonce(nonce + 1)
             .deploy_pending()
             .await?;
-        // .send()
-        // .await
-        // .unwrap()
-        // .watch()
-        // .await
-        // .unwrap();
-        // tracing::debug!("success angstrom.initializePool");
         self.pending_state.add_pending_tx(i);
 
         tracing::debug!("tick spacing");
@@ -259,14 +246,6 @@ impl AnvilInitializer {
             .nonce(nonce + 2)
             .deploy_pending()
             .await?;
-        // .send()
-        // .await
-        // .unwrap()
-        // .watch()
-        // .await
-        // .unwrap();
-
-        // tracing::debug!("success pool_gate");
         self.pending_state.add_pending_tx(pool_gate);
 
         let mut rng = thread_rng();
