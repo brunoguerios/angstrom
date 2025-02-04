@@ -41,7 +41,7 @@ use crate::{
 
 mod order;
 mod tob;
-pub use order::{OrderQuantities, UserOrder};
+pub use order::{OrderQuantities, StandingValidation, UserOrder};
 pub use tob::*;
 
 #[derive(Debug, PadeEncode, PadeDecode)]
