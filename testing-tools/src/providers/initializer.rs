@@ -240,11 +240,11 @@ impl AnvilInitializer {
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
-            .run_safe()
-            .await
-            .unwrap();
-        // .deploy_pending()
-        // .await?;
+            // .run_safe()
+            // .await
+            // .unwrap();
+            .deploy_pending()
+            .await?;
         // tracing::debug!("success: angstrom.initializePool");
         self.pending_state.add_pending_tx(initialize_angstrom_pool);
 
