@@ -33,8 +33,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn testnet_deploy() {
         init_tracing(4);
-        let mut cli = TestnetCli::default();
-        cli.eth_fork_url = "wss://ethereum-rpc.publicnode.com".to_string();
+        let  cli = TestnetCli { eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(), ..Default::default() }
+
         let testnet = AngstromTestnet::spawn_testnet(
             NoopProvider::default(),
             cli.make_config().unwrap(),
