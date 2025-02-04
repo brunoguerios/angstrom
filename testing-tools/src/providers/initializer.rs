@@ -251,6 +251,7 @@ impl AnvilInitializer {
             .pool_gate
             .tickSpacing(pool_key.tickSpacing)
             .from(self.provider.controller())
+            .nonce(nonce + 2)
             // .run_safe()
             // .await
             // .unwrap();
