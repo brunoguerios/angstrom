@@ -13,7 +13,7 @@ pub async fn deploy_angstrom_create3<
     provider: &P,
     pool_manager: Address,
     controller: Address
-) -> Address {
+) -> eyre::Result<Address> {
     let owner = provider.default_signer_address();
 
     let mut code = Angstrom::BYTECODE.to_vec();
@@ -28,11 +28,9 @@ pub async fn deploy_angstrom_create3<
         .from(owner)
         .gas(50e6 as u64)
         .send()
-        .await
-        .unwrap()
+        .await?
         .watch()
-        .await
-        .unwrap();
+        .await?;
 
     let deploy_call = _private::deployCall { id: salt, initcode: code.into() };
 
@@ -41,13 +39,11 @@ pub async fn deploy_angstrom_create3<
         .gas(50e6 as u64)
         .to(SUB_ZERO_FACTORY)
         .send()
-        .await
-        .unwrap()
+        .await?
         .watch()
-        .await
-        .unwrap();
+        .await?;
 
-    mock_tob_address
+    Ok(mock_tob_address)
 }
 
 mod _private {
