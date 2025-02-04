@@ -23,6 +23,7 @@ use super::loaders::{
 use crate::uniswap::{i128_to_i256, i256_to_i128, pool::PoolError};
 
 sol! {
+    #[derive(Debug)]
     struct PoolData {
         address tokenA;
         uint8 tokenADecimals;
