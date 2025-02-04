@@ -28,10 +28,10 @@ pub trait TestAnvilEnvironment: Clone {
         // poll for 500 ms. if  not resolves then we mine and join
         tokio::select! {
             o = &mut fut => {
+                let _ = self.provider().anvil_mine(Some(U256::from(1)), None).await;
                 return o
             },
             _ = tokio::time::sleep(Duration::from_millis(500)) => {
-                panic!("call took too long")
             }
         };
 
