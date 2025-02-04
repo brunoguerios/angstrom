@@ -56,7 +56,7 @@ where
                 ..Default::default()
             };
             let result = provider
-                .debug_trace_transaction(receipt.transaction_hash, _call_options)
+                .debug_trace_transaction(receipt.transaction_hash, default_options)
                 .await?;
 
             println!("TRACE: {result:?}");
