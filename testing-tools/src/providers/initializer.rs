@@ -240,7 +240,7 @@ impl AnvilInitializer {
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
-            .run_safe()
+            .run_with_results_safe()
             .await
             .unwrap();
         // .deploy_pending()

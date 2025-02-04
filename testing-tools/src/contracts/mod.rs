@@ -27,6 +27,7 @@ pub mod environment;
 pub trait DebugTransaction {
     #[allow(async_fn_in_trait)] // OK because this is not for public consumption
     async fn run_safe(self) -> eyre::Result<TxHash>;
+    async fn run_with_results_safe(self) -> eyre::Result<TxHash>;
 }
 
 impl<T, P, D> DebugTransaction for CallBuilder<T, P, D>
@@ -61,6 +62,36 @@ where
 
             println!("TRACE: {result:?}");
             // We can make this do a cool backtrace later
+            Err(eyre!("Transaction with hash {} failed", receipt.transaction_hash))
+        }
+    }
+
+    async fn run_with_results_safe(self) -> eyre::Result<TxHash> {
+        let provider = self.provider.clone();
+        let receipt = self.gas(50_000_000_u64).send().await?.get_receipt().await?;
+        let default_options = GethDebugTracingOptions::default();
+        let _call_options = GethDebugTracingOptions {
+            config: GethDefaultTracingOptions {
+                disable_storage: Some(false),
+                disable_stack: Some(false),
+                enable_memory: Some(false),
+                debug: Some(true),
+                ..Default::default()
+            },
+            tracer: Some(GethDebugTracerType::BuiltInTracer(
+                GethDebugBuiltInTracerType::CallTracer
+            )),
+            ..Default::default()
+        };
+        let result = provider
+            .debug_trace_transaction(receipt.transaction_hash, default_options)
+            .await?;
+
+        println!("TRACE: {result:?}");
+        // We can make this do a cool backtrace later
+        if receipt.inner.status() {
+            Ok(receipt.transaction_hash)
+        } else {
             Err(eyre!("Transaction with hash {} failed", receipt.transaction_hash))
         }
     }
