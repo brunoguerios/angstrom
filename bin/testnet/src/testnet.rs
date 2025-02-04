@@ -8,7 +8,7 @@ use testing_tools::{
     agents::AgentConfig, controllers::enviroments::AngstromTestnet, types::config::TestnetConfig
 };
 
-use crate::cli::testnet::TestnetCli;
+use crate::cli::{init_tracing, testnet::TestnetCli};
 
 pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre::Result<()> {
     let config = cli.make_config()?;
@@ -24,4 +24,22 @@ fn a<'a>(
     _: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async { eyre::Ok(()) })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn testnet_deploy() {
+        init_tracing(4);
+        let cli = TestnetCli::default();
+        let testnet = AngstromTestnet::spawn_testnet(
+            NoopProvider::default(),
+            cli.make_config().unwrap(),
+            vec![a]
+        )
+        .await;
+        assert!(testnet.is_ok());
+    }
 }

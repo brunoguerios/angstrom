@@ -3,6 +3,7 @@ use std::{fmt::Debug, future::Future, pin::Pin};
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderOrigin,
+    primitive::OrderPoolNewOrderResult,
     sol_bindings::{
         ext::RawPoolOrder,
         grouped_orders::{
@@ -11,7 +12,6 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use serde::{Deserialize, Serialize};
 use sim::SimValidation;
 use tokio::sync::oneshot::{channel, Sender};
 
@@ -82,37 +82,6 @@ pub enum OrderValidationResults {
     // the raw hash to be removed
     Invalid(B256),
     TransitionedToBlock
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum OrderPoolNewOrderResult {
-    Valid,
-    Invalid,
-    TransitionedToBlock,
-    Error(String)
-}
-
-impl OrderPoolNewOrderResult {
-    pub fn is_valid(&self) -> bool {
-        matches!(self, OrderPoolNewOrderResult::Valid)
-    }
-}
-
-impl<E: std::error::Error + Send + Sync + 'static> From<Result<OrderValidationResults, E>>
-    for OrderPoolNewOrderResult
-{
-    fn from(value: Result<OrderValidationResults, E>) -> Self {
-        match value {
-            Ok(val) => match val {
-                OrderValidationResults::Valid(_) => OrderPoolNewOrderResult::Valid,
-                OrderValidationResults::Invalid(_) => OrderPoolNewOrderResult::Invalid,
-                OrderValidationResults::TransitionedToBlock => {
-                    OrderPoolNewOrderResult::TransitionedToBlock
-                }
-            },
-            Err(e) => OrderPoolNewOrderResult::Error(e.to_string())
-        }
-    }
 }
 
 impl OrderValidationResults {
@@ -216,6 +185,18 @@ impl OrderValidationResults {
         order.priority_data.gas_units = gas_units;
 
         order.try_map_inner(move |new_order| Ok(map_old(new_order)))
+    }
+}
+
+impl From<OrderValidationResults> for OrderPoolNewOrderResult {
+    fn from(val: OrderValidationResults) -> Self {
+        match val {
+            OrderValidationResults::Valid(_) => OrderPoolNewOrderResult::Valid,
+            OrderValidationResults::Invalid(_) => OrderPoolNewOrderResult::Invalid,
+            OrderValidationResults::TransitionedToBlock => {
+                OrderPoolNewOrderResult::TransitionedToBlock
+            }
+        }
     }
 }
 

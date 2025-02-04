@@ -2,10 +2,7 @@ use base64::Engine;
 use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
 
 mod booklib;
-use booklib::{
-    AMM_QUANT, AMM_SIDE_BOOK, BAD_POOL, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, WEIRD_BOOK,
-    ZERO_ASK_BOOK
-};
+use booklib::{AMM_SIDE_BOOK, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, WEIRD_BOOK, ZERO_ASK_BOOK};
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {

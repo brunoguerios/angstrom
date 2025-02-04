@@ -36,10 +36,10 @@ fn angstrom_addr_valid(addr: Address) -> bool {
     if !has_permissions(addr, BeforeAddLiquidity | BeforeRemoveLiquidity) {
         return false;
     }
-    if has_any_permission(addr, AfterAddLiquidity | AfterRemoveLiquidity) {
+    if has_any_permission(addr, AfterAddLiquidity | AfterRemoveLiquidity | AfterSwap) {
         return false;
     }
-    if !has_any_permission(addr, BeforeSwap | AfterSwap) {
+    if !has_permission(addr, BeforeSwap) {
         return false;
     }
 

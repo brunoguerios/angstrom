@@ -63,7 +63,7 @@ contract AngstromInvariantsTest is BaseTest {
             e.mirrors[i].mint(address(handler), type(uint128).max);
         }
 
-        handler.initializePool(0, 1, 60, 0.002e6, TickMath.getSqrtPriceAtTick(0));
+        handler.initializePool(0, 1, 60, 0.002e6, 0.025e6, TickMath.getSqrtPriceAtTick(0));
 
         selectors.push(AngstromHandler.addLiquidity.selector);
         selectors.push(AngstromHandler.rewardTicks.selector);

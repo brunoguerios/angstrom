@@ -31,7 +31,6 @@ contract FullBundleBenchmark is BaseTest {
     address asset0;
     address asset1;
 
-    address fee_master = makeAddr("fee_master");
     address controller = makeAddr("controller");
     address node = makeAddr("the_one");
 
@@ -40,7 +39,7 @@ contract FullBundleBenchmark is BaseTest {
         angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
         (asset0, asset1) = deployTokensSorted();
         vm.startPrank(controller);
-        angstrom.configurePool(asset0, asset1, 60, 0);
+        angstrom.configurePool(asset0, asset1, 60, 0, 0);
         angstrom.toggleNodes(addressArray(abi.encode(node)));
         vm.stopPrank();
 

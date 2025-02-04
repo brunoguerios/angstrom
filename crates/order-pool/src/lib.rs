@@ -13,13 +13,13 @@ use std::future::Future;
 use alloy::primitives::{Address, FixedBytes, B256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
+    primitive::OrderPoolNewOrderResult,
     sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 pub use angstrom_utils::*;
 pub use config::PoolConfig;
 pub use order_indexer::*;
 use tokio_stream::wrappers::BroadcastStream;
-use validation::order::OrderPoolNewOrderResult;
 
 #[derive(Debug, Clone)]
 pub enum PoolManagerUpdate {

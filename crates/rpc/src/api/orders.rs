@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderStatus},
-    primitive::PoolId,
+    primitive::{OrderPoolNewOrderResult, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
@@ -12,7 +12,6 @@ use jsonrpsee::{
     proc_macros::rpc
 };
 use serde::Deserialize;
-use validation::order::OrderPoolNewOrderResult;
 
 use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind};
 

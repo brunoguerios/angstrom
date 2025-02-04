@@ -25,21 +25,9 @@ library ConfigEntryLib {
         }
     }
 
-    function feeInE6(ConfigEntry self) internal pure returns (uint24 fee) {
+    function bundleFee(ConfigEntry self) internal pure returns (uint24 fee) {
         assembly ("memory-safe") {
             fee := and(FEE_MASK, shr(FEE_OFFSET, self))
-        }
-    }
-
-    function matchingStoreKey(ConfigEntry self, address asset0, address asset1)
-        internal
-        pure
-        returns (bool out)
-    {
-        assembly ("memory-safe") {
-            mstore(0x00, asset0)
-            mstore(0x20, asset1)
-            out := eq(and(KEY_MASK, self), shl(40, keccak256(0x00, 0x40)))
         }
     }
 }

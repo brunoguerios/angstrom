@@ -80,7 +80,7 @@ library PriceLib {
 
     /// @dev Convert an amount in `B` to `A` based on `priceAB`, rounding the result *up*.
     function convertUp(PriceAB priceAB, AmountB amountB) internal pure returns (AmountA) {
-        return AmountA.wrap(amountB.into().mulRayDown(priceAB.into()));
+        return AmountA.wrap(amountB.into().mulRayUp(priceAB.into()));
     }
 
     /// @dev Scale `price` by `(1 - feeE6)` such that `feeE6/1e6` A is received for every B.
