@@ -68,10 +68,12 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
         .pools()
         .keys()
         .map(|pool_id| {
+            let internal = uniswap_pool_registry.conversion_map.get(pool_id).unwrap();
+
             let initial_ticks_per_side = 200;
             EnhancedUniswapPool::new(
                 DataLoader::new_with_registry(
-                    *pool_id,
+                    *internal,
                     uniswap_pool_registry.clone(),
                     pool_manager_address
                 ),
@@ -89,5 +91,11 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
     let notifier =
         Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
 
-    UniswapPoolManager::new(uniswap_pools, current_block, notifier, block_sync)
+    UniswapPoolManager::new(
+        uniswap_pools,
+        uniswap_pool_registry.conversion_map,
+        current_block,
+        notifier,
+        block_sync
+    )
 }

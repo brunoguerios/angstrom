@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, sol, sol_types::eip712_domain};
+use alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::{aliases::U24, Address},
+    sol,
+    sol_types::eip712_domain
+};
 
 use crate::contract_bindings::angstrom::Angstrom::PoolKey;
 
@@ -27,7 +32,8 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
 
 #[derive(Default, Clone)]
 pub struct UniswapPoolRegistry {
-    pools: HashMap<PoolId, PoolKey>
+    pools:              HashMap<PoolId, PoolKey>,
+    pub conversion_map: HashMap<PoolId, PoolId>
 }
 impl UniswapPoolRegistry {
     pub fn get(&self, pool_id: &PoolId) -> Option<&PoolKey> {
@@ -40,13 +46,23 @@ impl UniswapPoolRegistry {
 }
 impl From<Vec<PoolKey>> for UniswapPoolRegistry {
     fn from(pools: Vec<PoolKey>) -> Self {
-        let pools = pools
-            .into_iter()
+        let pubmap = pools
+            .iter()
             .map(|pool_key| {
                 let pool_id = PoolId::from(pool_key.clone());
-                (pool_id, pool_key)
+                (pool_id, pool_key.clone())
             })
             .collect();
-        Self { pools }
+
+        let priv_map = pools
+            .into_iter()
+            .map(|mut pool_key| {
+                let pool_id_pub = PoolId::from(pool_key.clone());
+                pool_key.fee = U24::from(0x800000);
+                let pool_id_priv = PoolId::from(pool_key.clone());
+                (pool_id_pub, pool_id_priv)
+            })
+            .collect();
+        Self { pools: pubmap, conversion_map: priv_map }
     }
 }

@@ -154,6 +154,8 @@ pub struct UniswapPoolManager<P, BlockSync, Loader: PoolDataLoader<A>, A = Addre
 where
     A: Debug + Copy
 {
+    /// the poolId with the fee to the dynamic fee poolId
+    conversion_map:      HashMap<A, A>,
     pools:               SyncedUniswapPools<A, Loader>,
     latest_synced_block: u64,
     state_change_cache:  Arc<RwLock<StateChangeCache<Loader, A>>>,
@@ -172,6 +174,7 @@ where
 {
     pub fn new(
         pools: Vec<EnhancedUniswapPool<Loader, A>>,
+        conversion_map: HashMap<A, A>,
         latest_synced_block: BlockNumber,
         provider: Arc<P>,
         block_sync: BlockSync
@@ -188,6 +191,7 @@ where
         let (tx, rx) = tokio::sync::mpsc::channel(100);
 
         Self {
+            conversion_map,
             pools: SyncedUniswapPools::new(Arc::new(rwlock_pools), tx),
             latest_synced_block,
             state_change_cache: Arc::new(RwLock::new(HashMap::new())),
@@ -202,21 +206,47 @@ where
         self.pools
             .iter()
             .filter_map(|(key, pool)| {
-                Some((*key, pool.read().unwrap().fetch_pool_snapshot().ok()?.2))
+                // gotta
+                Some((
+                    self.convert_to_pub_id(key),
+                    pool.read().unwrap().fetch_pool_snapshot().ok()?.2
+                ))
             })
             .collect()
     }
 
-    pub fn pool_addresses(&self) -> impl Iterator<Item = &A> + '_ {
-        self.pools.keys()
+    pub fn pool_addresses(&self) -> impl Iterator<Item = A> + '_ {
+        self.pools.keys().map(|k| self.convert_to_pub_id(k))
     }
 
     pub fn pools(&self) -> SyncedUniswapPools<A, Loader> {
-        self.pools.clone()
+        let mut c = self.pools.clone();
+        c.pools = Arc::new(
+            c.pools
+                .iter()
+                .map(|(k, v)| (self.convert_to_pub_id(&k), v.clone()))
+                .collect()
+        );
+
+        c
+    }
+
+    fn convert_to_pub_id(&self, key: &A) -> A {
+        self.conversion_map
+            .iter()
+            .find_map(|(r, m)| {
+                if m == key {
+                    return Some(r)
+                }
+                None
+            })
+            .copied()
+            .unwrap()
     }
 
     pub fn pool(&self, address: &A) -> Option<RwLockReadGuard<'_, EnhancedUniswapPool<Loader, A>>> {
-        let pool = self.pools.get(address)?;
+        let addr = self.conversion_map.get(address)?;
+        let pool = self.pools.get(addr)?;
         Some(pool.read().unwrap())
     }
 
