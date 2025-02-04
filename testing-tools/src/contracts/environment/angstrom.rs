@@ -1,5 +1,4 @@
-use alloy::{primitives::Address, providers::Provider};
-use alloy_primitives::TxHash;
+use alloy_primitives::{Address, TxHash};
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
     pool_gate::PoolGate::PoolGateInstance, position_fetcher::PositionFetcher
@@ -47,18 +46,16 @@ where
                 inner.controller()
             ))
             .await?;
-
         debug!("Angstrom deployed at: {}", angstrom_addr);
-        // let r = provider.get_code_at(angstrom_addr).await.unwrap();
-        // tracing::info!(?r, "code at angstrom address");
+
         // gotta toggle nodes
         let ang_i = AngstromInstance::new(angstrom_addr, &provider);
-
         let _ = ang_i
             .toggleNodes(nodes)
             .from(inner.controller())
             .run_safe()
             .await?;
+
         Ok(angstrom_addr)
     }
 
@@ -72,13 +69,6 @@ where
             ))
             .await?
             .address();
-
-        let r = inner
-            .provider()
-            .get_code_at(controller_v1_addr)
-            .await
-            .unwrap();
-        tracing::info!(?r, "code at controller_v1_addr address");
 
         debug!("ControllerV1 deployed at: {}", controller_v1_addr);
 
