@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use alloy_rpc_types::Transaction;
+use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
 use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
@@ -124,7 +124,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
-                block_number.into(),
+                BlockId::latest(),
                 &state_provider.rpc_provider()
             )
             .await
