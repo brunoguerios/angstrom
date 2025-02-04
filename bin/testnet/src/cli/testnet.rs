@@ -1,4 +1,8 @@
-use std::{net::IpAddr, path::PathBuf, str::FromStr};
+use std::{
+    net::IpAddr,
+    path::{Path, PathBuf},
+    str::FromStr
+};
 
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{
@@ -14,9 +18,12 @@ use eyre::Context;
 use reth_network_peers::pk2id;
 use secp256k1::{Secp256k1, SecretKey};
 use serde::Deserialize;
-use testing_tools::types::{config::TestnetConfig, initial_state::PartialConfigPoolKey};
+use testing_tools::{
+    types::{config::TestnetConfig, initial_state::PartialConfigPoolKey},
+    utils::workspace_dir
+};
 
-#[derive(Debug, Clone, Default, clap::Parser)]
+#[derive(Debug, Clone, clap::Parser)]
 pub struct TestnetCli {
     #[clap(long)]
     pub mev_guard:              bool,
@@ -47,6 +54,21 @@ impl TestnetCli {
             self.leader_eth_rpc_port,
             self.angstrom_base_rpc_port
         ))
+    }
+}
+
+impl Default for TestnetCli {
+    fn default() -> Self {
+        let mut workspace_dir = workspace_dir();
+        workspace_dir.push("bin/testnet/pool_key_config.toml");
+        Self {
+            mev_guard:              false,
+            leader_eth_rpc_port:    None,
+            angstrom_base_rpc_port: None,
+            nodes_in_network:       3,
+            eth_fork_url:           "ws://localhost:8546".to_string(),
+            pool_key_config:        workspace_dir
+        }
     }
 }
 

@@ -195,7 +195,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
             node_config.angstrom_address,
-            BlockId::Number(BlockNumberOrTag::Number(block_id)),
+            BlockId::Number(BlockNumberOrTag::Latest),
             &querying_provider
         )
         .await

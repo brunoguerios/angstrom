@@ -57,7 +57,6 @@ impl AnvilInitializer {
 
         tracing::debug!("deploying UniV4 enviroment");
         let uniswap_env = UniswapEnv::new(provider.clone()).await?;
-
         tracing::info!("deployed UniV4 enviroment");
 
         tracing::debug!("deploying Angstrom enviroment");
@@ -203,6 +202,7 @@ impl AnvilInitializer {
         price: SqrtPriceX96,
         store_index: U256
     ) -> eyre::Result<()> {
+        tracing::info!(?pool_key, ?liquidity, ?price, ?store_index);
         let nonce = self
             .provider
             .provider
@@ -227,17 +227,19 @@ impl AnvilInitializer {
             .nonce(nonce)
             .deploy_pending()
             .await?;
+        tracing::debug!("success: controller_configure_pool");
         self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
-        let i = self
+        let initialize_angstrom_pool = self
             .angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
             .deploy_pending()
             .await?;
-        self.pending_state.add_pending_tx(i);
+        tracing::debug!("success: angstrom.initializePool");
+        self.pending_state.add_pending_tx(initialize_angstrom_pool);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
@@ -247,6 +249,7 @@ impl AnvilInitializer {
             .nonce(nonce + 2)
             .deploy_pending()
             .await?;
+        tracing::debug!("success: pool_gate");
         self.pending_state.add_pending_tx(pool_gate);
 
         let mut rng = thread_rng();
@@ -270,7 +273,6 @@ impl AnvilInitializer {
                 .nonce(nonce + 3 + (i as u64))
                 .deploy_pending()
                 .await?;
-
             self.pending_state.add_pending_tx(add_liq);
         }
 

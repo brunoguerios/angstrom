@@ -30,16 +30,16 @@ const DEPLOY_PROXY_INITHASH: B256 =
 
 fn angstrom_addr_valid(addr: Address) -> bool {
     use UniswapFlags::*;
-    if !has_any_permission(addr, BeforeInitialize | AfterInitialize) {
+    if !has_permissions(addr, BeforeInitialize | AfterInitialize) {
         return false;
     }
     if !has_permissions(addr, BeforeAddLiquidity | BeforeRemoveLiquidity) {
         return false;
     }
-    if has_any_permission(addr, AfterAddLiquidity | AfterRemoveLiquidity) {
+    if has_any_permission(addr, AfterAddLiquidity | AfterRemoveLiquidity | AfterSwap) {
         return false;
     }
-    if !has_any_permission(addr, BeforeSwap | AfterSwap) {
+    if !has_permission(addr, BeforeSwap) {
         return false;
     }
 

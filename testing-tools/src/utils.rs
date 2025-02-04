@@ -47,3 +47,15 @@ provider failed"
 
     BlockchainProvider::new(provider_factory.clone(), Arc::new(blockchain_tree)).unwrap()
 }
+
+pub fn workspace_dir() -> std::path::PathBuf {
+    let output = std::process::Command::new(env!("CARGO"))
+        .arg("locate-project")
+        .arg("--workspace")
+        .arg("--message-format=plain")
+        .output()
+        .unwrap()
+        .stdout;
+    let cargo_path = std::path::Path::new(std::str::from_utf8(&output).unwrap().trim());
+    cargo_path.parent().unwrap().to_path_buf()
+}
