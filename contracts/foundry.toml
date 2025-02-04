@@ -8,7 +8,6 @@ fs_permissions = [{ access = "read-write", path = ".forge-snapshots/" }]
 ast = true
 evm_version = "cancun"
 libs = ["lib"]
-disable_nightly_warning = true
 
 ignored_error_codes = [
   2394, # Transient storage warning
@@ -56,3 +55,6 @@ optimizer = true
 ast = true
 src = "../crates/uniswap-v4/src/uniswap/loaders"
 libs = ["lib"]
+
+[environment]
+FOUNDRY_DISABLE_NIGHTLY_WARNING = "1"
