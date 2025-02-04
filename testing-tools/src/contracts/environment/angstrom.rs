@@ -50,7 +50,7 @@ where
 
         debug!("Angstrom deployed at: {}", angstrom_addr);
         let r = provider.get_code_at(angstrom_addr).await.unwrap();
-        // tracing::info!(?r, "code at angstrom address");
+        tracing::info!(?r, "code at angstrom address");
         // gotta toggle nodes
         let ang_i = AngstromInstance::new(angstrom_addr, &provider);
 
