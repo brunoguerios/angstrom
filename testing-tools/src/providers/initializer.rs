@@ -262,14 +262,14 @@ impl AnvilInitializer {
         tracing::debug!("success: pool_gate");
         // self.pending_state.add_pending_tx(pool_gate);
 
-        let config_store = AngstromPoolConfigStore::load_from_chain(
-            *self.angstrom.address(),
-            BlockId::latest(),
-            &self.provider.provider()
-        )
-        .await
-        .unwrap();
-        tracing::error!("CONFIG STORE: {:?}", config_store);
+        // let config_store = AngstromPoolConfigStore::load_from_chain(
+        //     *self.angstrom.address(),
+        //     BlockId::latest(),
+        //     &self.provider.provider()
+        // )
+        // .await
+        // .unwrap();
+        // tracing::error!("CONFIG STORE: {:?}", config_store);
 
         let mut rng = thread_rng();
 
