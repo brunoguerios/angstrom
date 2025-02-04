@@ -137,7 +137,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 .state_provider()
                 .subscribe_to_canonical_state(),
             uniswap_registry.clone(),
-            block_number,
+            block_number - 1,
             block_sync.clone(),
             inital_angstrom_state.pool_manager_addr
         )
@@ -152,7 +152,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let token_conversion = TokenPriceGenerator::new(
             Arc::new(state_provider.rpc_provider()),
-            block_number - 1,
+            block_number,
             uniswap_pools.clone(),
             Some(1)
         )
