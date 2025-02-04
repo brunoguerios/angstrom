@@ -60,10 +60,6 @@ impl AngstromBundle {
 
     #[cfg(feature = "testnet")]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
-        use std::u128;
-
-        use crate::primitive::TESTNET_ANGSTROM_ADDRESS;
-
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
 
@@ -102,14 +98,6 @@ impl AngstromBundle {
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
         });
-
-        // approvals cuz diff map but same
-        for token in approvals.keys() {
-            balances
-                .entry(*token)
-                .or_default()
-                .insert(TESTNET_ANGSTROM_ADDRESS, u128::MAX - 1);
-        }
 
         TestnetStateOverrides { approvals, balances }
     }
