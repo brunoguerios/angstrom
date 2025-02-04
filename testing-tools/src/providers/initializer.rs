@@ -202,6 +202,7 @@ impl AnvilInitializer {
         price: SqrtPriceX96,
         store_index: U256
     ) -> eyre::Result<()> {
+        tracing::info!(?pool_key, ?liquidity, ?price, ?store_index);
         let nonce = self
             .provider
             .provider
