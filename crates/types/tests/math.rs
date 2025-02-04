@@ -9,7 +9,7 @@ fn compute_swap_step_oddity() {
         U256::from_str_radix("11732076369431848475717225902382", 10).unwrap();
     // let liquidity = 340282366920938463463374607429786615964_u128;
     let liquidity = 1747735933952_5_38463463374607429786_u128;
-    let amount_u256 = U256::from(40816066_u128);
+    let _amount_u256 = U256::from(40816066_u128);
     // let amount_u256 = U256::from(100_u128);
     let amount_remaining = I256::unchecked_from(1_u128);
     let fee_pips = 0;

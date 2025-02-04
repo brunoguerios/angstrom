@@ -287,7 +287,7 @@ impl<'a> OrderContainer<'a> {
                 //     //
                 // }
                 if let Some(d) = debt {
-                    let cur_t0 = d.current_t0();
+                    let _cur_t0 = d.current_t0();
                 }
                 let (t0_consumed, debt_t1) = debt
                     .map(|d| (std::cmp::min(t0, d.current_t0()), d.freed_t1(t0)))

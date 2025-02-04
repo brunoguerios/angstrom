@@ -55,6 +55,3 @@ optimizer = true
 ast = true
 src = "../crates/uniswap-v4/src/uniswap/loaders"
 libs = ["lib"]
-
-[environment]
-FOUNDRY_DISABLE_NIGHTLY_WARNING = "1"
