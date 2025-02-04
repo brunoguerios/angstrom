@@ -291,11 +291,25 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<PoolData, PoolError> {
+        let id = self
+            .pool_registry
+            .as_ref()
+            .unwrap()
+            .conversion_map
+            .iter()
+            .find_map(|(pubic, priva)| {
+                if priva == &self.address() {
+                    return Some(pubic)
+                }
+                None
+            })
+            .unwrap();
+
         let pool_key = self
             .pool_registry
             .as_ref()
             .unwrap()
-            .get(&self.address())
+            .get(&id)
             .unwrap()
             .clone();
 
