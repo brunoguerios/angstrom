@@ -7,6 +7,7 @@ use alloy::{
 use revm::{primitives::address, Database, Inspector};
 
 #[rustfmt::skip]
+#[allow(clippy::module_inception)]
 pub mod console_log {
     alloy::sol!(
         #[allow(missing_docs)]

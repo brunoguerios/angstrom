@@ -60,8 +60,6 @@ impl AngstromBundle {
 
     #[cfg(feature = "testnet")]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
-        use std::u128;
-
         use crate::primitive::TESTNET_ANGSTROM_ADDRESS;
 
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
