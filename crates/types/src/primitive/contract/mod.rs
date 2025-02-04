@@ -13,7 +13,7 @@ pub use ERC20::*;
 
 use crate::primitive::PoolId;
 
-const TESTNET_ANGSTROM_ADDRESS: Address =
+pub const TESTNET_ANGSTROM_ADDRESS: Address =
     alloy::primitives::address!("c856DdFC924E9AeEaaFfB1905544b36470AC3ad4");
 
 // The `eip712_domain` macro lets you easily define an EIP-712 domain
