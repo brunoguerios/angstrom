@@ -14,7 +14,6 @@ impl BinarySearchStrategy {
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let matcher = BinarySearchMatcher::new(book);
-
-        todo!()
+        matcher.solution(searcher)
     }
 }
