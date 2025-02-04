@@ -54,18 +54,9 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         _onlyController();
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
         console.log("store key");
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
-            assetA,
-            assetB
-        );
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(assetA, assetB);
         console.log("setIntoNew");
-        _configStore = _configStore.setIntoNew(
-            key,
-            assetA,
-            assetB,
-            tickSpacing,
-            bundleFee
-        );
+        _configStore = _configStore.setIntoNew(key, assetA, assetB, tickSpacing, bundleFee);
         console.log("validating");
         unlockedFee.validate();
 
@@ -81,28 +72,15 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         uint160 sqrtPriceX96
     ) public {
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
-            assetA,
-            assetB
-        );
-        (int24 tickSpacing, ) = _configStore.get(key, storeIndex);
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(assetA, assetB);
+        (int24 tickSpacing,) = _configStore.get(key, storeIndex);
         UNI_V4.initialize(
-            PoolKey(
-                _c(assetA),
-                _c(assetB),
-                INIT_HOOK_FEE,
-                tickSpacing,
-                IHooks(address(this))
-            ),
+            PoolKey(_c(assetA), _c(assetB), INIT_HOOK_FEE, tickSpacing, IHooks(address(this))),
             sqrtPriceX96
         );
     }
 
-    function removePool(
-        StoreKey key,
-        PoolConfigStore expectedStore,
-        uint256 storeIndex
-    ) external {
+    function removePool(StoreKey key, PoolConfigStore expectedStore, uint256 storeIndex) external {
         _onlyController();
         PoolConfigStore store = _configStore;
         // Validate entry.
@@ -131,14 +109,8 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         return _lastBlockUpdated == block.number;
     }
 
-    function _unlockedFee(
-        address asset0,
-        address asset1
-    ) internal view returns (uint24) {
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(
-            asset0,
-            asset1
-        );
+    function _unlockedFee(address asset0, address asset1) internal view returns (uint24) {
+        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
         uint256 packed = _unlockedFeePackedSet[key];
         if (packed & 1 == 0) revert UnlockedFeeNotSet(key);
         return uint24(packed >> 1);
