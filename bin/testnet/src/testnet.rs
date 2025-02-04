@@ -34,7 +34,7 @@ mod tests {
     async fn testnet_deploy() {
         init_tracing(4);
         let mut cli = TestnetCli::default();
-        cli.eth_fork_url = format!("wss://ethereum-rpc.publicnode.com");
+        cli.eth_fork_url = "wss://ethereum-rpc.publicnode.com".to_string();
         let testnet = AngstromTestnet::spawn_testnet(
             NoopProvider::default(),
             cli.make_config().unwrap(),
