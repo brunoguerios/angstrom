@@ -30,7 +30,8 @@ use crate::{
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
             TestAnvilEnvironment
-        }
+        },
+        DebugTransaction
     },
     types::{
         config::TestingNodeConfig,
@@ -224,9 +225,10 @@ impl AnvilInitializer {
             )
             .from(self.provider.controller())
             .nonce(nonce)
-            .deploy_pending()
+            .run_safe()
             .await?;
-        self.pending_state.add_pending_tx(controller_configure_pool);
+        tracing::debug!("initializing pool");
+        // self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
         let i = self

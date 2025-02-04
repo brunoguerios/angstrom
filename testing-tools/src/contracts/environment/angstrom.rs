@@ -69,7 +69,6 @@ where
             ))
             .await?
             .address();
-
         debug!("ControllerV1 deployed at: {}", controller_v1_addr);
 
         let angstrom = AngstromInstance::new(angstrom_addr, inner.provider());
