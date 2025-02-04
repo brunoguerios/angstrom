@@ -280,7 +280,7 @@ impl AnvilInitializer {
                 .nonce(nonce + 3 + (i as u64))
                 .deploy_pending()
                 .await?;
-            tracing::debug!("success: add_liq {i}");
+            // tracing::debug!("success: add_liq {i}");
             self.pending_state.add_pending_tx(add_liq);
         }
 
