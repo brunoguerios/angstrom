@@ -61,7 +61,7 @@ fn cmp_agent<'a>(
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
-            10..20,
+            10..12,
             0.2..0.6
         );
 
@@ -195,12 +195,12 @@ fn cmp_agent<'a>(
                             println!("\n\n\n\n\n when using the debt engine ucp, we get: {:#?}", r);
                         }
 
-                        println!(
-                            "\n\n\n\n bisection_results:{:#?}\n\n debt_results:{:#?} are_eq={}",
-                            bisection,
-                            debt_engine,
-                            bisection == debt_engine
-                        );
+                        if bisection != debt_engine {
+                            println!(
+                                "\n\n\n\n bisection_results:{:#?}\n\n debt_results:{:#?} ",
+                                bisection, debt_engine,
+                            );
+                        }
                     }
                 }
             }
