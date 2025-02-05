@@ -1,3 +1,9 @@
+addresses_with_tokens = [
+    "0x796fB50EAe1456A523F869f6135dd557eeaEE226",
+    "0xa7f1Aeb6e43443c683865Fdb9E15Dd01386C955b",
+]
+
+
 [[pool_keys]]
 # not for now
 # currency0 = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"

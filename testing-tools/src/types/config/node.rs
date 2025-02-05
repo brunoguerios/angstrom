@@ -12,8 +12,7 @@ use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use super::TestingConfigKind;
 use crate::{
     providers::WalletProvider,
-    types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig},
-    JAMES_ADDRESS, JOES_ADDRESS
+    types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig}
 };
 
 const TESTNET_LEADER_SECRET_KEY: [u8; 32] = [
@@ -149,9 +148,14 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
-        rpc.anvil_set_balance(sk.address(), U256::MAX).await?;
-        rpc.anvil_set_balance(JAMES_ADDRESS, U256::MAX).await?;
-        rpc.anvil_set_balance(JOES_ADDRESS, U256::MAX).await?;
+        let mut addresses_with_eth = self.global_config.addresses_with_tokens();
+        addresses_with_eth.push(sk.address());
+        futures::future::try_join_all(
+            addresses_with_eth
+                .into_iter()
+                .map(|addr| rpc.anvil_set_balance(addr, U256::MAX / U256::from(100u32)))
+        )
+        .await?;
 
         Ok((WalletProvider::new_with_provider(rpc, sk), anvil))
     }

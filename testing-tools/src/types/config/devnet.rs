@@ -1,3 +1,5 @@
+use alloy_primitives::Address;
+
 use super::TestingConfigKind;
 use crate::types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig};
 
@@ -74,5 +76,9 @@ impl GlobalTestingConfig for DevnetConfig {
 
     fn base_angstrom_rpc_port(&self) -> u16 {
         self.initial_rpc_port
+    }
+
+    fn addresses_with_tokens(&self) -> Vec<Address> {
+        Vec::new()
     }
 }

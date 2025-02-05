@@ -1,22 +1,26 @@
+use alloy_primitives::Address;
+
 use super::TestingConfigKind;
 use crate::types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct TestnetConfig {
-    pub node_count:          u64,
-    pub pool_keys:           Vec<PartialConfigPoolKey>,
+    pub node_count: u64,
+    pub pool_keys: Vec<PartialConfigPoolKey>,
     /// only the leader can have this
-    pub eth_ws_url:          String,
-    pub mev_guard:           bool,
+    pub eth_ws_url: String,
+    pub mev_guard: bool,
     pub leader_eth_rpc_port: u16,
-    seed:                    u16,
-    angstrom_base_rpc_port:  u16
+    pub addresses_with_tokens: Vec<Address>,
+    seed: u16,
+    angstrom_base_rpc_port: u16
 }
 
 impl TestnetConfig {
     pub fn new(
         node_count: u64,
         pool_keys: Vec<PartialConfigPoolKey>,
+        addresses_with_tokens: Vec<Address>,
         eth_ws_url: impl ToString,
         mev_guard: bool,
         leader_eth_rpc_port: Option<u16>,
@@ -27,6 +31,7 @@ impl TestnetConfig {
             pool_keys,
             eth_ws_url: eth_ws_url.to_string(),
             mev_guard,
+            addresses_with_tokens,
             seed: rand::random(),
             leader_eth_rpc_port: leader_eth_rpc_port.unwrap_or_else(rand::random),
             angstrom_base_rpc_port: angstrom_base_rpc_port.unwrap_or_else(rand::random)
@@ -69,5 +74,9 @@ impl GlobalTestingConfig for TestnetConfig {
 
     fn base_angstrom_rpc_port(&self) -> u16 {
         self.angstrom_base_rpc_port
+    }
+
+    fn addresses_with_tokens(&self) -> Vec<Address> {
+        self.addresses_with_tokens.clone()
     }
 }
