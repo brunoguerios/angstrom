@@ -186,7 +186,7 @@ impl<'a> BinarySearchMatcher<'a> {
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
-    fn calculate_solver_move(&self, p_mid: Ray) -> SupplyDemandResult {
+    pub fn calculate_solver_move(&self, p_mid: Ray) -> SupplyDemandResult {
         let (total_supply, sub_sup, sub_id) = self.total_supply_at_price(p_mid);
         let (total_demand, sub_demand, dem_id) = self.total_demand_at_price(p_mid);
 
@@ -370,7 +370,7 @@ impl UcpSolution {
 }
 
 #[derive(Debug)]
-enum SupplyDemandResult {
+pub enum SupplyDemandResult {
     MoreSupply,
     MoreDemand,
     NaturallyEqual,

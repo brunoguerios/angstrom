@@ -183,14 +183,20 @@ fn cmp_agent<'a>(
                             valid_block: 0,
                             tob_reward: U256::ZERO
                         };
-                        let bisection = BinarySearchMatcher::new(&book).solution(Some(tob.clone()));
-
                         let debt_engine = SimpleCheckpointStrategy::run(&book)
                             .unwrap()
                             .solution(Some(tob));
 
+                        let bisection = BinarySearchMatcher::new(&book).solution(Some(tob.clone()));
+
+                        if debt_engine.ucp != bisection.ucp {
+                            let r = BinarySearchMatcher::new(&book)
+                                .calculate_solver_move(debt_engine.ucp);
+                            println!("\n\n\n\n\n when using the debt engine ucp, we get: {:#?}", r);
+                        }
+
                         println!(
-                            "\n\n\n\n bisection_results{:#?}\n\n debt_results:{:#?} are_eq={}",
+                            "\n\n\n\n bisection_results:{:#?}\n\n debt_results:{:#?} are_eq={}",
                             bisection,
                             debt_engine,
                             bisection == debt_engine
