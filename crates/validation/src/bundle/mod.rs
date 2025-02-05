@@ -5,7 +5,10 @@ use alloy::{
     sol_types::{SolCall, SolValue}
 };
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
+use angstrom_types::{
+    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    primitive::TESTNET_POOL_MANAGER_ADDRESS
+};
 use eyre::eyre;
 use futures::Future;
 use pade::PadeEncode;
@@ -99,18 +102,22 @@ where
         let conversion_lookup = price_gen.generate_lookup_map();
 
         thread_pool.spawn_raw(Box::pin(async move {
+            let overrides = bundle.fetch_needed_overrides(number);
+            for (token, slot, value) in overrides.into_slots_with_overrides(angstrom_address) {
+                trace!(?token, ?slot, ?value, "Inserting bundle override");
+                db.insert_account_storage(token, slot.into(), value).unwrap();
+            }
+            for asset in bundle.assets.iter() {
+                trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?TESTNET_POOL_MANAGER_ADDRESS, ?angstrom_address, "Inserting asset override");
+                Self::apply_slot_overrides_for_token(
+                    &mut db,
+                    asset.addr,
+                    U256::from(asset.take),
+                    TESTNET_POOL_MANAGER_ADDRESS,
+                    angstrom_address
+                );
+            }
             metrics.simulate_bundle(|| {
-                for asset in bundle.assets.iter() {
-                    trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?angstrom_address, "Applying slot override");
-                    warn!("Simulate bundle applying slot overrides!");
-                    Self::apply_slot_overrides_for_token(
-                        &mut db,
-                        asset.addr,
-                        U256::from(asset.take),
-                        angstrom_address,
-                        angstrom_address
-                    );
-                }
                 let bundle = bundle.pade_encode();
                 let mut console_log_inspector = CallDataInspector {};
 

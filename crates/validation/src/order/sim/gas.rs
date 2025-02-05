@@ -23,6 +23,7 @@ use revm::{
     primitives::{EnvWithHandlerCfg, ResultAndState, TxEnv},
     DatabaseRef
 };
+use tracing::trace;
 
 use super::gas_inspector::{GasSimulationInspector, GasUsed};
 use crate::order::state::db_state_utils::finders::{
@@ -334,6 +335,15 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
 ) where
     <DB as revm::DatabaseRef>::Error: Debug
 {
+    trace!(
+        ?token_in,
+        ?token_out,
+        ?amount_in,
+        ?amount_out,
+        ?user,
+        ?angstrom,
+        "Applying slot overrides for tokens"
+    );
     let balance_slot_in = find_slot_offset_for_balance(&db, token_in);
     let balance_slot_out = find_slot_offset_for_balance(&db, token_out);
     let approval_slot_in = find_slot_offset_for_approval(&db, token_in);
