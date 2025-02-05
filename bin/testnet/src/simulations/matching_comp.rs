@@ -151,7 +151,7 @@ fn cmp_agent<'a>(
 
                         let book = OrderBook::new(
                             pool_id,
-                            use_amm.then(|| amm),
+                            use_amm.then_some(amm),
                             bids,
                             asks,
                             Some(SortStrategy::ByPriceByVolume)
