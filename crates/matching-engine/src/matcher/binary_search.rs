@@ -274,7 +274,7 @@ impl<'a> BinarySearchMatcher<'a> {
 
         // println!("min: {p_min:?} max: {p_max:?}");
 
-        let two = U256::from(1);
+        let two = U256::from(2);
         while (p_max - p_min) > ep {
             // grab all supply and demand
             let p_mid = Ray::from((p_max + p_min) / two);
