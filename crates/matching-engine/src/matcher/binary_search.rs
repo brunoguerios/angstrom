@@ -131,7 +131,9 @@ impl<'a> BinarySearchMatcher<'a> {
             .filter(|bid| bid.is_partial() && price <= bid.price().inv_ray_round(true))
             .peekable();
 
-        assert!(iter.clone().is_sorted_by(|a, b| a.price() >= b.price()));
+        assert!(iter
+            .clone()
+            .is_sorted_by(|a, b| a.price() >= b.price().inv_ray_round(true)));
 
         let mut sum = Ray::default();
 
