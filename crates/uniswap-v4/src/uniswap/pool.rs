@@ -1,4 +1,6 @@
-use std::{cmp::Ordering, collections::HashMap, fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{
+    cmp::Ordering, collections::HashMap, fmt::Debug, marker::PhantomData, ops::Rem, sync::Arc
+};
 
 use alloy::{
     hex,
@@ -112,14 +114,20 @@ where
             return Err(PoolError::PoolNotInitialized)
         }
 
+        // Let's make our own accumulator
+        let mut cur_liq: i128 = 0;
+
         let liq_ranges = self
             .ticks
             .iter()
             .sorted_unstable_by(|a, b| a.0.cmp(b.0))
-            .map_windows(|[(tick_lower, _), (tick_upper, tick_inner_upper)]| {
+            .map_windows(|[(tick_lower, tick_inner_lower), (tick_upper, _)]| {
+                cur_liq += tick_inner_lower.liquidity_net;
                 // ensure everything is spaced properly
-                assert_eq!((**tick_upper - **tick_lower).abs(), self.tick_spacing);
-                LiqRange::new(**tick_lower, **tick_upper, tick_inner_upper.liquidity_gross).unwrap()
+                assert!(tick_lower.rem(self.tick_spacing) == 0, "Lower tick not aligned");
+                assert!(tick_upper.rem(self.tick_spacing) == 0, "Upper tick not aligned");
+                assert!(cur_liq >= 0, "Liquidity dropped below zero");
+                LiqRange::new(**tick_lower, **tick_upper, cur_liq.unsigned_abs()).unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -1010,7 +1018,7 @@ mod tests {
         let mut pool = setup_basic_pool();
 
         // Add some ticks
-        pool.update_position(-120, -60, 1000);
+        pool.update_position(-180, -60, 1000);
         pool.update_position(-60, 0, 2000);
         pool.update_position(0, 60, 3000);
         // set the sqrt_liq at -120
@@ -1025,5 +1033,6 @@ mod tests {
         assert_eq!(token_a, pool.token0);
         assert_eq!(token_b, pool.token1);
         assert!(!snapshot.ranges.is_empty());
+        println!("Snapshot: {:#?}", snapshot);
     }
 }
