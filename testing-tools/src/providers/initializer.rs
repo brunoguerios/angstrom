@@ -120,7 +120,7 @@ impl AnvilInitializer {
 
         for user_addr in self.addresses_with_deployed_tokens.iter() {
             let _ = token0_instance
-                .mint(*user_addr, U256::MAX / U256::from(100u32))
+                .mint(*user_addr, U256::MAX / U256::from(100000u32))
                 .nonce(nonce)
                 .send()
                 .await?
@@ -128,7 +128,7 @@ impl AnvilInitializer {
                 .await?;
             nonce += 1;
             let _ = token1_instance
-                .mint(*user_addr, U256::MAX / U256::from(100u32))
+                .mint(*user_addr, U256::MAX / U256::from(100000u32))
                 .nonce(nonce)
                 .send()
                 .await?

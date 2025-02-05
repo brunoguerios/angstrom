@@ -153,7 +153,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         futures::future::try_join_all(
             addresses_with_eth
                 .into_iter()
-                .map(|addr| rpc.anvil_set_balance(addr, U256::MAX / U256::from(100u32)))
+                .map(|addr| rpc.anvil_set_balance(addr, U256::MAX / U256::from(500000u32)))
         )
         .await?;
 
