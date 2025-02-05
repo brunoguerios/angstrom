@@ -133,7 +133,7 @@ impl<'a> BinarySearchMatcher<'a> {
 
         assert!(iter
             .clone()
-            .is_sorted_by(|a, b| a.price() >= b.price().inv_ray_round(true)));
+            .is_sorted_by(|a, b| a.price().inv_ray_round(true) >= b.price().inv_ray_round(true)));
 
         let mut sum = Ray::default();
 
