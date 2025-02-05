@@ -185,7 +185,7 @@ fn cmp_agent<'a>(
                         };
                         let debt_engine = SimpleCheckpointStrategy::run(&book)
                             .unwrap()
-                            .solution(Some(tob));
+                            .solution(Some(tob.clone()));
 
                         let bisection = BinarySearchMatcher::new(&book).solution(Some(tob.clone()));
 
