@@ -84,6 +84,8 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         Anvil::new()
             .chain_id(1)
+            .arg("--chain-id")
+            .arg("344567")
             .arg("--host")
             .arg("0.0.0.0")
             .port(self.global_config.leader_eth_rpc_port())
