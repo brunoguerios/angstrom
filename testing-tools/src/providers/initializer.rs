@@ -118,11 +118,35 @@ impl AnvilInitializer {
                 .await?;
         self.pending_state.add_pending_tx(first_token_tx);
 
+        let james_mint0 = MintableMockERC20::new(first_token, self.provider.rpc_provider())
+            .mint(JAMES_ADDRESS, U256::MAX / U256::from(2u8))
+            .deploy_pending()
+            .await?;
+        self.pending_state.add_pending_tx(james_mint0);
+
+        let joe_mint0 = MintableMockERC20::new(first_token, self.provider.rpc_provider())
+            .mint(JOES_ADDRESS, U256::MAX / U256::from(2u8))
+            .deploy_pending()
+            .await?;
+        self.pending_state.add_pending_tx(joe_mint0);
+
         let (second_token_tx, mut second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(nonce + 1, self.provider.controller())
                 .await?;
         self.pending_state.add_pending_tx(second_token_tx);
+
+        let james_mint1 = MintableMockERC20::new(second_token, self.provider.rpc_provider())
+            .mint(JAMES_ADDRESS, U256::MAX / U256::from(2u8))
+            .deploy_pending()
+            .await?;
+        self.pending_state.add_pending_tx(james_mint1);
+
+        let joe_mint1 = MintableMockERC20::new(second_token, self.provider.rpc_provider())
+            .mint(JOES_ADDRESS, U256::MAX / U256::from(2u8))
+            .deploy_pending()
+            .await?;
+        self.pending_state.add_pending_tx(joe_mint1);
 
         // wait for them to be mined.
         self.pending_state.finalize_pending_txs().await?;
