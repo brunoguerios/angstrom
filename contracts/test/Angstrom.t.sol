@@ -12,10 +12,17 @@ import {PartialStandingOrder, ExactFlashOrder} from "test/_reference/OrderTypes.
 import {PriceAB as Price10} from "src/types/Price.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 
+import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
+import {Hooks} from "v4-core/src/libraries/Hooks.sol";
+
+// to force compile
+import {IPositionDescriptor} from "v4-periphery/src/interfaces/IPositionDescriptor.sol";
 import {console} from "forge-std/console.sol";
 
 /// @author philogy <https://github.com/philogy>
 contract AngstromTest is BaseTest {
+    using Hooks for IHooks;
+
     using PairLib for Pair[];
     using AssetLib for Asset[];
 
@@ -46,7 +53,7 @@ contract AngstromTest is BaseTest {
         uint256 fee = 0.002e6;
 
         vm.prank(controller);
-        angstrom.configurePool(asset0, asset1, 1, uint24(fee));
+        angstrom.configurePool(asset0, asset1, 1, uint24(fee), 0);
 
         console.log("asset0: %s", asset0);
         console.log("asset1: %s", asset1);

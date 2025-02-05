@@ -1,6 +1,7 @@
-use std::slice::Iter;
+use std::{fmt::Debug, slice::Iter};
 
 use eyre::{eyre, Context, OptionExt};
+use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
     sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta},
     tick_math::get_tick_at_sqrt_ratio
@@ -17,7 +18,7 @@ use crate::{
 };
 
 /// Snapshot of a particular Uniswap pool and a map of its liquidity.
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PoolSnapshot {
     /// Known tick ranges and liquidity positions gleaned from the market
     /// snapshot

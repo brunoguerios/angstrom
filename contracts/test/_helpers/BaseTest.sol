@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Angstrom} from "src/Angstrom.sol";
+import {IAngstromAuth} from "src/interfaces/IAngstromAuth.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
@@ -15,10 +16,11 @@ import {stdError} from "forge-std/StdError.sol";
 import {OrderMeta, TopOfBlockOrder} from "test/_reference/OrderTypes.sol";
 import {TickLib} from "src/libraries/TickLib.sol";
 import {HookDeployer} from "./HookDeployer.sol";
-import {hasAngstromHookFlags} from "src/modules/UniConsumer.sol";
+import {hasAngstromHookFlags, ANGSTROM_INIT_HOOK_FEE} from "src/modules/UniConsumer.sol";
 import {TypedDataHasherLib} from "src/types/TypedDataHasher.sol";
 import {PoolConfigStore, PoolConfigStoreLib, StoreKey} from "src/libraries/PoolConfigStore.sol";
 import {PairLib} from "test/_reference/Pair.sol";
+import {AngstromView} from "src/periphery/AngstromView.sol";
 
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 
@@ -26,6 +28,7 @@ import {FormatLib} from "super-sol/libraries/FormatLib.sol";
 
 /// @author philogy <https://github.com/philogy>
 contract BaseTest is Test, HookDeployer {
+    using AngstromView for IAngstromAuth;
     using FormatLib for *;
 
     bool constant DEBUG = false;
@@ -54,11 +57,11 @@ contract BaseTest is Test, HookDeployer {
     }
 
     function rawGetConfigStore(address angstrom) internal view returns (address) {
-        return address(bytes20(vm.load(angstrom, ANG_CONFIG_STORE_SLOT) << 32));
+        return PoolConfigStore.unwrap(IAngstromAuth(angstrom).configStore());
     }
 
     function rawGetController(address angstrom) internal view returns (address) {
-        return address(uint160(uint256(vm.load(angstrom, ANG_CONTROLLER_SLOT))));
+        return IAngstromAuth(angstrom).controller();
     }
 
     function rawGetBalance(address angstrom, address asset, address owner)
@@ -66,12 +69,7 @@ contract BaseTest is Test, HookDeployer {
         view
         returns (uint256)
     {
-        return uint256(
-            vm.load(
-                angstrom,
-                keccak256(abi.encode(owner, keccak256(abi.encode(asset, ANG_BALANCES_SLOT))))
-            )
-        );
+        return IAngstromAuth(angstrom).balanceOf(asset, owner);
     }
 
     function poolKey(Angstrom angstrom, address asset0, address asset1, int24 tickSpacing)
@@ -83,6 +81,7 @@ contract BaseTest is Test, HookDeployer {
         pk.currency0 = Currency.wrap(asset0);
         pk.currency1 = Currency.wrap(asset1);
         pk.tickSpacing = tickSpacing;
+        pk.fee = address(angstrom) == address(0) ? 0 : ANGSTROM_INIT_HOOK_FEE;
     }
 
     function poolKey(address asset0, address asset1, int24 tickSpacing)
@@ -343,5 +342,18 @@ contract BaseTest is Test, HookDeployer {
     function skey(address asset0, address asset1) internal pure returns (StoreKey key) {
         assertTrue(asset0 < asset1, "Building key with out of order assets");
         key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+    }
+
+    function boundE6(uint24 fee) internal pure returns (uint24) {
+        return boundE6(fee, 1e6);
+    }
+
+    function boundE6(uint24 fee, uint24 upperBound) internal pure returns (uint24) {
+        return uint24(bound(fee, 0, upperBound));
+    }
+
+    function sort(address asset0, address asset1) internal pure returns (address, address) {
+        if (asset0 > asset1) return (asset1, asset0);
+        return (asset0, asset1);
     }
 }

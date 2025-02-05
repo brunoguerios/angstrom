@@ -10,7 +10,6 @@ import {Settlement} from "src/modules/Settlement.sol";
 import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
 import {UniConsumer} from "src/modules/UniConsumer.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
-import {POOL_FEE} from "src/Constants.sol";
 import {IUniV4, IPoolManager} from "src/interfaces/IUniV4.sol";
 
 import {console} from "forge-std/console.sol";
@@ -28,7 +27,7 @@ contract MockRewardsManager is UniConsumer, Settlement, PoolUpdates {
         _checkAngstromHookFlags();
     }
 
-    function extsload(bytes32 slot) external view returns (bytes32) {
+    function extsload(uint256 slot) external view returns (uint256) {
         assembly ("memory-safe") {
             mstore(0x00, sload(slot))
             return(0x00, 0x20)
@@ -54,10 +53,6 @@ contract MockRewardsManager is UniConsumer, Settlement, PoolUpdates {
         external
     {
         poolRewards[id].updateAfterTickMove(id, UNI_V4, lastTick, newTick, tickSpacing);
-    }
-
-    function consts() external pure returns (uint24 poolFee) {
-        poolFee = POOL_FEE;
     }
 
     function getGrowthInsideTick(PoolId id, int24 tick, int24 tickSpacing)

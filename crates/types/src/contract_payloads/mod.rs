@@ -11,15 +11,15 @@ pub mod asset;
 pub mod rewards;
 pub mod tob;
 
-pub const CONFIG_STORE_SLOT: u32 = 2;
+pub const CONFIG_STORE_SLOT: u32 = 3;
 pub const POOL_CONFIG_STORE_ENTRY_SIZE: usize = 32;
 
 sol! {
     #[derive(Debug, Default, PadeEncode, PadeDecode)]
     struct Asset {
         address addr;
-        uint128 borrow;
         uint128 save;
+        uint128 take;
         uint128 settle;
     }
 

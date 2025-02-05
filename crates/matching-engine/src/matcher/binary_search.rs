@@ -240,8 +240,9 @@ impl<'a> BinarySearchMatcher<'a> {
         let book = self.book.amm()?;
         let (d_0, d_1) = book.get_amm_swap(ucp)?;
         let is_bid = book.is_bid(ucp);
-        let mut amm = NetAmmOrder::new(is_bid);
-        amm.add_quantity(U256::from(d_0), U256::from(d_1));
+        let mut amm =
+            NetAmmOrder::new(angstrom_types::matching::uniswap::Direction::from_is_bid(is_bid));
+        amm.add_quantity(d_0, d_1);
 
         Some(amm)
     }

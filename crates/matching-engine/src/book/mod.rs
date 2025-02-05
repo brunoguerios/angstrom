@@ -8,6 +8,7 @@ use angstrom_types::{
         Ray
     }
 };
+use serde::{Deserialize, Serialize};
 
 use self::sort::SortStrategy;
 
@@ -16,7 +17,7 @@ pub type BookOrder = OrderWithStorageData<GroupedVanillaOrder>;
 pub mod order;
 pub mod sort;
 
-#[derive(Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct OrderBook {
     id:   PoolId,
     amm:  Option<PoolSnapshot>,

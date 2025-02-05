@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.26;
 
+import {console} from "forge-std/console.sol";
 import {EIP712} from "solady/src/utils/EIP712.sol";
 import {TopLevelAuth} from "./modules/TopLevelAuth.sol";
 import {Settlement} from "./modules/Settlement.sol";
 import {PoolUpdates} from "./modules/PoolUpdates.sol";
+import {UnlockHook} from "./modules/UnlockHook.sol";
 import {OrderInvalidation} from "./modules/OrderInvalidation.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {UniConsumer} from "./modules/UniConsumer.sol";
@@ -31,6 +33,7 @@ contract Angstrom is
     OrderInvalidation,
     Settlement,
     PoolUpdates,
+    UnlockHook,
     IUnlockCallback,
     PermitSubmitterHook
 {
@@ -45,8 +48,11 @@ contract Angstrom is
     }
 
     function execute(bytes calldata encoded) external {
+        console.log("testing we got here");
         _nodeBundleLock();
-        UNI_V4.unlock(encoded);
+        if (encoded.length > 0) {
+            UNI_V4.unlock(encoded);
+        }
     }
 
     function unlockCallback(bytes calldata data) external override returns (bytes memory) {
@@ -59,10 +65,16 @@ contract Angstrom is
         PairArray pairs;
         (reader, pairs) = PairLib.readFromAndValidate(reader, assets, _configStore);
 
+        console.log("read pairs and assets");
         _takeAssets(assets);
+        console.log("took assets");
+
         reader = _updatePools(reader, pairs);
+        console.log("updated pools");
         reader = _validateAndExecuteToBOrders(reader, pairs);
+        console.log("exectued tob");
         reader = _validateAndExecuteUserOrders(reader, pairs);
+        console.log("executed user");
         reader.requireAtEndOf(data);
         _saveAndSettle(assets);
 
@@ -76,7 +88,7 @@ contract Angstrom is
 
     /// @dev Load arbitrary storage slot from this contract, enables on-chain introspection without
     /// view methods.
-    function extsload(bytes32 slot) external view returns (bytes32) {
+    function extsload(uint256 slot) external view returns (uint256) {
         assembly ("memory-safe") {
             mstore(0x00, sload(slot))
             return(0x00, 0x20)
@@ -145,6 +157,7 @@ contract Angstrom is
             : SignatureLib.readAndCheckERC1271(reader, orderHash);
 
         _invalidateOrderHash(orderHash, from);
+        console.log(from);
 
         address to = buffer.recipient;
         assembly ("memory-safe") {
