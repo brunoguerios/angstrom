@@ -400,3 +400,48 @@ impl WithWalletProvider for AnvilInitializer {
         self.provider.provider.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloy_primitives::address;
+    use angstrom_types::sol_bindings::testnet::MockERC20::MockERC20Instance;
+    use reth_provider::noop::NoopProvider;
+
+    use super::*;
+    use crate::{
+        controllers::enviroments::AngstromTestnet, types::config::TestnetConfig, utils::noop_agent
+    };
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_hack_address_tokens() {
+        let my_address = address!("796fB50EAe1456A523F869f6135dd557eeaEE226");
+        let config = TestnetConfig::new(
+            3,
+            vec![PartialConfigPoolKey {
+                fee:               0,
+                tick_spacing:      60,
+                initial_liquidity: 34028236692,
+                sqrt_price:        SqrtPriceX96::at_tick(100020).unwrap()
+            }],
+            vec![my_address],
+            "ws://localhost:8546",
+            false,
+            Some(9445),
+            Some(2624)
+        );
+        let testnet =
+            AngstromTestnet::spawn_testnet(NoopProvider::default(), config, vec![noop_agent])
+                .await
+                .unwrap();
+
+        let provider = testnet.leader_provider();
+
+        let erc20_instance = MockERC20Instance::new(
+            address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+            provider.rpc_provider()
+        );
+        let my_balance = erc20_instance.balanceOf(my_address).call().await.unwrap();
+        assert_eq!(my_balance.result, U256::MAX / U256::from(100000u32));
+    }
+}
+//

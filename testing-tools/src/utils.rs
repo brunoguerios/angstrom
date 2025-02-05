@@ -1,5 +1,6 @@
-use std::{path::Path, sync::Arc};
+use std::{future::Future, path::Path, pin::Pin, sync::Arc};
 
+use angstrom_types::testnet::InitialTestnetState;
 use reth_beacon_consensus::EthBeaconConsensus;
 use reth_blockchain_tree::{
     BlockchainTree, BlockchainTreeConfig, ShareableBlockchainTree, TreeExternals
@@ -12,6 +13,8 @@ use reth_provider::{
     providers::{BlockchainProvider, StaticFileProvider},
     ChainSpecProvider, ProviderFactory
 };
+
+use crate::agents::AgentConfig;
 
 pub type Provider = BlockchainProvider<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>;
 
@@ -58,4 +61,11 @@ pub fn workspace_dir() -> std::path::PathBuf {
         .stdout;
     let cargo_path = std::path::Path::new(std::str::from_utf8(&output).unwrap().trim());
     cargo_path.parent().unwrap().to_path_buf()
+}
+
+pub fn noop_agent<'a>(
+    _: &'a InitialTestnetState,
+    _: AgentConfig
+) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
+    Box::pin(async { eyre::Ok(()) })
 }
