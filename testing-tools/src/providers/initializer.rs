@@ -119,7 +119,6 @@ impl AnvilInitializer {
         let token1_instance = MintableMockERC20::new(token1, self.provider.rpc_provider());
 
         for user_addr in self.addresses_with_deployed_tokens.iter() {
-            nonce += 1;
             let _ = token0_instance
                 .mint(*user_addr, U256::MAX / U256::from(100u32))
                 .nonce(nonce)
@@ -135,6 +134,7 @@ impl AnvilInitializer {
                 .await?
                 .watch()
                 .await?;
+            nonce += 1;
         }
 
         self.rpc_provider()
