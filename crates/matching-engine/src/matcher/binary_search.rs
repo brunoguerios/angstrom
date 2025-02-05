@@ -383,7 +383,10 @@ fn cmp_total_supply_vs_demand(
     sub_dem: Ray,
     dem_id: Option<OrderId>
 ) -> SupplyDemandResult {
-    println!("sup: {:#?} demand: {:#?}", total_supply, total_demand);
+    println!(
+        "sup: {:#?} demand: {:#?}, rem_sup: {:#?}, rem_dem: {:#?}",
+        total_supply, total_demand, sub_sup, sub_dem
+    );
 
     // if we can subtract the extra supply or demand and flip the equality, we have
     // reached ucp
