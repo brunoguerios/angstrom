@@ -79,8 +79,8 @@ impl ToBOutcome {
                 Some(u128::try_from(*state).unwrap())
             })
             .collect::<Vec<_>>();
-        let start_tick = I24::try_from(donations.first().map(|(a, _)| **a).unwrap_or_default())
-            .unwrap_or_default();
+        tracing::trace!(donations = ?donations, "Donations dump");
+        let start_tick = I24::try_from(self.start_tick).unwrap_or_default();
 
         match quantities.len() {
             0 | 1 => RewardsUpdate::CurrentOnly {
