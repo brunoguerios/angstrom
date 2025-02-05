@@ -51,7 +51,11 @@ where
     P: WithWalletProvider
 {
     pub fn leader_provider(&self) -> &AnvilProvider<P> {
-        self.peers.get(&0).unwrap().state_provider()
+        if self.peers.contains_key(&0) {
+            self.peers.get(&0).unwrap().state_provider()
+        } else {
+            self.peers.get(&1).unwrap().state_provider()
+        }
     }
 
     pub fn random_peer(&self) -> &TestnetNode<C, P> {
