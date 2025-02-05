@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{pin::Pin, sync::atomic::AtomicBool};
 
 use alloy_primitives::{FixedBytes, U256};
 use angstrom_eth::manager::ChainExt;
@@ -31,11 +31,14 @@ use tracing::{debug, info, span, Instrument, Level};
 
 use crate::cli::compare_engines::CompareEnginesCli;
 
+static USE_AMM: AtomicBool = AtomicBool::new(false);
+
 pub async fn compare_matching_engines(
     executor: TaskExecutor,
     cli: CompareEnginesCli
 ) -> eyre::Result<()> {
     let config = cli.testnet_config.make_config()?;
+    USE_AMM.store(cli.include_amm, std::sync::atomic::Ordering::SeqCst);
 
     let agents = vec![cmp_agent];
     tracing::info!("spinning up e2e nodes for angstrom");
@@ -74,6 +77,7 @@ fn cmp_agent<'a>(
         tokio::spawn(
             async move {
                 tracing::info!("waiting for new block");
+                let use_amm = USE_AMM.load(std::sync::atomic::Ordering::SeqCst);
 
                 while let Some(block) = stream.next().await {
                     generator.new_block(block);
@@ -147,7 +151,7 @@ fn cmp_agent<'a>(
 
                         let book = OrderBook::new(
                             pool_id,
-                            Some(amm),
+                            use_amm.then(|| amm),
                             bids,
                             asks,
                             Some(SortStrategy::ByPriceByVolume)
