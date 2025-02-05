@@ -14,7 +14,9 @@ use reth_provider::{
     ChainSpecProvider, ProviderFactory
 };
 use tracing::Level;
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Layer, Registry};
+use tracing_subscriber::{
+    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
+};
 
 use crate::agents::AgentConfig;
 
