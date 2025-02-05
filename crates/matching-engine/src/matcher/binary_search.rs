@@ -334,8 +334,8 @@ fn cmp_total_supply_vs_demand(
 
     // if we can subtract the extra supply or demand and flip the equality, we have
     // reached ucp
-    if (total_supply >= total_demand && (total_supply - sub_sup) <= total_demand)
-        || (total_supply <= total_demand && (total_demand - sub_dem) <= total_supply)
+    if (total_supply > total_demand && (total_supply - sub_sup) <= total_demand)
+        || (total_supply < total_demand && (total_demand - sub_dem) <= total_supply)
     {
         let id = if total_supply > total_demand { sub_id } else { dem_id };
         let amount_unfilled = if total_supply > total_demand {
