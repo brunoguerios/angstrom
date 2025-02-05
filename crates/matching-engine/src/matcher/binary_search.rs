@@ -128,7 +128,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .filter(|bid| bid.is_partial())
             .filter_map(|bid| {
                 // if we are on the exact, we can partial
-                if price == bid.price() {
+                if price == bid.price().inv_ray_round(true) {
                     let (max, min) = match &bid.order {
                         GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
                             (p.max_amount_in, p.min_amount_in)
@@ -145,7 +145,7 @@ impl<'a> BinarySearchMatcher<'a> {
                     id = Some(bid.order_id);
 
                     Some(max.div_ray(price))
-                } else if price < bid.price().inv_ray() {
+                } else if price < bid.price().inv_ray_round(true) {
                     Some(Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
                 } else {
                     None
