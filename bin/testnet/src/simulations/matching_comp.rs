@@ -3,6 +3,7 @@ use std::{pin::Pin, sync::atomic::AtomicBool};
 use alloy_primitives::{FixedBytes, U256};
 use angstrom_eth::manager::ChainExt;
 use angstrom_types::{
+    matching::Ray,
     orders::{OrderId, OrderOrigin, OrderPriorityData},
     sol_bindings::{
         grouped_orders::{AllOrders, OrderWithStorageData},
@@ -186,6 +187,18 @@ fn cmp_agent<'a>(
                         let debt_engine = SimpleCheckpointStrategy::run(&book)
                             .unwrap()
                             .solution(Some(tob.clone()));
+
+                        let debt_ucp = debt_engine.ucp;
+                        if debt_ucp != Ray::ZERO {
+                            let mut buy = 0u128;
+                            let mut sell = 0u128;
+
+                            debt_engine
+                                .limit
+                                .iter()
+                                .filter(|f| f.is_filled())
+                                .map(|o| {});
+                        }
 
                         let bisection = BinarySearchMatcher::new(&book).solution(Some(tob.clone()));
 

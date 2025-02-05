@@ -86,6 +86,8 @@ impl<'a> BinarySearchMatcher<'a> {
             .filter(|ask| ask.is_partial() && price >= ask.price())
             .peekable();
 
+        assert!(iter.clone().is_sorted_by(|a, b| a.price() <= b.price()));
+
         let mut sum = Ray::default();
         while let Some(ask) = iter.next() {
             let peeked = iter.peek();
@@ -128,6 +130,9 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             .filter(|bid| bid.is_partial() && price <= bid.price().inv_ray_round(true))
             .peekable();
+
+        assert!(iter.clone().is_sorted_by(|a, b| a.price() >= b.price()));
+
         let mut sum = Ray::default();
 
         while let Some(bid) = iter.next() {
