@@ -189,16 +189,18 @@ fn cmp_agent<'a>(
                             .solution(Some(tob.clone()));
 
                         let debt_ucp = debt_engine.ucp;
-                        if debt_ucp != Ray::ZERO {
-                            let mut buy = 0u128;
-                            let mut sell = 0u128;
-
-                            debt_engine
-                                .limit
-                                .iter()
-                                .filter(|f| f.is_filled())
-                                .map(|o| {});
-                        }
+                        // if debt_ucp != Ray::ZERO {
+                        //     let mut buy = 0u128;
+                        //     let mut sell = 0u128;
+                        //
+                        //     debt_engine
+                        //         .limit
+                        //         .iter()
+                        //         .filter(|f| f.is_filled())
+                        //         .map(|o| {
+                        //             o.fill_amount(max)
+                        //         });
+                        // }
 
                         let bisection = BinarySearchMatcher::new(&book).solution(Some(tob.clone()));
 
