@@ -58,7 +58,7 @@ fn cmp_agent<'a>(
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
-            2..5,
+            5..10,
             0.1..0.6
         );
 
@@ -186,8 +186,10 @@ fn cmp_agent<'a>(
                             .solution(Some(tob));
 
                         println!(
-                            "\n\n\n\n bisection_results{:#?}\n\n debt_results:{:#?}",
-                            bisection, debt_engine
+                            "\n\n\n\n bisection_results{:#?}\n\n debt_results:{:#?} are_eq={}",
+                            bisection,
+                            debt_engine,
+                            bisection == debt_engine
                         );
                     }
                 }

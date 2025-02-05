@@ -272,13 +272,13 @@ impl<'a> BinarySearchMatcher<'a> {
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
         let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
 
-        println!("min: {p_min:?} max: {p_max:?}");
+        // println!("min: {p_min:?} max: {p_max:?}");
 
         let two = U256::from(1);
         while (p_max - p_min) > ep {
             // grab all supply and demand
             let p_mid = Ray::from((p_max + p_min) / two);
-            println!("solving clearing price iter price = {p_mid:?}");
+            // println!("solving clearing price iter price = {p_mid:?}");
 
             let res = self.calculate_solver_move(p_mid);
 
@@ -306,7 +306,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 }
             }
 
-            println!("min: {p_min:?} max: {p_max:?}");
+            // println!("min: {p_min:?} max: {p_max:?}");
         }
 
         None
