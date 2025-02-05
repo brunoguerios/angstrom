@@ -133,7 +133,7 @@ impl<'a> BinarySearchMatcher<'a> {
         while let Some(bid) = iter.next() {
             let peeked = iter.peek();
 
-            if price <= bid.price().inv_ray_round(true) || peeked.is_none() {
+            if price <= bid.price().inv_ray_round(true) && peeked.is_none() {
                 let (max, min) = match &bid.order {
                     GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
                         (p.max_amount_in, p.min_amount_in)
