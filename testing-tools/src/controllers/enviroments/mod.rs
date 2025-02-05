@@ -50,12 +50,11 @@ where
     G: GlobalTestingConfig,
     P: WithWalletProvider
 {
-    pub fn leader_provider(&self) -> &AnvilProvider<P> {
-        if self.peers.contains_key(&0) {
-            self.peers.get(&0).unwrap().state_provider()
-        } else {
-            self.peers.get(&1).unwrap().state_provider()
-        }
+    pub fn node_provider(&self, node_id: Option<u64>) -> &AnvilProvider<P> {
+        self.peers
+            .get(&node_id.unwrap_or_default())
+            .unwrap()
+            .state_provider()
     }
 
     pub fn random_peer(&self) -> &TestnetNode<C, P> {

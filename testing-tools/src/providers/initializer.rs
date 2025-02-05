@@ -438,7 +438,7 @@ mod tests {
                 .await
                 .unwrap();
 
-        let provider = testnet.leader_provider();
+        let provider = testnet.node_provider(Some(1));
 
         let erc20_instance = MockERC20Instance::new(
             address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
