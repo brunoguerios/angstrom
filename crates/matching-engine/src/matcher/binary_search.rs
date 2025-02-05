@@ -211,7 +211,13 @@ impl<'a> BinarySearchMatcher<'a> {
             .map(|bid| OrderOutcome {
                 id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
+                    println!(
+                        "{} - {}",
+                        bid.amount(),
+                        amount.unwrap().scale_out_of_ray().to::<u128>()
+                    );
                     OrderFillState::PartialFill(
+                        // overflow here
                         bid.amount() - amount.unwrap().scale_out_of_ray().to::<u128>()
                     )
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
@@ -224,6 +230,11 @@ impl<'a> BinarySearchMatcher<'a> {
                 id: ask.order_id,
 
                 outcome: if order_id == Some(ask.order_id) {
+                    println!(
+                        "{} - {}",
+                        ask.amount(),
+                        amount.unwrap().scale_out_of_ray().to::<u128>()
+                    );
                     OrderFillState::PartialFill(
                         ask.amount() - amount.unwrap().scale_out_of_ray().to::<u128>()
                     )
