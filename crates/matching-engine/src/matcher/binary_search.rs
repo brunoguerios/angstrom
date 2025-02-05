@@ -277,7 +277,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let two = U256::from(1);
         while (p_max - p_min) > ep {
             // grab all supply and demand
-            let p_mid = (p_max + p_min) / two;
+            let p_mid = Ray::from((p_max + p_min) / two);
             println!("solving clearing price iter price = {p_mid:?}");
 
             let res = self.calculate_solver_move(p_mid);
@@ -381,16 +381,23 @@ struct PartialLiqRange {
 #[cfg(test)]
 pub mod test {
 
-    use alloy::primitives::Uint;
+    use std::{cell::Cell, cmp::max};
+
+    use alloy::primitives::{Uint, U256};
+    use alloy_primitives::FixedBytes;
     use angstrom_types::{
-        matching::{uniswap::PoolSnapshot, Ray, SqrtPriceX96},
+        matching::{uniswap::PoolSnapshot, Debt, DebtType, Ray, SqrtPriceX96},
+        orders::OrderFillState,
         primitive::PoolId
     };
     use testing_tools::type_generator::{
         amm::generate_amm_with_liquidity, orders::UserOrderBuilder
     };
 
-    use crate::{book::OrderBook, matcher::binary_search::BinarySearchMatcher};
+    use crate::{
+        book::{order::OrderContainer, BookOrder, OrderBook},
+        matcher::binary_search::BinarySearchMatcher
+    };
 
     // Helper function to create AMM with specific liquidity
     fn create_amm_at_price(price: Ray, liquidity: u128) -> PoolSnapshot {
