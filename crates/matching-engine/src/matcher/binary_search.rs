@@ -277,7 +277,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let two = U256::from(1);
         while (p_max - p_min) > ep {
             // grab all supply and demand
-            let p_mid = Ray::from((p_max + p_min) / two);
+            let p_mid = (p_max + p_min) / two;
             println!("solving clearing price iter price = {p_mid:?}");
 
             let res = self.calculate_solver_move(p_mid);
@@ -381,23 +381,16 @@ struct PartialLiqRange {
 #[cfg(test)]
 pub mod test {
 
-    use std::{cell::Cell, cmp::max};
-
-    use alloy::primitives::{Uint, U256};
-    use alloy_primitives::FixedBytes;
+    use alloy::primitives::Uint;
     use angstrom_types::{
-        matching::{uniswap::PoolSnapshot, Debt, DebtType, Ray, SqrtPriceX96},
-        orders::OrderFillState,
+        matching::{uniswap::PoolSnapshot, Ray, SqrtPriceX96},
         primitive::PoolId
     };
     use testing_tools::type_generator::{
         amm::generate_amm_with_liquidity, orders::UserOrderBuilder
     };
 
-    use crate::{
-        book::{order::OrderContainer, BookOrder, OrderBook},
-        matcher::binary_search::BinarySearchMatcher
-    };
+    use crate::{book::OrderBook, matcher::binary_search::BinarySearchMatcher};
 
     // Helper function to create AMM with specific liquidity
     fn create_amm_at_price(price: Ray, liquidity: u128) -> PoolSnapshot {
@@ -429,7 +422,7 @@ pub mod test {
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         println!("{:#?}", book);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price().unwrap();
+        let ucp = matcher.solve_clearing_price().unwrap().ucp;
         let bid = bid_price.inv_ray_round(true);
         assert!(
             ucp == bid,
@@ -460,7 +453,7 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price().unwrap();
+        let ucp = matcher.solve_clearing_price().unwrap().ucp;
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
@@ -494,7 +487,7 @@ pub mod test {
 
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price().unwrap();
+        let ucp = matcher.solve_clearing_price().unwrap().ucp;
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
@@ -529,7 +522,7 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price().unwrap();
+        let ucp = matcher.solve_clearing_price().unwrap().ucp;
 
         assert!(
             ucp == high_price,
@@ -589,7 +582,7 @@ pub mod test {
 
         // UCP should be between bid and ask prices due to AMM liquidity
         assert!(
-            ucp >= bid_price && ucp <= ask_price,
+            ucp.ucp >= bid_price && ucp.ucp <= ask_price,
             "Clearing price should be between bid and ask. Got {ucp:?}"
         );
     }
@@ -616,7 +609,7 @@ pub mod test {
         let ucp = matcher.solve_clearing_price().unwrap();
 
         assert!(
-            ucp > initial_price,
+            ucp.ucp > initial_price,
             "Large bid should move price up from AMM initial price. Got {ucp:?}, initial was \
              {initial_price:?}"
         );
@@ -646,7 +639,7 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         let matcher = BinarySearchMatcher::new(&book);
-        let ucp = matcher.solve_clearing_price().unwrap();
+        let ucp = matcher.solve_clearing_price().unwrap().ucp;
         assert!(
             ucp == high_price,
             "Ask outweighed but the final price wasn't properly set {ucp:?} {high_price:?}"
