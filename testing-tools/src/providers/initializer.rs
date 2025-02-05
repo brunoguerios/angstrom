@@ -409,11 +409,15 @@ mod tests {
 
     use super::*;
     use crate::{
-        controllers::enviroments::AngstromTestnet, types::config::TestnetConfig, utils::noop_agent
+        controllers::enviroments::AngstromTestnet,
+        types::config::TestnetConfig,
+        utils::{init_tracing, noop_agent}
     };
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_hack_address_tokens() {
+        init_tracing(5);
+
         let my_address = address!("796fB50EAe1456A523F869f6135dd557eeaEE226");
         let config = TestnetConfig::new(
             3,
@@ -444,4 +448,3 @@ mod tests {
         assert_eq!(my_balance.result, U256::MAX / U256::from(100000u32));
     }
 }
-//

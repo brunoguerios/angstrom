@@ -36,7 +36,7 @@ mod tests {
         let testnet = AngstromTestnet::spawn_testnet(
             NoopProvider::default(),
             cli.make_config().unwrap(),
-            vec![a]
+            vec![noop_agent]
         )
         .await;
         assert!(testnet.is_ok());
