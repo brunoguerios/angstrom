@@ -263,7 +263,24 @@ impl<'a> BinarySearchMatcher<'a> {
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let Some(price_and_partial_solution) = self.solve_clearing_price() else {
-            return PoolSolution { id: self.book.id(), searcher, ..Default::default() }
+            return PoolSolution {
+                id: self.book.id(),
+                searcher,
+                limit: self
+                    .book
+                    .bids()
+                    .iter()
+                    .map(|o| OrderOutcome {
+                        id:      o.order_id,
+                        outcome: OrderFillState::Unfilled
+                    })
+                    .chain(self.book.asks().iter().map(|o| OrderOutcome {
+                        id:      o.order_id,
+                        outcome: OrderFillState::Unfilled
+                    }))
+                    .collect(),
+                ..Default::default()
+            }
         };
 
         let limit = self.fetch_orders_at_ucp(&price_and_partial_solution);
