@@ -258,6 +258,7 @@ impl AnvilInitializer {
         for i in 0..200 {
             let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
             let upper = lower + pool_key.tickSpacing;
+            let liquidity = U256::from(rng.gen_range(liquidity / 2..liquidity));
 
             let add_liq = self
                 .pool_gate
@@ -266,7 +267,7 @@ impl AnvilInitializer {
                     pool_key.currency1,
                     lower,
                     upper,
-                    U256::from(rng.gen_range(liquidity / 2..liquidity)),
+                    liquidity,
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())
@@ -274,6 +275,7 @@ impl AnvilInitializer {
                 .deploy_pending()
                 .await?;
             self.pending_state.add_pending_tx(add_liq);
+            tracing::trace!(lower_tick = ?lower, upper_tick = ?upper, ?liquidity, "Adding liquidity to pool");
         }
 
         Ok(())

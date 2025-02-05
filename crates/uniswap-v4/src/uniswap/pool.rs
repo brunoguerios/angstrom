@@ -246,6 +246,13 @@ where
             .into_iter()
             .filter(|tick| tick.initialized)
             .for_each(|tick| {
+                tracing::trace!(
+                    initialized = tick.initialized,
+                    liq_gross = tick.liquidityGross,
+                    liq_net = tick.liquidityNet,
+                    tick = tick.tick.as_i32(),
+                    "Inserting tick"
+                );
                 self.ticks.insert(
                     tick.tick.as_i32(),
                     TickInfo {
