@@ -83,14 +83,14 @@ impl<'a> BinarySearchMatcher<'a> {
             .book
             .asks()
             .iter()
-            .filter(|ask| ask.is_partial())
+            .filter(|ask| ask.is_partial() && price >= ask.price())
             .peekable();
 
         let mut sum = Ray::default();
         while let Some(ask) = iter.next() {
             let peeked = iter.peek();
 
-            if price >= ask.price() && peeked.is_none() {
+            if peeked.is_none() {
                 let (max, min) = match &ask.order {
                     GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
                         (p.max_amount_in, p.min_amount_in)
@@ -106,7 +106,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 id = Some(ask.order_id);
 
                 sum += max;
-            } else if price > ask.price() {
+            } else {
                 sum += Ray::scale_to_ray(U256::from(ask.amount()));
             }
         }
@@ -126,14 +126,14 @@ impl<'a> BinarySearchMatcher<'a> {
             .book
             .bids()
             .iter()
-            .filter(|bid| bid.is_partial())
+            .filter(|bid| bid.is_partial() && price <= bid.price().inv_ray_round(true))
             .peekable();
         let mut sum = Ray::default();
 
         while let Some(bid) = iter.next() {
             let peeked = iter.peek();
 
-            if price <= bid.price().inv_ray_round(true) && peeked.is_none() {
+            if peeked.is_none() {
                 let (max, min) = match &bid.order {
                     GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
                         (p.max_amount_in, p.min_amount_in)
@@ -150,7 +150,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 id = Some(bid.order_id);
 
                 sum += max.div_ray(price);
-            } else if price < bid.price().inv_ray_round(true) {
+            } else {
                 sum += Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price);
             }
         }
