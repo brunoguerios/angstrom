@@ -315,7 +315,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 }
             }
 
-            // println!("min: {p_min:?} max: {p_max:?}");
+            println!("min: {p_min:?} max: {p_max:?}");
         }
 
         None
