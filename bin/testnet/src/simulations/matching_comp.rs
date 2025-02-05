@@ -105,7 +105,7 @@ fn cmp_agent<'a>(
                 order_id: OrderId {
                     flash_block:     None,
                     reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),
-                    hash:            Default::default(),
+                    hash:            ask.order_hash(),
                     address:         Default::default(),
                     deadline:        None,
                     pool_id,
@@ -136,7 +136,7 @@ fn cmp_agent<'a>(
                 order_id: OrderId {
                     flash_block:     None,
                     reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),
-                    hash:            Default::default(),
+                    hash:            bid.order_hash(),
                     address:         Default::default(),
                     deadline:        None,
                     pool_id,
@@ -173,7 +173,7 @@ fn cmp_agent<'a>(
                                 flash_block: None,
                                 reuse_avoidance:
                                     angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),
-                                hash: Default::default(),
+                                hash: tob.order_hash(),
                                 address: Default::default(),
                                 deadline: None,
                                 pool_id,
