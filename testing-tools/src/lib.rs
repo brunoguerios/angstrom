@@ -28,3 +28,9 @@ pub mod contracts;
 pub mod controllers;
 pub mod types;
 pub mod utils;
+
+pub const JAMES_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("796fB50EAe1456A523F869f6135dd557eeaEE226");
+
+pub const JOES_ADDRESS: alloy_primitives::Address =
+    alloy_primitives::address!("a7f1Aeb6e43443c683865Fdb9E15Dd01386C955b");
