@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::HashMap, ops::Neg};
 
 use alloy::primitives::{Uint, I256, U256};
-use eyre::{eyre, Context, OptionExt};
+use eyre::{eyre, Context};
 use uniswap_v3_math::{
     sqrt_price_math::{
         _get_amount_0_delta, _get_amount_1_delta, get_next_sqrt_price_from_input,
@@ -308,6 +308,7 @@ impl<'a> PoolPriceVec<'a> {
         let is_swap_input = direction.is_input(&quantity);
 
         while left_to_swap > 0 {
+            tracing::info!("iter from swap");
             // Update our current liquidiy range
             let liq_range =
                 current_liq_range.ok_or_else(|| eyre!("Unable to find next liquidity range"))?;
