@@ -151,7 +151,7 @@ impl AnvilProvider<WalletProvider> {
                 WalletProvider::new_with_provider(rpc, sk),
                 block_sync
             ),
-            _instance: Some(std::thread::spawn(move || anvil))
+            _instance: Some(anvil)
         })
     }
 }
