@@ -48,7 +48,7 @@ impl ToBOutcome {
             return Err(eyre!("Not enough input to cover the transaction"));
         }
         let leftover = tob.quantity_in - total_cost;
-        println!(?leftover);
+        tracing::info!(?leftover);
 
         let donation = pricevec.donation(leftover);
         let end_tick = pricevec.end_bound.tick;
