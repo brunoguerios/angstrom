@@ -49,7 +49,7 @@ where
 
         let output = evm.transact().unwrap().result.output().unwrap().to_vec();
         let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
-        if return_data._0 == U256::from(123456789) {
+        if return_data.result == U256::from(123456789) {
             return offset as u64
         }
     }
@@ -98,7 +98,7 @@ where
 
         let output = evm.transact().unwrap().result.output().unwrap().to_vec();
         let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
-        if return_data._0 == U256::from(123456789) {
+        if return_data.result == U256::from(123456789) {
             return offset as u64
         }
     }

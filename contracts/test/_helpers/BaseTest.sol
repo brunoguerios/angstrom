@@ -43,12 +43,13 @@ contract BaseTest is Test, HookDeployer {
         return IPoolManager(addr);
     }
 
-    function deployAngstrom(bytes memory initcode, IPoolManager uni, address controller)
-        internal
-        returns (address addr)
-    {
+    function deployAngstrom(
+        bytes memory initcode,
+        IPoolManager uni,
+        address controller
+    ) internal returns (address addr) {
         bool success;
-        (success, addr,) = deployHook(
+        (success, addr, ) = deployHook(
             bytes.concat(initcode, abi.encode(uni, controller)),
             CREATE2_FACTORY,
             hasAngstromHookFlags
@@ -56,27 +57,32 @@ contract BaseTest is Test, HookDeployer {
         assertTrue(success);
     }
 
-    function rawGetConfigStore(address angstrom) internal view returns (address) {
+    function rawGetConfigStore(
+        address angstrom
+    ) internal view returns (address) {
         return PoolConfigStore.unwrap(IAngstromAuth(angstrom).configStore());
     }
 
-    function rawGetController(address angstrom) internal view returns (address) {
+    function rawGetController(
+        address angstrom
+    ) internal view returns (address) {
         return IAngstromAuth(angstrom).controller();
     }
 
-    function rawGetBalance(address angstrom, address asset, address owner)
-        internal
-        view
-        returns (uint256)
-    {
+    function rawGetBalance(
+        address angstrom,
+        address asset,
+        address owner
+    ) internal view returns (uint256) {
         return IAngstromAuth(angstrom).balanceOf(asset, owner);
     }
 
-    function poolKey(Angstrom angstrom, address asset0, address asset1, int24 tickSpacing)
-        internal
-        pure
-        returns (PoolKey memory pk)
-    {
+    function poolKey(
+        Angstrom angstrom,
+        address asset0,
+        address asset1,
+        int24 tickSpacing
+    ) internal pure returns (PoolKey memory pk) {
         pk.hooks = IHooks(address(angstrom));
         pk.currency0 = Currency.wrap(asset0);
         pk.currency1 = Currency.wrap(asset1);
@@ -84,28 +90,31 @@ contract BaseTest is Test, HookDeployer {
         pk.fee = address(angstrom) == address(0) ? 0 : ANGSTROM_INIT_HOOK_FEE;
     }
 
-    function poolKey(address asset0, address asset1, int24 tickSpacing)
-        internal
-        pure
-        returns (PoolKey memory pk)
-    {
+    function poolKey(
+        address asset0,
+        address asset1,
+        int24 tickSpacing
+    ) internal pure returns (PoolKey memory pk) {
         pk.currency0 = Currency.wrap(asset0);
         pk.currency1 = Currency.wrap(asset1);
         pk.tickSpacing = tickSpacing;
     }
 
-    function computeDomainSeparator(address angstrom) internal view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                ),
-                keccak256("Angstrom"),
-                keccak256("v1"),
-                block.chainid,
-                address(angstrom)
-            )
-        );
+    function computeDomainSeparator(
+        address angstrom
+    ) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    keccak256(
+                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                    ),
+                    keccak256("Angstrom"),
+                    keccak256("v1"),
+                    block.chainid,
+                    address(angstrom)
+                )
+            );
     }
 
     function pythonRunCmd() internal pure returns (string[] memory args) {
@@ -152,7 +161,9 @@ contract BaseTest is Test, HookDeployer {
         y = uint40(x);
     }
 
-    function makeTrader(string memory name) internal returns (Trader memory trader) {
+    function makeTrader(
+        string memory name
+    ) internal returns (Trader memory trader) {
         (trader.addr, trader.key) = makeAddrAndKey(name);
     }
 
@@ -163,31 +174,46 @@ contract BaseTest is Test, HookDeployer {
         }
     }
 
-    function tryAdd(uint256 x, uint256 y) internal view returns (bool, bytes memory, uint256) {
+    function tryAdd(
+        uint256 x,
+        uint256 y
+    ) internal view returns (bool, bytes memory, uint256) {
         return tryFn(this.__safeAdd, x, y);
     }
 
-    function trySub(uint256 x, uint256 y) internal view returns (bool, bytes memory, uint256) {
+    function trySub(
+        uint256 x,
+        uint256 y
+    ) internal view returns (bool, bytes memory, uint256) {
         return tryFn(this.__safeSub, x, y);
     }
 
-    function tryMul(uint256 x, uint256 y) internal view returns (bool, bytes memory, uint256) {
+    function tryMul(
+        uint256 x,
+        uint256 y
+    ) internal view returns (bool, bytes memory, uint256) {
         return tryFn(this.__safeMul, x, y);
     }
 
-    function tryDiv(uint256 x, uint256 y) internal view returns (bool, bytes memory, uint256) {
+    function tryDiv(
+        uint256 x,
+        uint256 y
+    ) internal view returns (bool, bytes memory, uint256) {
         return tryFn(this.__safeDiv, x, y);
     }
 
-    function tryMod(uint256 x, uint256 y) internal view returns (bool, bytes memory, uint256) {
+    function tryMod(
+        uint256 x,
+        uint256 y
+    ) internal view returns (bool, bytes memory, uint256) {
         return tryFn(this.__safeMod, x, y);
     }
 
-    function tryFn(function(uint, uint) external pure returns (uint) op, uint256 x, uint256 y)
-        internal
-        pure
-        returns (bool hasErr, bytes memory err, uint256 z)
-    {
+    function tryFn(
+        function(uint, uint) external pure returns (uint) op,
+        uint256 x,
+        uint256 y
+    ) internal pure returns (bool hasErr, bytes memory err, uint256 z) {
         try op(x, y) returns (uint256 result) {
             hasErr = false;
             z = result;
@@ -225,15 +251,18 @@ contract BaseTest is Test, HookDeployer {
         }
     }
 
-    function _brutalize(uint256 seed, uint256 freeWordsToBrutalize)
-        internal
-        pure
-        returns (uint256 newBrutalizeSeed)
-    {
+    function _brutalize(
+        uint256 seed,
+        uint256 freeWordsToBrutalize
+    ) internal pure returns (uint256 newBrutalizeSeed) {
         assembly ("memory-safe") {
             mstore(0x00, seed)
             let free := mload(0x40)
-            for { let i := 0 } lt(i, freeWordsToBrutalize) { i := add(i, 1) } {
+            for {
+                let i := 0
+            } lt(i, freeWordsToBrutalize) {
+                i := add(i, 1)
+            } {
                 let newGarbage := keccak256(0x00, 0x20)
                 mstore(add(free, mul(i, 0x20)), newGarbage)
                 mstore(0x01, newGarbage)
@@ -244,48 +273,64 @@ contract BaseTest is Test, HookDeployer {
         }
     }
 
-    function sign(Account memory account, TopOfBlockOrder memory order, bytes32 domainSeparator)
-        internal
-        pure
-    {
+    function sign(
+        Account memory account,
+        TopOfBlockOrder memory order,
+        bytes32 domainSeparator
+    ) internal pure {
         sign(account, order.meta, erc712Hash(domainSeparator, order.hash()));
     }
 
-    function sign(Account memory account, OrderMeta memory targetMeta, bytes32 hash)
-        internal
-        pure
-    {
+    function sign(
+        Account memory account,
+        OrderMeta memory targetMeta,
+        bytes32 hash
+    ) internal pure {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(account.key, hash);
         targetMeta.isEcdsa = true;
         targetMeta.from = account.addr;
         targetMeta.signature = abi.encodePacked(v, r, s);
     }
 
-    function sign(Trader memory account, OrderMeta memory targetMeta, bytes32 hash) internal pure {
+    function sign(
+        Trader memory account,
+        OrderMeta memory targetMeta,
+        bytes32 hash
+    ) internal pure {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(account.key, hash);
         targetMeta.isEcdsa = true;
         targetMeta.from = account.addr;
         targetMeta.signature = abi.encodePacked(v, r, s);
     }
 
-    function uintArray(bytes memory encoded) internal pure returns (uint256[] memory) {
+    function uintArray(
+        bytes memory encoded
+    ) internal pure returns (uint256[] memory) {
         uint256 length = encoded.length / 32;
         return
-            abi.decode(bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded), (uint256[]));
+            abi.decode(
+                bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded),
+                (uint256[])
+            );
     }
 
-    function addressArray(bytes memory encoded) internal pure returns (address[] memory) {
+    function addressArray(
+        bytes memory encoded
+    ) internal pure returns (address[] memory) {
         uint256 length = encoded.length / 32;
         return
-            abi.decode(bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded), (address[]));
+            abi.decode(
+                bytes.concat(bytes32(uint256(0x20)), bytes32(length), encoded),
+                (address[])
+            );
     }
 
-    function erc712Hash(bytes32 domainSeparator, bytes32 structHash)
-        internal
-        pure
-        returns (bytes32)
-    {
-        return TypedDataHasherLib.init(domainSeparator).hashTypedData(structHash);
+    function erc712Hash(
+        bytes32 domainSeparator,
+        bytes32 structHash
+    ) internal pure returns (bytes32) {
+        return
+            TypedDataHasherLib.init(domainSeparator).hashTypedData(structHash);
     }
 
     function bumpBlock() internal {
@@ -298,11 +343,18 @@ contract BaseTest is Test, HookDeployer {
         return asset0 < asset1 ? (asset0, asset1) : (asset1, asset0);
     }
 
-    function addrs(bytes memory encoded) internal pure returns (address[] memory) {
-        return abi.decode(
-            bytes.concat(bytes32(uint256(0x20)), bytes32(encoded.length / 0x20), encoded),
-            (address[])
-        );
+    function addrs(
+        bytes memory encoded
+    ) internal pure returns (address[] memory) {
+        return
+            abi.decode(
+                bytes.concat(
+                    bytes32(uint256(0x20)),
+                    bytes32(encoded.length / 0x20),
+                    encoded
+                ),
+                (address[])
+            );
     }
 
     function min(uint256 x, uint256 y) internal pure returns (uint256) {
@@ -325,21 +377,25 @@ contract BaseTest is Test, HookDeployer {
         return x > y ? x : y;
     }
 
-    function poolId(Angstrom angstrom, address asset0, address asset1)
-        internal
-        view
-        returns (PoolId)
-    {
+    function poolId(
+        Angstrom angstrom,
+        address asset0,
+        address asset1
+    ) internal view returns (PoolId) {
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         address store = rawGetConfigStore(address(angstrom));
         uint256 storeIndex = PairLib.getStoreIndex(store, asset0, asset1);
-        (int24 tickSpacing,) = PoolConfigStore.wrap(store).get(
-            PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1), storeIndex
+        (int24 tickSpacing, ) = PoolConfigStore.wrap(store).get(
+            PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1),
+            storeIndex
         );
         return poolKey(angstrom, asset0, asset1, tickSpacing).toId();
     }
 
-    function skey(address asset0, address asset1) internal pure returns (StoreKey key) {
+    function skey(
+        address asset0,
+        address asset1
+    ) internal pure returns (StoreKey key) {
         assertTrue(asset0 < asset1, "Building key with out of order assets");
         key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
     }
@@ -348,11 +404,17 @@ contract BaseTest is Test, HookDeployer {
         return boundE6(fee, 1e6);
     }
 
-    function boundE6(uint24 fee, uint24 upperBound) internal pure returns (uint24) {
+    function boundE6(
+        uint24 fee,
+        uint24 upperBound
+    ) internal pure returns (uint24) {
         return uint24(bound(fee, 0, upperBound));
     }
 
-    function sort(address asset0, address asset1) internal pure returns (address, address) {
+    function sort(
+        address asset0,
+        address asset1
+    ) internal pure returns (address, address) {
         if (asset0 > asset1) return (asset1, asset0);
         return (asset0, asset1);
     }

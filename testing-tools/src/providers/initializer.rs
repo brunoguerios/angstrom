@@ -35,7 +35,7 @@ use crate::{
     types::{
         config::TestingNodeConfig,
         initial_state::{PartialConfigPoolKey, PendingDeployedPools},
-        GlobalTestingConfig, WithWalletProvider
+        GlobalTestingConfig, WithWalletProvider, WBTC_ADDRESS
     }
 };
 
@@ -111,7 +111,7 @@ impl AnvilInitializer {
 
     async fn hack_address_tokens(
         &self,
-        mut nonce: u64,
+        nonce: &mut u64,
         token0: Address,
         token1: Address
     ) -> eyre::Result<()> {
@@ -121,20 +121,20 @@ impl AnvilInitializer {
         for user_addr in self.addresses_with_deployed_tokens.iter() {
             let _ = token0_instance
                 .mint(*user_addr, U256::MAX / U256::from(100000u32))
-                .nonce(nonce)
+                .nonce(*nonce)
                 .send()
                 .await?
                 .watch()
                 .await?;
-            nonce += 1;
+            *nonce += 1;
             let _ = token1_instance
                 .mint(*user_addr, U256::MAX / U256::from(100000u32))
-                .nonce(nonce)
+                .nonce(*nonce)
                 .send()
                 .await?
                 .watch()
                 .await?;
-            nonce += 1;
+            *nonce += 1;
         }
 
         self.rpc_provider()
@@ -144,30 +144,49 @@ impl AnvilInitializer {
         Ok(())
     }
 
-    pub async fn deploy_currencies(
-        &mut self,
-        c: &PartialConfigPoolKey
-    ) -> eyre::Result<(Address, Address)> {
-        let nonce = self
-            .provider
-            .provider
-            .get_transaction_count(self.provider.controller())
-            .await?;
-
-        let (first_token_tx, first_token) =
+    async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
+        let (first_token_tx, mut first_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce, self.provider.controller())
+                .deploy_pending_creation(*nonce, self.provider.controller())
                 .await?;
+        *nonce += 1;
         self.pending_state.add_pending_tx(first_token_tx);
 
         let (second_token_tx, mut second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce + 1, self.provider.controller())
+                .deploy_pending_creation(*nonce, self.provider.controller())
                 .await?;
+        *nonce += 1;
         self.pending_state.add_pending_tx(second_token_tx);
 
         // wait for them to be mined.
         self.pending_state.finalize_pending_txs().await?;
+
+        let token0_instance = MintableMockERC20::new(first_token, self.provider.rpc_provider());
+        token0_instance
+            .setMeta("Wrapped Bitcoin".to_string(), "WBTC".to_string())
+            .nonce(*nonce)
+            .send()
+            .await?
+            .watch()
+            .await?;
+        *nonce += 1;
+
+        let token1_instance = MintableMockERC20::new(second_token, self.provider.rpc_provider());
+        token1_instance
+            .setMeta("Wrapped Ethereum".to_string(), "WETH".to_string())
+            .nonce(*nonce)
+            .send()
+            .await?
+            .watch()
+            .await?;
+        *nonce += 1;
+
+        // lets load the bytecode of the first token, then use the bytecode to override
+        // the wbtc address
+        self.provider
+            .override_address(&mut first_token, WBTC_ADDRESS)
+            .await?;
 
         // lets load the bytecode of the second token, then use the bytecode to override
         // the weth address
@@ -175,13 +194,28 @@ impl AnvilInitializer {
             .override_address(&mut second_token, WETH_ADDRESS)
             .await?;
 
-        let (currency0, currency1) = if first_token < second_token {
+        let tokens = if first_token < second_token {
             (first_token, second_token)
         } else {
             (second_token, first_token)
         };
 
-        self.hack_address_tokens(nonce + 2, currency0, currency1)
+        Ok(tokens)
+    }
+
+    pub async fn deploy_currencies(
+        &mut self,
+        c: &PartialConfigPoolKey
+    ) -> eyre::Result<(Address, Address)> {
+        let mut nonce = self
+            .provider
+            .provider
+            .get_transaction_count(self.provider.controller())
+            .await?;
+
+        let (currency0, currency1) = self.deploy_tokens(&mut nonce).await?;
+
+        self.hack_address_tokens(&mut nonce, currency0, currency1)
             .await?;
 
         let pool_key = PoolKey {
@@ -198,40 +232,15 @@ impl AnvilInitializer {
 
     /// deploys tokens, a uniV4 pool, angstrom pool
     pub async fn deploy_default_pool_full(&mut self) -> eyre::Result<()> {
-        let nonce = self
+        let mut nonce = self
             .provider
             .provider
             .get_transaction_count(self.provider.controller())
             .await?;
 
-        let (first_token_tx, first_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce, self.provider.controller())
-                .await?;
-        self.pending_state.add_pending_tx(first_token_tx);
+        let (currency0, currency1) = self.deploy_tokens(&mut nonce).await?;
 
-        let (second_token_tx, mut second_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce + 1, self.provider.controller())
-                .await?;
-        self.pending_state.add_pending_tx(second_token_tx);
-
-        // wait for them to be mined.
-        self.pending_state.finalize_pending_txs().await?;
-
-        // lets load the bytecode of the second token, then use the bytecode to override
-        // the weth address
-        self.provider
-            .override_address(&mut second_token, WETH_ADDRESS)
-            .await?;
-
-        let (currency0, currency1) = if first_token < second_token {
-            (first_token, second_token)
-        } else {
-            (second_token, first_token)
-        };
-
-        self.hack_address_tokens(nonce + 2, currency0, currency1)
+        self.hack_address_tokens(&mut nonce, currency0, currency1)
             .await?;
 
         let pool_key = PoolKey {

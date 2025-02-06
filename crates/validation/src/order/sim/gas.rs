@@ -396,7 +396,7 @@ fn verify_overrides<DB: revm::DatabaseRef + Clone>(
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
-    if return_data._0 != U256::from(2) * amount_in {
+    if return_data.result != U256::from(2) * amount_in {
         panic!("failed to set user balance");
     }
 
@@ -418,7 +418,7 @@ fn verify_overrides<DB: revm::DatabaseRef + Clone>(
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
-    if return_data._0 != (amount_out * U256::from(2)) {
+    if return_data.result != (amount_out * U256::from(2)) {
         panic!("failed to set angstrom balance");
     }
 
@@ -440,7 +440,7 @@ fn verify_overrides<DB: revm::DatabaseRef + Clone>(
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
-    if return_data._0 != U256::from(2) * amount_in {
+    if return_data.result != U256::from(2) * amount_in {
         panic!("angstrom doesn't have proper allowance");
     }
 }
