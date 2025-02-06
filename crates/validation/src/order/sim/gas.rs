@@ -125,15 +125,16 @@ where
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
 
         let bundle = bundle.pade_encode();
+
         let (amount_in, amount_out) = if exact_in {
             (U256::from(order.amount_in()), {
-                let price = Ray::from(U256::from(order.limit_price()));
+                let price = order.price_for_book_side(order.is_bid);
                 price.mul_quantity(U256::from(order.amount_in()))
             })
         } else {
             (
                 {
-                    let price = Ray::from(U256::from(order.limit_price()));
+                    let price = order.price_for_book_side(order.is_bid);
                     price.mul_quantity(U256::from(order.amount_in()))
                 },
                 U256::from(order.amount_in())
