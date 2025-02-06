@@ -159,40 +159,34 @@ impl AnvilInitializer {
         *nonce += 1;
         self.pending_state.add_pending_tx(second_token_tx);
 
-        // wait for them to be mined.
         self.pending_state.finalize_pending_txs().await?;
 
         let token0_instance = MintableMockERC20::new(first_token, self.provider.rpc_provider());
-        token0_instance
+        let set_token0_meta = token0_instance
             .setMeta("Wrapped Bitcoin".to_string(), "WBTC".to_string())
             .nonce(*nonce)
-            .send()
-            .await?
-            .watch()
+            .deploy_pending()
             .await?;
+        self.pending_state.add_pending_tx(set_token0_meta);
         *nonce += 1;
 
         let token1_instance = MintableMockERC20::new(second_token, self.provider.rpc_provider());
-        token1_instance
+        let set_token1_meta = token1_instance
             .setMeta("Wrapped Ethereum".to_string(), "WETH".to_string())
             .nonce(*nonce)
-            .send()
-            .await?
-            .watch()
+            .deploy_pending()
             .await?;
+        self.pending_state.add_pending_tx(set_token1_meta);
         *nonce += 1;
 
-        // lets load the bytecode of the first token, then use the bytecode to override
-        // the wbtc address
-        self.provider
-            .override_address(&mut first_token, WBTC_ADDRESS)
-            .await?;
+        self.pending_state.finalize_pending_txs().await?;
 
-        // lets load the bytecode of the second token, then use the bytecode to override
-        // the weth address
-        self.provider
-            .override_address(&mut second_token, WETH_ADDRESS)
-            .await?;
+        tokio::try_join!(
+            self.provider
+                .override_address(&mut first_token, WBTC_ADDRESS),
+            self.provider
+                .override_address(&mut second_token, WETH_ADDRESS)
+        )?;
 
         let tokens = if first_token < second_token {
             (first_token, second_token)

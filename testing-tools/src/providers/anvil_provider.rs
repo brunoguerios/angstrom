@@ -32,11 +32,14 @@ where
         let this =
             Self { provider: AnvilStateProvider::new(provider, block_sync), _instance: anvil };
         if testnet {
-            tokio::spawn(
-                this.provider
-                    .as_wallet_state_provider()
-                    .listen_to_new_blocks()
-            );
+            let handle = tokio::runtime::Handle::current().clone();
+            std::thread::spawn(move || {
+                handle.block_on(
+                    this.provider
+                        .as_wallet_state_provider()
+                        .listen_to_new_blocks()
+                )
+            });
         }
         Ok(this)
     }
