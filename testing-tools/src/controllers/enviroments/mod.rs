@@ -30,7 +30,7 @@ use crate::{
 
 pub struct AngstromTestnet<C, G, P> {
     block_provider:      TestnetBlockProvider,
-    _anvil_instance:     Option<AnvilInstance>,
+    _anvil_instance:     Option<std::thread::JoinHandle<AnvilInstance>>,
     peers:               HashMap<u64, TestnetNode<C, P>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,

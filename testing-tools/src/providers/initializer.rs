@@ -53,7 +53,7 @@ impl AnvilInitializer {
     pub async fn new<G: GlobalTestingConfig>(
         config: TestingNodeConfig<G>,
         nodes: Vec<Address>
-    ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
+    ) -> eyre::Result<(Self, Option<std::thread::JoinHandle<AnvilInstance>>)> {
         let (provider, anvil) = config.spawn_anvil_rpc().await?;
 
         tracing::debug!("deploying UniV4 enviroment");

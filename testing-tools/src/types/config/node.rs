@@ -117,7 +117,9 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         anvil_builder
     }
 
-    pub async fn spawn_anvil_rpc(&self) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
+    pub async fn spawn_anvil_rpc(
+        &self
+    ) -> eyre::Result<(WalletProvider, Option<std::thread::JoinHandle<AnvilInstance>>)> {
         if matches!(self.global_config.config_type(), TestingConfigKind::Testnet) {
             self.spawn_testnet_anvil_rpc().await
         } else {
@@ -127,12 +129,11 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     async fn spawn_testnet_anvil_rpc(
         &self
-    ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
-        let anvil = self
-            .global_config
-            .is_leader(self.node_id)
-            .then(|| self.configure_testnet_leader_anvil().try_spawn())
-            .transpose()?;
+    ) -> eyre::Result<(WalletProvider, Option<std::thread::JoinHandle<AnvilInstance>>)> {
+        let anvil = self.global_config.is_leader(self.node_id).then(|| {
+            let anvil_builder = self.configure_testnet_leader_anvil();
+            std::thread::spawn(move || anvil_builder.try_spawn().unwrap())
+        });
 
         let sk = self.signing_key();
         let wallet = EthereumWallet::new(sk.clone());
@@ -162,8 +163,9 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     async fn spawn_devnet_anvil_rpc(
         &self
-    ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
-        let anvil = self.configure_devnet_anvil().try_spawn()?;
+    ) -> eyre::Result<(WalletProvider, Option<std::thread::JoinHandle<AnvilInstance>>)> {
+        let anvil_builder = self.configure_devnet_anvil();
+        let anvil = std::thread::spawn(move || anvil_builder.try_spawn().unwrap());
 
         let sk = self.signing_key();
         let wallet = EthereumWallet::new(sk.clone());
