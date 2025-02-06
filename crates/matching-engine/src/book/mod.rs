@@ -89,8 +89,11 @@ impl OrderBook {
             .duration_since(UNIX_EPOCH)?
             .as_millis();
 
-        let mut file =
-            std::fs::File::create_new(format!("order-book-different-ucp-{timestamp}.json"))?;
+        let mut file = std::fs::File::create_new(format!(
+            "book-with-ucp-timestamp-{timestamp}-bi-ucp-{bisection_ucp:?}-debt-ucp-{debt_ucp:?}.\
+             json"
+        ))?;
+
         write!(&mut file, "{strd}")?;
 
         Ok(())
