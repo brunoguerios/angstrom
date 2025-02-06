@@ -42,6 +42,7 @@ impl ToBOutcome {
             false => Quantity::Token1(tob.quantity_out)
         };
         let pricevec = (snapshot.current_price() - output)?;
+        tracing::info!(?pricevec);
         let total_cost: u128 = pricevec.input();
         if total_cost > tob.quantity_in {
             return Err(eyre!("Not enough input to cover the transaction"));
