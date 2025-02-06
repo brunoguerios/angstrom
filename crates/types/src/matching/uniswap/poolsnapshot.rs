@@ -70,7 +70,7 @@ impl PoolSnapshot {
     /// Find the PoolRange in this market snapshot that the provided tick lies
     /// within, if any
     pub fn get_range_for_tick(&self, tick: Tick) -> Option<LiqRangeRef> {
-        tracing::info(?tick, "get range for tick");
+        tracing::info!(?tick, "get range for tick");
         self.ranges
             .iter()
             .enumerate()
