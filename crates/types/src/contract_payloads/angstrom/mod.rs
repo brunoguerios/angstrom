@@ -101,14 +101,6 @@ impl AngstromBundle {
             balances.entry(token).or_default().insert(address, qty);
         });
 
-        // approvals cuz diff map but same
-        for token in approvals.keys() {
-            balances
-                .entry(*token)
-                .or_default()
-                .insert(TESTNET_ANGSTROM_ADDRESS, u128::MAX - 1);
-        }
-
         TestnetStateOverrides { approvals, balances }
     }
 

@@ -14,6 +14,7 @@ use angstrom_types::{
 };
 use futures::{Future, FutureExt, StreamExt};
 use pade::PadeDecode;
+use tracing::warn;
 
 use crate::contracts::anvil::WalletProviderRpc;
 
@@ -42,6 +43,7 @@ impl SubmitTx for AnvilSubmissionProvider {
             let mut slice = vecd.as_slice();
 
             let bundle = AngstromBundle::pade_decode(&mut slice, None).unwrap();
+            warn!("Submitting via Anvil Submission");
             let block = self.provider.get_block_number().await.unwrap() + 1;
             let order_overrides = bundle.fetch_needed_overrides(block);
             let angstrom_address = *tx.to.as_ref().unwrap().to().unwrap();
