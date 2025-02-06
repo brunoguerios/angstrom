@@ -145,14 +145,14 @@ impl AnvilInitializer {
     }
 
     async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
-        let (first_token_tx, first_token) =
+        let (first_token_tx, mut first_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(*nonce, self.provider.controller())
                 .await?;
         *nonce += 1;
         self.pending_state.add_pending_tx(first_token_tx);
 
-        let (second_token_tx, second_token) =
+        let (second_token_tx, mut second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(*nonce, self.provider.controller())
                 .await?;
@@ -161,12 +161,12 @@ impl AnvilInitializer {
 
         self.pending_state.finalize_pending_txs().await?;
 
-        // tokio::try_join!(
-        //     self.provider
-        //         .override_address(&mut first_token, WBTC_ADDRESS),
-        //     self.provider
-        //         .override_address(&mut second_token, WETH_ADDRESS)
-        // )?;
+        tokio::try_join!(
+            self.provider
+                .override_address(&mut first_token, WBTC_ADDRESS),
+            self.provider
+                .override_address(&mut second_token, WETH_ADDRESS)
+        )?;
 
         let token0_instance = MintableMockERC20::new(first_token, self.provider.rpc_provider());
         let set_token0_meta = token0_instance
