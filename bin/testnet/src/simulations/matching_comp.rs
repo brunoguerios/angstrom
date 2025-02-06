@@ -184,27 +184,17 @@ fn cmp_agent<'a>(
                             valid_block: 0,
                             tob_reward: U256::ZERO
                         };
+
                         let debt_engine = SimpleCheckpointStrategy::run(&book)
                             .unwrap()
                             .solution(Some(tob.clone()));
 
-                        let debt_ucp = debt_engine.ucp;
-                        // if debt_ucp != Ray::ZERO {
-                        //     let mut buy = 0u128;
-                        //     let mut sell = 0u128;
-                        //
-                        //     debt_engine
-                        //         .limit
-                        //         .iter()
-                        //         .filter(|f| f.is_filled())
-                        //         .map(|o| {
-                        //             o.fill_amount(max)
-                        //         });
-                        // }
-
                         let bisection = BinarySearchMatcher::new(&book).solution(Some(tob.clone()));
 
                         if debt_engine.ucp != bisection.ucp {
+                            // lets save the book
+                            book.save().unwrap();
+
                             let r = BinarySearchMatcher::new(&book)
                                 .calculate_solver_move(debt_engine.ucp);
                             println!("\n\n\n\n\n when using the debt engine ucp, we get: {:#?}", r);

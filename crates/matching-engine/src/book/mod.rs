@@ -1,4 +1,6 @@
 //! basic book impl so we can benchmark
+use std::{io::Write, time::UNIX_EPOCH};
+
 use alloy_primitives::U256;
 use angstrom_types::{
     matching::uniswap::PoolSnapshot,
@@ -72,6 +74,20 @@ impl OrderBook {
             .chain(self.asks().iter().map(|ask| ask.price()))
             .max()
             .unwrap_or(Ray::from(U256::MAX))
+    }
+
+    /// writes the book to the cwd + timestamp in seconds
+    pub fn save(&self) -> eyre::Result<()> {
+        let strd = serde_json::to_string_pretty(&self)?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)?
+            .as_secs();
+
+        let mut file =
+            std::fs::File::create_new(format!("order-book-different-ucp-{timestamp}.json"))?;
+        write!(&mut file, "{strd}")?;
+
+        Ok(())
     }
 }
 
