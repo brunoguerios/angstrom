@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.0;
 
+import {console} from "forge-std/console.sol";
 import {GrowthOutsideUpdater} from "./GrowthOutsideUpdater.sol";
 import {UniConsumer} from "./UniConsumer.sol";
 import {Settlement} from "./Settlement.sol";
@@ -61,8 +62,12 @@ abstract contract PoolUpdates is
         uint256 growthInside;
         {
             int24 currentTick = UNI_V4.getSlot0(id).tick();
-            uint256 lowerGrowth = rewards.rewardGrowthOutside[uint24(params.tickLower)];
-            uint256 upperGrowth = rewards.rewardGrowthOutside[uint24(params.tickUpper)];
+            uint256 lowerGrowth = rewards.rewardGrowthOutside[
+                uint24(params.tickLower)
+            ];
+            uint256 upperGrowth = rewards.rewardGrowthOutside[
+                uint24(params.tickUpper)
+            ];
 
             if (currentTick < params.tickLower) {
                 unchecked {
@@ -71,30 +76,47 @@ abstract contract PoolUpdates is
             } else if (params.tickUpper <= currentTick) {
                 // Following Uniswap's convention, if tick is below and uninitialized initialize growth
                 // outside to global accumulator.
-                if (!UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickLower)] =
-                        lowerGrowth = rewards.globalGrowth;
+                if (
+                    !UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)
+                ) {
+                    rewards.rewardGrowthOutside[
+                        uint24(params.tickLower)
+                    ] = lowerGrowth = rewards.globalGrowth;
                 }
-                if (!UNI_V4.isInitialized(id, params.tickUpper, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickUpper)] =
-                        upperGrowth = rewards.globalGrowth;
+                if (
+                    !UNI_V4.isInitialized(id, params.tickUpper, key.tickSpacing)
+                ) {
+                    rewards.rewardGrowthOutside[
+                        uint24(params.tickUpper)
+                    ] = upperGrowth = rewards.globalGrowth;
                 }
                 unchecked {
                     growthInside = upperGrowth - lowerGrowth;
                 }
             } else {
-                if (!UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickLower)] =
-                        lowerGrowth = rewards.globalGrowth;
+                if (
+                    !UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)
+                ) {
+                    rewards.rewardGrowthOutside[
+                        uint24(params.tickLower)
+                    ] = lowerGrowth = rewards.globalGrowth;
                 }
                 unchecked {
-                    growthInside = rewards.globalGrowth - lowerGrowth - upperGrowth;
+                    growthInside =
+                        rewards.globalGrowth -
+                        lowerGrowth -
+                        upperGrowth;
                 }
             }
         }
 
-        (Position storage position, bytes32 positionKey) =
-            positions.get(id, sender, params.tickLower, params.tickUpper, params.salt);
+        (Position storage position, bytes32 positionKey) = positions.get(
+            id,
+            sender,
+            params.tickLower,
+            params.tickUpper,
+            params.salt
+        );
 
         uint128 lastLiquidity = UNI_V4.getPositionLiquidity(id, positionKey);
         uint128 liquidityDelta = uint128(uint256(params.liquidityDelta));
@@ -111,7 +133,9 @@ abstract contract PoolUpdates is
             // last' = growth_inside - (growth_inside - last) * L / L'
             unchecked {
                 uint256 lastGrowthAdjustment = FixedPointMathLib.fullMulDiv(
-                    growthInside - position.lastGrowthInside, lastLiquidity, newLiquidity
+                    growthInside - position.lastGrowthInside,
+                    lastLiquidity,
+                    newLiquidity
                 );
                 position.lastGrowthInside = growthInside - lastGrowthAdjustment;
             }
@@ -130,21 +154,36 @@ abstract contract PoolUpdates is
 
         unchecked {
             PoolId id = _toId(key);
-            (Position storage position, bytes32 positionKey) =
-                positions.get(id, sender, params.tickLower, params.tickUpper, params.salt);
+            (Position storage position, bytes32 positionKey) = positions.get(
+                id,
+                sender,
+                params.tickLower,
+                params.tickUpper,
+                params.salt
+            );
             int24 currentTick = UNI_V4.getSlot0(id).tick();
-            uint256 growthInside =
-                poolRewards[id].getGrowthInside(currentTick, params.tickLower, params.tickUpper);
+            uint256 growthInside = poolRewards[id].getGrowthInside(
+                currentTick,
+                params.tickLower,
+                params.tickUpper
+            );
 
-            uint128 positionTotalLiquidity = UNI_V4.getPositionLiquidity(id, positionKey);
+            uint128 positionTotalLiquidity = UNI_V4.getPositionLiquidity(
+                id,
+                positionKey
+            );
             uint256 rewards = X128MathLib.fullMulX128(
-                growthInside - position.lastGrowthInside, positionTotalLiquidity
+                growthInside - position.lastGrowthInside,
+                positionTotalLiquidity
             );
 
             if (rewards > 0) {
                 // Pay rewards to owner via uniswap delta => assumes that router is not malicious.
                 UNI_V4.sync(key.currency0);
-                Currency.unwrap(key.currency0).safeTransfer(address(UNI_V4), rewards);
+                Currency.unwrap(key.currency0).safeTransfer(
+                    address(UNI_V4),
+                    rewards
+                );
                 UNI_V4.settleFor(sender);
 
                 position.lastGrowthInside = growthInside;
@@ -154,10 +193,10 @@ abstract contract PoolUpdates is
         return this.beforeRemoveLiquidity.selector;
     }
 
-    function _updatePools(CalldataReader reader, PairArray pairs)
-        internal
-        returns (CalldataReader)
-    {
+    function _updatePools(
+        CalldataReader reader,
+        PairArray pairs
+    ) internal returns (CalldataReader) {
         CalldataReader end;
         (reader, end) = reader.readU24End();
         SwapCall memory swapCall = SwapCallLib.newSwapCall(address(this));
@@ -168,10 +207,11 @@ abstract contract PoolUpdates is
         return reader;
     }
 
-    function _updatePool(CalldataReader reader, SwapCall memory swapCall, PairArray pairs)
-        internal
-        returns (CalldataReader)
-    {
+    function _updatePool(
+        CalldataReader reader,
+        SwapCall memory swapCall,
+        PairArray pairs
+    ) internal returns (CalldataReader) {
         PoolUpdateVariantMap variantMap;
         {
             uint8 variantByte;
@@ -181,8 +221,9 @@ abstract contract PoolUpdates is
         swapCall.setZeroForOne(variantMap.zeroForOne());
         uint16 pairIndex;
         (reader, pairIndex) = reader.readU16();
-        (swapCall.asset0, swapCall.asset1, swapCall.tickSpacing) =
-            pairs.get(pairIndex).getPoolInfo();
+        (swapCall.asset0, swapCall.asset1, swapCall.tickSpacing) = pairs
+            .get(pairIndex)
+            .getPoolInfo();
 
         PoolId id = swapCall.getId();
 
@@ -196,18 +237,30 @@ abstract contract PoolUpdates is
             // The swap delta is tracked on Uniswap's side so we don't need to here. It's accounted for in the asset
             // take & settle steps.
             swapCall.call(UNI_V4);
+
             currentTick = UNI_V4.getSlot0(id).tick();
 
             poolRewards[id].updateAfterTickMove(
-                id, UNI_V4, tickBefore, currentTick, swapCall.tickSpacing
+                id,
+                UNI_V4,
+                tickBefore,
+                currentTick,
+                swapCall.tickSpacing
             );
         } else {
             currentTick = UNI_V4.getSlot0(id).tick();
         }
 
+        console.log("current tick", currentTick);
+
         uint256 rewardTotal;
         (reader, rewardTotal) = _decodeAndReward(
-            variantMap.currentOnly(), reader, poolRewards[id], id, swapCall.tickSpacing, currentTick
+            variantMap.currentOnly(),
+            reader,
+            poolRewards[id],
+            id,
+            swapCall.tickSpacing,
+            currentTick
         );
         bundleDeltas.sub(swapCall.asset0, rewardTotal);
 
