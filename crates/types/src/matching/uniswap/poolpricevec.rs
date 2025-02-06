@@ -422,22 +422,21 @@ impl<'a> PoolPriceVec<'a> {
         let tick_donations: HashMap<Tick, U256> = steps
             .iter()
             //.filter_map(|(p_avg, _p_end, q_out, liq)| {
-            .filter_map(|step| {
+            .map(|step| {
+                let avg_step_price = step.avg_price();
+                let tick_reward = if filled_price > avg_step_price {
+                    let dprice = filled_price - avg_step_price;
+                    let reward = dprice.mul_quantity(U256::from(step.output()));
+                    total_donated += reward;
+                    reward
+                } else {
+                    // Make sure to include zero rewards for ticks that get none so our struct is
+                    // the right size
+                    U256::ZERO
+                };
                 // We always donate to the lower tick of our liquidity range as that is the
                 // appropriate initialized tick to target
-                let tick_num = step.liq_range.lower_tick();
-                if filled_price > step.avg_price() {
-                    let tick_dprice = filled_price - step.avg_price();
-                    let tick_reward = tick_dprice.mul_quantity(U256::from(step.output()));
-                    if tick_reward > U256::ZERO {
-                        total_donated += tick_reward;
-                        Some((tick_num, tick_reward))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                (step.liq_range.lower_tick(), tick_reward)
             })
             .collect();
         let tribute = q.saturating_sub(total_donated.saturating_to());
