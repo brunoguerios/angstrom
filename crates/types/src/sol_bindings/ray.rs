@@ -261,6 +261,7 @@ impl Ray {
         let num = numerator * const_1e27();
 
         let denom = Natural::from_limbs_asc(other.0.as_limbs());
+        println!("{num:?}, {denom:?}");
         let res = Rational::from_naturals(num, denom);
         let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
         let this = U256::from_limbs_slice(&n.to_limbs_asc());
