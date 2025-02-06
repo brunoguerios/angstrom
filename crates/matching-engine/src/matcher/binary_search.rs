@@ -79,39 +79,37 @@ impl<'a> BinarySearchMatcher<'a> {
         let mut removal = None;
         let mut id = None;
 
-        let mut iter = self
+        let iter = self
             .book
             .asks()
             .iter()
-            .filter(|ask| ask.is_partial() && price >= ask.price())
-            .peekable();
+            .filter(|ask| ask.is_partial() && price >= ask.price());
 
         assert!(iter.clone().is_sorted_by(|a, b| a.price() <= b.price()));
 
-        let mut sum = Ray::default();
-        while let Some(ask) = iter.next() {
-            let peeked = iter.peek();
+        let sum = iter
+            .map(|ask| {
+                if price == ask.price() {
+                    let (max, min) = match &ask.order {
+                        GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
+                            (p.max_amount_in, p.min_amount_in)
+                        }
+                        GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(p)) => {
+                            (p.max_amount_in, p.min_amount_in)
+                        }
+                        _ => panic!("not valid")
+                    };
+                    let (max, min) =
+                        (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
+                    removal = Some(max - min);
+                    id = Some(ask.order_id);
 
-            if peeked.is_none() {
-                let (max, min) = match &ask.order {
-                    GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
-                        (p.max_amount_in, p.min_amount_in)
-                    }
-                    GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(p)) => {
-                        (p.max_amount_in, p.min_amount_in)
-                    }
-                    _ => panic!("not valid")
-                };
-                let (max, min) =
-                    (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
-                removal = Some(max - min);
-                id = Some(ask.order_id);
-
-                sum += max;
-            } else {
-                sum += Ray::scale_to_ray(U256::from(ask.amount()));
-            }
-        }
+                    max
+                } else {
+                    Ray::scale_to_ray(U256::from(ask.amount()))
+                }
+            })
+            .sum();
 
         PartialLiqRange {
             filled_quantity:      sum,
@@ -124,80 +122,45 @@ impl<'a> BinarySearchMatcher<'a> {
         let mut removal = None;
         let mut id = None;
 
-        let mut iter = self
+        let iter = self
             .book
             .bids()
             .iter()
-            .filter(|bid| bid.is_partial() && price <= bid.price().inv_ray_round(true))
-            .peekable();
+            .filter(|bid| bid.is_partial() && price <= bid.price().inv_ray_round(true));
 
+        // assert sorting
         assert!(iter
             .clone()
             .is_sorted_by(|a, b| a.price().inv_ray_round(true) >= b.price().inv_ray_round(true)));
 
-        let mut sum = Ray::default();
+        let filled = iter
+            .map(|bid| {
+                // if we are on the exact, we can partial
+                if price == bid.price().inv_ray_round(true) {
+                    let (max, min) = match &bid.order {
+                        GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
+                            (p.max_amount_in, p.min_amount_in)
+                        }
+                        GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(p)) => {
+                            (p.max_amount_in, p.min_amount_in)
+                        }
+                        _ => panic!("not valid")
+                    };
 
-        while let Some(bid) = iter.next() {
-            let peeked = iter.peek();
+                    let (max, min) =
+                        (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
+                    removal = Some(max.div_ray(price) - min.div_ray(price));
+                    id = Some(bid.order_id);
 
-            if peeked.is_none() {
-                let (max, min) = match &bid.order {
-                    GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
-                        (p.max_amount_in, p.min_amount_in)
-                    }
-                    GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(p)) => {
-                        (p.max_amount_in, p.min_amount_in)
-                    }
-                    _ => panic!("not valid")
-                };
-
-                let (max, min) =
-                    (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
-                removal = Some(max.div_ray(price) - min.div_ray(price));
-                id = Some(bid.order_id);
-
-                sum += max.div_ray(price);
-            } else {
-                sum += Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price);
-            }
-        }
-
-        // let filled = self
-        //     .book
-        //     .bids()
-        //     .iter()
-        //     .filter(|bid| bid.is_partial())
-        //     .peekable()
-        //     .filter_map(|bid| {
-        //         // if we are on the exact, we can partial
-        //         if price == bid.price().inv_ray_round(true) {
-        //             let (max, min) = match &bid.order {
-        //                 GroupedVanillaOrder::Standing(StandingVariants::Partial(p))
-        // => {                     (p.max_amount_in, p.min_amount_in)
-        //                 }
-        //                 GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(p)) =>
-        // {                     (p.max_amount_in, p.min_amount_in)
-        //                 }
-        //                 _ => panic!("not valid")
-        //             };
-        //
-        //             let (max, min) =
-        //                 (Ray::scale_to_ray(U256::from(max)),
-        // Ray::scale_to_ray(U256::from(min)));             removal =
-        // Some(max.div_ray(price) - min.div_ray(price));             id =
-        // Some(bid.order_id);
-        //
-        //             Some(max.div_ray(price))
-        //         } else if price < bid.price().inv_ray_round(true) {
-        //             Some(Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
-        //         } else {
-        //             None
-        //         }
-        //     })
-        //     .sum();
+                    max.div_ray(price)
+                } else {
+                    Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price)
+                }
+            })
+            .sum();
 
         PartialLiqRange {
-            filled_quantity:      sum,
+            filled_quantity:      filled,
             optional_removal_liq: removal,
             optional_removal_id:  id
         }
