@@ -7,7 +7,7 @@ use alloy::{
 use angstrom_types::{
     contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
     contract_payloads::angstrom::AngstromBundle,
-    matching::{uniswap::UniswapFlags, Ray},
+    matching::uniswap::UniswapFlags,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder,
