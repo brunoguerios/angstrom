@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cmp::Ordering, collections::HashMap, ops::Neg};
 
 use alloy::primitives::{Uint, I256, U256};
 use eyre::{eyre, Context, OptionExt};
@@ -62,19 +62,25 @@ impl<'a> SwapStep<'a> {
             return Err(eyre!("Ticks out of bounds, unable to construct step"))
         }
 
-        let start_price = if low_tick >= liq_range.lower_tick {
+        let bounded_low = if low_tick >= liq_range.lower_tick {
             *low
         } else {
             SqrtPriceX96::at_tick(liq_range.lower_tick)?
         };
 
-        let end_price = if high_tick < liq_range.upper_tick {
+        let bounded_high = if high_tick < liq_range.upper_tick {
             *high
         } else {
             SqrtPriceX96::at_tick(liq_range.upper_tick)?
         };
 
-        Self::compute_info(start_price, end_price, *liq_range)
+        if start > end {
+            // If the price is decreasing go from high price to low price
+            Self::compute_info(bounded_high, bounded_low, *liq_range)
+        } else {
+            // If the price is increasing go from low price to high price
+            Self::compute_info(bounded_low, bounded_high, *liq_range)
+        }
     }
 
     /// Creates a SwapStep that goes from the price given to the edge of the
@@ -292,24 +298,16 @@ impl<'a> PoolPriceVec<'a> {
     ) -> eyre::Result<Self> {
         let fee_pips = 0;
         let mut total_in = U256::ZERO;
+        let mut total_out = U256::ZERO;
         let mut current_price = start.price;
         let mut current_liq_range: Option<_> = Some(start.liquidity_range());
-        let q = quantity.magnitude();
+        let mut left_to_swap = quantity.magnitude();
 
         let mut steps: Vec<SwapStep> = Vec::new();
-        let total_out = U256::from(q);
 
-        let mut remaining = I256::try_from(q).wrap_err_with(|| {
-            // Should be impossible
-            format!("Quantity too large to convert u128 -> I256: {}", q)
-        })?;
+        let is_swap_input = direction.is_input(&quantity);
 
-        // "Exact out" is calculated with a negative quantity
-        if !direction.is_input(&quantity) {
-            remaining *= I256::MINUS_ONE;
-        }
-
-        while remaining < I256::ZERO {
+        while left_to_swap > 0 {
             // Update our current liquidiy range
             let liq_range =
                 current_liq_range.ok_or_else(|| eyre!("Unable to find next liquidity range"))?;
@@ -318,17 +316,34 @@ impl<'a> PoolPriceVec<'a> {
             let target_price = SqrtPriceX96::at_tick(target_tick)?;
             // If our target price is equal to our current price, we're precisely at the
             // "bottom" of a liquidity range and we can skip this computation as
-            // it will be a null step
+            // it will be a null step - but we're going to add the null step anyways for
+            // donation purposes
             if target_price == current_price {
+                steps.push(SwapStep {
+                    start_price: current_price,
+                    end_price: target_price,
+                    d_t0: 0,
+                    d_t1: 0,
+                    liq_range
+                });
                 current_liq_range = liq_range.next(direction);
                 continue;
             }
-            // Otherwise we can compute our step
+
+            let amount_remaining = if is_swap_input {
+                // Exact in is calculated with a positive quantity
+                I256::unchecked_from(left_to_swap)
+            } else {
+                // Exact out is calculated with a negative quantity
+                I256::unchecked_from(left_to_swap).neg()
+            };
+
+            // Now we can compute our step
             let (fin_price, amount_in, amount_out, amount_fee) = compute_swap_step(
                 current_price.into(),
                 target_price.into(),
                 liq_range.liquidity(),
-                remaining,
+                amount_remaining,
                 fee_pips
             )
             .wrap_err_with(|| {
@@ -340,15 +355,22 @@ impl<'a> PoolPriceVec<'a> {
             })?;
 
             // See how much output we have yet to go
-            let signed_out = I256::try_from(amount_out)
-                .wrap_err("Output of step too large to convert U256 -> I256")?;
-            remaining = remaining
-                .checked_add(signed_out)
-                .ok_or_eyre("Unable to add signed_out to expected_out")?;
+            if is_swap_input {
+                // If our left_to_swap is the input, we want to subtract the amount in that was
+                // allocated and the fee
+                left_to_swap = left_to_swap.saturating_sub(amount_in.saturating_to());
+                left_to_swap = left_to_swap.saturating_sub(amount_fee.saturating_to());
+            } else {
+                // If our left_to_swap is the output, we want to subtract the amount out that
+                // was allocated
+                left_to_swap = left_to_swap.saturating_sub(amount_out.saturating_to());
+            }
 
-            // Add the amount in and our total fee to our cost
+            // Add the amount in and fee to our cost
             total_in += amount_in;
             total_in += amount_fee;
+            // Add the amount out to our output
+            total_out += amount_out;
 
             // Based on our direction, sort out what our token0 and token1 are
             let (d_t0, d_t1) = direction.sort_tokens(amount_in.to(), amount_out.to());
@@ -614,6 +636,74 @@ mod tests {
             first_step_out + second_step_out,
             U256::from(pricevec.d_t0),
             "Final vec doesn't match input sum"
+        );
+    }
+
+    #[test]
+    fn swaps_in_both_directions() {
+        let seg_1_liq = 1_000_000_000_000_000_u128;
+        let seg_2_liq = 1_000_000_000_000_u128;
+        let segment_1 = LiqRange { liquidity: seg_1_liq, lower_tick: 100000, upper_tick: 100050 };
+        let segment_2 = LiqRange { liquidity: seg_2_liq, lower_tick: 100050, upper_tick: 100100 };
+        let segment_3 = LiqRange { liquidity: seg_1_liq, lower_tick: 100100, upper_tick: 100150 };
+        let segment_4 = LiqRange { liquidity: seg_2_liq, lower_tick: 100150, upper_tick: 100200 };
+        let cur_price = SqrtPriceX96::at_tick(100150).unwrap();
+        let end_price = SqrtPriceX96::at_tick(100050).unwrap();
+        let pool =
+            PoolSnapshot::new(vec![segment_1, segment_2, segment_3, segment_4], cur_price).unwrap();
+        let low_start = pool.at_price(end_price).unwrap();
+        let high_start = pool.current_price();
+
+        let buy_vec = PoolPriceVec::from_swap(
+            low_start,
+            Direction::BuyingT0,
+            Quantity::Token0(1234567890_u128)
+        )
+        .expect("Failed to generate pricevec from swap");
+
+        assert!(buy_vec.d_t0 > 0, "No t0 moved in buy vec");
+        assert!(buy_vec.d_t1 > 0, "No t1 moved in buy vec");
+
+        let sell_vec = PoolPriceVec::from_swap(
+            high_start,
+            Direction::SellingT0,
+            Quantity::Token0(1234567890_u128)
+        )
+        .expect("Failed to generate pricevec from swap");
+
+        assert!(sell_vec.d_t0 > 0, "No t0 moved in buy vec");
+        assert!(sell_vec.d_t1 > 0, "No t1 moved in buy vec");
+    }
+
+    #[test]
+    fn will_include_all_steps() {
+        let seg_1_liq = 1_000_000_000_000_000_u128;
+        let seg_2_liq = 1_000_000_000_000_u128;
+        let segment_1 = LiqRange { liquidity: seg_1_liq, lower_tick: 100000, upper_tick: 100050 };
+        let segment_2 = LiqRange { liquidity: seg_2_liq, lower_tick: 100050, upper_tick: 100100 };
+        let segment_3 = LiqRange { liquidity: seg_1_liq, lower_tick: 100100, upper_tick: 100150 };
+        let segment_4 = LiqRange { liquidity: seg_2_liq, lower_tick: 100150, upper_tick: 100200 };
+        let cur_price = SqrtPriceX96::at_tick(100150).unwrap();
+        let end_price = SqrtPriceX96::at_tick(100050).unwrap();
+        let pool =
+            PoolSnapshot::new(vec![segment_1, segment_2, segment_3, segment_4], cur_price).unwrap();
+        let start_bound = pool.current_price();
+        let end_bound = pool.at_price(end_price).unwrap();
+        let pricevec = PoolPriceVec::from_price_range(start_bound.clone(), end_bound).unwrap();
+        let steps = pricevec.steps.expect("Steps not generated");
+        assert_eq!(steps.len(), 3, "Incorrect number of steps generated");
+
+        let from_swap_vec = PoolPriceVec::from_swap(
+            start_bound,
+            Direction::SellingT0,
+            Quantity::Token0(pricevec.d_t0)
+        )
+        .expect("Failed to generate pricevec from swap");
+        let from_swap_steps = from_swap_vec.steps.expect("Steps not generated");
+        assert_eq!(from_swap_steps.len(), 3, "Incorrect number of steps generated");
+        assert_eq!(
+            from_swap_vec.end_bound.price, pricevec.end_bound.price,
+            "Final prices not equal"
         );
     }
 }
