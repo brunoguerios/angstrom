@@ -424,6 +424,7 @@ mod test {
                 },
             ],
             SqrtPriceX96::at_tick(100100).unwrap()
-        ).unwrap();
+        )
+        .unwrap();
     }
 }
