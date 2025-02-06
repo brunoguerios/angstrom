@@ -309,11 +309,11 @@ impl<'a> PoolPriceVec<'a> {
         let mut steps: Vec<SwapStep> = Vec::new();
 
         let is_swap_input = direction.is_input(&quantity);
-        let target_price = SqrtPriceX96::from(if !direction.is_bid() {
-            MIN_SQRT_RATIO + U256_1
-        } else {
-            MAX_SQRT_RATIO - U256_1
-        });
+        // let target_price= if !direction.is_bid(){
+        //     MIN_SQRT_RATIO + U256_1
+        // } else {
+        //     MAX_SQRT_RATIO - U256_1
+        // });
 
         while left_to_swap > 0 {
             // Update our current liquidiy range
@@ -321,6 +321,7 @@ impl<'a> PoolPriceVec<'a> {
                 current_liq_range.ok_or_else(|| eyre!("Unable to find next liquidity range"))?;
             // Compute our swap towards the appropriate end of our current liquidity bound
             let target_tick = liq_range.end_tick(direction);
+            let target_price = SqrtPriceX96::at_tick(target_tick)?;
             // If our target price is equal to our current price, we're precisely at the
             // "bottom" of a liquidity range and we can skip this computation as
             // it will be a null step - but we're going to add the null step anyways for
