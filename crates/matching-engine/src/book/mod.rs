@@ -87,7 +87,7 @@ impl OrderBook {
         let strd = serde_json::to_string_pretty(&jsond)?;
         let timestamp = std::time::SystemTime::now()
             .duration_since(UNIX_EPOCH)?
-            .as_secs();
+            .as_millis();
 
         let mut file =
             std::fs::File::create_new(format!("order-book-different-ucp-{timestamp}.json"))?;
