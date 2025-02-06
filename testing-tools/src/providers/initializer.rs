@@ -53,7 +53,7 @@ impl AnvilInitializer {
     pub async fn new<G: GlobalTestingConfig>(
         config: TestingNodeConfig<G>,
         nodes: Vec<Address>
-    ) -> eyre::Result<(Self, Option<std::thread::JoinHandle<AnvilInstance>>)> {
+    ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
         let (provider, anvil) = config.spawn_anvil_rpc().await?;
 
         tracing::debug!("deploying UniV4 enviroment");
@@ -145,14 +145,14 @@ impl AnvilInitializer {
     }
 
     async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
-        let (first_token_tx, mut first_token) =
+        let (first_token_tx, first_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(*nonce, self.provider.controller())
                 .await?;
         *nonce += 1;
         self.pending_state.add_pending_tx(first_token_tx);
 
-        let (second_token_tx, mut second_token) =
+        let (second_token_tx, second_token) =
             MintableMockERC20::deploy_builder(self.provider.provider_ref())
                 .deploy_pending_creation(*nonce, self.provider.controller())
                 .await?;

@@ -18,7 +18,7 @@ use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
 #[derive(Debug)]
 pub struct AnvilProvider<P> {
     provider:      AnvilStateProvider<P>,
-    pub _instance: Option<std::thread::JoinHandle<AnvilInstance>>
+    pub _instance: Option<AnvilInstance>
 }
 impl<P> AnvilProvider<P>
 where
@@ -26,7 +26,7 @@ where
 {
     pub async fn new<F>(fut: F, testnet: bool, block_sync: GlobalBlockSync) -> eyre::Result<Self>
     where
-        F: Future<Output = eyre::Result<(P, Option<std::thread::JoinHandle<AnvilInstance>>)>>
+        F: Future<Output = eyre::Result<(P, Option<AnvilInstance>)>>
     {
         let (provider, anvil) = fut.await?;
         let this =
