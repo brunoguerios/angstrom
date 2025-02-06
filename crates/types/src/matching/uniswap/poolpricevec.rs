@@ -308,7 +308,7 @@ impl<'a> PoolPriceVec<'a> {
         let is_swap_input = direction.is_input(&quantity);
 
         while left_to_swap > 0 {
-            tracing::info!("iter from swap");
+            tracing::info!(?left_to_swap, "iter from swap");
             // Update our current liquidiy range
             let liq_range =
                 current_liq_range.ok_or_else(|| eyre!("Unable to find next liquidity range"))?;
