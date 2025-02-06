@@ -26,7 +26,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let Some(book) = self.book.amm() else { return Ray::default() };
         let Some(am) = book.get_quantity_to_price(price) else { return Ray::default() };
         let is_bid = book.is_bid(price);
-        let mut scaled = Ray::scale_to_ray(U256::from(am));
+        let mut scaled = Ray::from(U256::from(am));
 
         // if its a bid, we need to convert to ask value
         if is_bid {
@@ -42,7 +42,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && ask.exact_in())
-            .map(|ask| Ray::scale_to_ray(U256::from(ask.amount())))
+            .map(|ask| Ray::from(U256::from(ask.amount())))
             .sum()
     }
 
@@ -51,7 +51,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && !ask.exact_in())
-            .map(|ask| Ray::scale_to_ray(U256::from(ask.amount())).div_ray(price))
+            .map(|ask| Ray::from(U256::from(ask.amount())).div_ray(price))
             .sum()
     }
 
@@ -61,7 +61,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray_round(true) && bid.exact_in())
-            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price))
+            .map(|bid| Ray::from(U256::from(bid.amount())).div_ray(price))
             .sum()
     }
 
@@ -71,7 +71,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray_round(true) && !bid.exact_in())
-            .map(|bid| Ray::scale_to_ray(U256::from(bid.amount())))
+            .map(|bid| Ray::from(U256::from(bid.amount())))
             .sum()
     }
 
@@ -99,14 +99,13 @@ impl<'a> BinarySearchMatcher<'a> {
                         }
                         _ => panic!("not valid")
                     };
-                    let (max, min) =
-                        (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
+                    let (max, min) = (Ray::from(U256::from(max)), Ray::from(U256::from(min)));
                     removal = Some(max - min);
                     id = Some(ask.order_id);
 
                     max
                 } else {
-                    Ray::scale_to_ray(U256::from(ask.amount()))
+                    Ray::from(U256::from(ask.amount()))
                 }
             })
             .sum();
@@ -147,14 +146,13 @@ impl<'a> BinarySearchMatcher<'a> {
                         _ => panic!("not valid")
                     };
 
-                    let (max, min) =
-                        (Ray::scale_to_ray(U256::from(max)), Ray::scale_to_ray(U256::from(min)));
+                    let (max, min) = (Ray::from(U256::from(max)), Ray::from(U256::from(min)));
                     removal = Some(max.div_ray(price) - min.div_ray(price));
                     id = Some(bid.order_id);
 
                     max.div_ray(price)
                 } else {
-                    Ray::scale_to_ray(U256::from(bid.amount())).div_ray(price)
+                    Ray::from(U256::from(bid.amount())).div_ray(price)
                 }
             })
             .sum();
@@ -217,14 +215,10 @@ impl<'a> BinarySearchMatcher<'a> {
             .map(|bid| OrderOutcome {
                 id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
-                    println!(
-                        "{} - {}",
-                        bid.amount(),
-                        amount.unwrap().scale_out_of_ray().to::<u128>()
-                    );
+                    println!("{} - {}", bid.amount(), amount.unwrap().to::<u128>());
                     OrderFillState::PartialFill(
                         // overflow here
-                        bid.amount() - amount.unwrap().scale_out_of_ray().to::<u128>()
+                        bid.amount() - amount.unwrap().to::<u128>()
                     )
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
                     OrderFillState::CompleteFill
@@ -236,14 +230,8 @@ impl<'a> BinarySearchMatcher<'a> {
                 id: ask.order_id,
 
                 outcome: if order_id == Some(ask.order_id) {
-                    println!(
-                        "{} - {}",
-                        ask.amount(),
-                        amount.unwrap().scale_out_of_ray().to::<u128>()
-                    );
-                    OrderFillState::PartialFill(
-                        ask.amount() - amount.unwrap().scale_out_of_ray().to::<u128>()
-                    )
+                    println!("{} - {}", ask.amount(), amount.unwrap().to::<u128>());
+                    OrderFillState::PartialFill(ask.amount() - amount.unwrap().to::<u128>())
                 } else if fetch.ucp >= ask.price() {
                     OrderFillState::CompleteFill
                 } else {
