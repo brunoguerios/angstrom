@@ -270,8 +270,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let p = self.amm_start_price.unwrap();
         let (d_0, d_1) = book.get_amm_swap_with_start(ucp, p)?;
         let is_bid = book.is_bid(ucp);
-        let mut amm =
-            NetAmmOrder::new(angstrom_types::matching::uniswap::Direction::from_is_bid(is_bid));
+        let mut amm = NetAmmOrder::new(Direction::from_is_bid(is_bid));
         amm.add_quantity(d_0, d_1);
 
         Some(amm)
