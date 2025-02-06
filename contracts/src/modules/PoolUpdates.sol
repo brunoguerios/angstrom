@@ -233,6 +233,7 @@ abstract contract PoolUpdates is
         int24 currentTick;
         if (amountIn > 0) {
             int24 tickBefore = UNI_V4.getSlot0(id).tick();
+            console.log("tick before", tickBefore);
             swapCall.amountSpecified = SignedUnsignedLib.neg(amountIn);
             // The swap delta is tracked on Uniswap's side so we don't need to here. It's accounted for in the asset
             // take & settle steps.
