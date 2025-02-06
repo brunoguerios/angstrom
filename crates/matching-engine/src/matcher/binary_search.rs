@@ -101,11 +101,9 @@ impl<'a> BinarySearchMatcher<'a> {
                     let (max, min) = (Ray::from(U256::from(max)), Ray::from(U256::from(min)));
                     removal = Some(max - min);
                     id = Some(ask.order_id);
-
-                    max
-                } else {
-                    Ray::from(U256::from(ask.amount()))
                 }
+
+                Ray::from(U256::from(ask.amount()))
             })
             .sum();
 
@@ -148,11 +146,9 @@ impl<'a> BinarySearchMatcher<'a> {
                     let (max, min) = (Ray::from(U256::from(max)), Ray::from(U256::from(min)));
                     removal = Some(max.div_ray(price) - min.div_ray(price));
                     id = Some(bid.order_id);
-
-                    max.div_ray(price)
-                } else {
-                    Ray::from(U256::from(bid.amount())).div_ray(price)
                 }
+
+                Ray::from(U256::from(bid.amount())).div_ray(price)
             })
             .sum();
 
