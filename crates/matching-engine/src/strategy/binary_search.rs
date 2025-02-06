@@ -13,7 +13,7 @@ impl BinarySearchStrategy {
         book: &OrderBook,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
-        let matcher = BinarySearchMatcher::new(book, searcher.clone());
+        let mut matcher = BinarySearchMatcher::new(book, searcher.clone());
         matcher.solution(searcher)
     }
 }
