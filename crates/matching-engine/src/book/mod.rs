@@ -77,8 +77,14 @@ impl OrderBook {
     }
 
     /// writes the book to the cwd + timestamp in seconds
-    pub fn save(&self) -> eyre::Result<()> {
-        let strd = serde_json::to_string_pretty(&self)?;
+    pub fn save(&self, bisection_ucp: Ray, debt_ucp: Ray) -> eyre::Result<()> {
+        let jsond = serde_json::json!({
+            "bisection_ucp": bisection_ucp,
+            "debt_ucp": debt_ucp,
+            "book": &self
+        });
+
+        let strd = serde_json::to_string_pretty(&jsond)?;
         let timestamp = std::time::SystemTime::now()
             .duration_since(UNIX_EPOCH)?
             .as_secs();

@@ -193,7 +193,7 @@ fn cmp_agent<'a>(
 
                         if debt_engine.ucp != bisection.ucp {
                             // lets save the book
-                            book.save().unwrap();
+                            book.save(bisection.ucp, debt_engine.ucp).unwrap();
 
                             let r = BinarySearchMatcher::new(&book)
                                 .calculate_solver_move(debt_engine.ucp);
