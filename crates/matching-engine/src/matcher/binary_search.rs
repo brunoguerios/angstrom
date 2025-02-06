@@ -31,9 +31,9 @@ impl<'a> BinarySearchMatcher<'a> {
                 let direction = Direction::from_is_bid(tob.is_bid);
                 let amount_out = tob.order.quantity_out;
                 let q = if tob.is_bid {
-                    Quantity::Token1(amount_out)
-                } else {
                     Quantity::Token0(amount_out)
+                } else {
+                    Quantity::Token1(amount_out)
                 };
                 let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
                 Some(r.end_bound.price().clone())
