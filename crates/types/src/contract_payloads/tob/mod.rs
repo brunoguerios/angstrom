@@ -52,7 +52,7 @@ impl ToBOutcome {
 
         let rewards = Self {
             start_tick:      snapshot.current_price().tick(),
-            end_tick:        get_tick_at_sqrt_ratio(U256::from(pricevec.end_bound.price)).unwrap(),
+            end_tick:        pricevec.end_bound.price.to_tick()?,
             start_liquidity: snapshot.current_price().liquidity(),
             tribute:         U256::from(donation.tribute),
             total_cost:      U256::from(pricevec.input()),
