@@ -84,6 +84,7 @@ library SwapCallLib {
                 returndatacopy(free, 0, returndatasize())
                 revert(0, returndatasize())
             }
+
             let free := mload(0x40)
             returndatacopy(free, 0, returndatasize())
             swapDelta := mload(free)
