@@ -1,5 +1,9 @@
 use alloy_primitives::U256;
 use angstrom_types::{
+    matching::{
+        uniswap::{Direction, PoolPriceVec, Quantity},
+        SqrtPriceX96
+    },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
         grouped_orders::{
@@ -14,17 +18,42 @@ use crate::OrderBook;
 
 #[derive(Clone)]
 pub struct BinarySearchMatcher<'a> {
-    book: &'a OrderBook
+    book:            &'a OrderBook,
+    /// changes if there is a tob or not
+    amm_start_price: Option<SqrtPriceX96>
 }
 
 impl<'a> BinarySearchMatcher<'a> {
-    pub fn new(book: &'a OrderBook) -> Self {
-        Self { book }
+    pub fn new(book: &'a OrderBook, tob: Option<OrderWithStorageData<TopOfBlockOrder>>) -> Self {
+        let amm_start_price = if let Some(tob) = tob {
+            if let Some(a) = book.amm() {
+                let start = a.current_price();
+                let direction = Direction::from_is_bid(tob.is_bid);
+                let amount_out = tob.order.quantity_out;
+                let q = if tob.is_bid {
+                    Quantity::Token1(amount_out)
+                } else {
+                    Quantity::Token0(amount_out)
+                };
+                let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
+                Some(r.end_bound.price().clone())
+            } else {
+                None
+            }
+        } else {
+            book.amm().map(|f| f.current_price().price().clone())
+        };
+
+        Self { book, amm_start_price }
     }
 
     fn fetch_concentrated_liquidity(&self, price: Ray) -> Ray {
         let Some(book) = self.book.amm() else { return Ray::default() };
-        let Some(am) = book.get_quantity_to_price(price) else { return Ray::default() };
+
+        let start_price = self.amm_start_price.unwrap();
+        let Some(am) = book.get_quantity_to_price_start_price(price, start_price) else {
+            return Ray::default()
+        };
         let is_bid = book.is_bid(price);
         let mut scaled = Ray::from(U256::from(am));
 
@@ -238,7 +267,8 @@ impl<'a> BinarySearchMatcher<'a> {
 
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
         let book = self.book.amm()?;
-        let (d_0, d_1) = book.get_amm_swap(ucp)?;
+        let p = self.amm_start_price.unwrap();
+        let (d_0, d_1) = book.get_amm_swap_with_start(ucp, p)?;
         let is_bid = book.is_bid(ucp);
         let mut amm =
             NetAmmOrder::new(angstrom_types::matching::uniswap::Direction::from_is_bid(is_bid));

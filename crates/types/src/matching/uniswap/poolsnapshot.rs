@@ -149,9 +149,19 @@ impl PoolSnapshot {
         self.get_deltas(start_price, end_price)
     }
 
-    pub fn get_amm_swap(&self, price: Ray) -> Option<(u128, u128)> {
+    pub fn get_quantity_to_price_start_price(&self, price: Ray, start_price) -> Option<u128> {
         let end_price = SqrtPriceX96::from(price);
         let start_price = self.sqrt_price_x96;
+
+        self.get_deltas(start_price, end_price)
+    }
+
+    pub fn get_amm_swap(&self, price: Ray) -> Option<(u128, u128)> {
+        self.get_amm_swap_with_start(price, self.sqrt_price_x96)
+    }
+
+    pub fn get_amm_swap_with_start(&self, price: Ray, start_price: SqrtPriceX96) -> Option<(u128, u128)> {
+        let end_price = SqrtPriceX96::from(price);
         let is_bid = start_price < end_price;
         // fetch ticks for ranges
         let start_tick = get_tick_at_sqrt_ratio(start_price.into()).ok()?;
