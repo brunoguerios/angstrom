@@ -20,12 +20,14 @@ use crate::OrderBook;
 pub struct BinarySearchMatcher<'a> {
     book:            &'a OrderBook,
     /// changes if there is a tob or not
-    amm_start_price: Option<SqrtPriceX96>
+    amm_start_price: Option<SqrtPriceX96>,
+    /// tob quantities
+    tob_q:           Option<NetAmmOrder>
 }
 
 impl<'a> BinarySearchMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: Option<OrderWithStorageData<TopOfBlockOrder>>) -> Self {
-        let amm_start_price = if let Some(tob) = tob {
+        let (tob_q, amm_start_price) = if let Some(tob) = tob {
             if let Some(a) = book.amm() {
                 let start = a.current_price();
                 let direction = Direction::from_is_bid(tob.is_bid);
@@ -36,15 +38,17 @@ impl<'a> BinarySearchMatcher<'a> {
                     Quantity::Token1(amount_out)
                 };
                 let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
-                Some(r.end_bound.price().clone())
+                let mut a = NetAmmOrder::new(direction);
+                a.add_quantity(r.d_t0, r.d_t1);
+                (Some(a), Some(r.end_bound.price().clone()))
             } else {
-                None
+                (None, None)
             }
         } else {
-            book.amm().map(|f| f.current_price().price().clone())
+            (None, book.amm().map(|f| f.current_price().price().clone()))
         };
 
-        Self { book, amm_start_price }
+        Self { book, amm_start_price, tob_q }
     }
 
     fn fetch_concentrated_liquidity(&self, price: Ray) -> Ray {
@@ -265,19 +269,42 @@ impl<'a> BinarySearchMatcher<'a> {
             .collect::<Vec<_>>()
     }
 
-    fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
+    fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
         let book = self.book.amm()?;
         let p = self.amm_start_price.unwrap();
         let (d_0, d_1) = book.get_amm_swap_with_start(ucp, p)?;
         let is_bid = book.is_bid(ucp);
-        let mut amm = NetAmmOrder::new(Direction::from_is_bid(is_bid));
-        amm.add_quantity(d_0, d_1);
 
-        Some(amm)
+        let mut tob_amm = self
+            .tob_q
+            .take()
+            .unwrap_or_else(|| NetAmmOrder::new(Direction::from_is_bid(is_bid)));
+        if tob_amm.right_direction(Direction::from_is_bid(is_bid)) {
+            // we take additional liq in same direction as tob so just add
+            tob_amm.add_quantity(d_0, d_1);
+        } else {
+            // check if deltas are greater
+
+            // gotta net out values. tis a little messy
+            let (am_in, am_out) = tob_amm.get_directions();
+            // if the delta in the oposite direction is more, means we got to flip
+            // directions
+            if d_1 > am_out && d_0 > am_in {
+                let d_0 = d_0 - am_in;
+                let d_1 = d_1 - am_out;
+                tob_amm = NetAmmOrder::new(Direction::from_is_bid(!is_bid));
+                tob_amm.add_quantity(d_0, d_1);
+            } else {
+                // just subtract but overall still same direction
+                tob_amm.remove_quantity(d_1, d_0);
+            }
+        }
+
+        Some(tob_amm)
     }
 
     pub fn solution(
-        &self,
+        &mut self,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let Some(price_and_partial_solution) = self.solve_clearing_price() else {
