@@ -189,13 +189,14 @@ fn cmp_agent<'a>(
                             .unwrap()
                             .solution(Some(tob.clone()));
 
-                        let bisection = BinarySearchMatcher::new(&book).solution(Some(tob.clone()));
+                        let bisection = BinarySearchMatcher::new(&book, Some(tob.clone()))
+                            .solution(Some(tob.clone()));
 
                         if debt_engine.ucp != bisection.ucp {
                             // lets save the book
                             book.save(bisection.ucp, debt_engine.ucp).unwrap();
 
-                            let r = BinarySearchMatcher::new(&book)
+                            let r = BinarySearchMatcher::new(&book, Some(tob.clone()))
                                 .calculate_solver_move(debt_engine.ucp);
                             println!("\n\n\n\n\n when using the debt engine ucp, we get: {:#?}", r);
                         }
