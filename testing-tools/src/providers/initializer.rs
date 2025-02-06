@@ -443,11 +443,18 @@ mod tests {
 
         let provider = testnet.node_provider(Some(1));
 
-        let erc20_instance = MockERC20Instance::new(
+        let erc20_instance0 = MockERC20Instance::new(
             address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
             provider.rpc_provider()
         );
-        let my_balance = erc20_instance.balanceOf(my_address).call().await.unwrap();
+        let my_balance = erc20_instance0.balanceOf(my_address).call().await.unwrap();
+        assert_eq!(my_balance.result, U256::MAX / U256::from(100000u32));
+
+        let erc20_instance1 = MockERC20Instance::new(
+            address!("2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
+            provider.rpc_provider()
+        );
+        let my_balance = erc20_instance1.balanceOf(my_address).call().await.unwrap();
         assert_eq!(my_balance.result, U256::MAX / U256::from(100000u32));
     }
 }
