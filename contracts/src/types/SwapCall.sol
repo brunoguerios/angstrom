@@ -5,6 +5,7 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {ANGSTROM_INIT_HOOK_FEE} from "../modules/UniConsumer.sol";
 import {console} from "forge-std/console.sol";
+import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/src/types/BalanceDelta.sol";
 
 // forgefmt: disable-next-item
 struct SwapCall {
@@ -67,8 +68,7 @@ library SwapCallLib {
     }
 
     function call(SwapCall memory self, IPoolManager uni) internal {
-        int256 swapDelta;
-        uint256 amountToProtocol;
+        BalanceDelta delta;
         assembly ("memory-safe") {
             let success := call(
                 gas(),
@@ -87,10 +87,15 @@ library SwapCallLib {
 
             let free := mload(0x40)
             returndatacopy(free, 0, returndatasize())
-            swapDelta := mload(free)
-            amountToProtocol := mload(add(free, 0x20))
+            delta := mload(free)
         }
-        console.log("swap delta", swapDelta);
-        console.log("amount to protocol", amountToProtocol);
+
+        int128 delta_0 = delta.amount0();
+        int128 delta_1 = delta.amount1();
+
+        console.log("swap_delta0");
+        console.logInt(int256(delta_0));
+        console.log("swap_delta1");
+        console.logInt(int256(delta_1));
     }
 }
