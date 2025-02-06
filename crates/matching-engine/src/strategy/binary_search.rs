@@ -9,7 +9,6 @@ pub struct BinarySearchStrategy {}
 
 impl BinarySearchStrategy {
     pub fn run(
-        self,
         book: &OrderBook,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {

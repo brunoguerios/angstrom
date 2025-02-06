@@ -11,6 +11,7 @@ use crate::{book::OrderBook, matcher::VolumeFillMatcher};
 
 mod binary_search;
 mod simplecheckpoint;
+pub use binary_search::BinarySearchStrategy;
 pub use simplecheckpoint::SimpleCheckpointStrategy;
 
 /// Basic trait to describe a matching strategy
