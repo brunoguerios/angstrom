@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use alloy::primitives::{aliases::I24, U256};
 use eyre::eyre;
+use itertools::Itertools;
 
 use super::rewards::RewardsUpdate;
 use crate::{
@@ -37,16 +38,30 @@ impl ToBOutcome {
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         snapshot: &PoolSnapshot
     ) -> eyre::Result<Self> {
-        let output = match tob.is_bid {
-            true => Quantity::Token0(tob.quantity_out),
-            false => Quantity::Token1(tob.quantity_out)
+        let (pricevec, leftover) = if tob.is_bid {
+            // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
+            // needed, and I should compare the T0 I get out with the T0 I expect back in
+            // order to determine the reward quantity
+            let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
+            if tob.quantity_out > pricevec.d_t0 {
+                return Err(eyre!("Not enough output to cover the transaction"));
+            }
+            let leftover = tob.quantity_out - pricevec.d_t0;
+            (pricevec, leftover)
+        } else {
+            // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
+            // than needed and I should compare the T0 I offer to the T0 needed to produce
+            // the T1 I expect to get back
+            let pricevec = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?;
+            if tob.quantity_in < pricevec.d_t0 {
+                return Err(eyre!("Not enough input to cover the transaction"));
+            }
+            let leftover = tob.quantity_in - pricevec.d_t0;
+            (pricevec, leftover)
         };
-        let pricevec = (snapshot.current_price() - output)?;
-        let total_cost: u128 = pricevec.input();
-        if total_cost > tob.quantity_in {
-            return Err(eyre!("Not enough input to cover the transaction"));
-        }
-        let leftover = tob.quantity_in - total_cost;
+        tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
+        println!("Number of swaps in pricevec: {}", pricevec.steps.as_ref().unwrap().len());
+        tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
         let donation = pricevec.donation(leftover);
         let rewards = Self {
             start_tick:      snapshot.current_price().tick(),
@@ -60,8 +75,63 @@ impl ToBOutcome {
         Ok(rewards)
     }
 
+    pub fn rewards_update_range(
+        &self,
+        current_tick: Tick,
+        range_tick: Tick,
+        snapshot: &PoolSnapshot
+    ) -> RewardsUpdate {
+        let from_above = range_tick > current_tick;
+        let (low, high) =
+            if from_above { (&current_tick, &range_tick) } else { (&range_tick, &current_tick) };
+        let mut quantities = self
+            .tick_donations
+            .iter()
+            .filter(|t| t.0 >= low && t.0 <= high)
+            // Sorts from the lowest tick to the highest tick
+            .sorted_by_key(|f| f.0)
+            .map(|f| f.1.saturating_to())
+            .collect::<Vec<_>>();
+
+        // If we're coming from above we have to reverse, we want highest tick to lowest
+        // tick
+        if from_above {
+            quantities.reverse();
+        }
+
+        // Our start tick is either the outermost tick if above, or one less if below
+        let start_tick = if from_above { range_tick } else { range_tick + 1 };
+
+        // Grab the liquidity for the start tick from our snapshot
+        let start_liquidity = snapshot
+            .get_range_for_tick(start_tick)
+            .map(|r| r.liquidity())
+            .unwrap_or_default();
+
+        tracing::trace!(
+            start_tick,
+            start_liquidity,
+            current_tick,
+            ?quantities,
+            quantities_len = quantities.len(),
+            "Rewards update range dump"
+        );
+
+        match quantities.len() {
+            0 | 1 => RewardsUpdate::CurrentOnly {
+                amount: quantities.first().copied().unwrap_or_default()
+            },
+            _ => RewardsUpdate::MultiTick {
+                start_tick: I24::try_from(start_tick).unwrap_or_default(),
+                start_liquidity,
+                quantities
+            }
+        }
+    }
+
     pub fn to_rewards_update(&self) -> RewardsUpdate {
         let mut donations = self.tick_donations.iter().collect::<Vec<_>>();
+        donations.sort_by(|a, b| a.0.cmp(b.0));
         if self.start_tick <= self.end_tick {
             // Will sort from lowest to highest (donations[0] will be the lowest tick
             // number)
@@ -71,15 +141,12 @@ impl ToBOutcome {
             // number)
             donations.sort_by_key(|f| std::cmp::Reverse(f.0));
         }
-        // Each reward value is the cumulative sum of the rewards before it
         let quantities = donations
             .iter()
-            .scan(U256::ZERO, |state, (_tick, q)| {
-                *state += **q;
-                Some(u128::try_from(*state).unwrap())
-            })
+            .map(|d| d.1.saturating_to())
             .collect::<Vec<_>>();
-        tracing::trace!(donations = ?donations, "Donations dump");
+        tracing::trace!(donations = ?donations, len = donations.len(), "Donations dump");
+        tracing::trace!(self.end_tick, "end tick");
         let start_tick = I24::try_from(self.start_tick).unwrap_or_default();
 
         match quantities.len() {

@@ -28,6 +28,7 @@ use super::{
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
+    contract_payloads::rewards::RewardsUpdate,
     matching::{uniswap::PoolSnapshot, Ray},
     orders::{OrderFillState, OrderOutcome, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
@@ -461,16 +462,13 @@ impl AngstromBundle {
                 trace!(tob_order = ?tob, "Mapping TOB Swap");
                 let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
                 // Make sure the input for our swap is precisely what's used in the swap portion
-                let input = if let Some(ref o) = outcome {
-                    o.total_cost.clone().saturating_to()
-                } else {
-                    tob.quantity_in
-                };
-                let swap = if tob.is_bid {
-                    (t1_idx, t0_idx, input, tob.quantity_out)
-                } else {
-                    (t0_idx, t1_idx, input, tob.quantity_out)
-                };
+                let input = outcome
+                    .as_ref()
+                    .map(|o| o.total_cost.clone().saturating_to())
+                    .unwrap_or(tob.quantity_in);
+                let (in_idx, out_idx) =
+                    if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
+                let swap = (in_idx, out_idx, input, tob.quantity_out);
                 // We swallow an error here
                 (Some(swap), outcome)
             })
@@ -513,13 +511,25 @@ impl AngstromBundle {
         );
         // Account for our reward
         asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward.to());
-        let rewards_update = tob_outcome.to_rewards_update();
-        // Push the pool update
+        let rewards_update = tob_outcome.rewards_update_range(
+            tob_outcome.start_tick,
+            tob_outcome.end_tick,
+            snapshot
+        );
+        // Let's do this stupidly for now and work on improving later
+        // Push our null swap with reward
+        pool_updates.push(PoolUpdate {
+            zero_for_one: false,
+            pair_index: pair_idx as u16,
+            swap_in_quantity: 0,
+            rewards_update
+        });
+        // Push the actual swap with no reward
         pool_updates.push(PoolUpdate {
             zero_for_one,
             pair_index: pair_idx as u16,
             swap_in_quantity: quantity_in,
-            rewards_update
+            rewards_update: RewardsUpdate::empty()
         });
 
         // Add the ToB order to our tob order list - This is currently converting
