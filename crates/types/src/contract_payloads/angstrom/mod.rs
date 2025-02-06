@@ -78,7 +78,15 @@ impl AngstromBundle {
             let hash = order.order_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
-            let qty = order.order_quantities.fetch_max_amount();
+            let qty = if order.exact_in {
+                order.order_quantities.fetch_max_amount()
+            } else {
+                let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+                price
+                    .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
+                    .to()
+            };
+
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
         });
