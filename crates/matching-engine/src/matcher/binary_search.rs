@@ -493,7 +493,7 @@ pub mod test {
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
         println!("{:#?}", book);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap().ucp;
         let bid = bid_price.inv_ray_round(true);
         assert!(
@@ -524,7 +524,7 @@ pub mod test {
             .ask()
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap().ucp;
         assert!(
             ucp == high_price,
@@ -558,7 +558,7 @@ pub mod test {
             .build();
 
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap().ucp;
         assert!(
             ucp == high_price,
@@ -593,7 +593,7 @@ pub mod test {
             .ask()
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap().ucp;
 
         assert!(
@@ -609,7 +609,7 @@ pub mod test {
         let amm = create_amm_at_price(price, 1_000_000); // Create AMM with significant liquidity
 
         let book = OrderBook::new(pool_id, Some(amm), vec![], vec![], None);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap();
 
         println!("{ucp:?}");
@@ -649,7 +649,7 @@ pub mod test {
             .build();
 
         let book = OrderBook::new(pool_id, Some(amm), vec![bid_order], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap();
 
         // UCP should be between bid and ask prices due to AMM liquidity
@@ -677,7 +677,7 @@ pub mod test {
             .build();
 
         let book = OrderBook::new(pool_id, Some(amm), vec![bid_order], vec![], None);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap();
 
         assert!(
@@ -710,7 +710,7 @@ pub mod test {
             .ask()
             .build();
         let book = OrderBook::new(pool_id, None, vec![bid_order.clone()], vec![ask_order], None);
-        let matcher = BinarySearchMatcher::new(&book);
+        let matcher = BinarySearchMatcher::new(&book, None);
         let ucp = matcher.solve_clearing_price().unwrap().ucp;
         assert!(
             ucp == high_price,
