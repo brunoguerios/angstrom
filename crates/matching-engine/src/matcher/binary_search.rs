@@ -37,7 +37,6 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_exact_in_ask_orders(&self, price: Ray) -> Ray {
-        // grab all exact in ask orders where price >= limit price and then get y_in
         self.book
             .asks()
             .iter()
