@@ -49,12 +49,7 @@ impl ToBOutcome {
         }
         let leftover = tob.quantity_in - total_cost;
         let donation = pricevec.donation(leftover);
-        let end_tick = if !tob.is_bid {
-            pricevec.end_bound.tick - 1
-            // zfo
-        } else {
-            pricevec.end_bound.tick
-        };
+        let end_tick = pricevec.end_bound.tick;
 
         let rewards = Self {
             start_tick: snapshot.current_price().tick(),
@@ -65,7 +60,7 @@ impl ToBOutcome {
             total_reward: U256::from(donation.total_donated),
             tick_donations: donation.tick_donations
         };
-        tracing::info!(?rewards);
+
         Ok(rewards)
     }
 

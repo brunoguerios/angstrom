@@ -3,12 +3,15 @@ use std::{cmp::Ordering, collections::HashMap, ops::Neg};
 use alloy::primitives::{Uint, I256, U256};
 use eyre::{eyre, Context};
 use uniswap_v3_math::{
+    error::UniswapV3MathError,
     sqrt_price_math::{
         _get_amount_0_delta, _get_amount_1_delta, get_next_sqrt_price_from_input,
         get_next_sqrt_price_from_output
     },
-    swap_math::compute_swap_step
+    swap_math::compute_swap_step,
+    tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK}
 };
+pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
 use super::{poolprice::PoolPrice, Direction, LiqRangeRef, Quantity, Tick};
 use crate::{
@@ -306,6 +309,11 @@ impl<'a> PoolPriceVec<'a> {
         let mut steps: Vec<SwapStep> = Vec::new();
 
         let is_swap_input = direction.is_input(&quantity);
+        let target_price = SqrtPriceX96::from(if !direction.is_bid() {
+            MIN_SQRT_RATIO + U256_1
+        } else {
+            MAX_SQRT_RATIO - U256_1
+        });
 
         while left_to_swap > 0 {
             // Update our current liquidiy range
@@ -313,7 +321,6 @@ impl<'a> PoolPriceVec<'a> {
                 current_liq_range.ok_or_else(|| eyre!("Unable to find next liquidity range"))?;
             // Compute our swap towards the appropriate end of our current liquidity bound
             let target_tick = liq_range.end_tick(direction);
-            let target_price = SqrtPriceX96::at_tick(target_tick)?;
             // If our target price is equal to our current price, we're precisely at the
             // "bottom" of a liquidity range and we can skip this computation as
             // it will be a null step - but we're going to add the null step anyways for
