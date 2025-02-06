@@ -161,6 +161,13 @@ impl AnvilInitializer {
 
         self.pending_state.finalize_pending_txs().await?;
 
+        tokio::try_join!(
+            self.provider
+                .override_address(&mut first_token, WBTC_ADDRESS),
+            self.provider
+                .override_address(&mut second_token, WETH_ADDRESS)
+        )?;
+
         let token0_instance = MintableMockERC20::new(first_token, self.provider.rpc_provider());
         let set_token0_meta = token0_instance
             .setMeta("Wrapped Bitcoin".to_string(), "WBTC".to_string())
@@ -180,13 +187,6 @@ impl AnvilInitializer {
         *nonce += 1;
 
         self.pending_state.finalize_pending_txs().await?;
-
-        tokio::try_join!(
-            self.provider
-                .override_address(&mut first_token, WBTC_ADDRESS),
-            self.provider
-                .override_address(&mut second_token, WETH_ADDRESS)
-        )?;
 
         let tokens = if first_token < second_token {
             (first_token, second_token)
