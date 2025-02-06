@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use alloy::primitives::{aliases::I24, U256};
 use eyre::eyre;
+use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 
 use super::rewards::RewardsUpdate;
 use crate::{
@@ -42,16 +43,16 @@ impl ToBOutcome {
             false => Quantity::Token1(tob.quantity_out)
         };
         let pricevec = (snapshot.current_price() - output)?;
-        tracing::info!(?pricevec);
         let total_cost: u128 = pricevec.input();
         if total_cost > tob.quantity_in {
             return Err(eyre!("Not enough input to cover the transaction"));
         }
         let leftover = tob.quantity_in - total_cost;
         let donation = pricevec.donation(leftover);
+
         let rewards = Self {
             start_tick:      snapshot.current_price().tick(),
-            end_tick:        pricevec.end_bound.tick,
+            end_tick:        get_tick_at_sqrt_ratio(U256::from(pricevec.end_bound.price)).unwrap(),
             start_liquidity: snapshot.current_price().liquidity(),
             tribute:         U256::from(donation.tribute),
             total_cost:      U256::from(pricevec.input()),
