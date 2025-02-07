@@ -35,7 +35,7 @@ use crate::{
     types::{
         config::TestingNodeConfig,
         initial_state::{PartialConfigPoolKey, PendingDeployedPools},
-        GlobalTestingConfig, WithWalletProvider, WBTC_ADDRESS
+        GlobalTestingConfig, WithWalletProvider, HACKED_TOKEN_BALANCE, WBTC_ADDRESS
     }
 };
 
@@ -120,7 +120,7 @@ impl AnvilInitializer {
 
         for user_addr in self.addresses_with_deployed_tokens.iter() {
             let _ = token0_instance
-                .mint(*user_addr, U256::MAX / U256::from(100000u32))
+                .mint(*user_addr, U2256::from(HACKED_TOKEN_BALANCE))
                 .nonce(*nonce)
                 .send()
                 .await?
@@ -128,7 +128,7 @@ impl AnvilInitializer {
                 .await?;
             *nonce += 1;
             let _ = token1_instance
-                .mint(*user_addr, U256::MAX / U256::from(100000u32))
+                .mint(*user_addr, U256::from(HACKED_TOKEN_BALANCE))
                 .nonce(*nonce)
                 .send()
                 .await?
@@ -448,13 +448,13 @@ mod tests {
             provider.rpc_provider()
         );
         let my_balance = erc20_instance0.balanceOf(my_address).call().await.unwrap();
-        assert_eq!(my_balance.result, U256::MAX / U256::from(100000u32));
+        assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
 
         let erc20_instance1 = MockERC20Instance::new(
             address!("2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
             provider.rpc_provider()
         );
         let my_balance = erc20_instance1.balanceOf(my_address).call().await.unwrap();
-        assert_eq!(my_balance.result, U256::MAX / U256::from(100000u32));
+        assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
     }
 }

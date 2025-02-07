@@ -12,7 +12,7 @@ use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use super::TestingConfigKind;
 use crate::{
     providers::WalletProvider,
-    types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig}
+    types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig, HACKED_TOKEN_BALANCE}
 };
 
 const TESTNET_LEADER_SECRET_KEY: [u8; 32] = [
@@ -153,7 +153,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         futures::future::try_join_all(
             addresses_with_eth
                 .into_iter()
-                .map(|addr| rpc.anvil_set_balance(addr, U256::MAX / U256::from(500000u32)))
+                .map(|addr| rpc.anvil_set_balance(addr, U256::from(HACKED_TOKEN_BALANCE)))
         )
         .await?;
 
