@@ -120,7 +120,7 @@ impl AnvilInitializer {
 
         for user_addr in self.addresses_with_deployed_tokens.iter() {
             let _ = token0_instance
-                .mint(*user_addr, U2256::from(HACKED_TOKEN_BALANCE))
+                .mint(*user_addr, U256::from(HACKED_TOKEN_BALANCE))
                 .nonce(*nonce)
                 .send()
                 .await?
