@@ -155,8 +155,14 @@ impl<'a> SwapStep<'a> {
         self.end_price
     }
 
-    pub fn avg_price(&self) -> Ray {
-        Ray::calc_price(U256::from(self.d_t0), U256::from(self.d_t1))
+    /// Find the average settling price for this step, if the step is "empty"
+    /// (no t0 or t1 was moved) we'll return None
+    pub fn avg_price(&self) -> Option<Ray> {
+        if self.empty() {
+            None
+        } else {
+            Some(Ray::calc_price(U256::from(self.d_t0), U256::from(self.d_t1)))
+        }
     }
 
     pub fn liquidity(&self) -> u128 {
@@ -178,6 +184,12 @@ impl<'a> SwapStep<'a> {
             self.d_t1
         }
     }
+
+    /// An empty step has no motion in t0 or t1, but is sometimes present to
+    /// make sure we record a price that started precisely on a tick boundary
+    pub fn empty(&self) -> bool {
+        self.d_t0 == 0 || self.d_t1 == 0
+    }
 }
 
 #[derive(Debug)]
@@ -194,7 +206,7 @@ pub struct PoolPriceVec<'a> {
     pub end_bound:   PoolPrice<'a>,
     pub d_t0:        u128,
     pub d_t1:        u128,
-    steps:           Option<Vec<SwapStep<'a>>>
+    pub steps:       Option<Vec<SwapStep<'a>>>
 }
 
 impl<'a> PoolPriceVec<'a> {
@@ -398,81 +410,102 @@ impl<'a> PoolPriceVec<'a> {
         Ok(Self { start_bound: start, end_bound, d_t0, d_t1, steps: Some(steps) })
     }
 
-    pub fn donation(&self, q: u128) -> DonationResult {
-        let mut remaining_donation = U256::from(q);
-        let mut cur_q = U256::ZERO;
+    /// Builds a DonationResult based on the goal of making sure that the net
+    /// price for all sections of this swap is as close to the final price as
+    /// possible.  All donations are T0.
+    pub fn donation(&self, total_donation: u128) -> DonationResult {
+        // If we have no steps we can just short-circuit this whole thing and take the
+        // whole donation as tribute
+        let Some(steps) = self.steps.as_ref() else {
+            return DonationResult {
+                tick_donations: HashMap::new(),
+                final_price:    self.end_bound.price,
+                total_donated:  0,
+                tribute:        total_donation
+            };
+        };
 
-        let mut filled_price = self
-            .steps
-            .as_ref()
-            .and_then(|v| v.first().map(|s| s.avg_price()))
-            .unwrap_or_default();
-        let empty = vec![];
+        let mut remaining_donation = total_donation;
+        let price_dropping = self.start_bound.price > self.end_bound.price;
 
-        let steps = self.steps.as_ref().unwrap_or(&empty);
-        let mut step_iter = steps.iter().peekable();
+        let mut current_blob: Option<(u128, u128)> = None;
+        let steps_iter = steps.iter().filter(|s| !s.empty());
+        for step in steps_iter {
+            // If our current blob is empty, we can just insert the current step's stats
+            // into it
+            let Some((c_t0, c_t1)) = current_blob.as_mut() else {
+                current_blob = Some((step.d_t0, step.d_t1));
+                continue;
+            };
 
-        while let Some(step) = step_iter.next() {
-            let q_step = cur_q + U256::from(step.output());
-            // Our target price is either the average price of the next stake or the end
-            // price of the current stake if there's no next stake to deal with
-            let target_price = step_iter
-                .peek()
-                .map(|next_stake| next_stake.avg_price())
-                .unwrap_or_else(|| Ray::from(step.end_price));
-            // The difference between this tick's average price and our target price
-            let d_price = target_price - step.avg_price();
+            // Find the average price of our current step and get our existing blob to
+            // that price
+            let target_price = step.avg_price().unwrap();
+            let target_t0 = target_price.inverse_quantity(*c_t1, true);
+            // The step cost is the difference between the amount of t0 we actually moved
+            // and the amount we should have moved to be at this step's average price
+            let step_cost = c_t0.abs_diff(target_t0);
 
-            // The step cost is the total cost in needed to ensure that all sold quantities
-            // were sold at our target price
-            let step_cost = d_price.mul_quantity(q_step);
+            // If the move costs as much or less than what we have to spend, we've completed
+            // this step and can merge blobs
+            let step_complete = remaining_donation >= step_cost;
+            let increment = std::cmp::min(remaining_donation, step_cost);
+            *c_t0 += increment;
+            remaining_donation -= increment;
 
-            if remaining_donation >= step_cost {
-                // If we have enough bribe to pay the whole cost, allocate that and step forward
-                // to the next price gap
-                cur_q = q_step;
-                filled_price = target_price;
-                remaining_donation -= step_cost;
+            if step_complete {
+                // If we had enough reward to complete this step, we continue and merge this
+                // step into the blob
+                *c_t0 += step.d_t0;
+                *c_t1 += step.d_t1;
             } else {
-                // If we don't have enough bribe to pay the whole cost, figure out where the
-                // target price winds up based on what we do have and end this iteration
-                if remaining_donation > U256::ZERO {
-                    let partial_dprice = Ray::calc_price(q_step, remaining_donation);
-                    filled_price += partial_dprice;
-                }
-                break
+                // If we didn't have enough reward to complete this step, we're done
+                break;
             }
         }
 
+        // If we have a blob and we have any donation left, we do one last cycle to try
+        // to get up to our final price
+        if let Some((c_t0, c_t1)) = current_blob.as_mut() {
+            if remaining_donation > 0 {
+                let target_price = self.end_bound.as_ray();
+                let target_t0 = target_price.inverse_quantity(*c_t1, true);
+                // The step cost is the difference between the amount of t0 we actually moved
+                // and the amount we should have moved to be at this step's average price
+                let step_cost = c_t0.abs_diff(target_t0);
+
+                let increment = std::cmp::min(remaining_donation, step_cost);
+                *c_t0 += increment;
+            }
+        }
+        let filled_price =
+            current_blob.map(|(t0, t1)| Ray::calc_price_generic(t0, t1, price_dropping));
+
         // We've now found our filled price, we can allocate our reward to each tick
         // based on how much it costs to bring them up to that price.
-        let mut total_donated = U256::ZERO;
+        let mut total_donated = 0_u128;
         let tick_donations: HashMap<Tick, U256> = steps
             .iter()
-            //.filter_map(|(p_avg, _p_end, q_out, liq)| {
             .map(|step| {
-                let avg_step_price = step.avg_price();
-                let tick_reward = if filled_price > avg_step_price {
-                    let dprice = filled_price - avg_step_price;
-                    let reward = dprice.mul_quantity(U256::from(step.output()));
-                    total_donated += reward;
-                    reward
+                let reward = if let Some(f) = filled_price {
+                    // T1 is constant, so we need to know how much t0 we need
+                    let target_t0 = f.inverse_quantity(step.d_t1, true);
+                    target_t0.saturating_sub(step.d_t0)
                 } else {
-                    // Make sure to include zero rewards for ticks that get none so our struct is
-                    // the right size
-                    U256::ZERO
+                    0
                 };
+                total_donated += reward;
                 // We always donate to the lower tick of our liquidity range as that is the
                 // appropriate initialized tick to target
-                (step.liq_range.lower_tick(), tick_reward)
+                (step.liq_range.lower_tick(), U256::from(reward))
             })
             .collect();
-        let tribute = q.saturating_sub(total_donated.saturating_to());
+        let tribute = total_donation.saturating_sub(total_donated);
 
         DonationResult {
             tick_donations,
             final_price: self.end_bound.as_sqrtpricex96(),
-            total_donated: total_donated.saturating_to(),
+            total_donated,
             tribute
         }
     }
