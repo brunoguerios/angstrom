@@ -101,10 +101,12 @@ impl ToBOutcome {
         // tick
         if from_above {
             quantities.reverse();
+        } else {
+            quantities.insert(0, 0);
         }
 
         // Our start tick is either the outermost tick if above, or one less if below
-        let start_tick = if from_above { range_tick } else { range_tick + 1 };
+        let start_tick = range_tick;
 
         // Grab the liquidity for the start tick from our snapshot
         let start_liquidity = snapshot
