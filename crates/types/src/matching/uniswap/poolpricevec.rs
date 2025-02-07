@@ -309,11 +309,6 @@ impl<'a> PoolPriceVec<'a> {
         let mut steps: Vec<SwapStep> = Vec::new();
 
         let is_swap_input = direction.is_input(&quantity);
-        // let target_price= if !direction.is_bid(){
-        //     MIN_SQRT_RATIO + U256_1
-        // } else {
-        //     MAX_SQRT_RATIO - U256_1
-        // });
 
         while left_to_swap > 0 {
             // Update our current liquidiy range
@@ -406,14 +401,17 @@ impl<'a> PoolPriceVec<'a> {
     pub fn donation(&self, q: u128) -> DonationResult {
         let mut remaining_donation = U256::from(q);
         let mut cur_q = U256::ZERO;
+
         let mut filled_price = self
             .steps
             .as_ref()
             .and_then(|v| v.first().map(|s| s.avg_price()))
             .unwrap_or_default();
         let empty = vec![];
+
         let steps = self.steps.as_ref().unwrap_or(&empty);
         let mut step_iter = steps.iter().peekable();
+
         while let Some(step) = step_iter.next() {
             let q_step = cur_q + U256::from(step.output());
             // Our target price is either the average price of the next stake or the end
@@ -470,6 +468,7 @@ impl<'a> PoolPriceVec<'a> {
             })
             .collect();
         let tribute = q.saturating_sub(total_donated.saturating_to());
+
         DonationResult {
             tick_donations,
             final_price: self.end_bound.as_sqrtpricex96(),

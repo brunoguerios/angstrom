@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use alloy::primitives::{aliases::I24, U256};
 use eyre::eyre;
-use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 
 use super::rewards::RewardsUpdate;
 use crate::{
