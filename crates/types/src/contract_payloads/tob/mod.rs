@@ -109,10 +109,17 @@ impl ToBOutcome {
         let start_tick = range_tick;
 
         // Grab the liquidity for the start tick from our snapshot
-        let start_liquidity = snapshot
-            .get_range_for_tick(start_tick)
-            .map(|r| r.liquidity())
-            .unwrap_or_default();
+        let start_liquidity = if from_above {
+            snapshot
+                .get_range_for_tick(start_tick)
+                .map(|r| r.liquidity())
+                .unwrap_or_default()
+        } else {
+            snapshot
+                .get_range_for_tick(current_tick)
+                .map(|r| r.liquidity())
+                .unwrap_or_default()
+        };
 
         tracing::trace!(
             start_tick,

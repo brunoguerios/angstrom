@@ -17,7 +17,10 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
     using IUniV4 for IPoolManager;
     using TickLib for uint256;
 
-    error WrongEndLiquidity(uint128 endLiquidity, uint128 actualCurrentLiquidity);
+    error WrongEndLiquidity(
+        uint128 endLiquidity,
+        uint128 actualCurrentLiquidity
+    );
 
     // Stack too deep shenanigan.
     struct RewardParams {
@@ -38,8 +41,10 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
             uint128 amount;
             (reader, amount) = reader.readU128();
             unchecked {
-                poolRewards_.globalGrowth +=
-                    X128MathLib.flatDivX128(amount, UNI_V4.getPoolLiquidity(id));
+                poolRewards_.globalGrowth += X128MathLib.flatDivX128(
+                    amount,
+                    UNI_V4.getPoolLiquidity(id)
+                );
             }
 
             return (reader, amount);
@@ -51,22 +56,40 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         int24 startTick;
         (reader, startTick) = reader.readI24();
         uint128 liquidity;
+        // start liq
         (reader, liquidity) = reader.readU128();
-        (CalldataReader newReader, CalldataReader amountsEnd) = reader.readU24End();
+        (CalldataReader newReader, CalldataReader amountsEnd) = reader
+            .readU24End();
 
         // Stack too deep shenanigan.
         PoolRewards storage poolRewards = poolRewards_;
 
         uint256 total;
         RewardParams memory pool = RewardParams(id, tickSpacing, currentTick);
-        (newReader, total, cumulativeGrowth, endLiquidity) = startTick <= pool.currentTick
-            ? _rewardBelow(poolRewards.rewardGrowthOutside, startTick, newReader, liquidity, pool)
-            : _rewardAbove(poolRewards.rewardGrowthOutside, startTick, newReader, liquidity, pool);
+        (newReader, total, cumulativeGrowth, endLiquidity) = startTick <=
+            pool.currentTick
+            ? _rewardBelow(
+                poolRewards.rewardGrowthOutside,
+                startTick,
+                newReader,
+                liquidity,
+                pool
+            )
+            : _rewardAbove(
+                poolRewards.rewardGrowthOutside,
+                startTick,
+                newReader,
+                liquidity,
+                pool
+            );
 
         uint128 donateToCurrent;
         (newReader, donateToCurrent) = newReader.readU128();
         unchecked {
-            cumulativeGrowth += X128MathLib.flatDivX128(donateToCurrent, endLiquidity);
+            cumulativeGrowth += X128MathLib.flatDivX128(
+                donateToCurrent,
+                endLiquidity
+            );
         }
         total += donateToCurrent;
 
@@ -102,14 +125,24 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
 
                 total += amount;
                 unchecked {
-                    cumulativeGrowth += X128MathLib.flatDivX128(amount, liquidity);
+                    cumulativeGrowth += X128MathLib.flatDivX128(
+                        amount,
+                        liquidity
+                    );
                     rewardGrowthOutside[uint24(rewardTick)] += cumulativeGrowth;
                 }
 
-                (, int128 netLiquidity) = UNI_V4.getTickLiquidity(pool.id, rewardTick);
+                (, int128 netLiquidity) = UNI_V4.getTickLiquidity(
+                    pool.id,
+                    rewardTick
+                );
                 liquidity = MixedSignLib.add(liquidity, netLiquidity);
             }
-            (initialized, rewardTick) = UNI_V4.getNextTickGt(pool.id, rewardTick, pool.tickSpacing);
+            (initialized, rewardTick) = UNI_V4.getNextTickGt(
+                pool.id,
+                rewardTick,
+                pool.tickSpacing
+            );
         } while (rewardTick <= pool.currentTick);
 
         return (reader, total, cumulativeGrowth, liquidity);
@@ -133,14 +166,24 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
 
                 total += amount;
                 unchecked {
-                    cumulativeGrowth += X128MathLib.flatDivX128(amount, liquidity);
+                    cumulativeGrowth += X128MathLib.flatDivX128(
+                        amount,
+                        liquidity
+                    );
                     rewardGrowthOutside[uint24(rewardTick)] += cumulativeGrowth;
                 }
 
-                (, int128 netLiquidity) = UNI_V4.getTickLiquidity(pool.id, rewardTick);
+                (, int128 netLiquidity) = UNI_V4.getTickLiquidity(
+                    pool.id,
+                    rewardTick
+                );
                 liquidity = MixedSignLib.sub(liquidity, netLiquidity);
             }
-            (initialized, rewardTick) = UNI_V4.getNextTickLt(pool.id, rewardTick, pool.tickSpacing);
+            (initialized, rewardTick) = UNI_V4.getNextTickLt(
+                pool.id,
+                rewardTick,
+                pool.tickSpacing
+            );
         } while (rewardTick > pool.currentTick);
 
         return (reader, total, cumulativeGrowth, liquidity);
