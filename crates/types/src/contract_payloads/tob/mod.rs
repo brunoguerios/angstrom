@@ -74,6 +74,7 @@ impl ToBOutcome {
             total_reward: U256::from(donation.total_donated),
             tick_donations: donation.tick_donations
         };
+        tracing::info!(?rewards);
 
         Ok(rewards)
     }
