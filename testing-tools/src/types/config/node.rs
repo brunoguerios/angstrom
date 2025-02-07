@@ -151,7 +151,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let mut addresses_with_eth = self.global_config.addresses_with_tokens();
         addresses_with_eth.push(sk.address());
         futures::future::try_join_all(addresses_with_eth.into_iter().map(|addr| {
-            rpc.anvil_set_balance(addr, U256::from(HACKED_TOKEN_BALANCE).pow(U256::from(2u8)))
+            rpc.anvil_set_balance(addr, U256::from(HACKED_TOKEN_BALANCE) * U256::from(10))
         }))
         .await?;
 
