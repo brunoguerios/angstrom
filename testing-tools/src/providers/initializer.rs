@@ -20,7 +20,6 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use rand::{thread_rng, Rng};
-use validation::common::WETH_ADDRESS;
 
 use super::WalletProvider;
 use crate::{
@@ -35,7 +34,7 @@ use crate::{
     types::{
         config::TestingNodeConfig,
         initial_state::{PartialConfigPoolKey, PendingDeployedPools},
-        GlobalTestingConfig, WithWalletProvider, HACKED_TOKEN_BALANCE, WBTC_ADDRESS
+        GlobalTestingConfig, WithWalletProvider, HACKED_TOKEN_BALANCE
     }
 };
 
