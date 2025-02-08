@@ -194,8 +194,7 @@ as the loop progresses to ensure consistency of reward distribution.
 |-----|-----------|
 |`start_tick: i24`| When `below = true` the current tick: the first tick **above** the first tick to donate to. <br> When rewarding above: just the first tick actually being donated to. |
 |`start_liquidity: u128`|The current liquidity if the first tick to donate to were the current tick.|
-|`quantities: List<u128>`|The reward for each initialized tick range *including* the current tick in
-`asset0` base units.|
+|`quantities: List<u128>`|The reward for each initialized tick range *including* the current tick in `asset0` base units.|
 
 **Reward Update Internals**
 
