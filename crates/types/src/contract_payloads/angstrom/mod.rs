@@ -80,6 +80,7 @@ impl AngstromBundle {
             let address = order.signature.recover_signer(hash);
 
             let qty = order.order_quantities.fetch_max_amount();
+            tracing::trace!(?token, from_address = ?address, qty, "Building User order override");
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
         });
@@ -98,6 +99,7 @@ impl AngstromBundle {
             let address = order.signature.recover_signer(hash);
 
             let qty = order.quantity_in;
+            tracing::trace!(?token, from_address = ?address, qty, "Building ToB order override");
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
         });
