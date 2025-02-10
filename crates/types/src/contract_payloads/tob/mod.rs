@@ -104,11 +104,15 @@ impl ToBOutcome {
             quantities.insert(0, 0);
         }
 
-        // Our start tick is either the outermost tick if above, or one less if below
-        let start_tick = range_tick;
+        // Our start tick is either the outermost tick if above, or one more than the
+        // furthest tick if below
+        let start_tick = if from_above { range_tick } else { range_tick + 1 };
 
-        // Grab the liquidity for the start tick from our snapshot
-        let start_liquidity = self.start_liquidity;
+        // Grab the liquidity for the first tick to be rewarded
+        let start_liquidity = snapshot
+            .get_range_for_tick(range_tick)
+            .map(|r| r.liquidity())
+            .unwrap_or_default();
 
         tracing::trace!(
             start_tick,
