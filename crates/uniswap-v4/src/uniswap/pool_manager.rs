@@ -22,7 +22,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
-use futures::{future::poll_fn, FutureExt};
+use futures::FutureExt;
 use futures_util::{stream::BoxStream, StreamExt};
 use thiserror::Error;
 use tokio::sync::Notify;
@@ -331,7 +331,7 @@ where
         )
     }
 
-    async fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
+    fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
         // If there is a reorg, unwind state changes from last_synced block to the
         // chain head block number
         let (chain_head_block_number, block_range, is_reorg) = match block_info {
@@ -393,12 +393,12 @@ where
             )
             .expect("never fail");
         }
+
         Self::pool_update_workaround(
             chain_head_block_number,
             self.pools.clone(),
             self.provider.clone()
-        )
-        .await;
+        );
 
         self.latest_synced_block = chain_head_block_number;
 
@@ -411,8 +411,7 @@ where
         }
     }
 
-    #[allow(clippy::await_holding_lock)]
-    async fn pool_update_workaround(
+    fn pool_update_workaround(
         block_number: u64,
         pools: SyncedUniswapPools<A, Loader>,
         provider: Arc<P>
@@ -427,8 +426,7 @@ where
         tracing::info!("finished");
     }
 
-    #[allow(clippy::await_holding_lock)]
-    async fn load_more_ticks(
+    fn load_more_ticks(
         notifier: Arc<Notify>,
         pools: SyncedUniswapPools<A, Loader>,
         provider: Arc<P>,
@@ -438,9 +436,8 @@ where
         let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
 
         // given we force this to resolve, should'nt be problematic
-        let ticks = pool
-            .load_more_ticks(tick_req, None, node_provider)
-            .await
+        let ticks = tokio::runtime::Handle::current()
+            .block_on(pool.load_more_ticks(tick_req, None, node_provider))
             .unwrap();
 
         pool.apply_ticks(ticks);
@@ -464,16 +461,13 @@ where
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
-            let mut f = Box::pin(self.handle_new_block_info(block_info));
-            while f.poll_unpin(cx).is_pending() {}
+            self.handle_new_block_info(block_info);
         }
         while let Poll::Ready(Some((ticks, not))) = self.rx.poll_recv(cx) {
             // hacky for now but only way to avoid lock problems
             let pools = self.pools.clone();
             let prov = self.provider.clone();
-            let mut f = Box::pin(Self::load_more_ticks(not, pools, prov, ticks));
-
-            while f.poll_unpin(cx).is_pending() {}
+            Self::load_more_ticks(not, pools, prov, ticks);
         }
 
         Poll::Pending
