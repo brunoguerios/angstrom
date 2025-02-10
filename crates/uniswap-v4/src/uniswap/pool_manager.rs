@@ -417,12 +417,14 @@ where
         pools: SyncedUniswapPools<A, Loader>,
         provider: Arc<P>
     ) {
+        tracing::info!("starting poll");
         for pool in pools.pools.values() {
             let mut l = pool.write().unwrap();
             l.update_to_block(Some(block_number), provider.provider())
                 .await
                 .unwrap();
         }
+        tracing::info!("finished");
     }
 
     #[allow(clippy::await_holding_lock)]
