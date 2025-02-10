@@ -34,7 +34,7 @@ impl TopOfBlockOrder {
     // eip-712 hash_struct. is a pain since we need to reconstruct values.
     pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
         let pair = &pair[self.pairs_index as usize];
-        let tob = RpcTopOfBlockOrder {
+        RpcTopOfBlockOrder {
             quantity_in:     self.quantity_in,
             recipient:       self.recipient.unwrap_or_default(),
             quantity_out:    self.quantity_out,
@@ -52,11 +52,8 @@ impl TopOfBlockOrder {
             max_gas_asset0:  self.max_gas_asset_0,
             valid_for_block: block,
             meta:            Default::default()
-        };
-
-        let a = tob.order_hash();
-        tracing::warn!(?a, "rebuilt hash of order {:#?}", tob);
-        a
+        }
+        .order_hash()
     }
 
     pub fn of_max_gas(
@@ -73,8 +70,6 @@ impl TopOfBlockOrder {
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
         let signature = Signature::from(decoded_signature);
-        let hash = internal.order_hash();
-        tracing::warn!(?hash, "hash of order before recovery for overrides: {:#?}", internal);
         Self {
             use_internal: false,
             quantity_in,
@@ -109,8 +104,6 @@ impl TopOfBlockOrder {
         if used_gas > internal.max_gas_asset0 {
             return Err(eyre::eyre!("order went over gas limit"))
         }
-        let hash = internal.order_hash();
-        tracing::warn!(?hash, "hash of order before recovery for overrides");
 
         Ok(Self {
             use_internal: false,
