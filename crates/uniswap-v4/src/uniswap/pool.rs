@@ -297,7 +297,7 @@ where
             Ordering::Equal => 1.0001_f64.powi(tick)
         };
 
-        1.0 / price
+        price
     }
 
     pub fn calculate_price(&self) -> f64 {
