@@ -287,11 +287,14 @@ contract Angstrom is
         assembly ("memory-safe") {
             to := or(mul(iszero(to), from), to)
         }
+        console.log("settling order out");
         _settleOrderOut(to, buffer.assetOut, amountOut, buffer.useInternal);
 
         hook.tryTrigger(from);
 
+        console.log("settling order in");
         _settleOrderIn(from, buffer.assetIn, amountIn, buffer.useInternal);
+        console.log("order settled");
 
         return reader;
     }
