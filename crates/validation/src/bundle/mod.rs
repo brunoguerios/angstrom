@@ -102,7 +102,7 @@ where
         let conversion_lookup = price_gen.generate_lookup_map();
 
         thread_pool.spawn_raw(Box::pin(async move {
-            let overrides = bundle.fetch_needed_overrides(number);
+            let overrides = bundle.fetch_needed_overrides(number + 1);
             for (token, slot, value) in overrides.into_slots_with_overrides(angstrom_address) {
                 trace!(?token, ?slot, ?value, "Inserting bundle override");
                 db.insert_account_storage(token, slot.into(), value).unwrap();
