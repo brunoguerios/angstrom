@@ -97,6 +97,8 @@ pub fn init_tracing(verbosity: u8) {
         layer_builder(format!("devnet={level}")),
         layer_builder(format!("angstrom_rpc={level}")),
         layer_builder(format!("angstrom_types={level}")),
+        layer_builder(format!("angstrom_eth={level}")),
+        layer_builder(format!("angstrom_utils={level}")),
         // layer_builder(format!("angstrom_network={level}")),
         layer_builder(format!("testing_tools={level}")),
         layer_builder(format!("matching_engine={level}")),
