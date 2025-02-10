@@ -63,8 +63,6 @@ impl TopOfBlockOrder {
         pairs_index: u16
     ) -> Self {
         assert!(internal.is_valid_signature());
-        let from = internal.from();
-        tracing::info!(?from, "encoding");
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
         let recipient = Some(internal.recipient);
@@ -75,6 +73,10 @@ impl TopOfBlockOrder {
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
         let signature = Signature::from(decoded_signature);
+        let hash = internal.order_hash();
+        let addr = signature.recover_signer(hash);
+        let from = internal.from();
+        tracing::info!(?from, recovered=?addr, "encoding of max gas res");
         Self {
             use_internal: internal.use_internal,
             quantity_in,
