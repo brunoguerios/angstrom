@@ -61,7 +61,8 @@ impl AnvilInitializer {
 
         tracing::debug!("deploying Angstrom enviroment");
         let angstrom_env = AngstromEnv::new(uniswap_env, nodes).await?;
-        tracing::info!("deployed Angstrom enviroment");
+        let addr = angstrom_env.angstrom();
+        tracing::info!(?addr, "deployed Angstrom enviroment");
 
         let angstrom =
             AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
