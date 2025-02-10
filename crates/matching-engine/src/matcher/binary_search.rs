@@ -36,12 +36,12 @@ impl<'a> BinarySearchMatcher<'a> {
                     Quantity::Token1(amount_out)
                 };
                 let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
-                Some(r.end_bound.price().clone())
+                Some(*r.end_bound.price())
             } else {
                 None
             }
         } else {
-            book.amm().map(|f| f.current_price().price().clone())
+            book.amm().map(|f| *f.current_price().price())
         };
 
         Self { book, amm_start_price }

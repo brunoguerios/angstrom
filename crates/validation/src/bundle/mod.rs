@@ -18,7 +18,7 @@ use revm::{
     primitives::{keccak256, EnvWithHandlerCfg, TxKind}
 };
 use tokio::runtime::Handle;
-use tracing::{trace, warn};
+use tracing::trace;
 
 use crate::{
     common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
