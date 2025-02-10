@@ -256,7 +256,7 @@ impl AnvilInitializer {
         let mut rng = thread_rng();
 
         let tick = price.to_tick()?;
-        for i in 0..200 {
+        for i in 0..400 {
             let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
             let upper = lower + pool_key.tickSpacing;
             let liquidity = U256::from(rng.gen_range(liquidity / 2..liquidity));
