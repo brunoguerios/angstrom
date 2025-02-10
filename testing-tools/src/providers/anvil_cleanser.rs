@@ -93,7 +93,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
             .into_iter()
             .find(|tx| tx.to() == Some(self.angstrom_contract))
         else {
-            tracing::info!("No angstrom txs found");
+            tracing::info!("No angstrom txs found!!!!!!!!!!");
             self.send_events(EthEvent::NewBlockTransitions {
                 block_number:      block.0,
                 filled_orders:     vec![],
@@ -102,6 +102,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
 
             return
         };
+        tracing::info!("found angstrom address!!!!!!!");
         let input = angstrom_tx.input();
 
         let Ok(bytes) = TestnetHub::executeCall::abi_decode(input, false) else {
