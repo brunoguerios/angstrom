@@ -66,11 +66,12 @@ where
 
 /// Holds and progresses the consensus state machine
 pub struct RoundStateMachine<P, Matching> {
-    current_state:           Box<dyn ConsensusState<P, Matching>>,
+    current_state:            Box<dyn ConsensusState<P, Matching>>,
+    pending_submission_round: Option<Box<dyn ConsensusState<P, Matching>>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
-    consensus_wait_duration: PreProposalWaitTrigger,
-    shared_state:            SharedRoundState<P, Matching>
+    consensus_wait_duration:  PreProposalWaitTrigger,
+    shared_state:             SharedRoundState<P, Matching>
 }
 
 impl<P, Matching> RoundStateMachine<P, Matching>
@@ -86,6 +87,7 @@ where
             current_state: Box::new(BidAggregationState::new(
                 consensus_wait_duration.update_for_new_round(None)
             )),
+            pending_submission_round: None,
             consensus_wait_duration,
             shared_state
         }
@@ -105,9 +107,17 @@ where
         self.shared_state.block_height = new_block;
         self.shared_state.round_leader = new_leader;
 
-        self.current_state = Box::new(BidAggregationState::new(
+        // going to move current state over to pending state.
+
+        let new = Box::new(BidAggregationState::new(
             self.consensus_wait_duration.update_for_new_round(info)
         ));
+
+        if self.shared_state.i_am_leader() {
+            self.pending_submission_round = Some(std::mem::replace(&mut self.current_state, new));
+        } else {
+            self.current_state = new;
+        }
     }
 
     pub fn handle_message(&mut self, event: StromConsensusEvent) {
@@ -132,6 +142,12 @@ where
         {
             tracing::info!("transitioning to new round state");
             this.current_state = transitioned_state;
+        }
+
+        if let Some(mut old) = this.pending_submission_round.take() {
+            if old.poll_transition(&mut this.shared_state, cx).is_pending() {
+                this.pending_submission_round = Some(old);
+            }
         }
 
         if let Some(message) = this.shared_state.messages.pop_front() {
