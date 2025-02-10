@@ -28,6 +28,7 @@ impl OrderBuilder {
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
         let sqrt_price = pool.sqrt_price;
+        tracing::info!(?sqrt_price, ?price);
 
         let zfo = sqrt_price > price;
 
@@ -35,7 +36,8 @@ impl OrderBuilder {
         let token1 = pool.token1;
         // if zfo, sqrtprice < pool price
         let t_in = if zfo { token0 } else { token1 };
-        let amount_specified = if zfo { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
+        let amount_specified = if zfo { I256::MAX - I256::ONE } else { I256::MAX - I256::ONE };
+        // if zero for 1, sqrt lowever
 
         let (amount_in, amount_out) = pool
             .simulate_swap(t_in, amount_specified, Some(price))
