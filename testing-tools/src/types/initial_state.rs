@@ -1,9 +1,19 @@
 use alloy::providers::PendingTransaction;
 use alloy_primitives::{
     aliases::{I24, U24},
-    Address, TxHash
+    Address, TxHash, U256
 };
-use angstrom_types::{contract_bindings::angstrom::Angstrom::PoolKey, matching::SqrtPriceX96};
+use angstrom_types::{
+    contract_bindings::{angstrom::Angstrom::PoolKey, mintable_mock_erc_20::MintableMockERC20},
+    matching::SqrtPriceX96
+};
+
+use super::WithWalletProvider;
+use crate::{
+    contracts::{anvil::SafeDeployPending, environment::TestAnvilEnvironment},
+    providers::WalletProvider,
+    types::HACKED_TOKEN_BALANCE
+};
 
 pub struct PendingDeployedPools {
     pending_txs: Vec<PendingTransaction>,
@@ -88,5 +98,58 @@ impl PartialConfigPoolKey {
 
     pub fn sqrt_price(&self) -> SqrtPriceX96 {
         self.sqrt_price
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Erc20ToDeploy {
+    pub name:            &'static str,
+    pub symbol:          &'static str,
+    pub overwrite_token: Option<Address>
+}
+
+impl Erc20ToDeploy {
+    pub fn new(name: &'static str, symbol: &'static str, overwrite_token: Option<Address>) -> Self {
+        Self { name, symbol, overwrite_token }
+    }
+
+    pub async fn deploy_token(
+        &self,
+        provider: &WalletProvider,
+        nonce: &mut u64,
+        addresses_with_hacked_balance: Option<&[Address]>
+    ) -> eyre::Result<Address> {
+        let (pending_tx, token_address) =
+            MintableMockERC20::deploy_builder(provider.provider_ref())
+                .deploy_pending_creation(*nonce, provider.controller())
+                .await?;
+
+        pending_tx.await?;
+        *nonce += 1;
+
+        let token_instance = MintableMockERC20::new(token_address, provider.rpc_provider());
+        token_instance
+            .setMeta("Wrapped Bitcoin".to_string(), "WBTC".to_string())
+            .nonce(*nonce)
+            .deploy_pending()
+            .await?
+            .await?;
+        *nonce += 1;
+
+        if let Some(addresses) = addresses_with_hacked_balance {
+            for user_addr in addresses {
+                let _ = token_instance
+                    .mint(*user_addr, U256::from(HACKED_TOKEN_BALANCE))
+                    .nonce(*nonce)
+                    .send()
+                    .await?
+                    .watch()
+                    .await?;
+
+                *nonce += 1;
+            }
+        }
+
+        Ok(token_address)
     }
 }

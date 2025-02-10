@@ -13,7 +13,6 @@ use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
-        mintable_mock_erc_20::MintableMockERC20,
         pool_gate::PoolGate::PoolGateInstance
     },
     matching::SqrtPriceX96,
@@ -33,8 +32,8 @@ use crate::{
     },
     types::{
         config::TestingNodeConfig,
-        initial_state::{PartialConfigPoolKey, PendingDeployedPools},
-        GlobalTestingConfig, WithWalletProvider, HACKED_TOKEN_BALANCE
+        initial_state::{Erc20ToDeploy, PartialConfigPoolKey, PendingDeployedPools},
+        GlobalTestingConfig, WithWalletProvider
     }
 };
 
@@ -108,90 +107,19 @@ impl AnvilInitializer {
         Ok(())
     }
 
-    async fn hack_address_tokens(
-        &self,
-        nonce: &mut u64,
-        token0: Address,
-        token1: Address
-    ) -> eyre::Result<()> {
-        let token0_instance = MintableMockERC20::new(token0, self.provider.rpc_provider());
-        let token1_instance = MintableMockERC20::new(token1, self.provider.rpc_provider());
+    async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
+        let token0 = Erc20ToDeploy::new("Wrapped Bitcoin", "WBTC", None)
+            .deploy_token(&self.provider, nonce, Some(&self.addresses_with_deployed_tokens))
+            .await?;
+        let token1 = Erc20ToDeploy::new("Wrapped Ethereum", "WETH", None)
+            .deploy_token(&self.provider, nonce, Some(&self.addresses_with_deployed_tokens))
+            .await?;
 
-        for user_addr in self.addresses_with_deployed_tokens.iter() {
-            let _ = token0_instance
-                .mint(*user_addr, U256::from(HACKED_TOKEN_BALANCE))
-                .nonce(*nonce)
-                .send()
-                .await?
-                .watch()
-                .await?;
-            *nonce += 1;
-            let _ = token1_instance
-                .mint(*user_addr, U256::from(HACKED_TOKEN_BALANCE))
-                .nonce(*nonce)
-                .send()
-                .await?
-                .watch()
-                .await?;
-            *nonce += 1;
-        }
+        let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
 
         self.rpc_provider()
             .anvil_mine(Some(U256::from(1u8)), None)
             .await?;
-
-        Ok(())
-    }
-
-    async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
-        let (first_token_tx, first_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(*nonce, self.provider.controller())
-                .await?;
-        *nonce += 1;
-        self.pending_state.add_pending_tx(first_token_tx);
-
-        let (second_token_tx, second_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(*nonce, self.provider.controller())
-                .await?;
-        *nonce += 1;
-        self.pending_state.add_pending_tx(second_token_tx);
-
-        self.pending_state.finalize_pending_txs().await?;
-
-        // tokio::try_join!(
-        //     self.provider
-        //         .override_address(&mut first_token, WBTC_ADDRESS),
-        //     self.provider
-        //         .override_address(&mut second_token, WETH_ADDRESS)
-        // )?;
-
-        let token0_instance = MintableMockERC20::new(first_token, self.provider.rpc_provider());
-        let set_token0_meta = token0_instance
-            .setMeta("Wrapped Bitcoin".to_string(), "WBTC".to_string())
-            .nonce(*nonce)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(set_token0_meta);
-        *nonce += 1;
-
-        let token1_instance = MintableMockERC20::new(second_token, self.provider.rpc_provider());
-        let set_token1_meta = token1_instance
-            .setMeta("Wrapped Ethereum".to_string(), "WETH".to_string())
-            .nonce(*nonce)
-            .deploy_pending()
-            .await?;
-        self.pending_state.add_pending_tx(set_token1_meta);
-        *nonce += 1;
-
-        self.pending_state.finalize_pending_txs().await?;
-
-        let tokens = if first_token < second_token {
-            (first_token, second_token)
-        } else {
-            (second_token, first_token)
-        };
 
         Ok(tokens)
     }
@@ -207,9 +135,6 @@ impl AnvilInitializer {
             .await?;
 
         let (currency0, currency1) = self.deploy_tokens(&mut nonce).await?;
-
-        self.hack_address_tokens(&mut nonce, currency0, currency1)
-            .await?;
 
         let pool_key = PoolKey {
             currency0,
@@ -232,9 +157,6 @@ impl AnvilInitializer {
             .await?;
 
         let (currency0, currency1) = self.deploy_tokens(&mut nonce).await?;
-
-        self.hack_address_tokens(&mut nonce, currency0, currency1)
-            .await?;
 
         let pool_key = PoolKey {
             currency0,
@@ -412,7 +334,7 @@ mod tests {
     use super::*;
     use crate::{
         controllers::enviroments::AngstromTestnet,
-        types::config::TestnetConfig,
+        types::{config::TestnetConfig, HACKED_TOKEN_BALANCE},
         utils::{init_tracing, noop_agent}
     };
 
