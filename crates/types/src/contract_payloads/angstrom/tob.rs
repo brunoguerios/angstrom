@@ -7,8 +7,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
+    primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
-        grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder,
+        grouped_orders::OrderWithStorageData,
+        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder},
         RawPoolOrder
     }
 };
@@ -32,9 +34,9 @@ pub struct TopOfBlockOrder {
 
 impl TopOfBlockOrder {
     // eip-712 hash_struct. is a pain since we need to reconstruct values.
-    pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+    fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
         let pair = &pair[self.pairs_index as usize];
-        let tob = RpcTopOfBlockOrder {
+        RpcTopOfBlockOrder {
             quantity_in:     self.quantity_in,
             recipient:       self.recipient.unwrap_or_default(),
             quantity_out:    self.quantity_out,
@@ -52,10 +54,16 @@ impl TopOfBlockOrder {
             max_gas_asset0:  self.max_gas_asset_0,
             valid_for_block: block,
             meta:            Default::default()
-        };
+        }
+    }
 
-        tracing::info!("for overrides {:#?}", tob);
-        tob.order_hash()
+    pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        self.recover_order(pair, asset, block).order_hash()
+    }
+
+    pub fn signing_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        let order = self.recover_order(pair, asset, block);
+        order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
     }
 
     pub fn of_max_gas(
@@ -73,10 +81,6 @@ impl TopOfBlockOrder {
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
         let signature = Signature::from(decoded_signature);
-        let hash = internal.order_hash();
-        let addr = signature.recover_signer(hash);
-        let from = internal.from();
-        tracing::info!(?from, recovered=?addr, "encoding of max gas res");
         Self {
             use_internal: internal.use_internal,
             quantity_in,

@@ -74,7 +74,7 @@ impl AngstromBundle {
             };
 
             // need to recover sender from signature
-            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
             let qty = if order.exact_in {
@@ -100,7 +100,7 @@ impl AngstromBundle {
             };
 
             // need to recover sender from signature
-            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
             let qty = order.quantity_in;
