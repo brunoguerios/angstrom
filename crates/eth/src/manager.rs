@@ -257,6 +257,7 @@ where
                 AngstromBundle::pade_decode(&mut input, None).ok()
             })
             .flat_map(move |bundle| {
+                tracing::info!("found angstrom bundle that landed on chain!");
                 bundle
                     .get_order_hashes(chain.tip_number())
                     .collect::<Vec<_>>()

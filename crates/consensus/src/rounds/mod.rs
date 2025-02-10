@@ -144,6 +144,7 @@ where
             this.current_state = transitioned_state;
         }
 
+        // TODO: we do this as we don't want to drop the submission tx.
         if let Some(mut old) = this.pending_submission_round.take() {
             if old.poll_transition(&mut this.shared_state, cx).is_pending() {
                 this.pending_submission_round = Some(old);
