@@ -246,20 +246,24 @@ contract Angstrom is
         (reader, buffer.minPrice) = reader.readU256();
         if (price.into() < buffer.minPrice) revert LimitViolated();
 
+        console.log("limit check");
+
         (reader, buffer.recipient) = variantMap.recipientIsSome()
             ? reader.readAddr()
             : (reader, address(0));
 
+        console.log("loaded recipient");
         HookBuffer hook;
         (reader, hook, buffer.hookDataHash) = HookBufferLib.readFrom(
             reader,
             variantMap.noHook()
         );
+        console.log("loaded hook");
 
         // For flash orders sets the current block number as `validForBlock` so that it's
         // implicitly validated via hashing later.
         reader = buffer.readOrderValidation(reader, variantMap);
-
+        console.log("loading amount");
         AmountIn amountIn;
         AmountOut amountOut;
         (reader, amountIn, amountOut) = buffer.loadAndComputeQuantity(
@@ -267,11 +271,13 @@ contract Angstrom is
             variantMap,
             price
         );
+        console.log("loaded amount");
 
         bytes32 orderHash = typedHasher.hashTypedData(
             buffer.structHash(variantMap)
         );
 
+        console.log("loading + verifying sig");
         address from;
         (reader, from) = variantMap.isEcdsa()
             ? SignatureLib.readAndCheckEcdsa(reader, orderHash)
@@ -283,6 +289,7 @@ contract Angstrom is
         } else {
             _invalidateOrderHash(orderHash, from);
         }
+        console.log("sig verified");
 
         // Push before hook as a potential loan.
         address to = buffer.recipient;
