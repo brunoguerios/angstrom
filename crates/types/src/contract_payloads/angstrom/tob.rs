@@ -34,7 +34,7 @@ impl TopOfBlockOrder {
     // eip-712 hash_struct. is a pain since we need to reconstruct values.
     pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
         let pair = &pair[self.pairs_index as usize];
-        RpcTopOfBlockOrder {
+        let tob = RpcTopOfBlockOrder {
             quantity_in:     self.quantity_in,
             recipient:       self.recipient.unwrap_or_default(),
             quantity_out:    self.quantity_out,
@@ -52,14 +52,19 @@ impl TopOfBlockOrder {
             max_gas_asset0:  self.max_gas_asset_0,
             valid_for_block: block,
             meta:            Default::default()
-        }
-        .order_hash()
+        };
+
+        let from = tob.from();
+        tracing::info!(?from, "for overrides");
+        tob.order_hash()
     }
 
     pub fn of_max_gas(
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
         pairs_index: u16
     ) -> Self {
+        let from = internal.from();
+        tracing::info!(?from, "encoding");
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
         let recipient = Some(internal.recipient);
