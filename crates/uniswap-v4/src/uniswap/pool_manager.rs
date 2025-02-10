@@ -459,10 +459,13 @@ where
         while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
             self.handle_new_block_info(block_info);
         }
-        while let Poll::Ready(Some((ticks, not))) = self.rx.poll_recv(cx) {
+        while let Poll::Ready(Some((mut ticks, not))) = self.rx.poll_recv(cx) {
             // hacky for now but only way to avoid lock problems
             let pools = self.pools.clone();
             let prov = self.provider.clone();
+
+            let addr = self.conversion_map.get(&ticks.pool_id).unwrap();
+            ticks.pool_id = addr.clone();
             Self::load_more_ticks(not, pools, prov, ticks);
         }
 
