@@ -126,6 +126,7 @@ where
     }
 
     fn on_canon_update(&mut self, canonical_updates: CanonStateNotification) {
+        tracing::info!("got new block update!!!!!");
         match canonical_updates.clone() {
             CanonStateNotification::Reorg { old, new } => self.handle_reorg(old, new),
             CanonStateNotification::Commit { new } => self.handle_commit(new)
