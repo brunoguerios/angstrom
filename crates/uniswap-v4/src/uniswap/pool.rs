@@ -309,7 +309,7 @@ where
             Ordering::Equal => 1.0001_f64.powi(tick)
         };
 
-        1.0 / price
+        price
     }
 
     /// Obvious doc: Sims the swap to get the state changes after applying it
