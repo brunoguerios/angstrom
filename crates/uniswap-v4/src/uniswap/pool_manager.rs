@@ -331,7 +331,7 @@ where
         )
     }
 
-    fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
+    async fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
         // If there is a reorg, unwind state changes from last_synced block to the
         // chain head block number
         let (chain_head_block_number, block_range, is_reorg) = match block_info {
@@ -393,6 +393,12 @@ where
             )
             .expect("never fail");
         }
+        Self::pool_update_workaround(
+            chain_head_block_number,
+            self.pools.clone(),
+            self.provider.clone()
+        )
+        .await;
 
         self.latest_synced_block = chain_head_block_number;
 
@@ -402,6 +408,20 @@ where
         } else {
             self.block_sync
                 .sign_off_on_block(MODULE_NAME, self.latest_synced_block, None);
+        }
+    }
+
+    #[allow(clippy::await_holding_lock)]
+    async fn pool_update_workaround(
+        block_number: u64,
+        pools: SyncedUniswapPools<A, Loader>,
+        provider: Arc<P>
+    ) {
+        for pool in pools.pools.values() {
+            let mut l = pool.write().unwrap();
+            l.update_to_block(Some(block_number), provider.provider())
+                .await
+                .unwrap();
         }
     }
 
@@ -442,7 +462,8 @@ where
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
-            self.handle_new_block_info(block_info);
+            let mut f = Box::pin(self.handle_new_block_info(block_info));
+            while f.poll_unpin(cx).is_pending() {}
         }
         while let Poll::Ready(Some((ticks, not))) = self.rx.poll_recv(cx) {
             // hacky for now but only way to avoid lock problems

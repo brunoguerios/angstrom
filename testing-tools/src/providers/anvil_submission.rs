@@ -43,7 +43,6 @@ impl SubmitTx for AnvilSubmissionProvider {
             let mut slice = vecd.as_slice();
 
             let bundle = AngstromBundle::pade_decode(&mut slice, None).unwrap();
-            info!("Submitting via Anvil Submission: {:#?}", bundle);
             let block = self.provider.get_block_number().await.unwrap() + 1;
             let order_overrides = bundle.fetch_needed_overrides(block);
             let angstrom_address = *tx.to.as_ref().unwrap().to().unwrap();
