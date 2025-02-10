@@ -102,7 +102,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
 
             return
         };
-        tracing::info!("found angstrom address!!!!!!!");
+        tracing::info!("!!!!!!!!found angstrom address with a angstrom tx!!!!!!!");
         let input = angstrom_tx.input();
 
         let Ok(bytes) = TestnetHub::executeCall::abi_decode(input, false) else {
@@ -121,7 +121,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         let hashes = bundle.get_order_hashes(bn).collect::<Vec<_>>();
 
         let addresses = vec![];
-        tracing::debug!("found angstrom tx with orders filled {:#?}", hashes);
+        tracing::info!("found angstrom tx with orders filled {:#?}", hashes);
         self.send_events(EthEvent::NewBlockTransitions {
             block_number:      block.0,
             filled_orders:     hashes,
