@@ -139,11 +139,12 @@ impl UserOrderBuilder {
                     asset_out: self.asset_out,
                     amount: self.amount,
                     max_extra_fee_asset0: if self.exact_in {
-                        self.amount
+                        self.amount / 2
                     } else {
                         self.min_price
                             .mul_quantity(U256::from(self.amount))
                             .to::<u128>()
+                            / 2
                     },
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -168,7 +169,7 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
-                    max_extra_fee_asset0: self.amount,
+                    max_extra_fee_asset0: self.amount / 2,
                     nonce: self.nonce,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -193,11 +194,12 @@ impl UserOrderBuilder {
                     asset_out: self.asset_out,
 
                     max_extra_fee_asset0: if self.exact_in {
-                        self.amount
+                        self.amount / 2
                     } else {
                         self.min_price
                             .mul_quantity(U256::from(self.amount))
                             .saturating_to::<u128>()
+                            / 2
                     },
                     amount: self.amount,
                     min_price: *self.min_price,
@@ -221,7 +223,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
-                    max_extra_fee_asset0: self.amount,
+                    max_extra_fee_asset0: self.amount / 2,
                     max_amount_in: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
