@@ -28,7 +28,8 @@ impl OrderBuilder {
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
         let sqrt_price = pool.sqrt_price;
-        tracing::info!(?sqrt_price, ?price);
+        let float_price = SqrtPriceX96::from(sqrt_price).as_f64();
+        tracing::info!(?cur_price, ?float_price);
 
         let zfo = sqrt_price > price;
 
