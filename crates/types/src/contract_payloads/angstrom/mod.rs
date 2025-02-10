@@ -107,7 +107,11 @@ impl AngstromBundle {
             let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
-            let qty = order.quantity_in;
+            let mut qty = order.quantity_in;
+            if order.zero_for_1 {
+                qty += order.gas_used_asset_0;
+            }
+
             tracing::info!(?token, from_address = ?address, qty, "Building ToB order override");
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
