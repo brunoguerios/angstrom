@@ -22,7 +22,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
-use futures::FutureExt;
+use futures::{future::poll_fn, FutureExt};
 use futures_util::{stream::BoxStream, StreamExt};
 use thiserror::Error;
 use tokio::sync::Notify;
@@ -420,8 +420,8 @@ where
         tracing::info!("starting poll");
         for pool in pools.pools.values() {
             let mut l = pool.write().unwrap();
-            l.update_to_block(Some(block_number), provider.provider())
-                .await
+            tokio::runtime::Handle::current()
+                .block_on(l.update_to_block(Some(block_number), provider.provider()))
                 .unwrap();
         }
         tracing::info!("finished");
