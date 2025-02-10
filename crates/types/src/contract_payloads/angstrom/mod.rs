@@ -95,7 +95,9 @@ impl AngstromBundle {
             };
 
             // need to recover sender from signature
-            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            // We use block_number + 1 here because the order was submitted for the next
+            // block
+            let hash = order.order_hash(&self.pairs, &self.assets, block_number + 1);
             let address = order.signature.recover_signer(hash);
 
             let qty = order.quantity_in;
