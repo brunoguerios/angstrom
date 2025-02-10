@@ -63,6 +63,7 @@ impl TopOfBlockOrder {
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
         pairs_index: u16
     ) -> Self {
+        assert!(internal.is_valid_signature());
         let from = internal.from();
         tracing::info!(?from, "encoding");
         let quantity_in = internal.quantity_in;
