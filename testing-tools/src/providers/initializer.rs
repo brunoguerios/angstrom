@@ -340,7 +340,11 @@ mod tests {
     use super::*;
     use crate::{
         controllers::enviroments::AngstromTestnet,
-        types::{config::TestnetConfig, initial_state::InitialStateConfig, HACKED_TOKEN_BALANCE},
+        types::{
+            config::TestnetConfig,
+            initial_state::{Erc20ToDeploy, InitialStateConfig},
+            HACKED_TOKEN_BALANCE
+        },
         utils::{init_tracing, noop_agent}
     };
 
