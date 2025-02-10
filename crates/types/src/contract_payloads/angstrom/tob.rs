@@ -54,8 +54,7 @@ impl TopOfBlockOrder {
             meta:            Default::default()
         };
 
-        let from = tob.from();
-        tracing::info!(?from, "for overrides");
+        tracing::info!("for overrides {:#?}", tob);
         tob.order_hash()
     }
 
@@ -77,7 +76,7 @@ impl TopOfBlockOrder {
                 .unwrap();
         let signature = Signature::from(decoded_signature);
         Self {
-            use_internal: false,
+            use_internal: internal.use_internal,
             quantity_in,
             quantity_out,
             max_gas_asset_0: internal.max_gas_asset0,
@@ -112,7 +111,7 @@ impl TopOfBlockOrder {
         }
 
         Ok(Self {
-            use_internal: false,
+            use_internal: internal.use_internal,
             quantity_in,
             quantity_out,
             max_gas_asset_0: internal.max_gas_asset0,
