@@ -109,20 +109,6 @@ impl AngstromBundle {
                 }
             };
 
-            // // need to also account for fees
-            // let qty = if order.exact_in {
-            //     order.order_quantities.fetch_max_amount()
-            // } else {
-            //     let mut price = Ray::from(self.pairs[order.pair_index as
-            // usize].price_1over0);     // if bid, then we need to inv price
-            //     if !order.zero_for_one {
-            //         price.inv_ray_assign_round(true);
-            //     }
-            //     price
-            //         .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
-            //         .to()
-            // };
-
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
         });
@@ -594,8 +580,15 @@ impl AngstromBundle {
                 tob.quantity_out
             );
             let contract_tob = if let Some(g) = shared_gas {
-                TopOfBlockOrder::of(tob, g, pair_idx as u16)?
+                let order = TopOfBlockOrder::of(tob, g, pair_idx as u16)?;
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::TopOfBlock,
+                    t0,
+                    order.gas_used_asset_0
+                );
+                order
             } else {
+                asset_builder.add_gas_fee(AssetBuilderStage::TopOfBlock, t0, tob.max_gas_asset0);
                 TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
             };
             top_of_block_orders.push(contract_tob);
@@ -649,8 +642,16 @@ impl AngstromBundle {
                 quantity_out.to()
             );
             let user_order = if let Some(g) = shared_gas {
-                UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
+                let order = UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?;
+                asset_builder.add_gas_fee(AssetBuilderStage::UserOrder, t0, order.extra_fee_asset0);
+
+                order
             } else {
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::UserOrder,
+                    t0,
+                    order.max_gas_token_0()
+                );
                 UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
             };
             user_orders.push(user_order);
