@@ -230,6 +230,7 @@ contract Angstrom is
         (reader, variantMap) = buffer.init(reader);
 
         // Load and lookup asset in/out and dependent values.
+        console.log("loading price");
         PriceOutVsIn price;
         {
             uint256 priceOutVsIn;
@@ -240,6 +241,7 @@ contract Angstrom is
                 .getSwapInfo(variantMap.zeroForOne());
             price = PriceOutVsIn.wrap(priceOutVsIn);
         }
+        console.log("loaded price");
 
         (reader, buffer.minPrice) = reader.readU256();
         if (price.into() < buffer.minPrice) revert LimitViolated();
