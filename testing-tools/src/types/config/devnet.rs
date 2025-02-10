@@ -1,7 +1,5 @@
-use alloy_primitives::Address;
-
 use super::TestingConfigKind;
-use crate::types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig};
+use crate::types::{initial_state::InitialStateConfig, GlobalTestingConfig};
 
 #[derive(Debug, Clone)]
 pub struct DevnetConfig {
@@ -66,10 +64,6 @@ impl GlobalTestingConfig for DevnetConfig {
         self.intial_node_count
     }
 
-    fn pool_keys(&self) -> Vec<PartialConfigPoolKey> {
-        Vec::new()
-    }
-
     fn leader_eth_rpc_port(&self) -> u16 {
         unreachable!("only available in Testnet mode");
     }
@@ -78,7 +72,7 @@ impl GlobalTestingConfig for DevnetConfig {
         self.initial_rpc_port
     }
 
-    fn addresses_with_tokens(&self) -> Vec<Address> {
-        Vec::new()
+    fn initial_state_config(&self) -> InitialStateConfig {
+        InitialStateConfig::default()
     }
 }

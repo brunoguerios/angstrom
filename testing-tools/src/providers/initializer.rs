@@ -32,19 +32,19 @@ use crate::{
     },
     types::{
         config::TestingNodeConfig,
-        initial_state::{Erc20ToDeploy, PartialConfigPoolKey, PendingDeployedPools},
+        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools},
         GlobalTestingConfig, WithWalletProvider
     }
 };
 
 pub struct AnvilInitializer {
-    provider: WalletProvider,
-    angstrom_env: AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
-    angstrom: AngstromInstance<BoxTransport, WalletProviderRpc>,
-    pool_gate: PoolGateInstance<BoxTransport, WalletProviderRpc>,
-    pending_state: PendingDeployedPools,
-    addresses_with_deployed_tokens: Vec<Address>
+    provider:             WalletProvider,
+    angstrom_env:         AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1:        ControllerV1Instance<BoxTransport, WalletProviderRpc>,
+    angstrom:             AngstromInstance<BoxTransport, WalletProviderRpc>,
+    pool_gate:            PoolGateInstance<BoxTransport, WalletProviderRpc>,
+    pending_state:        PendingDeployedPools,
+    initial_state_config: InitialStateConfig
 }
 
 impl AnvilInitializer {
@@ -82,7 +82,7 @@ impl AnvilInitializer {
             angstrom,
             pending_state,
             pool_gate,
-            addresses_with_deployed_tokens: config.global_config.addresses_with_tokens()
+            initial_state_config: config.global_config.initial_state_config()
         };
 
         Ok((this, anvil))
@@ -108,13 +108,19 @@ impl AnvilInitializer {
     }
 
     async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
-        let token0 = Erc20ToDeploy::new("Wrapped Bitcoin", "WBTC", None)
-            .deploy_token(&self.provider, nonce, Some(&self.addresses_with_deployed_tokens))
-            .await?;
-        let token1 = Erc20ToDeploy::new("Wrapped Ethereum", "WETH", None)
-            .deploy_token(&self.provider, nonce, Some(&self.addresses_with_deployed_tokens))
-            .await?;
+        let mut tokens = Vec::new();
+        for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
+            let token = token_to_deploy
+                .deploy_token(
+                    &self.provider,
+                    nonce,
+                    Some(&self.initial_state_config.addresses_with_tokens)
+                )
+                .await?;
+            tokens.push(token);
+        }
 
+        let (token0, token1) = (tokens[0], tokens[1]);
         let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
 
         self.rpc_provider()
@@ -334,7 +340,7 @@ mod tests {
     use super::*;
     use crate::{
         controllers::enviroments::AngstromTestnet,
-        types::{config::TestnetConfig, HACKED_TOKEN_BALANCE},
+        types::{config::TestnetConfig, initial_state::InitialStateConfig, HACKED_TOKEN_BALANCE},
         utils::{init_tracing, noop_agent}
     };
 
@@ -343,19 +349,26 @@ mod tests {
         init_tracing(5);
 
         let my_address = address!("796fB50EAe1456A523F869f6135dd557eeaEE226");
-        let config = TestnetConfig::new(
-            3,
-            vec![PartialConfigPoolKey {
+        let initial_state_config = InitialStateConfig {
+            pool_keys:             vec![PartialConfigPoolKey {
                 fee:               0,
                 tick_spacing:      60,
                 initial_liquidity: 34028236692,
                 sqrt_price:        SqrtPriceX96::at_tick(100020).unwrap()
             }],
-            vec![my_address],
+            addresses_with_tokens: vec![my_address],
+            tokens_to_deploy:      vec![
+                Erc20ToDeploy::new("Wrapped Bitcoin", "WBTC", None),
+                Erc20ToDeploy::new("Wrapped Ethereum", "WETH", None),
+            ]
+        };
+        let config = TestnetConfig::new(
+            3,
             "ws://localhost:8546",
             false,
             Some(9445),
-            Some(2624)
+            Some(2624),
+            initial_state_config
         );
         let testnet =
             AngstromTestnet::spawn_testnet(NoopProvider::default(), config, vec![noop_agent])

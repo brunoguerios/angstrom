@@ -101,16 +101,16 @@ impl PartialConfigPoolKey {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Erc20ToDeploy {
-    pub name:            &'static str,
-    pub symbol:          &'static str,
+    pub name:            String,
+    pub symbol:          String,
     pub overwrite_token: Option<Address>
 }
 
 impl Erc20ToDeploy {
-    pub fn new(name: &'static str, symbol: &'static str, overwrite_token: Option<Address>) -> Self {
-        Self { name, symbol, overwrite_token }
+    pub fn new(name: &str, symbol: &str, overwrite_token: Option<Address>) -> Self {
+        Self { name: name.to_string(), symbol: symbol.to_string(), overwrite_token }
     }
 
     pub async fn deploy_token(
@@ -129,12 +129,16 @@ impl Erc20ToDeploy {
 
         let token_instance = MintableMockERC20::new(token_address, provider.rpc_provider());
         token_instance
-            .setMeta("Wrapped Bitcoin".to_string(), "WBTC".to_string())
+            .setMeta(self.name.clone(), self.symbol.clone())
             .nonce(*nonce)
             .deploy_pending()
             .await?
             .await?;
         *nonce += 1;
+
+        // if let Some(overwrite_addr) = self.overwrite_token {
+        //     provider.override_address(&mut token_address, overwrite_addr).await?;
+        // }
 
         if let Some(addresses) = addresses_with_hacked_balance {
             for user_addr in addresses {
@@ -152,4 +156,11 @@ impl Erc20ToDeploy {
 
         Ok(token_address)
     }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct InitialStateConfig {
+    pub addresses_with_tokens: Vec<Address>,
+    pub tokens_to_deploy:      Vec<Erc20ToDeploy>,
+    pub pool_keys:             Vec<PartialConfigPoolKey>
 }

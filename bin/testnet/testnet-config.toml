@@ -14,3 +14,14 @@ tick_spacing = 60
 liquidity = "34028236692"
 # weird bug were round down
 tick = 100020
+
+
+[[tokens_to_deploy]]
+name = "Wrapped Bitcoin"
+symbol = "WBTC"
+address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+
+[[tokens_to_deploy]]
+name = "Wrapped Ethereum"
+symbol = "WETH"
+address = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"

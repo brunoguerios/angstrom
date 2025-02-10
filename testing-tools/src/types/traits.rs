@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 
-use alloy_primitives::Address;
-
-use super::{config::TestingConfigKind, initial_state::PartialConfigPoolKey};
+use super::{config::TestingConfigKind, initial_state::InitialStateConfig};
 use crate::{contracts::anvil::WalletProviderRpc, providers::WalletProvider};
 
 pub trait WithWalletProvider: Send + Sync + 'static {
@@ -24,11 +22,9 @@ pub trait GlobalTestingConfig: Debug + Clone + Send + Sync {
 
     fn node_count(&self) -> u64;
 
-    fn pool_keys(&self) -> Vec<PartialConfigPoolKey>;
+    fn initial_state_config(&self) -> InitialStateConfig;
 
     fn leader_eth_rpc_port(&self) -> u16;
 
     fn base_angstrom_rpc_port(&self) -> u16;
-
-    fn addresses_with_tokens(&self) -> Vec<Address>;
 }

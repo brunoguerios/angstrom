@@ -74,7 +74,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     pub fn pool_keys(&self) -> Vec<PartialConfigPoolKey> {
-        self.global_config.pool_keys()
+        self.global_config.initial_state_config().pool_keys
     }
 
     fn configure_testnet_leader_anvil(&self) -> Anvil {
@@ -148,7 +148,10 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
         tracing::info!("connected to anvil");
 
-        let mut addresses_with_eth = self.global_config.addresses_with_tokens();
+        let mut addresses_with_eth = self
+            .global_config
+            .initial_state_config()
+            .addresses_with_tokens;
         addresses_with_eth.push(sk.address());
         futures::future::try_join_all(addresses_with_eth.into_iter().map(|addr| {
             rpc.anvil_set_balance(addr, U256::from(HACKED_TOKEN_BALANCE) * U256::from(10))
