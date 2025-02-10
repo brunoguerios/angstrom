@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
+    primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
-        grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder,
+        grouped_orders::OrderWithStorageData,
+        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder},
         RawPoolOrder
     }
 };
@@ -30,7 +32,7 @@ pub struct TopOfBlockOrder {
 
 impl TopOfBlockOrder {
     // eip-712 hash_struct. is a pain since we need to reconstruct values.
-    pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+    pub fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
         let pair = &pair[self.pairs_index as usize];
         RpcTopOfBlockOrder {
             quantity_in:     self.quantity_in,
@@ -51,7 +53,15 @@ impl TopOfBlockOrder {
             valid_for_block: block,
             meta:            Default::default()
         }
-        .order_hash()
+    }
+
+    pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        self.recover_order(pair, asset, block).order_hash()
+    }
+
+    pub fn signing_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        let order = self.recover_order(pair, asset, block);
+        order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
     }
 
     pub fn of_max_gas(
