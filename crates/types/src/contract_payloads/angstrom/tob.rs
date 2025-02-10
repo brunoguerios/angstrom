@@ -36,12 +36,12 @@ impl TopOfBlockOrder {
             quantity_in:     self.quantity_in,
             recipient:       self.recipient.unwrap_or_default(),
             quantity_out:    self.quantity_out,
-            asset_in:        if self.zero_for_1 {
+            asset_in:        if !self.zero_for_1 {
                 asset[pair.index0 as usize].addr
             } else {
                 asset[pair.index1 as usize].addr
             },
-            asset_out:       if !self.zero_for_1 {
+            asset_out:       if self.zero_for_1 {
                 asset[pair.index0 as usize].addr
             } else {
                 asset[pair.index1 as usize].addr
