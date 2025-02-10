@@ -147,15 +147,13 @@ impl UserOrderBuilder {
                     .to::<u128>()
                     / 2
             }
+        } else if self.exact_in {
+            self.min_price
+                .mul_quantity(U256::from(self.amount))
+                .to::<u128>()
+                / 2
         } else {
-            if self.exact_in {
-                self.min_price
-                    .mul_quantity(U256::from(self.amount))
-                    .to::<u128>()
-                    / 2
-            } else {
-                self.amount / 2
-            }
+            self.amount / 2
         }
     }
 

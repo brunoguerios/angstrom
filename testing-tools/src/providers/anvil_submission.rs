@@ -14,7 +14,6 @@ use angstrom_types::{
 };
 use futures::{Future, FutureExt, StreamExt};
 use pade::PadeDecode;
-use tracing::info;
 
 use crate::contracts::anvil::WalletProviderRpc;
 

@@ -419,9 +419,7 @@ where
         tracing::info!("starting poll");
         for pool in pools.pools.values() {
             let mut l = pool.write().unwrap();
-            tokio::runtime::Handle::current()
-                .block_on(l.update_to_block(Some(block_number), provider.provider()))
-                .unwrap();
+            async_to_sync(l.update_to_block(Some(block_number), provider.provider())).unwrap();
         }
         tracing::info!("finished");
     }
@@ -436,9 +434,7 @@ where
         let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
 
         // given we force this to resolve, should'nt be problematic
-        let ticks = tokio::runtime::Handle::current()
-            .block_on(pool.load_more_ticks(tick_req, None, node_provider))
-            .unwrap();
+        let ticks = async_to_sync(pool.load_more_ticks(tick_req, None, node_provider)).unwrap();
 
         pool.apply_ticks(ticks);
 
@@ -472,6 +468,11 @@ where
 
         Poll::Pending
     }
+}
+
+pub fn async_to_sync<F: Future>(f: F) -> F::Output {
+    let handle = tokio::runtime::Handle::try_current().expect("No tokio runtime found");
+    tokio::task::block_in_place(|| handle.block_on(f))
 }
 
 #[derive(Debug)]
