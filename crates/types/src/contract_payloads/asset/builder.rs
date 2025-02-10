@@ -104,6 +104,7 @@ impl AssetBuilder {
                 if let Some(tracker) = combined_assets.get_asset(&asset.addr) {
                     asset.take = tracker.take;
                     asset.settle = tracker.settle;
+                    asset.save = tracker.save;
                 }
                 asset
             })
