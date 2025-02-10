@@ -338,6 +338,10 @@ impl Ray {
         *self = self.invert(RoundingMode::Floor);
     }
 
+    pub fn inv_ray_assign_round(&mut self, round_up: bool) {
+        *self = self.inv_ray_round(round_up);
+    }
+
     /// 1e54 / self
     pub fn inv_ray(self) -> Ray {
         self.invert(RoundingMode::Floor)

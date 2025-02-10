@@ -80,7 +80,11 @@ impl AngstromBundle {
             let qty = if order.exact_in {
                 order.order_quantities.fetch_max_amount()
             } else {
-                let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+                let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+                // if bid, then we need to inv price
+                if !order.zero_for_one {
+                    price.inv_ray_assign_round(true);
+                }
                 price
                     .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
                     .to()
