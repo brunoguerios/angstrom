@@ -131,21 +131,42 @@ impl UserOrderBuilder {
         Self { signing_key, ..self }
     }
 
-    pub fn build(self) -> GroupedVanillaOrder {
+    // returns at zero
+    pub fn get_max_fee_zero(&mut self) -> u128 {
+        // partials are always exact in
+        if !self.is_exact {
+            self.exact_in = true;
+        }
+        // zero for 1
+        if self.asset_in < self.asset_out {
+            if self.exact_in {
+                self.amount / 2
+            } else {
+                self.min_price
+                    .mul_quantity(U256::from(self.amount))
+                    .to::<u128>()
+                    / 2
+            }
+        } else {
+            if self.exact_in {
+                self.min_price
+                    .mul_quantity(U256::from(self.amount))
+                    .to::<u128>()
+                    / 2
+            } else {
+                self.amount / 2
+            }
+        }
+    }
+
+    pub fn build(mut self) -> GroupedVanillaOrder {
         match (self.is_standing, self.is_exact) {
             (true, true) => {
                 let mut order = ExactStandingOrder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     amount: self.amount,
-                    max_extra_fee_asset0: if self.exact_in {
-                        self.amount / 2
-                    } else {
-                        self.min_price
-                            .mul_quantity(U256::from(self.amount))
-                            .to::<u128>()
-                            / 2
-                    },
+                    max_extra_fee_asset0: self.get_max_fee_zero(),
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     nonce: self.nonce,
@@ -169,7 +190,7 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
-                    max_extra_fee_asset0: self.amount / 2,
+                    max_extra_fee_asset0: self.get_max_fee_zero(),
                     nonce: self.nonce,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -193,14 +214,7 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
 
-                    max_extra_fee_asset0: if self.exact_in {
-                        self.amount / 2
-                    } else {
-                        self.min_price
-                            .mul_quantity(U256::from(self.amount))
-                            .saturating_to::<u128>()
-                            / 2
-                    },
+                    max_extra_fee_asset0: self.get_max_fee_zero(),
                     amount: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -223,7 +237,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
-                    max_extra_fee_asset0: self.amount / 2,
+                    max_extra_fee_asset0: self.get_max_fee_zero(),
                     max_amount_in: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
