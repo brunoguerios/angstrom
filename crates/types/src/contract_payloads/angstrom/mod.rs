@@ -233,12 +233,14 @@ impl AngstromBundle {
             user_order.quantity_out
         );
 
-        // pool_updates.push(PoolUpdate {
-        //     zero_for_one:     false,
-        //     pair_index:       0,
-        //     swap_in_quantity: user_order.quantity_out,
-        //     rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0
-        // } });
+        // only works when it is zero for one
+        let zfo = !user_order.is_bid;
+        pool_updates.push(PoolUpdate {
+            zero_for_one:     !zfo,
+            pair_index:       0,
+            swap_in_quantity: if !zfo { user_order.quantity_out } else { user_order.quantity_in },
+            rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
+        });
 
         // Get our list of user orders, if we have any
         top_of_block_orders.push(TopOfBlockOrder::of_max_gas(user_order, 0));
