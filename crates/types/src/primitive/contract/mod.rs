@@ -92,26 +92,26 @@ mod tests {
     #[test]
     fn test_this() {
         // mine
-        // let private_key =
-        // "7bbd27422e113bc608150c92768febbf9c4d6e6cea369e121f459cb2e3a07c08";
+        let private_key = "7bbd27422e113bc608150c92768febbf9c4d6e6cea369e121f459cb2e3a07c08";
 
         // james
-        let private_key = "3aa3e5f24a62ec34b483702c019b4dfa5e1676378dbe7e07a91f9f80a61ef538";
+        // let private_key =
+        // "3aa3e5f24a62ec34b483702c019b4dfa5e1676378dbe7e07a91f9f80a61ef538";
 
         let signer = LocalSigner::from_str(private_key).unwrap();
 
         let order = ExactFlashOrder {
             ref_id:               0,
             exact_in:             true,
-            amount:               5000000000000000000,
-            max_extra_fee_asset0: 5000000000000000000,
-            min_price:            U256::from(36297105377978789888_u128),
+            amount:               1000000000000000000,
+            max_extra_fee_asset0: 1000000000000000000,
+            min_price:            U256::from(36461679927861141504_u128),
             use_internal:         false,
             asset_in:             address!("0x3d85e7b30be9fd7a4bad709d6ed2d130579f9a2e"),
             asset_out:            address!("0xd550015f84142abecd5e82c8f296083df3c9a80d"),
-            recipient:            address!("0x796fb50eae1456a523f869f6135dd557eeaee226"),
+            recipient:            address!("0xa7f1aeb6e43443c683865fdb9e15dd01386c955b"),
             hook_data:            Default::default(),
-            valid_for_block:      21825140,
+            valid_for_block:      21825215,
             meta:                 Default::default()
         };
 
@@ -130,7 +130,7 @@ mod tests {
 
         // real - 0x853c1c30956b8cb46936166216f139cd84cba88a14988f49eb8760c84f5b8d47018c3cefb0ef946cfcaea17bc3cc35d7bcc268b6b390240509fe09262170cac71c
         // play - 0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c
-        let js_sig = bytes!("0x008594ec5e800291e40c774bf5d05741fba5df7891ce9523fd9535c72598018e260adc7e21703592a98b56948a194957871651f65d65ee729c1c9803afd3ed817e");
+        let js_sig = bytes!("0xdfbb91cc053c6817fe2108ecfc80a47f927951a0c1c7be9542b5eb0a0b05c3a619b7b0fb882d9627c7c50a335e181251a30737423c919074fe4b0e9fea68a75c1b");
         let js_hash = keccak256(&js_sig);
         println!("-------JS-------\n");
         println!("Hash: {js_hash:?}\nSig: {js_sig:?}\n\n");
@@ -140,7 +140,8 @@ mod tests {
             .pade_encode()
             .into();
 
-        let pade_bytes_decoded_sig = PrimitiveSignature::try_from(&**pade_decoded_sig).unwrap();
+        let bytes_decoded_sig = PrimitiveSignature::try_from(&**js_sig).unwrap();
+        let pade_encoded_from_js_sig: Bytes = bytes_decoded_sig.pade_encode().into();
 
         let big_endian_decoded_sig = PrimitiveSignature::new(
             U256::from_be_slice(&js_sig[0..32]),
@@ -148,8 +149,8 @@ mod tests {
             normalize_v(js_sig[64] as u64).unwrap()
         );
         println!(
-            "Big Endian Decoded: {big_endian_decoded_sig:?}\nPade Bytes Decoded: \
-             {pade_bytes_decoded_sig:?}\nPade Decoded: {pade_decoded_sig:?}\n\n"
+            "Big Endian Decoded: {big_endian_decoded_sig:?}\nBytes Decoded: \
+             {bytes_decoded_sig:?}\nPade Encoded From Js Decoded: {pade_encoded_from_js_sig:?}\n\n"
         );
 
         // assert_eq!(decoded_sig, sig);

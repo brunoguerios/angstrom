@@ -10,7 +10,7 @@ use alloy::{
 use alloy_primitives::Bytes;
 use alloy_rpc_types::{BlockTransactionsKind, Header, Transaction};
 use angstrom_types::block_sync::GlobalBlockSync;
-use futures::{stream::FuturesUnordered, Stream, StreamExt};
+use futures::{stream::FuturesOrdered, Stream, StreamExt};
 
 use super::{AnvilStateProvider, WalletProvider};
 use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
@@ -159,7 +159,7 @@ impl AnvilProvider<WalletProvider> {
 struct StreamBlockProvider {
     provider:      WalletProviderRpc,
     header_stream: Pin<Box<dyn Stream<Item = Header> + Send>>,
-    futs:          FuturesUnordered<Pin<Box<dyn Future<Output = (u64, Vec<Transaction>)> + Send>>>
+    futs:          FuturesOrdered<Pin<Box<dyn Future<Output = (u64, Vec<Transaction>)> + Send>>>
 }
 
 impl StreamBlockProvider {
@@ -167,12 +167,12 @@ impl StreamBlockProvider {
         provider: WalletProviderRpc,
         header_stream: impl Stream<Item = Header> + Send + 'static
     ) -> Self {
-        Self { provider, header_stream: Box::pin(header_stream), futs: FuturesUnordered::new() }
+        Self { provider, header_stream: Box::pin(header_stream), futs: FuturesOrdered::new() }
     }
 
     fn new_block(&mut self, header: Header) {
         self.futs
-            .push(Box::pin(Self::make_block(self.provider.clone(), header.number)));
+            .push_back(Box::pin(Self::make_block(self.provider.clone(), header.number)));
     }
 
     async fn make_block(provider: WalletProviderRpc, number: u64) -> (u64, Vec<Transaction>) {
@@ -203,6 +203,7 @@ impl Stream for StreamBlockProvider {
             return Poll::Ready(Some(val))
         }
 
+        cx.waker().wake_by_ref();
         Poll::Pending
     }
 }
