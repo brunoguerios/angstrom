@@ -236,7 +236,7 @@ impl AngstromBundle {
         pool_updates.push(PoolUpdate {
             zero_for_one:     !user_order.is_bid,
             pair_index:       0,
-            swap_in_quantity: user_order.quantity_out,
+            swap_in_quantity: user_order.quantity_in,
             rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
         });
 
