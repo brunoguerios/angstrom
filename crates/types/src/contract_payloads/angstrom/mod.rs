@@ -622,6 +622,7 @@ impl AngstromBundle {
             .zip(order_list.iter())
             .filter(|(outcome, _)| outcome.is_filled())
         {
+            trace!(user_order = ?order, "Mapping User Order");
             // Calculate our final amounts based on whether the order is in T0 or T1 context
             let inverse_order = order.is_bid() == order.exact_in();
             assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");
