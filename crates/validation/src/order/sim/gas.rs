@@ -86,7 +86,8 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
-        tracing::info!(is_bid = tob.is_bid, "tob sim gas");
+        let hash = tob.order_hash();
+        tracing::info!(is_bid = tob.is_bid, ?hash "tob sim gas");
         // need to grab the order hash
         self.execute_on_revm(
             &HashMap::default(),
@@ -115,7 +116,7 @@ where
                 .into();
             }
         )
-        .map_err(|e| eyre!("tob order err={} {:?}", e, tob.from()))
+        .map_err(|e| eyre!("tob order err={} {:?}", e, tob.order_hash()))
     }
 
     pub fn gas_of_book_order(
