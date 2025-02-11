@@ -45,10 +45,7 @@ impl OrderBuilder {
             .unwrap();
 
         let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
-        let mut amount_out = u128::try_from(amount_out.abs()).unwrap();
-        if !zfo {
-            std::mem::swap(&mut amount_in, &mut amount_out);
-        }
+        let amount_out = u128::try_from(amount_out.abs()).unwrap();
         let mut rng = rand::thread_rng();
         amount_in += rng.gen_range(0..amount_in / 10);
 
