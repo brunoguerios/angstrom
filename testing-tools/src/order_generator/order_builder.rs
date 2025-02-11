@@ -47,7 +47,7 @@ impl OrderBuilder {
         let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
         let mut rng = rand::thread_rng();
-        amount_in += rng.gen_range(0..amount_in / 10);
+        amount_in += rng.gen_range(0..amount_in / 100);
 
         ToBOrderBuilder::new()
             .signing_key(self.keys.get(rng.gen_range(0..10)).cloned())
@@ -100,11 +100,12 @@ impl OrderBuilder {
         // 50% amount range
         let modifier = rng.gen_range(0.5..=1.5);
         let amount = if exact_in { amount_in } else { amount_out };
+
         let amount = (amount as f64 * modifier) as u128;
         let direction: bool = rng.gen();
 
         // if the random direction changes the swap. inv the price
-        if direction != zfo {
+        if direction == zfo {
             unshifted_price.inv_ray_assign();
         }
 
