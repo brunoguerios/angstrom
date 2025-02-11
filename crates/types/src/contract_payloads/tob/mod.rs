@@ -45,11 +45,11 @@ impl ToBOutcome {
             // order to determine the reward quantity
             let pricevec = (snapshot.current_price() - Quantity::Token0(tob.quantity_out))?;
 
-            if tob.quantity_in < pricevec.d_t0 {
+            if tob.quantity_in < pricevec.d_t1 {
                 return Err(eyre!("Not enough output to cover the transaction"));
             }
             tracing::info!(?tob.quantity_out, ?tob.quantity_in, ?pricevec.d_t0, ?pricevec.d_t1);
-            let leftover = tob.quantity_in - pricevec.d_t0;
+            let leftover = tob.quantity_in - pricevec.d_t1;
             (pricevec, leftover)
         } else {
             // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
