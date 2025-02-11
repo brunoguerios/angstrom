@@ -115,13 +115,17 @@ impl AngstromBundle {
                 .entry(token)
                 .or_default()
                 .entry(address)
-                .and_modify(|q| *q += qty)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
                 .or_insert(qty);
             balances
                 .entry(token)
                 .or_default()
                 .entry(address)
-                .and_modify(|q| *q += qty)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
                 .or_insert(qty);
         });
 
