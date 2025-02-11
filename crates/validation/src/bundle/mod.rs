@@ -74,12 +74,6 @@ where
         // give angstrom approval
         db.insert_account_storage(token, uniswap_approval_slot.into(), U256::from(2) * quantity)
             .unwrap();
-        // db.insert_account_storage(token_in, user_approval_slot2.into(),
-        // U256::from(2) * amount_in)     .unwrap();
-
-        // verify that everything is setup as we want
-        // verify_overrides(db, token_in, token_out, amount_in, amount_out,
-        // user, angstrom);
     }
 
     pub fn simulate_bundle(
