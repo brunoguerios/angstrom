@@ -101,8 +101,11 @@ impl AngstromBundle {
                 if order.exact_in {
                     order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
                 } else {
+                    // one for zero and specified amount in zero
                     // zero for 1 and exact out
-                    let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+                    let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+                    price.inv_ray_assign_round(true);
+
                     // if bid, then we need to inv price
                     let total_conversion_needed =
                         order.order_quantities.fetch_max_amount() + order.extra_fee_asset0;
