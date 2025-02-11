@@ -76,7 +76,7 @@ impl AngstromBundle {
             // need to recover sender from signature
             // We use block_number + 1 here because the order was submitted for the next
             // block
-            let hash = order.signing_hash(&self.pairs, &self.assets, block_number + 1);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
             let qty = if order.zero_for_one {
@@ -111,8 +111,19 @@ impl AngstromBundle {
                 }
             };
 
-            approvals.entry(token).or_default().insert(address, qty);
-            balances.entry(token).or_default().insert(address, qty);
+            tracing::info!(?token, from_address = ?address, qty, "Building user order override");
+            approvals
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
+            balances
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
         });
 
         // tob
@@ -127,7 +138,7 @@ impl AngstromBundle {
             // need to recover sender from signature
             // We use block_number + 1 here because the order was submitted for the next
             // block
-            let hash = order.signing_hash(&self.pairs, &self.assets, block_number + 1);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
             let mut qty = order.quantity_in;
@@ -136,8 +147,18 @@ impl AngstromBundle {
             }
 
             tracing::info!(?token, from_address = ?address, qty, "Building ToB order override");
-            approvals.entry(token).or_default().insert(address, qty);
-            balances.entry(token).or_default().insert(address, qty);
+            approvals
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
+            balances
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
         });
 
         TestnetStateOverrides { approvals, balances }
