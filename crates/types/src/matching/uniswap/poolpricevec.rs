@@ -410,7 +410,7 @@ impl<'a> PoolPriceVec<'a> {
     /// Builds a DonationResult based on the goal of making sure that the net
     /// price for all sections of this swap is as close to the final price as
     /// possible.  All donations are T0.
-    pub fn donation(&self, total_donation: u128) -> DonationResult {
+    pub fn t0_donation_to_end_price(&self, total_donation: u128) -> DonationResult {
         // If we have no steps we can just short-circuit this whole thing and take the
         // whole donation as tribute
         let Some(steps) = self.steps.as_ref() else {

@@ -79,36 +79,31 @@ impl AngstromBundle {
             let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
+            // Grab the price because we need it most of the time
+            let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
             let qty = if order.zero_for_one {
                 if order.exact_in {
-                    // zero for 1 and exact in
+                    // zero for 1 and exact in - the order is in t0 context and the quantity on the
+                    // order is how much we'll be taking from the user
                     order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
                 } else {
-                    // zero for 1 and exact out
-                    let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
-                    // if bid, then we need to inv price
-                    if !order.zero_for_one {
-                        price.inv_ray_assign_round(true);
-                    }
-                    price
-                        .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
-                        .to::<u128>()
+                    // zero for 1 and exact out - The quantity on the order is how much T1 we will
+                    // be returning to the user, we have to calculate how much T0 to take
+                    // Given our output T1, calculate how much T0 needs to be input, round up, add
+                    // our extra fee in T0 format
+                    price.inverse_quantity(order.order_quantities.fetch_max_amount(), true)
                         + order.extra_fee_asset0
                 }
+            } else if order.exact_in {
+                // 1 for 0 and exact in - the order is in T1 context and the quantity on the
+                // order is how much we'll be taking from the user
+                order.order_quantities.fetch_max_amount()
             } else {
-                // one for zero and exact in
-                if order.exact_in {
-                    // zero for 1 and exact out
-                    let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
-                    // if bid, then we need to inv price
-                    price.inv_ray_assign_round(true);
-                    price
-                        .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
-                        .to::<u128>()
-                        + order.extra_fee_asset0
-                } else {
-                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
-                }
+                // 1 for 0 and exact out - the order is in T0 context and the quantity on the
+                // order is how much T0 we'll be returning
+                let total_conversion_needed =
+                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0;
+                price.quantity(total_conversion_needed, true)
             };
 
             tracing::info!(?token, from_address = ?address, qty, "Building user order override");

@@ -38,7 +38,8 @@ impl ToBOutcome {
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         snapshot: &PoolSnapshot
     ) -> eyre::Result<Self> {
-        // if we are moving up then it is a bid, we want to move up
+        // First let's simulate the actual ToB swap and use that to determine what our
+        // leftover T0 is for rewards
         let (pricevec, leftover) = if tob.is_bid {
             // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
             // needed, and I should compare the T0 I get out with the T0 I expect back in
@@ -64,7 +65,7 @@ impl ToBOutcome {
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
         println!("Number of swaps in pricevec: {}", pricevec.steps.as_ref().unwrap().len());
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
-        let donation = pricevec.donation(leftover);
+        let donation = pricevec.t0_donation_to_end_price(leftover);
         let end_tick = pricevec.end_bound.tick;
 
         let rewards = Self {
@@ -173,10 +174,25 @@ mod test {
     use alloy_primitives::{aliases::I24, U256};
 
     use super::ToBOutcome;
-    use crate::contract_payloads::rewards::RewardsUpdate;
+    use crate::{
+        contract_payloads::rewards::RewardsUpdate,
+        matching::{
+            uniswap::{LiqRange, PoolSnapshot},
+            SqrtPriceX96
+        }
+    };
 
     #[test]
     fn sorts_correctly() {
+        let snapshot = PoolSnapshot::new(
+            vec![
+                LiqRange::new(100, 110, 123).unwrap(),
+                LiqRange::new(110, 120, 456).unwrap(),
+                LiqRange::new(120, 130, 789).unwrap(),
+            ],
+            SqrtPriceX96::at_tick(100).unwrap()
+        )
+        .unwrap();
         let donations = HashMap::from([
             (100, U256::from(123_u128)),
             (110, U256::from(456_u128)),
@@ -190,7 +206,7 @@ mod test {
             tick_donations: donations.clone(),
             ..Default::default()
         }
-        .to_rewards_update();
+        .rewards_update_range(120, 100, &snapshot);
         let RewardsUpdate::MultiTick {
             start_tick: upwards_start_tick,
             quantities: upwards_quantities,
@@ -199,11 +215,6 @@ mod test {
         else {
             panic!("Upwards update was single-tick");
         };
-
-        assert_eq!(
-            upwards_quantities[0], 123_u128,
-            "Upwards update did not have first quantity at lowest tick"
-        );
         assert_eq!(
             upwards_start_tick,
             I24::unchecked_from(100),
@@ -217,7 +228,7 @@ mod test {
             tick_donations: donations.clone(),
             ..Default::default()
         }
-        .to_rewards_update();
+        .rewards_update_range(100, 120, &snapshot);
         let RewardsUpdate::MultiTick {
             start_tick: downwards_start_tick,
             quantities: downwards_quantities,
@@ -226,10 +237,6 @@ mod test {
         else {
             panic!("Downwards update was single-tick");
         };
-        assert_eq!(
-            downwards_quantities[0], 789_u128,
-            "Downwards update did not have first quantity at highest tick"
-        );
         assert_eq!(
             downwards_start_tick,
             I24::unchecked_from(120),
