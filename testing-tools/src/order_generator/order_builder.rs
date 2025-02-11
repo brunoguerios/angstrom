@@ -54,11 +54,11 @@ impl OrderBuilder {
             std::mem::swap(&mut amount_in, &mut amount_out);
         }
 
-        if zfo {
-            amount_in += rng.gen_range(10..amount_in / 100);
-        } else {
-            amount_out -= rng.gen_range(10..amount_out / 100);
-        }
+        // if zfo {
+        amount_in += rng.gen_range(10..amount_in / 100);
+        // } else {
+        // amount_out -= rng.gen_range(10..amount_out / 100);
+        // }
 
         ToBOrderBuilder::new()
             .signing_key(self.keys.get(rng.gen_range(0..10)).cloned())
