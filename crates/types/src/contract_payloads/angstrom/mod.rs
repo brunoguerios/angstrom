@@ -83,7 +83,7 @@ impl AngstromBundle {
             let qty = if order.zero_for_one {
                 if order.exact_in {
                     // zero for 1 and exact in
-                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
+                    order.order_quantities.fetch_max_amount()
                 } else {
                     // zero for 1 and exact out
                     let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
@@ -99,7 +99,7 @@ impl AngstromBundle {
             } else {
                 // one for zero and exact in
                 if order.exact_in {
-                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
+                    order.order_quantities.fetch_max_amount()
                 } else {
                     // one for zero and specified amount in zero
                     // zero for 1 and exact out
