@@ -75,14 +75,31 @@ order matching algorithm.
 ## Pool Updates
 
 The pool updates contain information about swaps to perform against the underlying Uniswap pool and
-what rewards to distribute to that pool. **Note** it is a requirement that no one else, except for
-the Angstrom contract should be able to swap against the pools. This is to protect the LPs from
-outside searchers who may seek to extract the arbitrage value for themselves.
+what rewards to distribute to that pool.
 
-Per pair it is expected that one swap will be executed based on the winning ToB order. The swap's
-input/output should be set such that the ToB order's output is filled. The positive difference ToB
-input and required swap input is taken as the ToB order's "bid". This is to be distributed, along
-with a share of trading fees to LPs.
+**Note:** It is a requirement that no one else, except for the Angstrom contract should be able to swap
+against the pools. This is to protect the LPs from outside searchers who may seek to extract the
+arbitrage value for themselves (with the exception of the post-bundle unlock that charges a higher
+fee).
+
+Per pair it is expected that one swap will be executed based on the winning ToB order. The order
+specifies the total quantity that the bidder expects to pay and receive in return.
+
+It also implies the swap & bid based on `zero_for_one`:
+
+```python
+if order.zero_for_one:
+    swap_input = pool.compute_input_for_exact_out(order.quantity_out)
+    bid_in_asset0 = order.quantity_in - swap_input
+else:
+    swap_output = pool.compute_output_for_exact_in(order.quantity_in)
+    bid_in_asset0 = swap_output - order.quantity_out
+
+assert bid_in_asset0 >= 0, f'Requesting more out than simple AMMs swap'
+```
+
+On top of the `bid_in_asset0` any fees collected from normal user orders shall be distributed to
+LPs.
 
 The ticks that were used to complete the swap should be the ones to receive the reward, how and in
 what proportions is to be specified elsewhere. The reward distribution is then specified via the
