@@ -47,9 +47,15 @@ impl OrderBuilder {
             .unwrap();
 
         tracing::info!(?amount_in, ?amount_out, ?zfo);
+
         let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
-        let amount_out = u128::try_from(amount_out.abs()).unwrap();
+        let mut amount_out = u128::try_from(amount_out.abs()).unwrap();
         let mut rng = rand::thread_rng();
+
+        if !zfo {
+            std::mem::swap(&mut amount_in, &mut amount_out);
+        }
+
         amount_in += rng.gen_range(0..amount_in / 100);
 
         ToBOrderBuilder::new()
@@ -96,7 +102,7 @@ impl OrderBuilder {
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
 
-        tracing::info!(?amount_in, ?amount_out, ?zfo);
+        // amount of token zero
 
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
@@ -104,6 +110,7 @@ impl OrderBuilder {
         let exact_in = rng.gen_bool(0.5);
         // 50% amount range
         let modifier = rng.gen_range(0.5..=1.5);
+
         let amount = if exact_in { amount_in } else { amount_out };
 
         let amount = (amount as f64 * modifier) as u128;
