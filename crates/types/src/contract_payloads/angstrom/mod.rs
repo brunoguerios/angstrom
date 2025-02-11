@@ -95,17 +95,18 @@ impl AngstromBundle {
                 }
             } else {
                 // one for zero and exact in
-                if !order.exact_in {
+                if order.exact_in {
+                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
+                } else {
                     // zero for 1 and exact out
                     let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
                     // if bid, then we need to inv price
                     price.inv_ray_assign_round(true);
                     price
-                        .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
+                        .mul_quantity(U256::from(
+                            order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
+                        ))
                         .to::<u128>()
-                        + order.extra_fee_asset0
-                } else {
-                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
                 }
             };
             approvals
