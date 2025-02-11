@@ -94,11 +94,13 @@ impl OrderBuilder {
             .unwrap();
 
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
-        let _amount_out = u128::try_from(amount_out.abs()).unwrap();
+        let amount_out = u128::try_from(amount_out.abs()).unwrap();
 
+        let exact_in = rng.gen_bool(0.5);
         // 50% amount range
         let modifier = rng.gen_range(0.5..=1.5);
-        let amount = (amount_in as f64 * modifier) as u128;
+        let amount = if exact_in { amount_in } else { amount_out };
+        let amount = (amount as f64 * modifier) as u128;
         let direction: bool = rng.gen();
 
         // if the random direction changes the swap. inv the price
@@ -112,7 +114,7 @@ impl OrderBuilder {
             .asset_in(if direction { token0 } else { token1 })
             .asset_out(if !direction { token0 } else { token1 })
             .is_standing(false)
-            .exact_in(rng.gen_bool(0.5))
+            .exact_in(exact_in)
             .min_price(unshifted_price)
             .block(block_number)
             .amount(amount)
