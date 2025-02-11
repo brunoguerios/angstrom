@@ -107,7 +107,7 @@ impl UserOrder {
                     // exact flash
                     ExactFlashOrder {
                         ref_id: self.ref_id,
-                        exact_in: true,
+                        exact_in: self.exact_in,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
                             asset[pair.index0 as usize].addr
@@ -219,7 +219,7 @@ impl UserOrder {
                     // exact flash
                     let recovered = ExactFlashOrder {
                         ref_id: self.ref_id,
-                        exact_in: true,
+                        exact_in: self.exact_in,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
                             asset[pair.index0 as usize].addr

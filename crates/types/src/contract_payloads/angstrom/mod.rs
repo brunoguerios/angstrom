@@ -80,8 +80,9 @@ impl AngstromBundle {
             // Grab the price because we need it most of the time
             let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
             let qty = match (order.zero_for_one, order.exact_in) {
-                // Zero for one, exact in -> quantity on the order (t0) + extra fee (t0)
-                (true, true) => order.order_quantities.fetch_max_amount() + order.extra_fee_asset0,
+                // Zero for one, exact in -> quantity on the order (t0).  Extra fee is deducted from
+                // this
+                (true, true) => order.order_quantities.fetch_max_amount(),
                 // Zero for one, exact out -> quantity needed to produce output amount (t0) + extra
                 // fee (t0)
                 (true, false) => {
@@ -104,13 +105,17 @@ impl AngstromBundle {
                 .entry(token)
                 .or_default()
                 .entry(address)
-                .and_modify(|q| *q += qty)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
                 .or_insert(qty);
             balances
                 .entry(token)
                 .or_default()
                 .entry(address)
-                .and_modify(|q| *q += qty)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
                 .or_insert(qty);
         });
 
@@ -137,13 +142,17 @@ impl AngstromBundle {
                 .entry(token)
                 .or_default()
                 .entry(address)
-                .and_modify(|q| *q += qty)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
                 .or_insert(qty);
             balances
                 .entry(token)
                 .or_default()
                 .entry(address)
-                .and_modify(|q| *q += qty)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
                 .or_insert(qty);
         });
 
