@@ -46,8 +46,6 @@ impl OrderBuilder {
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
 
-        tracing::info!(?amount_in, ?amount_out, ?zfo);
-
         let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
         let mut amount_out = u128::try_from(amount_out.abs()).unwrap();
         let mut rng = rand::thread_rng();
