@@ -95,7 +95,7 @@ impl AngstromBundle {
                 }
             } else {
                 // one for zero and exact in
-                if order.exact_in {
+                if !order.exact_in {
                     // zero for 1 and exact out
                     let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
                     // if bid, then we need to inv price
