@@ -117,16 +117,7 @@ abstract contract Settlement is UniConsumer {
         AmountIn amountIn,
         bool useInternal
     ) internal {
-        IERC20 call = IERC20(asset);
-        uint allowance = call.allowance(from, address(this));
-        uint balance = call.balanceOf(from);
         uint256 amount = amountIn.into();
-        console.log(
-            "allowance, balance, amount_requested",
-            allowance,
-            balance,
-            amount
-        );
 
         bundleDeltas.add(asset, amount);
         if (useInternal) {
