@@ -136,8 +136,18 @@ impl AngstromBundle {
             }
 
             tracing::info!(?token, from_address = ?address, qty, "Building ToB order override");
-            approvals.entry(token).or_default().insert(address, qty);
-            balances.entry(token).or_default().insert(address, qty);
+            approvals
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
+            balances
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
         });
 
         TestnetStateOverrides { approvals, balances }
