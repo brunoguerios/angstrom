@@ -57,7 +57,7 @@ impl OrderBuilder {
         if zfo {
             amount_in += rng.gen_range(10..amount_in / 100);
         } else {
-            amount_out += rng.gen_range(10..amount_out / 100);
+            amount_out -= rng.gen_range(10..amount_out / 100);
         }
 
         ToBOrderBuilder::new()
