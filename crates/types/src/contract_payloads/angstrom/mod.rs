@@ -237,9 +237,9 @@ impl AngstromBundle {
         // works when false
         let zfo = !user_order.is_bid; // false works // true
         pool_updates.push(PoolUpdate {
-            zero_for_one:     !zfo,
+            zero_for_one:     user_order.is_bid,
             pair_index:       0,
-            swap_in_quantity: if zfo { user_order.quantity_out } else { user_order.quantity_in },
+            swap_in_quantity: user_order.quantity_out,
             rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
         });
 
