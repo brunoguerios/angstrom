@@ -76,7 +76,7 @@ impl AngstromBundle {
             // need to recover sender from signature
             // We use block_number + 1 here because the order was submitted for the next
             // block
-            let hash = order.signing_hash(&self.pairs, &self.assets, block_number + 1);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
             let qty = if order.zero_for_one {
@@ -127,7 +127,7 @@ impl AngstromBundle {
             // need to recover sender from signature
             // We use block_number + 1 here because the order was submitted for the next
             // block
-            let hash = order.signing_hash(&self.pairs, &self.assets, block_number + 1);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
             let mut qty = order.quantity_in;
@@ -199,7 +199,7 @@ impl AngstromBundle {
         user_order: &OrderWithStorageData<RpcTopOfBlockOrder>
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
-        let mut pool_updates = Vec::new();
+        let pool_updates = Vec::new();
         let mut pairs = Vec::new();
         let user_orders = Vec::new();
         let mut asset_builder = AssetBuilder::new();
