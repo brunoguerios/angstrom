@@ -86,6 +86,7 @@ where
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         block: u64
     ) -> eyre::Result<GasUsed> {
+        tracing::info!(is_bid = tob.is_bid, "tob sim gas");
         // need to grab the order hash
         self.execute_on_revm(
             &HashMap::default(),
