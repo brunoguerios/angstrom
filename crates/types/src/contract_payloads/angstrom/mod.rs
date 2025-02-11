@@ -234,9 +234,9 @@ impl AngstromBundle {
         );
 
         pool_updates.push(PoolUpdate {
-            zero_for_one:     !user_order.is_bid,
+            zero_for_one:     false,
             pair_index:       0,
-            swap_in_quantity: user_order.quantity_in,
+            swap_in_quantity: user_order.quantity_out,
             rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
         });
 
