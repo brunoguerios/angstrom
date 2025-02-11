@@ -7,7 +7,7 @@ use alloy::{
 use angstrom_types::{
     contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
     contract_payloads::angstrom::AngstromBundle,
-    matching::{uniswap::UniswapFlags, Ray},
+    matching::uniswap::UniswapFlags,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder,
@@ -91,7 +91,7 @@ where
             &HashMap::default(),
             OverridesForTestAngstrom {
                 flipped_order: Address::ZERO,
-                amount_in:     U256::from(tob.amount_in()),
+                amount_in:     U256::from(tob.amount()),
                 amount_out:    U256::from(tob.quantity_out),
                 token_out:     tob.token_out(),
                 token_in:      tob.token_in(),
@@ -114,7 +114,7 @@ where
                 .into();
             }
         )
-        .map_err(|e| eyre!("tob order err={} {:?}", e, tob.from()))
+        .map_err(|e| eyre!("tob order err={} {:?}", e, tob.order_hash()))
     }
 
     pub fn gas_of_book_order(
@@ -126,18 +126,19 @@ where
         let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
 
         let bundle = bundle.pade_encode();
+
         let (amount_in, amount_out) = if exact_in {
-            (U256::from(order.amount_in()), {
-                let price = Ray::from(U256::from(order.limit_price()));
-                price.mul_quantity(U256::from(order.amount_in()))
+            (U256::from(order.amount()), {
+                let price = order.price_for_book_side(order.is_bid);
+                price.mul_quantity(U256::from(order.amount()))
             })
         } else {
             (
                 {
-                    let price = Ray::from(U256::from(order.limit_price()));
-                    price.mul_quantity(U256::from(order.amount_in()))
+                    let price = order.price_for_book_side(order.is_bid);
+                    price.mul_quantity(U256::from(order.amount()))
                 },
-                U256::from(order.amount_in())
+                U256::from(order.amount())
             )
         };
 

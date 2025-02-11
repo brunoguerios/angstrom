@@ -79,6 +79,10 @@ impl AssetBuilder {
             .external_swap(asset_in, asset_out, quantity_in, quantity_out);
     }
 
+    pub fn add_gas_fee(&mut self, stage: AssetBuilderStage, asset: Address, qty: u128) {
+        self.get_stage(stage).add_gas_fee(asset, qty);
+    }
+
     pub fn allocate(&mut self, stage: AssetBuilderStage, asset: Address, quantity: u128) {
         self.get_stage(stage).allocate(asset, quantity);
     }
@@ -100,6 +104,7 @@ impl AssetBuilder {
                 if let Some(tracker) = combined_assets.get_asset(&asset.addr) {
                     asset.take = tracker.take;
                     asset.settle = tracker.settle;
+                    asset.save = tracker.save;
                 }
                 asset
             })

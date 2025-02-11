@@ -6,7 +6,6 @@ use alloy_primitives::{address, TxHash};
 use angstrom_types::contract_bindings::{
     i_position_descriptor::IPositionDescriptor,
     pool_gate::PoolGate::{self, PoolGateInstance},
-    pool_manager::PoolManager,
     position_manager::PositionManager
 };
 use tracing::debug;

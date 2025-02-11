@@ -4,10 +4,7 @@ mod solutionlib;
 
 use angstrom_types::{
     contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder},
-    matching::{
-        uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity},
-        SqrtPriceX96
-    },
+    matching::uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity},
     orders::PoolSolution
 };
 use base64::Engine;

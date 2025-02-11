@@ -157,7 +157,6 @@ contract Angstrom is
             : SignatureLib.readAndCheckERC1271(reader, orderHash);
 
         _invalidateOrderHash(orderHash, from);
-        console.log(from);
 
         address to = buffer.recipient;
         assembly ("memory-safe") {
@@ -205,6 +204,7 @@ contract Angstrom is
         (reader, variantMap) = buffer.init(reader);
 
         // Load and lookup asset in/out and dependent values.
+        console.log("loading price");
         PriceOutVsIn price;
         {
             uint256 priceOutVsIn;
@@ -214,26 +214,33 @@ contract Angstrom is
                 pairs.get(pairIndex).getSwapInfo(variantMap.zeroForOne());
             price = PriceOutVsIn.wrap(priceOutVsIn);
         }
+        console.log("loaded price");
 
         (reader, buffer.minPrice) = reader.readU256();
         if (price.into() < buffer.minPrice) revert LimitViolated();
 
+        console.log("limit check");
+
         (reader, buffer.recipient) =
             variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));
 
+        console.log("loaded recipient");
         HookBuffer hook;
         (reader, hook, buffer.hookDataHash) = HookBufferLib.readFrom(reader, variantMap.noHook());
+        console.log("loaded hook");
 
         // For flash orders sets the current block number as `validForBlock` so that it's
         // implicitly validated via hashing later.
         reader = buffer.readOrderValidation(reader, variantMap);
-
+        console.log("loading amount");
         AmountIn amountIn;
         AmountOut amountOut;
         (reader, amountIn, amountOut) = buffer.loadAndComputeQuantity(reader, variantMap, price);
+        console.log("loaded amount");
 
         bytes32 orderHash = typedHasher.hashTypedData(buffer.structHash(variantMap));
 
+        console.log("loading + verifying sig");
         address from;
         (reader, from) = variantMap.isEcdsa()
             ? SignatureLib.readAndCheckEcdsa(reader, orderHash)
@@ -245,17 +252,21 @@ contract Angstrom is
         } else {
             _invalidateOrderHash(orderHash, from);
         }
+        console.log("sig verified");
 
         // Push before hook as a potential loan.
         address to = buffer.recipient;
         assembly ("memory-safe") {
             to := or(mul(iszero(to), from), to)
         }
+        console.log("settling order out");
         _settleOrderOut(to, buffer.assetOut, amountOut, buffer.useInternal);
 
         hook.tryTrigger(from);
 
+        console.log("settling order in");
         _settleOrderIn(from, buffer.assetIn, amountIn, buffer.useInternal);
+        console.log("order settled");
 
         return reader;
     }

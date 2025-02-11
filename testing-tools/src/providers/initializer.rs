@@ -61,7 +61,8 @@ impl AnvilInitializer {
 
         tracing::debug!("deploying Angstrom enviroment");
         let angstrom_env = AngstromEnv::new(uniswap_env, nodes).await?;
-        tracing::info!("deployed Angstrom enviroment");
+        let addr = angstrom_env.angstrom();
+        tracing::info!(?addr, "deployed Angstrom enviroment");
 
         let angstrom =
             AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
@@ -255,8 +256,8 @@ impl AnvilInitializer {
         let mut rng = thread_rng();
 
         let tick = price.to_tick()?;
-        for i in 0..200 {
-            let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
+        for i in 0..400 {
+            let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (200 - i)));
             let upper = lower + pool_key.tickSpacing;
             let liquidity = U256::from(rng.gen_range(liquidity / 2..liquidity));
 

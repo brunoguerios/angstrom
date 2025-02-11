@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {console} from "forge-std/console.sol";
 import {CalldataReader} from "./CalldataReader.sol";
 import {UserOrderVariantMap} from "./UserOrderVariantMap.sol";
 import {PriceAB as PriceOutVsIn, AmountA as AmountOut, AmountB as AmountIn} from "./Price.sol";
@@ -42,74 +43,78 @@ library UserOrderBufferLib {
     uint256 internal constant DEADLINE_BYTES = 5;
 
     /// forgefmt: disable-next-item
-    bytes32 internal constant PARTIAL_STANDING_ORDER_TYPEHASH = keccak256(
-        "PartialStandingOrder("
-           "uint32 ref_id,"
-           "uint128 min_amount_in,"
-           "uint128 max_amount_in,"
-           "uint128 max_extra_fee_asset0,"
-           "uint256 min_price,"
-           "bool use_internal,"
-           "address asset_in,"
-           "address asset_out,"
-           "address recipient,"
-           "bytes hook_data,"
-           "uint64 nonce,"
-           "uint40 deadline"
-        ")"
-    );
+    bytes32 internal constant PARTIAL_STANDING_ORDER_TYPEHASH =
+        keccak256(
+            "PartialStandingOrder("
+            "uint32 ref_id,"
+            "uint128 min_amount_in,"
+            "uint128 max_amount_in,"
+            "uint128 max_extra_fee_asset0,"
+            "uint256 min_price,"
+            "bool use_internal,"
+            "address asset_in,"
+            "address asset_out,"
+            "address recipient,"
+            "bytes hook_data,"
+            "uint64 nonce,"
+            "uint40 deadline"
+            ")"
+        );
 
     /// forgefmt: disable-next-item
-    bytes32 internal constant EXACT_STANDING_ORDER_TYPEHASH = keccak256(
-        "ExactStandingOrder("
-           "uint32 ref_id,"
-           "bool exact_in,"
-           "uint128 amount,"
-           "uint128 max_extra_fee_asset0,"
-           "uint256 min_price,"
-           "bool use_internal,"
-           "address asset_in,"
-           "address asset_out,"
-           "address recipient,"
-           "bytes hook_data,"
-           "uint64 nonce,"
-           "uint40 deadline"
-        ")"
-    );
+    bytes32 internal constant EXACT_STANDING_ORDER_TYPEHASH =
+        keccak256(
+            "ExactStandingOrder("
+            "uint32 ref_id,"
+            "bool exact_in,"
+            "uint128 amount,"
+            "uint128 max_extra_fee_asset0,"
+            "uint256 min_price,"
+            "bool use_internal,"
+            "address asset_in,"
+            "address asset_out,"
+            "address recipient,"
+            "bytes hook_data,"
+            "uint64 nonce,"
+            "uint40 deadline"
+            ")"
+        );
 
     /// forgefmt: disable-next-item
-    bytes32 internal constant PARTIAL_FLASH_ORDER_TYPEHASH = keccak256(
-        "PartialFlashOrder("
-           "uint32 ref_id,"
-           "uint128 min_amount_in,"
-           "uint128 max_amount_in,"
-           "uint128 max_extra_fee_asset0,"
-           "uint256 min_price,"
-           "bool use_internal,"
-           "address asset_in,"
-           "address asset_out,"
-           "address recipient,"
-           "bytes hook_data,"
-           "uint64 valid_for_block"
-        ")"
-    );
+    bytes32 internal constant PARTIAL_FLASH_ORDER_TYPEHASH =
+        keccak256(
+            "PartialFlashOrder("
+            "uint32 ref_id,"
+            "uint128 min_amount_in,"
+            "uint128 max_amount_in,"
+            "uint128 max_extra_fee_asset0,"
+            "uint256 min_price,"
+            "bool use_internal,"
+            "address asset_in,"
+            "address asset_out,"
+            "address recipient,"
+            "bytes hook_data,"
+            "uint64 valid_for_block"
+            ")"
+        );
 
     /// forgefmt: disable-next-item
-    bytes32 internal constant EXACT_FLASH_ORDER_TYPEHASH = keccak256(
-        "ExactFlashOrder("
-           "uint32 ref_id,"
-           "bool exact_in,"
-           "uint128 amount,"
-           "uint128 max_extra_fee_asset0,"
-           "uint256 min_price,"
-           "bool use_internal,"
-           "address asset_in,"
-           "address asset_out,"
-           "address recipient,"
-           "bytes hook_data,"
-           "uint64 valid_for_block"
-        ")"
-    );
+    bytes32 internal constant EXACT_FLASH_ORDER_TYPEHASH =
+        keccak256(
+            "ExactFlashOrder("
+            "uint32 ref_id,"
+            "bool exact_in,"
+            "uint128 amount,"
+            "uint128 max_extra_fee_asset0,"
+            "uint256 min_price,"
+            "bool use_internal,"
+            "address asset_in,"
+            "address asset_out,"
+            "address recipient,"
+            "bytes hook_data,"
+            "uint64 valid_for_block"
+            ")"
+        );
 
     function init(UserOrderBuffer memory self, CalldataReader reader)
         internal
@@ -176,6 +181,7 @@ library UserOrderBufferLib {
             self.exactIn_or_minQuantityIn = variant.exactIn() ? 1 : 0;
             self.quantity_or_maxQuantityIn = quantity;
         }
+        console.log("loaded quantity");
 
         uint128 extraFeeAsset0;
         {
@@ -185,6 +191,7 @@ library UserOrderBufferLib {
             if (extraFeeAsset0 > maxExtraFeeAsset0) revert GasAboveMax();
             self.maxExtraFeeAsset0 = maxExtraFeeAsset0;
         }
+        console.log("loaded extra fee");
 
         if (variant.zeroForOne()) {
             AmountIn fee = AmountIn.wrap(extraFeeAsset0);

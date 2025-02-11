@@ -191,9 +191,9 @@ impl UserOrder {
             OrderQuantities::Exact { quantity } => {
                 if let Some(validation) = &self.standing_validation {
                     // exact standing
-                    ExactStandingOrder {
+                    let recovered = ExactStandingOrder {
                         ref_id: self.ref_id,
-                        exact_in: true,
+                        exact_in: self.exact_in,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
                             asset[pair.index0 as usize].addr
@@ -213,11 +213,11 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    };
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 } else {
                     // exact flash
-                    ExactFlashOrder {
+                    let recovered = ExactFlashOrder {
                         ref_id: self.ref_id,
                         exact_in: true,
                         use_internal: self.use_internal,
@@ -238,13 +238,14 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    };
+
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 }
             }
             OrderQuantities::Partial { min_quantity_in, max_quantity_in, .. } => {
                 if let Some(validation) = &self.standing_validation {
-                    PartialStandingOrder {
+                    let recovered = PartialStandingOrder {
                         ref_id: self.ref_id,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
@@ -266,10 +267,10 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    };
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 } else {
-                    PartialFlashOrder {
+                    let recovered = PartialFlashOrder {
                         ref_id: self.ref_id,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
@@ -290,8 +291,8 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    };
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 }
             }
         }
@@ -306,7 +307,7 @@ impl UserOrder {
         let (order_quantities, standing_validation, recipient) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
                 FlashVariants::Exact(e) => {
-                    (OrderQuantities::Exact { quantity: order.amount_in() }, None, e.recipient)
+                    (OrderQuantities::Exact { quantity: order.amount() }, None, e.recipient)
                 }
                 FlashVariants::Partial(p_o) => (
                     OrderQuantities::Partial {
@@ -320,7 +321,7 @@ impl UserOrder {
             },
             GroupedVanillaOrder::Standing(o) => match o {
                 StandingVariants::Exact(e) => (
-                    OrderQuantities::Exact { quantity: order.amount_in() },
+                    OrderQuantities::Exact { quantity: order.amount() },
                     Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
                     e.recipient
                 ),
@@ -386,7 +387,7 @@ impl UserOrder {
         let (order_quantities, standing_validation, recipient) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
                 FlashVariants::Exact(e) => {
-                    (OrderQuantities::Exact { quantity: order.amount_in() }, None, e.recipient)
+                    (OrderQuantities::Exact { quantity: order.amount() }, None, e.recipient)
                 }
                 FlashVariants::Partial(p_o) => (
                     OrderQuantities::Partial {
@@ -400,7 +401,7 @@ impl UserOrder {
             },
             GroupedVanillaOrder::Standing(o) => match o {
                 StandingVariants::Exact(e) => (
-                    OrderQuantities::Exact { quantity: order.amount_in() },
+                    OrderQuantities::Exact { quantity: order.amount() },
                     Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
                     e.recipient
                 ),

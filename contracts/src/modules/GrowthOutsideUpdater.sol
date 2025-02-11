@@ -51,6 +51,7 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         int24 startTick;
         (reader, startTick) = reader.readI24();
         uint128 liquidity;
+        // start liq
         (reader, liquidity) = reader.readU128();
         (CalldataReader newReader, CalldataReader amountsEnd) = reader.readU24End();
 

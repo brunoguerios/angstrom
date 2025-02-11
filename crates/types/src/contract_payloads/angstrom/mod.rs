@@ -42,7 +42,7 @@ use crate::{
 
 mod order;
 mod tob;
-pub use order::{OrderQuantities, UserOrder};
+pub use order::{OrderQuantities, StandingValidation, UserOrder};
 pub use tob::*;
 
 #[derive(Debug, PadeEncode, PadeDecode)]
@@ -61,8 +61,6 @@ impl AngstromBundle {
 
     #[cfg(feature = "testnet")]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
-        use crate::primitive::TESTNET_ANGSTROM_ADDRESS;
-
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
 
@@ -81,8 +79,38 @@ impl AngstromBundle {
             let hash = order.signing_hash(&self.pairs, &self.assets, block_number + 1);
             let address = order.signature.recover_signer(hash);
 
-            let qty = order.order_quantities.fetch_max_amount();
-            tracing::trace!(?token, from_address = ?address, qty, "Building User order override");
+            let qty = if order.zero_for_one {
+                if order.exact_in {
+                    // zero for 1 and exact in
+                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
+                } else {
+                    // zero for 1 and exact out
+                    let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+                    // if bid, then we need to inv price
+                    if !order.zero_for_one {
+                        price.inv_ray_assign_round(true);
+                    }
+                    price
+                        .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
+                        .to::<u128>()
+                        + order.extra_fee_asset0
+                }
+            } else {
+                // one for zero and exact in
+                if order.exact_in {
+                    // zero for 1 and exact out
+                    let mut price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+                    // if bid, then we need to inv price
+                    price.inv_ray_assign_round(true);
+                    price
+                        .mul_quantity(U256::from(order.order_quantities.fetch_max_amount()))
+                        .to::<u128>()
+                        + order.extra_fee_asset0
+                } else {
+                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
+                }
+            };
+
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
         });
@@ -102,8 +130,12 @@ impl AngstromBundle {
             let hash = order.signing_hash(&self.pairs, &self.assets, block_number + 1);
             let address = order.signature.recover_signer(hash);
 
-            let qty = order.quantity_in;
-            tracing::trace!(?token, from_address = ?address, qty, "Building ToB order override");
+            let mut qty = order.quantity_in;
+            if order.zero_for_1 {
+                qty += order.gas_used_asset_0;
+            }
+
+            tracing::info!(?token, from_address = ?address, qty, "Building ToB order override");
             approvals.entry(token).or_default().insert(address, qty);
             balances.entry(token).or_default().insert(address, qty);
         });
@@ -204,13 +236,16 @@ impl AngstromBundle {
             user_order.quantity_in,
             user_order.quantity_out
         );
+        // is bid = true, false
 
-        pool_updates.push(PoolUpdate {
-            zero_for_one:     false,
-            pair_index:       0,
-            swap_in_quantity: user_order.quantity_out,
-            rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
-        });
+        // works when false
+        // let zfo = !user_order.is_bid; // false works // true
+        // pool_updates.push(PoolUpdate {
+        //     zero_for_one:     user_order.is_bid,
+        //     pair_index:       0,
+        //     swap_in_quantity: user_order.quantity_out,
+        //     rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0
+        // } });
 
         // Get our list of user orders, if we have any
         top_of_block_orders.push(TopOfBlockOrder::of_max_gas(user_order, 0));
@@ -552,8 +587,15 @@ impl AngstromBundle {
                 tob.quantity_out
             );
             let contract_tob = if let Some(g) = shared_gas {
-                TopOfBlockOrder::of(tob, g, pair_idx as u16)?
+                let order = TopOfBlockOrder::of(tob, g, pair_idx as u16)?;
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::TopOfBlock,
+                    t0,
+                    order.gas_used_asset_0
+                );
+                order
             } else {
+                asset_builder.add_gas_fee(AssetBuilderStage::TopOfBlock, t0, tob.max_gas_asset0);
                 TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
             };
             top_of_block_orders.push(contract_tob);
@@ -607,8 +649,16 @@ impl AngstromBundle {
                 quantity_out.to()
             );
             let user_order = if let Some(g) = shared_gas {
-                UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
+                let order = UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?;
+                asset_builder.add_gas_fee(AssetBuilderStage::UserOrder, t0, order.extra_fee_asset0);
+
+                order
             } else {
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::UserOrder,
+                    t0,
+                    order.max_gas_token_0()
+                );
                 UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
             };
             user_orders.push(user_order);

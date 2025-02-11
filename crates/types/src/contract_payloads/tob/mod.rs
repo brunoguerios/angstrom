@@ -38,15 +38,18 @@ impl ToBOutcome {
         tob: &OrderWithStorageData<TopOfBlockOrder>,
         snapshot: &PoolSnapshot
     ) -> eyre::Result<Self> {
+        // if we are moving up then it is a bid, we want to move up
         let (pricevec, leftover) = if tob.is_bid {
             // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
-            let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
-            if tob.quantity_out > pricevec.d_t0 {
+            let pricevec = (snapshot.current_price() - Quantity::Token0(tob.quantity_out))?;
+
+            if tob.quantity_in < pricevec.d_t1 {
                 return Err(eyre!("Not enough output to cover the transaction"));
             }
-            let leftover = tob.quantity_out - pricevec.d_t0;
+            tracing::info!(?tob.quantity_out, ?tob.quantity_in, ?pricevec.d_t0, ?pricevec.d_t1);
+            let leftover = tob.quantity_in - pricevec.d_t1;
             (pricevec, leftover)
         } else {
             // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
@@ -63,15 +66,18 @@ impl ToBOutcome {
         println!("Number of swaps in pricevec: {}", pricevec.steps.as_ref().unwrap().len());
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
         let donation = pricevec.donation(leftover);
+        let end_tick = pricevec.end_bound.tick;
+
         let rewards = Self {
-            start_tick:      snapshot.current_price().tick(),
-            end_tick:        pricevec.end_bound.tick,
+            start_tick: snapshot.current_price().tick(),
+            end_tick,
             start_liquidity: snapshot.current_price().liquidity(),
-            tribute:         U256::from(donation.tribute),
-            total_cost:      U256::from(pricevec.input()),
-            total_reward:    U256::from(donation.total_donated),
-            tick_donations:  donation.tick_donations
+            tribute: U256::from(donation.tribute),
+            total_cost: U256::from(pricevec.input()),
+            total_reward: U256::from(donation.total_donated),
+            tick_donations: donation.tick_donations
         };
+
         Ok(rewards)
     }
 
@@ -97,6 +103,8 @@ impl ToBOutcome {
         // tick
         if from_above {
             quantities.reverse();
+        } else {
+            quantities.insert(0, 0);
         }
 
         // Our start tick is either the outermost tick if above, or one more than the
@@ -108,7 +116,6 @@ impl ToBOutcome {
             .get_range_for_tick(range_tick)
             .map(|r| r.liquidity())
             .unwrap_or_default();
-
         tracing::trace!(
             start_tick,
             start_liquidity,

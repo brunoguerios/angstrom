@@ -6,7 +6,8 @@ use alloy::primitives::Address;
 pub struct BorrowStateTracker {
     pub take:            u128,
     pub contract_liquid: u128,
-    pub settle:          u128
+    pub settle:          u128,
+    pub save:            u128
 }
 
 impl BorrowStateTracker {
@@ -47,15 +48,22 @@ impl BorrowStateTracker {
         self.settle += q;
     }
 
+    pub fn add_gas_fee(&mut self, q: u128) {
+        self.save += q;
+    }
+
     pub fn and_then(&self, other: &Self) -> Self {
         let borrow_needed = self.take + (other.take.saturating_sub(self.contract_liquid));
         let amount_onhand =
             (self.contract_liquid.saturating_sub(other.take)) + other.contract_liquid;
         let amount_owed = self.settle + (other.settle.saturating_sub(self.contract_liquid));
+        let amount_save = self.save + other.save;
+
         Self {
             take:            borrow_needed,
             contract_liquid: amount_onhand,
-            settle:          amount_owed
+            settle:          amount_owed,
+            save:            amount_save
         }
     }
 }
@@ -72,6 +80,10 @@ impl StageTracker {
 
     pub fn get_asset(&self, asset: &Address) -> Option<&BorrowStateTracker> {
         self.map.get(asset)
+    }
+
+    pub fn add_gas_fee(&mut self, asset: Address, qty: u128) {
+        self.get_state(asset).add_gas_fee(qty);
     }
 
     #[inline]

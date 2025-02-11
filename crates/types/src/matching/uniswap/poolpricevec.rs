@@ -498,6 +498,7 @@ impl<'a> PoolPriceVec<'a> {
             })
             .collect();
         let tribute = total_donation.saturating_sub(total_donated);
+
         DonationResult {
             tick_donations,
             final_price: self.end_bound.as_sqrtpricex96(),

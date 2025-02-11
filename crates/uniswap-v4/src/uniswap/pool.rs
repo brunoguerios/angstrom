@@ -147,6 +147,16 @@ where
         Ok(())
     }
 
+    pub async fn update_to_block<P: Provider<T>, T: Transport + Clone>(
+        &mut self,
+        block_number: Option<BlockNumber>,
+        provider: Arc<P>
+    ) -> Result<(), PoolError> {
+        self.populate_data(block_number, provider.clone()).await?;
+        self.sync_ticks(block_number, provider.clone()).await?;
+        Ok(())
+    }
+
     pub fn set_sim_swap_sync(&mut self, sync_swap_with_sim: bool) {
         self.sync_swap_with_sim = sync_swap_with_sim;
     }
@@ -287,7 +297,7 @@ where
             Ordering::Equal => 1.0001_f64.powi(tick)
         };
 
-        1.0 / price
+        price
     }
 
     pub fn calculate_price(&self) -> f64 {
@@ -299,7 +309,7 @@ where
             Ordering::Equal => 1.0001_f64.powi(tick)
         };
 
-        1.0 / price
+        price
     }
 
     /// Obvious doc: Sims the swap to get the state changes after applying it

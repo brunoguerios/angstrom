@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use alloy::primitives::{Address, B256, U256};
 use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -32,7 +34,7 @@ pub struct TopOfBlockOrder {
 
 impl TopOfBlockOrder {
     // eip-712 hash_struct. is a pain since we need to reconstruct values.
-    pub fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
+    fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
         let pair = &pair[self.pairs_index as usize];
         RpcTopOfBlockOrder {
             quantity_in:     self.quantity_in,
@@ -68,6 +70,7 @@ impl TopOfBlockOrder {
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
         pairs_index: u16
     ) -> Self {
+        assert!(internal.is_valid_signature());
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
         let recipient = Some(internal.recipient);
@@ -79,7 +82,7 @@ impl TopOfBlockOrder {
                 .unwrap();
         let signature = Signature::from(decoded_signature);
         Self {
-            use_internal: false,
+            use_internal: internal.use_internal,
             quantity_in,
             quantity_out,
             max_gas_asset_0: internal.max_gas_asset0,
@@ -114,7 +117,7 @@ impl TopOfBlockOrder {
         }
 
         Ok(Self {
-            use_internal: false,
+            use_internal: internal.use_internal,
             quantity_in,
             quantity_out,
             max_gas_asset_0: internal.max_gas_asset0,

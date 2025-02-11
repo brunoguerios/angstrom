@@ -389,10 +389,10 @@ impl RawPoolOrder for StandingVariants {
         }
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         match self {
-            StandingVariants::Exact(e) => e.amount_in(),
-            StandingVariants::Partial(p) => p.amount_in()
+            StandingVariants::Exact(e) => e.amount(),
+            StandingVariants::Partial(p) => p.amount()
         }
     }
 
@@ -483,10 +483,10 @@ impl RawPoolOrder for FlashVariants {
         }
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         match self {
-            FlashVariants::Exact(e) => e.amount_in(),
-            FlashVariants::Partial(p) => p.amount_in()
+            FlashVariants::Exact(e) => e.amount(),
+            FlashVariants::Partial(p) => p.amount()
         }
     }
 
@@ -675,12 +675,12 @@ impl RawPoolOrder for TopOfBlockOrder {
         None
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         self.quantity_in
     }
 
     fn limit_price(&self) -> U256 {
-        *Ray::scale_to_ray(U256::from(self.amount_in() / self.quantity_out))
+        *Ray::scale_to_ray(U256::from(self.amount() / self.quantity_out))
     }
 
     fn token_in(&self) -> Address {
@@ -749,7 +749,7 @@ impl RawPoolOrder for PartialStandingOrder {
         self.min_price
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         self.max_amount_in
     }
 
@@ -822,7 +822,7 @@ impl RawPoolOrder for ExactStandingOrder {
         self.min_price
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         self.amount
     }
 
@@ -899,7 +899,7 @@ impl RawPoolOrder for PartialFlashOrder {
         None
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         self.max_amount_in
     }
 
@@ -980,7 +980,7 @@ impl RawPoolOrder for ExactFlashOrder {
         None
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         self.amount
     }
 
@@ -1065,11 +1065,11 @@ impl RawPoolOrder for AllOrders {
         }
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         match self {
-            AllOrders::Standing(p) => p.amount_in(),
-            AllOrders::Flash(kof) => kof.amount_in(),
-            AllOrders::TOB(tob) => tob.amount_in()
+            AllOrders::Standing(p) => p.amount(),
+            AllOrders::Flash(kof) => kof.amount(),
+            AllOrders::TOB(tob) => tob.amount()
         }
     }
 
@@ -1201,10 +1201,10 @@ impl RawPoolOrder for GroupedVanillaOrder {
         }
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         match self {
-            GroupedVanillaOrder::Standing(p) => p.amount_in(),
-            GroupedVanillaOrder::KillOrFill(kof) => kof.amount_in()
+            GroupedVanillaOrder::Standing(p) => p.amount(),
+            GroupedVanillaOrder::KillOrFill(kof) => kof.amount()
         }
     }
 
@@ -1301,10 +1301,10 @@ impl RawPoolOrder for GroupedComposableOrder {
         }
     }
 
-    fn amount_in(&self) -> u128 {
+    fn amount(&self) -> u128 {
         match self {
-            GroupedComposableOrder::Partial(p) => p.amount_in(),
-            GroupedComposableOrder::KillOrFill(kof) => kof.amount_in()
+            GroupedComposableOrder::Partial(p) => p.amount(),
+            GroupedComposableOrder::KillOrFill(kof) => kof.amount()
         }
     }
 
