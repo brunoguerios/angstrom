@@ -44,7 +44,7 @@ impl ToBOutcome {
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
             let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
-            if tob.quantity_out > pricevec.d_t0 {
+            if tob.quantity_out < pricevec.d_t0 {
                 return Err(eyre!("Not enough output to cover the transaction"));
             }
             tracing::info!(?tob.quantity_out, ?tob.quantity_in, ?pricevec.d_t0, ?pricevec.d_t1);
