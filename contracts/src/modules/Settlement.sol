@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {UniConsumer} from "./UniConsumer.sol";
+import {console} from "forge-std/console.sol";
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 import {DeltaTracker} from "../types/DeltaTracker.sol";
 import {AssetArray, Asset, FEE_SUMMARY_ENTRY_SIZE} from "../types/Asset.sol";
@@ -17,7 +19,8 @@ abstract contract Settlement is UniConsumer {
 
     DeltaTracker internal bundleDeltas;
 
-    mapping(address asset => mapping(address owner => uint256 balance)) internal _balances;
+    mapping(address asset => mapping(address owner => uint256 balance))
+        internal _balances;
 
     /// @notice Pulls tokens from the caller and credits them to the caller for trading.
     /// @dev WARN: Assumes `asset` charges 0 fees upon transfers and is not rebasing.
@@ -66,7 +69,10 @@ abstract contract Settlement is UniConsumer {
         uint256 raw_feeSummaryStartPtr;
         assembly ("memory-safe") {
             raw_feeSummaryStartPtr := mload(0x40)
-            mstore(0x40, add(raw_feeSummaryStartPtr, mul(length, FEE_SUMMARY_ENTRY_SIZE)))
+            mstore(
+                0x40,
+                add(raw_feeSummaryStartPtr, mul(length, FEE_SUMMARY_ENTRY_SIZE))
+            )
         }
         uint256 raw_feeSummaryPtr = raw_feeSummaryStartPtr;
 
@@ -94,14 +100,28 @@ abstract contract Settlement is UniConsumer {
 
         // Hash buffer and emit unique log.
         assembly ("memory-safe") {
-            mstore(0x00, keccak256(raw_feeSummaryStartPtr, mul(length, FEE_SUMMARY_ENTRY_SIZE)))
+            mstore(
+                0x00,
+                keccak256(
+                    raw_feeSummaryStartPtr,
+                    mul(length, FEE_SUMMARY_ENTRY_SIZE)
+                )
+            )
             log0(0x00, 0x20)
         }
     }
 
-    function _settleOrderIn(address from, address asset, AmountIn amountIn, bool useInternal)
-        internal
-    {
+    function _settleOrderIn(
+        address from,
+        address asset,
+        AmountIn amountIn,
+        bool useInternal
+    ) internal {
+        IERC20 call = IERC20(asset);
+        uint allowance = call.allowance(from, address(this));
+        uint balance = call.balanceOf(from);
+        console.log("allowance + balance", allowance, balance);
+
         uint256 amount = amountIn.into();
         bundleDeltas.add(asset, amount);
         if (useInternal) {
@@ -111,9 +131,12 @@ abstract contract Settlement is UniConsumer {
         }
     }
 
-    function _settleOrderOut(address to, address asset, AmountOut amountOut, bool useInternal)
-        internal
-    {
+    function _settleOrderOut(
+        address to,
+        address asset,
+        AmountOut amountOut,
+        bool useInternal
+    ) internal {
         uint256 amount = amountOut.into();
         bundleDeltas.sub(asset, amount);
         if (useInternal) {
