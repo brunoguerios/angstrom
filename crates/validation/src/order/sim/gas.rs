@@ -288,7 +288,7 @@ where
             overrides.amount_out,
             overrides.user_address,
             self.angstrom_address
-        );
+        )?;
 
         {
             let mut evm = revm::Evm::builder()
@@ -332,12 +332,13 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     amount_out: U256,
     user: Address,
     angstrom: Address
-) where
+) -> eyre::Result<()>
+where
     <DB as revm::DatabaseRef>::Error: Debug
 {
-    let balance_slot_in = find_slot_offset_for_balance(&db, token_in);
-    let balance_slot_out = find_slot_offset_for_balance(&db, token_out);
-    let approval_slot_in = find_slot_offset_for_approval(&db, token_in);
+    let balance_slot_in = find_slot_offset_for_balance(&db, token_in)?;
+    let balance_slot_out = find_slot_offset_for_balance(&db, token_out)?;
+    let approval_slot_in = find_slot_offset_for_approval(&db, token_in)?;
 
     // first thing we will do is setup the users token_in balance.
     let user_balance_slot = keccak256((user, balance_slot_in).abi_encode());
@@ -363,7 +364,9 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
         .unwrap();
 
     // verify that everything is setup as we want
-    verify_overrides(db, token_in, token_out, amount_in, amount_out, user, angstrom);
+    verify_overrides(db, token_in, token_out, amount_in, amount_out, user, angstrom)?;
+
+    Ok(())
 }
 
 fn verify_overrides<DB: revm::DatabaseRef + Clone>(
@@ -374,7 +377,8 @@ fn verify_overrides<DB: revm::DatabaseRef + Clone>(
     amount_out: U256,
     user: Address,
     angstrom: Address
-) where
+) -> eyre::Result<()>
+where
     <DB as revm::DatabaseRef>::Error: Debug
 {
     let evm_handler = EnvWithHandlerCfg::default();
@@ -442,8 +446,10 @@ fn verify_overrides<DB: revm::DatabaseRef + Clone>(
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
     if return_data.result != U256::from(2) * amount_in {
-        panic!("angstrom doesn't have proper allowance");
+        eyre::bail!("angstrom doesn't have proper allowance")
     }
+
+    Ok(())
 }
 
 struct ConfiguredRevm<DB> {
