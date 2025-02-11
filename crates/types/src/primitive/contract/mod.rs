@@ -66,3 +66,45 @@ impl From<Vec<PoolKey>> for UniswapPoolRegistry {
         Self { pools: pubmap, conversion_map: priv_map }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use alloy::signers::{local::LocalSigner, SignerSync};
+    use alloy_primitives::{address, bytes, Bytes, PrimitiveSignature, U256};
+    use pade::{PadeDecode, PadeEncode};
+
+    use super::*;
+    use crate::sol_bindings::rpc_orders::{ExactFlashOrder, OmitOrderMeta};
+
+    #[test]
+    fn test_this() {
+        let private_key = "7bbd27422e113bc608150c92768febbf9c4d6e6cea369e121f459cb2e3a07c08";
+        let signer = LocalSigner::from_str(private_key).unwrap();
+
+        let order = ExactFlashOrder {
+            ref_id:               0,
+            exact_in:             true,
+            amount:               1000000000000000000,
+            max_extra_fee_asset0: 1000000000000000000,
+            min_price:            U256::from(36481077109493002240u128),
+            use_internal:         false,
+            asset_in:             address!("0x3d85e7b30be9fd7a4bad709d6ed2d130579f9a2e"),
+            asset_out:            address!("0xd550015f84142abecd5e82c8f296083df3c9a80d"),
+            recipient:            address!("0xa7f1aeb6e43443c683865fdb9e15dd01386c955b"),
+            hook_data:            Default::default(),
+            valid_for_block:      21787256,
+            meta:                 Default::default()
+        };
+
+        let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let sig: Bytes = signer.sign_hash_sync(&hash).unwrap().pade_encode().into();
+        println!("{sig:?}\n");
+
+        let decoded_sig: Bytes = PrimitiveSignature::pade_decode(&mut &**bytes!("0x01d960219e5211b30a82004ae8405e1f9e3e9e981a4de77a7ffc4e58830efe4dcb6bae0c7f0c005e6e1193b0086bae6d5729a2d4c9db2ab926df912076a6db717f"), None).unwrap().pade_encode().into();
+        println!("{decoded_sig:?}");
+
+        assert_eq!(decoded_sig, sig);
+    }
+}
