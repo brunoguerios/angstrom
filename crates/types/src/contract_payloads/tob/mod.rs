@@ -48,6 +48,7 @@ impl ToBOutcome {
             if tob.quantity_in < pricevec.d_t0 {
                 return Err(eyre!("Not enough output to cover the transaction"));
             }
+            tracing::info!(?tob.quantity_out, ?tob.quantity_in, ?pricevec.d_t0, ?pricevec.d_t1);
             let leftover = tob.quantity_in - pricevec.d_t0;
             (pricevec, leftover)
         } else {
