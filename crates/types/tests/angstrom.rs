@@ -8,7 +8,7 @@ use angstrom_types::{
     orders::PoolSolution
 };
 use base64::Engine;
-use solutionlib::TICK_SPACING;
+use solutionlib::{FROM_ABOVE, TICK_SPACING};
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
@@ -23,9 +23,7 @@ pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
 #[test]
 fn build_bundle() {
     with_tracing(|| {
-        let bytes = base64::prelude::BASE64_STANDARD
-            .decode(TICK_SPACING)
-            .unwrap();
+        let bytes = base64::prelude::BASE64_STANDARD.decode(FROM_ABOVE).unwrap();
         let (solution, orders_by_pool, snapshot, t0, t1, store_index, shared_gas): (
             PoolSolution,
             _,

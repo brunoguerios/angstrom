@@ -109,7 +109,7 @@ impl ToBOutcome {
 
         let (start_tick, start_liquidity) = snapshot
             .get_range_for_tick(range_tick)
-            .map(|r| (r.upper_tick(), r.liquidity()))
+            .map(|r| (if from_above { r.lower_tick() } else { r.upper_tick() }, r.liquidity()))
             .unwrap_or_default();
 
         tracing::trace!(
@@ -133,6 +133,7 @@ impl ToBOutcome {
         }
     }
 
+    /// DEPRECATED - use Self::rewards_update_range instead
     pub fn to_rewards_update(&self) -> RewardsUpdate {
         let mut donations = self.tick_donations.iter().collect::<Vec<_>>();
         donations.sort_by(|a, b| a.0.cmp(b.0));
