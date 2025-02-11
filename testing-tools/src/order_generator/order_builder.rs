@@ -37,6 +37,7 @@ impl OrderBuilder {
         let token0 = pool.token0;
         let token1 = pool.token1;
         // if zfo, sqrtprice < pool price
+        // always zero for 1
         let t_in = if zfo { token0 } else { token1 };
         let amount_specified = if zfo { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
         // if zero for 1, sqrt lowever
@@ -45,6 +46,7 @@ impl OrderBuilder {
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
 
+        tracing::info!(?amount_in, ?amount_out, ?zfo);
         let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
         let mut rng = rand::thread_rng();
@@ -93,6 +95,8 @@ impl OrderBuilder {
         let (amount_in, amount_out) = pool
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
+
+        tracing::info!(?amount_in, ?amount_out, ?zfo);
 
         let amount_in = u128::try_from(amount_in.abs()).unwrap();
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
