@@ -103,18 +103,17 @@ impl OrderBuilder {
         let amount = if exact_in { amount_in } else { amount_out };
 
         let amount = (amount as f64 * modifier) as u128;
-        let direction: bool = rng.gen();
 
         // if the random direction changes the swap. inv the price
-        if direction == zfo {
-            unshifted_price.inv_ray_assign();
+        if !zfo {
+            unshifted_price.inv_ray_assign_round(true);
         }
 
         UserOrderBuilder::new()
             .signing_key(self.keys.get(rng.gen_range(0..10)).cloned())
             .is_exact(!is_partial)
-            .asset_in(if direction { token0 } else { token1 })
-            .asset_out(if !direction { token0 } else { token1 })
+            .asset_in(if zfo { token0 } else { token1 })
+            .asset_out(if !zfo { token0 } else { token1 })
             .is_standing(false)
             .exact_in(exact_in)
             .min_price(unshifted_price)

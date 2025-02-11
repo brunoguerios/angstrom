@@ -287,18 +287,11 @@ impl AngstromBundle {
 
             // hacky but works
             if pairs.is_empty() {
-                let limit_price = if user_order.is_bid {
-                    let a = Ray::scale_to_ray(user_order.limit_price()).inv_ray_round(true);
-                    a.scale_out_of_ray()
-                } else {
-                    user_order.limit_price()
-                };
-
                 let pair = Pair {
                     index0:       t0_idx,
                     index1:       t1_idx,
                     store_index:  0,
-                    price_1over0: limit_price
+                    price_1over0: user_order.limit_price()
                 };
                 pairs.push(pair);
             }
