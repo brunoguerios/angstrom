@@ -108,7 +108,9 @@ impl AngstromBundle {
                     // if bid, then we need to inv price
                     let total_conversion_needed =
                         order.order_quantities.fetch_max_amount() + order.extra_fee_asset0;
-                    price.quantity(total_conversion_needed, true)
+                    let q = price.quantity(total_conversion_needed, true);
+                    tracing::info!(?price, ?q, "{:#?}", order.signature);
+                    q
                 }
             };
             approvals
