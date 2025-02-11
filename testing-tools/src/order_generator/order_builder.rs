@@ -32,6 +32,7 @@ impl OrderBuilder {
         tracing::info!(?cur_price, ?float_price);
 
         let zfo = sqrt_price > price;
+        tracing::info!(?zfo, "generated tob order direction");
 
         let token0 = pool.token0;
         let token1 = pool.token1;
