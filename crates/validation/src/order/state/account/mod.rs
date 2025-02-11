@@ -3,7 +3,7 @@
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderId,
-    sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData}
+    sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData, Ray}
 };
 use thiserror::Error;
 use user::UserAccounts;
@@ -115,6 +115,7 @@ pub trait StorageWithData: RawPoolOrder {
         OrderWithStorageData {
             priority_data: angstrom_types::orders::OrderPriorityData {
                 price:     self.limit_price(),
+                // it is always t1. this is because we don't
                 volume:    self.amount(),
                 gas:       U256::ZERO,
                 gas_units: 0
