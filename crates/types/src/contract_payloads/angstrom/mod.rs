@@ -110,9 +110,18 @@ impl AngstromBundle {
                     order.order_quantities.fetch_max_amount() + order.extra_fee_asset0
                 }
             };
-
-            approvals.entry(token).or_default().insert(address, qty);
-            balances.entry(token).or_default().insert(address, qty);
+            approvals
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
+            balances
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| *q += qty)
+                .or_insert(qty);
         });
 
         // tob
