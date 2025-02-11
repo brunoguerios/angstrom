@@ -195,15 +195,15 @@ impl Stream for StreamBlockProvider {
     ) -> std::task::Poll<Option<Self::Item>> {
         let this = self.get_mut();
 
-        if let Poll::Ready(Some(header)) = this.header_stream.poll_next_unpin(cx) {
+        while let Poll::Ready(Some(header)) = this.header_stream.poll_next_unpin(cx) {
             this.new_block(header);
         }
 
         if let Poll::Ready(Some(val)) = this.futs.poll_next_unpin(cx) {
+            cx.waker().wake_by_ref();
             return Poll::Ready(Some(val))
         }
 
-        cx.waker().wake_by_ref();
         Poll::Pending
     }
 }
