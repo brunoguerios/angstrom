@@ -18,11 +18,11 @@ impl BorrowStateTracker {
     /// Attempt to use tokens from contract liquidity.  If we don't have enough
     /// tokens there, add the difference to our Uniswap take/settle
     pub fn allocate(&mut self, q: u128) {
-        if q > self.contract_liquid {
-            let needed_borrow = q - self.contract_liquid;
-            self.loan(needed_borrow);
-        }
-        self.contract_liquid = self.contract_liquid.saturating_sub(q);
+        // if q > self.contract_liquid {
+        //     let needed_borrow = q - self.contract_liquid;
+        self.loan(q);
+        // }
+        // self.contract_liquid = self.contract_liquid.saturating_sub(q);
     }
 
     /// Add to what we owe to Uniswap, as a result of a pool swap
@@ -34,12 +34,12 @@ impl BorrowStateTracker {
     /// result of a pool swap
     pub fn take(&mut self, q: u128) {
         self.take += q;
-        self.contract_liquid += q;
+        // self.contract_liquid += q;
     }
 
     /// Gain external tokens into our contract liquidity
     pub fn recieve(&mut self, q: u128) {
-        self.contract_liquid += q;
+        // self.contract_liquid += q;
     }
 
     /// Take a loan from Uniswap (adds to `take` and `settle`)
@@ -53,10 +53,12 @@ impl BorrowStateTracker {
     }
 
     pub fn and_then(&self, other: &Self) -> Self {
+        // undo any loans that we can for the next contract.
         let borrow_needed = self.take + (other.take.saturating_sub(self.contract_liquid));
+        let amount_owed = self.settle + (other.settle.saturating_sub(self.contract_liquid));
         let amount_onhand =
             (self.contract_liquid.saturating_sub(other.take)) + other.contract_liquid;
-        let amount_owed = self.settle + (other.settle.saturating_sub(self.contract_liquid));
+
         let amount_save = self.save + other.save;
 
         Self {
