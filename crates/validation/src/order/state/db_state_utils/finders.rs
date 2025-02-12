@@ -58,7 +58,7 @@ where
             .unwrap()
             .to_vec();
         let return_data = balanceOfCall::abi_decode_returns(&output, false)?;
-        if return_data.result == U256::from(123456789) {
+        if return_data._0 == U256::from(123456789) {
             return Ok(offset as u64)
         }
     }
@@ -116,7 +116,7 @@ where
             .unwrap()
             .to_vec();
         let return_data = allowanceCall::abi_decode_returns(&output, false)?;
-        if return_data.result == U256::from(123456789) {
+        if return_data._0 == U256::from(123456789) {
             return Ok(offset as u64)
         }
     }

@@ -136,7 +136,11 @@ impl Erc20ToDeploy {
             .await?;
         *nonce += 1;
 
-        tracing::debug!("deployed token '{}' at '{token_address:?}'", self.symbol);
+        tracing::debug!(
+            "deployed token '{}' ('{}') at '{token_address:?}'",
+            self.name,
+            self.symbol
+        );
 
         // if let Some(overwrite_addr) = self.overwrite_token {
         //     provider.override_address(&mut token_address, overwrite_addr).await?;

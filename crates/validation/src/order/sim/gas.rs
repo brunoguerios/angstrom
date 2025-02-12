@@ -401,7 +401,7 @@ where
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
-    if return_data.result != U256::from(2) * amount_in {
+    if return_data._0 != U256::from(2) * amount_in {
         panic!("failed to set user balance");
     }
 
@@ -423,7 +423,7 @@ where
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
-    if return_data.result != (amount_out * U256::from(2)) {
+    if return_data._0 != (amount_out * U256::from(2)) {
         panic!("failed to set angstrom balance");
     }
 
@@ -445,7 +445,7 @@ where
 
     let output = evm.transact().unwrap().result.output().unwrap().to_vec();
     let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
-    if return_data.result != U256::from(2) * amount_in {
+    if return_data._0 != U256::from(2) * amount_in {
         eyre::bail!("angstrom doesn't have proper allowance")
     }
 
