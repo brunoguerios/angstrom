@@ -429,10 +429,8 @@ impl<'a> PoolPriceVec<'a> {
         for step in steps_iter {
             // If our current blob is empty, we can just insert the current step's stats
             // into it
-            let Some((c_t0, c_t1)) = current_blob.as_mut() else {
-                current_blob = Some((step.d_t0, step.d_t1));
-                continue;
-            };
+
+            let (c_t0, c_t1) = current_blob.get_or_insert((0, 0));
 
             // Find the average price of our current step and get our existing blob to
             // that price
