@@ -11,6 +11,7 @@ pub enum AssetBuilderStage {
     UserOrder
 }
 
+#[derive(Debug)]
 pub struct AssetBuilder {
     swaps:        StageTracker,
     rewards:      StageTracker,
