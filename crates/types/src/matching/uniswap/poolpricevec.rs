@@ -421,11 +421,6 @@ impl<'a> PoolPriceVec<'a> {
                 tribute:        total_donation
             };
         };
-        // let steps = if is_bid {
-        //     steps.into_iter().rev().collect::<Vec<_>>()
-        // } else {
-        //     steps.into_iter().collect::<Vec<_>>()
-        // };
 
         let mut remaining_donation = total_donation;
         let price_dropping = self.start_bound.price > self.end_bound.price;
