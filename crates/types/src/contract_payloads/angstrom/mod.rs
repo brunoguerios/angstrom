@@ -521,7 +521,7 @@ impl AngstromBundle {
                 // Make sure the input for our swap is precisely what's used in the swap portion
                 let input = outcome
                     .as_ref()
-                    .map(|o| o.total_cost.clone().saturating_to())
+                    .map(|o| o.total_cost)
                     .unwrap_or(tob.quantity_in);
                 let (in_idx, out_idx) =
                     if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
@@ -567,7 +567,7 @@ impl AngstromBundle {
             quantity_out
         );
         // Account for our reward
-        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward.to());
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward);
         let rewards_update = tob_outcome.rewards_update_range(
             tob_outcome.start_tick,
             tob_outcome.end_tick,

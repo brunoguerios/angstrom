@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::primitives::{aliases::I24, U256};
+use alloy::primitives::aliases::I24;
 use eyre::eyre;
 use itertools::Itertools;
 
@@ -10,27 +10,27 @@ use crate::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct ToBOutcome {
     pub start_tick:      i32,
     pub end_tick:        i32,
     pub start_liquidity: u128,
-    pub tribute:         U256,
-    pub total_cost:      U256,
-    pub total_reward:    U256,
-    pub tick_donations:  HashMap<Tick, U256>
+    pub tribute:         u128,
+    pub total_cost:      u128,
+    pub total_reward:    u128,
+    pub tick_donations:  HashMap<Tick, u128>
 }
 
 impl ToBOutcome {
     /// Sum of the donations across all ticks
-    pub fn total_donations(&self) -> U256 {
+    pub fn total_donations(&self) -> u128 {
         self.tick_donations
             .iter()
-            .fold(U256::ZERO, |acc, (_tick, donation)| acc + donation)
+            .fold(0, |acc, (_tick, donation)| acc + donation)
     }
 
     /// Tick donations plus tribute to determine total value of this outcome
-    pub fn total_value(&self) -> U256 {
+    pub fn total_value(&self) -> u128 {
         self.total_donations() + self.tribute
     }
 
@@ -72,9 +72,9 @@ impl ToBOutcome {
             start_tick: snapshot.current_price().tick(),
             end_tick,
             start_liquidity: snapshot.current_price().liquidity(),
-            tribute: U256::from(donation.tribute),
-            total_cost: U256::from(pricevec.input()),
-            total_reward: U256::from(donation.total_donated),
+            tribute: donation.tribute,
+            total_cost: pricevec.input(),
+            total_reward: donation.total_donated,
             tick_donations: donation.tick_donations
         };
 
@@ -96,7 +96,7 @@ impl ToBOutcome {
             .filter(|t| t.0 >= low && t.0 <= high)
             // Sorts from the lowest tick to the highest tick
             .sorted_by_key(|f| f.0)
-            .map(|f| f.1.saturating_to())
+            .map(|f| *f.1)
             .collect::<Vec<_>>();
 
         // If we're coming from above we have to reverse, we want highest tick to lowest
@@ -146,10 +146,7 @@ impl ToBOutcome {
             // number)
             donations.sort_by_key(|f| std::cmp::Reverse(f.0));
         }
-        let quantities = donations
-            .iter()
-            .map(|d| d.1.saturating_to())
-            .collect::<Vec<_>>();
+        let quantities = donations.iter().map(|d| *d.1).collect::<Vec<_>>();
         tracing::trace!(donations = ?donations, len = donations.len(), "Donations dump");
         tracing::trace!(self.end_tick, "end tick");
         let start_tick = I24::try_from(self.start_tick).unwrap_or_default();
@@ -193,11 +190,7 @@ mod test {
             SqrtPriceX96::at_tick(100).unwrap()
         )
         .unwrap();
-        let donations = HashMap::from([
-            (100, U256::from(123_u128)),
-            (110, U256::from(456_u128)),
-            (120, U256::from(789_u128))
-        ]);
+        let donations = HashMap::from([(100, 123_u128), (110, 456_u128), (120, 789_u128)]);
 
         // Upwards update order checking
         let upwards_update = ToBOutcome {

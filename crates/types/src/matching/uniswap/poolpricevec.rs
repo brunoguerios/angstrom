@@ -191,7 +191,7 @@ impl<'a> SwapStep<'a> {
 
 #[derive(Debug)]
 pub struct DonationResult {
-    pub tick_donations: HashMap<Tick, U256>,
+    pub tick_donations: HashMap<Tick, u128>,
     pub final_price:    SqrtPriceX96,
     pub total_donated:  u128,
     pub tribute:        u128
@@ -481,7 +481,7 @@ impl<'a> PoolPriceVec<'a> {
         // We've now found our filled price, we can allocate our reward to each tick
         // based on how much it costs to bring them up to that price.
         let mut total_donated = 0_u128;
-        let tick_donations: HashMap<Tick, U256> = steps
+        let tick_donations: HashMap<Tick, u128> = steps
             .iter()
             .map(|step| {
                 let reward = if let Some(f) = filled_price {
@@ -494,7 +494,7 @@ impl<'a> PoolPriceVec<'a> {
                 total_donated += reward;
                 // We always donate to the lower tick of our liquidity range as that is the
                 // appropriate initialized tick to target
-                (step.liq_range.lower_tick(), U256::from(reward))
+                (step.liq_range.lower_tick(), reward)
             })
             .collect();
         let tribute = total_donation.saturating_sub(total_donated);

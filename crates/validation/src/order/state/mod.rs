@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use account::UserAccountProcessor;
-use alloy::primitives::{Address, B256};
+use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
     ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
@@ -116,7 +116,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 .await
                 .unwrap();
 
-            order_with_storage.tob_reward = rewards.total_reward;
+            order_with_storage.tob_reward = U256::from(rewards.total_reward);
         }
 
         results
