@@ -521,6 +521,8 @@ impl AngstromBundle {
                     shared_gas.map(|t| t.to::<u128>())
                 )
                 .ok();
+                tracing::info!(?outcome);
+
                 // Make sure the input for our swap is precisely what's used in the swap portion
                 let input = outcome
                     .as_ref()
