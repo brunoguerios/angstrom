@@ -449,7 +449,7 @@ impl<'a> PoolPriceVec<'a> {
             let step_complete = remaining_donation >= step_cost;
             let increment = std::cmp::min(remaining_donation, step_cost);
             *c_t0 += increment;
-            remaining_donation -= increment;
+            remaining_donation = remaining_donation.saturating_sub(increment);
 
             if step_complete {
                 // If we had enough reward to complete this step, we continue and merge this
