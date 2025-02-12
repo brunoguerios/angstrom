@@ -487,8 +487,8 @@ impl AngstromBundle {
         pool_updates: &mut Vec<PoolUpdate>,
         solution: &PoolSolution,
         snapshot: &PoolSnapshot,
-        t0: Address,
-        t1: Address,
+        mut t0: Address,
+        mut t1: Address,
         store_index: u16,
         shared_gas: Option<U256>
     ) -> eyre::Result<()> {
@@ -506,7 +506,13 @@ impl AngstromBundle {
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw solution data");
 
+        // sort
+        if t1 < t0 {
+            std::mem::swap(&mut t1, &mut t0)
+        };
+
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
+
         // if its a bid, its fucked.
 
         // Make sure the involved assets are in our assets array and we have the
