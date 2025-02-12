@@ -507,6 +507,7 @@ impl AngstromBundle {
         trace!(data = b64_output, "Raw solution data");
 
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
+        // if its a bid, its fucked.
 
         // Make sure the involved assets are in our assets array and we have the
         // appropriate asset index for them
@@ -542,6 +543,7 @@ impl AngstromBundle {
                     .as_ref()
                     .map(|o| o.total_cost.clone().saturating_to())
                     .unwrap_or(tob.quantity_in);
+
                 let (in_idx, out_idx) =
                     if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
                 let swap = (in_idx, out_idx, input, tob.quantity_out);
@@ -612,12 +614,10 @@ impl AngstromBundle {
         // between two ToB order formats
         if let Some(tob) = solution.searcher.as_ref() {
             // Account for our ToB order
-            let (asset_in, asset_out) = if tob.is_bid { (t1, t0) } else { (t0, t1) };
-
             asset_builder.external_swap(
                 AssetBuilderStage::TopOfBlock,
-                asset_in,
-                asset_out,
+                tob.asset_in,
+                tob.asset_out,
                 tob.quantity_in,
                 tob.quantity_out
             );
@@ -675,11 +675,10 @@ impl AngstromBundle {
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
-            let (asset_in, asset_out) = if order.is_bid { (t1, t0) } else { (t0, t1) };
             asset_builder.external_swap(
                 AssetBuilderStage::UserOrder,
-                asset_in,
-                asset_out,
+                order.token_in(),
+                order.token_out(),
                 quantity_in.to(),
                 quantity_out.to()
             );
