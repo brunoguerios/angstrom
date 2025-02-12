@@ -421,6 +421,7 @@ impl<'a> PoolPriceVec<'a> {
                 tribute:        total_donation
             };
         };
+        tracing::info!(?steps);
 
         let mut remaining_donation = total_donation;
         let price_dropping = self.start_bound.price > self.end_bound.price;
