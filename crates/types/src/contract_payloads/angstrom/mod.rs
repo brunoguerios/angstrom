@@ -74,39 +74,33 @@ impl AngstromBundle {
             };
 
             // need to recover sender from signature
-            // We use block_number + 1 here because the order was submitted for the next
-            // block
             let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
-            // we are ask
-            let qty = if order.zero_for_one {
-                if order.exact_in {
-                    // zero for 1 and exact in
-                    order.order_quantities.fetch_max_amount()
-                } else {
-                    // zero for 1 and exact out
-                    let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+            // Grab the price because we need it most of the time
+            let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+            let qty = match (order.zero_for_one, order.exact_in) {
+                // Zero for one, exact in -> quantity on the order (t0).  Extra fee is deducted from
+                // this
+                (true, true) => order.order_quantities.fetch_max_amount(),
+                // Zero for one, exact out -> quantity needed to produce output amount (t0) + extra
+                // fee (t0)
+                (true, false) => {
                     price.inverse_quantity(order.order_quantities.fetch_max_amount(), true)
                         + order.extra_fee_asset0
                 }
-            } else {
-                // one for zero and exact in
-                if order.exact_in {
-                    order.order_quantities.fetch_max_amount()
-                } else {
-                    // one for zero and specified amount in zero
-                    // zero for 1 and exact out
-                    let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
-
-                    // if bid, then we need to inv price
-                    let total_conversion_needed =
-                        order.order_quantities.fetch_max_amount() + order.extra_fee_asset0;
-                    let q = price.quantity(total_conversion_needed, true);
-                    tracing::info!(?price, ?q, "{:#?}", order.signature);
-                    q
-                }
+                // One for zero, exact in -> quantity on the order (t1) and fee is taken from the
+                // ouptut
+                (false, true) => order.order_quantities.fetch_max_amount(),
+                // One for zero, exact out -> quantity needed to produce the output amount + fee
+                // (t1)
+                (false, false) => price.quantity(
+                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0,
+                    true
+                )
             };
+
+            tracing::info!(?token, from_address = ?address, qty, "Building user order override");
             approvals
                 .entry(token)
                 .or_default()
@@ -135,8 +129,6 @@ impl AngstromBundle {
             };
 
             // need to recover sender from signature
-            // We use block_number + 1 here because the order was submitted for the next
-            // block
             let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
@@ -526,9 +518,8 @@ impl AngstromBundle {
                 // Make sure the input for our swap is precisely what's used in the swap portion
                 let (input, output) = outcome
                     .as_ref()
-                    .map(|o| (o.total_cost.to(), o.total_swap_output))
+                    .map(|o| (o.total_cost, o.total_swap_output))
                     .unwrap_or((tob.quantity_in, tob.quantity_out));
-
                 let (in_idx, out_idx) =
                     if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
                 let swap = (in_idx, out_idx, input, output);
@@ -573,7 +564,7 @@ impl AngstromBundle {
             quantity_out
         );
         // Account for our reward
-        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward.to());
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward);
         let rewards_update = tob_outcome.rewards_update_range(
             tob_outcome.start_tick,
             tob_outcome.end_tick,
@@ -642,6 +633,7 @@ impl AngstromBundle {
             .zip(order_list.iter())
             .filter(|(outcome, _)| outcome.is_filled())
         {
+            trace!(user_order = ?order, "Mapping User Order");
             // Calculate our final amounts based on whether the order is in T0 or T1 context
             let inverse_order = order.is_bid() == order.exact_in();
             assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");

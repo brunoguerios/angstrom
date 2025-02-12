@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::primitives::{aliases::I24, U256};
+use alloy::primitives::aliases::I24;
 use eyre::eyre;
 use itertools::Itertools;
 
@@ -10,28 +10,29 @@ use crate::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct ToBOutcome {
-    pub start_tick:        i32,
-    pub end_tick:          i32,
-    pub start_liquidity:   u128,
-    pub tribute:           U256,
-    pub total_cost:        U256,
-    pub total_reward:      U256,
-    pub total_swap_output: u128,
-    pub tick_donations:    HashMap<Tick, U256>
+    pub start_tick:             i32,
+    pub end_tick:               i32,
+    pub start_liquidity:        u128,
+    pub tribute:                u128,
+    pub total_cost:             u128,
+    pub total_allocated_output: u128,
+    pub total_swap_output:      u128,
+    pub total_reward:           u128,
+    pub tick_donations:         HashMap<Tick, u128>
 }
 
 impl ToBOutcome {
     /// Sum of the donations across all ticks
-    pub fn total_donations(&self) -> U256 {
+    pub fn total_donations(&self) -> u128 {
         self.tick_donations
             .iter()
-            .fold(U256::ZERO, |acc, (_tick, donation)| acc + donation)
+            .fold(0, |acc, (_tick, donation)| acc + donation)
     }
 
     /// Tick donations plus tribute to determine total value of this outcome
-    pub fn total_value(&self) -> U256 {
+    pub fn total_value(&self) -> u128 {
         self.total_donations() + self.tribute
     }
 
@@ -40,8 +41,9 @@ impl ToBOutcome {
         snapshot: &PoolSnapshot,
         gas_used: Option<u128>
     ) -> eyre::Result<Self> {
-        // if we are moving up then it is a bid, we want to move up
-        let (pricevec, leftover) = if tob.is_bid {
+        // First let's simulate the actual ToB swap and use that to determine what our
+        // leftover T0 is for rewards
+        let (pricevec, leftover_t0) = if tob.is_bid {
             // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
@@ -57,22 +59,21 @@ impl ToBOutcome {
             // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
             // than needed and I should compare the T0 I offer to the T0 needed to produce
             // the T1 I expect to get back
+            // First we find the amount of T0 in it would take to at least hit our quantity
+            // out
             let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
             let leftover = tob
                 .quantity_in
                 .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
+            // But then we have to operate in the right direction to calculate how much T1
+            // we ACTUALLY get out
             let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
-
             (pricevec, leftover)
         };
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
-        println!("Number of swaps in pricevec: {}", pricevec.steps.as_ref().unwrap().len());
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
-
-        tracing::info!(?leftover);
-        let donation = pricevec.donation(leftover, tob.is_bid);
-        tracing::info!(?donation);
+        let donation = pricevec.t0_donation_to_end_price(leftover_t0);
         let end_tick = pricevec.end_bound.tick;
 
         let rewards = Self {
@@ -80,9 +81,11 @@ impl ToBOutcome {
             end_tick,
             total_swap_output: pricevec.output(),
             start_liquidity: snapshot.current_price().liquidity(),
-            tribute: U256::from(donation.tribute),
-            total_cost: U256::from(pricevec.input()),
-            total_reward: U256::from(donation.total_donated),
+            tribute: donation.tribute,
+            total_cost: pricevec.input(),
+            total_allocated_output: tob.quantity_out,
+            total_swap_output: pricevec.output(),
+            total_reward: donation.total_donated,
             tick_donations: donation.tick_donations
         };
 
@@ -104,7 +107,7 @@ impl ToBOutcome {
             .filter(|t| t.0 >= low && t.0 <= high)
             // Sorts from the lowest tick to the highest tick
             .sorted_by_key(|f| f.0)
-            .map(|f| f.1.saturating_to())
+            .map(|f| *f.1)
             .collect::<Vec<_>>();
 
         // If we're coming from above we have to reverse, we want highest tick to lowest
@@ -154,10 +157,7 @@ impl ToBOutcome {
             // number)
             donations.sort_by_key(|f| std::cmp::Reverse(f.0));
         }
-        let quantities = donations
-            .iter()
-            .map(|d| d.1.saturating_to())
-            .collect::<Vec<_>>();
+        let quantities = donations.iter().map(|d| *d.1).collect::<Vec<_>>();
         tracing::trace!(donations = ?donations, len = donations.len(), "Donations dump");
         tracing::trace!(self.end_tick, "end tick");
         let start_tick = I24::try_from(self.start_tick).unwrap_or_default();
@@ -182,15 +182,26 @@ mod test {
     use alloy_primitives::{aliases::I24, U256};
 
     use super::ToBOutcome;
-    use crate::contract_payloads::rewards::RewardsUpdate;
+    use crate::{
+        contract_payloads::rewards::RewardsUpdate,
+        matching::{
+            uniswap::{LiqRange, PoolSnapshot},
+            SqrtPriceX96
+        }
+    };
 
     #[test]
     fn sorts_correctly() {
-        let donations = HashMap::from([
-            (100, U256::from(123_u128)),
-            (110, U256::from(456_u128)),
-            (120, U256::from(789_u128))
-        ]);
+        let snapshot = PoolSnapshot::new(
+            vec![
+                LiqRange::new(100, 110, 123).unwrap(),
+                LiqRange::new(110, 120, 456).unwrap(),
+                LiqRange::new(120, 130, 789).unwrap(),
+            ],
+            SqrtPriceX96::at_tick(100).unwrap()
+        )
+        .unwrap();
+        let donations = HashMap::from([(100, 123_u128), (110, 456_u128), (120, 789_u128)]);
 
         // Upwards update order checking
         let upwards_update = ToBOutcome {
@@ -199,7 +210,7 @@ mod test {
             tick_donations: donations.clone(),
             ..Default::default()
         }
-        .to_rewards_update();
+        .rewards_update_range(120, 100, &snapshot);
         let RewardsUpdate::MultiTick {
             start_tick: upwards_start_tick,
             quantities: upwards_quantities,
@@ -208,11 +219,6 @@ mod test {
         else {
             panic!("Upwards update was single-tick");
         };
-
-        assert_eq!(
-            upwards_quantities[0], 123_u128,
-            "Upwards update did not have first quantity at lowest tick"
-        );
         assert_eq!(
             upwards_start_tick,
             I24::unchecked_from(100),
@@ -226,7 +232,7 @@ mod test {
             tick_donations: donations.clone(),
             ..Default::default()
         }
-        .to_rewards_update();
+        .rewards_update_range(100, 120, &snapshot);
         let RewardsUpdate::MultiTick {
             start_tick: downwards_start_tick,
             quantities: downwards_quantities,
@@ -235,10 +241,6 @@ mod test {
         else {
             panic!("Downwards update was single-tick");
         };
-        assert_eq!(
-            downwards_quantities[0], 789_u128,
-            "Downwards update did not have first quantity at highest tick"
-        );
         assert_eq!(
             downwards_start_tick,
             I24::unchecked_from(120),

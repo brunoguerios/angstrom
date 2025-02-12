@@ -50,7 +50,7 @@ mod test {
         let total_donations = result.total_donations();
         assert_eq!(
             total_donations + result.total_cost + result.tribute,
-            Uint::from(total_payment),
+            total_payment,
             "Total allocations do not add up to input payment"
         );
     }
@@ -97,7 +97,7 @@ mod test {
         );
         assert_eq!(
             total_donations + result.total_cost + result.tribute,
-            Uint::from(total_payment),
+            total_payment,
             "Total allocations do not add up to input payment"
         );
     }
@@ -121,17 +121,13 @@ mod test {
         assert_eq!(result.tick_donations.len(), 1, "Wrong number of donations");
         assert!(result.tick_donations.contains_key(&99000), "Donation missing");
         assert_eq!(
-            result
-                .tick_donations
-                .get(&99000)
-                .unwrap()
-                .saturating_to::<u128>(),
+            *result.tick_donations.get(&99000).unwrap(),
             partial_donation,
             "Donation of incorrect size"
         );
         assert_eq!(
             total_donations + result.total_cost + result.tribute,
-            Uint::from(total_payment),
+            total_payment,
             "Total allocations do not add up to input payment"
         );
     }

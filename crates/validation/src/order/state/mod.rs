@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use account::UserAccountProcessor;
-use alloy::primitives::{Address, B256};
+use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
     ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder

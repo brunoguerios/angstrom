@@ -191,7 +191,7 @@ impl<'a> SwapStep<'a> {
 
 #[derive(Debug)]
 pub struct DonationResult {
-    pub tick_donations: HashMap<Tick, U256>,
+    pub tick_donations: HashMap<Tick, u128>,
     pub final_price:    SqrtPriceX96,
     pub total_donated:  u128,
     pub tribute:        u128
@@ -410,7 +410,7 @@ impl<'a> PoolPriceVec<'a> {
     /// Builds a DonationResult based on the goal of making sure that the net
     /// price for all sections of this swap is as close to the final price as
     /// possible.  All donations are T0.
-    pub fn donation(&self, total_donation: u128, is_bid: bool) -> DonationResult {
+    pub fn t0_donation_to_end_price(&self, total_donation: u128) -> DonationResult {
         // If we have no steps we can just short-circuit this whole thing and take the
         // whole donation as tribute
         let Some(steps) = self.steps.as_ref() else {
@@ -445,7 +445,7 @@ impl<'a> PoolPriceVec<'a> {
             // Find the average price of our current step and get our existing blob to
             // that price
             let target_price = step.avg_price().unwrap();
-            let target_t0 = target_price.inverse_quantity(*c_t1, !is_bid);
+            let target_t0 = target_price.inverse_quantity(*c_t1, true);
             // The step cost is the difference between the amount of t0 we actually moved
             // and the amount we should have moved to be at this step's average price
             let step_cost = c_t0.abs_diff(target_t0);
@@ -465,8 +465,7 @@ impl<'a> PoolPriceVec<'a> {
                 // meaning they have effectively given us LESS T0 for the T1 we paid them
                 *c_t0 = c_t0.saturating_sub(increment)
             }
-
-            remaining_donation = remaining_donation.saturating_sub(increment);
+            remaining_donation -= increment;
 
             if step_complete {
                 // If we had enough reward to complete this step, we continue and merge this
@@ -484,7 +483,7 @@ impl<'a> PoolPriceVec<'a> {
         if let Some((c_t0, c_t1)) = current_blob.as_mut() {
             if remaining_donation > 0 {
                 let target_price = self.end_bound.as_ray();
-                let target_t0 = target_price.inverse_quantity(*c_t1, !is_bid);
+                let target_t0 = target_price.inverse_quantity(*c_t1, true);
                 // The step cost is the difference between the amount of t0 we actually moved
                 // and the amount we should have moved to be at this step's average price
                 let step_cost = c_t0.abs_diff(target_t0);
@@ -495,7 +494,6 @@ impl<'a> PoolPriceVec<'a> {
                 } else {
                     *c_t0 = c_t0.saturating_sub(increment)
                 }
-                *c_t0 += increment;
             }
         }
         let filled_price =
@@ -503,14 +501,14 @@ impl<'a> PoolPriceVec<'a> {
         tracing::info!(?filled_price);
 
         // We've now found our filled price, we can allocate our reward to each tick
-        // based on how much it costs to bring them up to that price.
+        // based on how much it costs to bring them to that price.
         let mut total_donated = 0_u128;
-        let tick_donations: HashMap<Tick, U256> = steps
+        let tick_donations: HashMap<Tick, u128> = steps
             .iter()
             .map(|step| {
                 let reward = if let Some(f) = filled_price {
                     // T1 is constant, so we need to know how much t0 we need
-                    let target_t0 = f.inverse_quantity(step.d_t1, !is_bid);
+                    let target_t0 = f.inverse_quantity(step.d_t1, true);
                     if price_dropping {
                         // If the filled_price should be lower than our current price, then our
                         // target T0 is MORE than we have in this step
@@ -526,7 +524,7 @@ impl<'a> PoolPriceVec<'a> {
                 total_donated += reward;
                 // We always donate to the lower tick of our liquidity range as that is the
                 // appropriate initialized tick to target
-                (step.liq_range.lower_tick(), U256::from(reward))
+                (step.liq_range.lower_tick(), reward)
             })
             .collect();
         let tribute = total_donation.saturating_sub(total_donated);
