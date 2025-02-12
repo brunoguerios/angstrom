@@ -440,7 +440,7 @@ impl<'a> PoolPriceVec<'a> {
             // Find the average price of our current step and get our existing blob to
             // that price
             let target_price = step.avg_price().unwrap();
-            let target_t0 = target_price.inverse_quantity(*c_t1, true);
+            let target_t0 = target_price.inverse_quantity(*c_t1, price_dropping);
             // The step cost is the difference between the amount of t0 we actually moved
             // and the amount we should have moved to be at this step's average price
             let step_cost = c_t0.abs_diff(target_t0);
@@ -478,7 +478,7 @@ impl<'a> PoolPriceVec<'a> {
         if let Some((c_t0, c_t1)) = current_blob.as_mut() {
             if remaining_donation > 0 {
                 let target_price = self.end_bound.as_ray();
-                let target_t0 = target_price.inverse_quantity(*c_t1, true);
+                let target_t0 = target_price.inverse_quantity(*c_t1, price_dropping);
                 // The step cost is the difference between the amount of t0 we actually moved
                 // and the amount we should have moved to be at this step's average price
                 let step_cost = c_t0.abs_diff(target_t0);
@@ -503,7 +503,7 @@ impl<'a> PoolPriceVec<'a> {
             .map(|step| {
                 let reward = if let Some(f) = filled_price {
                     // T1 is constant, so we need to know how much t0 we need
-                    let target_t0 = f.inverse_quantity(step.d_t1, true);
+                    let target_t0 = f.inverse_quantity(step.d_t1, price_dropping);
                     if price_dropping {
                         // If the filled_price should be lower than our current price, then our
                         // target T0 is MORE than we have in this step
