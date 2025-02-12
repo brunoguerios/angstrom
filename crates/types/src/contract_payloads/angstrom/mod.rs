@@ -573,9 +573,7 @@ impl AngstromBundle {
             quantity_out
         );
         // Account for our reward
-        // asset_builder.allocate(AssetBuilderStage::Reward, t0,
-        // tob_outcome.total_reward.to());
-
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward.to());
         let rewards_update = tob_outcome.rewards_update_range(
             tob_outcome.start_tick,
             tob_outcome.end_tick,

@@ -13,8 +13,8 @@ pub enum AssetBuilderStage {
 
 #[derive(Debug)]
 pub struct AssetBuilder {
-    swaps:        StageTracker,
     rewards:      StageTracker,
+    swaps:        StageTracker,
     top_of_block: StageTracker,
     user_orders:  StageTracker,
     assets:       AssetArray
