@@ -57,11 +57,12 @@ impl ToBOutcome {
             // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
             // than needed and I should compare the T0 I offer to the T0 needed to produce
             // the T1 I expect to get back
-            let pricevec = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?;
+            let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
             let leftover = tob
                 .quantity_in
-                .checked_sub(pricevec.d_t0)
+                .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
+            let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
             (pricevec, leftover)
         };
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
