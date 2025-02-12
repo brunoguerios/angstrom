@@ -483,7 +483,7 @@ impl AngstromBundle {
         ))
         .unwrap();
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
-        tracing::info!(data = b64_output, "Raw solution data");
+        trace!(data = b64_output, "Raw solution data");
 
         // sort
         if t1 < t0 {
