@@ -63,6 +63,7 @@ impl ToBOutcome {
                 .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
             let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
+
             (pricevec, leftover)
         };
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
