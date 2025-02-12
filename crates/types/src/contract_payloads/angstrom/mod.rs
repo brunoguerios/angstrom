@@ -391,7 +391,6 @@ impl AngstromBundle {
                 None
             )?;
         }
-        tracing::info!("{:#?}", asset_builder);
         Ok(Self::new(
             asset_builder.get_asset_array(),
             pairs,
@@ -520,6 +519,16 @@ impl AngstromBundle {
                     .as_ref()
                     .map(|o| (o.total_cost, o.total_swap_output))
                     .unwrap_or((tob.quantity_in, tob.quantity_out));
+
+                // if there is a delta in total swap output.
+                // means that we have some extra deltas that
+                // are unexpected (slippage in underlying math) and can
+                // just be collected as dust
+                let diff = output.abs_diff(tob.quantity_out);
+                if diff != 0 {
+                    asset_builder.add_gas_fee(AssetBuilderStage::TopOfBlock, t0, diff);
+                }
+
                 let (in_idx, out_idx) =
                     if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
                 let swap = (in_idx, out_idx, input, output);
