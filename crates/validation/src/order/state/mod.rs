@@ -100,6 +100,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         metrics: ValidationMetrics
     ) -> OrderValidationResults {
         let mut results = self.handle_regular_order(order, block, metrics);
+        let mut invalidate = false;
 
         if let OrderValidationResults::Valid(ref mut order_with_storage) = results {
             let tob_order = order_with_storage
@@ -110,13 +111,19 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 })
                 .expect("should be unreachable");
             let pool_address = order_with_storage.pool_id;
-            let rewards = self
+            if let Ok(rewards) = self
                 .uniswap_pools
                 .calculate_rewards(pool_address, &tob_order)
                 .await
-                .unwrap();
+            {
+                order_with_storage.tob_reward = rewards.total_reward;
+            } else {
+                invalidate = true;
+            }
+        }
 
-            order_with_storage.tob_reward = rewards.total_reward;
+        if invalidate {
+            tracing::info!("bad swap for order");
         }
 
         results

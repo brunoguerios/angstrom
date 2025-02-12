@@ -12,13 +12,14 @@ use crate::{
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ToBOutcome {
-    pub start_tick:      i32,
-    pub end_tick:        i32,
-    pub start_liquidity: u128,
-    pub tribute:         U256,
-    pub total_cost:      U256,
-    pub total_reward:    U256,
-    pub tick_donations:  HashMap<Tick, U256>
+    pub start_tick:        i32,
+    pub end_tick:          i32,
+    pub start_liquidity:   u128,
+    pub tribute:           U256,
+    pub total_cost:        U256,
+    pub total_reward:      U256,
+    pub total_swap_output: u128,
+    pub tick_donations:    HashMap<Tick, U256>
 }
 
 impl ToBOutcome {
@@ -75,6 +76,7 @@ impl ToBOutcome {
         let rewards = Self {
             start_tick: snapshot.current_price().tick(),
             end_tick,
+            total_swap_output: pricevec.output(),
             start_liquidity: snapshot.current_price().liquidity(),
             tribute: U256::from(donation.tribute),
             total_cost: U256::from(pricevec.input()),

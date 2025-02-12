@@ -524,14 +524,14 @@ impl AngstromBundle {
                 tracing::info!(?outcome);
 
                 // Make sure the input for our swap is precisely what's used in the swap portion
-                let input = outcome
+                let (input, output) = outcome
                     .as_ref()
-                    .map(|o| o.total_cost.clone().saturating_to())
-                    .unwrap_or(tob.quantity_in);
+                    .map(|o| (o.total_cost.to(), o.total_swap_output))
+                    .unwrap_or((tob.quantity_in, tob.quantity_out));
 
                 let (in_idx, out_idx) =
                     if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
-                let swap = (in_idx, out_idx, input, tob.quantity_out);
+                let swap = (in_idx, out_idx, input, output);
                 // We swallow an error here
                 (Some(swap), outcome)
             })
