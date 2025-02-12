@@ -12,7 +12,8 @@ use angstrom_types::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder,
         RawPoolOrder
-    }
+    },
+    CHAIN_ID
 };
 use eyre::eyre;
 use pade::PadeEncode;
@@ -298,7 +299,7 @@ where
                 .append_handler_register(inspector_handle_register)
                 .modify_env(|env| {
                     env.cfg.disable_balance_check = true;
-                    env.cfg.chain_id = 1;
+                    env.cfg.chain_id = CHAIN_ID;
                 })
                 .build();
 
