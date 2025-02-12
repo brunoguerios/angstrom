@@ -429,7 +429,6 @@ impl<'a> PoolPriceVec<'a> {
         for step in steps_iter {
             // If our current blob is empty, we can just insert the current step's stats
             // into it
-
             let (c_t0, c_t1) = current_blob.get_or_insert((0, 0));
 
             // Find the average price of our current step and get our existing blob to
@@ -476,6 +475,7 @@ impl<'a> PoolPriceVec<'a> {
         }
         let filled_price =
             current_blob.map(|(t0, t1)| Ray::calc_price_generic(t0, t1, price_dropping));
+        tracing::info!(?filled_price);
 
         // We've now found our filled price, we can allocate our reward to each tick
         // based on how much it costs to bring them up to that price.
