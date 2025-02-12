@@ -18,11 +18,11 @@ impl BorrowStateTracker {
     /// Attempt to use tokens from contract liquidity.  If we don't have enough
     /// tokens there, add the difference to our Uniswap take/settle
     pub fn allocate(&mut self, q: u128) {
-        if q > self.contract_liquid {
-            let needed_borrow = q - self.contract_liquid;
-            self.loan(needed_borrow);
-        }
-        self.contract_liquid = self.contract_liquid.saturating_sub(q);
+        // if q > self.contract_liquid {
+        //     let needed_borrow = q - self.contract_liquid;
+        self.loan(q);
+        // }
+        // self.contract_liquid = self.contract_liquid.saturating_sub(q);
     }
 
     /// Add to what we owe to Uniswap, as a result of a pool swap
