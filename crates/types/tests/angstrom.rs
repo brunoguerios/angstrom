@@ -35,8 +35,14 @@ fn build_bundle() {
         ) = serde_json::from_slice(&bytes).unwrap();
 
         let test_swap = (snapshot.current_price() + Quantity::Token0(1092530152319616)).unwrap();
+        let back_swap = (snapshot.current_price() - Quantity::Token0(1092530152319616)).unwrap();
         let other_test_swap =
             (snapshot.current_price() - Quantity::Token1(23936576543425658458)).unwrap();
+
+        let test_swap_donation = test_swap.t0_donation_to_end_price(0);
+        let back_swap_donation = back_swap.t0_donation_to_end_price(0);
+        println!("Swap donation: {:#?}", test_swap_donation);
+        println!("Back Swap donation: {:#?}", back_swap_donation);
         println!("Swap - {} - {}", test_swap.d_t0, test_swap.d_t1);
         println!("Other Swap - {} - {}", other_test_swap.d_t0, other_test_swap.d_t1);
 

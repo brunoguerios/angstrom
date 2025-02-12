@@ -447,7 +447,15 @@ impl<'a> PoolPriceVec<'a> {
             // this step and can merge blobs
             let step_complete = remaining_donation >= step_cost;
             let increment = std::cmp::min(remaining_donation, step_cost);
-            *c_t0 += increment;
+            if price_dropping {
+                // If the price T1/T0 is dropping, we're going to be giving our LPs MORE T0 in
+                // exchange for the T1 they pay us
+                *c_t0 += increment;
+            } else {
+                // If the price T1/T0 is increasing, we're going to be refunding T0 to the LPs,
+                // meaning they have effectively given us LESS T0 for the T1 we paid them
+                *c_t0 = c_t0.saturating_sub(increment)
+            }
             remaining_donation -= increment;
 
             if step_complete {
@@ -472,14 +480,18 @@ impl<'a> PoolPriceVec<'a> {
                 let step_cost = c_t0.abs_diff(target_t0);
 
                 let increment = std::cmp::min(remaining_donation, step_cost);
-                *c_t0 += increment;
+                if price_dropping {
+                    *c_t0 += increment;
+                } else {
+                    *c_t0 = c_t0.saturating_sub(increment)
+                }
             }
         }
         let filled_price =
             current_blob.map(|(t0, t1)| Ray::calc_price_generic(t0, t1, price_dropping));
 
         // We've now found our filled price, we can allocate our reward to each tick
-        // based on how much it costs to bring them up to that price.
+        // based on how much it costs to bring them to that price.
         let mut total_donated = 0_u128;
         let tick_donations: HashMap<Tick, u128> = steps
             .iter()
@@ -487,7 +499,15 @@ impl<'a> PoolPriceVec<'a> {
                 let reward = if let Some(f) = filled_price {
                     // T1 is constant, so we need to know how much t0 we need
                     let target_t0 = f.inverse_quantity(step.d_t1, true);
-                    target_t0.saturating_sub(step.d_t0)
+                    if price_dropping {
+                        // If the filled_price should be lower than our current price, then our
+                        // target T0 is MORE than we have in this step
+                        target_t0.saturating_sub(step.d_t0)
+                    } else {
+                        // If the filled_price should be higher than our current price, then our
+                        // target T0 is LESS than we have in this step
+                        step.d_t0.saturating_sub(target_t0)
+                    }
                 } else {
                     0
                 };
