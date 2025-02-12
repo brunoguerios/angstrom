@@ -44,7 +44,7 @@ impl ToBOutcome {
             // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
-            let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_out))?;
+            let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
             tracing::info!(?pricevec.d_t0,?pricevec.d_t1,?tob.quantity_in,?tob.quantity_out);
 
             let leftover = pricevec
