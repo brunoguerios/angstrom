@@ -116,7 +116,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 .calculate_rewards(pool_address, &tob_order)
                 .await
             {
-                order_with_storage.tob_reward = rewards.total_reward;
+                order_with_storage.tob_reward = U256::from(rewards.total_reward);
             } else {
                 invalidate = true;
             }
