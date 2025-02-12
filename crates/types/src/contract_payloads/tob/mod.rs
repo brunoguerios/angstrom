@@ -12,13 +12,15 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct ToBOutcome {
-    pub start_tick:      i32,
-    pub end_tick:        i32,
-    pub start_liquidity: u128,
-    pub tribute:         u128,
-    pub total_cost:      u128,
-    pub total_reward:    u128,
-    pub tick_donations:  HashMap<Tick, u128>
+    pub start_tick:             i32,
+    pub end_tick:               i32,
+    pub start_liquidity:        u128,
+    pub tribute:                u128,
+    pub total_cost:             u128,
+    pub total_allocated_output: u128,
+    pub total_swap_output:      u128,
+    pub total_reward:           u128,
+    pub tick_donations:         HashMap<Tick, u128>
 }
 
 impl ToBOutcome {
@@ -40,12 +42,11 @@ impl ToBOutcome {
     ) -> eyre::Result<Self> {
         // First let's simulate the actual ToB swap and use that to determine what our
         // leftover T0 is for rewards
-        let (pricevec, leftover) = if tob.is_bid {
+        let (pricevec, leftover_t0) = if tob.is_bid {
             // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
             let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
-            tracing::info!(?tob.quantity_out, ?tob.quantity_in, ?pricevec.d_t0, ?pricevec.d_t1);
             let leftover = pricevec
                 .d_t0
                 .checked_sub(tob.quantity_out)
@@ -55,17 +56,21 @@ impl ToBOutcome {
             // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
             // than needed and I should compare the T0 I offer to the T0 needed to produce
             // the T1 I expect to get back
-            let pricevec = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?;
+            // First we find the amount of T0 in it would take to at least hit our quantity
+            // out
+            let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
             let leftover = tob
                 .quantity_in
-                .checked_sub(pricevec.d_t0)
+                .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
+            // But then we have to operate in the right direction to calculate how much T1
+            // we ACTUALLY get out
+            let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
             (pricevec, leftover)
         };
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
-        println!("Number of swaps in pricevec: {}", pricevec.steps.as_ref().unwrap().len());
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
-        let donation = pricevec.t0_donation_to_end_price(leftover);
+        let donation = pricevec.t0_donation_to_end_price(leftover_t0);
         let end_tick = pricevec.end_bound.tick;
 
         let rewards = Self {
@@ -74,6 +79,8 @@ impl ToBOutcome {
             start_liquidity: snapshot.current_price().liquidity(),
             tribute: donation.tribute,
             total_cost: pricevec.input(),
+            total_allocated_output: tob.quantity_out,
+            total_swap_output: pricevec.output(),
             total_reward: donation.total_donated,
             tick_donations: donation.tick_donations
         };
