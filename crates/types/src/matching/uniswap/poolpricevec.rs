@@ -410,7 +410,7 @@ impl<'a> PoolPriceVec<'a> {
     /// Builds a DonationResult based on the goal of making sure that the net
     /// price for all sections of this swap is as close to the final price as
     /// possible.  All donations are T0.
-    pub fn donation(&self, total_donation: u128) -> DonationResult {
+    pub fn donation(&self, total_donation: u128, is_bid: bool) -> DonationResult {
         // If we have no steps we can just short-circuit this whole thing and take the
         // whole donation as tribute
         let Some(steps) = self.steps.as_ref() else {
@@ -421,11 +421,19 @@ impl<'a> PoolPriceVec<'a> {
                 tribute:        total_donation
             };
         };
+        let steps = if is_bid {
+            steps.into_iter().rev().collect::<Vec<_>>()
+        } else {
+            steps.into_iter().collect::<Vec<_>>()
+        };
+
         let mut remaining_donation = total_donation;
         let price_dropping = self.start_bound.price > self.end_bound.price;
 
         let mut current_blob: Option<(u128, u128)> = None;
+
         let steps_iter = steps.iter().filter(|s| !s.empty());
+
         for step in steps_iter {
             // If our current blob is empty, we can just insert the current step's stats
             // into it

@@ -68,7 +68,7 @@ impl ToBOutcome {
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
 
         tracing::info!(?leftover);
-        let donation = pricevec.donation(leftover);
+        let donation = pricevec.donation(leftover, tob.is_bid);
         tracing::info!(?donation);
         let end_tick = pricevec.end_bound.tick;
 
