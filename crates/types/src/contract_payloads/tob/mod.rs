@@ -79,7 +79,6 @@ impl ToBOutcome {
         let rewards = Self {
             start_tick: snapshot.current_price().tick(),
             end_tick,
-            total_swap_output: pricevec.output(),
             start_liquidity: snapshot.current_price().liquidity(),
             tribute: donation.tribute,
             total_cost: pricevec.input(),
