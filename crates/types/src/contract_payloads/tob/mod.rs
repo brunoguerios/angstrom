@@ -66,7 +66,10 @@ impl ToBOutcome {
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
         println!("Number of swaps in pricevec: {}", pricevec.steps.as_ref().unwrap().len());
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
+
+        tracing::info!(?leftover);
         let donation = pricevec.donation(leftover);
+        tracing::info!(?donation);
         let end_tick = pricevec.end_bound.tick;
 
         let rewards = Self {
