@@ -428,7 +428,7 @@ impl<'a> PoolPriceVec<'a> {
         };
 
         let mut remaining_donation = total_donation;
-        let price_dropping = is_bid;
+        let price_dropping = !is_bid;
 
         let mut current_blob: Option<(u128, u128)> = None;
 
