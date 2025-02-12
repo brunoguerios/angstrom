@@ -421,11 +421,11 @@ impl<'a> PoolPriceVec<'a> {
                 tribute:        total_donation
             };
         };
-        let steps = if is_bid {
-            steps.into_iter().rev().collect::<Vec<_>>()
-        } else {
-            steps.into_iter().collect::<Vec<_>>()
-        };
+        // let steps = if is_bid {
+        //     steps.into_iter().rev().collect::<Vec<_>>()
+        // } else {
+        //     steps.into_iter().collect::<Vec<_>>()
+        // };
 
         let mut remaining_donation = total_donation;
         let price_dropping = self.start_bound.price > self.end_bound.price;
@@ -456,7 +456,15 @@ impl<'a> PoolPriceVec<'a> {
             let step_complete = remaining_donation >= step_cost && remaining_donation != 0;
 
             let increment = std::cmp::min(remaining_donation, step_cost);
-            *c_t0 += increment;
+            if price_dropping {
+                // If the price T1/T0 is dropping, we're going to be giving our LPs MORE T0 in
+                // exchange for the T1 they pay us
+                *c_t0 += increment;
+            } else {
+                // If the price T1/T0 is increasing, we're going to be refunding T0 to the LPs,
+                // meaning they have effectively given us LESS T0 for the T1 we paid them
+                *c_t0 = c_t0.saturating_sub(increment)
+            }
 
             remaining_donation = remaining_donation.saturating_sub(increment);
 
@@ -482,6 +490,11 @@ impl<'a> PoolPriceVec<'a> {
                 let step_cost = c_t0.abs_diff(target_t0);
 
                 let increment = std::cmp::min(remaining_donation, step_cost);
+                if price_dropping {
+                    *c_t0 += increment;
+                } else {
+                    *c_t0 = c_t0.saturating_sub(increment)
+                }
                 *c_t0 += increment;
             }
         }
@@ -498,7 +511,15 @@ impl<'a> PoolPriceVec<'a> {
                 let reward = if let Some(f) = filled_price {
                     // T1 is constant, so we need to know how much t0 we need
                     let target_t0 = f.inverse_quantity(step.d_t1, !is_bid);
-                    target_t0.saturating_sub(step.d_t0)
+                    if price_dropping {
+                        // If the filled_price should be lower than our current price, then our
+                        // target T0 is MORE than we have in this step
+                        target_t0.saturating_sub(step.d_t0)
+                    } else {
+                        // If the filled_price should be higher than our current price, then our
+                        // target T0 is LESS than we have in this step
+                        step.d_t0.saturating_sub(target_t0)
+                    }
                 } else {
                     0
                 };
