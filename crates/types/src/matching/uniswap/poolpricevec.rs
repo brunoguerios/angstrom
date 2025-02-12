@@ -443,7 +443,8 @@ impl<'a> PoolPriceVec<'a> {
             // If the move costs as much or less than what we have to spend, we've completed
             // this step and can merge blobs
             tracing::info!(?remaining_donation, ?step_cost);
-            let step_complete = remaining_donation >= step_cost;
+            let step_complete = remaining_donation >= step_cost && remaining_donation != 0;
+
             let increment = std::cmp::min(remaining_donation, step_cost);
             *c_t0 += increment;
             remaining_donation = remaining_donation.saturating_sub(increment);
