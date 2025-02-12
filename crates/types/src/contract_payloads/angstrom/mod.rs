@@ -520,14 +520,15 @@ impl AngstromBundle {
                     .map(|o| (o.total_cost, o.total_swap_output))
                     .unwrap_or((tob.quantity_in, tob.quantity_out));
 
-                // if there is a delta in total swap output.
-                // means that we have some extra deltas that
-                // are unexpected (slippage in underlying math) and can
-                // just be collected as dust
-                let diff = output.abs_diff(tob.quantity_out);
-                if diff != 0 {
-                    asset_builder.add_gas_fee(AssetBuilderStage::TopOfBlock, t0, diff);
-                }
+                outcome.as_ref().inspect(|o| {
+                    if o.total_allocated_output < o.total_swap_output {
+                        asset_builder.add_gas_fee(
+                            AssetBuilderStage::TopOfBlock,
+                            tob.asset_out,
+                            o.total_swap_output - o.total_allocated_output
+                        );
+                    }
+                });
 
                 let (in_idx, out_idx) =
                     if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
