@@ -36,7 +36,8 @@ impl ToBOutcome {
 
     pub fn from_tob_and_snapshot(
         tob: &OrderWithStorageData<TopOfBlockOrder>,
-        snapshot: &PoolSnapshot
+        snapshot: &PoolSnapshot,
+        gas_used: Option<u128>
     ) -> eyre::Result<Self> {
         // if we are moving up then it is a bid, we want to move up
         let (pricevec, leftover) = if tob.is_bid {
@@ -46,7 +47,7 @@ impl ToBOutcome {
             let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
             let leftover = pricevec
                 .d_t0
-                .checked_sub(tob.quantity_out)
+                .checked_sub(tob.quantity_out + gas_used.unwrap_or(tob.max_gas_asset0))
                 .ok_or_else(|| eyre!("Not enough output to cover the transaction"))?;
             (pricevec, leftover)
         } else {
@@ -56,6 +57,7 @@ impl ToBOutcome {
             let pricevec = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?;
             let leftover = tob
                 .quantity_in
+                .saturating_sub(gas_used.unwrap_or(tob.max_gas_asset0))
                 .checked_sub(pricevec.d_t0)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
             (pricevec, leftover)

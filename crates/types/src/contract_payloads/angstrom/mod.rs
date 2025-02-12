@@ -531,7 +531,12 @@ impl AngstromBundle {
             .as_ref()
             .map(|tob| {
                 trace!(tob_order = ?tob, "Mapping TOB Swap");
-                let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
+                let outcome = ToBOutcome::from_tob_and_snapshot(
+                    tob,
+                    snapshot,
+                    shared_gas.map(|t| t.to::<u128>())
+                )
+                .ok();
                 // Make sure the input for our swap is precisely what's used in the swap portion
                 let input = outcome
                     .as_ref()

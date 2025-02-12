@@ -9,7 +9,7 @@ pub fn calculate_reward(
     tob: &OrderWithStorageData<TopOfBlockOrder>,
     snapshot: &PoolSnapshot
 ) -> eyre::Result<ToBOutcome> {
-    ToBOutcome::from_tob_and_snapshot(tob, snapshot)
+    ToBOutcome::from_tob_and_snapshot(tob, snapshot, None)
 }
 
 #[cfg(test)]
