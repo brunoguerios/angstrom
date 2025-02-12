@@ -6,7 +6,7 @@ use alloy::{
     primitives::{Address, TxHash},
     providers::{Provider, ProviderBuilder, RootProvider},
     rpc::types::TransactionRequest,
-    transports::{http::reqwest::Url, Transport}
+    transports::http::reqwest::Url
 };
 use futures::{Future, FutureExt};
 
@@ -23,10 +23,7 @@ pub trait SubmitTx: Send + Sync {
 }
 
 // Default impl
-impl<T> SubmitTx for RootProvider<T>
-where
-    T: Transport + Clone
-{
+impl SubmitTx for RootProvider {
     fn submit_transaction<'a>(
         &'a self,
         signer: &'a AngstromSigner,
