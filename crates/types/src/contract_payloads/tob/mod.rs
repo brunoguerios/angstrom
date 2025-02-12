@@ -43,18 +43,17 @@ impl ToBOutcome {
     ) -> eyre::Result<Self> {
         // First let's simulate the actual ToB swap and use that to determine what our
         // leftover T0 is for rewards
-        let (pricevec, leftover_t0) = if tob.is_bid {
+        let (input, pricevec, leftover_t0) = if tob.is_bid {
             // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
             let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
-            tracing::info!(?pricevec.d_t0,?pricevec.d_t1,?tob.quantity_in,?tob.quantity_out);
 
             let leftover = pricevec
                 .d_t0
                 .checked_sub(tob.quantity_out)
                 .ok_or_else(|| eyre!("Not enough output to cover the transaction"))?;
-            (pricevec, leftover)
+            (pricevec.input(), pricevec, leftover)
         } else {
             // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
             // than needed and I should compare the T0 I offer to the T0 needed to produce
@@ -62,14 +61,16 @@ impl ToBOutcome {
             // First we find the amount of T0 in it would take to at least hit our quantity
             // out
             let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
+
             let leftover = tob
                 .quantity_in
                 .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
+
             // But then we have to operate in the right direction to calculate how much T1
             // we ACTUALLY get out
             let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
-            (pricevec, leftover)
+            (pricevec.input() - leftover, pricevec, leftover)
         };
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
@@ -81,7 +82,7 @@ impl ToBOutcome {
             end_tick,
             start_liquidity: snapshot.current_price().liquidity(),
             tribute: donation.tribute,
-            total_cost: pricevec.input(),
+            total_cost: input,
             total_allocated_output: tob.quantity_out,
             total_swap_output: pricevec.output(),
             total_reward: donation.total_donated,
