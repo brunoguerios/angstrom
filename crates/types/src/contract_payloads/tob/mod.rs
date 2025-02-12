@@ -45,6 +45,8 @@ impl ToBOutcome {
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
             let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
+            tracing::info!(?pricevec.d_t0,?pricevec.d_t1,?tob.quantity_in,?tob.quantity_out);
+
             let leftover = pricevec
                 .d_t0
                 .checked_sub(tob.quantity_out)
