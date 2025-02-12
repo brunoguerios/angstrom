@@ -429,7 +429,10 @@ impl<'a> PoolPriceVec<'a> {
         for step in steps_iter {
             // If our current blob is empty, we can just insert the current step's stats
             // into it
-            let (c_t0, c_t1) = current_blob.get_or_insert((0, 0));
+            let Some((c_t0, c_t1)) = &mut current_blob else {
+                current_blob = Some((step.d_t0, step.d_t1));
+                continue;
+            };
 
             // Find the average price of our current step and get our existing blob to
             // that price
@@ -446,6 +449,7 @@ impl<'a> PoolPriceVec<'a> {
 
             let increment = std::cmp::min(remaining_donation, step_cost);
             *c_t0 += increment;
+
             remaining_donation = remaining_donation.saturating_sub(increment);
 
             if step_complete {
