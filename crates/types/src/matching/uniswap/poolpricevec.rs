@@ -191,9 +191,13 @@ impl<'a> SwapStep<'a> {
 
 #[derive(Debug)]
 pub struct DonationResult {
-    pub tick_donations: HashMap<Tick, u128>,
+    /// HashMap from liquidity range bounds `(lower_tick, upper_tick)` to
+    /// donation quantity in T0
+    pub tick_donations: HashMap<(Tick, Tick), u128>,
     pub final_price:    SqrtPriceX96,
+    /// Total amount of donation in T0
     pub total_donated:  u128,
+    /// Total amount of "tribute" taken by Angstrom in T0
     pub tribute:        u128
 }
 
@@ -411,6 +415,7 @@ impl<'a> PoolPriceVec<'a> {
     /// price for all sections of this swap is as close to the final price as
     /// possible.  All donations are T0.
     pub fn t0_donation_to_end_price(&self, total_donation: u128) -> DonationResult {
+        tracing::trace!(total_donation, "Performing donation to end price");
         // If we have no steps we can just short-circuit this whole thing and take the
         // whole donation as tribute
         let Some(steps) = self.steps.as_ref() else {
@@ -424,6 +429,10 @@ impl<'a> PoolPriceVec<'a> {
 
         let mut remaining_donation = total_donation;
         let price_dropping = self.start_bound.price > self.end_bound.price;
+        // The price will drop if we are adding T0 to the pool to get T1 out.  In these
+        // cases we should round up.  If the price is increasing, we're atting T1 to the
+        // pool to get T0 out and we should round down
+        let round_up = price_dropping;
 
         let mut current_blob: Option<(u128, u128)> = None;
         let steps_iter = steps.iter().filter(|s| !s.empty());
@@ -438,7 +447,7 @@ impl<'a> PoolPriceVec<'a> {
             // Find the average price of our current step and get our existing blob to
             // that price
             let target_price = step.avg_price().unwrap();
-            let target_t0 = target_price.inverse_quantity(*c_t1, true);
+            let target_t0 = target_price.inverse_quantity(*c_t1, round_up);
             // The step cost is the difference between the amount of t0 we actually moved
             // and the amount we should have moved to be at this step's average price
             let step_cost = c_t0.abs_diff(target_t0);
@@ -474,7 +483,7 @@ impl<'a> PoolPriceVec<'a> {
         if let Some((c_t0, c_t1)) = current_blob.as_mut() {
             if remaining_donation > 0 {
                 let target_price = self.end_bound.as_ray();
-                let target_t0 = target_price.inverse_quantity(*c_t1, true);
+                let target_t0 = target_price.inverse_quantity(*c_t1, round_up);
                 // The step cost is the difference between the amount of t0 we actually moved
                 // and the amount we should have moved to be at this step's average price
                 let step_cost = c_t0.abs_diff(target_t0);
@@ -493,7 +502,7 @@ impl<'a> PoolPriceVec<'a> {
         // We've now found our filled price, we can allocate our reward to each tick
         // based on how much it costs to bring them to that price.
         let mut total_donated = 0_u128;
-        let tick_donations: HashMap<Tick, u128> = steps
+        let tick_donations: HashMap<(Tick, Tick), u128> = steps
             .iter()
             .map(|step| {
                 let reward = if let Some(f) = filled_price {
@@ -514,7 +523,7 @@ impl<'a> PoolPriceVec<'a> {
                 total_donated += reward;
                 // We always donate to the lower tick of our liquidity range as that is the
                 // appropriate initialized tick to target
-                (step.liq_range.lower_tick(), reward)
+                ((step.liq_range.lower_tick(), step.liq_range.upper_tick()), reward)
             })
             .collect();
         let tribute = total_donation.saturating_sub(total_donated);
