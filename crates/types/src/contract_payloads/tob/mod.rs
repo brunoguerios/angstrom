@@ -20,7 +20,7 @@ pub struct ToBOutcome {
     pub total_allocated_output: u128,
     pub total_swap_output:      u128,
     pub total_reward:           u128,
-    pub tick_donations:         HashMap<Tick, u128>
+    pub tick_donations:         HashMap<(Tick, Tick), u128>
 }
 
 impl ToBOutcome {
@@ -73,9 +73,11 @@ impl ToBOutcome {
             let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
             (pricevec, leftover)
         };
+        tracing::trace!(leftover_t0, "Found leftover");
         tracing::trace!(tob.quantity_out, tob.quantity_in, "Building pricevec for quantity");
         tracing::trace!(start_price = ?pricevec.start_bound.price, end_price = ?pricevec.end_bound.price, pricevec.d_t0, pricevec.d_t1, "Pricevec inspect");
         let donation = pricevec.t0_donation_to_end_price(leftover_t0);
+        tracing::trace!(donation.tribute, donation.total_donated, ?donation.tick_donations, "Donation inspection");
         let end_tick = pricevec.end_bound.tick;
 
         let rewards = Self {
@@ -105,7 +107,7 @@ impl ToBOutcome {
         let mut quantities = self
             .tick_donations
             .iter()
-            .filter(|t| t.0 >= low && t.0 <= high)
+            .filter(|((low_tick, high_tick), _)| *high_tick > *low && *low_tick <= *high)
             // Sorts from the lowest tick to the highest tick
             .sorted_by_key(|f| f.0)
             .map(|f| *f.1)
@@ -115,8 +117,6 @@ impl ToBOutcome {
         // tick
         if from_above {
             quantities.reverse();
-        } else {
-            quantities.insert(0, 0);
         }
 
         let (start_tick, start_liquidity) = snapshot
@@ -180,7 +180,7 @@ impl ToBOutcome {
 mod test {
     use std::collections::HashMap;
 
-    use alloy_primitives::{aliases::I24, U256};
+    use alloy_primitives::aliases::I24;
 
     use super::ToBOutcome;
     use crate::{
@@ -202,7 +202,8 @@ mod test {
             SqrtPriceX96::at_tick(100).unwrap()
         )
         .unwrap();
-        let donations = HashMap::from([(100, 123_u128), (110, 456_u128), (120, 789_u128)]);
+        let donations =
+            HashMap::from([((100, 110), 123_u128), ((110, 120), 456_u128), ((120, 130), 789_u128)]);
 
         // Upwards update order checking
         let upwards_update = ToBOutcome {

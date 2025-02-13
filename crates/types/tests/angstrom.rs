@@ -8,7 +8,7 @@ use angstrom_types::{
     orders::PoolSolution
 };
 use base64::Engine;
-use solutionlib::{FROM_ABOVE, TICK_SPACING, WEIRD_SWAP};
+use solutionlib::{FROM_ABOVE, FROM_WILL, TICK_SPACING, WEIRD_SWAP};
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
@@ -33,18 +33,6 @@ fn build_bundle() {
             _,
             _
         ) = serde_json::from_slice(&bytes).unwrap();
-
-        let test_swap = (snapshot.current_price() + Quantity::Token0(1092530152319616)).unwrap();
-        let back_swap = (snapshot.current_price() - Quantity::Token0(1092530152319616)).unwrap();
-        let other_test_swap =
-            (snapshot.current_price() - Quantity::Token1(23936576543425658458)).unwrap();
-
-        let test_swap_donation = test_swap.t0_donation_to_end_price(0);
-        let back_swap_donation = back_swap.t0_donation_to_end_price(0);
-        println!("Swap donation: {:#?}", test_swap_donation);
-        println!("Back Swap donation: {:#?}", back_swap_donation);
-        println!("Swap - {} - {}", test_swap.d_t0, test_swap.d_t1);
-        println!("Other Swap - {} - {}", other_test_swap.d_t0, other_test_swap.d_t1);
 
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();
@@ -88,7 +76,7 @@ fn build_bundle() {
             inspect_vec.end_bound.price(),
             inspect_vec.end_bound.tick()
         );
-        //println!("Bundle: {:#?}", bundle);
+        println!("Bundle: {:#?}", bundle);
         tracing::trace!(start_price = ?inspect_vec.start_bound.price(), end_price = ?inspect_vec.end_bound.price(), inspect_vec.d_t0, inspect_vec.d_t1, "Vec inspect");
         println!("Number of swaps: {}", inspect_vec.steps.as_ref().unwrap().len());
         println!("Number of updates: {}", bundle.pool_updates[0].rewards_update.quantities().len());
