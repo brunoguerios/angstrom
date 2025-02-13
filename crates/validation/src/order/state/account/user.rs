@@ -161,10 +161,10 @@ impl UserAccounts {
             .invert_map_or_else(|| {
                 self.load_state_for(user, token, utils)?;
                 self.try_fetch_live_pending_state(user, token, respend)
-                        .ok_or(eyre::eyre!(
-                            "after loading state for a address, the state wasn't found. this \
-                             should be impossible"
-                        ))
+                    .ok_or(eyre::eyre!(
+                        "after loading state for a address, the state wasn't found. this should \
+                         be impossible"
+                    ))
             })?;
 
         Ok(out)
