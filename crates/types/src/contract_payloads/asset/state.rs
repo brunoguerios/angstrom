@@ -172,9 +172,9 @@ impl StageTracker {
             .iter()
             .map(|(addr, state)| {
                 let new_state = BorrowStateTracker {
-                    take:            state.take + state.contract_liquid,
+                    take:            state.take,
                     contract_liquid: 0,
-                    save:            state.save,
+                    save:            state.save + state.contract_liquid,
                     settle:          state.settle
                 };
                 (*addr, new_state)
