@@ -240,10 +240,15 @@ where
         self.tick_bitmap.clear();
 
         tracing::info!(?self.token0, ?self.token1,?self.tick, ?self.tick_spacing, ?self.liquidity,?self.liquidity_net);
+
+        let extra = (self.tick.rem(self.tick_spacing) == 0i32) as u8;
+
         let total_ticks_to_fetch = self.initial_ticks_per_side * 2;
         // current tick when loaded (init tick) - (half total tics * spacing);
 
-        let start_tick = self.tick - (total_ticks_to_fetch.div_ceil(2) as i32 * self.tick_spacing);
+        let start_tick = self.tick
+            - (total_ticks_to_fetch.div_ceil(2) as i32 * self.tick_spacing)
+            - (extra as i32);
 
         let end_tick = start_tick + (self.tick_spacing as u16 * total_ticks_to_fetch) as i32;
         tracing::info!(?start_tick, ?end_tick);
