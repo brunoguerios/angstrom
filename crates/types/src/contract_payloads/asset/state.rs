@@ -174,7 +174,8 @@ impl StageTracker {
                 let new_state = BorrowStateTracker {
                     take:            state.take,
                     contract_liquid: 0,
-                    save:            state.save + state.contract_liquid,
+                    save:            state.save
+                        + state.contract_liquid.saturating_sub(state.settle),
                     settle:          state.settle
                 };
                 (*addr, new_state)
