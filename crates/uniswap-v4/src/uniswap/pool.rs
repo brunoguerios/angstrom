@@ -126,7 +126,7 @@ where
                 // ensure everything is spaced properly
                 assert!(tick_lower.rem(self.tick_spacing) == 0, "Lower tick not aligned");
                 assert!(tick_upper.rem(self.tick_spacing) == 0, "Upper tick not aligned");
-                assert!(cur_liq >= 0, "Liquidity dropped below zero");
+                assert!(cur_liq >= 0, "Liquidity dropped below zero {}", tick_lower);
                 LiqRange::new(**tick_lower, **tick_upper, cur_liq.unsigned_abs()).unwrap()
             })
             .collect::<Vec<_>>();
