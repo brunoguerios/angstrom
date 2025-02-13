@@ -457,8 +457,8 @@ impl AngstromBundle {
         pool_updates: &mut Vec<PoolUpdate>,
         solution: &PoolSolution,
         snapshot: &PoolSnapshot,
-        mut t0: Address,
-        mut t1: Address,
+        t0: Address,
+        t1: Address,
         store_index: u16,
         shared_gas: Option<U256>
     ) -> eyre::Result<()> {
@@ -477,9 +477,9 @@ impl AngstromBundle {
         trace!(data = b64_output, "Raw solution data");
 
         // sort
-        if t1 < t0 {
-            std::mem::swap(&mut t1, &mut t0)
-        };
+        // if t1 < t0 {
+        //     std::mem::swap(&mut t1, &mut t0)
+        // };
 
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
 
@@ -507,7 +507,7 @@ impl AngstromBundle {
             .map(|tob| {
                 trace!(tob_order = ?tob, "Mapping TOB Swap");
                 let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
-                tracing::info!(?outcome);
+                // tracing::info!(?outcome);
 
                 // Make sure the input for our swap is precisely what's used in the swap portion
                 let (input, output) = outcome
@@ -603,7 +603,11 @@ impl AngstromBundle {
                 );
                 order
             } else {
-                asset_builder.add_gas_fee(AssetBuilderStage::TopOfBlock, t0, tob.max_gas_asset0);
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::TopOfBlock,
+                    t0,
+                    tob.priority_data.gas.to()
+                );
                 TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
             };
             top_of_block_orders.push(contract_tob);
@@ -665,7 +669,7 @@ impl AngstromBundle {
                 asset_builder.add_gas_fee(
                     AssetBuilderStage::UserOrder,
                     t0,
-                    order.max_gas_token_0()
+                    order.priority_data.gas.to()
                 );
                 UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
             };
