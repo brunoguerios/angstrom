@@ -220,11 +220,6 @@ impl PoolSnapshot {
 
         // Get all affected liquidity ranges
         let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
-
-        // let amount_specified = if !is_bid { I256::MAX - I256::ONE } else { I256::MIN
-        // + I256::ONE };
-        // let mut total_in = 0u128;
-        // let mut total_out = 0u128;
         let mut t_delta = 0u128;
 
         for range in &liq_range {
