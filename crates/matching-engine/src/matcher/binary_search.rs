@@ -54,6 +54,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let direction = Direction::from_is_bid(!zfo);
 
         let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
+            tracing::info!("swap fail");
             return Ray::default()
         };
         tracing::info!(?zfo, ?end_sqrt, ?res);
