@@ -259,6 +259,7 @@ where
             .0;
 
         fetched_ticks.sort_by_key(|k| k.tick);
+        tracing::info!(?fetched_ticks);
 
         fetched_ticks
             .into_iter()
