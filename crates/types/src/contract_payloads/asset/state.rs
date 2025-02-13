@@ -2,6 +2,15 @@ use std::collections::HashMap;
 
 use alloy::primitives::Address;
 
+/// Tracks the state of our borrowing from Uniswap for a particular phase of
+/// contract execution.
+///
+/// FLAW - Right now we always do the Uniswap swap first so this is not
+/// manifested, however this currently does not delineate between loans we
+/// voluntarily take and Uniswap swaps we MUST execute to properly push the
+/// price.  Combining steps can reduce uniswap swaps based on liquidity which is
+/// mathematically correct (i.e. we will have the numbers needed to fulfill
+/// orders) but will not move the Uniswap price to where we want it to be.
 #[derive(Default, Debug, Clone)]
 pub struct BorrowStateTracker {
     pub take:            u128,
@@ -58,13 +67,24 @@ impl BorrowStateTracker {
         self.save += q;
     }
 
+    /// Combines this borrow state with another borrow state that is expected to
+    /// describe operations chronologically following this one
     pub fn and_then(&self, other: &Self) -> Self {
-        // undo any loans that we can for the next contract.
+        // The amount that we will need to borrow is the amount we had to borrow for
+        // this step plus the amount we need to borrow for the next step MINUS the
+        // amount we had liquid at the end of this step (as that will be available to
+        // the next step)
         let borrow_needed = self.take + (other.take.saturating_sub(self.contract_liquid));
-        let amount_owed = self.settle + (other.settle.saturating_sub(self.contract_liquid));
+        // The amount we'll have on-hand is equal to the amount we currently have
+        // on-hand minus the amount the next stage would have needed to borrow plus the
+        // amount the next stage will end with on hand
         let amount_onhand =
             (self.contract_liquid.saturating_sub(other.take)) + other.contract_liquid;
-
+        // The amount we owe back to Uniswap is the amount we currently owe to uniswap
+        // plus the amount the next step owes to uniswap MINUS the amount we had liquid
+        // at the end of this step (as that will be available to the next step)
+        let amount_owed = self.settle + (other.settle.saturating_sub(self.contract_liquid));
+        // The amount we're saving for later just adds up
         let amount_save = self.save + other.save;
 
         Self {
@@ -141,6 +161,26 @@ impl StageTracker {
                 .and_modify(|e| *e = e.and_then(state))
                 .or_insert_with(|| state.clone());
         });
+        Self { map: new_map }
+    }
+
+    /// Take all residual contract liquidity and transfer it to `save` for our
+    /// collection
+    pub fn collect_extra(&self) -> Self {
+        let new_map = self
+            .map
+            .iter()
+            .map(|(addr, state)| {
+                let new_state = BorrowStateTracker {
+                    take:            state.take,
+                    contract_liquid: 0,
+                    save:            state.save
+                        + state.contract_liquid.saturating_sub(state.settle),
+                    settle:          state.settle
+                };
+                (*addr, new_state)
+            })
+            .collect();
         Self { map: new_map }
     }
 }

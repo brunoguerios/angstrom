@@ -565,6 +565,8 @@ impl AngstromBundle {
             tob_outcome.end_tick,
             snapshot
         );
+        // Account for our tribute
+        asset_builder.tribute(AssetBuilderStage::Reward, t0, tob_outcome.tribute);
         // Let's do this stupidly for now and work on improving later
         // Push our null swap with reward
         pool_updates.push(PoolUpdate {

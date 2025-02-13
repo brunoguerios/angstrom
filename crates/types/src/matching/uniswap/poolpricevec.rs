@@ -482,49 +482,47 @@ impl<'a> PoolPriceVec<'a> {
             }
         }
 
-        // If we have a blob and we have any donation left, we do one last cycle to try
-        // to get up to our final price
-        if let Some((c_t0, c_t1)) = current_blob.as_mut() {
-            if remaining_donation > 0 {
-                let target_price = self.end_bound.as_ray();
-                let target_t0 = target_price.inverse_quantity(*c_t1, round_up);
-                // The step cost is the difference between the amount of t0 we actually moved
-                // and the amount we should have moved to be at this step's average price
-                let step_cost = c_t0.abs_diff(target_t0);
-
-                let increment = std::cmp::min(remaining_donation, step_cost);
-                if price_dropping {
-                    *c_t0 += increment;
-                } else {
-                    *c_t0 = c_t0.saturating_sub(increment)
-                }
+        // At this point, all of our swap is within the blob.  If we have additional
+        // donation, we want to distribute it ALL to the blob to get to the best price
+        // possible.
+        if let Some((c_t0, _)) = current_blob.as_mut() {
+            if price_dropping {
+                *c_t0 += remaining_donation
+            } else {
+                *c_t0 = c_t0.saturating_sub(remaining_donation)
             }
         }
+        // Now we can find our filled price - if the price is dropping we want to round
+        // down otherwise we want to round up.  Note that this diverges from other
+        // rounding being done.
         let filled_price =
-            current_blob.map(|(t0, t1)| Ray::calc_price_generic(t0, t1, price_dropping));
-        tracing::info!(?filled_price);
+            current_blob.map(|(t0, t1)| Ray::calc_price_generic(t0, t1, !price_dropping));
 
+        tracing::trace!(?filled_price, swap_end_price = ?self.end_bound.price, "Found post-donation price");
         // We've now found our filled price, we can allocate our reward to each tick
         // based on how much it costs to bring them to that price.
+        // We can start remaining_donation over
+        remaining_donation = total_donation;
         let mut total_donated = 0_u128;
         let tick_donations: HashMap<(Tick, Tick), u128> = steps
             .iter()
             .map(|step| {
                 let reward = if let Some(f) = filled_price {
                     // T1 is constant, so we need to know how much t0 we need
-                    let target_t0 = f.inverse_quantity(step.d_t1, price_dropping);
+                    let target_t0 = f.inverse_quantity(step.d_t1, round_up);
                     if price_dropping {
                         // If the filled_price should be lower than our current price, then our
                         // target T0 is MORE than we have in this step
-                        target_t0.saturating_sub(step.d_t0)
+                        std::cmp::min(remaining_donation, target_t0.saturating_sub(step.d_t0))
                     } else {
                         // If the filled_price should be higher than our current price, then our
                         // target T0 is LESS than we have in this step
-                        step.d_t0.saturating_sub(target_t0)
+                        std::cmp::min(remaining_donation, step.d_t0.saturating_sub(target_t0))
                     }
                 } else {
                     0
                 };
+                remaining_donation -= reward;
                 total_donated += reward;
                 // We always donate to the lower tick of our liquidity range as that is the
                 // appropriate initialized tick to target
