@@ -30,6 +30,12 @@ impl BorrowStateTracker {
         self.settle += q;
     }
 
+    /// Add to what we're taking for ourself in terms of "rewards" from
+    /// donations
+    pub fn reward(&mut self, q: u128) {
+        self.take += q;
+    }
+
     /// Add to what we take from Uniswap into our contract liquidity, as a
     /// result of a pool swap
     pub fn take(&mut self, q: u128) {
@@ -118,6 +124,11 @@ impl StageTracker {
 
     pub fn allocate(&mut self, asset: Address, q: u128) {
         self.get_state(asset).allocate(q);
+    }
+
+    /// Accept "tribute" that will go to the Angstrom contract overall
+    pub fn tribute(&mut self, asset: Address, q: u128) {
+        self.get_state(asset).reward(q);
     }
 
     pub fn and_then(&self, other: &Self) -> Self {

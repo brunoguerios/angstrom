@@ -87,6 +87,10 @@ impl AssetBuilder {
         self.get_stage(stage).allocate(asset, quantity);
     }
 
+    pub fn tribute(&mut self, stage: AssetBuilderStage, asset: Address, quantity: u128) {
+        self.get_stage(stage).tribute(asset, quantity);
+    }
+
     pub fn add_or_get_asset(&mut self, asset: Address) -> usize {
         self.assets.add_or_get_asset_idx(asset)
     }
