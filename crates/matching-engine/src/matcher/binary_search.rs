@@ -50,6 +50,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
+
         let zfo = start_sqrt >= end_sqrt;
         let direction = Direction::from_is_bid(!zfo);
 
@@ -57,7 +58,8 @@ impl<'a> BinarySearchMatcher<'a> {
             tracing::info!("swap fail");
             return Ray::default()
         };
-        tracing::info!(?zfo, ?end_sqrt, ?res);
+
+        tracing::info!(?zfo, ?end_sqrt, ?res.d_t0, ?res.d_t1);
 
         // exact in ask is value. ie token0
         Ray::from(U256::from(res.d_t0))
