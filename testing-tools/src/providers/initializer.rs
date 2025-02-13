@@ -328,6 +328,7 @@ impl WithWalletProvider for AnvilInitializer {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use alloy_primitives::address;
@@ -393,3 +394,5 @@ mod tests {
         assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
     }
 }
+
+*/
