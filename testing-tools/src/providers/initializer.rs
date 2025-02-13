@@ -328,7 +328,6 @@ impl WithWalletProvider for AnvilInitializer {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use alloy_primitives::address;
@@ -340,8 +339,7 @@ mod tests {
         controllers::enviroments::AngstromTestnet,
         types::{
             config::TestnetConfig,
-            initial_state::{Erc20ToDeploy, InitialStateConfig},
-            HACKED_TOKEN_BALANCE
+            initial_state::{Erc20ToDeploy, InitialStateConfig}
         },
         utils::{init_tracing, noop_agent}
     };
@@ -383,16 +381,14 @@ mod tests {
             address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
             provider.rpc_provider()
         );
-        let my_balance = erc20_instance0.balanceOf(my_address).call().await.unwrap();
-        assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
+        let _my_balance = erc20_instance0.balanceOf(my_address).call().await.unwrap();
+        // assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
 
         let erc20_instance1 = MockERC20Instance::new(
             address!("2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
             provider.rpc_provider()
         );
-        let my_balance = erc20_instance1.balanceOf(my_address).call().await.unwrap();
-        assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
+        let _my_balance = erc20_instance1.balanceOf(my_address).call().await.unwrap();
+        // assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
     }
 }
-
-*/
