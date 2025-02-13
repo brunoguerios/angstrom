@@ -55,6 +55,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
             return Ray::default()
         };
+        // tracing::info!(?start_sqrt, ?end_sqrt,?res);
 
         // exact in ask is value. ie token0
         Ray::from(U256::from(res.d_t0))
