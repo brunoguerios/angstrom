@@ -106,7 +106,7 @@ where
                 pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
             };
 
-            let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot, None);
+            let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot);
 
             if outcome.is_err() {
                 let zfo = !tob.is_bid;

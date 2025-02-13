@@ -38,8 +38,7 @@ impl ToBOutcome {
 
     pub fn from_tob_and_snapshot(
         tob: &OrderWithStorageData<TopOfBlockOrder>,
-        snapshot: &PoolSnapshot,
-        gas_used: Option<u128>
+        snapshot: &PoolSnapshot
     ) -> eyre::Result<Self> {
         // First let's simulate the actual ToB swap and use that to determine what our
         // leftover T0 is for rewards
