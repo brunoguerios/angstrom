@@ -366,8 +366,7 @@ pub mod tests {
 
     use alloy::{
         primitives::Address,
-        providers::{fillers::*, network::Ethereum, ProviderBuilder, RootProvider, *},
-        transports::BoxTransport
+        providers::{fillers::*, network::Ethereum, ProviderBuilder, RootProvider, *}
     };
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_network::manager::StromConsensusEvent;
@@ -409,8 +408,7 @@ pub mod tests {
             Identity,
             JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>
         >,
-        RootProvider<BoxTransport>,
-        BoxTransport,
+        RootProvider,
         Ethereum
     >;
 

@@ -319,7 +319,7 @@ mod tests {
             .build();
         // Configure our pool that we just made
         angstrom
-            .configurePool(pool.currency0, pool.currency1, 10, U24::ZERO)
+            .configurePool(pool.currency0, pool.currency1, 10, U24::ZERO, U24::ZERO)
             .from(controller)
             .run_safe()
             .await

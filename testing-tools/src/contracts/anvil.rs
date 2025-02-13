@@ -12,8 +12,7 @@ use alloy::{
         },
         Identity, PendingTransaction, Provider, RootProvider
     },
-    signers::local::PrivateKeySigner,
-    transports::{BoxTransport, Transport}
+    signers::local::PrivateKeySigner
 };
 use alloy_primitives::Address;
 use alloy_sol_types::SolCall;
@@ -27,8 +26,7 @@ pub type WalletProviderRpc = FillProvider<
         >,
         WalletFiller<EthereumWallet>
     >,
-    RootProvider<BoxTransport>,
-    BoxTransport,
+    RootProvider,
     Ethereum
 >;
 
@@ -49,8 +47,7 @@ pub type LocalAnvilRpc = alloy::providers::fillers::FillProvider<
         >,
         alloy::providers::fillers::WalletFiller<EthereumWallet>
     >,
-    RootProvider<BoxTransport>,
-    BoxTransport,
+    RootProvider,
     Ethereum
 >;
 
@@ -89,10 +86,9 @@ pub(crate) trait SafeDeployPending {
     ) -> impl Future<Output = eyre::Result<(PendingTransaction, Address)>> + Send;
 }
 
-impl<T, P, N> SafeDeployPending for RawCallBuilder<T, P, N>
+impl<P, N> SafeDeployPending for RawCallBuilder<(), P, N>
 where
-    T: Transport + Clone,
-    P: Provider<T, N>,
+    P: Provider<N>,
     N: Network
 {
     async fn deploy_pending(self) -> eyre::Result<PendingTransaction> {
@@ -115,10 +111,9 @@ where
     }
 }
 
-impl<T, P, C, N> SafeDeployPending for SolCallBuilder<T, P, C, N>
+impl<P, C, N> SafeDeployPending for SolCallBuilder<(), P, C, N>
 where
-    T: Transport + Clone,
-    P: Provider<T, N> + Clone,
+    P: Provider<N> + Clone,
     C: SolCall + Send + Sync + Clone,
     N: Network
 {
