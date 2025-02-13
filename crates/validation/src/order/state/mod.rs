@@ -99,7 +99,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             }
 
             if !self.correctly_built(&order) {
-                tracing::info!("invalidly built order");
+                tracing::info!(?order, "invalidly built order");
                 return OrderValidationResults::Invalid(order_hash);
             }
 
