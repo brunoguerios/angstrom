@@ -628,6 +628,111 @@ impl<'a> PoolPriceVec<'a> {
         end_bound.price = end_sqrt_price;
         Self { end_bound, start_bound: self.start_bound.clone(), d_t0, d_t1, steps: None }
     }
+
+    pub fn swap_to_price(
+        start: PoolPrice<'a>,
+        final_price: SqrtPriceX96,
+        direction: Direction
+    ) -> eyre::Result<Self> {
+        let fee_pips = 0;
+        let mut total_in = U256::ZERO;
+        let mut total_out = U256::ZERO;
+        let mut current_price = start.price;
+
+        let mut current_liq_range: Option<_> = Some(start.liquidity_range());
+        let mut left_to_swap = u128::MAX;
+
+        let mut steps: Vec<SwapStep> = Vec::new();
+        // if we are a bid, then we want exact out, else we are a ask and want exact in.
+        let is_swap_input = if direction.is_bid() { false } else { true };
+
+        while left_to_swap > 0 && final_price != current_price {
+            // Update our current liquidiy range
+            let liq_range =
+                current_liq_range.ok_or_else(|| eyre!("Unable to find next liquidity range"))?;
+            // Compute our swap towards the appropriate end of our current liquidity bound
+            let target_tick = liq_range.end_tick(direction);
+            let target_price = SqrtPriceX96::at_tick(target_tick)?;
+            // If our target price is equal to our current price, we're precisely at the
+            // "bottom" of a liquidity range and we can skip this computation as
+            // it will be a null step - but we're going to add the null step anyways for
+            // donation purposes
+            if target_price == current_price {
+                steps.push(SwapStep {
+                    start_price: current_price,
+                    end_price: target_price,
+                    d_t0: 0,
+                    d_t1: 0,
+                    liq_range
+                });
+                current_liq_range = liq_range.next(direction);
+                continue;
+            }
+
+            let amount_remaining = if is_swap_input {
+                // Exact in is calculated with a positive quantity
+                I256::unchecked_from(left_to_swap)
+            } else {
+                // Exact out is calculated with a negative quantity
+                I256::unchecked_from(left_to_swap).neg()
+            };
+
+            // Now we can compute our step
+            let (fin_price, amount_in, amount_out, amount_fee) = compute_swap_step(
+                current_price.into(),
+                target_price.into(),
+                liq_range.liquidity(),
+                amount_remaining,
+                fee_pips
+            )
+            .wrap_err_with(|| {
+                format!(
+                    "Unable to compute swap step from tick {:?} to {}",
+                    current_price.to_tick(),
+                    target_tick
+                )
+            })?;
+
+            // See how much output we have yet to go
+            if is_swap_input {
+                // If our left_to_swap is the input, we want to subtract the amount in that was
+                // allocated and the fee
+                left_to_swap = left_to_swap.saturating_sub(amount_in.saturating_to());
+                left_to_swap = left_to_swap.saturating_sub(amount_fee.saturating_to());
+            } else {
+                // If our left_to_swap is the output, we want to subtract the amount out that
+                // was allocated
+                left_to_swap = left_to_swap.saturating_sub(amount_out.saturating_to());
+            }
+
+            // Add the amount in and fee to our cost
+            total_in += amount_in;
+            total_in += amount_fee;
+            // Add the amount out to our output
+            total_out += amount_out;
+
+            // Based on our direction, sort out what our token0 and token1 are
+            let (d_t0, d_t1) = direction.sort_tokens(amount_in.to(), amount_out.to());
+
+            // Push this step onto our list of swap steps
+            steps.push(SwapStep {
+                start_price: current_price,
+                end_price: SqrtPriceX96::from(fin_price),
+                d_t0,
+                d_t1,
+                liq_range
+            });
+            // (avg_price, end_price, amount_out, liq_range));
+
+            // If we're going to be continuing, move on to the next liquidity range
+            current_liq_range = liq_range.next(direction);
+            current_price = SqrtPriceX96::from(fin_price);
+        }
+
+        let (d_t0, d_t1) = direction.sort_tokens(total_in.to(), total_out.to());
+        let end_bound = start.liq_range.pool_snap.at_price(current_price)?;
+        Ok(Self { start_bound: start, end_bound, d_t0, d_t1, steps: Some(steps) })
+    }
 }
 
 #[cfg(test)]

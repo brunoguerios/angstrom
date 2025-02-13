@@ -1,9 +1,11 @@
 use std::{fmt::Debug, slice::Iter};
 
+use alloy::primitives::I256;
 use eyre::{eyre, Context, OptionExt};
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
     sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta},
+    swap_math::compute_swap_step,
     tick_math::get_tick_at_sqrt_ratio
 };
 
@@ -141,14 +143,6 @@ impl PoolSnapshot {
         start_price < end_price
     }
 
-    /// will return the amount of t0 if we are a bid, if an ask, will return t1
-    pub fn get_quantity_to_price(&self, price: Ray) -> Option<u128> {
-        let end_price = SqrtPriceX96::from(price);
-        let start_price = self.sqrt_price_x96;
-
-        self.get_deltas(start_price, end_price)
-    }
-
     pub fn get_quantity_to_price_start_price(
         &self,
         price: Ray,
@@ -227,7 +221,11 @@ impl PoolSnapshot {
         // Get all affected liquidity ranges
         let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
 
-        let mut total_delta = 0u128;
+        // let amount_specified = if !is_bid { I256::MAX - I256::ONE } else { I256::MIN
+        // + I256::ONE };
+        // let mut total_in = 0u128;
+        // let mut total_out = 0u128;
+        let mut t_delta = 0u128;
 
         for range in &liq_range {
             let (range_start_price, range_end_price) = if is_bid {
@@ -266,11 +264,16 @@ impl PoolSnapshot {
                 .ok()?
                 .to::<u128>()
             };
+            t_delta += delta
 
-            total_delta += delta;
+            //
+            // total_in += amount_in.to::<u128>() + fee.to::<u128>();
+            // total_out += amount_out.to::<u128>();
+
+            // total_delta += delta;
         }
 
-        Some(total_delta)
+        Some(t_delta)
     }
 }
 

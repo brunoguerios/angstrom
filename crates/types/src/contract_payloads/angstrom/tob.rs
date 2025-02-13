@@ -87,7 +87,7 @@ impl TopOfBlockOrder {
             quantity_out,
             max_gas_asset_0: internal.max_gas_asset0,
             // set as max so we can use the sim to verify values.
-            gas_used_asset_0: internal.max_gas_asset0,
+            gas_used_asset_0: internal.priority_data.gas.to(),
             pairs_index,
             zero_for_1,
             recipient,
