@@ -333,6 +333,13 @@ impl GroupedUserOrder {
 }
 
 impl RawPoolOrder for StandingVariants {
+    fn min_amount(&self) -> u128 {
+        match self {
+            StandingVariants::Exact(e) => e.min_amount(),
+            StandingVariants::Partial(p) => p.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             StandingVariants::Exact(e) => e.exact_in(),
@@ -434,6 +441,13 @@ impl RawPoolOrder for StandingVariants {
 }
 
 impl RawPoolOrder for FlashVariants {
+    fn min_amount(&self) -> u128 {
+        match self {
+            FlashVariants::Exact(e) => e.min_amount(),
+            FlashVariants::Partial(p) => p.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             FlashVariants::Exact(e) => e.exact_in(),
@@ -651,6 +665,10 @@ impl RawPoolOrder for TopOfBlockOrder {
         true
     }
 
+    fn min_amount(&self) -> u128 {
+        self.quantity_in
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         self.max_gas_asset0
     }
@@ -717,6 +735,10 @@ impl RawPoolOrder for TopOfBlockOrder {
 }
 
 impl RawPoolOrder for PartialStandingOrder {
+    fn min_amount(&self) -> u128 {
+        self.min_amount_in
+    }
+
     fn exact_in(&self) -> bool {
         true
     }
@@ -790,6 +812,10 @@ impl RawPoolOrder for PartialStandingOrder {
 }
 
 impl RawPoolOrder for ExactStandingOrder {
+    fn min_amount(&self) -> u128 {
+        self.amount
+    }
+
     fn exact_in(&self) -> bool {
         self.exact_in
     }
@@ -863,6 +889,10 @@ impl RawPoolOrder for ExactStandingOrder {
 }
 
 impl RawPoolOrder for PartialFlashOrder {
+    fn min_amount(&self) -> u128 {
+        self.min_amount_in
+    }
+
     fn exact_in(&self) -> bool {
         true
     }
@@ -936,6 +966,10 @@ impl RawPoolOrder for PartialFlashOrder {
 }
 
 impl RawPoolOrder for ExactFlashOrder {
+    fn min_amount(&self) -> u128 {
+        self.amount
+    }
+
     fn exact_in(&self) -> bool {
         self.exact_in
     }
@@ -1009,6 +1043,14 @@ impl RawPoolOrder for ExactFlashOrder {
 }
 
 impl RawPoolOrder for AllOrders {
+    fn min_amount(&self) -> u128 {
+        match self {
+            AllOrders::Standing(p) => p.min_amount(),
+            AllOrders::Flash(kof) => kof.min_amount(),
+            AllOrders::TOB(tob) => tob.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             AllOrders::Standing(p) => p.exact_in(),
@@ -1138,6 +1180,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
         }
     }
 
+    fn min_amount(&self) -> u128 {
+        match self {
+            GroupedVanillaOrder::Standing(p) => p.min_amount(),
+            GroupedVanillaOrder::KillOrFill(kof) => kof.min_amount()
+        }
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         match self {
             GroupedVanillaOrder::Standing(p) => p.max_gas_token_0(),
@@ -1238,6 +1287,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
 }
 
 impl RawPoolOrder for GroupedComposableOrder {
+    fn min_amount(&self) -> u128 {
+        match self {
+            GroupedComposableOrder::Partial(p) => p.min_amount(),
+            GroupedComposableOrder::KillOrFill(kof) => kof.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             GroupedComposableOrder::Partial(p) => p.exact_in(),

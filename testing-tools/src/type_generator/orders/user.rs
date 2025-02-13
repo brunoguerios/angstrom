@@ -137,7 +137,6 @@ impl UserOrderBuilder {
         if !self.is_exact {
             self.exact_in = true;
         }
-
         // zero for 1
         if self.asset_in < self.asset_out {
             if self.exact_in {
@@ -153,6 +152,21 @@ impl UserOrderBuilder {
                 / 5
         } else {
             self.amount / 5
+        }
+    }
+
+    pub fn valid_min_qty(&mut self) -> u128 {
+        // partials are always exact in
+        self.exact_in = true;
+        let max_fee_qty = self.get_max_fee_zero();
+
+        // zfo
+        if self.asset_in < self.asset_out {
+            // just the amount of fee as its zfo
+            max_fee_qty
+        } else {
+            // the fee in zfo mul through the min price
+            self.min_price.mul_quantity(U256::from(max_fee_qty)).to()
         }
     }
 
@@ -187,6 +201,7 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
+                    min_amount_in: self.valid_min_qty(),
                     max_extra_fee_asset0: self.get_max_fee_zero(),
                     nonce: self.nonce,
                     min_price: *self.min_price,
@@ -236,6 +251,7 @@ impl UserOrderBuilder {
                     asset_out: self.asset_out,
                     max_extra_fee_asset0: self.get_max_fee_zero(),
                     max_amount_in: self.amount,
+                    min_amount_in: self.valid_min_qty(),
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     ..Default::default()
