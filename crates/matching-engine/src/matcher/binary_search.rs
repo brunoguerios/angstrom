@@ -264,6 +264,7 @@ impl<'a> BinarySearchMatcher<'a> {
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let Some(price_and_partial_solution) = self.solve_clearing_price() else {
+            tracing::info!("no solve");
             return PoolSolution {
                 id: self.book.id(),
                 searcher,
