@@ -37,12 +37,13 @@ use crate::{
 };
 
 pub struct AnvilInitializer {
-    provider:      WalletProvider,
-    angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1: ControllerV1Instance<(), WalletProviderRpc>,
-    angstrom:      AngstromInstance<(), WalletProviderRpc>,
-    pool_gate:     PoolGateInstance<(), WalletProviderRpc>,
-    pending_state: PendingDeployedPools
+    provider:             WalletProvider,
+    angstrom_env:         AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1:        ControllerV1Instance<(), WalletProviderRpc>,
+    angstrom:             AngstromInstance<(), WalletProviderRpc>,
+    pool_gate:            PoolGateInstance<(), WalletProviderRpc>,
+    pending_state:        PendingDeployedPools,
+    initial_state_config: InitialStateConfig
 }
 
 impl AnvilInitializer {
@@ -121,9 +122,7 @@ impl AnvilInitializer {
         let (token0, token1) = (tokens[0], tokens[1]);
         let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
 
-        self.rpc_provider()
-            .anvil_mine(Some(U256::from(1u8)), None)
-            .await?;
+        self.rpc_provider().anvil_mine(Some(1), None).await?;
 
         Ok(tokens)
     }
