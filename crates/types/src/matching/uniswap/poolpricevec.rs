@@ -650,7 +650,16 @@ impl<'a> PoolPriceVec<'a> {
                 current_liq_range.ok_or_else(|| eyre!("Unable to find next liquidity range"))?;
             // Compute our swap towards the appropriate end of our current liquidity bound
             let target_tick = liq_range.end_tick(direction);
-            let target_price = SqrtPriceX96::at_tick(target_tick)?;
+            let target_price = if direction.is_bid() {
+                // if we are a bid, means that start_price < end_price.
+                // as we are swapping up, we want to take the min
+                SqrtPriceX96::at_tick(target_tick)?.min(final_price)
+            } else {
+                // if we are zfo, means that start_price > end and we are going down.
+                // we always want to choose max
+                SqrtPriceX96::at_tick(target_tick)?.max(final_price)
+            };
+
             // If our target price is equal to our current price, we're precisely at the
             // "bottom" of a liquidity range and we can skip this computation as
             // it will be a null step - but we're going to add the null step anyways for
