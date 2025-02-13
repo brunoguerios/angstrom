@@ -43,6 +43,6 @@ impl<T> FnResultOption<T> for Option<T> {
     where
         F: FnOnce() -> Result<T, E>
     {
-        self.map_or_else(|| predicate(), |v| Ok(v))
+        self.map_or_else(predicate, |v| Ok(v))
     }
 }

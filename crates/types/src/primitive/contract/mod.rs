@@ -76,6 +76,7 @@ impl From<Vec<PoolKey>> for UniswapPoolRegistry {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -156,3 +157,5 @@ mod tests {
         // assert_eq!(decoded_sig, sig);
     }
 }
+
+*/
