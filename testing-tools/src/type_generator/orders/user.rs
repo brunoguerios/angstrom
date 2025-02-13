@@ -166,7 +166,7 @@ impl UserOrderBuilder {
             max_fee_qty
         } else {
             // the fee in zfo mul through the min price
-            self.min_price.mul_quantity(U256::from(max_fee_qty)).to()
+            self.min_price.inverse_quantity(max_fee_qty, true)
         }
     }
 
