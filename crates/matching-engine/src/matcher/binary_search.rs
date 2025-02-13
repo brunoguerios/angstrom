@@ -33,6 +33,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 };
 
                 let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
+                tracing::info!(?tob.is_bid, ?r.d_t0, ?r.d_t1, ?tob.quantity_in, ?tob.quantity_out);
 
                 Some(r.end_bound)
             } else {
@@ -55,7 +56,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
             return Ray::default()
         };
-        // tracing::info!(?start_sqrt, ?end_sqrt,?res);
+        tracing::info!(?zfo, ?end_sqrt, ?res);
 
         // exact in ask is value. ie token0
         Ray::from(U256::from(res.d_t0))
