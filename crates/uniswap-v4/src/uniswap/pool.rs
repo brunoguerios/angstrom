@@ -117,18 +117,12 @@ where
 
         // Let's make our own accumulator
         let mut cur_liq: i128 = 0;
-        let mut started = false;
 
         let liq_ranges = self
             .ticks
             .iter()
             .sorted_unstable_by(|a, b| a.0.cmp(b.0))
             .map_windows(|[(tick_lower, tick_inner_lower), (tick_upper, _)]| {
-                if !started {
-                    started = true;
-                    cur_liq = tick_inner_lower.liquidity_gross.to_i128().unwrap();
-                }
-
                 cur_liq += tick_inner_lower.liquidity_net;
                 // ensure everything is spaced properly
                 assert!(tick_lower.rem(self.tick_spacing) == 0, "Lower tick not aligned");
