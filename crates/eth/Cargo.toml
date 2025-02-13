@@ -16,6 +16,8 @@ pade.workspace = true
 itertools.workspace = true
 
 reth-primitives.workspace = true
+reth-ethereum-primitives.workspace = true
+reth-primitives-traits.workspace = true
 tokio.workspace = true
 futures.workspace = true
 tokio-stream.workspace = true

@@ -45,11 +45,11 @@ fn raw_bundle(t0: Address, t1: Address) -> AngstromBundle {
         assets:              vec![
             Asset {
                 addr:   t0,
-                borrow: 1957294855932995510748379,
+                take:   1957294855932995510748379,
                 save:   0,
                 settle: 2768096223250057485352960
             },
-            Asset { addr: t1, borrow: 13210706843549196798465171549, save: 0, settle: 0 },
+            Asset { addr: t1, take: 13210706843549196798465171549, save: 0, settle: 0 },
         ],
         pairs:               vec![Pair {
             index0:       0,
@@ -429,7 +429,7 @@ async fn similar_to_prev() {
         .build();
     // Configure our pool that we just made
     angstrom
-        .configurePool(pool.currency0, pool.currency1, 10, U24::ZERO)
+        .configurePool(pool.currency0, pool.currency1, 10, U24::ZERO, U24::ZERO)
         .from(controller)
         .run_safe()
         .await

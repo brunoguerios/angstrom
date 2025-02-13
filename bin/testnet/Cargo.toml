@@ -32,8 +32,6 @@ reth-tasks.workspace = true
 reth-eth-wire.workspace = true
 reth-node-ethereum.workspace = true
 reth-revm.workspace = true
-reth-blockchain-tree.workspace = true
-reth-beacon-consensus.workspace = true
 reth-tokio-util.workspace = true
 reth-ecies.workspace = true
 reth-discv4 = { workspace = true, features = ["test-utils"] }
