@@ -137,23 +137,22 @@ impl UserOrderBuilder {
         if !self.is_exact {
             self.exact_in = true;
         }
+
         // zero for 1
         if self.asset_in < self.asset_out {
             if self.exact_in {
-                self.amount / 2
+                self.amount / 5
             } else {
-                self.min_price
-                    .mul_quantity(U256::from(self.amount))
-                    .to::<u128>()
-                    / 2
+                // if zero for 1, t1 / t0
+                self.min_price.inverse_quantity(self.amount, true) / 5
             }
         } else if self.exact_in {
             self.min_price
                 .mul_quantity(U256::from(self.amount))
                 .to::<u128>()
-                / 2
+                / 5
         } else {
-            self.amount / 2
+            self.amount / 5
         }
     }
 
