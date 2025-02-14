@@ -11,7 +11,7 @@ use alloy::{
 use alloy_primitives::Log;
 use angstrom_types::matching::uniswap::{LiqRange, PoolSnapshot};
 use itertools::Itertools;
-use rand_distr::num_traits::ToPrimitive;
+use malachite::num::conversion::traits::SaturatingInto;
 use thiserror::Error;
 use uniswap_v3_math::{
     error::UniswapV3MathError,
@@ -115,22 +115,69 @@ where
             return Err(PoolError::PoolNotInitialized)
         }
 
-        // Let's make our own accumulator
-        let mut cur_liq: i128 = 0;
+        // Get the information for our current position
+        let current_liquidity = self.liquidity;
+        let current_tick = self.tick;
+        let (less_than, more_than): (Vec<_>, Vec<_>) =
+            self.ticks.iter().partition(|t| *t.0 <= current_tick);
+        let current_range = LiqRange::new(
+            *less_than
+                .first()
+                .expect("No lower bound to current range")
+                .0,
+            *more_than
+                .first()
+                .expect("No upper bound to corrent range")
+                .0,
+            current_liquidity
+        )
+        .unwrap();
 
-        let liq_ranges = self
-            .ticks
+        let mut tracked_liq: i128 = current_liquidity.saturating_into();
+        let upper_ranges = more_than
             .iter()
-            .sorted_unstable_by(|a, b| a.0.cmp(b.0))
-            .map_windows(|[(tick_lower, tick_inner_lower), (tick_upper, _)]| {
-                cur_liq += tick_inner_lower.liquidity_net;
+            .sorted_unstable_by(|(tick_a, _), (tick_b, _)| tick_a.cmp(tick_b))
+            .map_windows(|[(low_tick, low_tick_data), (high_tick, _)]| {
+                // We're walking upwards so we add the low tick's net
+                tracked_liq += low_tick_data.liquidity_net;
                 // ensure everything is spaced properly
-                assert!(tick_lower.rem(self.tick_spacing) == 0, "Lower tick not aligned");
-                assert!(tick_upper.rem(self.tick_spacing) == 0, "Upper tick not aligned");
-                assert!(cur_liq >= 0, "Liquidity dropped below zero {}", tick_lower);
-                LiqRange::new(**tick_lower, **tick_upper, cur_liq.unsigned_abs()).unwrap()
+                assert!(low_tick.rem(self.tick_spacing) == 0, "Lower tick not aligned");
+                assert!(high_tick.rem(self.tick_spacing) == 0, "Upper tick not aligned");
+                assert!(
+                    tracked_liq >= 0,
+                    "Liquidity dropped below zero {} - {}",
+                    low_tick,
+                    high_tick
+                );
+                LiqRange::new(**low_tick, **high_tick, tracked_liq.unsigned_abs()).unwrap()
             })
             .collect::<Vec<_>>();
+
+        // Reset our tracked liquidity
+        tracked_liq = current_liquidity.saturating_into();
+        // Iterate downwards now
+        let lower_ranges = less_than
+            .iter()
+            .sorted_unstable_by(|(tick_a, _), (tick_b, _)| tick_b.cmp(tick_a))
+            .map_windows(|[(high_tick, high_tick_data), (low_tick, _)]| {
+                // We're walking downwards now so we subtract the upper tick's net
+                tracked_liq -= high_tick_data.liquidity_net;
+                // ensure everything is spaced properly
+                assert!(low_tick.rem(self.tick_spacing) == 0, "Lower tick not aligned");
+                assert!(high_tick.rem(self.tick_spacing) == 0, "Upper tick not aligned");
+                assert!(
+                    tracked_liq >= 0,
+                    "Liquidity dropped below zero {} - {}",
+                    low_tick,
+                    high_tick
+                );
+                LiqRange::new(**low_tick, **high_tick, tracked_liq.unsigned_abs()).unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        // Put them all together - the PoolSnapshot constructor will sort this
+        let liq_ranges =
+            [[current_range].as_slice(), upper_ranges.as_slice(), lower_ranges.as_slice()].concat();
 
         Ok((self.token0, self.token1, PoolSnapshot::new(liq_ranges, self.sqrt_price.into())?))
     }
@@ -296,25 +343,21 @@ where
 
         let shift = self.token0_decimals as i8 - self.token1_decimals as i8;
         // flipped to scale them properly with the token spacing
-        let price = match shift.cmp(&0) {
+        match shift.cmp(&0) {
             Ordering::Less => 1.0001_f64.powi(tick) * 10_f64.powi(-shift as i32),
             Ordering::Greater => 1.0001_f64.powi(tick) / 10_f64.powi(shift as i32),
             Ordering::Equal => 1.0001_f64.powi(tick)
-        };
-
-        price
+        }
     }
 
     pub fn calculate_price(&self) -> f64 {
         let tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(self.sqrt_price).unwrap();
         let shift = self.token0_decimals as i8 - self.token1_decimals as i8;
-        let price = match shift.cmp(&0) {
+        match shift.cmp(&0) {
             Ordering::Less => 1.0001_f64.powi(tick) / 10_f64.powi(-shift as i32),
             Ordering::Greater => 1.0001_f64.powi(tick) * 10_f64.powi(shift as i32),
             Ordering::Equal => 1.0001_f64.powi(tick)
-        };
-
-        price
+        }
     }
 
     /// Obvious doc: Sims the swap to get the state changes after applying it
