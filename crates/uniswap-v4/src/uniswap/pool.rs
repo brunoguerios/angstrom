@@ -118,13 +118,16 @@ where
         // Get the information for our current position
         let current_liquidity = self.liquidity;
         let current_tick = self.tick;
-        let (less_than, more_than): (Vec<_>, Vec<_>) =
-            self.ticks.iter().partition(|t| *t.0 <= current_tick);
+        let (less_than, more_than): (Vec<_>, Vec<_>) = self
+            .ticks
+            .iter()
+            .sorted_unstable_by(|(tick_a, _), (tick_b, _)| tick_a.cmp(tick_b))
+            .partition(|t| *t.0 <= current_tick);
+
         let current_range = LiqRange::new(
-            *less_than
-                .first()
-                .expect("No lower bound to current range")
-                .0,
+            // Because they're already sorted low to high - we want the highest low and the lowest
+            // high
+            *less_than.last().expect("No lower bound to current range").0,
             *more_than
                 .first()
                 .expect("No upper bound to corrent range")
@@ -136,6 +139,7 @@ where
         let mut tracked_liq: i128 = current_liquidity.saturating_into();
         let upper_ranges = more_than
             .iter()
+            // Sort low to high
             .sorted_unstable_by(|(tick_a, _), (tick_b, _)| tick_a.cmp(tick_b))
             .map_windows(|[(low_tick, low_tick_data), (high_tick, _)]| {
                 // We're walking upwards so we add the low tick's net
@@ -158,7 +162,8 @@ where
         // Iterate downwards now
         let lower_ranges = less_than
             .iter()
-            .sorted_unstable_by(|(tick_a, _), (tick_b, _)| tick_b.cmp(tick_a))
+            // We want to walk our ranges high to low, so we reverse
+            .rev()
             .map_windows(|[(high_tick, high_tick_data), (low_tick, _)]| {
                 // We're walking downwards now so we subtract the upper tick's net
                 tracked_liq -= high_tick_data.liquidity_net;
