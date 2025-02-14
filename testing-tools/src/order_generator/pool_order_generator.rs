@@ -21,10 +21,9 @@ impl PoolOrderGenerator {
     pub fn new(pool_id: PoolId, pool_data: SyncedUniswapPool, block_number: u64) -> Self {
         let price = pool_data.read().unwrap().calculate_price();
 
-        // bounds of 50% from start with a std of 10%
-        tracing::info!(?price);
+        // bounds of 50% from start with a std of 2%
         let mut price_distribution =
-            PriceDistribution::new(price, f64::INFINITY, f64::NEG_INFINITY, 4.0);
+            PriceDistribution::new(price, f64::INFINITY, f64::NEG_INFINITY, 2.0);
         let cur_price = price_distribution.generate_price();
         let builder = OrderBuilder::new(pool_data);
 

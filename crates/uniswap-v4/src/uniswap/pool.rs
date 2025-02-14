@@ -11,6 +11,7 @@ use alloy::{
 use alloy_primitives::Log;
 use angstrom_types::matching::uniswap::{LiqRange, PoolSnapshot};
 use itertools::Itertools;
+use rand_distr::num_traits::ToPrimitive;
 use thiserror::Error;
 use uniswap_v3_math::{
     error::UniswapV3MathError,
@@ -126,7 +127,7 @@ where
                 // ensure everything is spaced properly
                 assert!(tick_lower.rem(self.tick_spacing) == 0, "Lower tick not aligned");
                 assert!(tick_upper.rem(self.tick_spacing) == 0, "Upper tick not aligned");
-                assert!(cur_liq >= 0, "Liquidity dropped below zero");
+                assert!(cur_liq >= 0, "Liquidity dropped below zero {}", tick_lower);
                 LiqRange::new(**tick_lower, **tick_upper, cur_liq.unsigned_abs()).unwrap()
             })
             .collect::<Vec<_>>();
@@ -173,7 +174,6 @@ where
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<(Vec<TickData>, U256), PoolError> {
-        tracing::info!(?tick_start,?num_ticks,addr=?self.address());
         let (tick_data, block_number) = self
             .data_loader
             .load_tick_data(
@@ -239,10 +239,15 @@ where
         self.tick_bitmap.clear();
 
         tracing::info!(?self.token0, ?self.token1,?self.tick, ?self.tick_spacing, ?self.liquidity,?self.liquidity_net);
+
+        let extra = (self.tick.rem(self.tick_spacing) == 0i32) as u8;
+
         let total_ticks_to_fetch = self.initial_ticks_per_side * 2;
         // current tick when loaded (init tick) - (half total tics * spacing);
 
-        let start_tick = self.tick - (total_ticks_to_fetch.div_ceil(2) as i32 * self.tick_spacing);
+        let start_tick = self.tick
+            - (total_ticks_to_fetch.div_ceil(2) as i32 * self.tick_spacing)
+            - (extra as i32);
 
         let end_tick = start_tick + (self.tick_spacing as u16 * total_ticks_to_fetch) as i32;
         tracing::info!(?start_tick, ?end_tick);

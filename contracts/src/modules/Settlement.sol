@@ -82,7 +82,10 @@ abstract contract Settlement is UniConsumer {
             uint256 saving = asset.save();
             uint256 settle = asset.settle();
 
-            if (bundleDeltas.sub(addr, saving + settle) != 0) {
+            int256 delta = bundleDeltas.sub(addr, saving + settle);
+
+            if (delta != 0) {
+                console.log("non zero delta", delta);
                 revert BundlDeltaUnresolved(addr);
             }
 

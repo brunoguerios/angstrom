@@ -1,16 +1,12 @@
 use alloy_primitives::U256;
 use angstrom_types::{
     matching::{
-        uniswap::{Direction, PoolPriceVec, Quantity},
+        uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
         SqrtPriceX96
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
-        grouped_orders::{
-            FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
-        },
-        rpc_orders::TopOfBlockOrder,
-        RawPoolOrder, Ray
+        grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder, RawPoolOrder, Ray
     }
 };
 
@@ -20,7 +16,7 @@ use crate::OrderBook;
 pub struct BinarySearchMatcher<'a> {
     book:            &'a OrderBook,
     /// changes if there is a tob or not
-    amm_start_price: Option<SqrtPriceX96>
+    amm_start_price: Option<PoolPrice<'a>>
 }
 
 impl<'a> BinarySearchMatcher<'a> {
@@ -35,34 +31,38 @@ impl<'a> BinarySearchMatcher<'a> {
                 } else {
                     Quantity::Token1(amount_out)
                 };
+
                 let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
-                Some(*r.end_bound.price())
+                tracing::info!(?tob.is_bid, ?r.d_t0, ?r.d_t1, ?tob.quantity_in, ?tob.quantity_out);
+
+                Some(r.end_bound)
             } else {
                 None
             }
         } else {
-            book.amm().map(|f| *f.current_price().price())
+            book.amm().map(|f| f.current_price())
         };
 
         Self { book, amm_start_price }
     }
 
     fn fetch_concentrated_liquidity(&self, price: Ray) -> Ray {
-        let Some(book) = self.book.amm() else { return Ray::default() };
+        let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
+        let start_sqrt = start_price.as_sqrtpricex96();
+        let end_sqrt = SqrtPriceX96::from(price);
 
-        let start_price = self.amm_start_price.unwrap();
-        let Some(am) = book.get_quantity_to_price_start_price(price, start_price) else {
+        let zfo = start_sqrt >= end_sqrt;
+        let direction = Direction::from_is_bid(!zfo);
+
+        let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
+            tracing::info!("swap fail");
             return Ray::default()
         };
-        let is_bid = book.is_bid(price);
-        let mut scaled = Ray::from(U256::from(am));
 
-        // if its a bid, we need to convert to ask value
-        if is_bid {
-            scaled.div_ray_assign(price);
-        }
+        tracing::info!(?zfo, ?end_sqrt, ?res.d_t0, ?res.d_t1);
 
-        scaled
+        // exact in ask is value. ie token0
+        Ray::from(U256::from(res.d_t0))
     }
 
     fn fetch_exact_in_ask_orders(&self, price: Ray) -> Ray {
@@ -70,7 +70,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && ask.exact_in())
-            .map(|ask| Ray::from(U256::from(ask.amount())))
+            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
 
@@ -79,7 +79,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && !ask.exact_in())
-            .map(|ask| Ray::from(U256::from(ask.amount())).div_ray(price))
+            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
 
@@ -89,7 +89,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray_round(true) && bid.exact_in())
-            .map(|bid| Ray::from(U256::from(bid.amount())).div_ray(price))
+            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
 
@@ -99,7 +99,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .iter()
             // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray_round(true) && !bid.exact_in())
-            .map(|bid| Ray::from(U256::from(bid.amount())))
+            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
 
@@ -117,22 +117,11 @@ impl<'a> BinarySearchMatcher<'a> {
 
         let sum = iter
             .map(|ask| {
-                if price == ask.price() {
-                    let (max, min) = match &ask.order {
-                        GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
-                            (p.max_amount_in, p.min_amount_in)
-                        }
-                        GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(p)) => {
-                            (p.max_amount_in, p.min_amount_in)
-                        }
-                        _ => panic!("not valid")
-                    };
-                    let (max, min) = (Ray::from(U256::from(max)), Ray::from(U256::from(min)));
-                    removal = Some(max - min);
-                    id = Some(ask.order_id);
-                }
-
-                Ray::from(U256::from(ask.amount()))
+                let (amount, ex) =
+                    ask.fetch_supply_or_demand_contribution_with_fee_partial(price, 0);
+                id = ex.is_some().then(|| ask.order_id);
+                removal = ex;
+                amount
             })
             .sum();
 
@@ -160,24 +149,11 @@ impl<'a> BinarySearchMatcher<'a> {
 
         let filled = iter
             .map(|bid| {
-                // if we are on the exact, we can partial
-                if price == bid.price().inv_ray_round(true) {
-                    let (max, min) = match &bid.order {
-                        GroupedVanillaOrder::Standing(StandingVariants::Partial(p)) => {
-                            (p.max_amount_in, p.min_amount_in)
-                        }
-                        GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(p)) => {
-                            (p.max_amount_in, p.min_amount_in)
-                        }
-                        _ => panic!("not valid")
-                    };
-
-                    let (max, min) = (Ray::from(U256::from(max)), Ray::from(U256::from(min)));
-                    removal = Some(max.div_ray(price) - min.div_ray(price));
-                    id = Some(bid.order_id);
-                }
-
-                Ray::from(U256::from(bid.amount())).div_ray(price)
+                let (amount, ex) =
+                    bid.fetch_supply_or_demand_contribution_with_fee_partial(price, 0);
+                id = ex.is_some().then(|| bid.order_id);
+                removal = ex;
+                amount
             })
             .sum();
 
@@ -266,13 +242,19 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
-        let book = self.book.amm()?;
-        let p = self.amm_start_price.unwrap();
-        let (d_0, d_1) = book.get_amm_swap_with_start(ucp, p)?;
-        let is_bid = book.is_bid(ucp);
+        let Some(start_price) = self.amm_start_price.clone() else { return None };
 
-        let mut tob_amm = NetAmmOrder::new(Direction::from_is_bid(is_bid));
-        tob_amm.add_quantity(d_0, d_1);
+        let start_sqrt = start_price.as_sqrtpricex96();
+        let end_sqrt = SqrtPriceX96::from(ucp);
+        let zfo = start_sqrt >= end_sqrt;
+        let direction = Direction::from_is_bid(!zfo);
+
+        let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
+            return None
+        };
+
+        let mut tob_amm = NetAmmOrder::new(direction);
+        tob_amm.add_quantity(res.d_t0, res.d_t1);
 
         Some(tob_amm)
     }
@@ -282,6 +264,7 @@ impl<'a> BinarySearchMatcher<'a> {
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let Some(price_and_partial_solution) = self.solve_clearing_price() else {
+            tracing::info!("no solve");
             return PoolSolution {
                 id: self.book.id(),
                 searcher,

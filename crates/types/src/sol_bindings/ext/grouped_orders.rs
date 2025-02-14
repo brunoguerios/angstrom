@@ -244,6 +244,87 @@ pub struct OrderWithStorageData<Order> {
     pub tob_reward:         U256
 }
 
+impl<O: RawPoolOrder> OrderWithStorageData<O> {
+    pub fn fetch_supply_or_demand_contribution_with_fee(&self, price: Ray, pool_fee: u32) -> Ray {
+        // priceOutVsIn * oneMinusFee / ONE_E6;
+
+        match (self.is_bid, self.exact_in()) {
+            (true, true) => {
+                // quantityIn = AmountIn.wrap(quantity);
+                // quantityOut = price.convertDown(quantityIn) - fee;
+                // .map(|bid|
+                // Ray::from(U256::from(bid.amount())).div_ray(price))
+                Ray::from(U256::from(self.amount())).div_ray(price)
+                    - Ray::from(self.priority_data.gas)
+            }
+            (true, false) => {
+                // quantityOut = AmountOut.wrap(quantity);
+                // quantityIn = price.convertUp(quantityOut + fee);
+                Ray::from(U256::from(self.amount()))
+            }
+            (false, true) => {
+                // quantityIn = AmountIn.wrap(quantity);
+                // quantityOut = price.convertDown(quantityIn - fee);
+
+                // .map(|ask| Ray::from(U256::from(ask.amount())))
+                Ray::from(U256::from(self.amount()))
+            }
+
+            (false, false) => {
+                // quantityOut = AmountOut.wrap(quantity);
+                // quantityIn = price.convertUp(quantityOut) + fee;
+                //
+                // .map(|ask|
+                // Ray::from(U256::from(ask.amount())).div_ray(price))
+                Ray::from(U256::from(self.amount())).div_ray(price)
+                    + Ray::from(self.priority_data.gas)
+            }
+        }
+
+        // price
+    }
+
+    pub fn fetch_supply_or_demand_contribution_with_fee_partial(
+        &self,
+        price: Ray,
+        pool_fee: u32
+    ) -> (Ray, Option<Ray>) {
+        let limit_price = if self.is_bid {
+            Ray::from(self.limit_price()).inv_ray_round(true)
+        } else {
+            Ray::from(self.limit_price())
+        };
+
+        let (max, min) = (self.amount(), self.min_amount());
+
+        if limit_price == price {
+            if self.is_bid {
+                let high =
+                    Ray::from(U256::from(max)).div_ray(price) - Ray::from(self.priority_data.gas);
+                let low =
+                    Ray::from(U256::from(min)).div_ray(price) - Ray::from(self.priority_data.gas);
+
+                (high, Some(high - low))
+            } else {
+                let (max, min) = (
+                    Ray::from(U256::from(self.amount())),
+                    Ray::from(U256::from(self.min_amount()))
+                );
+                (max, Some(max - min))
+            }
+        } else {
+            if self.is_bid {
+                let high =
+                    Ray::from(U256::from(max)).div_ray(price) - Ray::from(self.priority_data.gas);
+
+                (high, None)
+            } else {
+                (Ray::from(U256::from(self.amount())), None)
+            }
+        }
+    }
+}
+
 impl<O: GenerateFlippedOrder> GenerateFlippedOrder for OrderWithStorageData<O> {
     fn flip(&self) -> Self
     where
@@ -333,6 +414,13 @@ impl GroupedUserOrder {
 }
 
 impl RawPoolOrder for StandingVariants {
+    fn min_amount(&self) -> u128 {
+        match self {
+            StandingVariants::Exact(e) => e.min_amount(),
+            StandingVariants::Partial(p) => p.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             StandingVariants::Exact(e) => e.exact_in(),
@@ -434,6 +522,13 @@ impl RawPoolOrder for StandingVariants {
 }
 
 impl RawPoolOrder for FlashVariants {
+    fn min_amount(&self) -> u128 {
+        match self {
+            FlashVariants::Exact(e) => e.min_amount(),
+            FlashVariants::Partial(p) => p.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             FlashVariants::Exact(e) => e.exact_in(),
@@ -651,6 +746,10 @@ impl RawPoolOrder for TopOfBlockOrder {
         true
     }
 
+    fn min_amount(&self) -> u128 {
+        self.quantity_in
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         self.max_gas_asset0
     }
@@ -717,6 +816,10 @@ impl RawPoolOrder for TopOfBlockOrder {
 }
 
 impl RawPoolOrder for PartialStandingOrder {
+    fn min_amount(&self) -> u128 {
+        self.min_amount_in
+    }
+
     fn exact_in(&self) -> bool {
         true
     }
@@ -790,6 +893,10 @@ impl RawPoolOrder for PartialStandingOrder {
 }
 
 impl RawPoolOrder for ExactStandingOrder {
+    fn min_amount(&self) -> u128 {
+        self.amount
+    }
+
     fn exact_in(&self) -> bool {
         self.exact_in
     }
@@ -863,6 +970,10 @@ impl RawPoolOrder for ExactStandingOrder {
 }
 
 impl RawPoolOrder for PartialFlashOrder {
+    fn min_amount(&self) -> u128 {
+        self.min_amount_in
+    }
+
     fn exact_in(&self) -> bool {
         true
     }
@@ -936,6 +1047,10 @@ impl RawPoolOrder for PartialFlashOrder {
 }
 
 impl RawPoolOrder for ExactFlashOrder {
+    fn min_amount(&self) -> u128 {
+        self.amount
+    }
+
     fn exact_in(&self) -> bool {
         self.exact_in
     }
@@ -1009,6 +1124,14 @@ impl RawPoolOrder for ExactFlashOrder {
 }
 
 impl RawPoolOrder for AllOrders {
+    fn min_amount(&self) -> u128 {
+        match self {
+            AllOrders::Standing(p) => p.min_amount(),
+            AllOrders::Flash(kof) => kof.min_amount(),
+            AllOrders::TOB(tob) => tob.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             AllOrders::Standing(p) => p.exact_in(),
@@ -1138,6 +1261,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
         }
     }
 
+    fn min_amount(&self) -> u128 {
+        match self {
+            GroupedVanillaOrder::Standing(p) => p.min_amount(),
+            GroupedVanillaOrder::KillOrFill(kof) => kof.min_amount()
+        }
+    }
+
     fn max_gas_token_0(&self) -> u128 {
         match self {
             GroupedVanillaOrder::Standing(p) => p.max_gas_token_0(),
@@ -1238,6 +1368,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
 }
 
 impl RawPoolOrder for GroupedComposableOrder {
+    fn min_amount(&self) -> u128 {
+        match self {
+            GroupedComposableOrder::Partial(p) => p.min_amount(),
+            GroupedComposableOrder::KillOrFill(kof) => kof.min_amount()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             GroupedComposableOrder::Partial(p) => p.exact_in(),

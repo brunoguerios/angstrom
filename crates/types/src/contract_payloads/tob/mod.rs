@@ -47,6 +47,7 @@ impl ToBOutcome {
             // needed, and I should compare the T0 I get out with the T0 I expect back in
             // order to determine the reward quantity
             let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
+
             let leftover = pricevec
                 .d_t0
                 .checked_sub(tob.quantity_out)
@@ -59,10 +60,13 @@ impl ToBOutcome {
             // First we find the amount of T0 in it would take to at least hit our quantity
             // out
             let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
+
             let leftover = tob
                 .quantity_in
                 .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
+
+            tracing::info!(?cost,?tob.quantity_out,?tob.quantity_in);
             // But then we have to operate in the right direction to calculate how much T1
             // we ACTUALLY get out
             let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;

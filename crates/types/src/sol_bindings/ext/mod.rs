@@ -24,6 +24,10 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     // value
     fn amount(&self) -> u128;
 
+    // the amount specified by the user. if the order is a partial, this is the min
+    // value. otherwise it is the same as amount
+    fn min_amount(&self) -> u128;
+
     /// Limit Price
     fn limit_price(&self) -> U256;
 

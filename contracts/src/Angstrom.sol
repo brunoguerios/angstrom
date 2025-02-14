@@ -291,6 +291,7 @@ contract Angstrom is
         hook.tryTrigger(from);
 
         _settleOrderIn(from, buffer.assetIn, amountIn, buffer.useInternal);
+        console.log("settled user order");
 
         return reader;
     }

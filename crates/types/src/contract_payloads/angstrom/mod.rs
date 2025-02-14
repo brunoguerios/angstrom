@@ -361,22 +361,6 @@ impl AngstromBundle {
             acc
         });
 
-        // Break out our input orders into lists of orders by pool
-
-        // So we know that every solution has an associated pool, every pool has an
-        // associated pair and every pair is a pair of addresses With this we
-        // can create the data structs we need for the Angstrom payload
-        // Get the addresses from all solutions and check
-        // let new_solutions = solutions.iter().flat_map(|s| {
-        //     let Some((t0, t1, snapshot, store_index)) = pools.get(&s.id) else {
-        //         warn!(solution_id = ?s.id, pools = ?pools, "Skipped a solution as we
-        // couldn't find a pool for it");         return None;
-        //     };
-        //     None
-        // }).collect();
-        // Sort the solutions themselves by the pair idx so the pairs are added in the
-        // right order
-
         // Walk through our solutions to add them to the structure
         for solution in solutions.iter() {
             println!("Processing solution");
@@ -492,6 +476,11 @@ impl AngstromBundle {
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw solution data");
 
+        // sort
+        // if t1 < t0 {
+        //     std::mem::swap(&mut t1, &mut t0)
+        // };
+
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
 
         // Make sure the involved assets are in our assets array and we have the
@@ -518,11 +507,14 @@ impl AngstromBundle {
             .map(|tob| {
                 trace!(tob_order = ?tob, "Mapping TOB Swap");
                 let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
+                // tracing::info!(?outcome);
+
                 // Make sure the input for our swap is precisely what's used in the swap portion
                 let (input, output) = outcome
                     .as_ref()
                     .map(|o| (o.total_cost, o.total_swap_output))
                     .unwrap_or((tob.quantity_in, tob.quantity_out));
+
                 let (in_idx, out_idx) =
                     if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
                 let swap = (in_idx, out_idx, input, output);
@@ -595,12 +587,10 @@ impl AngstromBundle {
         // between two ToB order formats
         if let Some(tob) = solution.searcher.as_ref() {
             // Account for our ToB order
-            let (asset_in, asset_out) = if tob.is_bid { (t1, t0) } else { (t0, t1) };
-
             asset_builder.external_swap(
                 AssetBuilderStage::TopOfBlock,
-                asset_in,
-                asset_out,
+                tob.asset_in,
+                tob.asset_out,
                 tob.quantity_in,
                 tob.quantity_out
             );
@@ -613,7 +603,11 @@ impl AngstromBundle {
                 );
                 order
             } else {
-                asset_builder.add_gas_fee(AssetBuilderStage::TopOfBlock, t0, tob.max_gas_asset0);
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::TopOfBlock,
+                    t0,
+                    tob.priority_data.gas.to()
+                );
                 TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
             };
             top_of_block_orders.push(contract_tob);
@@ -659,11 +653,10 @@ impl AngstromBundle {
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
-            let (asset_in, asset_out) = if order.is_bid { (t1, t0) } else { (t0, t1) };
             asset_builder.external_swap(
                 AssetBuilderStage::UserOrder,
-                asset_in,
-                asset_out,
+                order.token_in(),
+                order.token_out(),
                 quantity_in.to(),
                 quantity_out.to()
             );
@@ -676,7 +669,7 @@ impl AngstromBundle {
                 asset_builder.add_gas_fee(
                     AssetBuilderStage::UserOrder,
                     t0,
-                    order.max_gas_token_0()
+                    order.priority_data.gas.to()
                 );
                 UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
             };
