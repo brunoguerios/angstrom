@@ -636,20 +636,32 @@ impl AngstromBundle {
         {
             trace!(user_order = ?order, "Mapping User Order");
             // Calculate our final amounts based on whether the order is in T0 or T1 context
-            let inverse_order = order.is_bid() == order.exact_in();
             assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");
-            let (t0_moving, t1_moving) = if inverse_order {
-                let t1_moving = outcome.fill_amount(order.max_q());
-                let t0_moving = ray_ucp.inverse_quantity(t1_moving, !order.is_bid());
-                (U256::from(t0_moving), U256::from(t1_moving))
-            } else {
-                let t0_moving = U256::from(outcome.fill_amount(order.max_q()));
-                let t1_moving = Ray::from(ucp).mul_quantity(t0_moving);
-                (t0_moving, t1_moving)
-            };
 
-            let (quantity_in, quantity_out) =
-                if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
+            let fill_amount = outcome.fill_amount(order.max_q());
+
+            let (quantity_in, quantity_out) = match (order.is_bid(), order.exact_in()) {
+                (true, true) => (
+                    // am in
+                    fill_amount,
+                    // am out
+                    Ray::from(U256::from(fill_amount))
+                        .div_ray(ray_ucp)
+                        .to::<u128>()
+                ),
+                (true, false) => {
+                    (Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to(), fill_amount)
+                }
+                (false, true) => {
+                    (fill_amount, Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to())
+                }
+                (false, false) => (
+                    Ray::from(U256::from(fill_amount))
+                        .div_ray(ray_ucp)
+                        .to::<u128>(),
+                    fill_amount
+                )
+            };
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
@@ -657,8 +669,8 @@ impl AngstromBundle {
                 AssetBuilderStage::UserOrder,
                 order.token_in(),
                 order.token_out(),
-                quantity_in.to(),
-                quantity_out.to()
+                quantity_in,
+                quantity_out
             );
             let user_order = if let Some(g) = shared_gas {
                 let order = UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?;

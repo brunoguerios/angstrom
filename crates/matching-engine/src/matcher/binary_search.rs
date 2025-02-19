@@ -222,10 +222,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
                     println!("{} - {}", bid.amount(), amount.unwrap().to::<u128>());
-                    OrderFillState::PartialFill(
-                        // overflow here
-                        bid.amount() - amount.unwrap().to::<u128>()
-                    )
+                    OrderFillState::PartialFill(bid.amount() - amount.unwrap().to::<u128>())
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
                     OrderFillState::CompleteFill
                 } else {
@@ -355,11 +352,6 @@ fn cmp_total_supply_vs_demand(
     sub_dem: Ray,
     dem_id: Option<OrderId>
 ) -> SupplyDemandResult {
-    // println!(
-    //     "sup: {:#?} demand: {:#?}, rem_sup: {:#?}, rem_dem: {:#?}",
-    //     total_supply, total_demand, sub_sup, sub_dem
-    // );
-
     // if we can subtract the extra supply or demand and flip the equality, we have
     // reached ucp
     if (total_supply > total_demand && (total_supply - sub_sup) <= total_demand)
