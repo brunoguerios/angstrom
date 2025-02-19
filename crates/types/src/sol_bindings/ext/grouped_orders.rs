@@ -297,31 +297,29 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
 
         let (max, min) = (self.amount(), self.min_amount());
 
-        if limit_price == price {
-            if self.is_bid {
-                let high =
-                    Ray::from(U256::from(max)).div_ray(price) - Ray::from(self.priority_data.gas);
-                let low =
-                    Ray::from(U256::from(min)).div_ray(price) - Ray::from(self.priority_data.gas);
+        // if limit_price == price {
+        if self.is_bid {
+            let high =
+                Ray::from(U256::from(max)).div_ray(price) - Ray::from(self.priority_data.gas);
+            let low = Ray::from(U256::from(min)).div_ray(price) - Ray::from(self.priority_data.gas);
 
-                (high, Some(high - low))
-            } else {
-                let (max, min) = (
-                    Ray::from(U256::from(self.amount())),
-                    Ray::from(U256::from(self.min_amount()))
-                );
-                (max, Some(max - min))
-            }
+            (high, Some(high - low))
         } else {
-            if self.is_bid {
-                let high =
-                    Ray::from(U256::from(max)).div_ray(price) - Ray::from(self.priority_data.gas);
-
-                (high, None)
-            } else {
-                (Ray::from(U256::from(self.amount())), None)
-            }
+            let (max, min) =
+                (Ray::from(U256::from(self.amount())), Ray::from(U256::from(self.min_amount())));
+            (max, Some(max - min))
         }
+        // } else {
+        //     if self.is_bid {
+        //         let high =
+        //             Ray::from(U256::from(max)).div_ray(price) -
+        // Ray::from(self.priority_data.gas);
+        //
+        //         (high, None)
+        //     } else {
+        //         (Ray::from(U256::from(self.amount())), None)
+        //     }
+        // }
     }
 }
 
