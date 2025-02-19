@@ -122,32 +122,33 @@ impl ProposalState {
         let signer = handles.signer.clone();
 
         let submission_future = async move {
-            tracing::info!("building bundle");
-            provider
-                .populate_gas_nonce_chain_id(signer.address(), &mut tx)
-                .await;
-
-            let (hash, success) = provider.sign_and_send(signer, tx).await;
-            tracing::info!("submitted bundle");
-            if !success {
-                return false
-            }
-
-            // wait for next block. then see if transaction landed
-            provider
-                .watch_blocks()
-                .await
-                .unwrap()
-                .with_poll_interval(Duration::from_millis(10))
-                .into_stream()
-                .next()
-                .await;
-
-            provider
-                .get_transaction_by_hash(hash)
-                .await
-                .unwrap()
-                .is_some()
+            // tracing::info!("building bundle");
+            // provider
+            //     .populate_gas_nonce_chain_id(signer.address(), &mut tx)
+            //     .await;
+            //
+            // let (hash, success) = provider.sign_and_send(signer, tx).await;
+            // tracing::info!("submitted bundle");
+            // if !success {
+            //     return false
+            // }
+            //
+            // // wait for next block. then see if transaction landed
+            // provider
+            //     .watch_blocks()
+            //     .await
+            //     .unwrap()
+            //     .with_poll_interval(Duration::from_millis(10))
+            //     .into_stream()
+            //     .next()
+            //     .await;
+            //
+            // provider
+            //     .get_transaction_by_hash(hash)
+            //     .await
+            //     .unwrap()
+            //     .is_some()
+            true
         }
         .boxed();
 
