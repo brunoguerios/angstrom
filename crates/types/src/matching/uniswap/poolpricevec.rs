@@ -888,4 +888,46 @@ mod tests {
             "Final prices not equal"
         );
     }
+
+    #[test]
+    fn asset_swap_to_sqrt_works() {
+        let seg_1_liq = 1_000_000_000_000_000_u128;
+        let seg_2_liq = 1_000_000_000_000_u128;
+        let segment_1 = LiqRange { liquidity: seg_1_liq, lower_tick: 100000, upper_tick: 100050 };
+        let segment_2 = LiqRange { liquidity: seg_2_liq, lower_tick: 100050, upper_tick: 100100 };
+        let segment_3 = LiqRange { liquidity: seg_1_liq, lower_tick: 100100, upper_tick: 100150 };
+        let segment_4 = LiqRange { liquidity: seg_2_liq, lower_tick: 100150, upper_tick: 100200 };
+        let segment_5 = LiqRange { liquidity: seg_2_liq, lower_tick: 100200, upper_tick: 100250 };
+        let cur_price = SqrtPriceX96::at_tick(100150).unwrap();
+        let end_price = SqrtPriceX96::at_tick(100050).unwrap();
+        let pool = PoolSnapshot::new(
+            vec![segment_1, segment_2, segment_3, segment_4, segment_5],
+            cur_price
+        )
+        .unwrap();
+
+        let start = pool.current_price();
+
+        // check bid
+        let r =
+            PoolPriceVec::swap_to_price(start.clone(), end_price, Direction::SellingT0).unwrap();
+        // grab the bid quantity
+        let bid_q = r.d_t0;
+        // test with qty
+        let s =
+            PoolPriceVec::from_swap(start.clone(), Direction::SellingT0, Quantity::Token0(bid_q))
+                .unwrap();
+        let end_price_q = s.end_bound.price();
+        assert_eq!(*end_price_q, end_price);
+
+        // check ask
+        let end_price = SqrtPriceX96::at_tick(100200).unwrap();
+        let r = PoolPriceVec::swap_to_price(start.clone(), end_price, Direction::BuyingT0).unwrap();
+        let ask_q = r.d_t0;
+        let s =
+            PoolPriceVec::from_swap(start.clone(), Direction::BuyingT0, Quantity::Token0(ask_q))
+                .unwrap();
+        let end_price_q = s.end_bound.price();
+        assert_eq!(*end_price_q, end_price);
+    }
 }
