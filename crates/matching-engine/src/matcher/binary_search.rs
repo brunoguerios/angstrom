@@ -57,7 +57,8 @@ impl<'a> BinarySearchMatcher<'a> {
             return Ray::default()
         };
 
-        // exact in ask is value. ie token0
+        // swap to price always returns the delta in y. if it is a bid, we search exact
+        // out else we search exact in
         Ray::from(U256::from(res.d_t0))
     }
 
