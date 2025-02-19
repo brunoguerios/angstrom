@@ -45,12 +45,18 @@ impl<'a> BinarySearchMatcher<'a> {
         Self { book, amm_start_price }
     }
 
-    fn fetch_concentrated_liquidity(&self, price: Ray) -> Ray {
+    fn fetch_concentrated_liquidity(&self, price: Ray, is_ask: bool) -> Ray {
         let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
 
         let zfo = start_sqrt >= end_sqrt;
+
+        // zfo = ask, so if they don't match, then we return zero
+        if zfo ^ is_ask {
+            return Ray::default()
+        }
+
         let direction = Direction::from_is_bid(!zfo);
 
         let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
@@ -164,7 +170,7 @@ impl<'a> BinarySearchMatcher<'a> {
     fn total_supply_at_price(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
         let partial = self.fetch_exact_in_partial_ask(price);
         (
-            self.fetch_concentrated_liquidity(price)
+            self.fetch_concentrated_liquidity(price, true)
                 + self.fetch_exact_in_ask_orders(price)
                 + self.fetch_exact_out_ask_orders(price)
                 + partial.filled_quantity,
@@ -176,7 +182,8 @@ impl<'a> BinarySearchMatcher<'a> {
     fn total_demand_at_price(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
         let partial = self.fetch_exact_in_partial_bid(price);
         (
-            self.fetch_exact_in_bid_orders(price)
+            self.fetch_concentrated_liquidity(price, false)
+                + self.fetch_exact_in_bid_orders(price)
                 + self.fetch_exact_out_bid_orders(price)
                 + partial.filled_quantity,
             partial.optional_removal_liq,
