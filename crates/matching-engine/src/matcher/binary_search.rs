@@ -176,8 +176,7 @@ impl<'a> BinarySearchMatcher<'a> {
     fn total_demand_at_price(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
         let partial = self.fetch_exact_in_partial_bid(price);
         (
-            self.fetch_concentrated_liquidity(price)
-                + self.fetch_exact_in_bid_orders(price)
+            self.fetch_exact_in_bid_orders(price)
                 + self.fetch_exact_out_bid_orders(price)
                 + partial.filled_quantity,
             partial.optional_removal_liq,
