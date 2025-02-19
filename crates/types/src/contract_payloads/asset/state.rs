@@ -49,12 +49,12 @@ impl BorrowStateTracker {
     /// result of a pool swap
     pub fn take(&mut self, q: u128) {
         self.take += q;
-        // self.contract_liquid += q;
+        self.contract_liquid += q;
     }
 
     /// Gain external tokens into our contract liquidity
     pub fn recieve(&mut self, q: u128) {
-        // self.contract_liquid += q;
+        self.contract_liquid += q;
     }
 
     /// Take a loan from Uniswap (adds to `take` and `settle`)
