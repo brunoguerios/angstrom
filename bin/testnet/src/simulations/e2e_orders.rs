@@ -45,8 +45,8 @@ fn end_to_end_agent<'a>(
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
-            5..10,
-            0.5..0.6
+            2..3,
+            0.8..0.9
         );
 
         let mut stream =
