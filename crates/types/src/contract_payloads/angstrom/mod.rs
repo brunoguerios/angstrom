@@ -625,6 +625,8 @@ impl AngstromBundle {
             (false, false) => a.priority_data.cmp(&b.priority_data),
             (..) => b.is_bid.cmp(&a.is_bid)
         });
+
+        let mut map: HashMap<Address, u128> = HashMap::new();
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
         let ray_ucp = Ray::from(ucp);
@@ -662,6 +664,8 @@ impl AngstromBundle {
                     fill_amount
                 )
             };
+            *map.entry(order.token_in()).or_default() += quantity_in;
+            *map.entry(order.token_out()).or_default() += quantity_out;
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
@@ -687,6 +691,9 @@ impl AngstromBundle {
             };
             user_orders.push(user_order);
         }
+
+        tracing::info!("{:#?}", map);
+
         Ok(())
     }
 
