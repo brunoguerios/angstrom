@@ -264,8 +264,8 @@ contract Angstrom is
             variantMap,
             price
         );
-        console.log("amount in", amountIn.into());
-        console.log("amount out", amountOut.into());
+        console.log("amount in", buffer.assetIn, amountIn.into());
+        console.log("amount out", buffer.assetOut, amountOut.into());
 
         bytes32 orderHash = typedHasher.hashTypedData(
             buffer.structHash(variantMap)
