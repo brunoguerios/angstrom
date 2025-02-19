@@ -16,6 +16,7 @@ use alloy::{
 use alloy_primitives::I256;
 use base64::Engine;
 use dashmap::DashMap;
+use num_traits::cast::ToPrimitive;
 use pade_macro::{PadeDecode, PadeEncode};
 use tracing::{debug, trace, warn};
 
@@ -626,7 +627,7 @@ impl AngstromBundle {
             (..) => b.is_bid.cmp(&a.is_bid)
         });
 
-        let mut map: HashMap<Address, u128> = HashMap::new();
+        let mut map: HashMap<Address, i128> = HashMap::new();
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
         let ray_ucp = Ray::from(ucp);
@@ -642,6 +643,7 @@ impl AngstromBundle {
 
             let fill_amount = outcome.fill_amount(order.max_q());
 
+            // we don't account for the gas here in these quantites as the order
             let (quantity_in, quantity_out) = match (order.is_bid(), order.exact_in()) {
                 (true, true) => (
                     // am in
@@ -664,8 +666,8 @@ impl AngstromBundle {
                     fill_amount
                 )
             };
-            *map.entry(order.token_in()).or_default() += quantity_in;
-            *map.entry(order.token_out()).or_default() += quantity_out;
+            *map.entry(order.token_in()).or_default() += quantity_in.to_i128().unwrap();
+            *map.entry(order.token_out()).or_default() -= quantity_out.to_i128().unwrap();
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
