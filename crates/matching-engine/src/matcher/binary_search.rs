@@ -222,11 +222,15 @@ impl<'a> BinarySearchMatcher<'a> {
                 id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
                     // partials are always exact in, so we need to convert this out
-                    println!("{} - {}", bid.amount(), amount.unwrap().to::<u128>());
-                    let amount_of_y = bid.amount() - amount.unwrap().to::<u128>();
-                    let partial_am = fetch.ucp.inverse_quantity(amount_of_y, true);
+                    println!("{} - {} is bid: true", bid.amount(), amount.unwrap().to::<u128>());
+                    // the amount here is always in Y. however for bids that are exact in, we want
+                    // X
+                    let partial_am = fetch
+                        .ucp
+                        .inverse_quantity(amount.unwrap().to::<u128>(), true);
+                    let amount_in_partial = bid.amount() - partial_am;
 
-                    OrderFillState::PartialFill(partial_am)
+                    OrderFillState::PartialFill(amount_in_partial)
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
                     OrderFillState::CompleteFill
                 } else {
@@ -236,7 +240,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .chain(self.book.asks().iter().map(|ask| OrderOutcome {
                 id:      ask.order_id,
                 outcome: if order_id == Some(ask.order_id) {
-                    println!("{} - {}", ask.amount(), amount.unwrap().to::<u128>());
+                    println!("{} - {} is bid: false", ask.amount(), amount.unwrap().to::<u128>());
                     OrderFillState::PartialFill(ask.amount() - amount.unwrap().to::<u128>())
                 } else if fetch.ucp >= ask.price() {
                     OrderFillState::CompleteFill
