@@ -221,8 +221,12 @@ impl<'a> BinarySearchMatcher<'a> {
             .map(|bid| OrderOutcome {
                 id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
+                    // partials are always exact in, so we need to convert this out
                     println!("{} - {}", bid.amount(), amount.unwrap().to::<u128>());
-                    OrderFillState::PartialFill(bid.amount() - amount.unwrap().to::<u128>())
+                    let amount_of_y = bid.amount() - amount.unwrap().to::<u128>();
+                    let partial_am = fetch.ucp.inverse_quantity(amount_of_y, true);
+
+                    OrderFillState::PartialFill(partial_am)
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
                     OrderFillState::CompleteFill
                 } else {
@@ -230,8 +234,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 }
             })
             .chain(self.book.asks().iter().map(|ask| OrderOutcome {
-                id: ask.order_id,
-
+                id:      ask.order_id,
                 outcome: if order_id == Some(ask.order_id) {
                     println!("{} - {}", ask.amount(), amount.unwrap().to::<u128>());
                     OrderFillState::PartialFill(ask.amount() - amount.unwrap().to::<u128>())
@@ -291,6 +294,7 @@ impl<'a> BinarySearchMatcher<'a> {
         };
 
         let limit = self.fetch_orders_at_ucp(&price_and_partial_solution);
+
         let amm = self.fetch_amm_movement_at_ucp(price_and_partial_solution.ucp);
 
         PoolSolution {
