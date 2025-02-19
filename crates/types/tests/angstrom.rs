@@ -8,7 +8,7 @@ use angstrom_types::{
     orders::PoolSolution
 };
 use base64::Engine;
-use solutionlib::{FROM_ABOVE, FROM_WILL, SETTLE_SAVE, TICK_SPACING, WEIRD_SWAP};
+use solutionlib::{BAD_USER_ORDERS, FROM_ABOVE, FROM_WILL, SETTLE_SAVE, TICK_SPACING, WEIRD_SWAP};
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
@@ -24,7 +24,7 @@ pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
 fn build_bundle() {
     with_tracing(|| {
         let bytes = base64::prelude::BASE64_STANDARD
-            .decode(SETTLE_SAVE)
+            .decode(BAD_USER_ORDERS)
             .unwrap();
         let (solution, orders_by_pool, snapshot, t0, t1, store_index, shared_gas): (
             PoolSolution,
@@ -35,6 +35,24 @@ fn build_bundle() {
             _,
             _
         ) = serde_json::from_slice(&bytes).unwrap();
+
+        let vec_one = (snapshot.current_price() + Quantity::Token0(663457929968124)).unwrap();
+        let vec_two = (vec_one.end_bound + Quantity::Token1(17509420022687840846)).unwrap();
+        let vec_direct =
+            (snapshot.current_price() + Quantity::Token1(3192774615752599438)).unwrap();
+
+        println!(
+            "Vec_two:  t0 - {} t1 - {} final_price - {:?}",
+            vec_two.d_t0,
+            vec_two.d_t1,
+            vec_two.end_bound.price()
+        );
+        println!(
+            "Vec_dir:  t0 - {} t1 - {} final_price - {:?}",
+            vec_direct.d_t0,
+            vec_direct.d_t1,
+            vec_direct.end_bound.price()
+        );
 
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();

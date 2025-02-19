@@ -11,10 +11,9 @@ pub enum AssetBuilderStage {
     UserOrder
 }
 
-#[derive(Debug)]
 pub struct AssetBuilder {
-    rewards:      StageTracker,
     swaps:        StageTracker,
+    rewards:      StageTracker,
     top_of_block: StageTracker,
     user_orders:  StageTracker,
     assets:       AssetArray
@@ -97,9 +96,12 @@ impl AssetBuilder {
     }
 
     pub fn get_asset_array(&self) -> Vec<Asset> {
+        println!("---TRACKER---\n{:#?}\n-------------", self.swaps);
+        println!("---TRACKER---\n{:#?}\n-------------", self.top_of_block);
+        println!("---TRACKER---\n{:#?}\n-------------", self.user_orders);
+        println!("---TRACKER---\n{:#?}\n-------------", self.rewards);
         let combined_assets = self
             .swaps
-            .and_then(&self.rewards)
             .and_then(&self.top_of_block)
             .and_then(&self.user_orders)
             .and_then(&self.rewards)
