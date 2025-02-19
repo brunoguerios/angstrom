@@ -264,6 +264,8 @@ contract Angstrom is
             variantMap,
             price
         );
+        console.log("amount in", amountIn.into());
+        console.log("amount out", amountOut.into());
 
         bytes32 orderHash = typedHasher.hashTypedData(
             buffer.structHash(variantMap)
@@ -291,7 +293,6 @@ contract Angstrom is
         hook.tryTrigger(from);
 
         _settleOrderIn(from, buffer.assetIn, amountIn, buffer.useInternal);
-        console.log("settled user order");
 
         return reader;
     }
