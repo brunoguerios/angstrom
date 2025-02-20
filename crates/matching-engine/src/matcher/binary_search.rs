@@ -26,7 +26,6 @@ pub struct BinarySearchMatcher<'a> {
 
 impl<'a> BinarySearchMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: Option<OrderWithStorageData<TopOfBlockOrder>>) -> Self {
-        ///
         let amm_start_price = if let Some(tob) = tob {
             if let Some(a) = book.amm() {
                 let start = a.current_price();
@@ -331,6 +330,7 @@ impl<'a> BinarySearchMatcher<'a> {
         Some(tob_amm)
     }
 
+    // short on asks.
     pub fn solution(
         &mut self,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
@@ -422,15 +422,17 @@ fn cmp_total_supply_vs_demand(
 ) -> SupplyDemandResult {
     // if we can subtract the extra supply or demand and flip the equality, we have
     // reached ucp
+
     if (total_supply > total_demand && (total_supply - sub_sup) <= total_demand)
         || (total_supply < total_demand && (total_demand - sub_dem) <= total_supply)
     {
         let id = if total_supply > total_demand { sub_id } else { dem_id };
 
-        // amount t0 unfill
         let amount_unfilled = if total_supply > total_demand {
+            println!("total supply > total demand, sub");
             total_supply - total_demand
         } else {
+            println!("total supply < total demand, sub");
             total_demand - total_supply
         };
 
