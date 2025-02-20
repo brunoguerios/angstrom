@@ -51,28 +51,26 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_concentrated_liquidity(&self, price: Ray, is_ask: bool) -> Ray {
-        Ray::default()
-        // let Some(start_price) = self.amm_start_price.clone() else { return
-        // Ray::default() }; let start_sqrt =
-        // start_price.as_sqrtpricex96(); let end_sqrt =
-        // SqrtPriceX96::from(price);
-        //
-        // let zfo = start_sqrt >= end_sqrt;
-        //
-        // // zfo = ask, so if they don't match, then we return zero
-        // if zfo ^ is_ask {
-        //     return Ray::default()
-        // }
-        //
-        // let direction = Direction::from_is_bid(!zfo);
-        //
-        // let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(),
-        // end_sqrt, direction) else {     return Ray::default()
-        // };
-        //
-        // // swap to price always returns the delta in y. if it is a bid, we
-        // search exact // out else we search exact in
-        // Ray::from(U256::from(res.d_t0))
+        let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
+        let start_sqrt = start_price.as_sqrtpricex96();
+        let end_sqrt = SqrtPriceX96::from(price);
+
+        let zfo = start_sqrt >= end_sqrt;
+
+        // zfo = ask, so if they don't match, then we return zero
+        if zfo ^ is_ask {
+            return Ray::default()
+        }
+
+        let direction = Direction::from_is_bid(!zfo);
+
+        let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
+            return Ray::default()
+        };
+
+        // swap to price always returns the delta in y. if it is a bid, wesearch exact
+        // // out else we search exact in
+        Ray::from(U256::from(res.d_t0))
     }
 
     fn fetch_exact_in_ask_orders(&self, price: Ray) -> Ray {
@@ -309,8 +307,6 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
-        return None;
-
         let Some(start_price) = self.amm_start_price.clone() else { return None };
 
         let start_sqrt = start_price.as_sqrtpricex96();
@@ -421,23 +417,25 @@ fn cmp_total_supply_vs_demand(
     // if we can subtract the extra supply or demand and flip the equality, we have
     // reached ucp
 
-    // if (total_supply > total_demand && (total_supply - sub_sup) <= total_demand)
-    //     || (total_supply < total_demand && (total_demand - sub_dem) <= total_supply)
-    // {
-    //     let id = if total_supply > total_demand { sub_id } else { dem_id };
-    //
-    //     let amount_unfilled = if total_supply > total_demand {
-    //         println!(
-    //             "total supply > total demand, sub {total_supply:?}
-    // {total_demand:?} {sub_sup:?}"         );
-    //         total_supply - total_demand
-    //     } else {
-    //         println!("total supply < total demand, sub");
-    //         total_demand - total_supply
-    //     };
-    //
-    //     return SupplyDemandResult::PartialFillEq { amount_unfilled, id:
-    // id.unwrap() } }
+    // seems to be were the problem is
+    if (total_supply > total_demand && (total_supply - sub_sup) <= total_demand)
+        || (total_supply < total_demand && (total_demand - sub_dem) <= total_supply)
+    {
+        let id = if total_supply > total_demand { sub_id } else { dem_id };
+
+        let amount_unfilled = if total_supply > total_demand {
+            println!(
+                "total supply > total demand, sub {total_supply:?}
+    {total_demand:?} {sub_sup:?}"
+            );
+            total_supply - total_demand
+        } else {
+            println!("total supply < total demand, sub");
+            total_demand - total_supply
+        };
+
+        return SupplyDemandResult::PartialFillEq { amount_unfilled, id: id.unwrap() }
+    }
     if total_supply > total_demand {
         SupplyDemandResult::MoreSupply
     } else if total_demand > total_supply {
