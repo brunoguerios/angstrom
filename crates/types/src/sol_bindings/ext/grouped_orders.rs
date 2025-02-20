@@ -1480,3 +1480,78 @@ impl RawPoolOrder for GroupedComposableOrder {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloy::primitives::Uint;
+    use angstrom_types::{
+        matching::{uniswap::PoolSnapshot, Ray, SqrtPriceX96},
+        primitive::PoolId
+    };
+    use testing_tools::type_generator::{
+        amm::generate_amm_with_liquidity, orders::UserOrderBuilder
+    };
+
+    #[test]
+    fn test_fetch_supply_or_demand_contribution_with_fee() {
+        // 0.0000000000001 rate
+        let min_price = Ray::from(Uint::from(100_000_000_000_000u128));
+
+        // exact in bid
+        let bid_order = UserOrderBuilder::new()
+            .exact()
+            .amount(1_000_000)
+            .exact_in(true)
+            .bid_min_price(min_price)
+            .with_storage()
+            .bid()
+            .build();
+
+        // the amount of demand should be
+        // 1_000_000  * 1e27 / min_price
+        let demand = Ray::from(Uint::from(10000000000000000000u128))
+            - Ray::from(bid_order.priority_data.gas);
+
+        let got_demand = bid_order.fetch_supply_or_demand_contribution_with_fee(min_price, 0);
+        assert_eq!(demand, got_demand);
+
+        // exact out bid
+        let bid_order = UserOrderBuilder::new()
+            .exact()
+            .amount(1_000_000)
+            .exact_in(false)
+            .bid_min_price(min_price)
+            .with_storage()
+            .bid()
+            .build();
+
+        let got_demand = bid_order.fetch_supply_or_demand_contribution_with_fee(min_price, 0);
+        assert_eq!(got_demand, Ray::from(Uint::from(1_000_000)));
+
+        let ask_order = UserOrderBuilder::new()
+            .exact()
+            .amount(1_000_000)
+            .exact_in(true)
+            .min_price(min_price)
+            .with_storage()
+            .ask()
+            .build();
+
+        let got_demand = ask_order.fetch_supply_or_demand_contribution_with_fee(min_price, 0);
+        assert_eq!(got_demand, Ray::from(Uint::from(1_000_000)));
+
+        let ask_order = UserOrderBuilder::new()
+            .exact()
+            .amount(1_000_000)
+            .exact_in(false)
+            .min_price(min_price)
+            .with_storage()
+            .ask()
+            .build();
+
+        let demand = Ray::from(Uint::from(10000000000000000000u128))
+            + Ray::from(ask_order.priority_data.gas);
+        let got_demand = ask_order.fetch_supply_or_demand_contribution_with_fee(min_price, 0);
+        assert_eq!(got_demand, demand);
+    }
+}
