@@ -97,7 +97,6 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray_round(true) && bid.exact_in())
             .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
@@ -107,7 +106,6 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            // price is inv given price is always t0 / t1
             .filter(|bid| price <= bid.price().inv_ray_round(true) && !bid.exact_in())
             .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
