@@ -110,7 +110,6 @@ impl ProposalState {
         else {
             return false
         };
-        panic!("got smt");
 
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
 
