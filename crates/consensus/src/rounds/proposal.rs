@@ -88,6 +88,7 @@ impl ProposalState {
                 "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
             );
         }) else {
+            panic!("got smt");
             return false
         };
 
