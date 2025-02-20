@@ -260,7 +260,7 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
             (true, false) => {
                 // quantityOut = AmountOut.wrap(quantity);
                 // quantityIn = price.convertUp(quantityOut + fee);
-                Ray::from(U256::from(self.amount()))
+                Ray::from(U256::from(self.amount())).mul_ray(price)
             }
             (false, true) => {
                 // quantityIn = AmountIn.wrap(quantity);
