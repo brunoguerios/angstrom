@@ -255,7 +255,7 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
                 // .map(|bid|
                 // Ray::from(U256::from(bid.amount())).div_ray(price))
                 Ray::from(U256::from(self.amount())).div_ray(price)
-                    - Ray::from(self.priority_data.gas)
+                // - Ray::from(self.priority_data.gas)
             }
             (true, false) => {
                 // quantityOut = AmountOut.wrap(quantity);
@@ -277,7 +277,7 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
                 // .map(|ask|
                 // Ray::from(U256::from(ask.amount())).div_ray(price))
                 Ray::from(U256::from(self.amount())).div_ray(price)
-                    + Ray::from(self.priority_data.gas)
+                // + Ray::from(self.priority_data.gas)
             }
         }
 
