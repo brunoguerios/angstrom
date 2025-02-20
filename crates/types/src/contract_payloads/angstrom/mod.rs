@@ -645,24 +645,27 @@ impl AngstromBundle {
 
             // we don't account for the gas here in these quantites as the order
             let (quantity_in, quantity_out) = match (order.is_bid(), order.exact_in()) {
+                // fill_amount is the exact amount of T1 being input to get a T0 output
                 (true, true) => (
                     // am in
                     fill_amount,
-                    // am out
-                    Ray::from(U256::from(fill_amount))
-                        .div_ray(ray_ucp)
-                        .to::<u128>()
+                    // am out - round down because we'll always try to give you less
+                    ray_ucp.inverse_quantity(fill_amount, false)
                 ),
+                // fill amount is the exact amount of T0 being output for a T1 input
                 (true, false) => {
-                    (Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to(), fill_amount)
+                    // Round up because we'll always ask you to pay more
+                    (ray_ucp.inverse_quantity(fill_amount, true), fill_amount)
                 }
+                // fill amount is the exact amount of T0 being input for a T1 output
                 (false, true) => {
-                    (fill_amount, Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to())
+                    // Round down because we'll always try to give you less
+                    (fill_amount, ray_ucp.quantity(fill_amount, false))
                 }
+                // fill amount is the exact amount of T1 expected out for a given T0 input
                 (false, false) => (
-                    Ray::from(U256::from(fill_amount))
-                        .div_ray(ray_ucp)
-                        .to::<u128>(),
+                    // Round up because we'll always ask you to pay more
+                    ray_ucp.inverse_quantity(fill_amount, true),
                     fill_amount
                 )
             };

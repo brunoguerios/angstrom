@@ -37,10 +37,19 @@ fn build_bundle() {
         ) = serde_json::from_slice(&bytes).unwrap();
 
         let vec_one = (snapshot.current_price() + Quantity::Token0(663457929968124)).unwrap();
-        let vec_two = (vec_one.end_bound + Quantity::Token1(17509420022687840846)).unwrap();
+        let vec_two = (vec_one.end_bound.clone() + Quantity::Token1(17509420022687840846)).unwrap();
+        // Vec by pulling T0 instead of adding T1
+        // let vec_direct = (snapshot.current_price() -
+        // Quantity::Token0(147398421527330)).unwrap();
         let vec_direct =
             (snapshot.current_price() + Quantity::Token1(3192774615752599438)).unwrap();
 
+        println!(
+            "Vec_one:  t0 - {} t1 - {} final_price - {:?}",
+            vec_one.d_t0,
+            vec_one.d_t1,
+            vec_one.end_bound.price()
+        );
         println!(
             "Vec_two:  t0 - {} t1 - {} final_price - {:?}",
             vec_two.d_t0,
