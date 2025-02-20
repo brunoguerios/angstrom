@@ -1,4 +1,6 @@
-use alloy_primitives::U256;
+use std::collections::hash_map::HashMap;
+
+use alloy_primitives::{Address, U256};
 use angstrom_types::{
     matching::{
         uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
@@ -6,9 +8,12 @@ use angstrom_types::{
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
-        grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder, RawPoolOrder, Ray
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder,
+        RawPoolOrder, Ray
     }
 };
+use rand_distr::num_traits::ToPrimitive;
 
 use crate::OrderBook;
 
@@ -210,12 +215,44 @@ impl<'a> BinarySearchMatcher<'a> {
         )
     }
 
+    fn get_amount_in_out(
+        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        fill_amount: u128,
+        ray_ucp: Ray
+    ) -> (u128, u128) {
+        match (order.is_bid(), order.exact_in()) {
+            (true, true) => (
+                // am in
+                fill_amount,
+                // am out
+                Ray::from(U256::from(fill_amount))
+                    .div_ray(ray_ucp)
+                    .to::<u128>()
+            ),
+            (true, false) => {
+                (Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to(), fill_amount)
+            }
+            (false, true) => {
+                (fill_amount, Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to())
+            }
+            (false, false) => (
+                Ray::from(U256::from(fill_amount))
+                    .div_ray(ray_ucp)
+                    .to::<u128>(),
+                fill_amount
+            )
+        }
+    }
+
     /// helper functions for grabbing all orders that we filled at ucp
     fn fetch_orders_at_ucp(&self, fetch: &UcpSolution) -> Vec<OrderOutcome> {
         // we can only have partial fills when ucp is exactly on.
         let (order_id, amount) = fetch.get_partial_unfill().unzip();
+        let mut map: HashMap<Address, i128> = HashMap::new();
+        let mut map2: HashMap<Address, i128> = HashMap::new();
 
-        self.book
+        let res = self
+            .book
             .bids()
             .iter()
             .map(|bid| OrderOutcome {
@@ -225,13 +262,19 @@ impl<'a> BinarySearchMatcher<'a> {
                     println!("{} - {} is bid: true", bid.amount(), amount.unwrap().to::<u128>());
                     // the amount here is always in Y. however for bids that are exact in, we want
                     // X
-                    let partial_am = fetch
-                        .ucp
-                        .inverse_quantity(amount.unwrap().to::<u128>(), true);
+                    let partial_am = fetch.ucp.mul_quantity(*amount.unwrap()).to::<u128>();
                     let amount_in_partial = bid.amount() - partial_am;
+                    let (amount_in, amount_out) =
+                        Self::get_amount_in_out(bid, amount_in_partial, fetch.ucp);
+                    *map.entry(bid.token_in()).or_default() += amount_in.to_i128().unwrap();
+                    *map.entry(bid.token_out()).or_default() -= amount_out.to_i128().unwrap();
 
                     OrderFillState::PartialFill(amount_in_partial)
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
+                    let (amount_in, amount_out) =
+                        Self::get_amount_in_out(bid, bid.amount(), fetch.ucp);
+                    *map.entry(bid.token_in()).or_default() += amount_in.to_i128().unwrap();
+                    *map.entry(bid.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::CompleteFill
                 } else {
                     OrderFillState::Unfilled
@@ -241,14 +284,31 @@ impl<'a> BinarySearchMatcher<'a> {
                 id:      ask.order_id,
                 outcome: if order_id == Some(ask.order_id) {
                     println!("{} - {} is bid: false", ask.amount(), amount.unwrap().to::<u128>());
-                    OrderFillState::PartialFill(ask.amount() - amount.unwrap().to::<u128>())
+
+                    let amount_parital = ask.amount() - amount.unwrap().to::<u128>();
+                    let (amount_in, amount_out) =
+                        Self::get_amount_in_out(ask, amount_parital, fetch.ucp);
+                    *map2.entry(ask.token_in()).or_default() += amount_in.to_i128().unwrap();
+                    *map2.entry(ask.token_out()).or_default() -= amount_out.to_i128().unwrap();
+                    OrderFillState::PartialFill(amount_parital)
                 } else if fetch.ucp >= ask.price() {
+                    let (amount_in, amount_out) =
+                        Self::get_amount_in_out(ask, ask.amount(), fetch.ucp);
+                    *map2.entry(ask.token_in()).or_default() += amount_in.to_i128().unwrap();
+                    *map2.entry(ask.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::CompleteFill
                 } else {
                     OrderFillState::Unfilled
                 }
             }))
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+
+        for (k, v) in map2 {
+            *map.entry(k).or_default() += v;
+        }
+        tracing::info!("order outcome\n\n\n {:#?}", map);
+
+        res
     }
 
     fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
@@ -366,6 +426,8 @@ fn cmp_total_supply_vs_demand(
         || (total_supply < total_demand && (total_demand - sub_dem) <= total_supply)
     {
         let id = if total_supply > total_demand { sub_id } else { dem_id };
+
+        // amount t0 unfill
         let amount_unfilled = if total_supply > total_demand {
             total_supply - total_demand
         } else {
