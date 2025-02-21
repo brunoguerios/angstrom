@@ -77,7 +77,7 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .asks()
             .iter()
-            .filter(|ask| price >= ask.price() && ask.exact_in())
+            .filter(|ask| price >= ask.price() && ask.exact_in() && !ask.is_partial())
             .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -86,7 +86,7 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .asks()
             .iter()
-            .filter(|ask| price >= ask.price() && !ask.exact_in())
+            .filter(|ask| price >= ask.price() && !ask.exact_in() && !ask.is_partial())
             .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -95,7 +95,9 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            .filter(|bid| price <= bid.price().inv_ray_round(true) && bid.exact_in())
+            .filter(|bid| {
+                price <= bid.price().inv_ray_round(true) && bid.exact_in() && !bid.is_partial()
+            })
             .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -104,7 +106,9 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            .filter(|bid| price <= bid.price().inv_ray_round(true) && !bid.exact_in())
+            .filter(|bid| {
+                price <= bid.price().inv_ray_round(true) && !bid.exact_in() && !bid.is_partial()
+            })
             .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -216,24 +220,27 @@ impl<'a> BinarySearchMatcher<'a> {
         ray_ucp: Ray
     ) -> (u128, u128) {
         match (order.is_bid(), order.exact_in()) {
+            // fill_amount is the exact amount of T1 being input to get a T0 output
             (true, true) => (
                 // am in
                 fill_amount,
-                // am out
-                Ray::from(U256::from(fill_amount))
-                    .div_ray(ray_ucp)
-                    .to::<u128>()
+                // am out - round down because we'll always try to give you less
+                ray_ucp.inverse_quantity(fill_amount, false)
             ),
+            // fill amount is the exact amount of T0 being output for a T1 input
             (true, false) => {
-                (Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to(), fill_amount)
+                // Round up because we'll always ask you to pay more
+                (ray_ucp.quantity(fill_amount, true), fill_amount)
             }
+            // fill amount is the exact amount of T0 being input for a T1 output
             (false, true) => {
-                (fill_amount, Ray::from(U256::from(fill_amount)).mul_ray(ray_ucp).to())
+                // Round down because we'll always try to give you less
+                (fill_amount, ray_ucp.quantity(fill_amount, false))
             }
+            // fill amount is the exact amount of T1 expected out for a given T0 input
             (false, false) => (
-                Ray::from(U256::from(fill_amount))
-                    .div_ray(ray_ucp)
-                    .to::<u128>(),
+                // Round up because we'll always ask you to pay more
+                ray_ucp.inverse_quantity(fill_amount, true),
                 fill_amount
             )
         }
@@ -268,6 +275,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
                     let (amount_in, amount_out) =
                         Self::get_amount_in_out(bid, bid.amount(), fetch.ucp);
+
                     *map.entry(bid.token_in()).or_default() += amount_in.to_i128().unwrap();
                     *map.entry(bid.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::CompleteFill
@@ -281,6 +289,7 @@ impl<'a> BinarySearchMatcher<'a> {
                     println!("{} - {} is bid: false", ask.amount(), amount.unwrap().to::<u128>());
 
                     let amount_parital = ask.amount() - amount.unwrap().to::<u128>();
+
                     let (amount_in, amount_out) =
                         Self::get_amount_in_out(ask, amount_parital, fetch.ucp);
                     *map2.entry(ask.token_in()).or_default() += amount_in.to_i128().unwrap();

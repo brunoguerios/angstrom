@@ -655,7 +655,7 @@ impl AngstromBundle {
                 // fill amount is the exact amount of T0 being output for a T1 input
                 (true, false) => {
                     // Round up because we'll always ask you to pay more
-                    (ray_ucp.inverse_quantity(fill_amount, true), fill_amount)
+                    (ray_ucp.quantity(fill_amount, true), fill_amount)
                 }
                 // fill amount is the exact amount of T0 being input for a T1 output
                 (false, true) => {
