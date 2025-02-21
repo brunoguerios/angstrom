@@ -599,6 +599,8 @@ impl<'a> BinarySearchMatcher<'a> {
                     let diff = amount_unfilled_t1.abs_diff(U256::from(expected_t1_unfill));
                     tracing::warn!(
                         ?diff,
+                        ?expected_t1_unfill,
+                        ?amount_unfilled_t1,
                         "mul through ucp, this is the diff between our partial solves"
                     );
                     return diff.is_zero().then(|| UcpSolution {
