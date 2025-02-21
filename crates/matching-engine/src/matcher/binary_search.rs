@@ -595,7 +595,7 @@ impl<'a> BinarySearchMatcher<'a> {
                         return None
                     }
                     // if the partial unfill amounts are witheld by p_mid, then we have a solution
-                    let expected_t1_unfill = p_mid.quantity(amount_unfilled_t0.to::<u128>(), true);
+                    let expected_t1_unfill = p_mid.quantity(amount_unfilled_t0.to::<u128>(), false);
                     let diff = amount_unfilled_t1.abs_diff(U256::from(expected_t1_unfill));
                     tracing::warn!(
                         ?diff,
