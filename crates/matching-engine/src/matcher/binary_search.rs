@@ -595,7 +595,7 @@ impl<'a> BinarySearchMatcher<'a> {
                         return None
                     }
                     let expected_t1_unfill =
-                        Ray::from(p_mid.quantity(amount_unfilled_t0.to::<u128>(), false));
+                        Ray::from(p_mid.quantity(amount_unfilled_t0.to::<u128>(), true));
 
                     let diff = amount_unfilled_t1.abs_diff(*expected_t1_unfill);
 
