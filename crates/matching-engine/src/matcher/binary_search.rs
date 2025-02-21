@@ -562,9 +562,13 @@ impl<'a> BinarySearchMatcher<'a> {
             match (res_t0, res_t1) {
                 // default cases.
                 (SupplyDemandResult::MoreSupply, SupplyDemandResult::MoreSupply) => {
+                    tracing::info!("both more supply");
                     p_max = p_mid;
                 }
-                (SupplyDemandResult::MoreDemand, SupplyDemandResult::MoreDemand) => p_min = p_mid,
+                (SupplyDemandResult::MoreDemand, SupplyDemandResult::MoreDemand) => {
+                    tracing::info!("both more demand");
+                    p_min = p_mid
+                }
                 (SupplyDemandResult::NaturallyEqual, SupplyDemandResult::NaturallyEqual) => {
                     println!("solved based on sup, demand no partials");
                     return Some(UcpSolution {
