@@ -79,7 +79,7 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .asks()
             .iter()
-            .filter(|ask| price >= ask.price() && ask.exact_in())
+            .filter(|ask| price >= ask.price() && ask.exact_in() && !ask.is_partial())
             .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -88,7 +88,7 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .asks()
             .iter()
-            .filter(|ask| price >= ask.price() && !ask.exact_in())
+            .filter(|ask| price >= ask.price() && !ask.exact_in() && !ask.is_partial())
             .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -97,7 +97,9 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            .filter(|bid| price <= bid.price().inv_ray_round(true) && bid.exact_in())
+            .filter(|bid| {
+                price <= bid.price().inv_ray_round(true) && bid.exact_in() && !bid.is_partial()
+            })
             .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -106,7 +108,9 @@ impl<'a> BinarySearchMatcher<'a> {
         self.book
             .bids()
             .iter()
-            .filter(|bid| price <= bid.price().inv_ray_round(true) && !bid.exact_in())
+            .filter(|bid| {
+                price <= bid.price().inv_ray_round(true) && !bid.exact_in() && !bid.is_partial()
+            })
             .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
             .sum()
     }
@@ -273,6 +277,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
                     let (amount_in, amount_out) =
                         Self::get_amount_in_out(bid, bid.amount(), fetch.ucp);
+
                     *map.entry(bid.token_in()).or_default() += amount_in.to_i128().unwrap();
                     *map.entry(bid.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::CompleteFill
@@ -286,6 +291,7 @@ impl<'a> BinarySearchMatcher<'a> {
                     println!("{} - {} is bid: false", ask.amount(), amount.unwrap().to::<u128>());
 
                     let amount_parital = ask.amount() - amount.unwrap().to::<u128>();
+
                     let (amount_in, amount_out) =
                         Self::get_amount_in_out(ask, amount_parital, fetch.ucp);
                     *map2.entry(ask.token_in()).or_default() += amount_in.to_i128().unwrap();
