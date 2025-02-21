@@ -594,10 +594,9 @@ impl<'a> BinarySearchMatcher<'a> {
                         );
                         return None
                     }
-                    // if the partial unfill amounts are witheld by p_mid, then we have a solution
-
                     let expected_t1_unfill =
                         Ray::from(p_mid.quantity(amount_unfilled_t0.to::<u128>(), false));
+
                     let diff = amount_unfilled_t1.abs_diff(*expected_t1_unfill);
 
                     // we can always decrease the amount_unfilled_t0 as it approaches zero. this
@@ -620,7 +619,7 @@ impl<'a> BinarySearchMatcher<'a> {
                             return None
                         }
                     } else {
-                        tracing::info!("amount_unfilled_t1 > expected_t1_unfill");
+                        tracing::info!("amount_unfilled_t1 > expected_t1_unfill, unsolvable");
                         return None
                     };
 
