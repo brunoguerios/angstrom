@@ -602,7 +602,8 @@ impl<'a> BinarySearchMatcher<'a> {
 
                     // we can always decrease the amount_unfilled_t0 as it approaches zero. this
                     // will make the delta smaller, only if expected_t1_unfill > amount_unfilled_t1
-                    if expected_t1_unfill > amount_unfilled_t1 {
+
+                    if expected_t1_unfill < amount_unfilled_t1 {
                         // given the diff in t1, we mul it back through to see if we can unfill
                         // less t0 to properly fill
                         let amount_diff =
