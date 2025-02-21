@@ -579,7 +579,7 @@ impl<'a> BinarySearchMatcher<'a> {
                 }
                 (
                     SupplyDemandResult::PartialFillEq {
-                        amount_unfilled: amount_unfilled_t0,
+                        amount_unfilled: mut amount_unfilled_t0,
                         id: id_t0
                     },
                     SupplyDemandResult::PartialFillEq {
@@ -598,32 +598,36 @@ impl<'a> BinarySearchMatcher<'a> {
 
                     let expected_t1_unfill =
                         Ray::from(p_mid.quantity(amount_unfilled_t0.to::<u128>(), false));
-
                     let diff = amount_unfilled_t1.abs_diff(*expected_t1_unfill);
-                    tracing::info!(
-                        ?diff,
-                        ?expected_t1_unfill,
-                        ?amount_unfilled_t1,
-                        "mul through ucp, this is the diff between our partial solves"
-                    );
 
-                    // if the amount we expect to unfil is more than what we actually want to
-                    // unfill.
-                    // this means that we have more t0 supply as muling it through the price yields
-                    // more t1 than we want to unfil.
-
-                    println!("min: {p_min:?} max: {p_max:?}");
+                    // we can always decrease the amount_unfilled_t0 as it approaches zero. this
+                    // will make the delta smaller, only if expected_t1_unfill > amount_unfilled_t1
                     if expected_t1_unfill > amount_unfilled_t1 {
-                        p_min = p_mid
-                    } else if expected_t1_unfill < amount_unfilled_t1 {
-                        p_max = p_mid;
+                        // given the diff in t1, we mul it back through to see if we can unfill
+                        // less t0 to properly fill
+                        let amount_diff =
+                            Ray::from(p_mid.inverse_quantity(diff.to::<u128>(), true));
+
+                        // if the total re-fill amount is greater than our avalable unfill, were
+                        // good
+                        if amount_diff <= amount_unfilled_t0 {
+                            amount_unfilled_t0 -= amount_diff;
+                        } else {
+                            tracing::info!(
+                                "the amount we need to fill t0 is more than the avalable unfill"
+                            );
+                            return None
+                        }
                     } else {
-                        return Some(UcpSolution {
-                            ucp:                   p_mid,
-                            partial_unfill_amount: Some(amount_unfilled_t0),
-                            partial_id:            Some(id_t0)
-                        })
-                    }
+                        tracing::info!("amount_unfilled_t1 > expected_t1_unfill");
+                        return None
+                    };
+
+                    return Some(UcpSolution {
+                        ucp:                   p_mid,
+                        partial_unfill_amount: Some(amount_unfilled_t0),
+                        partial_id:            Some(id_t0)
+                    })
 
                     // return diff.is_zero().then(|| )
                 }
