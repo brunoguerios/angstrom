@@ -78,7 +78,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && ask.exact_in() && !ask.is_partial())
-            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
+            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee_t0(price, 0))
             .sum()
     }
 
@@ -87,7 +87,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .asks()
             .iter()
             .filter(|ask| price >= ask.price() && !ask.exact_in() && !ask.is_partial())
-            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee(price, 0))
+            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee_t0(price, 0))
             .sum()
     }
 
@@ -98,7 +98,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .filter(|bid| {
                 price <= bid.price().inv_ray_round(true) && bid.exact_in() && !bid.is_partial()
             })
-            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
+            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee_t0(price, 0))
             .sum()
     }
 
@@ -109,7 +109,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .filter(|bid| {
                 price <= bid.price().inv_ray_round(true) && !bid.exact_in() && !bid.is_partial()
             })
-            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee(price, 0))
+            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee_t0(price, 0))
             .sum()
     }
 
@@ -128,7 +128,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let sum = iter
             .map(|ask| {
                 let (amount, ex) =
-                    ask.fetch_supply_or_demand_contribution_with_fee_partial(price, 0);
+                    ask.fetch_supply_or_demand_contribution_with_fee_partial_t0(price, 0);
                 id = ex.is_some().then(|| ask.order_id);
                 removal = ex;
                 amount
@@ -160,7 +160,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let filled = iter
             .map(|bid| {
                 let (amount, ex) =
-                    bid.fetch_supply_or_demand_contribution_with_fee_partial(price, 0);
+                    bid.fetch_supply_or_demand_contribution_with_fee_partial_t0(price, 0);
                 id = ex.is_some().then(|| bid.order_id);
                 removal = ex;
                 amount
