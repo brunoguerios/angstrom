@@ -312,6 +312,7 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
+        return None;
         let Some(start_price) = self.amm_start_price.clone() else { return None };
 
         let start_sqrt = start_price.as_sqrtpricex96();
