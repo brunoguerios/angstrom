@@ -51,8 +51,6 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_concentrated_liquidity(&self, price: Ray, is_ask: bool) -> Ray {
-        return Ray::default();
-
         let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
@@ -318,7 +316,6 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
-        return None;
         let Some(start_price) = self.amm_start_price.clone() else { return None };
 
         let start_sqrt = start_price.as_sqrtpricex96();
@@ -388,12 +385,6 @@ impl<'a> BinarySearchMatcher<'a> {
             let p_mid = (p_max + p_min) / two;
 
             let res = self.calculate_solver_move(p_mid);
-            let s = UcpSolution {
-                ucp:                   p_mid,
-                partial_unfill_amount: None,
-                partial_id:            None
-            };
-            self.fetch_orders_at_ucp(&s);
 
             match res {
                 SupplyDemandResult::MoreSupply => {
