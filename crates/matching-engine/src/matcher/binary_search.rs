@@ -606,7 +606,7 @@ impl<'a> BinarySearchMatcher<'a> {
                         // given the diff in t1, we mul it back through to see if we can unfill
                         // less t0 to properly fill
                         let amount_diff =
-                            Ray::from(p_mid.inverse_quantity(diff.to::<u128>(), true));
+                            Ray::from(p_mid.inverse_quantity(diff.to::<u128>(), false));
 
                         // if the total re-fill amount is greater than our avalable unfill, were
                         // good
