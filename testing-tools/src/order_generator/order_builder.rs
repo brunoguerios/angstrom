@@ -107,7 +107,7 @@ impl OrderBuilder {
 
         let exact_in = rng.gen_bool(0.5);
         // 50% amount range
-        let modifier = rng.gen_range(0.5..=1.5);
+        let modifier = rng.gen_range(0.9..=1.1);
 
         let amount = if exact_in { amount_in } else { amount_out };
 
