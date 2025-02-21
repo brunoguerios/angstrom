@@ -595,19 +595,35 @@ impl<'a> BinarySearchMatcher<'a> {
                         return None
                     }
                     // if the partial unfill amounts are witheld by p_mid, then we have a solution
-                    let expected_t1_unfill = p_mid.quantity(amount_unfilled_t0.to::<u128>(), false);
-                    let diff = amount_unfilled_t1.abs_diff(U256::from(expected_t1_unfill));
-                    tracing::warn!(
+
+                    let expected_t1_unfill =
+                        Ray::from(p_mid.quantity(amount_unfilled_t0.to::<u128>(), false));
+
+                    let diff = amount_unfilled_t1.abs_diff(*expected_t1_unfill);
+                    tracing::info!(
                         ?diff,
                         ?expected_t1_unfill,
                         ?amount_unfilled_t1,
                         "mul through ucp, this is the diff between our partial solves"
                     );
-                    return diff.is_zero().then(|| UcpSolution {
-                        ucp:                   p_mid,
-                        partial_unfill_amount: Some(amount_unfilled_t0),
-                        partial_id:            Some(id_t0)
-                    })
+
+                    // if the amount we expect to unfil is more than what we actually want to
+                    // unfill.
+                    // this means that we have more t0 supply as muling it through the price yields
+                    // more t1 than we want to unfil.
+                    if expected_t1_unfill > amount_unfilled_t1 {
+                        p_max = p_mid;
+                    } else if expected_t1_unfill < amount_unfilled_t1 {
+                        p_min = p_mid
+                    } else {
+                        return Some(UcpSolution {
+                            ucp:                   p_mid,
+                            partial_unfill_amount: Some(amount_unfilled_t0),
+                            partial_id:            Some(id_t0)
+                        })
+                    }
+
+                    // return diff.is_zero().then(|| )
                 }
                 (SupplyDemandResult::MoreSupply, SupplyDemandResult::MoreDemand) => {
                     // cannot solve
