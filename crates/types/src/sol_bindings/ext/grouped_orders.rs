@@ -254,7 +254,8 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
                 // quantityOut = price.convertDown(quantityIn) - fee;
                 // .map(|bid|
                 // Ray::from(U256::from(bid.amount())).div_ray(price))
-                Ray::from(U256::from(self.amount())).div_ray(price)
+
+                Ray::from(U256::from(price.inverse_quantity(self.amount(), false)))
                     - Ray::from(self.priority_data.gas)
             }
             (true, false) => {
@@ -275,13 +276,10 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
                 // quantityIn = price.convertUp(quantityOut) + fee;
                 //
                 // .map(|ask|
-                // Ray::from(U256::from(ask.amount())).div_ray(price))
-                Ray::from(U256::from(self.amount())).div_ray(price)
+                Ray::from(U256::from(price.inverse_quantity(self.amount(), true)))
                     + Ray::from(self.priority_data.gas)
             }
         }
-
-        // price
     }
 
     pub fn fetch_supply_or_demand_contribution_with_fee_partial(
@@ -299,10 +297,11 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
 
         if limit_price == price {
             if self.is_bid {
-                let high =
-                    Ray::from(U256::from(max)).div_ray(price) - Ray::from(self.priority_data.gas);
-                let low =
-                    Ray::from(U256::from(min)).div_ray(price) - Ray::from(self.priority_data.gas);
+                let high = Ray::from(U256::from(price.inverse_quantity(max, false)))
+                    - Ray::from(self.priority_data.gas);
+
+                let low = Ray::from(U256::from(price.inverse_quantity(min, false)))
+                    - Ray::from(self.priority_data.gas);
 
                 (high, Some(high - low))
             } else {
@@ -314,8 +313,8 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
             }
         } else {
             if self.is_bid {
-                let high =
-                    Ray::from(U256::from(max)).div_ray(price) - Ray::from(self.priority_data.gas);
+                let high = Ray::from(U256::from(price.inverse_quantity(max, false)))
+                    - Ray::from(self.priority_data.gas);
 
                 (high, None)
             } else {
