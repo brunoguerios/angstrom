@@ -50,7 +50,9 @@ impl<'a> BinarySearchMatcher<'a> {
         Self { book, amm_start_price }
     }
 
-    fn fetch_concentrated_liquidity(&self, price: Ray, is_ask: bool) -> Ray {
+    // t0
+
+    fn fetch_concentrated_liquidity_t0(&self, price: Ray, is_ask: bool) -> Ray {
         let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
@@ -68,12 +70,12 @@ impl<'a> BinarySearchMatcher<'a> {
             return Ray::default()
         };
 
-        // swap to price always returns the delta in y. if it is a bid, wesearch exact
+        // swap to price always returns the delta in y. if it is a bid, we search exact
         // // out else we search exact in
         Ray::from(U256::from(res.d_t0))
     }
 
-    fn fetch_exact_in_ask_orders(&self, price: Ray) -> Ray {
+    fn fetch_exact_in_ask_orders_t0(&self, price: Ray) -> Ray {
         self.book
             .asks()
             .iter()
@@ -82,7 +84,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
-    fn fetch_exact_out_ask_orders(&self, price: Ray) -> Ray {
+    fn fetch_exact_out_ask_orders_t0(&self, price: Ray) -> Ray {
         self.book
             .asks()
             .iter()
@@ -91,7 +93,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
-    fn fetch_exact_in_bid_orders(&self, price: Ray) -> Ray {
+    fn fetch_exact_in_bid_orders_t0(&self, price: Ray) -> Ray {
         self.book
             .bids()
             .iter()
@@ -102,7 +104,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
-    fn fetch_exact_out_bid_orders(&self, price: Ray) -> Ray {
+    fn fetch_exact_out_bid_orders_t0(&self, price: Ray) -> Ray {
         self.book
             .bids()
             .iter()
@@ -113,7 +115,7 @@ impl<'a> BinarySearchMatcher<'a> {
             .sum()
     }
 
-    fn fetch_exact_in_partial_ask(&self, price: Ray) -> PartialLiqRange {
+    fn fetch_exact_in_partial_ask_t0(&self, price: Ray) -> PartialLiqRange {
         let mut removal = None;
         let mut id = None;
 
@@ -142,7 +144,7 @@ impl<'a> BinarySearchMatcher<'a> {
         }
     }
 
-    fn fetch_exact_in_partial_bid(&self, price: Ray) -> PartialLiqRange {
+    fn fetch_exact_in_partial_bid_t0(&self, price: Ray) -> PartialLiqRange {
         let mut removal = None;
         let mut id = None;
 
@@ -174,24 +176,24 @@ impl<'a> BinarySearchMatcher<'a> {
         }
     }
 
-    fn total_supply_at_price(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
-        let partial = self.fetch_exact_in_partial_ask(price);
+    fn total_supply_at_price_t0(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
+        let partial = self.fetch_exact_in_partial_ask_t0(price);
         (
-            self.fetch_concentrated_liquidity(price, true)
-                + self.fetch_exact_in_ask_orders(price)
-                + self.fetch_exact_out_ask_orders(price)
+            self.fetch_concentrated_liquidity_t0(price, true)
+                + self.fetch_exact_in_ask_orders_t0(price)
+                + self.fetch_exact_out_ask_orders_t0(price)
                 + partial.filled_quantity,
             partial.optional_removal_liq,
             partial.optional_removal_id
         )
     }
 
-    fn total_demand_at_price(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
-        let partial = self.fetch_exact_in_partial_bid(price);
+    fn total_demand_at_price_t0(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
+        let partial = self.fetch_exact_in_partial_bid_t0(price);
         (
-            self.fetch_concentrated_liquidity(price, false)
-                + self.fetch_exact_in_bid_orders(price)
-                + self.fetch_exact_out_bid_orders(price)
+            self.fetch_concentrated_liquidity_t0(price, false)
+                + self.fetch_exact_in_bid_orders_t0(price)
+                + self.fetch_exact_out_bid_orders_t0(price)
                 + partial.filled_quantity,
             partial.optional_removal_liq,
             partial.optional_removal_id
@@ -200,9 +202,177 @@ impl<'a> BinarySearchMatcher<'a> {
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
-    pub fn calculate_solver_move(&self, p_mid: Ray) -> SupplyDemandResult {
-        let (total_supply, sub_sup, sub_id) = self.total_supply_at_price(p_mid);
-        let (total_demand, sub_demand, dem_id) = self.total_demand_at_price(p_mid);
+    pub fn calculate_solver_move_t0(&self, p_mid: Ray) -> SupplyDemandResult {
+        let (total_supply, sub_sup, sub_id) = self.total_supply_at_price_t0(p_mid);
+        let (total_demand, sub_demand, dem_id) = self.total_demand_at_price_t0(p_mid);
+
+        cmp_total_supply_vs_demand(
+            total_supply,
+            total_demand,
+            sub_sup.unwrap_or_default(),
+            sub_id,
+            sub_demand.unwrap_or_default(),
+            dem_id
+        )
+    }
+
+    // all of t1
+
+    fn fetch_concentrated_liquidity_t1(&self, price: Ray, is_ask: bool) -> Ray {
+        let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
+        let start_sqrt = start_price.as_sqrtpricex96();
+        let end_sqrt = SqrtPriceX96::from(price);
+
+        let zfo = start_sqrt >= end_sqrt;
+
+        // zfo = ask, so if they don't match, then we return zero
+        if zfo ^ is_ask {
+            return Ray::default()
+        }
+
+        let direction = Direction::from_is_bid(!zfo);
+
+        let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
+            return Ray::default()
+        };
+
+        // swap to price always returns the delta in y. if it is a bid, we search exact
+        // // out else we search exact in
+        Ray::from(U256::from(res.d_t1))
+    }
+
+    fn fetch_exact_in_ask_orders_t1(&self, price: Ray) -> Ray {
+        self.book
+            .asks()
+            .iter()
+            .filter(|ask| price >= ask.price() && ask.exact_in() && !ask.is_partial())
+            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee_t1(price, 0))
+            .sum()
+    }
+
+    fn fetch_exact_out_ask_orders_t1(&self, price: Ray) -> Ray {
+        self.book
+            .asks()
+            .iter()
+            .filter(|ask| price >= ask.price() && !ask.exact_in() && !ask.is_partial())
+            .map(|ask| ask.fetch_supply_or_demand_contribution_with_fee_t1(price, 0))
+            .sum()
+    }
+
+    fn fetch_exact_in_bid_orders_t1(&self, price: Ray) -> Ray {
+        self.book
+            .bids()
+            .iter()
+            .filter(|bid| {
+                price <= bid.price().inv_ray_round(true) && bid.exact_in() && !bid.is_partial()
+            })
+            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee_t1(price, 0))
+            .sum()
+    }
+
+    fn fetch_exact_out_bid_orders_t1(&self, price: Ray) -> Ray {
+        self.book
+            .bids()
+            .iter()
+            .filter(|bid| {
+                price <= bid.price().inv_ray_round(true) && !bid.exact_in() && !bid.is_partial()
+            })
+            .map(|bid| bid.fetch_supply_or_demand_contribution_with_fee_t1(price, 0))
+            .sum()
+    }
+
+    fn fetch_exact_in_partial_ask_t1(&self, price: Ray) -> PartialLiqRange {
+        let mut removal = None;
+        let mut id = None;
+
+        let iter = self
+            .book
+            .asks()
+            .iter()
+            .filter(|ask| ask.is_partial() && price >= ask.price());
+
+        assert!(iter.clone().is_sorted_by(|a, b| a.price() <= b.price()));
+
+        let sum = iter
+            .map(|ask| {
+                let (amount, ex) =
+                    ask.fetch_supply_or_demand_contribution_with_fee_partial_t1(price, 0);
+                id = ex.is_some().then(|| ask.order_id);
+                removal = ex;
+                amount
+            })
+            .sum();
+
+        PartialLiqRange {
+            filled_quantity:      sum,
+            optional_removal_liq: removal,
+            optional_removal_id:  id
+        }
+    }
+
+    fn fetch_exact_in_partial_bid_t1(&self, price: Ray) -> PartialLiqRange {
+        let mut removal = None;
+        let mut id = None;
+
+        let iter = self
+            .book
+            .bids()
+            .iter()
+            .filter(|bid| bid.is_partial() && price <= bid.price().inv_ray_round(true));
+
+        // assert sorting
+        assert!(iter
+            .clone()
+            .is_sorted_by(|a, b| a.price().inv_ray_round(true) >= b.price().inv_ray_round(true)));
+
+        let filled = iter
+            .map(|bid| {
+                let (amount, ex) =
+                    bid.fetch_supply_or_demand_contribution_with_fee_partial_t1(price, 0);
+                id = ex.is_some().then(|| bid.order_id);
+                removal = ex;
+                amount
+            })
+            .sum();
+
+        PartialLiqRange {
+            filled_quantity:      filled,
+            optional_removal_liq: removal,
+            optional_removal_id:  id
+        }
+    }
+
+    // for t1, bids are supply
+    fn total_supply_at_price_t1(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
+        let partial = self.fetch_exact_in_partial_bid_t1(price);
+        (
+            self.fetch_concentrated_liquidity_t1(price, false)
+                + self.fetch_exact_in_bid_orders_t1(price)
+                + self.fetch_exact_out_bid_orders_t1(price)
+                + partial.filled_quantity,
+            partial.optional_removal_liq,
+            partial.optional_removal_id
+        )
+    }
+
+    // for t1 asks are demand
+    fn total_demand_at_price_t1(&self, price: Ray) -> (Ray, Option<Ray>, Option<OrderId>) {
+        let partial = self.fetch_exact_in_partial_ask_t1(price);
+        (
+            self.fetch_concentrated_liquidity_t1(price, true)
+                + self.fetch_exact_in_ask_orders_t1(price)
+                + self.fetch_exact_out_ask_orders_t1(price)
+                + partial.filled_quantity,
+            partial.optional_removal_liq,
+            partial.optional_removal_id
+        )
+    }
+
+    /// calculates given the supply, demand, optional supply and optional demand
+    /// what way the algo's price should move if we want it too
+    pub fn calculate_solver_move_t1(&self, p_mid: Ray) -> SupplyDemandResult {
+        let (total_supply, sub_sup, sub_id) = self.total_supply_at_price_t1(p_mid);
+        let (total_demand, sub_demand, dem_id) = self.total_demand_at_price_t1(p_mid);
 
         cmp_total_supply_vs_demand(
             total_supply,
@@ -338,7 +508,8 @@ impl<'a> BinarySearchMatcher<'a> {
         &mut self,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
-        let Some(price_and_partial_solution) = self.solve_clearing_price() else {
+        let Some(price_and_partial_solution) = self.solve_clearing_price_using_t0_t1_intersection()
+        else {
             tracing::info!("no solve");
             return PoolSolution {
                 id: self.book.id(),
@@ -373,6 +544,88 @@ impl<'a> BinarySearchMatcher<'a> {
         }
     }
 
+    fn solve_clearing_price_using_t0_t1_intersection(&self) -> Option<UcpSolution> {
+        let ep = Ray::from(U256::from(1));
+        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
+        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
+        println!("min: {p_min:?} max: {p_max:?}");
+
+        let two = U256::from(2);
+        while (p_max - p_min) > ep {
+            // grab all supply and demand
+            let p_mid = (p_max + p_min) / two;
+
+            // the delta of t0
+            let res_t0 = self.calculate_solver_move_t0(p_mid);
+            let res_t1 = self.calculate_solver_move_t1(p_mid);
+
+            match (res_t0, res_t1) {
+                // default cases.
+                (SupplyDemandResult::MoreSupply, SupplyDemandResult::MoreSupply) => {
+                    p_max = p_mid;
+                }
+                (SupplyDemandResult::MoreDemand, SupplyDemandResult::MoreDemand) => p_min = p_mid,
+                (SupplyDemandResult::NaturallyEqual, SupplyDemandResult::NaturallyEqual) => {
+                    println!("solved based on sup, demand no partials");
+                    return Some(UcpSolution {
+                        ucp:                   p_mid,
+                        partial_unfill_amount: None,
+                        partial_id:            None
+                    })
+                }
+                (
+                    SupplyDemandResult::PartialFillEq {
+                        amount_unfilled: amount_unfilled_t0,
+                        id: id_t0
+                    },
+                    SupplyDemandResult::PartialFillEq {
+                        amount_unfilled: amount_unfilled_t1,
+                        id: id_t1
+                    }
+                ) => {
+                    // if different orders, then not really solvable
+                    if id_t0 != id_t1 {
+                        tracing::warn!(
+                            "partial solve with different partial orders, shouldn't be possible"
+                        );
+                        return None
+                    }
+                    // if the partial unfill amounts are witheld by p_mid, then we have a solution
+                    let expected_t1_unfill = p_mid.quantity(amount_unfilled_t0.to::<u128>(), true);
+                    let diff = amount_unfilled_t1.abs_diff(U256::from(expected_t1_unfill));
+                    tracing::warn!(
+                        ?diff,
+                        "mul through ucp, this is the diff between our partial solves"
+                    );
+                    return diff.is_zero().then(|| UcpSolution {
+                        ucp:                   p_mid,
+                        partial_unfill_amount: Some(amount_unfilled_t0),
+                        partial_id:            Some(id_t0)
+                    })
+                }
+                (SupplyDemandResult::MoreSupply, SupplyDemandResult::MoreDemand) => {
+                    // cannot solve
+                    tracing::warn!("t0 needs more supply and t1 needs more demand. unsolvable");
+                    return None
+                }
+                (SupplyDemandResult::MoreDemand, SupplyDemandResult::MoreSupply) => {
+                    tracing::warn!("t0 needs more demand and t1 needs more supply. unsolvable");
+                    // cannot solve
+                    return None
+                }
+                _ => {
+                    tracing::warn!(
+                        "any partial fill with a demand on or supply on the otherside isn't \
+                         solvable"
+                    );
+                    return None
+                }
+            }
+        }
+
+        None
+    }
+
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
         let ep = Ray::from(U256::from(1));
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
@@ -384,7 +637,8 @@ impl<'a> BinarySearchMatcher<'a> {
             // grab all supply and demand
             let p_mid = (p_max + p_min) / two;
 
-            let res = self.calculate_solver_move(p_mid);
+            // the delta of t0
+            let res = self.calculate_solver_move_t0(p_mid);
 
             match res {
                 SupplyDemandResult::MoreSupply => {

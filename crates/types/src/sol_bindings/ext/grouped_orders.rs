@@ -268,14 +268,14 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
 
                 // one for zero with zero in
                 // add value here as that we get actual conversion
-                Ray::from(self.amount()) + Ray::from(self.priority_data.gas)
+                Ray::from(self.amount())
             }
             (false, true) => {
                 // quantityIn = AmountIn.wrap(quantity);
                 // quantityOut = price.convertDown(quantityIn - fee);
 
                 // .map(|ask| Ray::from(U256::from(ask.amount())))
-                Ray::from(self.amount()) - Ray::from(self.priority_data.gas)
+                Ray::from(self.amount())
             }
 
             (false, false) => {
