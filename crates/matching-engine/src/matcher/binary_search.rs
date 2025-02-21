@@ -614,9 +614,9 @@ impl<'a> BinarySearchMatcher<'a> {
 
                     println!("min: {p_min:?} max: {p_max:?}");
                     if expected_t1_unfill > amount_unfilled_t1 {
-                        p_max = p_mid;
-                    } else if expected_t1_unfill < amount_unfilled_t1 {
                         p_min = p_mid
+                    } else if expected_t1_unfill < amount_unfilled_t1 {
+                        p_max = p_mid;
                     } else {
                         return Some(UcpSolution {
                             ucp:                   p_mid,
