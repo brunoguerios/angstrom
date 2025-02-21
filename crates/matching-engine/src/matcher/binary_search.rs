@@ -611,6 +611,8 @@ impl<'a> BinarySearchMatcher<'a> {
                     // unfill.
                     // this means that we have more t0 supply as muling it through the price yields
                     // more t1 than we want to unfil.
+
+                    println!("min: {p_min:?} max: {p_max:?}");
                     if expected_t1_unfill > amount_unfilled_t1 {
                         p_max = p_mid;
                     } else if expected_t1_unfill < amount_unfilled_t1 {
