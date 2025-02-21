@@ -53,6 +53,7 @@ impl<'a> BinarySearchMatcher<'a> {
     // t0
 
     fn fetch_concentrated_liquidity_t0(&self, price: Ray, is_ask: bool) -> Ray {
+        return Ray::default();
         let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
@@ -219,6 +220,7 @@ impl<'a> BinarySearchMatcher<'a> {
     // all of t1
 
     fn fetch_concentrated_liquidity_t1(&self, price: Ray, is_ask: bool) -> Ray {
+        return Ray::default();
         let Some(start_price) = self.amm_start_price.clone() else { return Ray::default() };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
@@ -395,22 +397,28 @@ impl<'a> BinarySearchMatcher<'a> {
                 // am in
                 fill_amount,
                 // am out - round down because we'll always try to give you less
-                ray_ucp.inverse_quantity(fill_amount, false)
+                ray_ucp.inverse_quantity(fill_amount, false) - order.priority_data.gas.to::<u128>()
             ),
             // fill amount is the exact amount of T0 being output for a T1 input
             (true, false) => {
                 // Round up because we'll always ask you to pay more
-                (ray_ucp.quantity(fill_amount, true), fill_amount)
+                (
+                    ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(), true),
+                    fill_amount
+                )
             }
             // fill amount is the exact amount of T0 being input for a T1 output
             (false, true) => {
                 // Round down because we'll always try to give you less
-                (fill_amount, ray_ucp.quantity(fill_amount, false))
+                (
+                    fill_amount,
+                    ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false)
+                )
             }
             // fill amount is the exact amount of T1 expected out for a given T0 input
             (false, false) => (
                 // Round up because we'll always ask you to pay more
-                ray_ucp.inverse_quantity(fill_amount, true),
+                ray_ucp.inverse_quantity(fill_amount, true) + order.priority_data.gas.to::<u128>(),
                 fill_amount
             )
         }
@@ -486,6 +494,7 @@ impl<'a> BinarySearchMatcher<'a> {
     }
 
     fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
+        return None;
         let Some(start_price) = self.amm_start_price.clone() else { return None };
 
         let start_sqrt = start_price.as_sqrtpricex96();
@@ -594,6 +603,7 @@ impl<'a> BinarySearchMatcher<'a> {
                         );
                         return None
                     }
+
                     let expected_t1_unfill =
                         Ray::from(p_mid.quantity(amount_unfilled_t0.to::<u128>(), true));
 
