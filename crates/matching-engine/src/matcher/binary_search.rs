@@ -374,7 +374,7 @@ impl<'a> BinarySearchMatcher<'a> {
         let (total_supply, sub_sup, sub_id) = self.total_supply_at_price_t1(p_mid);
         let (total_demand, sub_demand, dem_id) = self.total_demand_at_price_t1(p_mid);
 
-        cmp_total_supply_vs_demand(
+        cmp_total_supply_vs_demand_t1(
             total_supply,
             total_demand,
             sub_sup.unwrap_or_default(),
@@ -706,6 +706,45 @@ fn cmp_total_supply_vs_demand(
     if total_supply > total_demand {
         SupplyDemandResult::MoreSupply
     } else if total_demand > total_supply {
+        SupplyDemandResult::MoreDemand
+    } else {
+        SupplyDemandResult::NaturallyEqual
+    }
+}
+
+fn cmp_total_supply_vs_demand_t1(
+    total_supply: Ray,
+    total_demand: Ray,
+    sub_sup: Ray,
+    sub_id: Option<OrderId>,
+    sub_dem: Ray,
+    dem_id: Option<OrderId>
+) -> SupplyDemandResult {
+    // if we can subtract the extra supply or demand and flip the equality, we have
+    // reached ucp
+
+    // seems to be were the problem is
+    if (total_supply > total_demand && (total_supply - sub_sup) <= total_demand)
+        || (total_supply < total_demand && (total_demand - sub_dem) <= total_supply)
+    {
+        let id = if total_supply > total_demand { sub_id } else { dem_id };
+
+        let amount_unfilled = if total_supply > total_demand {
+            println!(
+                "total supply > total demand, sub {total_supply:?}
+    {total_demand:?} {sub_sup:?}"
+            );
+            total_supply - total_demand
+        } else {
+            println!("total supply < total demand, sub");
+            total_demand - total_supply
+        };
+
+        return SupplyDemandResult::PartialFillEq { amount_unfilled, id: id.unwrap() }
+    }
+    if total_supply < total_demand {
+        SupplyDemandResult::MoreSupply
+    } else if total_demand < total_supply {
         SupplyDemandResult::MoreDemand
     } else {
         SupplyDemandResult::NaturallyEqual
