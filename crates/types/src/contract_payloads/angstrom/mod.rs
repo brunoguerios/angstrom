@@ -644,23 +644,21 @@ impl AngstromBundle {
             let fill_amount = outcome.fill_amount(order.max_q());
 
             // we don't account for the gas here in these quantites as the order
-            let (quantity_in, quantity_out, save) = match (order.is_bid(), order.exact_in()) {
+            let (quantity_in, quantity_out) = match (order.is_bid(), order.exact_in()) {
                 // fill_amount is the exact amount of T1 being input to get a T0 output
                 (true, true) => (
                     // am in
                     fill_amount,
                     // am out - round down because we'll always try to give you less
                     ray_ucp.inverse_quantity(fill_amount, false)
-                        - order.priority_data.gas.to::<u128>(),
-                    false // true
+                        - order.priority_data.gas.to::<u128>()
                 ),
                 // fill amount is the exact amount of T0 being output for a T1 input
                 (true, false) => {
                     // Round up because we'll always ask you to pay more
                     (
                         ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(), true),
-                        fill_amount,
-                        false
+                        fill_amount
                     )
                 }
                 // fill amount is the exact amount of T0 being input for a T1 output
@@ -668,8 +666,7 @@ impl AngstromBundle {
                     // Round down because we'll always try to give you less
                     (
                         fill_amount,
-                        ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false),
-                        false
+                        ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false)
                     )
                 }
                 // fill amount is the exact amount of T1 expected out for a given T0 input
@@ -677,8 +674,7 @@ impl AngstromBundle {
                     // Round up because we'll always ask you to pay more
                     ray_ucp.inverse_quantity(fill_amount, true)
                         + order.priority_data.gas.to::<u128>(),
-                    fill_amount,
-                    false // true
+                    fill_amount
                 )
             };
             *map.entry(order.token_in()).or_default() += quantity_in.to_i128().unwrap();
@@ -695,24 +691,8 @@ impl AngstromBundle {
             );
             let user_order = if let Some(g) = shared_gas {
                 let order = UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?;
-
-                if save {
-                    asset_builder.add_gas_fee(
-                        AssetBuilderStage::UserOrder,
-                        t0,
-                        order.extra_fee_asset0
-                    );
-                }
-
                 order
             } else {
-                if save {
-                    asset_builder.add_gas_fee(
-                        AssetBuilderStage::UserOrder,
-                        t0,
-                        order.priority_data.gas.to()
-                    );
-                }
                 UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
             };
             user_orders.push(user_order);
