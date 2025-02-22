@@ -176,13 +176,13 @@ impl<'a> DeltaMatcher<'a> {
     }
 
     fn check_ucp(&self, price: Ray) -> SupplyDemandResult {
-        let (book_t0, book_t1) = self.fetch_concentrated_liquidity(price);
+        // let (book_t0, book_t1) = self.fetch_concentrated_liquidity(price);
         let (normal_t0, normal_t1) = self.fetch_amount_out_amount_in_non_partials(price);
         let (partial_t0, partial_t1, extra_is_ask, extra_t0, extra_t1, id) =
             self.fetch_amount_in_amount_out_partials(price);
 
-        let t0_sum = book_t0 + normal_t0 + partial_t0;
-        let t1_sum = book_t1 + normal_t1 + partial_t1;
+        let t0_sum = normal_t0 + partial_t0;
+        let t1_sum = normal_t1 + partial_t1;
 
         if t0_sum.is_zero() && t1_sum.is_zero() {
             return SupplyDemandResult::NaturallyEqual
@@ -206,6 +206,8 @@ impl<'a> DeltaMatcher<'a> {
             let delta = t0_sum - I256::try_from(extra_t0).unwrap();
             // delta neg so we flipped
             if delta <= I256::ZERO {
+                // no we need to check that this delta mulled through
+
                 // then t0_sum is the amount extra we need. however
                 return SupplyDemandResult::PartialFillEq { extra_fill_t0: t0_sum, id }
             }
@@ -346,6 +348,7 @@ impl<'a> DeltaMatcher<'a> {
     }
 
     fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
+        return None;
         let Some(start_price) = self.amm_start_price.clone() else { return None };
 
         let start_sqrt = start_price.as_sqrtpricex96();
