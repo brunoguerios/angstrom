@@ -192,7 +192,7 @@ impl<'a> DeltaMatcher<'a> {
             (extra_is_ask, extra_t0, extra_t1, id)
         else {
             tracing::info!(?t0_sum, ?t1_sum, ?price);
-            return if t0_sum > I256::ZERO {
+            return if t0_sum < I256::ZERO {
                 SupplyDemandResult::MoreDemand
             } else {
                 SupplyDemandResult::MoreSupply
@@ -221,7 +221,7 @@ impl<'a> DeltaMatcher<'a> {
         }
 
         tracing::info!(?t0_sum, ?t1_sum, ?price);
-        if t0_sum > I256::ZERO {
+        if t0_sum < I256::ZERO {
             SupplyDemandResult::MoreDemand
         } else {
             SupplyDemandResult::MoreSupply
