@@ -652,7 +652,7 @@ impl AngstromBundle {
                     // am out - round down because we'll always try to give you less
                     ray_ucp.inverse_quantity(fill_amount, false)
                         - order.priority_data.gas.to::<u128>(),
-                    true
+                    false // true
                 ),
                 // fill amount is the exact amount of T0 being output for a T1 input
                 (true, false) => {
@@ -678,7 +678,7 @@ impl AngstromBundle {
                     ray_ucp.inverse_quantity(fill_amount, true)
                         + order.priority_data.gas.to::<u128>(),
                     fill_amount,
-                    true
+                    false // true
                 )
             };
             *map.entry(order.token_in()).or_default() += quantity_in.to_i128().unwrap();
