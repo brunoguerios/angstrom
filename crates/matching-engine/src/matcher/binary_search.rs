@@ -517,8 +517,7 @@ impl<'a> BinarySearchMatcher<'a> {
         &mut self,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
-        let Some(price_and_partial_solution) = self.solve_clearing_price_using_t0_t1_intersection()
-        else {
+        let Some(price_and_partial_solution) = self.solve_clearing_price() else {
             tracing::info!("no solve");
             return PoolSolution {
                 id: self.book.id(),

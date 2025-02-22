@@ -218,9 +218,12 @@ impl<'a> DeltaMatcher<'a> {
                 // }
             }
         // means we have extra supply we can add
+        // we are getting errors here.
         } else if t0_sum < I256::ZERO && is_ask {
             tracing::info!("is ask is partial and t0_sum < 0");
+            // if we are a ask, then we are adding t0 and subtracing t1
             let delta = t0_sum + I256::try_from(extra_t0).unwrap();
+
             if delta >= I256::ZERO {
                 // let base = U256::try_from(t0_sum.saturating_neg()).unwrap().to();
                 // let amount = I256::try_from(price.quantity(base, true)).unwrap();
@@ -336,6 +339,7 @@ impl<'a> DeltaMatcher<'a> {
 
                     let (amount_in, amount_out) =
                         Self::get_amount_in_out(ask, amount_parital, fetch.ucp);
+
                     *map2.entry(ask.token_in()).or_default() += amount_in.to_i128().unwrap();
                     *map2.entry(ask.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::PartialFill(amount_parital)
