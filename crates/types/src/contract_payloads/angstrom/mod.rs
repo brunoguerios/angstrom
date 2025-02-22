@@ -650,25 +650,33 @@ impl AngstromBundle {
                     // am in
                     fill_amount,
                     // am out - round down because we'll always try to give you less
-                    ray_ucp.inverse_quantity(fill_amount, false),
+                    ray_ucp.inverse_quantity(fill_amount, false)
+                        - order.priority_data.gas.to::<u128>(),
                     true
                 ),
                 // fill amount is the exact amount of T0 being output for a T1 input
                 (true, false) => {
                     // Round up because we'll always ask you to pay more
-
-                    // there is more in
-                    (ray_ucp.quantity(fill_amount, true), fill_amount, false)
+                    (
+                        ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(), true),
+                        fill_amount,
+                        false
+                    )
                 }
                 // fill amount is the exact amount of T0 being input for a T1 output
                 (false, true) => {
                     // Round down because we'll always try to give you less
-                    (fill_amount, ray_ucp.quantity(fill_amount, false), false)
+                    (
+                        fill_amount,
+                        ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false),
+                        false
+                    )
                 }
                 // fill amount is the exact amount of T1 expected out for a given T0 input
                 (false, false) => (
                     // Round up because we'll always ask you to pay more
-                    ray_ucp.inverse_quantity(fill_amount, true),
+                    ray_ucp.inverse_quantity(fill_amount, true)
+                        + order.priority_data.gas.to::<u128>(),
                     fill_amount,
                     true
                 )
