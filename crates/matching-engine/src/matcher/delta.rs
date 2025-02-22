@@ -191,7 +191,7 @@ impl<'a> DeltaMatcher<'a> {
         let (Some(is_ask), Some(extra_t0), Some(extra_t1), Some(id)) =
             (extra_is_ask, extra_t0, extra_t1, id)
         else {
-            tracing::info!(?t0_sum, ?t1_sum, ?price);
+            tracing::info!(?t0_sum, ?t1_sum, ?price, "no extra");
             return if t0_sum < I256::ZERO {
                 SupplyDemandResult::MoreDemand
             } else {
@@ -201,6 +201,7 @@ impl<'a> DeltaMatcher<'a> {
 
         // means we have extra demand we can add.
         if t0_sum > I256::ZERO && !is_ask {
+            tracing::info!("is bid is partial and t0_sum > 0");
             // if we are a bid, then we are adding t1 and subtracing t0.
             // if we are able to flip the exquality, this means we can possibly solve here
             let delta = t0_sum - I256::try_from(extra_t0).unwrap();
@@ -218,6 +219,7 @@ impl<'a> DeltaMatcher<'a> {
             }
         // means we have extra supply we can add
         } else if t0_sum < I256::ZERO && is_ask {
+            tracing::info!("is ask is partial and t0_sum < 0");
             let delta = t0_sum + I256::try_from(extra_t0).unwrap();
             if delta >= I256::ZERO {
                 // let base = U256::try_from(t0_sum.saturating_neg()).unwrap().to();
