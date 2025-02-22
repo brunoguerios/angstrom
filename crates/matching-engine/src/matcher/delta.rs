@@ -65,9 +65,11 @@ impl<'a> DeltaMatcher<'a> {
 
         // if we are zero for 1 then that means putting in t0 and recieving t1
         if zfo {
-            (I256::try_from(res.d_t0).unwrap(), I256::try_from(res.d_t1).unwrap().saturating_neg())
+            // we are supplying t1
+            (I256::ZERO, I256::try_from(res.d_t1).unwrap().saturating_neg())
         } else {
-            (I256::try_from(res.d_t0).unwrap().saturating_neg(), I256::try_from(res.d_t1).unwrap())
+            // we are supplying zero
+            (I256::try_from(res.d_t0).unwrap().saturating_neg(), I256::ZERO)
         }
     }
 
