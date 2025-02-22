@@ -206,18 +206,28 @@ impl<'a> DeltaMatcher<'a> {
             let delta = t0_sum - I256::try_from(extra_t0).unwrap();
             // delta neg so we flipped
             if delta <= I256::ZERO {
-                // no we need to check that this delta mulled through
+                // given this delta to make zero, check if other make zero. otherwise continue
+                let base = U256::try_from(t0_sum).unwrap().to();
+                let amount = I256::try_from(price.quantity(base, true)).unwrap();
 
-                // then t0_sum is the amount extra we need. however
-                return SupplyDemandResult::PartialFillEq { extra_fill_t0: t0_sum, id }
+                // when we convert through. if  this also zeros out the other side, we got the
+                // right price. otherwise, go for another loop
+                if t1_sum + amount == I256::ZERO {
+                    return SupplyDemandResult::PartialFillEq { extra_fill_t0: t0_sum, id }
+                }
             }
         // means we have extra supply we can add
         } else if t0_sum < I256::ZERO && is_ask {
             let delta = t0_sum + I256::try_from(extra_t0).unwrap();
             if delta >= I256::ZERO {
-                return SupplyDemandResult::PartialFillEq {
-                    extra_fill_t0: t0_sum.saturating_neg(),
-                    id
+                let base = U256::try_from(t0_sum.saturating_neg()).unwrap().to();
+                let amount = I256::try_from(price.quantity(base, true)).unwrap();
+
+                if t1_sum - amount == I256::ZERO {
+                    return SupplyDemandResult::PartialFillEq {
+                        extra_fill_t0: t0_sum.saturating_neg(),
+                        id
+                    }
                 }
             }
         }
