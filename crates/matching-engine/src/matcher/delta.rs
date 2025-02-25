@@ -343,10 +343,27 @@ impl<'a> DeltaMatcher<'a> {
             }))
             .collect::<Vec<_>>();
 
-        // if let Some(amm) = self.fetch_amm_movement_at_ucp(fetch.ucp) {
-        //     amm.amount_in()
-        //     map
-        // }
+        let (zero, one) = self
+            .book
+            .asks()
+            .first()
+            .map(|a| (a.token_in(), a.token_out()))
+            .clone()
+            .unwrap();
+
+        if let Some(amm) = self.fetch_amm_movement_at_ucp(fetch.ucp) {
+            // always put in zero, one
+            let (t0, t1) = amm.get_directions();
+            if amm.is_bid() {
+                // if bid then t1 in t0 out
+                *map.entry(zero).or_default() -= t0.to_i128().unwrap();
+                *map.entry(one).or_default() += t1.to_i128().unwrap();
+            } else {
+                // if bid then t1 in t0 out
+                *map.entry(zero).or_default() += t0.to_i128().unwrap();
+                *map.entry(one).or_default() -= t1.to_i128().unwrap();
+            }
+        }
 
         for (k, v) in map2 {
             *map.entry(k).or_default() += v;
@@ -356,7 +373,7 @@ impl<'a> DeltaMatcher<'a> {
         res
     }
 
-    fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
+    fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
         let Some(start_price) = self.amm_start_price.clone() else { return None };
 
         let start_sqrt = start_price.as_sqrtpricex96();
