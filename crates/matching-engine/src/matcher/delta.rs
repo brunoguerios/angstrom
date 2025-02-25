@@ -63,11 +63,14 @@ impl<'a> DeltaMatcher<'a> {
             return Default::default()
         };
 
-        // if we are zero for 1 then that means putting in t0 and recieving t1
         if zfo {
-            (I256::try_from(res.d_t0).unwrap(), I256::try_from(res.d_t1).unwrap() * I256::MINUS_ONE)
-        } else {
+            // if the amm is swapping from zero to one, it means that we need more liquidity
+            // it in token 1 and less in token zero
             (I256::try_from(res.d_t0).unwrap() * I256::MINUS_ONE, I256::try_from(res.d_t1).unwrap())
+        } else {
+            // if we are one for zero, means we are adding liquidity in t0 and removing in
+            // t1
+            (I256::try_from(res.d_t0).unwrap(), I256::try_from(res.d_t1).unwrap() * I256::MINUS_ONE)
         }
     }
 
