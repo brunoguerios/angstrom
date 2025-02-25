@@ -352,16 +352,15 @@ impl<'a> DeltaMatcher<'a> {
             .unwrap();
 
         if let Some(amm) = self.fetch_amm_movement_at_ucp(fetch.ucp) {
-            // always put in zero, one
-            let (t0, t1) = amm.get_directions();
-            if amm.is_bid() {
-                // if bid then t1 in t0 out
-                *map.entry(zero).or_default() -= t0.to_i128().unwrap();
-                *map.entry(one).or_default() += t1.to_i128().unwrap();
-            } else {
-                // if bid then t1 in t0 out
-                *map.entry(zero).or_default() += t0.to_i128().unwrap();
-                *map.entry(one).or_default() -= t1.to_i128().unwrap();
+            match amm {
+                NetAmmOrder::Buy(t0, t1) => {
+                    *map.entry(zero).or_default() -= t0.to_i128().unwrap();
+                    *map.entry(one).or_default() += t1.to_i128().unwrap();
+                }
+                NetAmmOrder::Sell(t0, t1) => {
+                    *map.entry(zero).or_default() += t0.to_i128().unwrap();
+                    *map.entry(one).or_default() -= t1.to_i128().unwrap();
+                }
             }
         }
 
