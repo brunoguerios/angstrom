@@ -65,15 +65,9 @@ impl<'a> DeltaMatcher<'a> {
 
         // if we are zero for 1 then that means putting in t0 and recieving t1
         if zfo {
-            (
-                I256::try_from(res.d_t0).unwrap(),
-                I256::try_from(res.d_t1).unwrap() * I256::try_from(-1i128).unwrap()
-            )
+            (I256::try_from(res.d_t0).unwrap(), I256::try_from(res.d_t1).unwrap() * I256::MINUS_ONE)
         } else {
-            (
-                I256::try_from(res.d_t0).unwrap() * I256::try_from(-1i128).unwrap(),
-                I256::try_from(res.d_t1).unwrap()
-            )
+            (I256::try_from(res.d_t0).unwrap() * I256::MINUS_ONE, I256::try_from(res.d_t1).unwrap())
         }
     }
 
