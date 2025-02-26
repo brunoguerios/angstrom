@@ -2,8 +2,9 @@ use std::collections::hash_map::HashMap;
 
 use alloy_primitives::{Address, I256, U256};
 use angstrom_types::{
+    contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
-        uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
+        uniswap::{Direction, PoolPrice, PoolPriceVec},
         SqrtPriceX96
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
@@ -28,18 +29,10 @@ impl<'a> DeltaMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: Option<OrderWithStorageData<TopOfBlockOrder>>) -> Self {
         let amm_start_price = if let Some(tob) = tob {
             if let Some(a) = book.amm() {
-                let start = a.current_price();
-                let direction = Direction::from_is_bid(tob.is_bid);
-                let amount_out = tob.order.quantity_out;
-                let q = if tob.is_bid {
-                    Quantity::Token0(amount_out)
-                } else {
-                    Quantity::Token1(amount_out)
-                };
+                let end = generate_current_price_adjusted_for_donation(&tob, a)
+                    .expect("order structure should be valid here and never fail");
 
-                let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
-
-                Some(r.end_bound)
+                Some(end)
             } else {
                 None
             }
