@@ -525,6 +525,7 @@ impl AngstromBundle {
             .unwrap_or_default();
         // Merge our net AMM order with the TOB swap
         trace!(tob_swap = ?tob_swap, net_amm_order = ?net_amm_order, "Merging Net AMM with TOB Swap");
+
         let merged_amm_swap = match (net_amm_order, tob_swap) {
             (Some(amm), Some(tob)) => {
                 if amm.0 == tob.0 {
@@ -532,6 +533,8 @@ impl AngstromBundle {
                     Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
                 } else {
                     // If they're in opposite directions then we see if we have to flip them
+                    //
+                    // if the tob input is more than the amm output
                     if tob.2 > amm.3 {
                         Some((tob.0, tob.1, tob.2 - amm.3, tob.3 - amm.2))
                     } else {
@@ -543,6 +546,7 @@ impl AngstromBundle {
         };
         trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
         // Unwrap our merged amm order or provide a zero default
+
         let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
             merged_amm_swap.unwrap_or((t0_idx, t1_idx, 0_u128, 0_u128));
         // If we don't have a rewards update, we insert a default "empty" struct
