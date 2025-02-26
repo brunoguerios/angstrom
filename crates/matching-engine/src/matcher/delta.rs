@@ -26,26 +26,26 @@ pub struct DeltaMatcher<'a> {
 
 impl<'a> DeltaMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: Option<OrderWithStorageData<TopOfBlockOrder>>) -> Self {
-        // let amm_start_price = if let Some(tob) = tob {
-        //     if let Some(a) = book.amm() {
-        //         let start = a.current_price();
-        //         let direction = Direction::from_is_bid(tob.is_bid);
-        //         let amount_out = tob.order.quantity_out;
-        //         let q = if tob.is_bid {
-        //             Quantity::Token0(amount_out)
-        //         } else {
-        //             Quantity::Token1(amount_out)
-        //         };
-        //
-        //         let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
-        //
-        //         Some(r.end_bound)
-        //     } else {
-        //         None
-        //     }
-        // } else {
-        let amm_start_price = book.amm().map(|f| f.current_price());
-        // };
+        let amm_start_price = if let Some(tob) = tob {
+            if let Some(a) = book.amm() {
+                let start = a.current_price();
+                let direction = Direction::from_is_bid(tob.is_bid);
+                let amount_out = tob.order.quantity_out;
+                let q = if tob.is_bid {
+                    Quantity::Token0(amount_out)
+                } else {
+                    Quantity::Token1(amount_out)
+                };
+
+                let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
+
+                Some(r.end_bound)
+            } else {
+                None
+            }
+        } else {
+            book.amm().map(|f| f.current_price())
+        };
 
         Self { book, amm_start_price }
     }
