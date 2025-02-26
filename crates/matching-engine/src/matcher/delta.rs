@@ -238,7 +238,6 @@ impl<'a> DeltaMatcher<'a> {
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
-
     fn get_amount_in_out(
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         fill_amount: u128,
@@ -255,10 +254,7 @@ impl<'a> DeltaMatcher<'a> {
             // fill amount is the exact amount of T0 being output for a T1 input
             (true, false) => {
                 // Round up because we'll always ask you to pay more
-                (
-                    ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(), true),
-                    fill_amount
-                )
+                (ray_ucp.quantity(fill_amount, true), fill_amount)
             }
             // fill amount is the exact amount of T0 being input for a T1 output
             (false, true) => {
@@ -271,7 +267,7 @@ impl<'a> DeltaMatcher<'a> {
             // fill amount is the exact amount of T1 expected out for a given T0 input
             (false, false) => (
                 // Round up because we'll always ask you to pay more
-                ray_ucp.inverse_quantity(fill_amount, true) + order.priority_data.gas.to::<u128>(),
+                ray_ucp.inverse_quantity(fill_amount, true),
                 fill_amount
             )
         }
