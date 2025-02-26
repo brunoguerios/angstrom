@@ -570,6 +570,7 @@ impl AngstromBundle {
             tob_outcome.end_tick,
             snapshot
         );
+        tracing::info!(?tob_outcome.tribute);
         // Account for our tribute
         asset_builder.tribute(AssetBuilderStage::Reward, t0, tob_outcome.tribute);
         // Let's do this stupidly for now and work on improving later
