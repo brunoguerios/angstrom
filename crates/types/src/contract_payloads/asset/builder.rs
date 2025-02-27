@@ -44,6 +44,7 @@ impl AssetBuilder {
     ) {
         let asset_in_addr = self.assets.get_asset_addr(asset_in);
         let asset_out_addr = self.assets.get_asset_addr(asset_out);
+        tracing::info!(?asset_in_addr, ?asset_out_addr, ?quantity_in, ?quantity_out);
         self.get_stage(stage).uniswap_swap(
             asset_in_addr,
             asset_out_addr,

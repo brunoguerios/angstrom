@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 use super::rewards::RewardsUpdate;
 use crate::{
-    matching::uniswap::{PoolSnapshot, Quantity, Tick},
+    matching::uniswap::{PoolPrice, PoolSnapshot, Quantity, Tick},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
@@ -143,36 +143,34 @@ impl ToBOutcome {
             }
         }
     }
+}
 
-    /// DEPRECATED - use Self::rewards_update_range instead
-    pub fn to_rewards_update(&self) -> RewardsUpdate {
-        let mut donations = self.tick_donations.iter().collect::<Vec<_>>();
-        donations.sort_by(|a, b| a.0.cmp(b.0));
-        if self.start_tick <= self.end_tick {
-            // Will sort from lowest to highest (donations[0] will be the lowest tick
-            // number)
-            donations.sort_by_key(|f| f.0);
-        } else {
-            // Will sort from highest to lowest (donations[0] will be the highest tick
-            // number)
-            donations.sort_by_key(|f| std::cmp::Reverse(f.0));
-        }
-        let quantities = donations.iter().map(|d| *d.1).collect::<Vec<_>>();
-        tracing::trace!(donations = ?donations, len = donations.len(), "Donations dump");
-        tracing::trace!(self.end_tick, "end tick");
-        let start_tick = I24::try_from(self.start_tick).unwrap_or_default();
-
-        match quantities.len() {
-            0 | 1 => RewardsUpdate::CurrentOnly {
-                amount: quantities.first().copied().unwrap_or_default()
-            },
-            _ => RewardsUpdate::MultiTick {
-                start_tick,
-                start_liquidity: self.start_liquidity,
-                quantities
-            }
-        }
-    }
+/// grabs the final price vec location, adjusted for the donation amount that
+/// was specified
+pub fn generate_current_price_adjusted_for_donation<'a>(
+    tob: &OrderWithStorageData<TopOfBlockOrder>,
+    snapshot: &'a PoolSnapshot
+) -> eyre::Result<PoolPrice<'a>> {
+    // First let's simulate the actual ToB swap and use that to determine what our
+    // leftover T0 is for rewards
+    Ok(if tob.is_bid {
+        // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
+        // needed, and I should compare the T0 I get out with the T0 I expect back in
+        // order to determine the reward quantity
+        let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
+        pricevec.end_bound
+    } else {
+        // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
+        // than needed and I should compare the T0 I offer to the T0 needed to produce
+        // the T1 I expect to get back
+        // First we find the amount of T0 in it would take to at least hit our quantity
+        // out
+        let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
+        // But then we have to operate in the right direction to calculate how much T1
+        // we ACTUALLY get out
+        let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
+        pricevec.end_bound
+    })
 }
 
 #[cfg(test)]

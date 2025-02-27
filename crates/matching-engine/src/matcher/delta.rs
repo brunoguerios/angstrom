@@ -2,8 +2,9 @@ use std::collections::hash_map::HashMap;
 
 use alloy_primitives::{Address, I256, U256};
 use angstrom_types::{
+    contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
-        uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
+        uniswap::{Direction, PoolPrice, PoolPriceVec},
         SqrtPriceX96
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
@@ -28,18 +29,10 @@ impl<'a> DeltaMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: Option<OrderWithStorageData<TopOfBlockOrder>>) -> Self {
         let amm_start_price = if let Some(tob) = tob {
             if let Some(a) = book.amm() {
-                let start = a.current_price();
-                let direction = Direction::from_is_bid(tob.is_bid);
-                let amount_out = tob.order.quantity_out;
-                let q = if tob.is_bid {
-                    Quantity::Token0(amount_out)
-                } else {
-                    Quantity::Token1(amount_out)
-                };
+                let end = generate_current_price_adjusted_for_donation(&tob, a)
+                    .expect("order structure should be valid here and never fail");
 
-                let r = PoolPriceVec::from_swap(start, direction, q).unwrap();
-
-                Some(r.end_bound)
+                Some(end)
             } else {
                 None
             }
@@ -63,11 +56,14 @@ impl<'a> DeltaMatcher<'a> {
             return Default::default()
         };
 
-        // if we are zero for 1 then that means putting in t0 and recieving t1
         if zfo {
-            (I256::try_from(res.d_t0).unwrap(), I256::try_from(res.d_t1).unwrap().saturating_neg())
+            // if the amm is swapping from zero to one, it means that we need more liquidity
+            // it in token 1 and less in token zero
+            (I256::try_from(res.d_t0).unwrap() * I256::MINUS_ONE, I256::try_from(res.d_t1).unwrap())
         } else {
-            (I256::try_from(res.d_t0).unwrap().saturating_neg(), I256::try_from(res.d_t1).unwrap())
+            // if we are one for zero, means we are adding liquidity in t0 and removing in
+            // t1
+            (I256::try_from(res.d_t0).unwrap(), I256::try_from(res.d_t1).unwrap() * I256::MINUS_ONE)
         }
     }
 
@@ -235,7 +231,6 @@ impl<'a> DeltaMatcher<'a> {
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
-
     fn get_amount_in_out(
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         fill_amount: u128,
@@ -252,10 +247,7 @@ impl<'a> DeltaMatcher<'a> {
             // fill amount is the exact amount of T0 being output for a T1 input
             (true, false) => {
                 // Round up because we'll always ask you to pay more
-                (
-                    ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(), true),
-                    fill_amount
-                )
+                (ray_ucp.quantity(fill_amount, true), fill_amount)
             }
             // fill amount is the exact amount of T0 being input for a T1 output
             (false, true) => {
@@ -268,7 +260,7 @@ impl<'a> DeltaMatcher<'a> {
             // fill amount is the exact amount of T1 expected out for a given T0 input
             (false, false) => (
                 // Round up because we'll always ask you to pay more
-                ray_ucp.inverse_quantity(fill_amount, true) + order.priority_data.gas.to::<u128>(),
+                ray_ucp.inverse_quantity(fill_amount, true),
                 fill_amount
             )
         }
@@ -343,10 +335,28 @@ impl<'a> DeltaMatcher<'a> {
             }))
             .collect::<Vec<_>>();
 
-        // if let Some(amm) = self.fetch_amm_movement_at_ucp(fetch.ucp) {
-        //     amm.amount_in()
-        //     map
-        // }
+        let (zero, one) = self
+            .book
+            .asks()
+            .first()
+            .map(|a| (a.token_in(), a.token_out()))
+            .clone()
+            .unwrap();
+
+        if let Some(amm) = self.fetch_amm_movement_at_ucp(fetch.ucp) {
+            match amm {
+                // ask
+                NetAmmOrder::Buy(t0, t1) => {
+                    *map.entry(zero).or_default() -= t0.to_i128().unwrap();
+                    *map.entry(one).or_default() += t1.to_i128().unwrap();
+                }
+                // bid
+                NetAmmOrder::Sell(t0, t1) => {
+                    *map.entry(zero).or_default() += t0.to_i128().unwrap();
+                    *map.entry(one).or_default() -= t1.to_i128().unwrap();
+                }
+            }
+        }
 
         for (k, v) in map2 {
             *map.entry(k).or_default() += v;
@@ -356,7 +366,7 @@ impl<'a> DeltaMatcher<'a> {
         res
     }
 
-    fn fetch_amm_movement_at_ucp(&mut self, ucp: Ray) -> Option<NetAmmOrder> {
+    fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
         let Some(start_price) = self.amm_start_price.clone() else { return None };
 
         let start_sqrt = start_price.as_sqrtpricex96();

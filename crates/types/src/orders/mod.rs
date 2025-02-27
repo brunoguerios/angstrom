@@ -102,6 +102,10 @@ impl NetAmmOrder {
             NetAmmOrder::Sell(q, c) => (t0_idx, t1_idx, *q, *c)
         }
     }
+
+    pub fn is_bid(&self) -> bool {
+        matches!(self, Self::Buy(_, _))
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
