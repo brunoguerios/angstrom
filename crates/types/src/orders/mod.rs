@@ -51,8 +51,8 @@ impl Default for NetAmmOrder {
 impl NetAmmOrder {
     pub fn new(direction: Direction) -> Self {
         match direction {
-            Direction::BuyingT0 => Self::Sell(0, 0),
-            Direction::SellingT0 => Self::Buy(0, 0)
+            Direction::BuyingT0 => Self::Buy(0, 0),
+            Direction::SellingT0 => Self::Sell(0, 0)
         }
     }
 

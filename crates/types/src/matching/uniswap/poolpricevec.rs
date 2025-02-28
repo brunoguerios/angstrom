@@ -735,7 +735,8 @@ impl<'a> PoolPriceVec<'a> {
             current_price = SqrtPriceX96::from(fin_price);
         }
 
-        let (d_t0, d_t1) = direction.sort_tokens(total_in.to(), total_out.to());
+        let (d_t0, d_t1) =
+            direction.sort_tokens(total_in.saturating_to(), total_out.saturating_to());
         let end_bound = start.liq_range.pool_snap.at_price(current_price)?;
         Ok(Self { start_bound: start, end_bound, d_t0, d_t1, steps: Some(steps) })
     }

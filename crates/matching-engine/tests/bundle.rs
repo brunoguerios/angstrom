@@ -1,5 +1,8 @@
 use base64::Engine;
-use matching_engine::{book::OrderBook, matcher::VolumeFillMatcher};
+use matching_engine::{
+    book::OrderBook,
+    matcher::{delta::DeltaMatcher, VolumeFillMatcher}
+};
 
 mod booklib;
 use booklib::{AMM_SIDE_BOOK, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, WEIRD_BOOK, ZERO_ASK_BOOK};
@@ -53,4 +56,19 @@ fn build_and_ship_random_bundle() {
     //     .build();
     // let _bundle = AngstromBundle::from_proposal(&proposal, gas_details,
     // pools).unwrap(); Contr
+}
+
+#[test]
+#[ignore]
+fn delta_matcher_test() {
+    with_tracing(|| {
+        let bytes = base64::prelude::BASE64_STANDARD
+            .decode(AMM_SIDE_BOOK)
+            .unwrap();
+        let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
+        // println!("Book: {:#?}", book);
+        let mut matcher = DeltaMatcher::new(&book, None);
+        let solution = matcher.solution(None);
+        println!("Solution: {:#?}", solution);
+    })
 }
