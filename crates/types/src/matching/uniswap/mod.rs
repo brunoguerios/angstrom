@@ -4,6 +4,8 @@ mod poolprice;
 mod poolpricevec;
 mod poolsnapshot;
 
+use std::ops::Add;
+
 pub use flags::*;
 pub use liqrange::{LiqRange, LiqRangeRef};
 pub use poolprice::PoolPrice;

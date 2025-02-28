@@ -6,6 +6,7 @@ use alloy::{
 };
 pub mod orderpool;
 
+use alloy_primitives::I256;
 pub use fillstate::*;
 pub use orderpool::*;
 pub use origin::*;
@@ -85,6 +86,16 @@ impl NetAmmOrder {
         match self {
             Self::Buy(amount_out, amount_in) => (*amount_in, *amount_out),
             Self::Sell(amount_in, amount_out) => (*amount_in, *amount_out)
+        }
+    }
+
+    /// Gets the net AMM order as a signed quantity of T0.  The quantity is
+    /// positive if we are purchasing T0 from the AMM and negative if we are
+    /// selling T0 into the AMM
+    pub fn get_t0_signed(&self) -> I256 {
+        match self {
+            Self::Buy(t0, _) => I256::unchecked_from(*t0),
+            Self::Sell(_, t0) => I256::unchecked_from(*t0).saturating_neg()
         }
     }
 

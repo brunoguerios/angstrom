@@ -30,7 +30,10 @@ use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::rewards::RewardsUpdate,
-    matching::{uniswap::PoolSnapshot, Ray},
+    matching::{
+        uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity},
+        Ray
+    },
     orders::{OrderFillState, OrderOutcome, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
@@ -496,6 +499,47 @@ impl AngstromBundle {
         pairs.push(pair);
         let pair_idx = pairs.len() - 1;
 
+        // Find the net T0 motion of our AMM order and ToB swap
+        let amm_swap_t0 = solution.amm_quantity.as_ref().map(|ao| ao.get_t0_signed());
+        let tob_swap_t0 = solution.searcher.as_ref().map(|tob| {
+            trace!(tob_order = ?tob, "Mapping TOB Swap");
+            let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot)
+                .ok()
+                .map(|o| {
+                    if tob.is_bid {
+                        // If the ToB order is a bid, then we are outputting a positive number
+                        // because we are purchasing T0 from the AMM
+                        I256::unchecked_from(o.total_swap_output)
+                    } else {
+                        // If the ToB order is an ask, we are outputting a negative number
+                        // because we are selling T0 to the AMM
+                        I256::unchecked_from(o.total_cost).saturating_neg()
+                    }
+                });
+            outcome.unwrap_or(I256::ZERO)
+        });
+        let net_swap_t0 = match (amm_swap_t0, tob_swap_t0) {
+            (Some(a), Some(t)) => Some(a + t),
+            (any_a, any_t) => any_a.or(any_t)
+        };
+        let merged_amm_swap = net_swap_t0.map(|s| {
+            let net_direction =
+                if s.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
+
+            let quantity = Quantity::Token0(s.unsigned_abs().to::<u128>());
+
+            // Create a poolpricevec based on this data
+            let v =
+                PoolPriceVec::from_swap(snapshot.current_price(), net_direction, quantity).unwrap();
+
+            // Put together our merged swap
+            if s.is_negative() {
+                (t0_idx, t1_idx, v.d_t0, v.d_t1)
+            } else {
+                (t1_idx, t0_idx, v.d_t1, v.d_t0)
+            }
+        });
+
         // Pull out our net AMM order
         let net_amm_order = solution
             .amm_quantity
@@ -526,24 +570,24 @@ impl AngstromBundle {
         // Merge our net AMM order with the TOB swap
         trace!(tob_swap = ?tob_swap, net_amm_order = ?net_amm_order, "Merging Net AMM with TOB Swap");
 
-        let merged_amm_swap = match (net_amm_order, tob_swap) {
-            (Some(amm), Some(tob)) => {
-                if amm.0 == tob.0 {
-                    // If they're in the same direction we just sum them
-                    Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
-                } else {
-                    // If they're in opposite directions then we see if we have to flip them
-                    //
-                    // if the tob input is more than the amm output
-                    if tob.2 > amm.3 {
-                        Some((tob.0, tob.1, tob.2 - amm.3, tob.3 - amm.2))
-                    } else {
-                        Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
-                    }
-                }
-            }
-            (net_amm_order, tob_swap) => net_amm_order.or(tob_swap)
-        };
+        // let merged_amm_swap = match (net_amm_order, tob_swap) {
+        //     (Some(amm), Some(tob)) => {
+        //         if amm.0 == tob.0 {
+        //             // If they're in the same direction we just sum them
+        //             Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
+        //         } else {
+        //             // If they're in opposite directions then we see if we have to
+        // flip them             //
+        //             // if the tob input is more than the amm output
+        //             if tob.2 > amm.3 {
+        //                 Some((tob.0, tob.1, tob.2 - amm.3, tob.3 - amm.2))
+        //             } else {
+        //                 Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
+        //             }
+        //         }
+        //     }
+        //     (net_amm_order, tob_swap) => net_amm_order.or(tob_swap)
+        // };
         trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
         // Unwrap our merged amm order or provide a zero default
 
