@@ -26,6 +26,8 @@ import {ToBOrderVariantMap} from "./types/ToBOrderVariantMap.sol";
 import {UserOrderBuffer} from "./types/UserOrderBuffer.sol";
 import {UserOrderVariantMap} from "./types/UserOrderVariantMap.sol";
 
+import {Debugging} from "test/_helpers/Debugging.sol";
+
 /// @author philogy <https://github.com/philogy>
 contract Angstrom is
     EIP712,
@@ -70,6 +72,9 @@ contract Angstrom is
         reader = _validateAndExecuteUserOrders(reader, pairs);
         reader.requireAtEndOf(data);
         _saveAndSettle(assets);
+
+        // TODO: Remove debug log
+        Debugging.logUnresolvedUniswapDeltas(UNI_V4, assets);
 
         // Return empty bytes.
         assembly ("memory-safe") {
