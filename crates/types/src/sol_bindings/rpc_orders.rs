@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use alloy::{
-    primitives::{keccak256, B256},
+    primitives::{keccak256, Address, B256},
     sol,
     sol_types::{Eip712Domain, SolStruct}
 };
@@ -157,6 +157,20 @@ pub trait OmitOrderMeta: SolStruct {
         let mut hasher = alloy::primitives::Keccak256::new();
         hasher.update(<Self as OmitOrderMeta>::eip712_type_hash(self));
         hasher.update(<Self as OmitOrderMeta>::eip712_encode_data(self));
+        hasher.finalize()
+    }
+
+    /// This is secure as we validate the user address matches the signature.
+    /// Notably if a validator wanted to sensor, they could. However the
+    /// assumption is 2/3 honest. This fixes the attack vector where once a
+    /// valid order has been generated. it can get overridden by a different
+    /// user in the tx-pool because the hash_struct is the same.
+    #[inline]
+    fn unique_order_hash(&self, user_address: Address) -> B256 {
+        let mut hasher = alloy::primitives::Keccak256::new();
+        hasher.update(<Self as OmitOrderMeta>::eip712_type_hash(self));
+        hasher.update(<Self as OmitOrderMeta>::eip712_encode_data(self));
+        hasher.update(user_address);
         hasher.finalize()
     }
 
