@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
+    primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
-        grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder,
+        grouped_orders::OrderWithStorageData,
+        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder},
         RawPoolOrder
     }
 };
@@ -30,7 +32,7 @@ pub struct TopOfBlockOrder {
 
 impl TopOfBlockOrder {
     // eip-712 hash_struct. is a pain since we need to reconstruct values.
-    pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+    fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
         let pair = &pair[self.pairs_index as usize];
         RpcTopOfBlockOrder {
             quantity_in:     self.quantity_in,
@@ -51,7 +53,20 @@ impl TopOfBlockOrder {
             valid_for_block: block,
             meta:            Default::default()
         }
-        .order_hash()
+    }
+
+    pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        let mut order = self.recover_order(pair, asset, block);
+        let from = self
+            .signature
+            .recover_signer(self.signing_hash(pair, asset, block));
+        order.meta.from = from;
+        order.order_hash()
+    }
+
+    pub fn signing_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        let order = self.recover_order(pair, asset, block);
+        order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
     }
 
     pub fn of_max_gas(
@@ -69,12 +84,12 @@ impl TopOfBlockOrder {
                 .unwrap();
         let signature = Signature::from(decoded_signature);
         Self {
-            use_internal: false,
+            use_internal: internal.use_internal,
             quantity_in,
             quantity_out,
             max_gas_asset_0: internal.max_gas_asset0,
             // set as max so we can use the sim to verify values.
-            gas_used_asset_0: internal.max_gas_asset0,
+            gas_used_asset_0: internal.priority_data.gas.to(),
             pairs_index,
             zero_for_1,
             recipient,
@@ -104,7 +119,7 @@ impl TopOfBlockOrder {
         }
 
         Ok(Self {
-            use_internal: false,
+            use_internal: internal.use_internal,
             quantity_in,
             quantity_out,
             max_gas_asset_0: internal.max_gas_asset0,
