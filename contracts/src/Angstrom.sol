@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.26;
 
-import {console} from "forge-std/console.sol";
 import {EIP712} from "solady/src/utils/EIP712.sol";
 import {TopLevelAuth} from "./modules/TopLevelAuth.sol";
 import {Settlement} from "./modules/Settlement.sol";
@@ -27,6 +26,8 @@ import {ToBOrderVariantMap} from "./types/ToBOrderVariantMap.sol";
 import {UserOrderBuffer} from "./types/UserOrderBuffer.sol";
 import {UserOrderVariantMap} from "./types/UserOrderVariantMap.sol";
 
+import {Debugging} from "test/_helpers/Debugging.sol";
+
 /// @author philogy <https://github.com/philogy>
 contract Angstrom is
     EIP712,
@@ -48,7 +49,6 @@ contract Angstrom is
     }
 
     function execute(bytes calldata encoded) external {
-        console.log("testing we got here");
         _nodeBundleLock();
         if (encoded.length > 0) {
             UNI_V4.unlock(encoded);
@@ -65,18 +65,16 @@ contract Angstrom is
         PairArray pairs;
         (reader, pairs) = PairLib.readFromAndValidate(reader, assets, _configStore);
 
-        console.log("read pairs and assets");
         _takeAssets(assets);
-        console.log("took assets");
 
         reader = _updatePools(reader, pairs);
-        console.log("updated pools");
         reader = _validateAndExecuteToBOrders(reader, pairs);
-        console.log("exectued tob");
         reader = _validateAndExecuteUserOrders(reader, pairs);
-        console.log("executed user");
         reader.requireAtEndOf(data);
         _saveAndSettle(assets);
+
+        // TODO: Remove debug log
+        Debugging.logUnresolvedUniswapDeltas(UNI_V4, assets);
 
         // Return empty bytes.
         assembly ("memory-safe") {
@@ -157,7 +155,6 @@ contract Angstrom is
             : SignatureLib.readAndCheckERC1271(reader, orderHash);
 
         _invalidateOrderHash(orderHash, from);
-        console.log(from);
 
         address to = buffer.recipient;
         assembly ("memory-safe") {

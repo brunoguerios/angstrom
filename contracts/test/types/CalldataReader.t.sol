@@ -175,6 +175,7 @@ contract CalladataReaderTest is Test {
         reader.requireAtEndOf(data);
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzzing_requireAtEndOf_revertsIfNotAtEnd(bytes calldata data, uint256 bytesToRead)
         public
     {
