@@ -148,7 +148,7 @@ jobs:
             --ignore RUSTSEC-2024-0370
 
   contracts:
-    name: Build, Format & Test Contracts
+    name: forge fmt && forge test
     runs-on: ubuntu-latest
     defaults:
       run:
