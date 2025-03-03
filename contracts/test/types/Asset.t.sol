@@ -51,6 +51,7 @@ contract AssetTest is Test {
         }
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzzing_revertsOutOfBoundAccess(RefAsset[] memory assets, uint256 index) public {
         vm.assume(assets.length <= type(uint24).max / AssetLib.ASSET_CD_BYTES);
         assets.sort();
