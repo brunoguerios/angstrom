@@ -118,6 +118,35 @@ jobs:
       - name: cargo test --workspace --all-features
         run: cargo test --workspace --all-features
 
+  cargo-audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check-Out
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Utilize Shared Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: cargo-audit
+          cache-on-failure: true
+
+      - name: Install cargo-audit
+        run: cargo install --force cargo-audit
+
+      - name: cargo audit
+        run: |
+          cargo audit \
+            --ignore RUSTSEC-2024-0388 \
+            --ignore RUSTSEC-2024-0370
+
   contracts:
     name: "Build, Format & Test Contracts"
     runs-on: ubuntu-latest
