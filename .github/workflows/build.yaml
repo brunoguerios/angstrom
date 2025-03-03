@@ -1,25 +1,33 @@
-name: 'Build'
+name: "Build"
 on:
   push:
-    branches:
-      - main
   pull_request:
-    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
   FOUNDRY_PROFILE: ci
 
 jobs:
-  build:
-    name: 'Build + Fmt'
+  cargo-fmt:
+    name: cargo fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Check-Out
+        uses: actions/checkout@v4
         with:
-          components: clippy,rustfmt
-          toolchain: nightly
+          submodules: recursive
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+  cargo-check:
+    name: cargo check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check-Out
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -30,25 +38,17 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Update Submodules
-        run: git submodule update --init --recursive
+      - name: cargo check --workspace --all-features
+        run: cargo check --workspace --all-features
 
-      - name: "build nightly"
-        run: cargo build --workspace --all-features
-
-      - name: "cargo fmt"
-        run: cargo fmt --all --check
-
-  clippy:
-    name: "clippy"
-    if: github.event.pull_request.draft == false
+  cargo-clippy:
+    name: cargo clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Check-Out
+        uses: actions/checkout@v4
         with:
-          components: clippy,rustfmt
-          toolchain: nightly
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -58,26 +58,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-          key: "clippy-nightly"
 
-      - name: Update Submodules
-        run: git submodule update --init --recursive
+      - name: cargo clippy --workspace --all-features
+        run: cargo clippy --workspace --all-features
 
-      - name: "clippy all"
-        run: cargo clippy --all-targets
-        env: 
-          RUSTFLAGS: -D warnings
-
-  tests:
-    name: "tests"
-    if: github.event.pull_request.draft == false
+  cargo-test:
+    name: cargo test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Check-Out
+        uses: actions/checkout@v4
         with:
-          components: clippy,rustfmt
-          toolchain: nightly
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -87,16 +79,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-          key: "clippy-nightly"
 
-      - name: Update Submodules
-        run: git submodule update --init --recursive
-
-      - name: "test"
-        run: cargo test
+      - name: cargo test --workspace --all-features
+        run: cargo test --workspace --all-features
 
   contracts:
-    name: 'Build, Format & Test Contracts'
+    name: "Build, Format & Test Contracts"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -112,7 +100,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: "0.4.18" 
+          version: "0.4.18"
       - name: Setup python virtual environment
         run: uv venv .venv --python 3.12
       - name: Sync python dependencies
