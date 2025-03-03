@@ -501,11 +501,13 @@ impl AngstromBundle {
 
         // Find the net T0 motion of our AMM order and ToB swap
         let amm_swap_t0 = solution.amm_quantity.as_ref().map(|ao| ao.get_t0_signed());
-        let tob_swap_t0 = solution.searcher.as_ref().map(|tob| {
-            trace!(tob_order = ?tob, "Mapping TOB Swap");
-            let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot)
-                .ok()
-                .map(|o| {
+        let (tob_outcome, tob_swap_t0) = solution
+            .searcher
+            .as_ref()
+            .map(|tob| {
+                trace!(tob_order = ?tob, "Mapping TOB Swap");
+                let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
+                let swap_t0 = outcome.as_ref().map(|o| {
                     if tob.is_bid {
                         // If the ToB order is a bid, then we are outputting a positive number
                         // because we are purchasing T0 from the AMM
@@ -516,8 +518,9 @@ impl AngstromBundle {
                         I256::unchecked_from(o.total_cost).saturating_neg()
                     }
                 });
-            outcome.unwrap_or(I256::ZERO)
-        });
+                (outcome.unwrap_or_default(), swap_t0)
+            })
+            .unwrap_or_default();
         let net_swap_t0 = match (amm_swap_t0, tob_swap_t0) {
             (Some(a), Some(t)) => Some(a + t),
             (any_a, any_t) => any_a.or(any_t)
@@ -540,61 +543,11 @@ impl AngstromBundle {
             }
         });
 
-        // Pull out our net AMM order
-        let net_amm_order = solution
-            .amm_quantity
-            .as_ref()
-            .map(|amm_o| amm_o.to_order_tuple(t0_idx, t1_idx));
-        // Pull out our TOB swap and TOB reward
-        let (tob_swap, tob_rewards) = solution
-            .searcher
-            .as_ref()
-            .map(|tob| {
-                trace!(tob_order = ?tob, "Mapping TOB Swap");
-                let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
-                // tracing::info!(?outcome);
-
-                // Make sure the input for our swap is precisely what's used in the swap portion
-                let (input, output) = outcome
-                    .as_ref()
-                    .map(|o| (o.total_cost, o.total_swap_output))
-                    .unwrap_or((tob.quantity_in, tob.quantity_out));
-
-                let (in_idx, out_idx) =
-                    if tob.is_bid { (t1_idx, t0_idx) } else { (t0_idx, t1_idx) };
-                let swap = (in_idx, out_idx, input, output);
-                // We swallow an error here
-                (Some(swap), outcome)
-            })
-            .unwrap_or_default();
-        // Merge our net AMM order with the TOB swap
-        trace!(tob_swap = ?tob_swap, net_amm_order = ?net_amm_order, "Merging Net AMM with TOB Swap");
-
-        // let merged_amm_swap = match (net_amm_order, tob_swap) {
-        //     (Some(amm), Some(tob)) => {
-        //         if amm.0 == tob.0 {
-        //             // If they're in the same direction we just sum them
-        //             Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
-        //         } else {
-        //             // If they're in opposite directions then we see if we have to
-        // flip them             //
-        //             // if the tob input is more than the amm output
-        //             if tob.2 > amm.3 {
-        //                 Some((tob.0, tob.1, tob.2 - amm.3, tob.3 - amm.2))
-        //             } else {
-        //                 Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
-        //             }
-        //         }
-        //     }
-        //     (net_amm_order, tob_swap) => net_amm_order.or(tob_swap)
-        // };
         trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
         // Unwrap our merged amm order or provide a zero default
 
         let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
             merged_amm_swap.unwrap_or((t0_idx, t1_idx, 0_u128, 0_u128));
-        // If we don't have a rewards update, we insert a default "empty" struct
-        let tob_outcome = tob_rewards.unwrap_or_default();
 
         // Determine whether our net AMM order is zero_for_one
         let zero_for_one = asset_in_index == t0_idx;
@@ -680,6 +633,8 @@ impl AngstromBundle {
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
         let ray_ucp = Ray::from(ucp);
+        // We need to calculate our bids with this inverse ray
+        let inverse_ray_ucp = ray_ucp.inv_ray();
         for (outcome, order) in solution
             .limit
             .iter()
@@ -699,14 +654,19 @@ impl AngstromBundle {
                     // am in
                     fill_amount,
                     // am out - round down because we'll always try to give you less
-                    ray_ucp.inverse_quantity(fill_amount, false)
+                    inverse_ray_ucp.quantity(fill_amount, false)
                         - order.priority_data.gas.to::<u128>()
                 ),
                 // fill amount is the exact amount of T0 being output for a T1 input
                 (true, false) => {
                     // Round up because we'll always ask you to pay more
                     (
-                        ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(), true),
+                        // ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(),
+                        // true),
+                        inverse_ray_ucp.inverse_quantity(
+                            fill_amount + order.priority_data.gas.to::<u128>(),
+                            true
+                        ),
                         fill_amount
                     )
                 }
@@ -739,8 +699,7 @@ impl AngstromBundle {
                 quantity_out
             );
             let user_order = if let Some(g) = shared_gas {
-                let order = UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?;
-                order
+                UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
             } else {
                 UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
             };
