@@ -165,6 +165,10 @@ pub trait OmitOrderMeta: SolStruct {
     /// assumption is 2/3 honest. This fixes the attack vector where once a
     /// valid order has been generated. it can get overridden by a different
     /// user in the tx-pool because the hash_struct is the same.
+    ///
+    /// NOTE: this only becomes problematic if a validator modifies there code
+    /// such that they share orders before they are validated as then the
+    /// pending data in the order indexer will be overridden.
     #[inline]
     fn unique_order_hash(&self, user_address: Address) -> B256 {
         let mut hasher = alloy::primitives::Keccak256::new();
