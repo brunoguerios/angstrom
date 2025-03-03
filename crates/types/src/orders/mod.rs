@@ -95,7 +95,7 @@ impl NetAmmOrder {
     pub fn get_t0_signed(&self) -> I256 {
         match self {
             Self::Buy(t0, _) => I256::unchecked_from(*t0),
-            Self::Sell(_, t0) => I256::unchecked_from(*t0).saturating_neg()
+            Self::Sell(t0, _) => I256::unchecked_from(*t0).saturating_neg()
         }
     }
 
