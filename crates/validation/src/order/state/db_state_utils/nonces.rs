@@ -1,6 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
-use alloy::primitives::{hex, keccak256, Address, B256, U256};
+use alloy::primitives::{Address, B256, U256, hex, keccak256};
 use reth_revm::DatabaseRef;
 
 /// The nonce location for quick db lookup

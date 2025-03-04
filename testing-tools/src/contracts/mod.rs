@@ -2,10 +2,10 @@ use std::{pin::pin, sync::OnceLock, time::Duration};
 
 use alloy::{
     contract::CallBuilder,
-    primitives::{address, Address, U256},
+    primitives::{Address, U256, address},
     providers::{
-        ext::{AnvilApi, DebugApi},
         WalletProvider,
+        ext::{AnvilApi, DebugApi},
     },
     rpc::types::trace::geth::{
         GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions,

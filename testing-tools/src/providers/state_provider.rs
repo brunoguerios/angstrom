@@ -1,7 +1,7 @@
 use std::{future::IntoFuture, time::Duration};
 
 use alloy::{providers::Provider, rpc::types::Block};
-use alloy_primitives::{Address, BlockNumber, B256, U256};
+use alloy_primitives::{Address, B256, BlockNumber, U256};
 use alloy_rpc_types::{BlockId, BlockTransactionsKind};
 use angstrom_types::block_sync::{BlockSyncProducer, GlobalBlockSync};
 use eyre::bail;

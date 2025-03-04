@@ -2,7 +2,7 @@ use alloy::primitives::FixedBytes;
 use angstrom_types::{matching::SqrtPriceX96, primitive::PoolId};
 use clap::Parser;
 use matching_engine::{
-    book::{sort::SortStrategy, OrderBook},
+    book::{OrderBook, sort::SortStrategy},
     simulation::{amm::single_position_amm, orders::order_distribution},
     strategy::{MatchingStrategy, SimpleCheckpointStrategy},
 };

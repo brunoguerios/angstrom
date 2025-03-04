@@ -6,7 +6,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use alloy::primitives::{Address, FixedBytes, B256};
+use alloy::primitives::{Address, B256, FixedBytes};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
@@ -16,18 +16,18 @@ use angstrom_types::{
 };
 use futures::{Future, FutureExt, StreamExt};
 use order_pool::{
-    order_storage::OrderStorage, OrderIndexer, OrderPoolHandle, PoolConfig, PoolInnerEvent,
-    PoolManagerUpdate,
+    OrderIndexer, OrderPoolHandle, PoolConfig, PoolInnerEvent, PoolManagerUpdate,
+    order_storage::OrderStorage,
 };
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_tasks::TaskSpawner;
 use tokio::sync::{
     broadcast,
-    mpsc::{error::SendError, unbounded_channel, UnboundedReceiver, UnboundedSender},
+    mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel},
 };
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use validation::order::{
-    state::pools::AngstromPoolsTracker, OrderValidationResults, OrderValidatorHandle,
+    OrderValidationResults, OrderValidatorHandle, state::pools::AngstromPoolsTracker,
 };
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};

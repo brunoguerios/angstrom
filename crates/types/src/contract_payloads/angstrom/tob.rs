@@ -7,9 +7,9 @@ use crate::{
     contract_payloads::{Asset, Pair, Signature},
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::OrderWithStorageData,
         rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder},
-        RawPoolOrder,
     },
 };
 

@@ -6,28 +6,28 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy::primitives::{Address, BlockNumber, FixedBytes, B256, U256};
+use alloy::primitives::{Address, B256, BlockNumber, FixedBytes, U256};
 use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderOrigin, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{AllOrders, OrderWithStorageData, *},
         rpc_orders::TopOfBlockOrder,
-        RawPoolOrder,
     },
 };
 use futures_util::{Stream, StreamExt};
 use tokio::sync::oneshot::Sender;
 use tracing::{error, trace};
 use validation::order::{
-    state::{account::user::UserAddress, pools::AngstromPoolsTracker},
     OrderValidationResults, OrderValidatorHandle,
+    state::{account::user::UserAddress, pools::AngstromPoolsTracker},
 };
 
 use crate::{
+    PoolManagerUpdate,
     order_storage::OrderStorage,
     validator::{OrderValidator, OrderValidatorRes},
-    PoolManagerUpdate,
 };
 
 /// This is used to remove validated orders. During validation
@@ -599,11 +599,7 @@ where
             }
         }
 
-        if validated.is_empty() {
-            Poll::Pending
-        } else {
-            Poll::Ready(Some(validated))
-        }
+        if validated.is_empty() { Poll::Pending } else { Poll::Ready(Some(validated)) }
     }
 }
 
@@ -637,14 +633,14 @@ mod tests {
         contract_payloads::angstrom::AngstromPoolConfigStore,
         orders::OrderId,
         primitive::AngstromSigner,
-        sol_bindings::{grouped_orders::GroupedVanillaOrder, RespendAvoidanceMethod},
+        sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder},
     };
     use revm::primitives::keccak256;
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder,
     };
     use tokio::sync::broadcast;
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
 
     use super::*;
     use crate::PoolConfig;

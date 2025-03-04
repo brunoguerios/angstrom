@@ -22,7 +22,7 @@ use angstrom_types::{
     sol_bindings::grouped_orders::OrderWithStorageData,
 };
 use bid_aggregation::BidAggregationState;
-use futures::{future::BoxFuture, FutureExt, Stream};
+use futures::{FutureExt, Stream, future::BoxFuture};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
@@ -366,7 +366,7 @@ pub mod tests {
 
     use alloy::{
         primitives::Address,
-        providers::{fillers::*, network::Ethereum, ProviderBuilder, RootProvider, *},
+        providers::{ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *},
     };
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_network::manager::StromConsensusEvent;
@@ -375,23 +375,23 @@ pub mod tests {
         mev_boost::MevBoostProvider,
         primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
     };
-    use futures::{pin_mut, Stream};
-    use order_pool::{order_storage::OrderStorage, PoolConfig};
+    use futures::{Stream, pin_mut};
+    use order_pool::{PoolConfig, order_storage::OrderStorage};
     use testing_tools::{
         mocks::matching_engine::MockMatchingEngine,
         type_generator::consensus::{
             pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder,
         },
     };
-    use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
     use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
     use super::{
-        pre_proposal::PreProposalState, ConsensusMessage, RoundStateMachine, SharedRoundState,
+        ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState,
     };
     use crate::{
-        rounds::{pre_proposal_aggregation::PreProposalAggregationState, ConsensusState},
         AngstromValidator,
+        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState},
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine> {

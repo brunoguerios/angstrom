@@ -1,4 +1,4 @@
-use alloy::primitives::{address, fixed_bytes, uint, Address, B256, U160, U256};
+use alloy::primitives::{Address, B256, U160, U256, address, fixed_bytes, uint};
 
 pub mod angstrom;
 pub mod tokens;

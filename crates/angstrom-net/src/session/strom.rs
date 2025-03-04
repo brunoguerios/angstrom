@@ -10,8 +10,8 @@ use alloy::rlp::{BytesMut, Encodable};
 use angstrom_types::primitive::{AngstromSigner, PeerId};
 use angstrom_utils::{GenericExt, PollFlatten};
 use futures::{
-    task::{Context, Poll},
     Stream, StreamExt,
+    task::{Context, Poll},
 };
 use reth_eth_wire::multiplex::ProtocolConnection;
 use reth_metrics::common::mpsc::MeteredPollSender;
@@ -21,11 +21,11 @@ use tokio_util::sync::PollSender;
 
 use super::handle::SessionCommand;
 use crate::{
+    StatusBuilder, StromMessage, StromSessionHandle, StromSessionMessage,
     types::{
         message::StromProtocolMessage,
         status::{Status, StatusState},
     },
-    StatusBuilder, StromMessage, StromSessionHandle, StromSessionMessage,
 };
 
 const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;

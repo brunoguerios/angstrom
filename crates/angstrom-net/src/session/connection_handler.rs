@@ -1,19 +1,19 @@
 use std::{collections::HashSet, net::SocketAddr, pin::Pin};
 
 use alloy::{
-    primitives::{keccak256, Address},
+    primitives::{Address, keccak256},
     rlp::BytesMut,
 };
 use angstrom_types::primitive::PeerId;
-use futures::{stream::Empty, Stream, StreamExt};
+use futures::{Stream, StreamExt, stream::Empty};
 use reth_eth_wire::{
-    capability::SharedCapabilities, multiplex::ProtocolConnection, protocol::Protocol,
-    DisconnectReason,
+    DisconnectReason, capability::SharedCapabilities, multiplex::ProtocolConnection,
+    protocol::Protocol,
 };
 use reth_metrics::common::mpsc::MeteredPollSender;
 use reth_network::{
-    protocol::{ConnectionHandler, OnNotSupported},
     Direction,
+    protocol::{ConnectionHandler, OnNotSupported},
 };
 use tokio::{
     sync::mpsc,
@@ -22,10 +22,10 @@ use tokio::{
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{
+    StromSession, VerificationSidecar,
     errors::StromStreamError,
     session::handle::StromSessionHandle,
     types::message::{StromMessage, StromProtocolMessage},
-    StromSession, VerificationSidecar,
 };
 
 pub enum PossibleStromSession {

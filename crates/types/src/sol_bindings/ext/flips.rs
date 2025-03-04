@@ -2,18 +2,18 @@ use alloy::{primitives::U256, signers::SignerSync};
 use pade::PadeEncode;
 
 use super::{
-    grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
     GenerateFlippedOrder,
+    grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
 };
 use crate::{
     matching::Ray,
-    primitive::{AngstromSigner, ANGSTROM_DOMAIN},
+    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::{
+        RawPoolOrder,
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder,
         },
-        RawPoolOrder,
     },
 };
 

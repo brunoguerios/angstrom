@@ -4,7 +4,7 @@
 use std::fmt::Debug;
 
 use alloy::{
-    primitives::{keccak256, Address, U256},
+    primitives::{Address, U256, keccak256},
     sol_types::*,
 };
 use angstrom_types::contract_bindings::mintable_mock_erc_20::MintableMockERC20::{

@@ -1,7 +1,7 @@
 mod fillstate;
 mod origin;
 use alloy::{
-    primitives::{keccak256, Address, FixedBytes, PrimitiveSignature, B256},
+    primitives::{Address, B256, FixedBytes, PrimitiveSignature, keccak256},
     sol_types::SolValue,
 };
 pub mod orderpool;
@@ -17,7 +17,7 @@ pub type OrderVolume = u128;
 pub type OrderPrice = MatchingPrice;
 
 use crate::{
-    matching::{uniswap::Direction, MatchingPrice, Ray},
+    matching::{MatchingPrice, Ray, uniswap::Direction},
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };

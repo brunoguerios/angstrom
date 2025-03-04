@@ -6,7 +6,7 @@ use std::{
     time::Instant,
 };
 
-use alloy::primitives::{BlockNumber, FixedBytes, B256};
+use alloy::primitives::{B256, BlockNumber, FixedBytes};
 use angstrom_metrics::OrderStorageMetricsWrapper;
 use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderSet, OrderStatus},
@@ -18,10 +18,10 @@ use angstrom_types::{
 };
 
 use crate::{
+    PoolConfig,
     finalization_pool::FinalizationPool,
     limit::{LimitOrderPool, LimitPoolError},
     searcher::{SearcherPool, SearcherPoolError},
-    PoolConfig,
 };
 
 /// The Storage of all verified orders.

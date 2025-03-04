@@ -16,7 +16,7 @@ use pade::PadeDecode;
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{span, Instrument, Level};
+use tracing::{Instrument, Level, span};
 
 pub struct AnvilEthDataCleanser<S: Stream<Item = (u64, Vec<Transaction>)>> {
     testnet_node_id: u64,

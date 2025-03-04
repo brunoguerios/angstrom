@@ -8,8 +8,8 @@ use std::{
 };
 
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_utils::{sync_pipeline::ThreadPool, PollExt};
-use futures::{stream::FuturesUnordered, Stream, StreamExt};
+use angstrom_utils::{PollExt, sync_pipeline::ThreadPool};
+use futures::{Stream, StreamExt, stream::FuturesUnordered};
 use tokio::sync::Semaphore;
 
 type PendingFut<F> = Pin<Box<dyn Future<Output = <F as Future>::Output> + Send + Sync>>;

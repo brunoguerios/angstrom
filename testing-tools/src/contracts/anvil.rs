@@ -5,12 +5,11 @@ use alloy::{
     network::{Ethereum, EthereumWallet, Network},
     node_bindings::{Anvil, AnvilInstance},
     providers::{
-        builder,
+        Identity, PendingTransaction, Provider, RootProvider, builder,
         fillers::{
             BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller,
             WalletFiller,
         },
-        Identity, PendingTransaction, Provider, RootProvider,
     },
     signers::local::PrivateKeySigner,
 };

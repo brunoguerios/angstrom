@@ -1,4 +1,4 @@
-use alloy::primitives::{aliases::U40, Address, Bytes, B256, U256};
+use alloy::primitives::{Address, B256, Bytes, U256, aliases::U40};
 use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
 
@@ -7,6 +7,7 @@ use crate::{
     orders::OrderOutcome,
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants,
         },
@@ -14,7 +15,6 @@ use crate::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder,
         },
-        RawPoolOrder,
     },
 };
 

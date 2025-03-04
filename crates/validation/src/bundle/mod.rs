@@ -16,7 +16,7 @@ use revm::{
 use tokio::runtime::Handle;
 
 use crate::{
-    common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
+    common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
     order::sim::console_log::CallDataInspector,
 };
 

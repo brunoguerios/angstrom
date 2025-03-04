@@ -1,7 +1,7 @@
 pub mod devnet;
 pub mod e2e_orders;
 pub mod testnet;
-use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
+use angstrom_metrics::{METRICS_ENABLED, initialize_prometheus_metrics};
 use clap::{ArgAction, Parser, Subcommand};
 use devnet::DevnetCli;
 use e2e_orders::End2EndOrdersCli;
@@ -10,7 +10,7 @@ use testing_tools::types::config::{DevnetConfig, TestnetConfig};
 use testnet::TestnetCli;
 use tracing::Level;
 use tracing_subscriber::{
-    filter, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry,
+    EnvFilter, Layer, Registry, filter, layer::SubscriberExt, util::SubscriberInitExt,
 };
 
 use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};

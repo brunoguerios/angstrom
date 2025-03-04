@@ -12,7 +12,7 @@ use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use super::TestingConfigKind;
 use crate::{
     providers::WalletProvider,
-    types::{initial_state::PartialConfigPoolKey, GlobalTestingConfig},
+    types::{GlobalTestingConfig, initial_state::PartialConfigPoolKey},
 };
 
 const TESTNET_LEADER_SECRET_KEY: [u8; 32] = [

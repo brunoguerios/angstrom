@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::HashMap};
 
-use alloy::primitives::{Uint, I256, U256};
-use eyre::{eyre, Context, OptionExt};
+use alloy::primitives::{I256, U256, Uint};
+use eyre::{Context, OptionExt, eyre};
 use uniswap_v3_math::{
     sqrt_price_math::{
         _get_amount_0_delta, _get_amount_1_delta, get_next_sqrt_price_from_input,
@@ -10,9 +10,9 @@ use uniswap_v3_math::{
     swap_math::compute_swap_step,
 };
 
-use super::{poolprice::PoolPrice, Direction, LiqRangeRef, Quantity, Tick};
+use super::{Direction, LiqRangeRef, Quantity, Tick, poolprice::PoolPrice};
 use crate::{
-    matching::{math::low_to_high, Ray, SqrtPriceX96},
+    matching::{Ray, SqrtPriceX96, math::low_to_high},
     orders::OrderPrice,
 };
 
@@ -155,19 +155,11 @@ impl<'a> SwapStep<'a> {
     }
 
     pub fn input(&self) -> u128 {
-        if self.end_price > self.start_price {
-            self.d_t1
-        } else {
-            self.d_t0
-        }
+        if self.end_price > self.start_price { self.d_t1 } else { self.d_t0 }
     }
 
     pub fn output(&self) -> u128 {
-        if self.end_price > self.start_price {
-            self.d_t0
-        } else {
-            self.d_t1
-        }
+        if self.end_price > self.start_price { self.d_t0 } else { self.d_t1 }
     }
 }
 
@@ -201,19 +193,11 @@ impl<'a> PoolPriceVec<'a> {
     }
 
     pub fn input(&self) -> u128 {
-        if self.end_bound.price > self.start_bound.price {
-            self.d_t1
-        } else {
-            self.d_t0
-        }
+        if self.end_bound.price > self.start_bound.price { self.d_t1 } else { self.d_t0 }
     }
 
     pub fn output(&self) -> u128 {
-        if self.end_bound.price > self.start_bound.price {
-            self.d_t0
-        } else {
-            self.d_t1
-        }
+        if self.end_bound.price > self.start_bound.price { self.d_t0 } else { self.d_t1 }
     }
 
     pub fn steps(&self) -> Option<&Vec<SwapStep>> {

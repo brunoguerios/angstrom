@@ -14,9 +14,9 @@ use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use tokio_util::sync::PollSender;
 
 use crate::{
-    manager::StromConsensusEvent, state::StromState, types::status::StatusState, NetworkOrderEvent,
-    Status, StromNetworkHandle, StromNetworkManager, StromProtocolHandler, StromSessionManager,
-    StromSessionMessage, Swarm, VerificationSidecar,
+    NetworkOrderEvent, Status, StromNetworkHandle, StromNetworkManager, StromProtocolHandler,
+    StromSessionManager, StromSessionMessage, Swarm, VerificationSidecar,
+    manager::StromConsensusEvent, state::StromState, types::status::StatusState,
 };
 
 pub struct NetworkBuilder {

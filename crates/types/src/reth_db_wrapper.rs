@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 // Allows us to impl revm::DatabaseRef on the default provider type.
 use alloy::primitives::{
-    Address, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, B256, U256,
+    Address, B256, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, U256,
 };
 use alloy_primitives::map::FbBuildHasher;
 use reth_chainspec::ChainInfo;
@@ -13,8 +13,8 @@ use reth_provider::{
 };
 use reth_storage_api::{StateRootProvider, StorageRootProvider};
 use reth_trie::{
-    updates::TrieUpdates, AccountProof, HashedPostState, HashedStorage, MultiProof,
-    StorageMultiProof, TrieInput,
+    AccountProof, HashedPostState, HashedStorage, MultiProof, StorageMultiProof, TrieInput,
+    updates::TrieUpdates,
 };
 use revm::db::BundleState;
 

@@ -2,8 +2,8 @@ use std::{
     future::Future,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     task::{Context, Poll},
 };
@@ -19,7 +19,7 @@ use reth_chainspec::Hardforks;
 use reth_network::test_utils::Peer;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use tokio::task::JoinHandle;
-use tracing::{span, Level};
+use tracing::{Level, span};
 
 use crate::{
     providers::{AnvilStateProvider, WalletProvider},

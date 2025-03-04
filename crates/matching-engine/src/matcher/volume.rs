@@ -1,13 +1,13 @@
 use std::{
     cell::Cell,
-    cmp::{max, Ordering},
+    cmp::{Ordering, max},
 };
 
 use alloy::primitives::U256;
 use angstrom_types::{
     matching::{
-        uniswap::{Direction, PoolPrice, PoolPriceVec},
         CompositeOrder, Debt, Ray,
+        uniswap::{Direction, PoolPrice, PoolPriceVec},
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
@@ -17,7 +17,7 @@ use eyre::eyre;
 use tracing::{debug, info, trace, warn};
 
 use super::Solution;
-use crate::book::{order::OrderContainer, BookOrder, OrderBook};
+use crate::book::{BookOrder, OrderBook, order::OrderContainer};
 
 #[derive(Debug)]
 pub enum VolumeFillMatchEndReason {
@@ -784,7 +784,7 @@ mod tests {
     use alloy::primitives::Uint;
     use alloy_primitives::FixedBytes;
     use angstrom_types::{
-        matching::{uniswap::PoolSnapshot, Debt, DebtType, Ray, SqrtPriceX96},
+        matching::{Debt, DebtType, Ray, SqrtPriceX96, uniswap::PoolSnapshot},
         orders::OrderFillState,
         primitive::PoolId,
     };
@@ -793,7 +793,7 @@ mod tests {
     };
 
     use super::VolumeFillMatcher;
-    use crate::book::{order::OrderContainer, BookOrder, OrderBook};
+    use crate::book::{BookOrder, OrderBook, order::OrderContainer};
 
     #[test]
     fn runs_cleanly_on_empty_book() {

@@ -5,8 +5,8 @@ use std::{collections::HashSet, sync::Arc};
 use alloy_chains::Chain;
 use angstrom_eth::manager::EthEvent;
 use angstrom_network::{
-    manager::StromConsensusEvent, state::StromState, NetworkOrderEvent, StatusState,
-    StromNetworkManager, StromProtocolHandler, StromSessionManager, Swarm, VerificationSidecar,
+    NetworkOrderEvent, StatusState, StromNetworkManager, StromProtocolHandler, StromSessionManager,
+    Swarm, VerificationSidecar, manager::StromConsensusEvent, state::StromState,
 };
 pub use eth_peer::*;
 use parking_lot::RwLock;
@@ -23,7 +23,7 @@ use tokio_util::sync::PollSender;
 
 use crate::{
     network::StromNetworkPeer,
-    types::{config::TestingNodeConfig, GlobalTestingConfig},
+    types::{GlobalTestingConfig, config::TestingNodeConfig},
 };
 
 pub struct TestnetNodeNetwork {

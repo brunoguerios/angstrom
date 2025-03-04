@@ -4,7 +4,7 @@ use alloy::{
     eips::eip2718::Encodable2718,
     network::TransactionBuilder,
     primitives::TxHash,
-    providers::{ext::AnvilApi, Provider},
+    providers::{Provider, ext::AnvilApi},
 };
 use alloy_rpc_types::TransactionRequest;
 use alloy_sol_types::SolCall;

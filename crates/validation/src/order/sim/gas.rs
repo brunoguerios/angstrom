@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
-    primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
+    primitives::{Address, B256, Bytes, TxKind, U160, U256, address, keccak256},
     sol_types::{SolCall, SolValue},
 };
 use angstrom_types::{
@@ -9,19 +9,19 @@ use angstrom_types::{
     contract_payloads::angstrom::AngstromBundle,
     matching::uniswap::UniswapFlags,
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder,
-        RawPoolOrder,
     },
 };
 use eyre::eyre;
 use pade::PadeEncode;
 use reth_provider::BlockNumReader;
 use revm::{
+    DatabaseRef,
     db::CacheDB,
     inspector_handle_register,
     primitives::{EnvWithHandlerCfg, ResultAndState, TxEnv},
-    DatabaseRef,
 };
 
 use super::gas_inspector::{GasSimulationInspector, GasUsed};
@@ -497,8 +497,8 @@ pub mod test {
 
     use alloy::{
         node_bindings::WEI_IN_ETHER,
-        primitives::{hex, Uint, U256},
-        signers::{local::LocalSigner, SignerSync},
+        primitives::{U256, Uint, hex},
+        signers::{SignerSync, local::LocalSigner},
     };
     use angstrom_types::{
         reth_db_wrapper::RethDbWrapper,

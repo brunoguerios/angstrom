@@ -1,5 +1,5 @@
 use alloy::{
-    primitives::{keccak256, BlockNumber, U256},
+    primitives::{BlockNumber, U256, keccak256},
     signers::{Signature, SignerSync},
 };
 use bytes::Bytes;

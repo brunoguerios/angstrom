@@ -3,8 +3,8 @@ use std::{pin::Pin, sync::Arc};
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::handle::Eth;
-use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
-use angstrom_rpc::{api::OrderApiServer, OrderApi};
+use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
+use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
@@ -17,12 +17,12 @@ use angstrom_types::{
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::{Future, Stream, StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
-use order_pool::{order_storage::OrderStorage, PoolConfig};
+use matching_engine::{MatchingManager, configure_uniswap_manager, manager::MatcherHandle};
+use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{span, Instrument};
+use tracing::{Instrument, span};
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient,
@@ -32,11 +32,11 @@ use crate::{
     agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
     providers::{
-        utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider,
-        AnvilSubmissionProvider, WalletProvider,
+        AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider,
+        WalletProvider, utils::StromContractInstance,
     },
     types::{
-        config::TestingNodeConfig, GlobalTestingConfig, SendingStromHandles, WithWalletProvider,
+        GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig,
     },
     validation::TestOrderValidator,
 };

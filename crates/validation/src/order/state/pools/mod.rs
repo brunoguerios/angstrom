@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use alloy::primitives::{
-    aliases::{I24, U24},
     Address,
+    aliases::{I24, U24},
 };
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,

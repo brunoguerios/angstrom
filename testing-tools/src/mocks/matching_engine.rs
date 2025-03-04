@@ -8,8 +8,8 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
-use futures::{future::BoxFuture, FutureExt};
-use matching_engine::{book::BookOrder, MatchingEngineHandle};
+use futures::{FutureExt, future::BoxFuture};
+use matching_engine::{MatchingEngineHandle, book::BookOrder};
 
 #[derive(Clone)]
 pub struct MockMatchingEngine {}

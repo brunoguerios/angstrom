@@ -1,12 +1,12 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy::{
-    primitives::{aliases::I24, Address, BlockNumber, U256},
+    primitives::{Address, BlockNumber, U256, aliases::I24},
     providers::Provider,
     sol,
     sol_types::{SolEvent, SolType},
 };
-use alloy_primitives::{Log, B256, I256};
+use alloy_primitives::{B256, I256, Log};
 use angstrom_types::{
     matching::Ray,
     primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry},

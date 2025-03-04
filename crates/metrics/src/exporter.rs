@@ -7,8 +7,8 @@ use std::{
 
 use eyre::WrapErr;
 use hyper::{
-    service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
+    service::{make_service_fn, service_fn},
 };
 #[allow(unused_imports)]
 use metrics::Unit;

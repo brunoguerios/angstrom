@@ -2,8 +2,8 @@
 use {
     alloy::{providers::Provider, signers::local::PrivateKeySigner},
     alloy_primitives::{
-        aliases::{I24, U24},
         Address, Bytes, FixedBytes, U256,
+        aliases::{I24, U24},
     },
     angstrom_types::{
         contract_bindings::{
@@ -12,25 +12,25 @@ use {
             pool_gate::PoolGate::PoolGateInstance,
         },
         contract_payloads::{
+            Asset, Pair, Signature,
             angstrom::{
                 AngstromBundle, BundleGasDetails, OrderQuantities, TopOfBlockOrder, UserOrder,
             },
             rewards::PoolUpdate,
-            Asset, Pair, Signature,
         },
-        matching::{uniswap::LiqRange, Ray, SqrtPriceX96},
+        matching::{Ray, SqrtPriceX96, uniswap::LiqRange},
         primitive::AngstromSigner,
     },
     pade::PadeEncode,
     std::{collections::HashMap, str::FromStr},
     testing_tools::{
         contracts::{
+            DebugTransaction,
             environment::{
+                LocalAnvil, SpawnedAnvil, TestAnvilEnvironment,
                 angstrom::AngstromEnv,
                 uniswap::{TestUniswapEnv, UniswapEnv},
-                LocalAnvil, SpawnedAnvil, TestAnvilEnvironment,
             },
-            DebugTransaction,
         },
         type_generator::{
             amm::AMMSnapshotBuilder,

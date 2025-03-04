@@ -11,8 +11,8 @@ use futures::FutureExt;
 use matching_engine::MatchingEngineHandle;
 
 use super::{
-    finalization::FinalizationState, pre_proposal::PreProposalState,
-    preproposal_wait_trigger::PreProposalWaitTrigger, ConsensusState, SharedRoundState,
+    ConsensusState, SharedRoundState, finalization::FinalizationState,
+    pre_proposal::PreProposalState, preproposal_wait_trigger::PreProposalWaitTrigger,
 };
 
 /// BidAggregationState

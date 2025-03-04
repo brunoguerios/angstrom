@@ -13,7 +13,7 @@ use angstrom_types::{
     },
 };
 use sim::SimValidation;
-use tokio::sync::oneshot::{channel, Sender};
+use tokio::sync::oneshot::{Sender, channel};
 
 use crate::{common::TokenPriceGenerator, validator::ValidationRequest};
 

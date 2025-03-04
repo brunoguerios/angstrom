@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use alloy::primitives::{keccak256, Address, U256};
+use alloy::primitives::{Address, U256, keccak256};
 use eyre::eyre;
 use reth_revm::DatabaseRef;
 use serde::Deserialize;

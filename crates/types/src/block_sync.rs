@@ -3,8 +3,8 @@ use std::{
     fmt::Debug,
     ops::RangeInclusive,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, RwLock,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     task::Waker,
 };

@@ -1,4 +1,4 @@
-use std::collections::{hash_map::Entry, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque, hash_map::Entry};
 
 use reth_eth_wire::DisconnectReason;
 use reth_net_banlist::BanList;
@@ -6,7 +6,7 @@ use reth_network_peers::PeerId;
 use tracing::trace;
 
 pub use super::reputation::ReputationChangeWeights;
-use super::reputation::{is_banned_reputation, ReputationChangeKind};
+use super::reputation::{ReputationChangeKind, is_banned_reputation};
 
 /// Maintains the state of _all_ the peers known to the network.
 ///

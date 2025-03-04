@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::HashMap, fmt::Debug, marker::PhantomData, 
 
 use alloy::{
     hex,
-    primitives::{aliases::I24, Address, BlockNumber, B256, I256, U256},
+    primitives::{Address, B256, BlockNumber, I256, U256, aliases::I24},
     providers::Provider,
     transports::Transport,
 };
@@ -17,9 +17,8 @@ use uniswap_v3_math::{
 
 use super::{pool_data_loader::PoolData, pool_manager::TickRangeToLoad};
 use crate::uniswap::{
-    i32_to_i24,
+    ConversionError, i32_to_i24,
     pool_data_loader::{DataLoader, ModifyPositionEvent, PoolDataLoader, TickData},
-    ConversionError,
 };
 
 #[derive(Default)]
@@ -398,11 +397,7 @@ where
                         self.ticks
                             .get(&tick_next)
                             .map(|info| {
-                                if zero_for_one {
-                                    -info.liquidity_net
-                                } else {
-                                    info.liquidity_net
-                                }
+                                if zero_for_one { -info.liquidity_net } else { info.liquidity_net }
                             })
                             .unwrap_or_default();
 
@@ -691,11 +686,7 @@ where
     }
 
     pub fn get_token_out(&self, token_in: Address) -> Address {
-        if self.token0 == token_in {
-            self.token1
-        } else {
-            self.token0
-        }
+        if self.token0 == token_in { self.token1 } else { self.token0 }
     }
 
     pub fn calculate_word_pos_bit_pos(&self, compressed: i32) -> (i16, u8) {
@@ -752,7 +743,7 @@ pub enum PoolError {
 mod tests {
     use std::sync::Once;
 
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
     use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 
     use super::*;

@@ -1,8 +1,8 @@
 use angstrom_types::matching::{
-    uniswap::{LiqRange, PoolSnapshot},
     SqrtPriceX96,
+    uniswap::{LiqRange, PoolSnapshot},
 };
-use eyre::{eyre, Context, Error};
+use eyre::{Context, Error, eyre};
 use rand_distr::{Distribution, SkewNormal};
 use uniswap_v3_math::tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio};
 

@@ -13,7 +13,7 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
-use futures::{stream::FuturesUnordered, Future};
+use futures::{Future, stream::FuturesUnordered};
 use futures_util::FutureExt;
 use reth_tasks::TaskSpawner;
 use tokio::{
@@ -27,10 +27,10 @@ use tracing::trace;
 use validation::bundle::BundleValidatorHandle;
 
 use crate::{
+    MatchingEngineHandle,
     book::{BookOrder, OrderBook},
     build_book,
     strategy::{MatchingStrategy, SimpleCheckpointStrategy},
-    MatchingEngineHandle,
 };
 
 pub enum MatcherCommand {

@@ -5,7 +5,7 @@ pub mod validator;
 
 use std::{
     fmt::Debug,
-    sync::{atomic::AtomicU64, Arc},
+    sync::{Arc, atomic::AtomicU64},
 };
 
 use alloy::primitives::Address;
@@ -20,7 +20,7 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 use validator::Validator;
 
 use crate::{
-    common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
+    common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
     order::{
         order_validator::OrderValidator,
         sim::SimValidation,

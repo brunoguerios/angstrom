@@ -12,7 +12,7 @@ use alloy::{
     providers::Provider,
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
-use angstrom_network::{manager::StromConsensusEvent, StromMessage, StromNetworkHandle};
+use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensusEvent};
 use angstrom_types::{
     block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry,
     mev_boost::MevBoostProvider, primitive::AngstromSigner,
@@ -26,9 +26,9 @@ use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
+    AngstromValidator,
     leader_selection::WeightedRoundRobin,
     rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
-    AngstromValidator,
 };
 
 const MODULE_NAME: &str = "Consensus";

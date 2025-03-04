@@ -1,7 +1,7 @@
 use alloy::primitives::Address;
 use itertools::Itertools;
 
-use super::{state::StageTracker, AssetArray};
+use super::{AssetArray, state::StageTracker};
 use crate::contract_payloads::Asset;
 
 pub enum AssetBuilderStage {

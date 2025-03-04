@@ -1,7 +1,7 @@
 use alloy::providers::PendingTransaction;
 use alloy_primitives::{
-    aliases::{I24, U24},
     Address, TxHash,
+    aliases::{I24, U24},
 };
 use angstrom_types::{contract_bindings::angstrom::Angstrom::PoolKey, matching::SqrtPriceX96};
 

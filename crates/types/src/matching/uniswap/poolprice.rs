@@ -13,11 +13,11 @@ use uniswap_v3_math::{
     tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio},
 };
 
-use super::{liqrange::LiqRangeRef, poolpricevec::PoolPriceVec, Direction, Quantity, Tick};
+use super::{Direction, Quantity, Tick, liqrange::LiqRangeRef, poolpricevec::PoolPriceVec};
 use crate::matching::{
+    Ray, SqrtPriceX96,
     debt::Debt,
     math::{price_intersect_solve, resolve_precision},
-    Ray, SqrtPriceX96,
 };
 /// Representation of a specific price point in a Uniswap Pool.  Can be operated
 /// on to simulate the behavior of the price withing said pool.
@@ -282,11 +282,7 @@ impl<'a> PoolPrice<'a> {
             };
         }
         let closest_price = if let Some(p) = target_price {
-            if buy {
-                min(p, tick_bound_price)
-            } else {
-                max(p, tick_bound_price)
-            }
+            if buy { min(p, tick_bound_price) } else { max(p, tick_bound_price) }
         } else {
             tick_bound_price
         };
@@ -346,8 +342,8 @@ mod test {
     use alloy_primitives::U160;
 
     use crate::matching::{
-        uniswap::{Direction, LiqRange, PoolSnapshot},
         Debt, Ray, SqrtPriceX96,
+        uniswap::{Direction, LiqRange, PoolSnapshot},
     };
 
     #[test]

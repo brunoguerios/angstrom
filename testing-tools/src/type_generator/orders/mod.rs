@@ -15,7 +15,7 @@ use angstrom_types::{
     },
 };
 use enr::k256::ecdsa::SigningKey;
-use rand::{rngs::ThreadRng, Rng};
+use rand::{Rng, rngs::ThreadRng};
 
 // mod stored;
 mod distribution;

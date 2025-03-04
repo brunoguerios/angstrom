@@ -11,8 +11,8 @@ use matching_engine::MatchingEngineHandle;
 
 use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{
-    finalization::FinalizationState, pre_proposal_aggregation::PreProposalAggregationState,
-    ConsensusMessage,
+    ConsensusMessage, finalization::FinalizationState,
+    pre_proposal_aggregation::PreProposalAggregationState,
 };
 
 /// PreProposalState

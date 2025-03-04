@@ -6,11 +6,11 @@ use std::{
 
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{
-    aliases::{I24, U24},
     Address, Bytes, U160,
+    aliases::{I24, U24},
 };
 use alloy_signer_local::LocalSigner;
-use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
+use angstrom_metrics::{METRICS_ENABLED, initialize_prometheus_metrics};
 use angstrom_types::{contract_bindings::angstrom::Angstrom::PoolKey, matching::SqrtPriceX96};
 use consensus::AngstromValidator;
 use enr::k256::ecdsa::SigningKey;

@@ -2,13 +2,13 @@ use std::net::SocketAddr;
 
 use angstrom_types::primitive::PeerId;
 use reth_network::{
-    test_utils::{Peer, PeerHandle},
     NetworkHandle, NetworkInfo, Peers,
+    test_utils::{Peer, PeerHandle},
 };
 use reth_provider::{BlockReader, HeaderProvider};
 use reth_transaction_pool::{
-    blobstore::InMemoryBlobStore, noop::MockTransactionValidator, test_utils::MockTransaction,
-    CoinbaseTipOrdering, Pool,
+    CoinbaseTipOrdering, Pool, blobstore::InMemoryBlobStore, noop::MockTransactionValidator,
+    test_utils::MockTransaction,
 };
 
 pub type EthPeerPool = Pool<

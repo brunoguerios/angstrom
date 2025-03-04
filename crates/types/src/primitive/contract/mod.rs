@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{aliases::U24, Address},
+    primitives::{Address, aliases::U24},
     sol,
     sol_types::eip712_domain,
 };

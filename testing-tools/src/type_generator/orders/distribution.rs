@@ -5,7 +5,7 @@ use angstrom_types::{
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
 };
 use eyre::eyre;
-use rand_distr::{num_traits::ToPrimitive, Distribution, SkewNormal};
+use rand_distr::{Distribution, SkewNormal, num_traits::ToPrimitive};
 
 use super::{DistributionParameters, UserOrderBuilder};
 

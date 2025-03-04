@@ -5,7 +5,7 @@ use std::{collections::HashSet, sync::Arc};
 use alloy::{
     self,
     eips::{BlockId, BlockNumberOrTag},
-    providers::{network::Ethereum, Provider, ProviderBuilder},
+    providers::{Provider, ProviderBuilder, network::Ethereum},
 };
 use alloy_chains::Chain;
 use angstrom_eth::{
@@ -13,10 +13,10 @@ use angstrom_eth::{
     manager::{EthDataCleanser, EthEvent},
 };
 use angstrom_network::{
-    manager::StromConsensusEvent,
-    pool_manager::{OrderCommand, PoolHandle},
     NetworkBuilder as StromNetworkBuilder, NetworkOrderEvent, PoolManagerBuilder, StatusState,
     VerificationSidecar,
+    manager::StromConsensusEvent,
+    pool_manager::{OrderCommand, PoolHandle},
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
@@ -27,8 +27,8 @@ use angstrom_types::{
     reth_db_wrapper::RethDbWrapper,
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use matching_engine::{configure_uniswap_manager, manager::MatcherCommand, MatchingManager};
-use order_pool::{order_storage::OrderStorage, PoolConfig, PoolManagerUpdate};
+use matching_engine::{MatchingManager, configure_uniswap_manager, manager::MatcherCommand};
+use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
 use reth::{
     api::NodeAddOns,
     builder::FullNodeComponents,
@@ -38,10 +38,10 @@ use reth::{
     tasks::TaskExecutor,
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
-use reth_node_builder::{node::FullNodeTypes, rpc::RethRpcAddOns, FullNode, NodeTypes};
+use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAddOns};
 use reth_provider::BlockReader;
 use tokio::sync::mpsc::{
-    channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender,
+    Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel,
 };
 use validation::{
     common::TokenPriceGenerator,
@@ -50,7 +50,7 @@ use validation::{
     validator::{ValidationClient, ValidationRequest},
 };
 
-use crate::{cli::NodeConfig, AngstromConfig};
+use crate::{AngstromConfig, cli::NodeConfig};
 
 pub fn init_network_builder(
     secret_key: AngstromSigner,
@@ -147,10 +147,10 @@ pub async fn initialize_strom_components<Node, AddOns>(
     Node: FullNodeComponents
         + FullNodeTypes<Types: NodeTypes<ChainSpec = ChainSpec, Primitives = EthPrimitives>>,
     Node::Provider: BlockReader<
-        Block = reth::primitives::Block,
-        Receipt = reth::primitives::Receipt,
-        Header = reth::primitives::Header,
-    >,
+            Block = reth::primitives::Block,
+            Receipt = reth::primitives::Receipt,
+            Header = reth::primitives::Header,
+        >,
     AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
 {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();

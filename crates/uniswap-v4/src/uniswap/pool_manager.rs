@@ -10,7 +10,7 @@ use std::{
 
 use alloy::{
     primitives::{Address, BlockNumber},
-    rpc::types::{eth::Filter, Block},
+    rpc::types::{Block, eth::Filter},
     transports::{RpcError, TransportErrorKind},
 };
 use alloy_primitives::Log;
@@ -23,7 +23,7 @@ use angstrom_types::{
 };
 use arraydeque::ArrayDeque;
 use futures::FutureExt;
-use futures_util::{stream::BoxStream, StreamExt};
+use futures_util::{StreamExt, stream::BoxStream};
 use thiserror::Error;
 use tokio::sync::Notify;
 
@@ -114,11 +114,7 @@ where
                 // scope for awaits
                 let start_tick = {
                     let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
-                    if zfo {
-                        pool.fetch_lowest_tick()
-                    } else {
-                        pool.fetch_highest_tick()
-                    }
+                    if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() }
                 };
 
                 let _ = self
@@ -499,7 +495,7 @@ mod annoying_tests {
 
     use alloy::{
         primitives::Address,
-        providers::{fillers::*, network::Ethereum, Provider, ProviderBuilder, RootProvider, *},
+        providers::{Provider, ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *},
     };
     use alloy_primitives::LogData;
     use angstrom_types::block_sync::GlobalBlockState;

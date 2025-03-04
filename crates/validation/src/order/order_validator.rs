@@ -1,26 +1,26 @@
 use std::{
     fmt::Debug,
     pin::Pin,
-    sync::{atomic::AtomicU64, Arc},
+    sync::{Arc, atomic::AtomicU64},
 };
 
-use alloy::primitives::{Address, BlockNumber, B256};
+use alloy::primitives::{Address, B256, BlockNumber};
 use angstrom_metrics::validation::ValidationMetrics;
 use futures::Future;
 use tokio::runtime::Handle;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use super::{
+    OrderValidationRequest,
     sim::SimValidation,
     state::{
-        account::user::UserAddress, db_state_utils::StateFetchUtils, pools::PoolsTracker,
-        StateValidation,
+        StateValidation, account::user::UserAddress, db_state_utils::StateFetchUtils,
+        pools::PoolsTracker,
     },
-    OrderValidationRequest,
 };
 use crate::{
-    common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
-    order::{state::account::UserAccountProcessor, OrderValidation},
+    common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
+    order::{OrderValidation, state::account::UserAccountProcessor},
 };
 
 pub struct OrderValidator<DB, Pools, Fetch> {

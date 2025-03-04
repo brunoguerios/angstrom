@@ -4,7 +4,7 @@ use std::{
 };
 
 use alloy::{
-    primitives::{keccak256, BlockNumber},
+    primitives::{BlockNumber, keccak256},
     signers::{Signature, SignerSync},
 };
 use alloy_primitives::U256;

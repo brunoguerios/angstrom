@@ -15,12 +15,12 @@ use angstrom_types::{
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution,
 };
-use futures::{future::BoxFuture, FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::MatchingEngineHandle;
 use pade::PadeEncode;
 
 use super::{ConsensusState, SharedRoundState};
-use crate::rounds::{preproposal_wait_trigger::LastRoundInfo, ConsensusMessage};
+use crate::rounds::{ConsensusMessage, preproposal_wait_trigger::LastRoundInfo};
 
 type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 

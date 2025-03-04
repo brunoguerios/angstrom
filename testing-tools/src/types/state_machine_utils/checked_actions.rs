@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin};
 
-use angstrom_network::{manager::StromConsensusEvent, StromMessage};
+use angstrom_network::{StromMessage, manager::StromConsensusEvent};
 use angstrom_types::{
     consensus::{PreProposal, Proposal},
     sol_bindings::grouped_orders::AllOrders,
@@ -11,7 +11,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{config::DevnetConfig, StateMachineCheckedActionHookFn},
+    types::{StateMachineCheckedActionHookFn, config::DevnetConfig},
 };
 
 pub trait WithCheckedAction<'a, C>

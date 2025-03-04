@@ -6,7 +6,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{config::DevnetConfig, StateMachineActionHookFn},
+    types::{StateMachineActionHookFn, config::DevnetConfig},
 };
 
 pub trait WithAction<'a, C>

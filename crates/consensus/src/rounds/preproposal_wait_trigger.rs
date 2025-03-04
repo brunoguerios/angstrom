@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use tokio::time::{interval, Interval};
+use tokio::time::{Interval, interval};
 
 use crate::rounds::OrderStorage;
 

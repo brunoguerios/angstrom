@@ -10,7 +10,7 @@ mod validator;
 
 use std::future::Future;
 
-use alloy::primitives::{Address, FixedBytes, B256};
+use alloy::primitives::{Address, B256, FixedBytes};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::OrderPoolNewOrderResult,

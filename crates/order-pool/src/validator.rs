@@ -6,7 +6,7 @@ use std::{
 
 use alloy::primitives::{Address, B256};
 use angstrom_types::{orders::OrderOrigin, sol_bindings::grouped_orders::AllOrders};
-use futures_util::{stream::FuturesUnordered, Future, FutureExt, Stream, StreamExt};
+use futures_util::{Future, FutureExt, Stream, StreamExt, stream::FuturesUnordered};
 use tracing::info;
 use validation::order::{OrderValidationResults, OrderValidatorHandle};
 

@@ -1,10 +1,11 @@
 use alloy::{
     node_bindings::AnvilInstance,
     primitives::{
+        Address,
         aliases::{I24, U24},
-        keccak256, Address,
+        keccak256,
     },
-    providers::{ext::AnvilApi, Provider},
+    providers::{Provider, ext::AnvilApi},
 };
 use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
@@ -18,7 +19,7 @@ use angstrom_types::{
     matching::SqrtPriceX96,
     testnet::InitialTestnetState,
 };
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use validation::common::WETH_ADDRESS;
 
 use super::WalletProvider;
@@ -26,15 +27,15 @@ use crate::{
     contracts::{
         anvil::{SafeDeployPending, WalletProviderRpc},
         environment::{
+            TestAnvilEnvironment,
             angstrom::AngstromEnv,
             uniswap::{TestUniswapEnv, UniswapEnv},
-            TestAnvilEnvironment,
         },
     },
     types::{
+        GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
         initial_state::{PartialConfigPoolKey, PendingDeployedPools},
-        GlobalTestingConfig, WithWalletProvider,
     },
 };
 

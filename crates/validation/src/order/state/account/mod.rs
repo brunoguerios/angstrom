@@ -151,16 +151,16 @@ pub mod tests {
     use alloy::primitives::{Address, U256};
     use angstrom_types::{
         primitive::{AngstromSigner, PoolId},
-        sol_bindings::{grouped_orders::GroupedVanillaOrder, RawPoolOrder},
+        sol_bindings::{RawPoolOrder, grouped_orders::GroupedVanillaOrder},
     };
     use testing_tools::type_generator::orders::UserOrderBuilder;
     use tracing::info;
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
 
     use super::{UserAccountProcessor, UserAccountVerificationError, UserAccounts};
     use crate::order::state::{
         db_state_utils::test_fetching::MockFetch,
-        pools::{pool_tracker_mock::MockPoolTracker, PoolsTracker},
+        pools::{PoolsTracker, pool_tracker_mock::MockPoolTracker},
     };
     /// Initialize the tracing subscriber for tests
     fn init_tracing() {

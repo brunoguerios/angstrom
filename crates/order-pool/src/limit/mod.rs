@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use alloy::primitives::{FixedBytes, B256};
+use alloy::primitives::{B256, FixedBytes};
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId},

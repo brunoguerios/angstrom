@@ -1,5 +1,5 @@
-use alloy::primitives::{aliases::I24, Address, FixedBytes, U256};
-use alloy_primitives::{address, TxHash};
+use alloy::primitives::{Address, FixedBytes, U256, aliases::I24};
+use alloy_primitives::{TxHash, address};
 use angstrom_types::contract_bindings::{
     i_position_descriptor::IPositionDescriptor,
     pool_gate::PoolGate::{self, PoolGateInstance},

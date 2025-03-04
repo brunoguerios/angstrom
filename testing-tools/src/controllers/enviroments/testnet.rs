@@ -2,7 +2,7 @@ use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc};
 
 use alloy::{
     primitives::Address,
-    providers::{ext::AnvilApi, WalletProvider as _},
+    providers::{WalletProvider as _, ext::AnvilApi},
 };
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, StreamExt};
@@ -16,8 +16,8 @@ use crate::{
     controllers::strom::TestnetNode,
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
-        config::{TestingNodeConfig, TestnetConfig},
         GlobalTestingConfig, WithWalletProvider,
+        config::{TestingNodeConfig, TestnetConfig},
     },
 };
 

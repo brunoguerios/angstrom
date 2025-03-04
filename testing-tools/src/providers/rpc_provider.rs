@@ -1,7 +1,7 @@
 use std::future::IntoFuture;
 
 use alloy::{
-    primitives::{keccak256, Address, BlockNumber, StorageKey, StorageValue},
+    primitives::{Address, BlockNumber, StorageKey, StorageValue, keccak256},
     providers::Provider,
     transports::TransportResult,
 };

@@ -5,8 +5,8 @@ use angstrom_types::contract_bindings::{
 };
 use tracing::{debug, info};
 
-use super::{uniswap::TestUniswapEnv, TestAnvilEnvironment};
-use crate::contracts::{deploy::angstrom::deploy_angstrom_create3, DebugTransaction};
+use super::{TestAnvilEnvironment, uniswap::TestUniswapEnv};
+use crate::contracts::{DebugTransaction, deploy::angstrom::deploy_angstrom_create3};
 
 pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
     fn angstrom(&self) -> Address;
@@ -177,13 +177,13 @@ mod tests {
 
     use alloy::{
         primitives::{
+            Address, Bytes, U256, Uint,
             aliases::{I24, U24},
-            Address, Bytes, Uint, U256,
         },
         providers::Provider,
         signers::{
-            local::{LocalSigner, PrivateKeySigner},
             SignerSync,
+            local::{LocalSigner, PrivateKeySigner},
         },
     };
     use alloy_primitives::FixedBytes;
@@ -195,9 +195,9 @@ mod tests {
             pool_gate::PoolGate::PoolGateInstance,
         },
         contract_payloads::angstrom::{AngstromBundle, BundleGasDetails, UserOrder},
-        matching::{uniswap::LiqRange, SqrtPriceX96},
+        matching::{SqrtPriceX96, uniswap::LiqRange},
         orders::{OrderFillState, OrderOutcome},
-        primitive::{AngstromSigner, ANGSTROM_DOMAIN},
+        primitive::{ANGSTROM_DOMAIN, AngstromSigner},
         sol_bindings::{
             grouped_orders::{GroupedVanillaOrder, OrderWithStorageData, StandingVariants},
             rpc_orders::OmitOrderMeta,
@@ -208,8 +208,8 @@ mod tests {
     use super::{AngstromEnv, DebugTransaction};
     use crate::{
         contracts::environment::{
-            uniswap::{TestUniswapEnv, UniswapEnv},
             LocalAnvil, SpawnedAnvil, TestAnvilEnvironment,
+            uniswap::{TestUniswapEnv, UniswapEnv},
         },
         providers::AnvilProvider,
         type_generator::{
