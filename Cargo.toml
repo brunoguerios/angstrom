@@ -56,7 +56,7 @@ angstrom = { path = "./bin/angstrom/" }
 matching-engine = { path = "./crates/matching-engine/" }
 contract-bindings = { path = "./crates/contract-bindings/" }
 eyre = "0"
-dashmap = "5"
+dashmap = "6"
 malachite = "0.4"
 malachite-q = "0.4"
 
