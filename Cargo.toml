@@ -214,10 +214,10 @@ tokio-util = { version = "0.7.4", features = ["codec"] }
 
 
 ## json
-jsonrpsee = "0.24"
-jsonrpsee-core = "0.24"
-jsonrpsee-http-client = "0.24"
-jsonrpsee-types = "0.24"
+jsonrpsee = "0"
+jsonrpsee-core = "0"
+jsonrpsee-http-client = "0"
+jsonrpsee-types = "0"
 
 ## crypto
 secp256k1 = { version = "0.29.0", default-features = false, features = [
@@ -228,7 +228,7 @@ secp256k1 = { version = "0.29.0", default-features = false, features = [
 enr = { version = "=0.10.0", default-features = false, features = ["k256"] }
 
 
-aquamarine = "0.5.0"
+aquamarine = "0"
 
 # misc-testing
 arbitrary = "1"

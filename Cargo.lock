@@ -1647,7 +1647,7 @@ dependencies = [
  "angstrom-types",
  "angstrom-utils",
  "anyhow",
- "aquamarine 0.5.0",
+ "aquamarine",
  "async-trait",
  "auto_impl",
  "bincode",
@@ -1844,20 +1844,6 @@ name = "anyhow"
 version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
-
-[[package]]
-name = "aquamarine"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21cc1548309245035eb18aa7f0967da6bc65587005170c56e6ef2788a4cf3f4e"
-dependencies = [
- "include_dir",
- "itertools 0.10.5",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 2.0.99",
-]
 
 [[package]]
 name = "aquamarine"
@@ -6518,7 +6504,7 @@ dependencies = [
  "angstrom-network",
  "angstrom-types",
  "angstrom-utils",
- "aquamarine 0.5.0",
+ "aquamarine",
  "async-trait",
  "auto_impl",
  "bitflags 2.9.0",
@@ -7567,7 +7553,7 @@ dependencies = [
  "alloy-primitives 0.8.22",
  "alloy-rlp",
  "alloy-rpc-types 0.11.1",
- "aquamarine 0.6.0",
+ "aquamarine",
  "backon",
  "clap",
  "eyre",
@@ -8872,7 +8858,7 @@ dependencies = [
  "alloy-eips 0.11.1",
  "alloy-primitives 0.8.22",
  "alloy-rlp",
- "aquamarine 0.6.0",
+ "aquamarine",
  "auto_impl",
  "derive_more 1.0.0",
  "discv5",
@@ -9091,7 +9077,7 @@ dependencies = [
  "alloy-eips 0.11.1",
  "alloy-primitives 0.8.22",
  "alloy-rpc-types 0.11.1",
- "aquamarine 0.6.0",
+ "aquamarine",
  "eyre",
  "fdlimit",
  "futures",
@@ -9911,7 +9897,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.2.1#baf5dcc0d51f44a81f5
 dependencies = [
  "alloy-eips 0.11.1",
  "alloy-primitives 0.8.22",
- "aquamarine 0.6.0",
+ "aquamarine",
  "auto_impl",
  "futures-util",
  "metrics 0.24.1",
@@ -10106,7 +10092,7 @@ dependencies = [
  "alloy-eips 0.11.1",
  "alloy-primitives 0.8.22",
  "alloy-rlp",
- "aquamarine 0.6.0",
+ "aquamarine",
  "auto_impl",
  "bitflags 2.9.0",
  "futures-util",
