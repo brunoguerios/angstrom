@@ -81,8 +81,6 @@ jobs:
           version: stable
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
 
       - name: cargo fix --workspace --all-features
         run: |
