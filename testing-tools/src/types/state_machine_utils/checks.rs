@@ -17,7 +17,7 @@ where
         + Clone
         + 'static
 {
-    type FunctionOutput = StateMachineCheckHookFn<C>;
+    type FunctionOutput;
 
     fn check_block(&mut self, block_number: u64);
 }
@@ -32,6 +32,8 @@ where
         + Clone
         + 'static
 {
+    type FunctionOutput = StateMachineCheckHookFn<C>;
+
     fn check_block(&mut self, block_number: u64) {
         let f = move |testnet: &mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             testnet.check_block_numbers(block_number)

@@ -24,7 +24,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    type FunctionOutput = StateMachineCheckedActionHookFn<'a, C>;
+    type FunctionOutput;
 
     fn send_pooled_orders(&mut self, orders: Vec<AllOrders>);
 
@@ -43,6 +43,8 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
+    type FunctionOutput = StateMachineCheckedActionHookFn<'a, C>;
+
     fn send_pooled_orders(&mut self, orders: Vec<AllOrders>) {
         let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             pin_action(testnet.broadcast_orders_message(
