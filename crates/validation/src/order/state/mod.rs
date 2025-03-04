@@ -3,8 +3,11 @@ use std::sync::Arc;
 use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::sol_bindings::{
-    Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
+use angstrom_types::{
+    primitive::OrderValidationError,
+    sol_bindings::{
+        Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
+    }
 };
 use db_state_utils::StateFetchUtils;
 use parking_lot::RwLock;
@@ -93,17 +96,26 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             let order_hash = order.order_hash();
             if !order.is_valid_signature() {
                 tracing::debug!("order had invalid hash");
-                return OrderValidationResults::Invalid(order_hash);
+                return OrderValidationResults::Invalid {
+                    hash:  order_hash,
+                    error: OrderValidationError::InvalidSignature
+                };
             }
 
             if !self.correctly_built(&order) {
                 tracing::info!(?order, "invalidly built order");
-                return OrderValidationResults::Invalid(order_hash);
+                return OrderValidationResults::Invalid {
+                    hash:  order_hash,
+                    error: OrderValidationError::InvalidPartialOrder
+                };
             }
 
             let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {
                 tracing::debug!("order requested a invalid pool");
-                return OrderValidationResults::Invalid(order_hash);
+                return OrderValidationResults::Invalid {
+                    hash:  order_hash,
+                    error: OrderValidationError::InvalidPool
+                };
             };
 
             self.user_account_tracker
@@ -114,8 +126,11 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                     )
                 })
                 .unwrap_or_else(|e| {
-                    tracing::debug!(%e,"user acount tracker failed to validate order");
-                    OrderValidationResults::Invalid(order_hash)
+                    tracing::debug!(%e,"user account tracker failed to validate order");
+                    OrderValidationResults::Invalid {
+                        hash:  order_hash,
+                        error: OrderValidationError::StateError(e)
+                    }
                 })
         })
     }
@@ -126,31 +141,35 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         block: u64,
         metrics: ValidationMetrics
     ) -> OrderValidationResults {
+        let order_hash = order.order_hash();
         let mut results = self.handle_regular_order(order, block, metrics);
         let mut invalidate = false;
 
-        if let OrderValidationResults::Valid(ref mut order_with_storage) = results {
-            let tob_order = order_with_storage
+        if let OrderValidationResults::Valid(ref mut tob_order) = results {
+            let tob_orders = tob_order
                 .clone()
                 .try_map_inner(|inner| {
                     let AllOrders::TOB(order) = inner else { eyre::bail!("unreachable") };
                     Ok(order)
                 })
                 .expect("should be unreachable");
-            let pool_address = order_with_storage.pool_id;
+            let pool_address = tob_orders.pool_id;
             if let Ok(rewards) = self
                 .uniswap_pools
-                .calculate_rewards(pool_address, &tob_order)
+                .calculate_rewards(pool_address, &tob_orders)
                 .await
             {
-                order_with_storage.tob_reward = U256::from(rewards.total_reward);
+                tob_order.tob_reward = U256::from(rewards.total_reward);
             } else {
                 invalidate = true;
             }
         }
 
         if invalidate {
-            tracing::info!("bad swap for order");
+            return OrderValidationResults::Invalid {
+                hash:  order_hash,
+                error: OrderValidationError::InvalidToBSwap
+            };
         }
 
         results

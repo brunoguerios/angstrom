@@ -418,6 +418,13 @@ impl RawPoolOrder for StandingVariants {
         }
     }
 
+    fn has_hook(&self) -> bool {
+        match self {
+            StandingVariants::Exact(e) => e.has_hook(),
+            StandingVariants::Partial(p) => p.has_hook()
+        }
+    }
+
     fn exact_in(&self) -> bool {
         match self {
             StandingVariants::Exact(e) => e.exact_in(),
@@ -519,6 +526,13 @@ impl RawPoolOrder for StandingVariants {
 }
 
 impl RawPoolOrder for FlashVariants {
+    fn has_hook(&self) -> bool {
+        match self {
+            FlashVariants::Exact(e) => e.has_hook(),
+            FlashVariants::Partial(p) => p.has_hook()
+        }
+    }
+
     fn min_amount(&self) -> u128 {
         match self {
             FlashVariants::Exact(e) => e.min_amount(),
@@ -739,6 +753,10 @@ impl RawPoolOrder for TopOfBlockOrder {
         true
     }
 
+    fn has_hook(&self) -> bool {
+        false
+    }
+
     fn min_amount(&self) -> u128 {
         self.quantity_in
     }
@@ -809,6 +827,10 @@ impl RawPoolOrder for TopOfBlockOrder {
 }
 
 impl RawPoolOrder for PartialStandingOrder {
+    fn has_hook(&self) -> bool {
+        !self.hook_data.is_empty()
+    }
+
     fn min_amount(&self) -> u128 {
         self.min_amount_in
     }
@@ -886,6 +908,10 @@ impl RawPoolOrder for PartialStandingOrder {
 }
 
 impl RawPoolOrder for ExactStandingOrder {
+    fn has_hook(&self) -> bool {
+        !self.hook_data.is_empty()
+    }
+
     fn min_amount(&self) -> u128 {
         self.amount
     }
@@ -963,6 +989,10 @@ impl RawPoolOrder for ExactStandingOrder {
 }
 
 impl RawPoolOrder for PartialFlashOrder {
+    fn has_hook(&self) -> bool {
+        !self.hook_data.is_empty()
+    }
+
     fn min_amount(&self) -> u128 {
         self.min_amount_in
     }
@@ -1040,6 +1070,10 @@ impl RawPoolOrder for PartialFlashOrder {
 }
 
 impl RawPoolOrder for ExactFlashOrder {
+    fn has_hook(&self) -> bool {
+        !self.hook_data.is_empty()
+    }
+
     fn min_amount(&self) -> u128 {
         self.amount
     }
@@ -1117,6 +1151,14 @@ impl RawPoolOrder for ExactFlashOrder {
 }
 
 impl RawPoolOrder for AllOrders {
+    fn has_hook(&self) -> bool {
+        match self {
+            AllOrders::Standing(p) => p.has_hook(),
+            AllOrders::Flash(kof) => kof.has_hook(),
+            AllOrders::TOB(tob) => tob.has_hook()
+        }
+    }
+
     fn min_amount(&self) -> u128 {
         match self {
             AllOrders::Standing(p) => p.min_amount(),
@@ -1254,6 +1296,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
         }
     }
 
+    fn has_hook(&self) -> bool {
+        match self {
+            GroupedVanillaOrder::Standing(p) => p.has_hook(),
+            GroupedVanillaOrder::KillOrFill(kof) => kof.has_hook()
+        }
+    }
+
     fn min_amount(&self) -> u128 {
         match self {
             GroupedVanillaOrder::Standing(p) => p.min_amount(),
@@ -1361,6 +1410,13 @@ impl RawPoolOrder for GroupedVanillaOrder {
 }
 
 impl RawPoolOrder for GroupedComposableOrder {
+    fn has_hook(&self) -> bool {
+        match self {
+            GroupedComposableOrder::Partial(p) => p.has_hook(),
+            GroupedComposableOrder::KillOrFill(kof) => kof.has_hook()
+        }
+    }
+
     fn min_amount(&self) -> u128 {
         match self {
             GroupedComposableOrder::Partial(p) => p.min_amount(),

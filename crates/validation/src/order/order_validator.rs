@@ -6,6 +6,7 @@ use std::{
 
 use alloy::primitives::{Address, B256, BlockNumber};
 use angstrom_metrics::validation::ValidationMetrics;
+use angstrom_types::sol_bindings::grouped_orders::AllOrders;
 use futures::Future;
 use tokio::runtime::Handle;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -103,17 +104,16 @@ where
                     OrderValidation::Searcher(tx, order, _) => {
                         metrics
                             .new_order(true, || async {
+                                let AllOrders::TOB(order) = order else { panic!() };
                                 let mut results = cloned_state
                                     .handle_tob_order(order, block_number, metrics.clone())
                                     .await;
-
                                 results.add_gas_cost_or_invalidate(
                                     &cloned_sim,
                                     &token_conversion,
                                     false,
                                     block_number
                                 );
-
                                 let _ = tx.send(results);
                             })
                             .await;
