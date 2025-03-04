@@ -15,7 +15,6 @@ use alloy::{
 use alloy_primitives::I256;
 use base64::Engine;
 use dashmap::DashMap;
-use eyre::OptionExt;
 use num_traits::cast::ToPrimitive;
 use pade_macro::{PadeDecode, PadeEncode};
 use tracing::{debug, trace, warn};
