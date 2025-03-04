@@ -34,8 +34,8 @@ prometheus = "0.13.4"
 eyre.workspace = true
 
 # misc
-hyper = "0.14.25"
-dashmap = "5.5.3"
+hyper = "0.14"
+dashmap.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 tikv-jemalloc-ctl = { version = "0.6.0", optional = true }
