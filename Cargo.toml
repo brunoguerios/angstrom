@@ -203,8 +203,8 @@ k256 = { version = "0", default-features = false }
 clap = "4"
 
 ### proc-macros
-proc-macro2 = "1.0"
-quote = "1.0"
+proc-macro2 = "1"
+quote = "1"
 
 ## tokio
 tokio-stream = "0"

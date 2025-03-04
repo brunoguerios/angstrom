@@ -1752,6 +1752,7 @@ dependencies = [
  "futures",
  "hex-literal",
  "itertools 0.13.0",
+ "itertools 0.14.0",
  "k256",
  "malachite",
  "num-traits",
