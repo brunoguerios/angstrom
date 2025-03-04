@@ -116,18 +116,17 @@ library UserOrderBufferLib {
             ")"
         );
 
-    function init(
-        UserOrderBuffer memory self,
-        CalldataReader reader
-    ) internal pure returns (CalldataReader, UserOrderVariantMap variantMap) {
+    function init(UserOrderBuffer memory self, CalldataReader reader)
+        internal
+        pure
+        returns (CalldataReader, UserOrderVariantMap variantMap)
+    {
         assembly ("memory-safe") {
             variantMap := byte(0, calldataload(reader))
             reader := add(reader, VARIANT_MAP_BYTES)
             // Copy `refId` from calldata directly to memory.
             calldatacopy(
-                add(self, add(REF_ID_MEM_OFFSET, sub(0x20, REF_ID_BYTES))),
-                reader,
-                REF_ID_BYTES
+                add(self, add(REF_ID_MEM_OFFSET, sub(0x20, REF_ID_BYTES))), reader, REF_ID_BYTES
             )
             // Advance reader.
             reader := add(reader, REF_ID_BYTES)
@@ -148,13 +147,12 @@ library UserOrderBufferLib {
         return (reader, variantMap);
     }
 
-    function structHash(
-        UserOrderBuffer memory self,
-        UserOrderVariantMap variant
-    ) internal pure returns (bytes32 hashed) {
-        uint256 structLength = variant.isStanding()
-            ? STANDING_ORDER_BYTES
-            : FLASH_ORDER_BYTES;
+    function structHash(UserOrderBuffer memory self, UserOrderVariantMap variant)
+        internal
+        pure
+        returns (bytes32 hashed)
+    {
+        uint256 structLength = variant.isStanding() ? STANDING_ORDER_BYTES : FLASH_ORDER_BYTES;
         assembly ("memory-safe") {
             hashed := keccak256(self, structLength)
         }
@@ -165,11 +163,7 @@ library UserOrderBufferLib {
         CalldataReader reader,
         UserOrderVariantMap variant,
         PriceOutVsIn price
-    )
-        internal
-        pure
-        returns (CalldataReader, AmountIn quantityIn, AmountOut quantityOut)
-    {
+    ) internal pure returns (CalldataReader, AmountIn quantityIn, AmountOut quantityOut) {
         uint256 quantity;
         if (variant.quantitiesPartial()) {
             uint256 minQuantityIn;
@@ -230,16 +224,11 @@ library UserOrderBufferLib {
             // Copy slices directly from calldata into memory.
             assembly ("memory-safe") {
                 calldatacopy(
-                    add(self, add(NONCE_MEM_OFFSET, sub(0x20, NONCE_BYTES))),
-                    reader,
-                    NONCE_BYTES
+                    add(self, add(NONCE_MEM_OFFSET, sub(0x20, NONCE_BYTES))), reader, NONCE_BYTES
                 )
                 reader := add(reader, NONCE_BYTES)
                 calldatacopy(
-                    add(
-                        self,
-                        add(DEADLINE_MEM_OFFSET, sub(0x20, DEADLINE_BYTES))
-                    ),
+                    add(self, add(DEADLINE_MEM_OFFSET, sub(0x20, DEADLINE_BYTES))),
                     reader,
                     DEADLINE_BYTES
                 )
