@@ -28,7 +28,7 @@ metrics-exporter-prometheus = "=0.12.1"
 metrics-util = "0.15.0"
 metrics-process = "1"
 metrics.workspace = true
-prometheus = "0.13.4"
+prometheus = "0"
 
 # errors
 eyre.workspace = true
