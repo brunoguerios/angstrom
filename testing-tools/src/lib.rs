@@ -1,5 +1,4 @@
 #![allow(clippy::too_many_arguments)]
-#![feature(associated_type_defaults)]
 #![allow(clippy::type_complexity)]
 
 /// External tools that are initialized on-top of the testnet
