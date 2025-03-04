@@ -1,17 +1,17 @@
 use std::ops::Neg;
 
 use malachite::{
+    Integer, Natural, Rational,
     num::{
         arithmetic::traits::{DivRound, FloorSqrt, Pow, PowerOf2},
         basic::traits::{One, Two, Zero},
         conversion::traits::{RoundingFrom, SaturatingInto}
     },
-    rounding_modes::RoundingMode,
-    Integer, Natural, Rational
+    rounding_modes::RoundingMode
 };
 use tracing::debug;
 
-use super::{const_1e27, uniswap::Direction, Ray, SqrtPriceX96};
+use super::{Ray, SqrtPriceX96, const_1e27, uniswap::Direction};
 
 /// Given an AMM with a constant liquidity, a debt, and a quantity of T0 will
 /// find the amount of T0 to feed into both the AMM and the debt to ensure that

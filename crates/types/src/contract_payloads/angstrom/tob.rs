@@ -9,9 +9,9 @@ use crate::{
     contract_payloads::{Asset, Pair, Signature},
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::OrderWithStorageData,
-        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder},
-        RawPoolOrder
+        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder}
     }
 };
 
@@ -118,7 +118,7 @@ impl TopOfBlockOrder {
         let used_gas: u128 = (internal.priority_data.gas).saturating_to();
 
         if used_gas > internal.max_gas_asset0 {
-            return Err(eyre::eyre!("order went over gas limit"))
+            return Err(eyre::eyre!("order went over gas limit"));
         }
 
         Ok(Self {

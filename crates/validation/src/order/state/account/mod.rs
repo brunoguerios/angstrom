@@ -47,13 +47,13 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         match respend {
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Nonce(nonce) => {
                 if !self.fetch_utils.is_valid_nonce(user, nonce) {
-                    return Err(UserAccountVerificationError::DuplicateNonce(order_hash))
+                    return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
                 }
             }
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(order_block) => {
                 // order should be for block + 1
                 if block + 1 != order_block {
-                    return Err(UserAccountVerificationError::BadBlock(block + 1, order_block))
+                    return Err(UserAccountVerificationError::BadBlock(block + 1, order_block));
                 }
             }
         }
@@ -64,7 +64,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             .iter()
             .any(|o| o.order_hash <= order_hash)
         {
-            return Err(UserAccountVerificationError::DuplicateNonce(order_hash))
+            return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
         }
         tracing::trace!(?conflicting_orders);
 
@@ -152,16 +152,16 @@ pub mod tests {
     use alloy::primitives::{Address, U256};
     use angstrom_types::{
         primitive::{AngstromSigner, PoolId},
-        sol_bindings::{grouped_orders::GroupedVanillaOrder, RawPoolOrder}
+        sol_bindings::{RawPoolOrder, grouped_orders::GroupedVanillaOrder}
     };
     use testing_tools::type_generator::orders::UserOrderBuilder;
     use tracing::info;
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
 
     use super::{UserAccountProcessor, UserAccountVerificationError, UserAccounts};
     use crate::order::state::{
         db_state_utils::test_fetching::MockFetch,
-        pools::{pool_tracker_mock::MockPoolTracker, PoolsTracker}
+        pools::{PoolsTracker, pool_tracker_mock::MockPoolTracker}
     };
     /// Initialize the tracing subscriber for tests
     fn init_tracing() {

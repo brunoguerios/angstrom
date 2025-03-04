@@ -1,16 +1,16 @@
 use std::ops::{Add, AddAssign, Sub};
 
 use malachite::{
+    Natural,
     num::{
         arithmetic::traits::{DivRound, FloorSqrt, Pow},
         conversion::traits::SaturatingFrom
     },
-    rounding_modes::RoundingMode,
-    Natural
+    rounding_modes::RoundingMode
 };
 use tracing::debug;
 
-use super::{math::low_to_high, uniswap::PoolPrice, Ray};
+use super::{Ray, math::low_to_high, uniswap::PoolPrice};
 use crate::matching::const_2_192;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -21,11 +21,7 @@ pub enum DebtType {
 
 impl DebtType {
     pub fn new(q: u128, is_bid: bool) -> Self {
-        if is_bid {
-            Self::ExactIn(q)
-        } else {
-            Self::ExactOut(q)
-        }
+        if is_bid { Self::ExactIn(q) } else { Self::ExactOut(q) }
     }
 
     pub fn exact_in(q: u128) -> Self {
@@ -309,11 +305,7 @@ impl Debt {
     pub fn dq_to_price(&self, target_price: &Ray) -> u128 {
         let final_t0 = self.magnitude.t0_at_price(*target_price);
         let current_t0: u128 = self.current_t0();
-        if final_t0 > current_t0 {
-            final_t0 - current_t0
-        } else {
-            current_t0 - final_t0
-        }
+        if final_t0 > current_t0 { final_t0 - current_t0 } else { current_t0 - final_t0 }
     }
 
     /// Given an AMM liquidity and a quantity of t0 being bought to or sold from
@@ -385,7 +377,7 @@ impl Add<Debt> for Debt {
     fn add(self, rhs: Debt) -> Self::Output {
         let magnitude = self.magnitude + rhs.magnitude;
         if magnitude.magnitude() == 0 {
-            return None
+            return None;
         }
         // If our new magnitude is on the same side, we stay at our price.  If we flip,
         // we flip to the other price
@@ -395,7 +387,7 @@ impl Add<Debt> for Debt {
     }
 }
 
-impl<'a> Add<DebtType> for &'a Debt {
+impl Add<DebtType> for &Debt {
     type Output = Debt;
 
     fn add(self, rhs: DebtType) -> Self::Output {
@@ -411,11 +403,7 @@ impl PartialEq<Ray> for Debt {
 
 impl PartialOrd<Ray> for Debt {
     fn partial_cmp(&self, other: &Ray) -> Option<std::cmp::Ordering> {
-        if self == other {
-            Some(std::cmp::Ordering::Equal)
-        } else {
-            Some(self.price().cmp(other))
-        }
+        if self == other { Some(std::cmp::Ordering::Equal) } else { Some(self.price().cmp(other)) }
     }
 }
 

@@ -166,7 +166,7 @@ impl StateFetchUtils for AutoMaxFetchUtils {
 pub mod test_fetching {
     use std::collections::{HashMap, HashSet};
 
-    use alloy::primitives::{address, U256};
+    use alloy::primitives::{U256, address};
     use dashmap::DashMap;
 
     use super::{StateFetchUtils, *};

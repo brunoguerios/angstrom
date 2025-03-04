@@ -16,7 +16,7 @@ use pade::PadeDecode;
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{span, Instrument, Level};
+use tracing::{Instrument, Level, span};
 
 pub struct AnvilEthDataCleanser<S: Stream<Item = (u64, Vec<Transaction>)>> {
     testnet_node_id:             u64,
@@ -100,14 +100,14 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
                 address_changeset: vec![]
             });
 
-            return
+            return;
         };
         tracing::info!("!!!!!!!!found angstrom address with a angstrom tx!!!!!!!");
         let input = angstrom_tx.input();
 
         let Ok(bytes) = TestnetHub::executeCall::abi_decode(input, false) else {
             tracing::warn!("found angstrom contract call thats not a bundle");
-            return
+            return;
         };
         let bytes = bytes.data.to_vec();
         let mut slice = bytes.as_slice();
@@ -115,7 +115,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         // decode call input to grab orders. Drop function sig
         let Ok(bundle) = AngstromBundle::pade_decode(&mut slice, None) else {
             tracing::error!("failed to decode bundle");
-            return
+            return;
         };
 
         let hashes = bundle.get_order_hashes(bn).collect::<Vec<_>>();

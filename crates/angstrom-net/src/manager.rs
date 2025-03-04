@@ -1,7 +1,7 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{Arc, atomic::AtomicUsize},
     task::{Context, Poll}
 };
 
@@ -161,7 +161,7 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
             work -= 1;
             if work == 0 {
                 cx.waker().wake_by_ref();
-                break
+                break;
             }
 
             match self.from_handle_rx.poll_next_unpin(cx) {
@@ -170,7 +170,7 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                     // This is only possible if the channel was deliberately closed since we always
                     // have an instance of `NetworkHandle`
                     error!("Strom network message channel closed.");
-                    return Poll::Ready(())
+                    return Poll::Ready(());
                 }
                 _ => {}
             };

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use alloy::primitives::{Address, B256, U256};
-use angstrom_types::sol_bindings::{ext::RawPoolOrder, RespendAvoidanceMethod};
+use angstrom_types::sol_bindings::{RespendAvoidanceMethod, ext::RawPoolOrder};
 use dashmap::DashMap;
 
 use crate::order::state::{db_state_utils::StateFetchUtils, pools::UserOrderPoolInfo};
@@ -348,10 +348,12 @@ mod tests {
         // Verify user1's actions are cleared
         assert!(!accounts.pending_actions.contains_key(&user1));
         // Verify user2's actions with matching order_hash are cleared
-        assert!(accounts
-            .pending_actions
-            .get(&user2)
-            .map_or(true, |actions| actions.is_empty()));
+        assert!(
+            accounts
+                .pending_actions
+                .get(&user2)
+                .is_none_or(|actions| actions.is_empty())
+        );
     }
 
     #[test]
@@ -373,10 +375,12 @@ mod tests {
         assert!(accounts.cancel_order(&user, &order_hash));
 
         // Verify order was removed
-        assert!(accounts
-            .pending_actions
-            .get(&user)
-            .map_or(true, |actions| actions.is_empty()));
+        assert!(
+            accounts
+                .pending_actions
+                .get(&user)
+                .is_none_or(|actions| actions.is_empty())
+        );
     }
 
     #[test]
@@ -453,7 +457,7 @@ mod tests {
         assert_eq!(live_state.approval, U256::from(700)); // 1000 - 100 - 200
         assert_eq!(live_state.balance, U256::from(700)); // 1000 - 100 - 200
         assert_eq!(live_state.angstrom_balance, U256::from(850)); // 1000 - 50 -
-                                                                  // 100
+        // 100
     }
 
     #[test]

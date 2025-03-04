@@ -7,10 +7,10 @@ use angstrom_types::primitive::PeerId;
 use futures::{Stream, StreamExt};
 
 use crate::{
+    SessionEvent,
     session::StromSessionManager,
     state::{StateEvent, StromState},
-    types::message::StromMessage,
-    SessionEvent
+    types::message::StromMessage
 };
 
 #[derive(Debug)]
@@ -79,13 +79,13 @@ impl<DB: Unpin> Stream for Swarm<DB> {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         while let Poll::Ready(Some(event)) = self.sessions.poll_next_unpin(cx) {
             if let Some(event) = self.on_session_event(event) {
-                return Poll::Ready(Some(event))
+                return Poll::Ready(Some(event));
             }
         }
 
         while let Some(action) = self.state.poll(cx) {
             if let Some(res) = self.on_state_event(action) {
-                return Poll::Ready(Some(res))
+                return Poll::Ready(Some(res));
             }
         }
 

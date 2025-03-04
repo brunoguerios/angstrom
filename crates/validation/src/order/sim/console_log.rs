@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, Selector},
     sol_types::SolInterface
 };
-use revm::{primitives::address, Database, Inspector};
+use revm::{Database, Inspector, primitives::address};
 
 #[rustfmt::skip]
 #[allow(clippy::module_inception)]

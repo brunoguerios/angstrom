@@ -93,7 +93,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             let order_hash = order.order_hash();
             if !order.is_valid_signature() {
                 tracing::debug!("order had invalid hash");
-                return OrderValidationResults::Invalid(order_hash)
+                return OrderValidationResults::Invalid(order_hash);
             }
 
             if !self.correctly_built(&order) {

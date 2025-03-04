@@ -1,10 +1,10 @@
 use tracing::debug;
 
 use super::{
+    Ray,
     debt::Debt,
     math::amm_debt_same_move_solve,
-    uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
-    Ray
+    uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity}
 };
 
 #[derive(Clone, Debug, Default)]
@@ -68,11 +68,7 @@ impl<'a> CompositeOrder<'a> {
             let cur_price = self.start_price();
             let external_dp = external_bound.abs_diff(*cur_price);
             let internal_dp = ib.abs_diff(*cur_price);
-            if internal_dp < external_dp {
-                ib
-            } else {
-                external_bound
-            }
+            if internal_dp < external_dp { ib } else { external_bound }
         } else {
             external_bound
         }
@@ -216,8 +212,8 @@ mod tests {
 
     use super::*;
     use crate::matching::{
-        uniswap::{LiqRange, PoolSnapshot},
-        DebtType, SqrtPriceX96
+        DebtType, SqrtPriceX96,
+        uniswap::{LiqRange, PoolSnapshot}
     };
 
     // Have to define this locally because testing_tools requires this crate and

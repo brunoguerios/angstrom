@@ -104,7 +104,7 @@ impl OrderBook {
 #[cfg(test)]
 mod test {
     use alloy::primitives::FixedBytes;
-    use angstrom_types::matching::{uniswap::LiqRange, SqrtPriceX96};
+    use angstrom_types::matching::{SqrtPriceX96, uniswap::LiqRange};
 
     use super::*;
 

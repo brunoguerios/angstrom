@@ -13,7 +13,7 @@ use angstrom_types::{
     }
 };
 use sim::SimValidation;
-use tokio::sync::oneshot::{channel, Sender};
+use tokio::sync::oneshot::{Sender, channel};
 
 use crate::{common::TokenPriceGenerator, validator::ValidationRequest};
 
@@ -126,7 +126,7 @@ impl OrderValidationResults {
                     tracing::info!(%e, "failed to add gas to order");
                     *self = OrderValidationResults::Invalid(order_hash);
 
-                    return
+                    return;
                 }
 
                 res
@@ -147,7 +147,7 @@ impl OrderValidationResults {
                     tracing::info!(%e, "failed to add gas to order");
                     *self = OrderValidationResults::Invalid(order_hash);
 
-                    return
+                    return;
                 }
 
                 res

@@ -4,14 +4,14 @@ use alloy::{
     network::EthereumWallet,
     node_bindings::AnvilInstance,
     primitives::Address,
-    providers::{ext::AnvilApi, Provider, ProviderBuilder},
+    providers::{Provider, ProviderBuilder, ext::AnvilApi},
     signers::local::PrivateKeySigner
 };
 use futures::Future;
 use tracing::debug;
 
 use super::anvil::WalletProviderRpc;
-use crate::contracts::anvil::{spawn_anvil, LocalAnvilRpc};
+use crate::contracts::anvil::{LocalAnvilRpc, spawn_anvil};
 
 pub mod angstrom;
 pub mod uniswap;

@@ -6,7 +6,7 @@ use std::{
 
 use alloy::primitives::{Address, B256};
 use angstrom_types::{orders::OrderOrigin, sol_bindings::grouped_orders::AllOrders};
-use futures_util::{stream::FuturesUnordered, Future, FutureExt, Stream, StreamExt};
+use futures_util::{Future, FutureExt, Stream, StreamExt, stream::FuturesUnordered};
 use tracing::info;
 use validation::order::{OrderValidationResults, OrderValidatorHandle};
 
@@ -97,7 +97,7 @@ where
         tracing::info!("notify validation on changes");
         let Self::WaitingForStorageCleanup { validator, waiting_for_new_block } = self else {
             tracing::error!("should not happen");
-            return
+            return;
         };
         let validator_clone = validator.clone();
         tracing::info!("informing validation that we got a new block");
@@ -154,7 +154,7 @@ where
                 this.validate_order(origin, order);
             });
 
-            return Some(this)
+            return Some(this);
         }
 
         None
@@ -179,10 +179,10 @@ where
                 remaining_futures
             } => {
                 if let Poll::Ready(Some(next)) = remaining_futures.poll_next_unpin(cx) {
-                    return Poll::Ready(Some(OrderValidatorRes::ValidatedOrder(next)))
+                    return Poll::Ready(Some(OrderValidatorRes::ValidatedOrder(next)));
                 }
                 if !remaining_futures.is_empty() {
-                    return Poll::Pending
+                    return Poll::Pending;
                 }
 
                 info!(
@@ -209,7 +209,7 @@ where
                 let Some(new_state) =
                     Self::handle_inform(validator, waiting_for_new_block, future, cx)
                 else {
-                    return Poll::Pending
+                    return Poll::Pending;
                 };
 
                 tracing::info!("starting regular processing");

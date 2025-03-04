@@ -62,7 +62,7 @@ fn main() {
             let mut path = folder.path();
             let file_name = path.file_name()?.to_str()?;
             if !WANTED_CONTRACTS.contains(&file_name) {
-                return None
+                return None;
             }
             let raw = file_name.split('.').collect::<Vec<_>>()[0].to_owned();
             path.push(format!("{raw}.json"));

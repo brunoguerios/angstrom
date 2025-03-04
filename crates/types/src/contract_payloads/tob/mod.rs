@@ -7,20 +7,20 @@ use itertools::Itertools;
 use super::rewards::RewardsUpdate;
 use crate::{
     matching::uniswap::{PoolPrice, PoolSnapshot, Quantity, Tick},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 
 #[derive(Debug, Default)]
 pub struct ToBOutcome {
-    pub start_tick:             i32,
-    pub end_tick:               i32,
-    pub start_liquidity:        u128,
-    pub tribute:                u128,
-    pub total_cost:             u128,
+    pub start_tick: i32,
+    pub end_tick: i32,
+    pub start_liquidity: u128,
+    pub tribute: u128,
+    pub total_cost: u128,
     pub total_allocated_output: u128,
-    pub total_swap_output:      u128,
-    pub total_reward:           u128,
-    pub tick_donations:         HashMap<(Tick, Tick), u128>
+    pub total_swap_output: u128,
+    pub total_reward: u128,
+    pub tick_donations: HashMap<(Tick, Tick), u128>,
 }
 
 impl ToBOutcome {
@@ -38,7 +38,7 @@ impl ToBOutcome {
 
     pub fn from_tob_and_snapshot(
         tob: &OrderWithStorageData<TopOfBlockOrder>,
-        snapshot: &PoolSnapshot
+        snapshot: &PoolSnapshot,
     ) -> eyre::Result<Self> {
         // First let's simulate the actual ToB swap and use that to determine what our
         // leftover T0 is for rewards
@@ -88,7 +88,7 @@ impl ToBOutcome {
             total_allocated_output: tob.quantity_out,
             total_swap_output: pricevec.output(),
             total_reward: donation.total_donated,
-            tick_donations: donation.tick_donations
+            tick_donations: donation.tick_donations,
         };
 
         Ok(rewards)
@@ -98,7 +98,7 @@ impl ToBOutcome {
         &self,
         current_tick: Tick,
         range_tick: Tick,
-        snapshot: &PoolSnapshot
+        snapshot: &PoolSnapshot,
     ) -> RewardsUpdate {
         let from_above = range_tick > current_tick;
         let (low, high) =
@@ -134,13 +134,13 @@ impl ToBOutcome {
 
         match quantities.len() {
             0 | 1 => RewardsUpdate::CurrentOnly {
-                amount: quantities.first().copied().unwrap_or_default()
+                amount: quantities.first().copied().unwrap_or_default(),
             },
             _ => RewardsUpdate::MultiTick {
                 start_tick: I24::try_from(start_tick).unwrap_or_default(),
                 start_liquidity,
-                quantities
-            }
+                quantities,
+            },
         }
     }
 }
@@ -149,7 +149,7 @@ impl ToBOutcome {
 /// was specified
 pub fn generate_current_price_adjusted_for_donation<'a>(
     tob: &OrderWithStorageData<TopOfBlockOrder>,
-    snapshot: &'a PoolSnapshot
+    snapshot: &'a PoolSnapshot,
 ) -> eyre::Result<PoolPrice<'a>> {
     // First let's simulate the actual ToB swap and use that to determine what our
     // leftover T0 is for rewards
@@ -183,9 +183,9 @@ mod test {
     use crate::{
         contract_payloads::rewards::RewardsUpdate,
         matching::{
+            SqrtPriceX96,
             uniswap::{LiqRange, PoolSnapshot},
-            SqrtPriceX96
-        }
+        },
     };
 
     #[test]
@@ -196,7 +196,7 @@ mod test {
                 LiqRange::new(110, 120, 456).unwrap(),
                 LiqRange::new(120, 130, 789).unwrap(),
             ],
-            SqrtPriceX96::at_tick(100).unwrap()
+            SqrtPriceX96::at_tick(100).unwrap(),
         )
         .unwrap();
         let donations =

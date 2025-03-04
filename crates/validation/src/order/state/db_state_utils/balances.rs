@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
-    primitives::{keccak256, Address, U256},
+    primitives::{Address, U256, keccak256},
     sol_types::SolValue
 };
 use dashmap::DashMap;

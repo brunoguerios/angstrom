@@ -41,7 +41,7 @@ impl<DB: Database> Inspector<DB> for GasSimulationInspector<'_> {
         let addr = interp.contract().bytecode_address.unwrap();
         // we only want to check against angstrom PC
         if addr != self.angstrom_address {
-            return
+            return;
         }
 
         let pc = interp.program_counter();
@@ -60,7 +60,7 @@ impl<DB: Database> Inspector<DB> for GasSimulationInspector<'_> {
     ) {
         let addr = interp.contract().bytecode_address.unwrap();
         if self.in_flight.is_none() || addr != self.angstrom_address {
-            return
+            return;
         }
 
         let pc = interp.program_counter();

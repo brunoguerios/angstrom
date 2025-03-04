@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, Bytes, FixedBytes, TxHash, U256},
     signers::Signature
 };
-use alloy_primitives::{PrimitiveSignature, B256};
+use alloy_primitives::{B256, PrimitiveSignature};
 use pade::PadeDecode;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +12,7 @@ use super::{GenerateFlippedOrder, RawPoolOrder, RespendAvoidanceMethod};
 use crate::{
     matching::{Debt, Ray},
     orders::{OrderId, OrderLocation, OrderPriorityData},
-    primitive::{PoolId, ANGSTROM_DOMAIN},
+    primitive::{ANGSTROM_DOMAIN, PoolId},
     sol_bindings::rpc_orders::{
         ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, PartialFlashOrder,
         PartialStandingOrder, TopOfBlockOrder
@@ -665,11 +665,7 @@ impl GroupedVanillaOrder {
     /// Get the appropriate price when passed a bool telling us if we're looking
     /// for a bid-side price or not
     pub fn price_for_book_side(&self, is_bid: bool) -> Ray {
-        if is_bid {
-            self.bid_price()
-        } else {
-            self.price()
-        }
+        if is_bid { self.bid_price() } else { self.price() }
     }
 
     /// Provides the LITERAL price as specified in the order.  Note that for

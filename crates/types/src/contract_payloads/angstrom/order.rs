@@ -1,4 +1,4 @@
-use alloy::primitives::{aliases::U40, Address, Bytes, B256, U256};
+use alloy::primitives::{Address, B256, Bytes, U256, aliases::U40};
 use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
 
@@ -7,14 +7,14 @@ use crate::{
     orders::OrderOutcome,
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
         },
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder
-        },
-        RawPoolOrder
+        }
     }
 };
 
@@ -358,7 +358,7 @@ impl UserOrder {
         let recipient = (user != recipient).then_some(recipient);
         let gas_used: u128 = (order.priority_data.gas + shared_gas).to();
         if gas_used > order.max_gas_token_0() {
-            return Err(eyre::eyre!("order used more gas than allocated"))
+            return Err(eyre::eyre!("order used more gas than allocated"));
         }
 
         let sig_bytes = order.signature().clone().0.to_vec();

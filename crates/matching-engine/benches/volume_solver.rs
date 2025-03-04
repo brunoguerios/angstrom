@@ -1,6 +1,6 @@
 use alloy::primitives::FixedBytes;
 use matching_engine::strategy::{MatchingStrategy, SimpleCheckpointStrategy};
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use testing_tools::type_generator::book::{generate_one_sided_book, generate_simple_cross_book};
 
 const ORDER_COUNT: &[usize] = &[1, 10, 100, 1000];
@@ -27,7 +27,7 @@ fn one_sided_book<const N: usize>(bencher: divan::Bencher) {
         .with_inputs(|| {
             let mut rnd = thread_rng();
             let pool_id = FixedBytes::<32>::random();
-            generate_one_sided_book(rnd.gen(), pool_id, N, CENTER_PRICE)
+            generate_one_sided_book(rnd.r#gen(), pool_id, N, CENTER_PRICE)
         })
         .bench_refs(|book| SimpleCheckpointStrategy::run(book).map(|s| s.solution(None)));
 }

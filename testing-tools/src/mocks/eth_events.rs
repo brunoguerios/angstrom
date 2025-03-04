@@ -1,6 +1,6 @@
 use alloy_primitives::{Address, B256};
 use angstrom_eth::manager::EthEvent;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 #[derive(Debug, Clone)]

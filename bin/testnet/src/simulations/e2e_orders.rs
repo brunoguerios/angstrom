@@ -3,9 +3,9 @@ use std::pin::Pin;
 use angstrom_eth::manager::ChainExt;
 use angstrom_rpc::{api::OrderApiClient, impls::OrderApi};
 use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
-use futures::{stream::FuturesUnordered, Future, StreamExt};
+use futures::{Future, StreamExt, stream::FuturesUnordered};
 use jsonrpsee::http_client::HttpClient;
-use reth_provider::{test_utils::NoopProvider, CanonStateSubscriptions};
+use reth_provider::{CanonStateSubscriptions, test_utils::NoopProvider};
 use reth_tasks::TaskExecutor;
 use testing_tools::{
     agents::AgentConfig,
@@ -16,7 +16,7 @@ use testing_tools::{
         config::DevnetConfig
     }
 };
-use tracing::{debug, info, span, Instrument, Level};
+use tracing::{Instrument, Level, debug, info, span};
 
 use crate::cli::e2e_orders::End2EndOrdersCli;
 

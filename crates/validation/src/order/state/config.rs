@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use alloy::primitives::{keccak256, Address, U256};
+use alloy::primitives::{Address, U256, keccak256};
 use eyre::eyre;
 use reth_revm::DatabaseRef;
 use serde::Deserialize;
@@ -32,7 +32,7 @@ impl TokenBalanceSlot {
 
     pub fn generate_slot(&self, of: Address) -> eyre::Result<U256> {
         if !self.hash_method.is_solidity() {
-            return Err(eyre::eyre!("current type of contract hashing is not supported"))
+            return Err(eyre::eyre!("current type of contract hashing is not supported"));
         }
 
         let mut buf = [0u8; 64];
@@ -65,7 +65,7 @@ impl TokenApprovalSlot {
 
     pub fn generate_slot(&self, user: Address, contract: Address) -> eyre::Result<U256> {
         if !self.hash_method.is_solidity() {
-            return Err(eyre::eyre!("current type of contract hashing is not supported"))
+            return Err(eyre::eyre!("current type of contract hashing is not supported"));
         }
         let mut inner_buf = [0u8; 64];
         inner_buf[12..32].copy_from_slice(&**contract);
@@ -88,7 +88,7 @@ impl TokenApprovalSlot {
         <DB as DatabaseRef>::Error: Sync + Send + 'static
     {
         if !self.hash_method.is_solidity() {
-            return Err(eyre::eyre!("current type of contract hashing is not supported"))
+            return Err(eyre::eyre!("current type of contract hashing is not supported"));
         }
 
         db.storage_ref(self.token, self.generate_slot(user, contract)?)

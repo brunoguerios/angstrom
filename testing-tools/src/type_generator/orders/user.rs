@@ -5,7 +5,7 @@ use alloy::{
 use alloy_primitives::aliases::U40;
 use angstrom_types::{
     matching::Ray,
-    primitive::{AngstromSigner, ANGSTROM_DOMAIN},
+    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::{
         grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
         rpc_orders::{
@@ -16,7 +16,7 @@ use angstrom_types::{
 };
 use pade::PadeEncode;
 
-use super::{default_high_addr, default_low_addr, StoredOrderBuilder};
+use super::{StoredOrderBuilder, default_high_addr, default_low_addr};
 
 #[derive(Clone, Debug, Default)]
 pub struct UserOrderBuilder {
@@ -92,11 +92,7 @@ impl UserOrderBuilder {
     }
 
     pub fn is_bid(self, bid: bool) -> Self {
-        if bid {
-            self.bid()
-        } else {
-            self.ask()
-        }
+        if bid { self.bid() } else { self.ask() }
     }
 
     /// Set this order to be a bid with the default In and Out addresses

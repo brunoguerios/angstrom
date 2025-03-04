@@ -9,9 +9,9 @@ use crate::{
     bundle::BundleValidator,
     common::SharedTools,
     order::{
+        OrderValidationRequest, OrderValidationResults,
         order_validator::OrderValidator,
-        state::{db_state_utils::StateFetchUtils, pools::PoolsTracker},
-        OrderValidationRequest, OrderValidationResults
+        state::{db_state_utils::StateFetchUtils, pools::PoolsTracker}
     }
 };
 

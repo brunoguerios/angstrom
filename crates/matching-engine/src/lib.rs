@@ -12,7 +12,7 @@ use angstrom_types::{
     orders::PoolSolution,
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
-        grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder, RawPoolOrder
+        RawPoolOrder, grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder
     }
 };
 use book::{BookOrder, OrderBook};

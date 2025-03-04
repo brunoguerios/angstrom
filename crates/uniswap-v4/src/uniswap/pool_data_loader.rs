@@ -1,12 +1,12 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy::{
-    primitives::{aliases::I24, Address, BlockNumber, U256},
+    primitives::{Address, BlockNumber, U256, aliases::I24},
     providers::Provider,
     sol,
     sol_types::{SolEvent, SolType}
 };
-use alloy_primitives::{Log, B256, I256};
+use alloy_primitives::{B256, I256, Log};
 use angstrom_types::{
     matching::Ray,
     primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry}
@@ -298,7 +298,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             .iter()
             .find_map(|(pubic, priva)| {
                 if priva == &self.address() {
-                    return Some(pubic)
+                    return Some(pubic);
                 }
                 None
             })
@@ -382,10 +382,10 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
                 if Self::is_modify_position_event(&log) {
                     let modify_event =
                         IUniswapV4Pool::ModifyLiquidity::decode_log(&log, true).ok()?;
-                    return Some((modify_event.id, log))
+                    return Some((modify_event.id, log));
                 } else if Self::is_swap_event(&log) {
                     let swap = IUniswapV4Pool::Swap::decode_log(&log, true).ok()?;
-                    return Some((swap.id, log))
+                    return Some((swap.id, log));
                 };
                 None
             })
