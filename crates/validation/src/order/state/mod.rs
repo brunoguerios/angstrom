@@ -68,21 +68,19 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             } else {
                 Ray::from(order.limit_price()).inverse_quantity(order.min_amount(), true)
             }
+        } else if order.exact_in() {
+            Ray::from(order.limit_price())
+                .mul_quantity(U256::from(order.min_amount()))
+                .to::<u128>()
         } else {
-            if order.exact_in() {
-                Ray::from(order.limit_price())
-                    .mul_quantity(U256::from(order.min_amount()))
-                    .to::<u128>()
-            } else {
-                order.min_amount()
-            }
+            order.min_amount()
         }
     }
 
     pub fn correctly_built<O: RawPoolOrder>(&self, order: &O) -> bool {
         // ensure max gas is less than the min amount they can be filled
         let min_qty = self.fetch_min_qty_in_t0(order);
-        return min_qty >= order.max_gas_token_0()
+        min_qty >= order.max_gas_token_0()
     }
 
     pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(

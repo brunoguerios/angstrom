@@ -184,7 +184,7 @@ impl<'a> DeltaMatcher<'a> {
             return SupplyDemandResult::NaturallyEqual
         }
 
-        let (Some(is_ask), Some(extra_t0), Some(extra_t1), Some(id)) =
+        let (Some(is_ask), Some(extra_t0), Some(_extra_t1), Some(id)) =
             (extra_is_ask, extra_t0, extra_t1, id)
         else {
             tracing::info!(?t0_sum, ?t1_sum, ?price, "no extra");
@@ -340,7 +340,6 @@ impl<'a> DeltaMatcher<'a> {
             .asks()
             .first()
             .map(|a| (a.token_in(), a.token_out()))
-            .clone()
             .unwrap();
 
         if let Some(amm) = self.fetch_amm_movement_at_ucp(fetch.ucp) {
@@ -501,7 +500,7 @@ pub mod test {
         amm::generate_amm_with_liquidity, orders::UserOrderBuilder
     };
 
-    use crate::{book::OrderBook, matcher::binary_search::DeltaMatcher};
+    use crate::{book::OrderBook, matcher::delta::DeltaMatcher};
 
     // Helper function to create AMM with specific liquidity
     fn create_amm_at_price(price: Ray, liquidity: u128) -> PoolSnapshot {

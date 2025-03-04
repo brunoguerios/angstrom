@@ -8,10 +8,7 @@ use angstrom_types::{
     orders::PoolSolution
 };
 use base64::Engine;
-use solutionlib::{
-    BAD_USER_ORDERS, DIVIDE_BY_ZERO, FROM_ABOVE, FROM_WILL, GAS_INEQUALITY, SETTLE_SAVE,
-    TICK_SPACING, WEIRD_SWAP
-};
+use solutionlib::DIVIDE_BY_ZERO;
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {

@@ -641,7 +641,7 @@ impl<'a> PoolPriceVec<'a> {
 
         let mut steps: Vec<SwapStep> = Vec::new();
         // if we are a bid, then we want exact out, else we are a ask and want exact in.
-        let is_swap_input = if direction.is_bid() { false } else { true };
+        let is_swap_input = !direction.is_bid();
 
         while left_to_swap > 0 && final_price != current_price {
             // Update our current liquidiy range

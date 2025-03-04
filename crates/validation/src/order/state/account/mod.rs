@@ -3,7 +3,7 @@
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderId,
-    sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData, Ray}
+    sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData}
 };
 use thiserror::Error;
 use user::UserAccounts;

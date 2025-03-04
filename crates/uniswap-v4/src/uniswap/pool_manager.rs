@@ -465,7 +465,7 @@ where
             let prov = self.provider.clone();
 
             let addr = self.conversion_map.get(&ticks.pool_id).unwrap();
-            ticks.pool_id = addr.clone();
+            ticks.pool_id = *addr;
             Self::load_more_ticks(not, pools, prov, ticks);
         }
 

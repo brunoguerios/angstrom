@@ -1,11 +1,9 @@
 use std::{fmt::Debug, slice::Iter};
 
-use alloy::primitives::I256;
 use eyre::{eyre, Context, OptionExt};
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
     sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta},
-    swap_math::compute_swap_step,
     tick_math::get_tick_at_sqrt_ratio
 };
 

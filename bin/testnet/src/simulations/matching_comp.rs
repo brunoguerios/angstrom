@@ -14,7 +14,7 @@ use angstrom_types::{
 use futures::{Future, StreamExt};
 use matching_engine::{
     book::{sort::SortStrategy, BookOrder, OrderBook},
-    matcher::binary_search::BinarySearchMatcher,
+    matcher::delta::DeltaMatcher,
     strategy::{MatchingStrategy, SimpleCheckpointStrategy}
 };
 use reth_provider::{noop::NoopProvider, CanonStateSubscriptions};
@@ -189,17 +189,8 @@ fn cmp_agent<'a>(
                             .unwrap()
                             .solution(Some(tob.clone()));
 
-                        let bisection = BinarySearchMatcher::new(&book, Some(tob.clone()))
-                            .solution(Some(tob.clone()));
-
-                        if debt_engine.ucp != bisection.ucp {
-                            // lets save the book
-                            book.save(bisection.ucp, debt_engine.ucp).unwrap();
-
-                            let r = BinarySearchMatcher::new(&book, Some(tob.clone()))
-                                .calculate_solver_move_t0(debt_engine.ucp);
-                            println!("\n\n\n\n\n when using the debt engine ucp, we get: {:#?}", r);
-                        }
+                        let bisection =
+                            DeltaMatcher::new(&book, Some(tob.clone())).solution(Some(tob.clone()));
 
                         if bisection != debt_engine {
                             println!(

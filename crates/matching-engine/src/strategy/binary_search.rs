@@ -3,10 +3,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
-use crate::{
-    book::OrderBook,
-    matcher::{binary_search::BinarySearchMatcher, delta::DeltaMatcher}
-};
+use crate::{book::OrderBook, matcher::delta::DeltaMatcher};
 
 pub struct BinarySearchStrategy {}
 

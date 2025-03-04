@@ -200,7 +200,7 @@ where
         Ok(())
     }
 
-    pub async fn update_to_block<P: Provider<T>, T: Transport + Clone>(
+    pub async fn update_to_block<P: Provider>(
         &mut self,
         block_number: Option<BlockNumber>,
         provider: Arc<P>
