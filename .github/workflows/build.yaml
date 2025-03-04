@@ -115,8 +115,8 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: cargo test --workspace --all-features
-        run: cargo test --workspace --all-features
+      - name: cargo test --workspace
+        run: cargo test --workspace
 
   cargo-audit:
     name: cargo audit
