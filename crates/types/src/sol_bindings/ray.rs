@@ -274,53 +274,6 @@ impl Ray {
         *self = Ray::from(this);
     }
 
-    pub fn will_mul_ray(self, other: Ray) -> Ray {
-        let p: U512 = self.0.widening_mul(other.0);
-        let divisor = U512::from_limbs_slice(&const_1e27().to_limbs_asc());
-        let (out, rem) = p.div_rem(divisor);
-
-        // if
-        let rem = if rem * U512::from(2) >= divisor {
-            Ray::from(U256::from(1u128))
-        } else {
-            Ray::default()
-        };
-
-        let bytes: [u8; 64] = out.to_be_bytes();
-
-        let r = Ray::from(U256::from_be_slice(&bytes[32..]));
-        r + rem
-
-        // let numerator = Natural::from_limbs_asc(p.as_limbs());
-        // let (res, _) =
-        //     numerator.div_round(const_1e27(),
-        // malachite::rounding_modes::RoundingMode::Floor); let reslimbs
-        // = res.into_limbs_asc();
-        //
-        // Ray::from(Uint::from_limbs_slice(&reslimbs))
-    }
-
-    pub fn will_div_ray(self, other: Ray) -> Ray {
-        let mult = U256::from_limbs_slice(&const_1e27().to_limbs_asc());
-        let num: U512 = self.widening_mul(mult);
-        let (out, rem) = num.div_rem(U512::from(*other));
-        let rem = if rem * U512::from(2) >= U512::from(*other) {
-            Ray::from(U256::from(1u128))
-        } else {
-            Ray::default()
-        };
-        let bytes: [u8; 64] = out.to_be_bytes();
-
-        let res = Ray::from(U256::from_be_slice(&bytes[32..]));
-        res + rem
-    }
-
-    /// self * ray / other
-    pub fn div_ray(mut self, other: Ray) -> Ray {
-        self.div_ray_assign(other);
-        self
-    }
-
     fn invert(&self, rm: RoundingMode) -> Self {
         let (res, _) = const_1e54().div_round(Natural::from(*self), rm);
         Self(U256::from_limbs_slice(&res.to_limbs_asc()))
@@ -347,7 +300,7 @@ impl Ray {
     /// 1e54 / self
     pub fn inv_ray(self) -> Ray {
         if self.is_zero() {
-            return self
+            return self;
         }
         self.invert(RoundingMode::Floor)
     }
