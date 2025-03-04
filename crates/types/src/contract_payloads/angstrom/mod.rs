@@ -15,6 +15,7 @@ use alloy::{
 use alloy_primitives::I256;
 use base64::Engine;
 use dashmap::DashMap;
+use eyre::OptionExt;
 use num_traits::cast::ToPrimitive;
 use pade_macro::{PadeDecode, PadeEncode};
 use tracing::{debug, trace, warn};
@@ -729,7 +730,11 @@ impl AngstromBundle {
         if total_swaps == 0 {
             return Err(eyre::eyre!("have a total swaps count of 0"));
         }
-        let shared_gas_in_wei = (gas_details.total_gas_cost_wei - total_gas) / total_swaps;
+        let shared_gas_in_wei = gas_details
+            .total_gas_cost_wei
+            .checked_sub(total_gas)
+            .ok_or_eyre(eyre::eyre!("Total_gas greater than total_gas_cost_wei"))?
+            / total_swaps;
 
         // fetch gas used
         // Walk through our solutions to add them to the structure
