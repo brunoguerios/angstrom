@@ -1,6 +1,5 @@
 use std::{future::Future, pin::Pin, task::Poll};
 
-use crate::types::initial_state::InitialStateConfig;
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
@@ -10,8 +9,9 @@ use alloy::{
 };
 use alloy_primitives::Bytes;
 use alloy_rpc_types::{BlockTransactionsKind, Header, Transaction};
+use angstrom_types::CHAIN_ID;
 use angstrom_types::block_sync::GlobalBlockSync;
-use futures::{Stream, StreamExt};
+use futures::{Stream, StreamExt, stream::FuturesOrdered};
 
 use super::{AnvilStateProvider, WalletProvider};
 use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};

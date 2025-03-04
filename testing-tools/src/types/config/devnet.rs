@@ -1,8 +1,5 @@
 use super::TestingConfigKind;
-use crate::types::{
-    GlobalTestingConfig,
-    initial_state::{InitialStateConfig, PartialConfigPoolKey},
-};
+use crate::types::{GlobalTestingConfig, initial_state::InitialStateConfig};
 
 #[derive(Debug, Clone)]
 pub struct DevnetConfig {

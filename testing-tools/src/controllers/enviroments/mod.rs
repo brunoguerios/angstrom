@@ -3,19 +3,20 @@ mod state_machine;
 mod testnet;
 use std::{
     collections::{HashMap, HashSet},
-    future::Future
+    future::Future,
 };
 
+use crate::providers::AnvilProvider;
 use alloy::{node_bindings::AnvilInstance, providers::Provider};
 use angstrom_network::{
-    NetworkOrderEvent, StromMessage, StromNetworkManager, manager::StromConsensusEvent
+    NetworkOrderEvent, StromMessage, StromNetworkManager, manager::StromConsensusEvent,
 };
 use angstrom_types::sol_bindings::grouped_orders::AllOrders;
 use futures::TryFutureExt;
 use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
-    UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel
+    UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel,
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 pub use state_machine::*;
@@ -25,17 +26,17 @@ use tracing::{Instrument, Level, span};
 use crate::{
     controllers::strom::TestnetNode,
     providers::{TestnetBlockProvider, utils::async_to_sync},
-    types::{GlobalTestingConfig, WithWalletProvider}
+    types::{GlobalTestingConfig, WithWalletProvider},
 };
 
 pub struct AngstromTestnet<C, G, P> {
-    block_provider:      TestnetBlockProvider,
-    _anvil_instance:     Option<AnvilInstance>,
-    peers:               HashMap<u64, TestnetNode<C, P>>,
+    block_provider: TestnetBlockProvider,
+    _anvil_instance: Option<AnvilInstance>,
+    peers: HashMap<u64, TestnetNode<C, P>>,
     _disconnected_peers: HashSet<u64>,
-    _dropped_peers:      HashSet<u64>,
+    _dropped_peers: HashSet<u64>,
     current_max_peer_id: u64,
-    config:              G
+    config: G,
 }
 
 impl<C, G, P> AngstromTestnet<C, G, P>
@@ -48,7 +49,7 @@ where
         + Clone
         + 'static,
     G: GlobalTestingConfig,
-    P: WithWalletProvider
+    P: WithWalletProvider,
 {
     pub fn node_provider(&self, node_id: Option<u64>) -> &AnvilProvider<P> {
         self.peers
@@ -137,7 +138,7 @@ where
     pub(crate) async fn single_peer_update_state(
         &self,
         state_from_id: u64,
-        state_to_id: u64
+        state_to_id: u64,
     ) -> eyre::Result<()> {
         let peer_to_get = self.get_peer(state_from_id);
         let state = peer_to_get.state_provider().return_state().await?;
@@ -154,7 +155,7 @@ where
         &mut self,
         id: Option<u64>,
         sent_msg: StromMessage,
-        expected_orders: Vec<AllOrders>
+        expected_orders: Vec<AllOrders>,
     ) -> eyre::Result<bool> {
         let out = self
             .run_network_event_on_all_peers_with_exception(
@@ -180,7 +181,7 @@ where
                     .into_iter()
                     .sum::<usize>()
                 },
-                |manager, tx| manager.swap_pool_manager(tx)
+                |manager, tx| manager.swap_pool_manager(tx),
             )
             .await;
 
@@ -193,7 +194,7 @@ where
         &mut self,
         id: Option<u64>,
         sent_msg: StromMessage,
-        expected_message: StromConsensusEvent
+        expected_message: StromConsensusEvent,
     ) -> eyre::Result<bool> {
         let out = self
             .run_network_event_on_all_peers_with_exception(
@@ -216,7 +217,7 @@ where
                     .into_iter()
                     .sum::<usize>()
                 },
-                |manager, tx| manager.swap_consensus_manager(tx)
+                |manager, tx| manager.swap_consensus_manager(tx),
             )
             .await;
 
@@ -227,7 +228,7 @@ where
     async fn run_event<'a, F, O>(&'a self, id: Option<u64>, f: F) -> O::Output
     where
         F: FnOnce(&'a TestnetNode<C, P>) -> O,
-        O: Future + Send + Sync
+        O: Future + Send + Sync,
     {
         let id = if let Some(i) = id {
             assert!(!self.peers.is_empty());
@@ -257,14 +258,14 @@ where
         expected_f: K,
         channel_swap_f: impl Fn(
             &mut StromNetworkManager<C>,
-            UnboundedMeteredSender<E>
-        ) -> Option<UnboundedMeteredSender<E>>
+            UnboundedMeteredSender<E>,
+        ) -> Option<UnboundedMeteredSender<E>>,
     ) -> R::Output
     where
         F: FnOnce(&TestnetNode<C, P>) -> O,
         K: FnOnce(Vec<UnboundedMeteredReceiver<E>>, O::Output) -> R,
         O: Future + Send + Sync,
-        R: Future + Send + Sync
+        R: Future + Send + Sync,
     {
         let (old_peer_channels, rx_channels): (Vec<_>, Vec<_>) = self
             .peers
