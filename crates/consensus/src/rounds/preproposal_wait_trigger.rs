@@ -5,6 +5,7 @@ use std::{
     time::{Duration, Instant}
 };
 
+use rand::Rng;
 use tokio::time::{Interval, interval};
 
 use crate::rounds::OrderStorage;
@@ -53,8 +54,11 @@ impl Clone for PreProposalWaitTrigger {
 
 impl PreProposalWaitTrigger {
     pub fn new(order_storage: Arc<OrderStorage>) -> Self {
+        let mut rng = rand::thread_rng();
+        let jitter = Duration::from_millis(rng.gen_range(30..=100));
+
         Self {
-            wait_duration: DEFAULT_DURATION,
+            wait_duration: DEFAULT_DURATION + jitter,
             order_storage,
             start_instant: Instant::now(),
             check_interval: interval(CHECK_INTERVAL)

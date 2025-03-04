@@ -2984,6 +2984,7 @@ dependencies = [
  "matching-engine",
  "order-pool",
  "pade",
+ "rand 0.8.5",
  "rayon",
  "reth-metrics",
  "reth-primitives 1.2.1",

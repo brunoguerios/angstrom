@@ -35,6 +35,7 @@ alloy-rlp.workspace = true
 reth-tasks.workspace = true
 secp256k1.workspace = true
 itertools.workspace = true
+rand.workspace = true
 
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
