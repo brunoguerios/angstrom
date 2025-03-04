@@ -59,6 +59,7 @@ eyre = "0"
 dashmap = "6"
 malachite = "0.4"
 malachite-q = "0.4"
+once_cell = "1"
 
 # pade
 pade = { git = "https://github.com/SorellaLabs/pade", version = "0.1.0" }
