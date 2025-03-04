@@ -28,13 +28,13 @@ revm.workspace = true
 num-traits.workspace = true
 secp256k1.workspace = true
 k256.workspace = true
-malachite = "0.4.0"
-hex-literal = "0.4.1"
+malachite.workspace = true
+hex-literal.workspace = true
 anyhow.workspace = true
 alloy.workspace = true
 alloy-primitives = { workspace = true, features = ["rand"] }
 alloy-rlp.workspace = true
-derive_more = "0.99.17"
+derive_more = "0"
 eyre.workspace = true
 bincode = { workspace = true }
 serde = { workspace = true, optional = true, default-features = false, features = [
