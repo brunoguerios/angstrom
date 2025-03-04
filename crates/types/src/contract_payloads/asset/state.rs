@@ -87,14 +87,12 @@ impl BorrowStateTracker {
         // The amount we're saving for later just adds up
         let amount_save = self.save + other.save;
 
-        let res = Self {
+        Self {
             take:            borrow_needed,
             contract_liquid: amount_onhand,
             settle:          amount_owed,
             save:            amount_save
-        };
-        println!("AND_THEN\n{:#?}", res);
-        res
+        }
     }
 }
 
@@ -158,7 +156,6 @@ impl StageTracker {
     pub fn and_then(&self, other: &Self) -> Self {
         let mut new_map = self.map.clone();
         other.map.iter().for_each(|(addr, state)| {
-            println!("Concatenating addr: {}", addr);
             new_map
                 .entry(*addr)
                 .and_modify(|e| *e = e.and_then(state))

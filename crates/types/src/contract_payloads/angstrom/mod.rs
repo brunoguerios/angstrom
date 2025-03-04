@@ -15,8 +15,6 @@ use alloy::{
 use alloy_primitives::I256;
 use base64::Engine;
 use dashmap::DashMap;
-use eyre::OptionExt;
-use num_traits::cast::ToPrimitive;
 use pade_macro::{PadeDecode, PadeEncode};
 use tracing::{debug, trace, warn};
 
@@ -407,7 +405,14 @@ impl AngstromBundle {
             .iter()
             .map(|s| (s, orders_by_pool.get(&s.id).cloned()))
             .filter_map(|(solution, order_list)| {
-                let mut order_list = order_list?.into_iter().collect::<Vec<_>>();
+                let Some(mut order_list) = order_list.map(|i| i.into_iter().collect::<Vec<_>>())
+                else {
+                    return solution
+                        .searcher
+                        .as_ref()
+                        .map(|searcher| (1, searcher.priority_data.gas_units));
+                };
+
                 // Sort the user order list so we can properly associate it with our
                 // OrderOutcomes.  First bids by price then asks by price.
                 order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
@@ -471,11 +476,6 @@ impl AngstromBundle {
         .unwrap();
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw solution data");
-
-        // sort
-        // if t1 < t0 {
-        //     std::mem::swap(&mut t1, &mut t0)
-        // };
 
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
 
@@ -621,7 +621,6 @@ impl AngstromBundle {
             (..) => b.is_bid.cmp(&a.is_bid)
         });
 
-        let mut map: HashMap<Address, i128> = HashMap::new();
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
         let ray_ucp = Ray::from(ucp);
@@ -678,8 +677,6 @@ impl AngstromBundle {
                     fill_amount
                 )
             };
-            *map.entry(order.token_in()).or_default() += quantity_in.to_i128().unwrap();
-            *map.entry(order.token_out()).or_default() -= quantity_out.to_i128().unwrap();
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
@@ -697,8 +694,6 @@ impl AngstromBundle {
             };
             user_orders.push(user_order);
         }
-
-        tracing::info!("{:#?}", map);
 
         Ok(())
     }
@@ -730,11 +725,8 @@ impl AngstromBundle {
         if total_swaps == 0 {
             return Err(eyre::eyre!("have a total swaps count of 0"));
         }
-        let shared_gas_in_wei = gas_details
-            .total_gas_cost_wei
-            .checked_sub(total_gas)
-            .ok_or_eyre(eyre::eyre!("Total_gas greater than total_gas_cost_wei"))?
-            / total_swaps;
+        let shared_gas_in_wei =
+            gas_details.total_gas_cost_wei.saturating_sub(total_gas) / total_swaps;
 
         // fetch gas used
         // Walk through our solutions to add them to the structure

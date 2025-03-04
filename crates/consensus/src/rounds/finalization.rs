@@ -43,7 +43,9 @@ impl FinalizationState {
         let future = handles
             .matching_engine_output(preproposal)
             .map(move |output| {
-                let (solution, _) = output.unwrap();
+                let Ok((solution, _)) = output else {
+                    return false;
+                };
 
                 let mut proposal_solution = proposal.solutions.clone();
                 proposal_solution.sort();
