@@ -222,12 +222,12 @@ jsonrpsee-http-client = "0"
 jsonrpsee-types = "0"
 
 ## crypto
-secp256k1 = { version = "0.29.0", default-features = false, features = [
+secp256k1 = { version = "0", default-features = false, features = [
   "global-context",
   "rand-std",
   "recovery",
 ] }
-enr = { version = "=0.10.0", default-features = false, features = ["k256"] }
+enr = { version = "0", default-features = false, features = ["k256"] }
 
 
 aquamarine = "0"
