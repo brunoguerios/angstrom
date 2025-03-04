@@ -12514,6 +12514,7 @@ dependencies = [
  "revm 19.5.0",
  "schnellru",
  "secp256k1 0.27.0",
+ "secp256k1 0.29.1",
  "serde",
  "serde_json",
  "serial_test",
