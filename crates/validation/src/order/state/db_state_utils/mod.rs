@@ -18,7 +18,7 @@ pub trait StateFetchUtils: Clone + Send + Unpin {
         &self,
         user: Address,
         token: Address,
-        overrides: &HashMap<Address, HashMap<U256, U256>>,
+        overrides: &HashMap<Address, HashMap<U256, U256>>
     ) -> Option<U256>;
 
     fn fetch_approval_balance_for_token(&self, user: Address, token: Address) -> Option<U256>;
@@ -27,7 +27,7 @@ pub trait StateFetchUtils: Clone + Send + Unpin {
         &self,
         user: Address,
         token: Address,
-        overrides: &HashMap<Address, HashMap<U256, U256>>,
+        overrides: &HashMap<Address, HashMap<U256, U256>>
     ) -> Option<U256>;
 
     fn fetch_balance_for_token(&self, user: Address, token: Address) -> U256;
@@ -37,28 +37,28 @@ pub trait StateFetchUtils: Clone + Send + Unpin {
 
 #[derive(Debug)]
 pub struct UserAccountDetails {
-    pub token: Address,
-    pub token_bals: U256,
+    pub token:           Address,
+    pub token_bals:      U256,
     pub token_approvals: U256,
-    pub is_valid_nonce: bool,
-    pub is_valid_pool: bool,
-    pub is_bid: bool,
-    pub pool_id: usize,
+    pub is_valid_nonce:  bool,
+    pub is_valid_pool:   bool,
+    pub is_bid:          bool,
+    pub pool_id:         usize
 }
 
 #[derive(Clone)]
 pub struct FetchUtils<DB> {
     pub approvals: Approvals,
-    pub balances: Balances,
-    pub nonces: Nonces,
-    pub db: Arc<DB>,
-    metrics: ValidationMetrics,
+    pub balances:  Balances,
+    pub nonces:    Nonces,
+    pub db:        Arc<DB>,
+    metrics:       ValidationMetrics
 }
 
 impl<DB> StateFetchUtils for FetchUtils<DB>
 where
     DB: revm::DatabaseRef + Clone + Sync + Send,
-    <DB as revm::DatabaseRef>::Error: Sync + Send + 'static + Debug,
+    <DB as revm::DatabaseRef>::Error: Sync + Send + 'static + Debug
 {
     fn is_valid_nonce(&self, user: Address, nonce: u64) -> bool {
         let db = self.db.clone();
@@ -69,7 +69,7 @@ where
         &self,
         user: Address,
         token: Address,
-        overrides: &HashMap<Address, HashMap<U256, U256>>,
+        overrides: &HashMap<Address, HashMap<U256, U256>>
     ) -> Option<U256> {
         let db = self.db.clone();
         self.metrics.loading_approvals(|| {
@@ -96,7 +96,7 @@ where
         &self,
         user: Address,
         token: Address,
-        overrides: &HashMap<Address, HashMap<U256, U256>>,
+        overrides: &HashMap<Address, HashMap<U256, U256>>
     ) -> Option<U256> {
         let db = self.db.clone();
         self.metrics.loading_balances(|| {
@@ -118,7 +118,7 @@ impl<DB: revm::DatabaseRef> FetchUtils<DB> {
             balances: Balances::new(angstrom_address),
             nonces: Nonces::new(angstrom_address),
             db,
-            metrics: ValidationMetrics::new(),
+            metrics: ValidationMetrics::new()
         }
     }
 }
@@ -135,7 +135,7 @@ impl StateFetchUtils for AutoMaxFetchUtils {
         &self,
         _: Address,
         _: Address,
-        _: &HashMap<Address, HashMap<U256, U256>>,
+        _: &HashMap<Address, HashMap<U256, U256>>
     ) -> Option<U256> {
         Some(U256::MAX)
     }
@@ -148,7 +148,7 @@ impl StateFetchUtils for AutoMaxFetchUtils {
         &self,
         _: Address,
         _: Address,
-        _: &HashMap<Address, HashMap<U256, U256>>,
+        _: &HashMap<Address, HashMap<U256, U256>>
     ) -> Option<U256> {
         Some(U256::MAX)
     }
@@ -173,10 +173,10 @@ pub mod test_fetching {
 
     #[derive(Debug, Clone, Default)]
     pub struct MockFetch {
-        balance_values: DashMap<Address, HashMap<Address, U256>>,
+        balance_values:  DashMap<Address, HashMap<Address, U256>>,
         angstrom_values: DashMap<Address, HashMap<Address, U256>>,
         approval_values: DashMap<Address, HashMap<Address, U256>>,
-        used_nonces: DashMap<Address, HashSet<u64>>,
+        used_nonces:     DashMap<Address, HashSet<u64>>
     }
 
     impl MockFetch {
@@ -211,7 +211,7 @@ pub mod test_fetching {
             &self,
             _: Address,
             _: Address,
-            _: &HashMap<Address, HashMap<U256, U256>>,
+            _: &HashMap<Address, HashMap<U256, U256>>
         ) -> Option<U256> {
             todo!("not implemented for mocker")
         }
@@ -226,7 +226,7 @@ pub mod test_fetching {
             &self,
             _: Address,
             _: Address,
-            _: &HashMap<Address, HashMap<U256, U256>>,
+            _: &HashMap<Address, HashMap<U256, U256>>
         ) -> Option<U256> {
             todo!("not implemented for mocker")
         }

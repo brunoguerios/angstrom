@@ -4,13 +4,13 @@ use alloy::{
     eips::eip2718::Encodable2718,
     network::TransactionBuilder,
     primitives::TxHash,
-    providers::{Provider, ext::AnvilApi},
+    providers::{Provider, ext::AnvilApi}
 };
 use alloy_rpc_types::TransactionRequest;
 use alloy_sol_types::SolCall;
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom, contract_payloads::angstrom::AngstromBundle,
-    mev_boost::SubmitTx, primitive::AngstromSigner,
+    mev_boost::SubmitTx, primitive::AngstromSigner
 };
 use futures::{Future, FutureExt, StreamExt};
 use pade::PadeDecode;
@@ -18,14 +18,14 @@ use pade::PadeDecode;
 use crate::contracts::anvil::WalletProviderRpc;
 
 pub struct AnvilSubmissionProvider {
-    pub provider: WalletProviderRpc,
+    pub provider: WalletProviderRpc
 }
 
 impl SubmitTx for AnvilSubmissionProvider {
     fn submit_transaction<'a>(
         &'a self,
         signer: &'a AngstromSigner,
-        tx: TransactionRequest,
+        tx: TransactionRequest
     ) -> Pin<Box<dyn Future<Output = (TxHash, bool)> + Send + 'a>> {
         async move {
             tracing::debug!(?tx);

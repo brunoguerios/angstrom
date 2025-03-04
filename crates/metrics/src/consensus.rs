@@ -15,7 +15,7 @@ struct ConsensusMetrics {
     // time (ms) it takes proposal verification per block
     proposal_verification_time_per_block: IntGaugeVec,
     // map of block numbers to their consensus start times
-    block_consensus_start_times: HashMap<u64, Instant>,
+    block_consensus_start_times: HashMap<u64, Instant>
 }
 
 impl Default for ConsensusMetrics {
@@ -50,7 +50,7 @@ impl Default for ConsensusMetrics {
             proposal_build_time_per_block,
             completion_time_per_block,
             proposal_verification_time_per_block,
-            block_consensus_start_times: HashMap::default(),
+            block_consensus_start_times: HashMap::default()
         }
     }
 }
@@ -113,7 +113,7 @@ impl ConsensusMetricsWrapper {
                 .get()
                 .copied()
                 .unwrap_or_default()
-                .then(ConsensusMetrics::default),
+                .then(ConsensusMetrics::default)
         )
     }
 

@@ -15,9 +15,9 @@ sol! {
 pub struct StromState<DB> {
     peers_manager: PeersManager,
 
-    _db: DB,
+    _db:          DB,
     active_peers: HashSet<PeerId>,
-    validators: Arc<RwLock<HashSet<Address>>>,
+    validators:   Arc<RwLock<HashSet<Address>>>
 }
 
 impl<DB> StromState<DB> {
@@ -64,7 +64,7 @@ impl<DB> StromState<DB> {
                 StateEvent::DisconnectBannedIncoming { peer_id }
             }
             crate::PeerAction::UnBanPeer { peer_id } => StateEvent::UnBanPeer { peer_id },
-            _ => unreachable!(),
+            _ => unreachable!()
         })
     }
 }
@@ -76,22 +76,22 @@ pub enum StateEvent {
         /// The peer ID of the established connection.
         peer_id: PeerId,
         /// An optional reason for the disconnect.
-        reason: Option<DisconnectReason>,
+        reason:  Option<DisconnectReason>
     },
     /// Disconnect an existing incoming connection, because the peers reputation
     /// is below the banned threshold or is on the [`BanList`]
     DisconnectBannedIncoming {
         /// The peer ID of the established connection.
-        peer_id: PeerId,
+        peer_id: PeerId
     },
     /// Ban the peer temporarily
     BanPeer {
         /// The peer ID.
-        peer_id: PeerId,
+        peer_id: PeerId
     },
     /// Unban the peer temporarily
     UnBanPeer {
         /// The peer ID.
-        peer_id: PeerId,
-    },
+        peer_id: PeerId
+    }
 }

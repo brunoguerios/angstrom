@@ -5,7 +5,7 @@ use futures::Future;
 use reth_provider::test_utils::NoopProvider;
 use reth_tasks::TaskExecutor;
 use testing_tools::{
-    agents::AgentConfig, controllers::enviroments::AngstromTestnet, types::config::TestnetConfig,
+    agents::AgentConfig, controllers::enviroments::AngstromTestnet, types::config::TestnetConfig
 };
 
 use crate::cli::{init_tracing, testnet::TestnetCli};
@@ -21,7 +21,7 @@ pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre
 
 fn a<'a>(
     _: &'a InitialTestnetState,
-    _: AgentConfig,
+    _: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async { eyre::Ok(()) })
 }
@@ -41,7 +41,7 @@ mod tests {
         let testnet = AngstromTestnet::spawn_testnet(
             NoopProvider::default(),
             cli.make_config().unwrap(),
-            vec![a],
+            vec![a]
         )
         .await;
         assert!(testnet.is_ok());

@@ -12,7 +12,7 @@ use angstrom_types::{
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
     sol_bindings::testnet::TestnetHub,
-    testnet::InitialTestnetState,
+    testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::{Future, Stream, StreamExt, TryStreamExt};
@@ -25,7 +25,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tracing::{Instrument, span};
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
-    validator::ValidationClient,
+    validator::ValidationClient
 };
 
 use crate::{
@@ -33,21 +33,21 @@ use crate::{
     contracts::anvil::WalletProviderRpc,
     providers::{
         AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider,
-        WalletProvider, utils::StromContractInstance,
+        WalletProvider, utils::StromContractInstance
     },
     types::{
-        GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig,
+        GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig
     },
-    validation::TestOrderValidator,
+    validation::TestOrderValidator
 };
 
 pub struct AngstromDevnetNodeInternals<P> {
-    pub rpc_port: u64,
-    pub state_provider: AnvilProvider<P>,
-    pub order_storage: Arc<OrderStorage>,
-    pub pool_handle: PoolHandle,
+    pub rpc_port:         u64,
+    pub state_provider:   AnvilProvider<P>,
+    pub order_storage:    Arc<OrderStorage>,
+    pub pool_handle:      PoolHandle,
     pub tx_strom_handles: SendingStromHandles,
-    pub testnet_hub: StromContractInstance,
+    pub testnet_hub:      StromContractInstance
 }
 
 impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
@@ -60,18 +60,18 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState,
         agents: Vec<F>,
-        block_sync: GlobalBlockSync,
+        block_sync: GlobalBlockSync
     ) -> eyre::Result<(
         Self,
         ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>,
-        TestOrderValidator<AnvilStateProvider<WalletProvider>>,
+        TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
-            AgentConfig,
+            AgentConfig
         ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
-        F: Clone,
+        F: Clone
     {
         let pool = strom_handles.get_pool_handle();
         let executor: TokioTaskExecutor = Default::default();
@@ -83,7 +83,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client.clone());
 
         let block_subscription: Pin<
-            Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>,
+            Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>
         > = if node_config.is_devnet() {
             Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
         } else {
@@ -101,7 +101,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_handles.eth_rx,
             block_subscription,
             7,
-            block_sync.clone(),
+            block_sync.clone()
         )
         .await?;
         // wait for new block then clear all proposals and init rest.
@@ -125,10 +125,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
                 BlockId::latest(),
-                &state_provider.rpc_provider(),
+                &state_provider.rpc_provider()
             )
             .await
-            .map_err(|e| eyre::eyre!("{e}"))?,
+            .map_err(|e| eyre::eyre!("{e}"))?
         );
 
         let uniswap_pool_manager = configure_uniswap_manager(
@@ -139,7 +139,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_registry.clone(),
             block_number,
             block_sync.clone(),
-            inital_angstrom_state.pool_manager_addr,
+            inital_angstrom_state.pool_manager_addr
         )
         .await;
 
@@ -154,7 +154,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
-            Some(1),
+            Some(1)
         )
         .await
         .expect("failed to start price generator");
@@ -162,12 +162,12 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         let token_price_update_stream = state_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
             inital_angstrom_state.angstrom_addr,
-            token_price_update_stream,
+            token_price_update_stream
         ));
 
         let pool_storage = AngstromPoolsTracker::new(
             inital_angstrom_state.angstrom_addr,
-            pool_config_store.clone(),
+            pool_config_store.clone()
         );
 
         let validator = TestOrderValidator::new(
@@ -180,7 +180,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             token_conversion,
             token_price_update_stream,
             pool_storage.clone(),
-            node_config.node_id,
+            node_config.node_id
         )
         .await?;
 
@@ -196,7 +196,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_network_handle.clone(),
             eth_handle.subscribe_network(),
             strom_handles.pool_rx,
-            block_sync.clone(),
+            block_sync.clone()
         )
         .with_config(pool_config)
         .build_with_channels(
@@ -204,7 +204,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
             pool_storage,
-            strom_handles.pool_manager_tx,
+            strom_handles.pool_manager_tx
         );
 
         let rpc_port = node_config.strom_rpc_port();
@@ -232,7 +232,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
 
         let mev_boost_provider = MevBoostProvider::new_from_raw(
             Arc::new(state_provider.rpc_provider()),
-            vec![Arc::new(Box::new(anvil) as Box<dyn SubmitTx>)],
+            vec![Arc::new(Box::new(anvil) as Box<dyn SubmitTx>)]
         );
 
         tracing::debug!("created mev boost provider");
@@ -243,7 +243,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 state_provider
                     .state_provider()
                     .subscribe_to_canonical_state(),
-                strom_handles.consensus_rx_op,
+                strom_handles.consensus_rx_op
             ),
             node_config.angstrom_signer(),
             initial_validators,
@@ -254,7 +254,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_pools.clone(),
             mev_boost_provider,
             matching_handle,
-            block_sync.clone(),
+            block_sync.clone()
         );
 
         // init agents
@@ -263,7 +263,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             agent_id: node_config.node_id,
             rpc_address: addr,
             current_block: block_number,
-            state_provider: state_provider.state_provider(),
+            state_provider: state_provider.state_provider()
         };
 
         futures::stream::iter(agents.into_iter())
@@ -284,10 +284,10 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
                 order_storage,
                 pool_handle,
                 tx_strom_handles,
-                testnet_hub,
+                testnet_hub
             },
             consensus,
-            validator,
+            validator
         ))
     }
 }

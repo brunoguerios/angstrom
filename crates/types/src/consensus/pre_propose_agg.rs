@@ -1,6 +1,6 @@
 use alloy::{
     primitives::{BlockNumber, U256, keccak256},
-    signers::{Signature, SignerSync},
+    signers::{Signature, SignerSync}
 };
 use bytes::Bytes;
 use reth_network_peers::PeerId;
@@ -10,19 +10,19 @@ use crate::{consensus::PreProposal, primitive::AngstromSigner};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PreProposalAggregation {
-    pub block_height: BlockNumber,
-    pub source: PeerId,
+    pub block_height:  BlockNumber,
+    pub source:        PeerId,
     pub pre_proposals: Vec<PreProposal>,
-    pub signature: Signature,
+    pub signature:     Signature
 }
 
 impl Default for PreProposalAggregation {
     fn default() -> Self {
         Self {
-            block_height: Default::default(),
-            source: Default::default(),
+            block_height:  Default::default(),
+            source:        Default::default(),
             pre_proposals: Default::default(),
-            signature: Signature::new(U256::ZERO, U256::ZERO, false),
+            signature:     Signature::new(U256::ZERO, U256::ZERO, false)
         }
     }
 }
@@ -31,7 +31,7 @@ impl PreProposalAggregation {
     pub fn new(
         block_height: BlockNumber,
         sk: &AngstromSigner,
-        pre_proposals: Vec<PreProposal>,
+        pre_proposals: Vec<PreProposal>
     ) -> Self {
         let payload = Self::serialize_payload(&block_height, &pre_proposals);
         let signature = Self::sign_payload(sk, payload);

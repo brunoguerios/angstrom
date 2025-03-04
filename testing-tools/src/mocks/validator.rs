@@ -5,21 +5,21 @@ use angstrom_types::{
     self,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::OrderOrigin,
-    sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders},
+    sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders}
 };
 use eyre::OptionExt;
 use pade::PadeEncode;
 use parking_lot::Mutex;
 use validation::{
     bundle::BundleValidatorHandle,
-    order::{GasEstimationFuture, OrderValidationResults, OrderValidatorHandle},
+    order::{GasEstimationFuture, OrderValidationResults, OrderValidatorHandle}
 };
 
 // all keys are the signer of the order
 #[derive(Debug, Clone, Default)]
 pub struct MockValidator {
     pub limit_orders: Arc<Mutex<HashMap<Address, OrderValidationResults>>>,
-    pub bundle_res: Arc<Mutex<HashMap<FixedBytes<32>, BundleGasDetails>>>,
+    pub bundle_res:   Arc<Mutex<HashMap<FixedBytes<32>, BundleGasDetails>>>
 }
 
 macro_rules! inserts {
@@ -46,7 +46,7 @@ impl OrderValidatorHandle for MockValidator {
         &self,
         _: u64,
         _: Vec<alloy_primitives::B256>,
-        _: Vec<Address>,
+        _: Vec<Address>
     ) -> validation::order::ValidationFuture {
         Box::pin(async move { OrderValidationResults::TransitionedToBlock })
     }
@@ -54,7 +54,7 @@ impl OrderValidatorHandle for MockValidator {
     fn validate_order(
         &self,
         _origin: angstrom_types::orders::OrderOrigin,
-        transaction: Self::Order,
+        transaction: Self::Order
     ) -> validation::order::ValidationFuture {
         let address = transaction.from();
         let res = self

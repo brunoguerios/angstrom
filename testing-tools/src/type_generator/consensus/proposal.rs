@@ -2,18 +2,18 @@ use std::collections::HashMap;
 
 use alloy_primitives::{
     Address,
-    aliases::{I24, U24},
+    aliases::{I24, U24}
 };
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{SqrtPriceX96, uniswap::LiqRange},
     primitive::{AngstromSigner, PoolId},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use matching_engine::{
     MatchingManager,
-    strategy::{MatchingStrategy, SimpleCheckpointStrategy},
+    strategy::{MatchingStrategy, SimpleCheckpointStrategy}
 };
 use reth_tasks::TokioTaskExecutor;
 
@@ -22,13 +22,13 @@ use crate::{mocks::validator::MockValidator, type_generator::amm::AMMSnapshotBui
 
 #[derive(Debug, Default)]
 pub struct ProposalBuilder {
-    ethereum_height: Option<u64>,
-    order_count: Option<usize>,
-    preproposals: Option<Vec<PreProposalAggregation>>,
+    ethereum_height:   Option<u64>,
+    order_count:       Option<usize>,
+    preproposals:      Option<Vec<PreProposalAggregation>>,
     preproposal_count: Option<usize>,
-    block: Option<u64>,
-    pools: Option<Vec<Pool>>,
-    sk: Option<AngstromSigner>,
+    block:             Option<u64>,
+    pools:             Option<Vec<Pool>>,
+    sk:                Option<AngstromSigner>
 }
 
 impl ProposalBuilder {
@@ -66,7 +66,7 @@ impl ProposalBuilder {
                     currency1,
                     fee: U24::ZERO,
                     tickSpacing: I24::unchecked_from(10),
-                    hooks: Address::default(),
+                    hooks: Address::default()
                 };
                 let amm = AMMSnapshotBuilder::new(SqrtPriceX96::at_tick(100000).unwrap())
                     .with_positions(vec![
@@ -108,7 +108,7 @@ impl ProposalBuilder {
 
         let books = MatchingManager::<TokioTaskExecutor, MockValidator>::build_books(
             &preproposals[0].pre_proposals,
-            &HashMap::default(),
+            &HashMap::default()
         );
         let searcher_orders: HashMap<PoolId, OrderWithStorageData<TopOfBlockOrder>> = preproposals
             .iter()

@@ -4,9 +4,9 @@ use crate::types::{GlobalTestingConfig, initial_state::PartialConfigPoolKey};
 #[derive(Debug, Clone)]
 pub struct DevnetConfig {
     pub intial_node_count: u64,
-    pub initial_rpc_port: u16,
+    pub initial_rpc_port:  u16,
     pub fork_block_number: Option<u64>,
-    pub fork_url: Option<String>,
+    pub fork_url:          Option<String>
 }
 
 impl DevnetConfig {
@@ -14,7 +14,7 @@ impl DevnetConfig {
         intial_node_count: u64,
         initial_rpc_port: u16,
         fork_block_number: Option<u64>,
-        fork_url: Option<String>,
+        fork_url: Option<String>
     ) -> Self {
         Self { intial_node_count, initial_rpc_port, fork_block_number, fork_url }
     }
@@ -32,9 +32,9 @@ impl Default for DevnetConfig {
     fn default() -> Self {
         Self {
             intial_node_count: 5,
-            initial_rpc_port: 4200,
+            initial_rpc_port:  4200,
             fork_block_number: None,
-            fork_url: None,
+            fork_url:          None
         }
     }
 }

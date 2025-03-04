@@ -9,8 +9,8 @@ use crate::{
     sol_bindings::{
         RawPoolOrder,
         grouped_orders::OrderWithStorageData,
-        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder},
-    },
+        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder}
+    }
 };
 
 // This currently exists in types::sol_bindings as well, but that one is
@@ -19,15 +19,15 @@ use crate::{
     PadeEncode, PadeDecode, Clone, Default, Debug, Hash, PartialEq, Eq, Serialize, Deserialize,
 )]
 pub struct TopOfBlockOrder {
-    pub use_internal: bool,
-    pub quantity_in: u128,
-    pub quantity_out: u128,
-    pub max_gas_asset_0: u128,
+    pub use_internal:     bool,
+    pub quantity_in:      u128,
+    pub quantity_out:     u128,
+    pub max_gas_asset_0:  u128,
     pub gas_used_asset_0: u128,
-    pub pairs_index: u16,
-    pub zero_for_1: bool,
-    pub recipient: Option<Address>,
-    pub signature: Signature,
+    pub pairs_index:      u16,
+    pub zero_for_1:       bool,
+    pub recipient:        Option<Address>,
+    pub signature:        Signature
 }
 
 impl TopOfBlockOrder {
@@ -35,23 +35,23 @@ impl TopOfBlockOrder {
     fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
         let pair = &pair[self.pairs_index as usize];
         RpcTopOfBlockOrder {
-            quantity_in: self.quantity_in,
-            recipient: self.recipient.unwrap_or_default(),
-            quantity_out: self.quantity_out,
-            asset_in: if self.zero_for_1 {
+            quantity_in:     self.quantity_in,
+            recipient:       self.recipient.unwrap_or_default(),
+            quantity_out:    self.quantity_out,
+            asset_in:        if self.zero_for_1 {
                 asset[pair.index0 as usize].addr
             } else {
                 asset[pair.index1 as usize].addr
             },
-            asset_out: if !self.zero_for_1 {
+            asset_out:       if !self.zero_for_1 {
                 asset[pair.index0 as usize].addr
             } else {
                 asset[pair.index1 as usize].addr
             },
-            use_internal: self.use_internal,
-            max_gas_asset0: self.max_gas_asset_0,
+            use_internal:    self.use_internal,
+            max_gas_asset0:  self.max_gas_asset_0,
             valid_for_block: block,
-            meta: Default::default(),
+            meta:            Default::default()
         }
     }
 
@@ -71,7 +71,7 @@ impl TopOfBlockOrder {
 
     pub fn of_max_gas(
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
-        pairs_index: u16,
+        pairs_index: u16
     ) -> Self {
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
@@ -93,14 +93,14 @@ impl TopOfBlockOrder {
             pairs_index,
             zero_for_1,
             recipient,
-            signature,
+            signature
         }
     }
 
     pub fn of(
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
         shared_gas: U256,
-        pairs_index: u16,
+        pairs_index: u16
     ) -> eyre::Result<Self> {
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
@@ -128,7 +128,7 @@ impl TopOfBlockOrder {
             pairs_index,
             zero_for_1,
             recipient,
-            signature,
+            signature
         })
     }
 }

@@ -1,24 +1,24 @@
 use angstrom_types::{
     matching::{SqrtPriceX96, uniswap::PoolSnapshot},
     primitive::PoolId,
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use matching_engine::book::{OrderBook, sort::SortStrategy};
 use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 
 use super::{
     amm::generate_single_position_amm_at_tick,
-    orders::{DistributionParameters, OrderDistributionBuilder},
+    orders::{DistributionParameters, OrderDistributionBuilder}
 };
 
 // What are the parameters of an order builder?  A set of orders can be from
 #[derive(Default)]
 pub struct BookBuilder {
     _poolid: Option<PoolId>,
-    _amm: Option<PoolSnapshot>,
-    _bids: Option<Vec<OrderWithStorageData<GroupedVanillaOrder>>>,
-    _asks: Option<Vec<OrderWithStorageData<GroupedVanillaOrder>>>,
-    _sort: Option<SortStrategy>,
+    _amm:    Option<PoolSnapshot>,
+    _bids:   Option<Vec<OrderWithStorageData<GroupedVanillaOrder>>>,
+    _asks:   Option<Vec<OrderWithStorageData<GroupedVanillaOrder>>>,
+    _sort:   Option<SortStrategy>
 }
 
 impl BookBuilder {
@@ -97,7 +97,7 @@ pub fn generate_one_sided_book(
     bid_side: bool,
     pool_id: PoolId,
     order_count: usize,
-    price: f64,
+    price: f64
 ) -> OrderBook {
     let valid_block = 10;
     let (bidprice, askprice) = DistributionParameters::crossed_at(price);

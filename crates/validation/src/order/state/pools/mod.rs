@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use alloy::primitives::{
     Address,
-    aliases::{I24, U24},
+    aliases::{I24, U24}
 };
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::angstrom::AngstromPoolConfigStore, primitive::PoolId,
-    sol_bindings::ext::RawPoolOrder,
+    sol_bindings::ext::RawPoolOrder
 };
 
 pub trait PoolsTracker: Send + Unpin {
@@ -18,16 +18,16 @@ pub trait PoolsTracker: Send + Unpin {
 #[derive(Debug, Clone, Default)]
 pub struct UserOrderPoolInfo {
     // token in for pool
-    pub token: Address,
-    pub is_bid: bool,
-    pub pool_id: PoolId,
+    pub token:   Address,
+    pub is_bid:  bool,
+    pub pool_id: PoolId
 }
 
 /// keeps track of all valid pools and the mappings of asset id to pool id
 #[derive(Debug, Clone)]
 pub struct AngstromPoolsTracker {
     angstrom_address: Address,
-    pool_store: Arc<AngstromPoolConfigStore>,
+    pool_store:       Arc<AngstromPoolConfigStore>
 }
 
 impl AngstromPoolsTracker {
@@ -42,18 +42,18 @@ impl AngstromPoolsTracker {
         };
 
         Some(PoolId::from(PoolKey {
-            currency0: addr1,
-            currency1: addr2,
+            currency0:   addr1,
+            currency1:   addr2,
             tickSpacing: I24::from_limbs([store.tick_spacing as u64]),
-            hooks: self.angstrom_address,
-            fee: U24::from_limbs([store.fee_in_e6 as u64]),
+            hooks:       self.angstrom_address,
+            fee:         U24::from_limbs([store.fee_in_e6 as u64])
         }))
     }
 
     pub fn order_info(
         &self,
         mut currency_in: Address,
-        mut currency_out: Address,
+        mut currency_out: Address
     ) -> Option<(bool, PoolId)> {
         // Uniswap pools are priced as t1/t0 - the order is a bid if it's offering t1 to
         // get t0.   Uniswap standard has the token addresses sorted and t0 is the
@@ -92,7 +92,7 @@ pub mod pool_tracker_mock {
 
     #[derive(Clone, Default)]
     pub struct MockPoolTracker {
-        pools: DashMap<(Address, Address), PoolId>,
+        pools: DashMap<(Address, Address), PoolId>
     }
 
     impl MockPoolTracker {
@@ -105,14 +105,14 @@ pub mod pool_tracker_mock {
     impl PoolsTracker for MockPoolTracker {
         fn fetch_pool_info_for_order<O: RawPoolOrder>(
             &self,
-            order: &O,
+            order: &O
         ) -> Option<UserOrderPoolInfo> {
             let pool_id = self.pools.get(&(order.token_in(), order.token_out()))?;
 
             let user_info = UserOrderPoolInfo {
                 pool_id: *pool_id,
-                is_bid: order.token_in() > order.token_out(),
-                token: order.token_in(),
+                is_bid:  order.token_in() > order.token_out(),
+                token:   order.token_in()
             };
 
             Some(user_info)

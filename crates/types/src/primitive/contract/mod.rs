@@ -4,7 +4,7 @@ use alloy::{
     dyn_abi::Eip712Domain,
     primitives::{Address, aliases::U24},
     sol,
-    sol_types::eip712_domain,
+    sol_types::eip712_domain
 };
 
 use crate::contract_bindings::angstrom::Angstrom::PoolKey;
@@ -32,8 +32,8 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
 
 #[derive(Default, Clone)]
 pub struct UniswapPoolRegistry {
-    pools: HashMap<PoolId, PoolKey>,
-    pub conversion_map: HashMap<PoolId, PoolId>,
+    pools:              HashMap<PoolId, PoolKey>,
+    pub conversion_map: HashMap<PoolId, PoolId>
 }
 impl UniswapPoolRegistry {
     pub fn get(&self, pool_id: &PoolId) -> Option<&PoolKey> {

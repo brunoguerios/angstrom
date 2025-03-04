@@ -6,7 +6,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{StateMachineActionHookFn, config::DevnetConfig},
+    types::{StateMachineActionHookFn, config::DevnetConfig}
 };
 
 pub trait WithAction<'a, C>
@@ -17,7 +17,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + Unpin
         + Clone
-        + 'static,
+        + 'static
 {
     type FunctionOutput;
 
@@ -32,7 +32,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + Unpin
         + Clone
-        + 'static,
+        + 'static
 {
     type FunctionOutput = StateMachineActionHookFn<'a, C>;
 
@@ -46,7 +46,7 @@ where
 
 fn pin_action<'a, F>(fut: F) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
 where
-    F: Future<Output = eyre::Result<()>> + Send + 'a,
+    F: Future<Output = eyre::Result<()>> + Send + 'a
 {
     Box::pin(fut)
 }

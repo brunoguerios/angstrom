@@ -14,14 +14,14 @@ pub type Tick = i32;
 
 pub enum Quantity {
     Token0(u128),
-    Token1(u128),
+    Token1(u128)
 }
 
 impl Quantity {
     pub fn magnitude(&self) -> u128 {
         match self {
             Self::Token0(q) => *q,
-            Self::Token1(q) => *q,
+            Self::Token1(q) => *q
         }
     }
 
@@ -29,7 +29,7 @@ impl Quantity {
     pub fn as_input(&self) -> Direction {
         match self {
             Self::Token0(_) => Direction::SellingT0,
-            Self::Token1(_) => Direction::BuyingT0,
+            Self::Token1(_) => Direction::BuyingT0
         }
     }
 
@@ -37,7 +37,7 @@ impl Quantity {
     pub fn as_output(&self) -> Direction {
         match self {
             Self::Token0(_) => Direction::BuyingT0,
-            Self::Token1(_) => Direction::SellingT0,
+            Self::Token1(_) => Direction::SellingT0
         }
     }
 }
@@ -53,14 +53,14 @@ pub enum Direction {
     BuyingT0,
     /// When selling T0, the price will go down and the tick number will
     /// decrease
-    SellingT0,
+    SellingT0
 }
 
 impl Direction {
     pub fn from_is_bid(is_bid: bool) -> Self {
         match is_bid {
             true => Self::BuyingT0,
-            false => Self::SellingT0,
+            false => Self::SellingT0
         }
     }
 
@@ -72,7 +72,7 @@ impl Direction {
     pub fn from_prices<P: Ord>(start: P, end: P) -> Self {
         match start.cmp(&end) {
             std::cmp::Ordering::Less => Self::BuyingT0,
-            _ => Self::SellingT0,
+            _ => Self::SellingT0
         }
     }
 
@@ -90,7 +90,7 @@ impl Direction {
     pub fn sort_tokens<T>(&self, amount_in: T, amount_out: T) -> (T, T) {
         match self {
             Self::BuyingT0 => (amount_out, amount_in),
-            Self::SellingT0 => (amount_in, amount_out),
+            Self::SellingT0 => (amount_in, amount_out)
         }
     }
 
@@ -99,7 +99,7 @@ impl Direction {
     pub fn sort_amounts<T>(&self, token0: T, token1: T) -> (T, T) {
         match self {
             Self::BuyingT0 => (token1, token0),
-            Self::SellingT0 => (token0, token1),
+            Self::SellingT0 => (token0, token1)
         }
     }
 }

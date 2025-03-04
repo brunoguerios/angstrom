@@ -4,7 +4,7 @@ use angstrom_types::contract_bindings::mintable_mock_erc_20::MintableMockERC20;
 pub async fn mint_token_pair<T, N, P>(provider: &P) -> (Address, Address)
 where
     N: alloy::providers::Network,
-    P: alloy::providers::Provider<N>,
+    P: alloy::providers::Provider<N>
 {
     let first_token = MintableMockERC20::deploy(provider).await.unwrap();
     let second_token = MintableMockERC20::deploy(provider).await.unwrap();

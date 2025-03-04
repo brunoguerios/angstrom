@@ -10,7 +10,7 @@ use testing_tools::types::config::{DevnetConfig, TestnetConfig};
 use testnet::TestnetCli;
 use tracing::Level;
 use tracing_subscriber::{
-    EnvFilter, Layer, Registry, filter, layer::SubscriberExt, util::SubscriberInitExt,
+    EnvFilter, Layer, Registry, filter, layer::SubscriberExt, util::SubscriberInitExt
 };
 
 use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};
@@ -19,7 +19,7 @@ use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};
 pub struct AngstromTestnetCli {
     /// testnet or devnet commands
     #[clap(subcommand)]
-    pub command: TestnetSubcommmand,
+    pub command:      TestnetSubcommmand,
     /// Set the minimum log level.
     ///
     /// -v      Errors
@@ -28,14 +28,14 @@ pub struct AngstromTestnetCli {
     /// -vvvv   Debug
     /// -vvvvv  Traces
     #[clap(short = 'v', long, action = ArgAction::Count, default_value_t = 3, help_heading = "Display", global = true)]
-    pub verbosity: u8,
+    pub verbosity:    u8,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
-    pub metrics: bool,
+    pub metrics:      bool,
     /// spawns the prometheus metrics exporter at the specified port
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
-    pub metrics_port: u16,
+    pub metrics_port: u16
 }
 
 impl AngstromTestnetCli {
@@ -70,7 +70,7 @@ pub enum TestnetSubcommmand {
     #[command(name = "devnet")]
     Devnet(DevnetCli),
     #[command(name = "e2e")]
-    End2EndOrders(End2EndOrdersCli),
+    End2EndOrders(End2EndOrdersCli)
 }
 
 impl TestnetSubcommmand {
@@ -78,7 +78,7 @@ impl TestnetSubcommmand {
         match self {
             TestnetSubcommmand::Testnet(testnet_cli) => run_testnet(executor, testnet_cli).await,
             TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await,
-            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await,
+            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await
         }
     }
 }
@@ -89,7 +89,7 @@ pub fn init_tracing(verbosity: u8) {
         1 => Level::WARN,
         2 => Level::INFO,
         3 => Level::DEBUG,
-        _ => Level::TRACE,
+        _ => Level::TRACE
     };
 
     let layers = vec![

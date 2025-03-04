@@ -17,7 +17,7 @@ const WANTED_CONTRACTS: [&str; 9] = [
     "ControllerV1.sol",
     "PositionFetcher.sol",
     "PositionManager.sol",
-    "IPositionDescriptor.sol",
+    "IPositionDescriptor.sol"
 ];
 
 // builds the contracts crate. then goes and generates bindings on this

@@ -15,7 +15,7 @@ pub trait GenericExt<T> {
 impl<T> GenericExt<T> for T {
     fn some_if<F>(self, predicate: F) -> Option<T>
     where
-        F: FnOnce(&T) -> bool,
+        F: FnOnce(&T) -> bool
     {
         predicate(&self).then_some(self)
     }

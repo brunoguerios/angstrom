@@ -1,7 +1,7 @@
 use alloy_primitives::{Address, TxHash};
 use angstrom_types::contract_bindings::{
     angstrom::Angstrom::AngstromInstance, controller_v_1::ControllerV1,
-    pool_gate::PoolGate::PoolGateInstance, position_fetcher::PositionFetcher,
+    pool_gate::PoolGate::PoolGateInstance, position_fetcher::PositionFetcher
 };
 use tracing::{debug, info};
 
@@ -15,15 +15,15 @@ pub trait TestAngstromEnv: TestAnvilEnvironment + TestUniswapEnv {
 #[derive(Clone)]
 pub struct AngstromEnv<E: TestUniswapEnv> {
     #[allow(dead_code)]
-    inner: E,
-    angstrom: Address,
-    controller_v1: Address,
-    position_fetcher: Address,
+    inner:            E,
+    angstrom:         Address,
+    controller_v1:    Address,
+    position_fetcher: Address
 }
 
 impl<E> AngstromEnv<E>
 where
-    E: TestUniswapEnv,
+    E: TestUniswapEnv
 {
     pub async fn new(inner: E, nodes: Vec<Address>) -> eyre::Result<Self> {
         let angstrom = Self::deploy_angstrom(&inner, nodes).await?;
@@ -43,7 +43,7 @@ where
             .execute_then_mine(deploy_angstrom_create3(
                 provider,
                 inner.pool_manager(),
-                inner.controller(),
+                inner.controller()
             ))
             .await?;
         debug!("Angstrom deployed at: {}", angstrom_addr);
@@ -63,7 +63,7 @@ where
             .execute_then_mine(ControllerV1::deploy(
                 inner.provider(),
                 angstrom_addr,
-                inner.controller(),
+                inner.controller()
             ))
             .await?
             .address();
@@ -75,7 +75,7 @@ where
                 angstrom
                     .setController(controller_v1_addr)
                     .from(inner.controller())
-                    .run_safe(),
+                    .run_safe()
             )
             .await?;
 
@@ -87,7 +87,7 @@ where
                 pool_gate_instance
                     .setHook(angstrom_addr)
                     .from(inner.controller())
-                    .run_safe(),
+                    .run_safe()
             )
             .await?;
 
@@ -100,7 +100,7 @@ where
             .execute_then_mine(PositionFetcher::deploy(
                 inner.provider(),
                 inner.position_manager(),
-                angstrom,
+                angstrom
             ))
             .await?
             .address();
@@ -125,7 +125,7 @@ where
 
 impl<E> TestUniswapEnv for AngstromEnv<E>
 where
-    E: TestUniswapEnv,
+    E: TestUniswapEnv
 {
     fn pool_manager(&self) -> Address {
         self.inner.pool_manager()
@@ -145,7 +145,7 @@ where
         asset1: Address,
         lower_tick: alloy_primitives::aliases::I24,
         upper_tick: alloy_primitives::aliases::I24,
-        liquidity: alloy_primitives::U256,
+        liquidity: alloy_primitives::U256
     ) -> eyre::Result<TxHash> {
         self.inner
             .add_liquidity_position(asset0, asset1, lower_tick, upper_tick, liquidity)
@@ -155,7 +155,7 @@ where
 
 impl<E> TestAnvilEnvironment for AngstromEnv<E>
 where
-    E: TestUniswapEnv,
+    E: TestUniswapEnv
 {
     type P = E::P;
 
@@ -172,19 +172,19 @@ where
 mod tests {
     use std::{
         collections::HashMap,
-        time::{Duration, SystemTime, UNIX_EPOCH},
+        time::{Duration, SystemTime, UNIX_EPOCH}
     };
 
     use alloy::{
         primitives::{
             Address, Bytes, U256, Uint,
-            aliases::{I24, U24},
+            aliases::{I24, U24}
         },
         providers::Provider,
         signers::{
             SignerSync,
-            local::{LocalSigner, PrivateKeySigner},
-        },
+            local::{LocalSigner, PrivateKeySigner}
+        }
     };
     use alloy_primitives::FixedBytes;
     use angstrom_types::{
@@ -192,7 +192,7 @@ mod tests {
         contract_bindings::{
             angstrom::Angstrom::{AngstromInstance, PoolKey},
             mintable_mock_erc_20::MintableMockERC20,
-            pool_gate::PoolGate::PoolGateInstance,
+            pool_gate::PoolGate::PoolGateInstance
         },
         contract_payloads::angstrom::{AngstromBundle, BundleGasDetails, UserOrder},
         matching::{SqrtPriceX96, uniswap::LiqRange},
@@ -200,8 +200,8 @@ mod tests {
         primitive::{ANGSTROM_DOMAIN, AngstromSigner},
         sol_bindings::{
             grouped_orders::{GroupedVanillaOrder, OrderWithStorageData, StandingVariants},
-            rpc_orders::OmitOrderMeta,
-        },
+            rpc_orders::OmitOrderMeta
+        }
     };
     use pade::PadeEncode;
 
@@ -209,13 +209,13 @@ mod tests {
     use crate::{
         contracts::environment::{
             LocalAnvil, SpawnedAnvil, TestAnvilEnvironment,
-            uniswap::{TestUniswapEnv, UniswapEnv},
+            uniswap::{TestUniswapEnv, UniswapEnv}
         },
         providers::AnvilProvider,
         type_generator::{
             amm::AMMSnapshotBuilder,
-            consensus::{pool::Pool, proposal::ProposalBuilder},
-        },
+            consensus::{pool::Pool, proposal::ProposalBuilder}
+        }
     };
 
     #[tokio::test]
@@ -232,24 +232,24 @@ mod tests {
         let user = LocalSigner::random();
         let address = user.address();
         let mut default = angstrom_types::sol_bindings::rpc_orders::ExactStandingOrder {
-            ref_id: 0,
+            ref_id:               0,
             max_extra_fee_asset0: 0,
-            exact_in: true,
-            amount: 10,
-            min_price: U256::from(1u128),
-            use_internal: false,
-            asset_in: Address::random(),
-            asset_out: Address::random(),
-            recipient: Address::random(),
-            hook_data: alloy::primitives::Bytes::new(),
-            nonce: 0,
-            deadline: Uint::<40, 1>::from_be_slice(
+            exact_in:             true,
+            amount:               10,
+            min_price:            U256::from(1u128),
+            use_internal:         false,
+            asset_in:             Address::random(),
+            asset_out:            Address::random(),
+            recipient:            Address::random(),
+            hook_data:            alloy::primitives::Bytes::new(),
+            nonce:                0,
+            deadline:             Uint::<40, 1>::from_be_slice(
                 &(SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
                     + Duration::from_secs(1000))
                 .as_secs()
-                .to_be_bytes()[3..],
+                .to_be_bytes()[3..]
             ),
-            meta: Default::default(),
+            meta:                 Default::default()
         };
         let hash = default.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
         let sig = user.sign_hash_sync(&hash).unwrap();
@@ -283,7 +283,7 @@ mod tests {
 
         let controller_signing_key = AngstromSigner::new(
             PrivateKeySigner::from_slice(&spawned_anvil.anvil.keys()[7].clone().to_bytes())
-                .unwrap(),
+                .unwrap()
         );
 
         let uniswap = UniswapEnv::new(anvil).await.unwrap();
@@ -300,7 +300,7 @@ mod tests {
         let raw_c1 = MintableMockERC20::deploy(env.provider()).await.unwrap();
         let (currency0, currency1) = match raw_c0.address().cmp(raw_c1.address()) {
             std::cmp::Ordering::Greater => (*raw_c1.address(), *raw_c0.address()),
-            _ => (*raw_c0.address(), *raw_c1.address()),
+            _ => (*raw_c0.address(), *raw_c1.address())
         };
         // Setup our pool
         let pool = PoolKey {
@@ -308,7 +308,7 @@ mod tests {
             currency1,
             fee: U24::ZERO,
             tickSpacing: I24::unchecked_from(10),
-            hooks: Address::default(),
+            hooks: Address::default()
         };
         let liquidity = 1_000_000_000_000_000_u128;
         let price = SqrtPriceX96::at_tick(100000).unwrap();
@@ -335,7 +335,7 @@ mod tests {
                 I24::unchecked_from(99000),
                 I24::unchecked_from(101000),
                 U256::from(liquidity),
-                salt,
+                salt
             )
             .from(controller)
             .run_safe()

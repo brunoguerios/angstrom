@@ -14,7 +14,7 @@ use alloy::primitives::{Address, B256, FixedBytes};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::OrderPoolNewOrderResult,
-    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData},
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 pub use angstrom_utils::*;
 pub use config::PoolConfig;
@@ -26,7 +26,7 @@ pub enum PoolManagerUpdate {
     NewOrder(OrderWithStorageData<AllOrders>),
     FilledOrder(u64, OrderWithStorageData<AllOrders>),
     UnfilledOrders(OrderWithStorageData<AllOrders>),
-    CancelledOrder { user: Address, pool_id: FixedBytes<32>, order_hash: B256 },
+    CancelledOrder { user: Address, pool_id: FixedBytes<32>, order_hash: B256 }
 }
 
 /// The OrderPool Trait is how other processes can interact with the orderpool
@@ -36,7 +36,7 @@ pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
     fn new_order(
         &self,
         origin: OrderOrigin,
-        order: AllOrders,
+        order: AllOrders
     ) -> impl Future<Output = OrderPoolNewOrderResult> + Send;
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate>;
@@ -48,11 +48,11 @@ pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
     fn fetch_orders_from_pool(
         &self,
         pool_id: FixedBytes<32>,
-        location: OrderLocation,
+        location: OrderLocation
     ) -> impl Future<Output = Vec<AllOrders>> + Send;
 
     fn fetch_order_status(
         &self,
-        order_hash: B256,
+        order_hash: B256
     ) -> impl Future<Output = Option<OrderStatus>> + Send;
 }

@@ -4,7 +4,7 @@ use clap::Parser;
 use matching_engine::{
     book::{OrderBook, sort::SortStrategy},
     simulation::{amm::single_position_amm, orders::order_distribution},
-    strategy::{MatchingStrategy, SimpleCheckpointStrategy},
+    strategy::{MatchingStrategy, SimpleCheckpointStrategy}
 };
 use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 
@@ -12,13 +12,13 @@ use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 struct Args {
     /// Number of bid orders to generate
     #[arg(short, long, default_value_t = 1000)]
-    bids: usize,
+    bids:            usize,
     /// Number of ask orders to generate
     #[arg(short, long, default_value_t = 1000)]
-    asks: usize,
+    asks:            usize,
     /// Price used as the center of our price distributions
     #[arg(short, long, default_value_t = 100_000_000.0)]
-    price: f64,
+    price:           f64,
     /// Scale of bid price distribution
     #[arg(long, default_value_t = 1000000.0, help_heading = "Bid Order Statistics")]
     bid_price_scale: f64,
@@ -30,7 +30,7 @@ struct Args {
     bid_volume_mean: f64,
     /// Standard deviation of bid order volume
     #[arg(long, default_value_t = 1.0, help_heading = "Bid Order Statistics")]
-    bid_volume_sd: f64,
+    bid_volume_sd:   f64,
     /// Scale of ask price distribution
     #[arg(long, default_value_t = 1000000.0, help_heading = "Ask Order Statistics")]
     ask_price_scale: f64,
@@ -42,7 +42,7 @@ struct Args {
     ask_volume_mean: f64,
     /// Standard deviation of ask order volume
     #[arg(long, default_value_t = 1.0, help_heading = "Ask Order Statistics")]
-    ask_volume_sd: f64,
+    ask_volume_sd:   f64
 }
 
 fn main() {
@@ -57,7 +57,7 @@ fn main() {
         args.ask_price_shape,
         99.0,
         1.0,
-        0.0,
+        0.0
     )
     .unwrap();
 
@@ -78,7 +78,7 @@ fn main() {
         args.bid_price_shape,
         99.0,
         1.0,
-        0.0,
+        0.0
     )
     .unwrap();
     let max_bid_price = bids.iter().fold(f64::MIN, |mut acc, order| {

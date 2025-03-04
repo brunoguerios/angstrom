@@ -6,7 +6,7 @@ use alloy_chains::Chain;
 use angstrom_eth::manager::EthEvent;
 use angstrom_network::{
     NetworkOrderEvent, StatusState, StromNetworkManager, StromProtocolHandler, StromSessionManager,
-    Swarm, VerificationSidecar, manager::StromConsensusEvent, state::StromState,
+    Swarm, VerificationSidecar, manager::StromConsensusEvent, state::StromState
 };
 pub use eth_peer::*;
 use parking_lot::RwLock;
@@ -23,17 +23,17 @@ use tokio_util::sync::PollSender;
 
 use crate::{
     network::StromNetworkPeer,
-    types::{GlobalTestingConfig, config::TestingNodeConfig},
+    types::{GlobalTestingConfig, config::TestingNodeConfig}
 };
 
 pub struct TestnetNodeNetwork {
     // eth components
-    pub eth_handle: EthNetworkPeer,
+    pub eth_handle:   EthNetworkPeer,
     // strom components
     pub strom_handle: StromNetworkPeer,
-    pub secret_key: SecretKey,
-    pub pubkey: PeerId,
-    pub eth_tx: UnboundedSender<EthEvent>,
+    pub secret_key:   SecretKey,
+    pub pubkey:       PeerId,
+    pub eth_tx:       UnboundedSender<EthEvent>
 }
 
 impl TestnetNodeNetwork {
@@ -41,7 +41,7 @@ impl TestnetNodeNetwork {
         c: C,
         node_config: &TestingNodeConfig<G>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
-        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
+        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
     ) -> (Self, Peer<C>, StromNetworkManager<C>)
     where
         C: BlockReader
@@ -51,20 +51,24 @@ impl TestnetNodeNetwork {
             + Clone
             + ChainSpecProvider<ChainSpec: Hardforks>
             + 'static,
-        G: GlobalTestingConfig,
+        G: GlobalTestingConfig
     {
         let sk = node_config.secret_key;
         let peer = PeerConfig::with_secret_key(c.clone(), sk);
 
         let peer_id = pk2id(&node_config.pub_key);
-        let state =
-            StatusState { version: 0, chain: Chain::mainnet().id(), peer: peer_id, timestamp: 0 };
+        let state = StatusState {
+            version:   0,
+            chain:     Chain::mainnet().id(),
+            peer:      peer_id,
+            timestamp: 0
+        };
         let (session_manager_tx, session_manager_rx) = tokio::sync::mpsc::channel(100);
         let sidecar = VerificationSidecar {
-            status: state,
-            has_sent: false,
+            status:       state,
+            has_sent:     false,
             has_received: false,
-            secret_key: node_config.angstrom_signer(),
+            secret_key:   node_config.angstrom_signer()
         };
 
         let validators = Arc::new(RwLock::new(HashSet::default()));
@@ -72,7 +76,7 @@ impl TestnetNodeNetwork {
         let protocol = StromProtocolHandler::new(
             MeteredPollSender::new(PollSender::new(session_manager_tx), "session manager"),
             sidecar,
-            validators.clone(),
+            validators.clone()
         );
 
         let state = StromState::new(c.clone(), validators.clone());
@@ -94,7 +98,7 @@ impl TestnetNodeNetwork {
         (
             Self { strom_handle, secret_key: sk, pubkey: peer_id, eth_handle, eth_tx },
             eth_peer,
-            strom_network,
+            strom_network
         )
     }
 

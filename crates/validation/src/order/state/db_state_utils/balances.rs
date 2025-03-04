@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
     primitives::{Address, U256, keccak256},
-    sol_types::SolValue,
+    sol_types::SolValue
 };
 use dashmap::DashMap;
 use reth_revm::DatabaseRef;
@@ -12,8 +12,8 @@ use crate::order::state::config::TokenBalanceSlot;
 
 #[derive(Clone)]
 pub struct Balances {
-    tokens: DashMap<Address, TokenBalanceSlot>,
-    angstrom_address: Address,
+    tokens:           DashMap<Address, TokenBalanceSlot>,
+    angstrom_address: Address
 }
 const ANGSTROM_BALANCE_SLOT_OFFSET: u32 = 4;
 
@@ -27,10 +27,10 @@ impl Balances {
         user: Address,
         token: Address,
         db: Arc<DB>,
-        overrides: &HashMap<Address, HashMap<U256, U256>>,
+        overrides: &HashMap<Address, HashMap<U256, U256>>
     ) -> Option<U256>
     where
-        <DB as revm::DatabaseRef>::Error: Debug,
+        <DB as revm::DatabaseRef>::Error: Debug
     {
         // Existing code remains unchanged
         self.tokens
@@ -56,10 +56,10 @@ impl Balances {
         &self,
         user: Address,
         token: Address,
-        db: &DB,
+        db: &DB
     ) -> U256
     where
-        <DB as DatabaseRef>::Error: Debug + Sync + Send + 'static,
+        <DB as DatabaseRef>::Error: Debug + Sync + Send + 'static
     {
         self.tokens
             .get(&token)
@@ -77,7 +77,7 @@ impl Balances {
         &self,
         token: Address,
         account: Address,
-        db: &DB,
+        db: &DB
     ) -> U256 {
         let token_slot = keccak256((token, ANGSTROM_BALANCE_SLOT_OFFSET).abi_encode());
         let final_slot = keccak256((token_slot, account).abi_encode());

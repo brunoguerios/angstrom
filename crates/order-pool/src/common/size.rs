@@ -1,7 +1,7 @@
 #[derive(Default)]
 pub struct SizeTracker {
-    pub max: Option<usize>,
-    pub current: usize,
+    pub max:     Option<usize>,
+    pub current: usize
 }
 
 impl SizeTracker {

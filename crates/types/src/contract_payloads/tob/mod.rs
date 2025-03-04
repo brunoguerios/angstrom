@@ -6,17 +6,17 @@ use eyre::eyre;
 use super::rewards::RewardsUpdate;
 use crate::{
     matching::uniswap::{PoolSnapshot, Quantity, Tick},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ToBOutcome {
-    pub start_tick: i32,
+    pub start_tick:      i32,
     pub start_liquidity: u128,
-    pub tribute: U256,
-    pub total_cost: U256,
-    pub total_reward: U256,
-    pub tick_donations: HashMap<Tick, U256>,
+    pub tribute:         U256,
+    pub total_cost:      U256,
+    pub total_reward:    U256,
+    pub tick_donations:  HashMap<Tick, U256>
 }
 
 impl ToBOutcome {
@@ -34,11 +34,11 @@ impl ToBOutcome {
 
     pub fn from_tob_and_snapshot(
         tob: &OrderWithStorageData<TopOfBlockOrder>,
-        snapshot: &PoolSnapshot,
+        snapshot: &PoolSnapshot
     ) -> eyre::Result<Self> {
         let output = match tob.is_bid {
             true => Quantity::Token0(tob.quantity_out),
-            false => Quantity::Token1(tob.quantity_out),
+            false => Quantity::Token1(tob.quantity_out)
         };
         let pricevec = (snapshot.current_price() - output)?;
         let total_cost: u128 = pricevec.input();
@@ -48,12 +48,12 @@ impl ToBOutcome {
         let leftover = tob.quantity_in - total_cost;
         let donation = pricevec.donation(leftover);
         let rewards = ToBOutcome {
-            start_tick: snapshot.current_price().tick(),
+            start_tick:      snapshot.current_price().tick(),
             start_liquidity: snapshot.current_price().liquidity(),
-            tribute: U256::from(donation.tribute),
-            total_cost: U256::from(pricevec.input()),
-            total_reward: U256::from(donation.total_donated),
-            tick_donations: donation.tick_donations,
+            tribute:         U256::from(donation.tribute),
+            total_cost:      U256::from(pricevec.input()),
+            total_reward:    U256::from(donation.total_donated),
+            tick_donations:  donation.tick_donations
         };
         Ok(rewards)
     }
@@ -76,13 +76,13 @@ impl ToBOutcome {
 
         match quantities.len() {
             0 | 1 => RewardsUpdate::CurrentOnly {
-                amount: quantities.first().copied().unwrap_or_default(),
+                amount: quantities.first().copied().unwrap_or_default()
             },
             _ => RewardsUpdate::MultiTick {
                 start_tick,
                 start_liquidity: self.start_liquidity,
-                quantities,
-            },
+                quantities
+            }
         }
     }
 }

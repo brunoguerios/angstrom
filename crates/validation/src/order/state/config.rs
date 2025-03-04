@@ -10,7 +10,7 @@ pub enum HashMethod {
     #[serde(rename = "sol")]
     Solidity,
     #[serde(rename = "vyper")]
-    Vyper,
+    Vyper
 }
 impl HashMethod {
     const fn is_solidity(&self) -> bool {
@@ -20,9 +20,9 @@ impl HashMethod {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TokenBalanceSlot {
-    pub token: Address,
+    pub token:       Address,
     pub hash_method: HashMethod,
-    pub slot_index: u8,
+    pub slot_index:  u8
 }
 
 impl TokenBalanceSlot {
@@ -44,7 +44,7 @@ impl TokenBalanceSlot {
 
     pub fn load_balance<DB: revm::DatabaseRef>(&self, of: Address, db: &DB) -> eyre::Result<U256>
     where
-        <DB as DatabaseRef>::Error: Sync + Send + 'static,
+        <DB as DatabaseRef>::Error: Sync + Send + 'static
     {
         db.storage_ref(self.token, self.generate_slot(of)?)
             .map_err(|_| eyre!("failed to load balance slot"))
@@ -53,9 +53,9 @@ impl TokenBalanceSlot {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TokenApprovalSlot {
-    pub token: Address,
+    pub token:       Address,
     pub hash_method: HashMethod,
-    pub slot_index: u8,
+    pub slot_index:  u8
 }
 
 impl TokenApprovalSlot {
@@ -82,10 +82,10 @@ impl TokenApprovalSlot {
         &self,
         user: Address,
         contract: Address,
-        db: &DB,
+        db: &DB
     ) -> eyre::Result<U256>
     where
-        <DB as DatabaseRef>::Error: Sync + Send + 'static,
+        <DB as DatabaseRef>::Error: Sync + Send + 'static
     {
         if !self.hash_method.is_solidity() {
             return Err(eyre::eyre!("current type of contract hashing is not supported"));

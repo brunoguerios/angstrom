@@ -4,9 +4,9 @@ use alloy::primitives::Address;
 
 #[derive(Default, Debug, Clone)]
 pub struct BorrowStateTracker {
-    pub take: u128,
+    pub take:            u128,
     pub contract_liquid: u128,
-    pub settle: u128,
+    pub settle:          u128
 }
 
 impl BorrowStateTracker {
@@ -52,13 +52,17 @@ impl BorrowStateTracker {
         let amount_onhand =
             (self.contract_liquid.saturating_sub(other.take)) + other.contract_liquid;
         let amount_owed = self.settle + (other.settle.saturating_sub(self.contract_liquid));
-        Self { take: borrow_needed, contract_liquid: amount_onhand, settle: amount_owed }
+        Self {
+            take:            borrow_needed,
+            contract_liquid: amount_onhand,
+            settle:          amount_owed
+        }
     }
 }
 
 #[derive(Debug, Default)]
 pub struct StageTracker {
-    map: HashMap<Address, BorrowStateTracker>,
+    map: HashMap<Address, BorrowStateTracker>
 }
 
 impl StageTracker {
@@ -81,7 +85,7 @@ impl StageTracker {
         asset_in: Address,
         asset_out: Address,
         quantity_in: u128,
-        quantity_out: u128,
+        quantity_out: u128
     ) {
         self.get_state(asset_in).owe(quantity_in);
         self.get_state(asset_out).take(quantity_out);
@@ -94,7 +98,7 @@ impl StageTracker {
         asset_in: Address,
         asset_out: Address,
         quantity_in: u128,
-        quantity_out: u128,
+        quantity_out: u128
     ) {
         self.get_state(asset_in).recieve(quantity_in);
         self.get_state(asset_out).allocate(quantity_out);

@@ -2,7 +2,7 @@ use alloy::primitives::{Address, BlockNumber, StorageKey, StorageValue};
 use reth_primitives::Account;
 use reth_provider::{
     AccountReader, BlockNumReader, ProviderResult, StateProvider, StateProviderBox,
-    StateProviderFactory,
+    StateProviderFactory
 };
 
 pub trait BlockStateProvider {
@@ -11,7 +11,7 @@ pub trait BlockStateProvider {
     fn get_storage(
         &self,
         address: Address,
-        key: StorageKey,
+        key: StorageKey
     ) -> ProviderResult<Option<StorageValue>>;
 }
 
@@ -31,7 +31,7 @@ impl BlockStateProvider for StateProviderBox {
     fn get_storage(
         &self,
         address: Address,
-        key: StorageKey,
+        key: StorageKey
     ) -> ProviderResult<Option<StorageValue>> {
         StateProvider::storage(&self, address, key)
     }

@@ -4,7 +4,7 @@ use alloy::{
     consensus::{SignableTransaction, TypedTransaction},
     network::{Ethereum, NetworkWallet},
     primitives::PrimitiveSignature,
-    signers::{SignerSync, local::PrivateKeySigner},
+    signers::{SignerSync, local::PrivateKeySigner}
 };
 use alloy_primitives::Address;
 use k256::{ecdsa::VerifyingKey, elliptic_curve::sec1::ToEncodedPoint};
@@ -13,8 +13,8 @@ use reth_network_peers::PeerId;
 /// Wrapper around key and signing to allow for a uniform type across codebase
 #[derive(Debug, Clone)]
 pub struct AngstromSigner {
-    id: PeerId,
-    signer: PrivateKeySigner,
+    id:     PeerId,
+    signer: PrivateKeySigner
 }
 
 impl AngstromSigner {
@@ -47,7 +47,7 @@ impl AngstromSigner {
 
     fn sign_transaction_inner(
         &self,
-        tx: &mut dyn SignableTransaction<PrimitiveSignature>,
+        tx: &mut dyn SignableTransaction<PrimitiveSignature>
     ) -> alloy::signers::Result<PrimitiveSignature> {
         let hash = tx.signature_hash();
 
@@ -87,7 +87,7 @@ impl NetworkWallet<Ethereum> for AngstromSigner {
     async fn sign_transaction_from(
         &self,
         _: Address,
-        tx: TypedTransaction,
+        tx: TypedTransaction
     ) -> alloy::signers::Result<alloy::consensus::TxEnvelope> {
         match tx {
             TypedTransaction::Legacy(mut t) => {

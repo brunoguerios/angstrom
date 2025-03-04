@@ -4,7 +4,7 @@ use alloy_primitives::{Address, B256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::{OrderPoolNewOrderResult, PoolId},
-    sol_bindings::grouped_orders::AllOrders,
+    sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
 use jsonrpsee::{PendingSubscriptionSink, SubscriptionMessage, core::RpcResult};
@@ -15,13 +15,13 @@ use validation::order::OrderValidatorHandle;
 use crate::{
     OrderApiError::GasEstimationError,
     api::{GasEstimateResponse, OrderApiServer},
-    types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult},
+    types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult}
 };
 
 pub struct OrderApi<OrderPool, Spawner, Validator> {
-    pool: OrderPool,
+    pool:         OrderPool,
     task_spawner: Spawner,
-    validator: Validator,
+    validator:    Validator
 }
 
 impl<OrderPool, Spawner, Validator> OrderApi<OrderPool, Spawner, Validator> {
@@ -35,7 +35,7 @@ impl<OrderPool, Spawner, Validator> OrderApiServer for OrderApi<OrderPool, Spawn
 where
     OrderPool: OrderPoolHandle,
     Spawner: TaskSpawner + 'static,
-    Validator: OrderValidatorHandle,
+    Validator: OrderValidatorHandle
 {
     async fn send_order(&self, order: AllOrders) -> RpcResult<OrderPoolNewOrderResult> {
         Ok(self.pool.new_order(OrderOrigin::External, order).await)
@@ -65,7 +65,7 @@ where
     async fn orders_by_pool_id(
         &self,
         pool_id: PoolId,
-        location: OrderLocation,
+        location: OrderLocation
     ) -> RpcResult<Vec<AllOrders>> {
         Ok(self.pool.fetch_orders_from_pool(pool_id, location).await)
     }
@@ -74,7 +74,7 @@ where
         &self,
         pending: PendingSubscriptionSink,
         kind: HashSet<OrderSubscriptionKind>,
-        filter: HashSet<OrderSubscriptionFilter>,
+        filter: HashSet<OrderSubscriptionFilter>
     ) -> jsonrpsee::core::SubscriptionResult {
         let sink = pending.accept().await?;
         let mut subscription = self
@@ -114,7 +114,7 @@ pub enum OrderApiError {
     #[error("failed to recover signer from signature")]
     SignatureRecoveryError,
     #[error("failed to estimate gas: {0}")]
-    GasEstimationError(String),
+    GasEstimationError(String)
 }
 
 impl From<OrderApiError> for jsonrpsee::types::ErrorObjectOwned {
@@ -122,7 +122,7 @@ impl From<OrderApiError> for jsonrpsee::types::ErrorObjectOwned {
         match error {
             OrderApiError::InvalidSignature => invalid_params_rpc_err(error.to_string()),
             OrderApiError::SignatureRecoveryError => invalid_params_rpc_err(error.to_string()),
-            OrderApiError::GasEstimationError(e) => invalid_params_rpc_err(e),
+            OrderApiError::GasEstimationError(e) => invalid_params_rpc_err(e)
         }
     }
 }
@@ -134,7 +134,7 @@ pub fn invalid_params_rpc_err(msg: impl Into<String>) -> jsonrpsee::types::Error
 pub fn rpc_err(
     code: i32,
     msg: impl Into<String>,
-    data: Option<&[u8]>,
+    data: Option<&[u8]>
 ) -> jsonrpsee::types::error::ErrorObjectOwned {
     jsonrpsee::types::error::ErrorObject::owned(
         code,
@@ -142,7 +142,7 @@ pub fn rpc_err(
         data.map(|data| {
             jsonrpsee::core::to_json_raw_value(&alloy_primitives::hex::encode_prefixed(data))
                 .expect("serializing String can't fail")
-        }),
+        })
     )
 }
 
@@ -150,7 +150,7 @@ trait OrderFilterMatching {
     fn filter_out_order(
         self,
         kind: &HashSet<OrderSubscriptionKind>,
-        filter: &HashSet<OrderSubscriptionFilter>,
+        filter: &HashSet<OrderSubscriptionFilter>
     ) -> Option<OrderSubscriptionResult>;
 }
 
@@ -158,7 +158,7 @@ impl OrderFilterMatching for PoolManagerUpdate {
     fn filter_out_order(
         self,
         kind: &HashSet<OrderSubscriptionKind>,
-        filter: &HashSet<OrderSubscriptionFilter>,
+        filter: &HashSet<OrderSubscriptionFilter>
     ) -> Option<OrderSubscriptionResult> {
         match self {
             PoolManagerUpdate::NewOrder(order)
@@ -193,7 +193,7 @@ impl OrderFilterMatching for PoolManagerUpdate {
             {
                 Some(OrderSubscriptionResult::CancelledOrder(order_hash))
             }
-            _ => None,
+            _ => None
         }
     }
 }
@@ -206,7 +206,7 @@ mod tests {
     use angstrom_network::pool_manager::OrderCommand;
     use angstrom_types::{
         orders::{OrderOrigin, OrderStatus},
-        sol_bindings::grouped_orders::{AllOrders, FlashVariants, StandingVariants},
+        sol_bindings::grouped_orders::{AllOrders, FlashVariants, StandingVariants}
     };
     use futures::FutureExt;
     use order_pool::PoolManagerUpdate;
@@ -273,12 +273,12 @@ mod tests {
     }
 
     struct OrderApiTestHandle {
-        _from_api: UnboundedReceiver<OrderCommand>,
+        _from_api: UnboundedReceiver<OrderCommand>
     }
 
     #[derive(Clone)]
     struct MockOrderPoolHandle {
-        sender: UnboundedSender<OrderCommand>,
+        sender: UnboundedSender<OrderCommand>
     }
 
     impl MockOrderPoolHandle {
@@ -291,7 +291,7 @@ mod tests {
         fn fetch_orders_from_pool(
             &self,
             _: PoolId,
-            _: OrderLocation,
+            _: OrderLocation
         ) -> impl Future<Output = Vec<AllOrders>> + Send {
             future::ready(vec![])
         }
@@ -299,7 +299,7 @@ mod tests {
         fn new_order(
             &self,
             origin: OrderOrigin,
-            order: AllOrders,
+            order: AllOrders
         ) -> impl Future<Output = OrderPoolNewOrderResult> + Send {
             let (tx, _) = tokio::sync::oneshot::channel();
             let _ = self
@@ -347,7 +347,7 @@ mod tests {
             &self,
             _block_number: u64,
             _completed_orders: Vec<B256>,
-            _addresses: Vec<Address>,
+            _addresses: Vec<Address>
         ) -> ValidationFuture {
             unimplemented!("no new block")
         }

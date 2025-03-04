@@ -2,19 +2,19 @@ use alloy::primitives::U256;
 use alloy_primitives::FixedBytes;
 use angstrom_types::{
     matching::{Ray, uniswap::PoolSnapshot},
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use matching_engine::{
     book::{BookOrder, OrderBook},
-    matcher::VolumeFillMatcher,
+    matcher::VolumeFillMatcher
 };
 use testing_tools::type_generator::{
-    amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder,
+    amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder
 };
 
 struct TestOrder {
     q: u128,
-    p: Ray,
+    p: Ray
 }
 
 impl TestOrder {
@@ -77,7 +77,7 @@ impl TestOrder {
 fn make_books(
     bids_raw: Vec<TestOrder>,
     asks_raw: Vec<TestOrder>,
-    amm: Option<PoolSnapshot>,
+    amm: Option<PoolSnapshot>
 ) -> OrderBook {
     let bids = bids_raw.iter().map(TestOrder::to_bid).collect();
     let asks = asks_raw.iter().map(TestOrder::to_ask).collect();
@@ -86,7 +86,7 @@ fn make_books(
         amm,
         bids,
         asks,
-        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume),
+        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
     )
 }
 
@@ -100,7 +100,7 @@ fn simple_book() {
     let book = make_books(
         vec![TestOrder { q: 100, p: raw_price(100) }],
         vec![TestOrder { q: 100, p: raw_price(10) }],
-        None,
+        None
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
@@ -116,7 +116,7 @@ fn unsolveable_book() {
     let book = make_books(
         vec![TestOrder { q: 80, p: raw_price(100) }],
         vec![TestOrder { q: 100, p: raw_price(10) }],
-        None,
+        None
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
@@ -145,7 +145,7 @@ fn multiple_orders_fill() {
             TestOrder { q: 15, p: raw_price(12) },
             TestOrder { q: 170, p: raw_price(13) },
         ],
-        None,
+        None
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let end = matcher.run_match();
@@ -175,7 +175,7 @@ fn amm_provides_last_mile_liquidity() {
     let book = make_books(
         vec![TestOrder { q: 100, p: amm_price + 100000000000_usize }],
         vec![TestOrder { q: 50, p: amm_price - 100_usize }],
-        Some(amm),
+        Some(amm)
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let _ = matcher.run_match();
@@ -190,7 +190,7 @@ fn debt_is_created() {
         None,
         vec![TestOrder::exact_bid(1000000000000000000000000000_u128, raw_price(500))],
         vec![TestOrder::exact_inverse_ask(100, raw_price(100))],
-        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume),
+        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let _ = matcher.run_match();
@@ -207,7 +207,7 @@ fn debt_price_is_final_price() {
         None,
         vec![TestOrder::exact_bid(1000000000000000000000000000_u128, raw_price(500))],
         vec![TestOrder::exact_inverse_ask(100, raw_price(100))],
-        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume),
+        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let _ = matcher.run_match();
@@ -232,7 +232,7 @@ fn annihilating_debt() {
             TestOrder::exact_inverse_ask(100, raw_price(100)),
             TestOrder::exact_ask(response_offer, raw_price(100)),
         ],
-        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume),
+        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
     );
     let mut matcher = VolumeFillMatcher::new(&book);
     let _end = matcher.run_match();

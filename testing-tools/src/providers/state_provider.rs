@@ -9,7 +9,7 @@ use futures::stream::StreamExt;
 use reth_primitives::EthPrimitives;
 use reth_provider::{
     BlockHashReader, BlockNumReader, CanonStateNotification, CanonStateNotifications,
-    CanonStateSubscriptions, NodePrimitivesProvider, ProviderError, ProviderResult,
+    CanonStateSubscriptions, NodePrimitivesProvider, ProviderError, ProviderResult
 };
 use reth_revm::primitives::Bytecode;
 use tokio::sync::broadcast;
@@ -18,15 +18,15 @@ use validation::common::db::BlockStateProviderFactory;
 use super::{RpcStateProvider, WalletProvider};
 use crate::{
     mocks::canon_state::AnvilConsensusCanonStateNotification, providers::utils::async_to_sync,
-    types::WithWalletProvider,
+    types::WithWalletProvider
 };
 
 #[derive(Debug, Clone)]
 pub struct AnvilStateProvider<P> {
-    provider: P,
-    canon_state: AnvilConsensusCanonStateNotification,
+    provider:       P,
+    canon_state:    AnvilConsensusCanonStateNotification,
     canon_state_tx: broadcast::Sender<CanonStateNotification>,
-    block_sync: GlobalBlockSync,
+    block_sync:     GlobalBlockSync
 }
 
 impl<P: WithWalletProvider> AnvilStateProvider<P> {
@@ -35,7 +35,7 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
             provider,
             canon_state: AnvilConsensusCanonStateNotification::new(),
             canon_state_tx: broadcast::channel(1000).0,
-            block_sync,
+            block_sync
         }
     }
 
@@ -62,10 +62,10 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
 
     pub(crate) fn as_wallet_state_provider(&self) -> AnvilStateProvider<WalletProvider> {
         AnvilStateProvider {
-            provider: self.provider.wallet_provider(),
-            canon_state: self.canon_state.clone(),
+            provider:       self.provider.wallet_provider(),
+            canon_state:    self.canon_state.clone(),
             canon_state_tx: self.canon_state_tx.clone(),
-            block_sync: self.block_sync.clone(),
+            block_sync:     self.block_sync.clone()
         }
     }
 
@@ -88,10 +88,10 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
                     .rpc_provider()
                     .get_block(
                         BlockId::Hash(alloy_rpc_types::RpcBlockHash {
-                            block_hash: *block_hash,
-                            require_canonical: None,
+                            block_hash:        *block_hash,
+                            require_canonical: None
                         }),
-                        alloy_rpc_types::BlockTransactionsKind::Full,
+                        alloy_rpc_types::BlockTransactionsKind::Full
                     )
                     .await
                     .unwrap()
@@ -111,21 +111,21 @@ impl<P: WithWalletProvider> reth_revm::DatabaseRef for AnvilStateProvider<P> {
 
     fn basic_ref(
         &self,
-        address: Address,
+        address: Address
     ) -> Result<Option<reth_revm::primitives::AccountInfo>, Self::Error> {
         let acc = async_to_sync(
             self.provider
                 .rpc_provider()
                 .get_account(address)
                 .latest()
-                .into_future(),
+                .into_future()
         )?;
         let code = async_to_sync(
             self.provider
                 .rpc_provider()
                 .get_code_at(address)
                 .latest()
-                .into_future(),
+                .into_future()
         )?;
         let code = Some(Bytecode::new_raw(code));
 
@@ -133,7 +133,7 @@ impl<P: WithWalletProvider> reth_revm::DatabaseRef for AnvilStateProvider<P> {
             code_hash: acc.code_hash,
             balance: acc.balance,
             nonce: acc.nonce,
-            code,
+            code
         }))
     }
 
@@ -142,7 +142,7 @@ impl<P: WithWalletProvider> reth_revm::DatabaseRef for AnvilStateProvider<P> {
             self.provider
                 .rpc_provider()
                 .get_storage_at(address, index)
-                .into_future(),
+                .into_future()
         )?;
         Ok(acc)
     }
@@ -153,9 +153,9 @@ impl<P: WithWalletProvider> reth_revm::DatabaseRef for AnvilStateProvider<P> {
                 .rpc_provider()
                 .get_block_by_number(
                     alloy_rpc_types::BlockNumberOrTag::Number(number),
-                    BlockTransactionsKind::Hashes,
+                    BlockTransactionsKind::Hashes
                 )
-                .into_future(),
+                .into_future()
         )?;
 
         let Some(block) = acc else { bail!("failed to load block") };
@@ -177,7 +177,7 @@ impl<P: WithWalletProvider> BlockNumReader for AnvilStateProvider<P> {
 
     fn convert_number(
         &self,
-        _: alloy_rpc_types::BlockHashOrNumber,
+        _: alloy_rpc_types::BlockHashOrNumber
     ) -> ProviderResult<Option<alloy_primitives::B256>> {
         panic!("never used");
     }
@@ -187,7 +187,7 @@ impl<P: WithWalletProvider> BlockNumReader for AnvilStateProvider<P> {
             self.provider
                 .rpc_provider()
                 .get_block_number()
-                .into_future(),
+                .into_future()
         )
         .unwrap())
     }
@@ -197,14 +197,14 @@ impl<P: WithWalletProvider> BlockNumReader for AnvilStateProvider<P> {
             self.provider
                 .rpc_provider()
                 .get_block_number()
-                .into_future(),
+                .into_future()
         )
         .unwrap())
     }
 
     fn convert_hash_or_number(
         &self,
-        _: alloy_rpc_types::BlockHashOrNumber,
+        _: alloy_rpc_types::BlockHashOrNumber
     ) -> ProviderResult<Option<BlockNumber>> {
         panic!("never used");
     }
@@ -216,7 +216,7 @@ impl<P: WithWalletProvider> BlockHashReader for AnvilStateProvider<P> {
 
     fn convert_block_hash(
         &self,
-        _: alloy_rpc_types::BlockHashOrNumber,
+        _: alloy_rpc_types::BlockHashOrNumber
     ) -> ProviderResult<Option<alloy_primitives::B256>> {
         panic!("never used");
     }
@@ -224,7 +224,7 @@ impl<P: WithWalletProvider> BlockHashReader for AnvilStateProvider<P> {
     fn canonical_hashes_range(
         &self,
         _: BlockNumber,
-        _: BlockNumber,
+        _: BlockNumber
     ) -> ProviderResult<Vec<alloy_primitives::B256>> {
         panic!("never used");
     }

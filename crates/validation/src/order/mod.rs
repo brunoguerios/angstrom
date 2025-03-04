@@ -7,10 +7,10 @@ use angstrom_types::{
     sol_bindings::{
         ext::RawPoolOrder,
         grouped_orders::{
-            AllOrders, GroupedComposableOrder, GroupedVanillaOrder, OrderWithStorageData,
+            AllOrders, GroupedComposableOrder, GroupedVanillaOrder, OrderWithStorageData
         },
-        rpc_orders::TopOfBlockOrder,
-    },
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use sim::SimValidation;
 use tokio::sync::oneshot::{Sender, channel};
@@ -33,7 +33,7 @@ pub type GasEstimationFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(u64, U256), String>> + Send + Sync + 'a>>;
 
 pub enum OrderValidationRequest {
-    ValidateOrder(Sender<OrderValidationResults>, AllOrders, OrderOrigin),
+    ValidateOrder(Sender<OrderValidationResults>, AllOrders, OrderOrigin)
 }
 
 /// TODO: not a fan of all the conversions. can def simplify
@@ -66,14 +66,14 @@ impl From<OrderValidationRequest> for OrderValidation {
                     //     )
                     // }
                 }
-                AllOrders::TOB(tob) => OrderValidation::Searcher(tx, tob, orign),
-            },
+                AllOrders::TOB(tob) => OrderValidation::Searcher(tx, tob, orign)
+            }
         }
     }
 }
 
 pub enum ValidationMessage {
-    ValidationResults(OrderValidationResults),
+    ValidationResults(OrderValidationResults)
 }
 
 #[derive(Debug, Clone)]
@@ -81,7 +81,7 @@ pub enum OrderValidationResults {
     Valid(OrderWithStorageData<AllOrders>),
     // the raw hash to be removed
     Invalid(B256),
-    TransitionedToBlock,
+    TransitionedToBlock
 }
 
 impl OrderValidationResults {
@@ -90,7 +90,7 @@ impl OrderValidationResults {
         sim: &SimValidation<DB>,
         token_price: &TokenPriceGenerator,
         is_limit: bool,
-        block: u64,
+        block: u64
     ) where
         DB: Unpin
             + Clone
@@ -99,7 +99,7 @@ impl OrderValidationResults {
             + reth_provider::BlockNumReader
             + Send
             + Sync,
-        <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug,
+        <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
     {
         let this = self.clone();
         if let Self::Valid(order) = this {
@@ -113,13 +113,13 @@ impl OrderValidationResults {
                     |order| match order {
                         AllOrders::Standing(s) => GroupedVanillaOrder::Standing(s),
                         AllOrders::Flash(f) => GroupedVanillaOrder::KillOrFill(f),
-                        _ => unreachable!(),
+                        _ => unreachable!()
                     },
                     |order| match order {
                         GroupedVanillaOrder::Standing(s) => AllOrders::Standing(s),
-                        GroupedVanillaOrder::KillOrFill(s) => AllOrders::Flash(s),
+                        GroupedVanillaOrder::KillOrFill(s) => AllOrders::Flash(s)
                     },
-                    SimValidation::calculate_user_gas,
+                    SimValidation::calculate_user_gas
                 );
 
                 if let Err(e) = res {
@@ -138,10 +138,10 @@ impl OrderValidationResults {
                     block,
                     |order| match order {
                         AllOrders::TOB(s) => s,
-                        _ => unreachable!(),
+                        _ => unreachable!()
                     },
                     AllOrders::TOB,
-                    SimValidation::calculate_tob_gas,
+                    SimValidation::calculate_tob_gas
                 );
                 if let Err(e) = res {
                     tracing::info!(%e, "failed to add gas to order");
@@ -169,12 +169,12 @@ impl OrderValidationResults {
             &SimValidation<DB>,
             &OrderWithStorageData<New>,
             &TokenPriceGenerator,
-            u64,
-        ) -> eyre::Result<(u64, U256)>,
+            u64
+        ) -> eyre::Result<(u64, U256)>
     ) -> eyre::Result<OrderWithStorageData<Old>>
     where
         DB: Unpin + Clone + 'static + revm::DatabaseRef + Send + Sync,
-        <DB as revm::DatabaseRef>::Error: Sync + Send + 'static,
+        <DB as revm::DatabaseRef>::Error: Sync + Send + 'static
     {
         let mut order = order
             .try_map_inner(move |order| Ok(map_new(order)))
@@ -203,14 +203,14 @@ impl From<OrderValidationResults> for OrderPoolNewOrderResult {
 pub enum OrderValidation {
     Limit(Sender<OrderValidationResults>, GroupedVanillaOrder, OrderOrigin),
     LimitComposable(Sender<OrderValidationResults>, GroupedComposableOrder, OrderOrigin),
-    Searcher(Sender<OrderValidationResults>, TopOfBlockOrder, OrderOrigin),
+    Searcher(Sender<OrderValidationResults>, TopOfBlockOrder, OrderOrigin)
 }
 impl OrderValidation {
     pub fn user(&self) -> Address {
         match &self {
             Self::Searcher(_, u, _) => u.from(),
             Self::LimitComposable(_, u, _) => u.from(),
-            Self::Limit(_, u, _) => u.from(),
+            Self::Limit(_, u, _) => u.from()
         }
     }
 }
@@ -229,7 +229,7 @@ pub trait OrderValidatorHandle: Send + Sync + Clone + Debug + Unpin + 'static {
         Box::pin(futures_util::future::join_all(
             transactions
                 .into_iter()
-                .map(|(origin, tx)| self.validate_order(origin, tx)),
+                .map(|(origin, tx)| self.validate_order(origin, tx))
         ))
     }
 
@@ -238,7 +238,7 @@ pub trait OrderValidatorHandle: Send + Sync + Clone + Debug + Unpin + 'static {
         &self,
         block_number: u64,
         completed_orders: Vec<B256>,
-        addresses: Vec<Address>,
+        addresses: Vec<Address>
     ) -> ValidationFuture;
 
     /// estimates gas usage for order
@@ -252,7 +252,7 @@ impl OrderValidatorHandle for ValidationClient {
         &self,
         block_number: u64,
         orders: Vec<B256>,
-        addresses: Vec<Address>,
+        addresses: Vec<Address>
     ) -> ValidationFuture {
         Box::pin(async move {
             let (tx, rx) = channel();
@@ -260,7 +260,7 @@ impl OrderValidatorHandle for ValidationClient {
                 sender: tx,
                 block_number,
                 orders,
-                addresses,
+                addresses
             });
 
             rx.await.unwrap()
@@ -275,7 +275,7 @@ impl OrderValidatorHandle for ValidationClient {
                 .send(ValidationRequest::Order(OrderValidationRequest::ValidateOrder(
                     tx,
                     transaction,
-                    origin,
+                    origin
                 )));
 
             rx.await.unwrap()

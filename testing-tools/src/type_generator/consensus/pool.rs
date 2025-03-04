@@ -1,21 +1,21 @@
 use alloy_primitives::{
     Address,
-    aliases::{I24, U24},
+    aliases::{I24, U24}
 };
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{
         SqrtPriceX96,
-        uniswap::{LiqRange, PoolPrice, PoolSnapshot},
+        uniswap::{LiqRange, PoolPrice, PoolSnapshot}
     },
     primitive::PoolId,
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 
 #[derive(Debug)]
 pub enum OrderType {
     FixedOrders(Vec<OrderWithStorageData<GroupedVanillaOrder>>),
-    GeneratedOrders(usize),
+    GeneratedOrders(usize)
 }
 
 impl Default for OrderType {
@@ -26,9 +26,9 @@ impl Default for OrderType {
 
 #[derive(Clone, Debug)]
 pub struct Pool {
-    key: PoolKey,
+    key:      PoolKey,
     snapshot: PoolSnapshot,
-    tob: Address,
+    tob:      Address
 }
 
 impl Pool {
@@ -61,7 +61,7 @@ impl Pool {
 pub struct PoolBuilder {
     key: Option<PoolKey>,
     amm: Option<PoolSnapshot>,
-    tob: Option<Address>,
+    tob: Option<Address>
 }
 
 impl PoolBuilder {
@@ -71,11 +71,11 @@ impl PoolBuilder {
 
     fn random_key() -> PoolKey {
         PoolKey {
-            currency0: Address::random(),
-            currency1: Address::random(),
-            fee: U24::ZERO,
+            currency0:   Address::random(),
+            currency1:   Address::random(),
+            fee:         U24::ZERO,
             tickSpacing: I24::unchecked_from(10),
-            hooks: Address::default(),
+            hooks:       Address::default()
         }
     }
 
@@ -112,6 +112,6 @@ pub fn create_key(token0: Address, token1: Address, tick_spacing: i32) -> PoolKe
         currency1,
         fee: U24::ZERO,
         tickSpacing: I24::unchecked_from(tick_spacing),
-        hooks: Address::random(),
+        hooks: Address::random()
     }
 }

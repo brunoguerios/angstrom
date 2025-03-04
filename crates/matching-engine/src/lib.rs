@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::Arc
 };
 
 use alloy::providers::Provider;
@@ -12,15 +12,15 @@ use angstrom_types::{
     orders::PoolSolution,
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
-        RawPoolOrder, grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder,
-    },
+        RawPoolOrder, grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder
+    }
 };
 use book::{BookOrder, OrderBook};
 use futures_util::future::BoxFuture;
 use reth_provider::CanonStateNotifications;
 use uniswap_v4::uniswap::{
     pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
-    pool_providers::canonical_state_adapter::CanonicalStateAdapter,
+    pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
 
 pub mod book;
@@ -36,7 +36,7 @@ pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
+        pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
     ) -> BoxFuture<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 }
 
@@ -57,12 +57,12 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
     uniswap_pool_registry: UniswapPoolRegistry,
     current_block: BlockNumber,
     block_sync: BlockSync,
-    pool_manager_address: Address,
+    pool_manager_address: Address
 ) -> UniswapPoolManager<
     CanonicalStateAdapter<impl Provider + 'static>,
     BlockSync,
     DataLoader<PoolId>,
-    PoolId,
+    PoolId
 > {
     let mut uniswap_pools: Vec<_> = uniswap_pool_registry
         .pools()
@@ -75,9 +75,9 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
                 DataLoader::new_with_registry(
                     *internal,
                     uniswap_pool_registry.clone(),
-                    pool_manager_address,
+                    pool_manager_address
                 ),
-                initial_ticks_per_side,
+                initial_ticks_per_side
             )
         })
         .collect();
@@ -96,6 +96,6 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
         uniswap_pool_registry.conversion_map,
         current_block,
         notifier,
-        block_sync,
+        block_sync
     )
 }

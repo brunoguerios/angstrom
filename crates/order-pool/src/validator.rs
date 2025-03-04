@@ -1,7 +1,7 @@
 use std::{
     collections::VecDeque,
     pin::Pin,
-    task::{Context, Poll},
+    task::{Context, Poll}
 };
 
 use alloy::primitives::{Address, B256};
@@ -19,39 +19,39 @@ pub enum OrderValidator<V: OrderValidatorHandle> {
     /// was validated against block n -1 when we are on block n where there
     /// was some state transition on the address
     ClearingForNewBlock {
-        validator: V,
-        block_number: u64,
-        waiting_for_new_block: VecDeque<(OrderOrigin, AllOrders)>,
+        validator:              V,
+        block_number:           u64,
+        waiting_for_new_block:  VecDeque<(OrderOrigin, AllOrders)>,
         /// all order hashes that have been filled or expired.
-        completed_orders: Vec<B256>,
+        completed_orders:       Vec<B256>,
         /// all addresses that we need to invalidate the cache for balances /
         /// approvals
         revalidation_addresses: Vec<Address>,
-        remaining_futures: FuturesUnordered<ValidationFuture>,
+        remaining_futures:      FuturesUnordered<ValidationFuture>
     },
     /// waits for storage to go through and purge all invalided orders.
     WaitingForStorageCleanup {
-        validator: V,
-        waiting_for_new_block: VecDeque<(OrderOrigin, AllOrders)>,
+        validator:             V,
+        waiting_for_new_block: VecDeque<(OrderOrigin, AllOrders)>
     },
     /// The inform state is telling the validation client to
     /// progress a block and the cache segments it should remove + pending order
     /// state that no longer exists. Once this is done, we can be assured that
     /// the order validator has the correct state and thus can progress.
     InformState {
-        validator: V,
+        validator:             V,
         waiting_for_new_block: VecDeque<(OrderOrigin, AllOrders)>,
-        future: ValidationFuture,
+        future:                ValidationFuture
     },
     RegularProcessing {
-        validator: V,
-        remaining_futures: FuturesUnordered<ValidationFuture>,
-    },
+        validator:         V,
+        remaining_futures: FuturesUnordered<ValidationFuture>
+    }
 }
 
 impl<V> OrderValidator<V>
 where
-    V: OrderValidatorHandle<Order = AllOrders>,
+    V: OrderValidatorHandle<Order = AllOrders>
 {
     pub fn new(validator: V) -> Self {
         Self::RegularProcessing { validator, remaining_futures: FuturesUnordered::new() }
@@ -61,7 +61,7 @@ where
         &mut self,
         block_number: u64,
         completed_orders: Vec<B256>,
-        revalidation_addresses: Vec<Address>,
+        revalidation_addresses: Vec<Address>
     ) {
         assert!(
             !self.is_transitioning(),
@@ -73,7 +73,7 @@ where
         let rem_futures = remaining_futures.into_iter().map(|fut| unsafe {
             std::mem::transmute::<_, ValidationFuture>(Box::pin(fut)
                 as Pin<
-                    Box<dyn futures_util::Future<Output = OrderValidationResults> + Send + Sync>,
+                    Box<dyn futures_util::Future<Output = OrderValidationResults> + Send + Sync>
                 >)
         });
 
@@ -84,7 +84,7 @@ where
             remaining_futures: FuturesUnordered::from_iter(rem_futures),
             completed_orders,
             revalidation_addresses,
-            block_number,
+            block_number
         }
     }
 
@@ -92,7 +92,7 @@ where
         &mut self,
         block_number: u64,
         orders: Vec<B256>,
-        changed_addresses: Vec<Address>,
+        changed_addresses: Vec<Address>
     ) {
         tracing::info!("notify validation on changes");
         let Self::WaitingForStorageCleanup { validator, waiting_for_new_block } = self else {
@@ -108,9 +108,9 @@ where
         });
 
         *self = Self::InformState {
-            validator: validator.clone(),
+            validator:             validator.clone(),
             waiting_for_new_block: std::mem::take(waiting_for_new_block),
-            future: fut,
+            future:                fut
         };
     }
 
@@ -141,14 +141,14 @@ where
         validator: &mut V,
         waiting_for_new_block: &mut VecDeque<(OrderOrigin, AllOrders)>,
         future: &mut ValidationFuture,
-        cx: &mut Context<'_>,
+        cx: &mut Context<'_>
     ) -> Option<Self> {
         if future.poll_unpin(cx).is_ready() {
             // lfg we have finished validating.
             let validator_clone = validator.clone();
             let mut this = Self::RegularProcessing {
-                validator: validator_clone,
-                remaining_futures: FuturesUnordered::default(),
+                validator:         validator_clone,
+                remaining_futures: FuturesUnordered::default()
             };
             waiting_for_new_block.drain(..).for_each(|(origin, order)| {
                 this.validate_order(origin, order);
@@ -163,7 +163,7 @@ where
 
 impl<V: OrderValidatorHandle> Stream for OrderValidator<V>
 where
-    V: OrderValidatorHandle<Order = AllOrders>,
+    V: OrderValidatorHandle<Order = AllOrders>
 {
     type Item = OrderValidatorRes;
 
@@ -176,7 +176,7 @@ where
                 waiting_for_new_block,
                 completed_orders,
                 revalidation_addresses,
-                remaining_futures,
+                remaining_futures
             } => {
                 if let Poll::Ready(Some(next)) = remaining_futures.poll_next_unpin(cx) {
                     return Poll::Ready(Some(OrderValidatorRes::ValidatedOrder(next)));
@@ -194,14 +194,14 @@ where
                 let block = *block_number;
 
                 *this = Self::WaitingForStorageCleanup {
-                    validator: validator.clone(),
-                    waiting_for_new_block: std::mem::take(waiting_for_new_block),
+                    validator:             validator.clone(),
+                    waiting_for_new_block: std::mem::take(waiting_for_new_block)
                 };
 
                 Poll::Ready(Some(OrderValidatorRes::EnsureClearForTransition {
                     block,
                     orders: completed_orders,
-                    addresses: revalidation_addresses,
+                    addresses: revalidation_addresses
                 }))
             }
             OrderValidator::WaitingForStorageCleanup { .. } => Poll::Pending,
@@ -220,7 +220,7 @@ where
             }
             OrderValidator::RegularProcessing { remaining_futures, .. } => remaining_futures
                 .poll_next_unpin(cx)
-                .map(|inner| inner.map(OrderValidatorRes::ValidatedOrder)),
+                .map(|inner| inner.map(OrderValidatorRes::ValidatedOrder))
         }
     }
 }
@@ -234,5 +234,5 @@ pub enum OrderValidatorRes {
     /// we can go back to general flow.
     EnsureClearForTransition { block: u64, orders: Vec<B256>, addresses: Vec<Address> },
     /// has fully transitioned to new block
-    TransitionComplete,
+    TransitionComplete
 }

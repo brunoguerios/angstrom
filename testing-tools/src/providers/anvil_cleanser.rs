@@ -4,12 +4,12 @@ use alloy::{primitives::Address, rpc::types::Transaction, sol_types::SolCall};
 use alloy_rpc_types::TransactionTrait;
 use angstrom_eth::{
     handle::{EthCommand, EthHandle},
-    manager::EthEvent,
+    manager::EthEvent
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::AngstromBundle,
-    sol_bindings::testnet::TestnetHub,
+    sol_bindings::testnet::TestnetHub
 };
 use futures::{Future, Stream, StreamExt};
 use pade::PadeDecode;
@@ -19,15 +19,15 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{Instrument, Level, span};
 
 pub struct AnvilEthDataCleanser<S: Stream<Item = (u64, Vec<Transaction>)>> {
-    testnet_node_id: u64,
-    angstrom_contract: Address,
+    testnet_node_id:             u64,
+    angstrom_contract:           Address,
     /// our command receiver
-    commander: ReceiverStream<EthCommand>,
+    commander:                   ReceiverStream<EthCommand>,
     /// people listening to events
-    event_listeners: Vec<UnboundedSender<EthEvent>>,
-    block_subscription: S,
+    event_listeners:             Vec<UnboundedSender<EthEvent>>,
+    block_subscription:          S,
     block_finalization_lookback: u64,
-    block_sync: GlobalBlockSync,
+    block_sync:                  GlobalBlockSync
 }
 
 impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEthDataCleanser<S> {
@@ -39,7 +39,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         rx: Receiver<EthCommand>,
         block_subscription: S,
         block_finalization_lookback: u64,
-        block_sync: GlobalBlockSync,
+        block_sync: GlobalBlockSync
     ) -> eyre::Result<EthHandle> {
         let stream = ReceiverStream::new(rx);
         let this = Self {
@@ -49,7 +49,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
             block_subscription,
             angstrom_contract,
             block_finalization_lookback,
-            block_sync,
+            block_sync
         };
 
         tp.spawn_critical(
@@ -58,7 +58,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
                 Level::ERROR,
                 "data cleanser",
                 testnet_node_id
-            ))),
+            )))
         );
 
         let handle = EthHandle::new(tx);
@@ -74,7 +74,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
     fn on_command(&mut self, command: EthCommand) {
         match command {
             EthCommand::SubscribeEthNetworkEvents(tx) => self.event_listeners.push(tx),
-            EthCommand::SubscribeCannon(_) => panic!("should never be called"),
+            EthCommand::SubscribeCannon(_) => panic!("should never be called")
         }
     }
 
@@ -95,9 +95,9 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         else {
             tracing::info!("No angstrom txs found");
             self.send_events(EthEvent::NewBlockTransitions {
-                block_number: block.0,
-                filled_orders: vec![],
-                address_changeset: vec![],
+                block_number:      block.0,
+                filled_orders:     vec![],
+                address_changeset: vec![]
             });
 
             return;
@@ -122,9 +122,9 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         let addresses = vec![];
         tracing::debug!("found angstrom tx with orders filled {:#?}", hashes);
         self.send_events(EthEvent::NewBlockTransitions {
-            block_number: block.0,
-            filled_orders: hashes,
-            address_changeset: addresses,
+            block_number:      block.0,
+            filled_orders:     hashes,
+            address_changeset: addresses
         });
     }
 }

@@ -5,7 +5,7 @@ use angstrom_metrics::SearcherOrderPoolMetricsWrapper;
 use angstrom_types::{
     orders::OrderId,
     primitive::{NewInitializedPool, PoolId},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use angstrom_utils::map::OwnedMap;
 use pending::PendingPool;
@@ -22,8 +22,8 @@ pub struct SearcherPool {
     /// Holds all non composable searcher order pools
     searcher_orders: HashMap<PoolId, PendingPool>,
     /// The size of the current transactions.
-    size: SizeTracker,
-    metrics: SearcherOrderPoolMetricsWrapper,
+    size:            SizeTracker,
+    metrics:         SearcherOrderPoolMetricsWrapper
 }
 
 impl SearcherPool {
@@ -32,7 +32,7 @@ impl SearcherPool {
         Self {
             searcher_orders,
             size: SizeTracker { max: max_size, current: 0 },
-            metrics: SearcherOrderPoolMetricsWrapper::default(),
+            metrics: SearcherOrderPoolMetricsWrapper::default()
         }
     }
 
@@ -59,7 +59,7 @@ impl SearcherPool {
     pub fn get_order(
         &self,
         pool_id: PoolId,
-        order_id: alloy::primitives::FixedBytes<32>,
+        order_id: alloy::primitives::FixedBytes<32>
     ) -> Option<OrderWithStorageData<TopOfBlockOrder>> {
         self.searcher_orders
             .get(&pool_id)
@@ -68,7 +68,7 @@ impl SearcherPool {
 
     pub fn add_searcher_order(
         &mut self,
-        order: OrderWithStorageData<TopOfBlockOrder>,
+        order: OrderWithStorageData<TopOfBlockOrder>
     ) -> Result<(), SearcherPoolError> {
         let size = order.size();
         if !self.size.has_space(size) {
@@ -99,7 +99,7 @@ impl SearcherPool {
 
     pub fn get_orders_for_pool(
         &self,
-        pool_id: &PoolId,
+        pool_id: &PoolId
     ) -> Option<Vec<OrderWithStorageData<TopOfBlockOrder>>> {
         self.searcher_orders
             .get(pool_id)
@@ -133,5 +133,5 @@ pub enum SearcherPoolError {
     #[error("No pool was found for address: {0} ")]
     NoPool(PoolId),
     #[error(transparent)]
-    Unknown(#[from] eyre::Error),
+    Unknown(#[from] eyre::Error)
 }

@@ -5,18 +5,18 @@ use std::{collections::HashSet, sync::Arc};
 use alloy::{
     self,
     eips::{BlockId, BlockNumberOrTag},
-    providers::{Provider, ProviderBuilder, network::Ethereum},
+    providers::{Provider, ProviderBuilder, network::Ethereum}
 };
 use alloy_chains::Chain;
 use angstrom_eth::{
     handle::{Eth, EthCommand},
-    manager::{EthDataCleanser, EthEvent},
+    manager::{EthDataCleanser, EthEvent}
 };
 use angstrom_network::{
     NetworkBuilder as StromNetworkBuilder, NetworkOrderEvent, PoolManagerBuilder, StatusState,
     VerificationSidecar,
     manager::StromConsensusEvent,
-    pool_manager::{OrderCommand, PoolHandle},
+    pool_manager::{OrderCommand, PoolHandle}
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
@@ -24,7 +24,7 @@ use angstrom_types::{
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
     primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
-    reth_db_wrapper::RethDbWrapper,
+    reth_db_wrapper::RethDbWrapper
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use matching_engine::{MatchingManager, configure_uniswap_manager, manager::MatcherCommand};
@@ -35,31 +35,35 @@ use reth::{
     chainspec::ChainSpec,
     primitives::EthPrimitives,
     providers::{BlockNumReader, CanonStateSubscriptions},
-    tasks::TaskExecutor,
+    tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
 use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAddOns};
 use reth_provider::BlockReader;
 use tokio::sync::mpsc::{
-    Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel,
+    Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel
 };
 use validation::{
     common::TokenPriceGenerator,
     init_validation,
     order::state::pools::AngstromPoolsTracker,
-    validator::{ValidationClient, ValidationRequest},
+    validator::{ValidationClient, ValidationRequest}
 };
 
 use crate::{AngstromConfig, cli::NodeConfig};
 
 pub fn init_network_builder(
     secret_key: AngstromSigner,
-    eth_handle: UnboundedReceiver<EthEvent>,
+    eth_handle: UnboundedReceiver<EthEvent>
 ) -> eyre::Result<StromNetworkBuilder> {
     let public_key = secret_key.id();
 
-    let state =
-        StatusState { version: 0, chain: Chain::mainnet().id(), peer: public_key, timestamp: 0 };
+    let state = StatusState {
+        version:   0,
+        chain:     Chain::mainnet().id(),
+        peer:      public_key,
+        timestamp: 0
+    };
 
     let verification =
         VerificationSidecar { status: state, has_sent: false, has_received: false, secret_key };
@@ -94,14 +98,14 @@ pub struct StromHandles {
 
     // only 1 set cur
     pub matching_tx: Sender<MatcherCommand>,
-    pub matching_rx: Receiver<MatcherCommand>,
+    pub matching_rx: Receiver<MatcherCommand>
 }
 
 impl StromHandles {
     pub fn get_pool_handle(&self) -> DefaultPoolHandle {
         PoolHandle {
-            manager_tx: self.orderpool_tx.clone(),
-            pool_manager_tx: self.pool_manager_tx.clone(),
+            manager_tx:      self.orderpool_tx.clone(),
+            pool_manager_tx: self.pool_manager_tx.clone()
         }
     }
 }
@@ -132,7 +136,7 @@ pub fn initialize_strom_handles() -> StromHandles {
         matching_tx,
         matching_rx,
         eth_handle_tx: Some(eth_handle_tx),
-        eth_handle_rx: Some(eth_handle_rx),
+        eth_handle_rx: Some(eth_handle_rx)
     }
 }
 
@@ -142,16 +146,16 @@ pub async fn initialize_strom_components<Node, AddOns>(
     mut handles: StromHandles,
     network_builder: StromNetworkBuilder,
     node: FullNode<Node, AddOns>,
-    executor: &TaskExecutor,
+    executor: &TaskExecutor
 ) where
     Node: FullNodeComponents
         + FullNodeTypes<Types: NodeTypes<ChainSpec = ChainSpec, Primitives = EthPrimitives>>,
     Node::Provider: BlockReader<
             Block = reth::primitives::Block,
             Receipt = reth::primitives::Receipt,
-            Header = reth::primitives::Header,
+            Header = reth::primitives::Header
         >,
-    AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
+    AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>
 {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
     let node_address = signer.address();
@@ -192,10 +196,10 @@ pub async fn initialize_strom_components<Node, AddOns>(
         AngstromPoolConfigStore::load_from_chain(
             node_config.angstrom_address,
             BlockId::Number(BlockNumberOrTag::Latest),
-            &querying_provider,
+            &querying_provider
         )
         .await
-        .unwrap(),
+        .unwrap()
     );
 
     let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
@@ -225,7 +229,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         pool_config_store.clone(),
         global_block_sync.clone(),
         node_set,
-        vec![handles.eth_handle_tx.take().unwrap()],
+        vec![handles.eth_handle_tx.take().unwrap()]
     )
     .unwrap();
 
@@ -235,7 +239,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         uniswap_registry,
         block_id,
         global_block_sync.clone(),
-        node_config.pool_manager_address,
+        node_config.pool_manager_address
     )
     .await;
 
@@ -259,7 +263,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         uniswap_pools.clone(),
         price_generator,
         pool_config_store.clone(),
-        handles.validator_rx,
+        handles.validator_rx
     );
 
     let validation_handle = ValidationClient(handles.validator_tx.clone());
@@ -280,7 +284,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         network_handle.clone(),
         eth_handle.subscribe_network(),
         handles.pool_rx,
-        global_block_sync.clone(),
+        global_block_sync.clone()
     )
     .with_config(pool_config)
     .build_with_channels(
@@ -288,7 +292,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         handles.orderpool_tx,
         handles.orderpool_rx,
         angstrom_pool_tracker,
-        handles.pool_manager_tx,
+        handles.pool_manager_tx
     );
 
     // TODO load the stakes from Eigen using node.provider
@@ -305,7 +309,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         ManagerNetworkDeps::new(
             network_handle.clone(),
             eth_handle.subscribe_cannon_state_notifications().await,
-            handles.consensus_rx_op,
+            handles.consensus_rx_op
         ),
         signer,
         validators,
@@ -316,7 +320,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         uniswap_pools.clone(),
         mev_boost_provider,
         matching_handle,
-        global_block_sync.clone(),
+        global_block_sync.clone()
     );
 
     let _consensus_handle = executor.spawn_critical("consensus", Box::pin(manager));

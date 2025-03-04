@@ -9,14 +9,14 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 #[derive(Clone)]
 pub struct StromNetworkPeer {
     network_handle: StromNetworkHandle,
-    validator_set: Arc<RwLock<HashSet<Address>>>,
+    validator_set:  Arc<RwLock<HashSet<Address>>>
 }
 
 impl StromNetworkPeer {
     pub fn new<C: Unpin>(strom_network: &StromNetworkManager<C>) -> Self {
         Self {
             network_handle: strom_network.get_handle(),
-            validator_set: strom_network.swarm().state().validators().clone(),
+            validator_set:  strom_network.swarm().state().validators().clone()
         }
     }
 

@@ -4,7 +4,7 @@ use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
-    ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder,
+    ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
 };
 use db_state_utils::StateFetchUtils;
 use parking_lot::RwLock;
@@ -28,17 +28,17 @@ pub struct StateValidation<Pools, Fetch> {
     /// tracks everything user related.
     user_account_tracker: Arc<UserAccountProcessor<Fetch>>,
     /// tracks all info about the current angstrom pool state.
-    pool_tacker: Arc<RwLock<Pools>>,
+    pool_tacker:          Arc<RwLock<Pools>>,
     /// keeps up-to-date with the on-chain pool
-    uniswap_pools: SyncedUniswapPools,
+    uniswap_pools:        SyncedUniswapPools
 }
 
 impl<Pools, Fetch> Clone for StateValidation<Pools, Fetch> {
     fn clone(&self) -> Self {
         Self {
             user_account_tracker: Arc::clone(&self.user_account_tracker),
-            pool_tacker: Arc::clone(&self.pool_tacker),
-            uniswap_pools: self.uniswap_pools.clone(),
+            pool_tacker:          Arc::clone(&self.pool_tacker),
+            uniswap_pools:        self.uniswap_pools.clone()
         }
     }
 }
@@ -47,12 +47,12 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     pub fn new(
         user_account_tracker: UserAccountProcessor<Fetch>,
         pools: Pools,
-        uniswap_pools: SyncedUniswapPools,
+        uniswap_pools: SyncedUniswapPools
     ) -> Self {
         Self {
             pool_tacker: Arc::new(RwLock::new(pools)),
             user_account_tracker: Arc::new(user_account_tracker),
-            uniswap_pools,
+            uniswap_pools
         }
     }
 
@@ -65,7 +65,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         &self,
         order: O,
         block: u64,
-        metrics: ValidationMetrics,
+        metrics: ValidationMetrics
     ) -> OrderValidationResults {
         metrics.applying_state_transitions(|| {
             let order_hash = order.order_hash();
@@ -83,7 +83,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 .verify_order::<O>(order, pool_info, block)
                 .map(|o: _| {
                     OrderValidationResults::Valid(
-                        o.try_map_inner(|inner| Ok(inner.into())).unwrap(),
+                        o.try_map_inner(|inner| Ok(inner.into())).unwrap()
                     )
                 })
                 .unwrap_or_else(|e| {
@@ -97,7 +97,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         &self,
         order: TopOfBlockOrder,
         block: u64,
-        metrics: ValidationMetrics,
+        metrics: ValidationMetrics
     ) -> OrderValidationResults {
         let mut results = self.handle_regular_order(order, block, metrics);
 

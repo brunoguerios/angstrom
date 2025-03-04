@@ -13,14 +13,14 @@ impl ParkedPool {
 
     pub fn get_order(
         &self,
-        order_id: FixedBytes<32>,
+        order_id: FixedBytes<32>
     ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
         self.0.get(&order_id).cloned()
     }
 
     pub fn remove_order(
         &mut self,
-        order_id: FixedBytes<32>,
+        order_id: FixedBytes<32>
     ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
         self.0.remove(&order_id)
     }

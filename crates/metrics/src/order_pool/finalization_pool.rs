@@ -7,7 +7,7 @@ struct FinalizationOrderPoolMetrics {
     // number of blocks tracked
     blocks_tracked: IntGauge,
     // number of finalization orders
-    total_orders: IntGauge,
+    total_orders:   IntGauge
 }
 
 impl Default for FinalizationOrderPoolMetrics {
@@ -62,7 +62,7 @@ impl FinalizationOrderPoolMetricsWrapper {
                 .get()
                 .copied()
                 .unwrap_or_default()
-                .then(FinalizationOrderPoolMetrics::default),
+                .then(FinalizationOrderPoolMetrics::default)
         )
     }
 

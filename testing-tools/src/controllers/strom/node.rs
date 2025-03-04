@@ -3,19 +3,19 @@ use std::{
     net::SocketAddr,
     pin::Pin,
     sync::Arc,
-    task::Poll,
+    task::Poll
 };
 
 use alloy_primitives::Address;
 use angstrom::components::initialize_strom_handles;
 use angstrom_network::{
-    NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkManager,
+    NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkManager
 };
 use angstrom_types::{
     block_sync::GlobalBlockSync,
     primitive::PeerId,
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
-    testnet::InitialTestnetState,
+    testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager};
 use futures::Future;
@@ -25,7 +25,7 @@ use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use reth_network::{
     NetworkHandle, NetworkInfo, Peers,
-    test_utils::{Peer, PeerHandle},
+    test_utils::{Peer, PeerHandle}
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
@@ -38,14 +38,14 @@ use crate::{
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
     providers::AnvilProvider,
-    types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig},
+    types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig}
 };
 
 pub struct TestnetNode<C, P> {
     testnet_node_id: u64,
-    network: TestnetNodeNetwork,
-    strom: AngstromDevnetNodeInternals<P>,
-    state_lock: TestnetStateFutureLock<C, WalletProviderRpc>,
+    network:         TestnetNodeNetwork,
+    strom:           AngstromDevnetNodeInternals<P>,
+    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc>
 }
 
 impl<C, P> TestnetNode<C, P>
@@ -58,7 +58,7 @@ where
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static,
-    P: WithWalletProvider,
+    P: WithWalletProvider
 {
     #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider, agents, block_sync), fields(id = node_config.node_id))]
     pub async fn new<G: GlobalTestingConfig, F>(
@@ -69,14 +69,14 @@ where
         inital_angstrom_state: InitialTestnetState,
         block_provider: BroadcastStream<(u64, Vec<alloy_rpc_types::Transaction>)>,
         agents: Vec<F>,
-        block_sync: GlobalBlockSync,
+        block_sync: GlobalBlockSync
     ) -> eyre::Result<Self>
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
-            AgentConfig,
+            AgentConfig
         ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
-        F: Clone,
+        F: Clone
     {
         tracing::info!("spawning node");
 
@@ -85,7 +85,7 @@ where
             c,
             &node_config,
             Some(strom_handles.pool_tx.clone()),
-            Some(strom_handles.consensus_tx_op.clone()),
+            Some(strom_handles.consensus_tx_op.clone())
         )
         .await;
 
@@ -98,7 +98,7 @@ where
             block_provider,
             inital_angstrom_state,
             agents,
-            block_sync,
+            block_sync
         )
         .await?;
 
@@ -109,7 +109,7 @@ where
             eth_peer,
             strom_network_manager,
             consensus,
-            validation,
+            validation
         );
 
         Ok(Self { testnet_node_id: node_config.node_id, network: strom_network, strom, state_lock })
@@ -186,28 +186,28 @@ where
     /// -------------------------------------
     pub fn strom_network_manager<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&StromNetworkManager<C>) -> R,
+        F: FnOnce(&StromNetworkManager<C>) -> R
     {
         self.state_lock.strom_network_manager(f)
     }
 
     pub fn strom_network_manager_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut StromNetworkManager<C>) -> R,
+        F: FnOnce(&mut StromNetworkManager<C>) -> R
     {
         self.state_lock.strom_network_manager_mut(f)
     }
 
     pub fn eth_peer<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&Peer<C>) -> R,
+        F: FnOnce(&Peer<C>) -> R
     {
         self.state_lock.eth_peer(f)
     }
 
     pub fn eth_peer_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut Peer<C>) -> R,
+        F: FnOnce(&mut Peer<C>) -> R
     {
         self.state_lock.eth_peer_mut(f)
     }
@@ -243,14 +243,14 @@ where
     /// -------------------------------------
     pub fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>) -> R,
+        F: FnOnce(&ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.state_lock.strom_consensus(f)
     }
 
     pub fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>) -> R,
+        F: FnOnce(&mut ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.state_lock.strom_consensus_mut(f)
     }
@@ -281,7 +281,7 @@ where
 
     pub async fn connect_to_all_peers(
         &mut self,
-        other_peers: &mut HashMap<u64, TestnetNode<C, P>>,
+        other_peers: &mut HashMap<u64, TestnetNode<C, P>>
     ) {
         self.start_network();
         other_peers.iter().for_each(|(_, peer)| {
@@ -298,7 +298,7 @@ where
     pub fn pre_post_network_event_channel_swap<E>(
         &mut self,
         is_pre_event: bool,
-        f: impl FnOnce(&mut StromNetworkManager<C>) -> Option<UnboundedMeteredSender<E>>,
+        f: impl FnOnce(&mut StromNetworkManager<C>) -> Option<UnboundedMeteredSender<E>>
     ) -> UnboundedMeteredSender<E> {
         if is_pre_event {
             self.stop_network();
