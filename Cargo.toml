@@ -199,6 +199,7 @@ url = "2.4.1"
 auto_impl = "1.1.0"
 toml = "0.8.19"
 k256 = { version = "0.13", default-features = false }
+clap = "4"
 
 ### proc-macros
 proc-macro2 = "1.0"
