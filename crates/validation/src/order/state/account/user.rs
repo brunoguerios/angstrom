@@ -350,8 +350,7 @@ mod tests {
         // Verify user2's actions with matching order_hash are cleared
         assert!(accounts
             .pending_actions
-            .get(&user2)
-            .map_or(true, |actions| actions.is_empty()));
+            .get(&user2).is_none_or(|actions| actions.is_empty()));
     }
 
     #[test]
@@ -375,8 +374,7 @@ mod tests {
         // Verify order was removed
         assert!(accounts
             .pending_actions
-            .get(&user)
-            .map_or(true, |actions| actions.is_empty()));
+            .get(&user).is_none_or(|actions| actions.is_empty()));
     }
 
     #[test]
