@@ -3,9 +3,9 @@ use angstrom_network::{
 };
 use angstrom_types::{primitive::PeerId, sol_bindings::grouped_orders::AllOrders};
 use reth_metrics::common::mpsc::{
-    metered_unbounded_channel, UnboundedMeteredReceiver, UnboundedMeteredSender
+    UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel
 };
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 pub struct MockNetworkHandle {

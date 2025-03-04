@@ -2,14 +2,14 @@ mod implementations;
 
 mod primitives;
 
-use rand::{distributions::Standard, prelude::Distribution, Rng};
+use rand::{Rng, distributions::Standard, prelude::Distribution};
 
 // need to redefine the Random trait due to trait + types (reth) not being ours
 pub trait Randomizer<T>: Rng {
-    fn gen(&mut self) -> T;
+    fn generate(&mut self) -> T;
 
     fn gen_many(&mut self, count: usize) -> Vec<T> {
-        (0..count).map(|_| Randomizer::gen(self)).collect()
+        (0..count).map(|_| Randomizer::generate(self)).collect()
     }
 }
 
@@ -18,8 +18,8 @@ where
     Standard: Distribution<T>,
     R: Rng
 {
-    fn gen(&mut self) -> T {
-        self.gen()
+    fn generate(&mut self) -> T {
+        self.r#gen()
     }
 }
 
@@ -36,9 +36,9 @@ where
     Standard: Distribution<Self>,
     Self: Sized
 {
-    fn gen() -> Self {
+    fn generate() -> Self {
         let mut rng = rand::thread_rng();
-        Rng::gen(&mut rng)
+        Rng::r#gen(&mut rng)
     }
 
     fn gen_many(count: usize) -> Vec<Self> {

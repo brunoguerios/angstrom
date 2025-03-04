@@ -8,7 +8,7 @@ use std::{
 use alloy::{
     eips::BlockId,
     network::Network,
-    primitives::{keccak256, Address, FixedBytes, B256, U256},
+    primitives::{Address, B256, FixedBytes, U256, keccak256},
     providers::Provider,
     sol_types::SolValue
 };
@@ -19,21 +19,21 @@ use pade_macro::{PadeDecode, PadeEncode};
 use tracing::{debug, trace, warn};
 
 use super::{
+    Asset, CONFIG_STORE_SLOT, POOL_CONFIG_STORE_ENTRY_SIZE, Pair,
     asset::builder::{AssetBuilder, AssetBuilderStage},
     rewards::PoolUpdate,
-    tob::ToBOutcome,
-    Asset, Pair, CONFIG_STORE_SLOT, POOL_CONFIG_STORE_ENTRY_SIZE
+    tob::ToBOutcome
 };
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
-    matching::{uniswap::PoolSnapshot, Ray},
+    matching::{Ray, uniswap::PoolSnapshot},
     orders::{OrderFillState, OrderOutcome, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder,
-        RawPoolOrder
+        rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
     testnet::TestnetStateOverrides
 };
@@ -178,11 +178,7 @@ impl AngstromBundle {
             let token_in = user_order.token_in();
             let token_out = user_order.token_out();
 
-            if token_in < token_out {
-                (token_in, token_out)
-            } else {
-                (token_out, token_in)
-            }
+            if token_in < token_out { (token_in, token_out) } else { (token_out, token_in) }
         };
         // Make sure the involved assets are in our assets array and we have the
         // appropriate asset index for them
@@ -243,11 +239,7 @@ impl AngstromBundle {
             let (t0, t1) = {
                 let token_in = user_order.token_in();
                 let token_out = user_order.token_out();
-                if token_in < token_out {
-                    (token_in, token_out)
-                } else {
-                    (token_out, token_in)
-                }
+                if token_in < token_out { (token_in, token_out) } else { (token_out, token_in) }
             };
             // Make sure the involved assets are in our assets array and we have the
             // appropriate asset index for them
@@ -820,13 +812,13 @@ impl TryFrom<&[u8]> for AngstromPoolConfigStore {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if value.first() != Some(&0) {
-            return Err("Invalid encoded entries: must start with a safety byte of 0".to_string())
+            return Err("Invalid encoded entries: must start with a safety byte of 0".to_string());
         }
         let adjusted_entries = &value[1..];
         if adjusted_entries.len() % POOL_CONFIG_STORE_ENTRY_SIZE != 0 {
             return Err(
                 "Invalid encoded entries: incorrect length after removing safety byte".to_string()
-            )
+            );
         }
         let entries = adjusted_entries
             .chunks(POOL_CONFIG_STORE_ENTRY_SIZE)

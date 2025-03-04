@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant}
 };
 
-use tokio::time::{interval, Interval};
+use tokio::time::{Interval, interval};
 
 use crate::rounds::OrderStorage;
 
@@ -110,7 +110,7 @@ impl Future for PreProposalWaitTrigger {
                 .saturating_sub(ORDER_SCALING * order_cnt as u32);
 
             if Instant::now().duration_since(self.start_instant) > target_resolve {
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
         }
 

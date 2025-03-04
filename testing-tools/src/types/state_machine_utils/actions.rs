@@ -6,7 +6,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{config::DevnetConfig, StateMachineActionHookFn}
+    types::{StateMachineActionHookFn, config::DevnetConfig}
 };
 
 pub trait WithAction<'a, C>
@@ -19,7 +19,7 @@ where
         + Clone
         + 'static
 {
-    type FunctionOutput = StateMachineActionHookFn<'a, C>;
+    type FunctionOutput;
 
     fn advance_block(&mut self);
 }
@@ -34,6 +34,8 @@ where
         + Clone
         + 'static
 {
+    type FunctionOutput = StateMachineActionHookFn<'a, C>;
+
     fn advance_block(&mut self) {
         let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             pin_action(testnet.all_peers_update_state(0))

@@ -59,7 +59,7 @@ impl FinalizationState {
                     tracing::error!(
                         "Violation DETECTED. in future this will be related to slashing"
                     );
-                    return false
+                    return false;
                 }
 
                 true
@@ -93,13 +93,13 @@ where
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if self.completed {
-            return Poll::Ready(None)
+            return Poll::Ready(None);
         }
 
         if let Poll::Ready(result) = self.verification_future.poll_unpin(cx) {
             tracing::info!(%result, "consensus result");
             self.completed = true;
-            return Poll::Ready(None)
+            return Poll::Ready(None);
         }
 
         Poll::Pending

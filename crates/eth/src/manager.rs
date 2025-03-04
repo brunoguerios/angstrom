@@ -7,7 +7,7 @@ use std::{
 
 use alloy::{
     consensus::{BlockHeader, Transaction},
-    primitives::{aliases::I24, Address, BlockHash, BlockNumber, B256},
+    primitives::{Address, B256, BlockHash, BlockNumber, aliases::I24},
     sol_types::SolEvent
 };
 use angstrom_types::{
@@ -299,7 +299,7 @@ where
                 .is_some()
         }) {
             if !is_some {
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
         }
 
@@ -396,7 +396,7 @@ pub mod test {
     use alloy::{
         consensus::TxLegacy,
         hex,
-        primitives::{aliases::U24, b256, Log, TxKind, U256},
+        primitives::{Log, TxKind, U256, aliases::U24, b256},
         signers::Signature,
         sol_types::SolEvent
     };
@@ -406,8 +406,8 @@ pub mod test {
             NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved
         },
         contract_payloads::{
-            angstrom::{TopOfBlockOrder, UserOrder},
-            Asset, Pair
+            Asset, Pair,
+            angstrom::{TopOfBlockOrder, UserOrder}
         },
         orders::OrderOutcome,
         primitive::AngstromSigner,

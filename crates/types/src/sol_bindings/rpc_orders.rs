@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use alloy::{
-    primitives::{keccak256, Address, B256},
+    primitives::{Address, B256, keccak256},
     sol,
     sol_types::{Eip712Domain, SolStruct}
 };
@@ -125,7 +125,7 @@ pub trait OmitOrderMeta: SolStruct {
             mut components: Vec<Cow<'static, str>>
         ) -> Cow<'static, str> {
             if components.is_empty() {
-                return root_type
+                return root_type;
             }
 
             components.sort_unstable();

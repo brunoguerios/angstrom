@@ -12,7 +12,7 @@ use alloy::{
     providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
-use angstrom_network::{manager::StromConsensusEvent, StromMessage, StromNetworkHandle};
+use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensusEvent};
 use angstrom_types::{
     block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry,
     mev_boost::MevBoostProvider, primitive::AngstromSigner
@@ -26,9 +26,9 @@ use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
+    AngstromValidator,
     leader_selection::WeightedRoundRobin,
-    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
-    AngstromValidator
+    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState}
 };
 
 const MODULE_NAME: &str = "Consensus";
@@ -123,7 +123,7 @@ where
                 current_height=%self.current_height,
                 "ignoring event for wrong block",
             );
-            return
+            return;
         }
 
         self.consensus_round_state.handle_message(event);

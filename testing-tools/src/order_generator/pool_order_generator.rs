@@ -1,7 +1,7 @@
 use angstrom_types::primitive::PoolId;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
 
-use super::{order_builder::OrderBuilder, GeneratedPoolOrders, PriceDistribution};
+use super::{GeneratedPoolOrders, PriceDistribution, order_builder::OrderBuilder};
 /// Order Generator is used for generating orders based off of
 /// the current pool state.
 ///

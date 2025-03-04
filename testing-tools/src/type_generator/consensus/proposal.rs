@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
 use alloy_primitives::{
-    aliases::{I24, U24},
-    Address
+    Address,
+    aliases::{I24, U24}
 };
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
-    matching::{uniswap::LiqRange, SqrtPriceX96},
+    matching::{SqrtPriceX96, uniswap::LiqRange},
     primitive::{AngstromSigner, PoolId},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use matching_engine::{
-    strategy::{MatchingStrategy, SimpleCheckpointStrategy},
-    MatchingManager
+    MatchingManager,
+    strategy::{MatchingStrategy, SimpleCheckpointStrategy}
 };
 use reth_tasks::TokioTaskExecutor;
 
@@ -70,7 +70,7 @@ impl ProposalBuilder {
                 };
                 let amm = AMMSnapshotBuilder::new(SqrtPriceX96::at_tick(100000).unwrap())
                     .with_positions(vec![
-                        LiqRange::new(99000, 101000, 1_000_000_000_000_000_u128).unwrap()
+                        LiqRange::new(99000, 101000, 1_000_000_000_000_000_u128).unwrap(),
                     ])
                     .build();
                 Pool::new(key, amm, Address::random())

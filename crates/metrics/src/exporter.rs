@@ -7,8 +7,8 @@ use std::{
 
 use eyre::WrapErr;
 use hyper::{
-    service::{make_service_fn, service_fn},
-    Body, Request, Response, Server
+    Body, Request, Response, Server,
+    service::{make_service_fn, service_fn}
 };
 #[allow(unused_imports)]
 use metrics::Unit;
@@ -117,7 +117,7 @@ fn collect_memory_stats() {
         .map_err(|error| error!(%error, "Failed to advance jemalloc epoch"))
         .is_err()
     {
-        return
+        return;
     }
 
     if let Ok(value) = stats::active::read()
@@ -207,13 +207,13 @@ fn collect_io_stats() {
     let Ok(process) = procfs::process::Process::myself()
         .map_err(|error| error!(%error, "Failed to get currently running process"))
     else {
-        return
+        return;
     };
 
     let Ok(io) = process.io().map_err(
         |error| error!(%error, "Failed to get IO stats for the currently running process")
     ) else {
-        return
+        return;
     };
 
     absolute_counter!("io.rchar", io.rchar);

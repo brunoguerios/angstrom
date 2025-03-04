@@ -2,10 +2,10 @@ use std::{pin::pin, sync::OnceLock, time::Duration};
 
 use alloy::{
     contract::CallBuilder,
-    primitives::{address, Address, U256},
+    primitives::{Address, U256, address},
     providers::{
-        ext::{AnvilApi, DebugApi},
-        WalletProvider
+        WalletProvider,
+        ext::{AnvilApi, DebugApi}
     },
     rpc::types::trace::geth::{
         GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions,
@@ -200,7 +200,7 @@ pub async fn anvil_mine_delay<F0: Future + Unpin>(
 ) -> F0::Output {
     let mut pinned = pin!(f0);
     if let Ok(v) = tokio::time::timeout(delay, &mut pinned).await {
-        return v
+        return v;
     }
     provider
         .anvil_mine(Some(1), None)

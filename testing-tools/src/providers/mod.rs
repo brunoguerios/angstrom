@@ -18,7 +18,7 @@ pub use initializer::*;
 
 use crate::{
     contracts::{anvil::WalletProviderRpc, environment::TestAnvilEnvironment},
-    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
+    types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig}
 };
 
 #[derive(Debug, Clone)]

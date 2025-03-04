@@ -16,8 +16,8 @@ pub fn calculate_reward(
 mod test {
     use alloy::primitives::Uint;
     use angstrom_types::matching::{
-        uniswap::{LiqRange, PoolSnapshot},
-        SqrtPriceX96
+        SqrtPriceX96,
+        uniswap::{LiqRange, PoolSnapshot}
     };
     use rand::thread_rng;
     use testing_tools::type_generator::orders::generate_top_of_block_order;

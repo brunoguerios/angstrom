@@ -10,7 +10,7 @@ use std::{
 
 use alloy::{
     primitives::{Address, BlockNumber},
-    rpc::types::{eth::Filter, Block},
+    rpc::types::{Block, eth::Filter},
     transports::{RpcError, TransportErrorKind}
 };
 use alloy_primitives::Log;
@@ -23,7 +23,7 @@ use angstrom_types::{
 };
 use arraydeque::ArrayDeque;
 use futures::FutureExt;
-use futures_util::{stream::BoxStream, StreamExt};
+use futures_util::{StreamExt, stream::BoxStream};
 use thiserror::Error;
 use tokio::sync::Notify;
 
@@ -114,11 +114,7 @@ where
                 // scope for awaits
                 let start_tick = {
                     let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
-                    if zfo {
-                        pool.fetch_lowest_tick()
-                    } else {
-                        pool.fetch_highest_tick()
-                    }
+                    if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() }
                 };
 
                 let _ = self
@@ -140,12 +136,12 @@ where
                 // don't loop forever
                 cnt -= 1;
                 if cnt == 0 {
-                    return outcome
+                    return outcome;
                 }
 
-                continue
+                continue;
             }
-            return outcome
+            return outcome;
         }
     }
 }
@@ -236,7 +232,7 @@ where
             .iter()
             .find_map(|(r, m)| {
                 if m == key {
-                    return Some(r)
+                    return Some(r);
                 }
                 None
             })
@@ -277,7 +273,7 @@ where
                             // We know that there is a state change from cache.get(0) so
                             // when we pop front without returning a value,
                             // there is an issue
-                            return Err(PoolManagerError::PopFrontError)
+                            return Err(PoolManagerError::PopFrontError);
                         }
                     }
                     Some(_) => return Ok(()),
@@ -289,7 +285,7 @@ where
                         // we can not roll back the state changes for an accurate state
                         // space. In this case, we return an error
                         tracing::warn!(addr=?pool.address(),"cache.get(0) == None");
-                        return Err(PoolManagerError::NoStateChangesInCache)
+                        return Err(PoolManagerError::NoStateChangesInCache);
                     }
                 }
             }
@@ -376,7 +372,7 @@ where
 
         for (addr, logs) in logs_by_address {
             if logs.is_empty() {
-                continue
+                continue;
             }
 
             let Some(pool) = self.pools.get(&addr) else {
@@ -499,7 +495,7 @@ mod annoying_tests {
 
     use alloy::{
         primitives::Address,
-        providers::{fillers::*, network::Ethereum, Provider, ProviderBuilder, RootProvider, *}
+        providers::{Provider, ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *}
     };
     use alloy_primitives::LogData;
     use angstrom_types::block_sync::GlobalBlockState;

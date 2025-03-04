@@ -16,7 +16,7 @@ use revm::{
 use tokio::runtime::Handle;
 
 use crate::{
-    common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
+    common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
     order::sim::console_log::CallDataInspector
 };
 
@@ -98,14 +98,14 @@ where
                             "transaction simulation failed - failed to transaction with revm - \
                              {e:?}"
                         )));
-                        return
+                        return;
                     }
                 };
 
                 if !result.result.is_success() {
                     tracing::warn!(?result.result);
                     let _ = sender.send(Err(eyre!("transaction simulation failed")));
-                    return
+                    return;
                 }
 
                 let res = BundleGasDetails::new(conversion_lookup, result.result.gas_used());

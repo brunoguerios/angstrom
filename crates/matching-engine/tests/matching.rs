@@ -1,7 +1,7 @@
 use alloy::primitives::U256;
 use alloy_primitives::FixedBytes;
 use angstrom_types::{
-    matching::{uniswap::PoolSnapshot, Ray},
+    matching::{Ray, uniswap::PoolSnapshot},
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use matching_engine::{

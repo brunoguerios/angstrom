@@ -95,7 +95,7 @@ impl OrderBuilder {
         // 50% amount range
         let modifier = rng.gen_range(0.5..=1.5);
         let amount = (amount_in as f64 * modifier) as u128;
-        let direction: bool = rng.gen();
+        let direction: bool = rng.r#gen();
 
         // if the random direction changes the swap. inv the price
         if direction != zfo {

@@ -11,8 +11,8 @@ use matching_engine::MatchingEngineHandle;
 
 use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{
-    finalization::FinalizationState, pre_proposal_aggregation::PreProposalAggregationState,
-    ConsensusMessage
+    ConsensusMessage, finalization::FinalizationState,
+    pre_proposal_aggregation::PreProposalAggregationState
 };
 
 /// PreProposalState
@@ -106,7 +106,7 @@ where
                 proposal,
                 handles,
                 cx.waker().clone()
-            ))))
+            ))));
         }
 
         let cur_preproposals = self.pre_proposals.len();
@@ -120,7 +120,7 @@ where
                 handles,
                 self.trigger_time,
                 cx.waker().clone()
-            ))))
+            ))));
         }
 
         Poll::Pending

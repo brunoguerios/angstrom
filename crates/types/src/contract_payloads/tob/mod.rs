@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::primitives::{aliases::I24, U256};
+use alloy::primitives::{U256, aliases::I24};
 use eyre::eyre;
 
 use super::rewards::RewardsUpdate;

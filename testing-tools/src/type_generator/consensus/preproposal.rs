@@ -4,10 +4,10 @@ use angstrom_types::{
     orders::OrderPriorityData,
     primitive::AngstromSigner,
     sol_bindings::{
-        grouped_orders::OrderWithStorageData, testnet::random::Randomizer, RawPoolOrder
+        RawPoolOrder, grouped_orders::OrderWithStorageData, testnet::random::Randomizer
     }
 };
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 
 use super::pool::{Pool, PoolBuilder};
 use crate::type_generator::orders::{
@@ -109,12 +109,12 @@ impl PreproposalBuilder {
                     .pool_id(pool_id.id())
                     .order_hash(order.order_hash())
                     .build();
-                let price: u128 = Rng::gen(&mut rng);
+                let price: u128 = Rng::r#gen(&mut rng);
                 let priority_data = OrderPriorityData {
                     price:     U256::from(price),
                     volume:    1,
-                    gas:       Randomizer::gen(&mut rng),
-                    gas_units: Randomizer::gen(&mut rng)
+                    gas:       Randomizer::generate(&mut rng),
+                    gas_units: Randomizer::generate(&mut rng)
                 };
                 OrderWithStorageData {
                     invalidates: vec![],

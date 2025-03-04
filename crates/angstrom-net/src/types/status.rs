@@ -4,7 +4,7 @@ use std::{
 };
 
 use alloy::{
-    primitives::{keccak256, FixedBytes},
+    primitives::{FixedBytes, keccak256},
     rlp::{BufMut, BytesMut},
     signers::Signature
 };

@@ -4,7 +4,7 @@ use alloy::{
 use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom;
 
-use super::{mine_create3_address, SUB_ZERO_FACTORY};
+use super::{SUB_ZERO_FACTORY, mine_create3_address};
 
 pub async fn deploy_angstrom_create3<
     T: alloy::contract::private::Transport + ::core::clone::Clone,

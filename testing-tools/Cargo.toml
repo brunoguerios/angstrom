@@ -78,7 +78,7 @@ serial_test.workspace = true
 tempfile.workspace = true
 
 parking_lot.workspace = true
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 eyre.workspace = true
 uniswap_v3_math.workspace = true
 create3 = { git = "https://github.com/AmanRaj1608/create3" }

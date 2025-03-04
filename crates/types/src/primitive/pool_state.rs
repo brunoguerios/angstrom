@@ -2,7 +2,7 @@ use alloy::{
     primitives::{FixedBytes, Log},
     sol_types::SolValue
 };
-use alloy_primitives::{keccak256, Address};
+use alloy_primitives::{Address, keccak256};
 
 use crate::contract_bindings::{
     angstrom::Angstrom::PoolKey, pool_manager::PoolManager::Initialize

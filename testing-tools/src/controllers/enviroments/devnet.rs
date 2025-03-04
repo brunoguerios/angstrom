@@ -12,8 +12,8 @@ use crate::{
     controllers::{enviroments::DevnetStateMachine, strom::TestnetNode},
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
-        config::{DevnetConfig, TestingNodeConfig},
-        GlobalTestingConfig
+        GlobalTestingConfig,
+        config::{DevnetConfig, TestingNodeConfig}
     }
 };
 

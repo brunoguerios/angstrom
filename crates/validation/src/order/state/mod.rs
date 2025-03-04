@@ -71,7 +71,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             let order_hash = order.order_hash();
             if !order.is_valid_signature() {
                 tracing::debug!("order had invalid hash");
-                return OrderValidationResults::Invalid(order_hash)
+                return OrderValidationResults::Invalid(order_hash);
             }
 
             let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {

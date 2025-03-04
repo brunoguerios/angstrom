@@ -7,7 +7,7 @@ use angstrom_types::{
 };
 use angstrom_utils::map::OwnedMap;
 
-use super::{pending::PendingPool, LimitPoolError};
+use super::{LimitPoolError, pending::PendingPool};
 
 #[derive(Default)]
 pub struct ComposableLimitPool {

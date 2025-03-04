@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
-    primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
+    primitives::{Address, B256, Bytes, TxKind, U160, U256, address, keccak256},
     sol_types::{SolCall, SolValue}
 };
 use angstrom_types::{
@@ -9,19 +9,19 @@ use angstrom_types::{
     contract_payloads::angstrom::AngstromBundle,
     matching::uniswap::UniswapFlags,
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
-        RawPoolOrder
+        rpc_orders::TopOfBlockOrder
     }
 };
 use eyre::eyre;
 use pade::PadeEncode;
 use reth_provider::BlockNumReader;
 use revm::{
+    DatabaseRef,
     db::CacheDB,
     inspector_handle_register,
-    primitives::{EnvWithHandlerCfg, ResultAndState, TxEnv},
-    DatabaseRef
+    primitives::{EnvWithHandlerCfg, ResultAndState, TxEnv}
 };
 
 use super::gas_inspector::{GasSimulationInspector, GasUsed};
@@ -185,7 +185,7 @@ where
             .build();
 
         let Ok(out) = revm_sim.transact() else {
-            return Err(eyre!("failed to transact transaction"))
+            return Err(eyre!("failed to transact transaction"));
         };
         let (cache_db, _) = revm_sim.into_db_and_env_with_handler_cfg();
         Ok((out, cache_db.0))
@@ -315,7 +315,7 @@ where
                         "gas simulation had a revert. cannot guarantee the proper gas was \
                          estimated err={:?}",
                         result.result
-                    ))
+                    ));
                 }
             }
         }
@@ -474,7 +474,7 @@ pub fn mine_address_with_factory(
         let target_address: Address = factory.create2(B256::from(salt), init_code_hash);
         let u_address: U160 = target_address.into();
         if (u_address & mask) == flags {
-            break
+            break;
         }
         salt += U256::from(1_u8);
         counter += 1;
@@ -497,8 +497,8 @@ pub mod test {
 
     use alloy::{
         node_bindings::WEI_IN_ETHER,
-        primitives::{hex, Uint, U256},
-        signers::{local::LocalSigner, SignerSync}
+        primitives::{U256, Uint, hex},
+        signers::{SignerSync, local::LocalSigner}
     };
     use angstrom_types::{
         reth_db_wrapper::RethDbWrapper,

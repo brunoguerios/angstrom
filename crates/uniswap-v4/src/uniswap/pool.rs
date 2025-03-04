@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::HashMap, fmt::Debug, marker::PhantomData, 
 
 use alloy::{
     hex,
-    primitives::{aliases::I24, Address, BlockNumber, B256, I256, U256},
+    primitives::{Address, B256, BlockNumber, I256, U256, aliases::I24},
     providers::Provider,
     transports::Transport
 };
@@ -17,9 +17,8 @@ use uniswap_v3_math::{
 
 use super::{pool_data_loader::PoolData, pool_manager::TickRangeToLoad};
 use crate::uniswap::{
-    i32_to_i24,
-    pool_data_loader::{DataLoader, ModifyPositionEvent, PoolDataLoader, TickData},
-    ConversionError
+    ConversionError, i32_to_i24,
+    pool_data_loader::{DataLoader, ModifyPositionEvent, PoolDataLoader, TickData}
 };
 
 #[derive(Default)]
@@ -109,17 +108,17 @@ where
 
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, PoolSnapshot), PoolError> {
         if !self.data_is_populated() {
-            return Err(PoolError::PoolNotInitialized)
+            return Err(PoolError::PoolNotInitialized);
         }
 
         let liq_ranges = self
             .ticks
             .iter()
             .sorted_unstable_by(|a, b| a.0.cmp(b.0))
-            .map_windows(|[(tick_lower, _), (tick_upper, tick_inner_upper)]| {
-                // ensure everything is spaced properly
-                assert_eq!((**tick_upper - **tick_lower).abs(), self.tick_spacing);
-                LiqRange::new(**tick_lower, **tick_upper, tick_inner_upper.liquidity_gross).unwrap()
+            .tuple_windows()
+            .map(|((tick_lower, _), (tick_upper, tick_inner_upper))| {
+                assert_eq!((*tick_upper - *tick_lower).abs(), self.tick_spacing);
+                LiqRange::new(*tick_lower, *tick_upper, tick_inner_upper.liquidity_gross).unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -214,7 +213,7 @@ where
         provider: Arc<P>
     ) -> Result<(), PoolError> {
         if !self.data_is_populated() {
-            return Err(PoolError::PoolAlreadyInitialized)
+            return Err(PoolError::PoolAlreadyInitialized);
         }
 
         self.ticks.clear();
@@ -307,7 +306,7 @@ where
         sqrt_price_limit_x96: Option<U256>
     ) -> Result<SwapResult, SwapSimulationError> {
         if amount_specified.is_zero() {
-            return Err(SwapSimulationError::ZeroAmountSpecified)
+            return Err(SwapSimulationError::ZeroAmountSpecified);
         }
 
         let zero_for_one = token_in == self.token0;
@@ -326,7 +325,7 @@ where
                     || sqrt_price_limit_x96 >= MAX_SQRT_RATIO))
         {
             tracing::warn!(?zero_for_one, ?sqrt_price_limit_x96, ?self.sqrt_price);
-            return Err(SwapSimulationError::InvalidSqrtPriceLimit)
+            return Err(SwapSimulationError::InvalidSqrtPriceLimit);
         }
 
         let mut amount_specified_remaining = amount_specified;
@@ -398,11 +397,7 @@ where
                         self.ticks
                             .get(&tick_next)
                             .map(|info| {
-                                if zero_for_one {
-                                    -info.liquidity_net
-                                } else {
-                                    info.liquidity_net
-                                }
+                                if zero_for_one { -info.liquidity_net } else { info.liquidity_net }
                             })
                             .unwrap_or_default();
 
@@ -475,7 +470,7 @@ where
         if self.sync_swap_with_sim {
             self.sync_swap_with_sim(log)
         } else {
-            self._sync_from_swap_log(log).map_err(Into::into)
+            self._sync_from_swap_log(log)
         }
     }
 
@@ -503,7 +498,7 @@ where
                     let (..) =
                         self.simulate_swap_mut(*token_in, *amount_in, sqrt_price_limit_x96)?;
                     simulation_failed = false;
-                    break
+                    break;
                 }
             }
         }
@@ -521,7 +516,7 @@ where
                 swap_amount1 = ?swap_event.amount1,
                 "Swap simulation failed"
             );
-            return Err(PoolError::SwapSimulationFailed)
+            return Err(PoolError::SwapSimulationFailed);
         } else {
             tracing::trace!(pool_tick = ?self.tick, pool_price = ?self.sqrt_price, pool_liquidity = ?self.liquidity, pool_address = ?self.data_loader.address(), "pool after");
         }
@@ -691,11 +686,7 @@ where
     }
 
     pub fn get_token_out(&self, token_in: Address) -> Address {
-        if self.token0 == token_in {
-            self.token1
-        } else {
-            self.token0
-        }
+        if self.token0 == token_in { self.token1 } else { self.token0 }
     }
 
     pub fn calculate_word_pos_bit_pos(&self, compressed: i32) -> (i16, u8) {
@@ -752,7 +743,7 @@ pub enum PoolError {
 mod tests {
     use std::sync::Once;
 
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
     use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 
     use super::*;

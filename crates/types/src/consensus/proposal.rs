@@ -78,7 +78,7 @@ impl Proposal {
             .iter()
             .all(|i| i.is_valid(ethereum_height))
         {
-            return false
+            return false;
         }
         // Then our own signature has to be valid
         let hash = keccak256(self.payload());

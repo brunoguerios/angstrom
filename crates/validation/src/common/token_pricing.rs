@@ -4,7 +4,7 @@ use std::{
 };
 
 use alloy::{
-    primitives::{address, Address, U256},
+    primitives::{Address, U256, address},
     providers::Provider
 };
 use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray};
@@ -102,7 +102,7 @@ impl TokenPriceGenerator {
     pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), Ray> {
         self.pair_to_pool
             .keys()
-            .filter_map(|(mut token0, mut token1)| {
+            .filter_map(|&(mut token0, mut token1)| {
                 if token1 < token0 {
                     std::mem::swap(&mut token0, &mut token1)
                 };
@@ -138,7 +138,7 @@ impl TokenPriceGenerator {
     /// we take this price. then
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         if token_0 == WETH_ADDRESS {
-            return Some(Ray::scale_to_ray(U256::from(1)))
+            return Some(Ray::scale_to_ray(U256::from(1)));
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
@@ -165,7 +165,7 @@ impl TokenPriceGenerator {
                     })
                     .sum::<Ray>()
                     / U256::from(size)
-            )
+            );
         }
 
         // need to pass through a pair.
@@ -191,7 +191,7 @@ impl TokenPriceGenerator {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
 
-            return Some(
+            Some(
                 prices
                     .iter()
                     .map(|price| {
@@ -271,7 +271,7 @@ pub mod test {
     use angstrom_types::{pair_with_price::PairsWithPrice, sol_bindings::Ray};
     use revm::primitives::address;
 
-    use super::{TokenPriceGenerator, BLOCKS_TO_AVG_PRICE, WETH_ADDRESS};
+    use super::{BLOCKS_TO_AVG_PRICE, TokenPriceGenerator, WETH_ADDRESS};
 
     const TOKEN0: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
     const TOKEN1: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc3");
