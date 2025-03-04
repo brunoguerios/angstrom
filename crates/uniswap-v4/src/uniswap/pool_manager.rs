@@ -22,7 +22,6 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
-use futures::FutureExt;
 use futures_util::{stream::BoxStream, StreamExt};
 use thiserror::Error;
 use tokio::sync::Notify;

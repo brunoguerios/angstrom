@@ -288,7 +288,7 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
     pub fn fetch_supply_or_demand_contribution_with_fee_partial(
         &self,
         price: Ray,
-        pool_fee: u32
+        _pool_fee: u32
     ) -> (Ray, Option<Ray>) {
         let limit_price = if self.is_bid {
             Ray::from(self.limit_price()).inv_ray_round(true)

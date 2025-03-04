@@ -15,6 +15,9 @@ use crate::{common::TokenPriceGenerator, order::sim::gas_inspector::GasUsed};
 
 pub mod console_log;
 mod gas;
+
+// needed for future use
+#[allow(unused)]
 mod gas_inspector;
 
 pub type GasInToken0 = U256;

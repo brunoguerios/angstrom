@@ -210,12 +210,7 @@ mod test {
             ..Default::default()
         }
         .rewards_update_range(120, 100, &snapshot);
-        let RewardsUpdate::MultiTick {
-            start_tick: upwards_start_tick,
-            quantities: upwards_quantities,
-            ..
-        } = upwards_update
-        else {
+        let RewardsUpdate::MultiTick { start_tick: upwards_start_tick, .. } = upwards_update else {
             panic!("Upwards update was single-tick");
         };
         assert_eq!(
@@ -232,11 +227,7 @@ mod test {
             ..Default::default()
         }
         .rewards_update_range(100, 120, &snapshot);
-        let RewardsUpdate::MultiTick {
-            start_tick: downwards_start_tick,
-            quantities: downwards_quantities,
-            ..
-        } = downwards_update
+        let RewardsUpdate::MultiTick { start_tick: downwards_start_tick, .. } = downwards_update
         else {
             panic!("Downwards update was single-tick");
         };

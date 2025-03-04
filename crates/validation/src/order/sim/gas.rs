@@ -9,8 +9,7 @@ use angstrom_types::{
     matching::uniswap::UniswapFlags,
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
-        RawPoolOrder
+        rpc_orders::TopOfBlockOrder
     }
 };
 use eyre::eyre;
@@ -49,6 +48,8 @@ pub struct OrderGasCalculations<DB> {
     // the deployed addresses in cache_db
     angstrom_address: Address,
     /// the address(pubkey) of this node.
+
+    #[allow(unused)]
     node_address:     Option<Address>
 }
 
@@ -81,8 +82,8 @@ where
 
     pub fn gas_of_tob_order(
         &self,
-        tob: &OrderWithStorageData<TopOfBlockOrder>,
-        block: u64
+        _tob: &OrderWithStorageData<TopOfBlockOrder>,
+        _block: u64
     ) -> eyre::Result<GasUsed> {
         // need to grab the order hash
         // self.execute_on_revm(
@@ -119,8 +120,8 @@ where
 
     pub fn gas_of_book_order(
         &self,
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
-        block: u64
+        _order: &OrderWithStorageData<GroupedVanillaOrder>,
+        _block: u64
     ) -> eyre::Result<GasUsed> {
         // let exact_in = order.exact_in();
         // let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
@@ -167,7 +168,7 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("user order err={} {:?}", e, order.from()))
-        Ok(30_000)
+        Ok(40_000)
     }
 
     fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) -> eyre::Result<(ResultAndState, D)>
@@ -266,6 +267,7 @@ where
         Ok(ConfiguredRevm { db: cache_db, angstrom: angstrom_address })
     }
 
+    #[allow(unused)]
     fn execute_on_revm<F>(
         &self,
         offsets: &HashMap<usize, usize>,
@@ -327,6 +329,7 @@ where
     }
 }
 
+#[allow(unused)]
 fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     db: &mut CacheDB<Arc<DB>>,
     token_in: Address,
@@ -378,6 +381,7 @@ fn apply_slot_overrides_for_tokens<DB: revm::DatabaseRef + Clone>(
     verify_overrides(db, token_in, token_out, amount_in, amount_out, user, angstrom);
 }
 
+#[allow(unused)]
 fn verify_overrides<DB: revm::DatabaseRef + Clone>(
     db: &CacheDB<Arc<DB>>,
     token_in: Address,

@@ -102,7 +102,7 @@ impl TopOfBlockOrder {
 
     pub fn of(
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
-        shared_gas: U256,
+        _shared_gas: U256,
         pairs_index: u16
     ) -> eyre::Result<Self> {
         let quantity_in = internal.quantity_in;

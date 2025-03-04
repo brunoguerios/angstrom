@@ -209,70 +209,72 @@ impl PoolSnapshot {
         }
         Some((d_0, d_1))
     }
-
-    fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
-        let is_bid = start_price < end_price;
-        // fetch ticks for ranges
-        let start_tick = get_tick_at_sqrt_ratio(start_price.into()).ok()?;
-        let end_tick = get_tick_at_sqrt_ratio(end_price.into()).ok()?;
-
-        // Get all affected liquidity ranges
-        let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
-        let mut t_delta = 0u128;
-
-        for range in &liq_range {
-            let (range_start_price, range_end_price) = if is_bid {
-                let start = start_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
-                let end = end_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
-                (start, end)
-            } else {
-                let start = start_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
-                let end = end_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
-                (start, end)
-            };
-
-            // Skip if the range is not relevant
-            if (is_bid && range_start_price >= range_end_price)
-                || (!is_bid && range_start_price <= range_end_price)
-            {
-                continue;
-            }
-
-            let delta = if is_bid {
-                _get_amount_0_delta(
-                    range_start_price.into(),
-                    range_end_price.into(),
-                    range.liquidity,
-                    true
-                )
-                .ok()?
-                .to::<u128>()
-            } else {
-                _get_amount_1_delta(
-                    range_end_price.into(),
-                    range_start_price.into(),
-                    range.liquidity,
-                    true
-                )
-                .ok()?
-                .to::<u128>()
-            };
-            t_delta += delta
-
-            //
-            // total_in += amount_in.to::<u128>() + fee.to::<u128>();
-            // total_out += amount_out.to::<u128>();
-
-            // total_delta += delta;
-        }
-
-        Some(t_delta)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl PoolSnapshot {
+        fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
+            let is_bid = start_price < end_price;
+            // fetch ticks for ranges
+            let start_tick = get_tick_at_sqrt_ratio(start_price.into()).ok()?;
+            let end_tick = get_tick_at_sqrt_ratio(end_price.into()).ok()?;
+
+            // Get all affected liquidity ranges
+            let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
+            let mut t_delta = 0u128;
+
+            for range in &liq_range {
+                let (range_start_price, range_end_price) = if is_bid {
+                    let start = start_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
+                    let end = end_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
+                    (start, end)
+                } else {
+                    let start = start_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
+                    let end = end_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
+                    (start, end)
+                };
+
+                // Skip if the range is not relevant
+                if (is_bid && range_start_price >= range_end_price)
+                    || (!is_bid && range_start_price <= range_end_price)
+                {
+                    continue;
+                }
+
+                let delta = if is_bid {
+                    _get_amount_0_delta(
+                        range_start_price.into(),
+                        range_end_price.into(),
+                        range.liquidity,
+                        true
+                    )
+                    .ok()?
+                    .to::<u128>()
+                } else {
+                    _get_amount_1_delta(
+                        range_end_price.into(),
+                        range_start_price.into(),
+                        range.liquidity,
+                        true
+                    )
+                    .ok()?
+                    .to::<u128>()
+                };
+                t_delta += delta
+
+                //
+                // total_in += amount_in.to::<u128>() + fee.to::<u128>();
+                // total_out += amount_out.to::<u128>();
+
+                // total_delta += delta;
+            }
+
+            Some(t_delta)
+        }
+    }
 
     fn setup_basic_pool() -> PoolSnapshot {
         // Create a simple pool with three tick ranges
