@@ -187,7 +187,6 @@ impl<'a> DeltaMatcher<'a> {
         let (Some(is_ask), Some(extra_t0), Some(_extra_t1), Some(id)) =
             (extra_is_ask, extra_t0, extra_t1, id)
         else {
-            tracing::info!(?t0_sum, ?t1_sum, ?price, "no extra");
             return if t0_sum < I256::ZERO {
                 SupplyDemandResult::MoreDemand
             } else {
