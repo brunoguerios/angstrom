@@ -46,7 +46,7 @@ pade.workspace = true
 pade-macro.workspace = true
 testing-tools.workspace = true
 divan = "0.1.14"
-tokio-stream = "0.1"
+tokio-stream.workspace = true
 
 [build-dependencies]
 convert_case = "0.6.0"
