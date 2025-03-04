@@ -1624,7 +1624,7 @@ dependencies = [
  "hyper 0.14.32",
  "metrics 0.21.1",
  "metrics-exporter-prometheus 0.12.1",
- "metrics-process 1.0.14",
+ "metrics-process 1.2.1",
  "metrics-util 0.15.0",
  "procfs 0.16.0",
  "prometheus",
@@ -5825,6 +5825,16 @@ dependencies = [
 
 [[package]]
 name = "metrics"
+version = "0.22.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2be3cbd384d4e955b231c895ce10685e3d8260c5ccffae898c96c723b0772835"
+dependencies = [
+ "ahash",
+ "portable-atomic",
+]
+
+[[package]]
+name = "metrics"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a7deb012b3b2767169ff203fadb4c6b0b82b947512e5eb9e0b78c2e186ad9e3"
@@ -5890,17 +5900,17 @@ dependencies = [
 
 [[package]]
 name = "metrics-process"
-version = "1.0.14"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aa2a67e2580fbeba4d5a96e659945981e700a383b4cea1432e0cfc18f58c5da"
+checksum = "f69c2a98ebe047f74b834c7eeaad0db5a9fd3604e129721d212e0ef9442e238a"
 dependencies = [
  "libproc",
  "mach2",
- "metrics 0.21.1",
+ "metrics 0.22.3",
  "once_cell",
  "procfs 0.16.0",
  "rlimit",
- "windows 0.52.0",
+ "windows 0.54.0",
 ]
 
 [[package]]
@@ -12756,11 +12766,11 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
-version = "0.52.0"
+version = "0.54.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e48a53791691ab099e5e2ad123536d0fff50652600abaf43bbf952894110d0be"
+checksum = "9252e5725dbed82865af151df558e754e4a3c2c30818359eb17465f1346a1b49"
 dependencies = [
- "windows-core 0.52.0",
+ "windows-core 0.54.0",
  "windows-targets 0.52.6",
 ]
 
@@ -12790,6 +12800,16 @@ version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
 dependencies = [
+ "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows-core"
+version = "0.54.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12661b9c89351d684a50a8a643ce5f608e20243b9fb84687800163429f161d65"
+dependencies = [
+ "windows-result 0.1.2",
  "windows-targets 0.52.6",
 ]
 

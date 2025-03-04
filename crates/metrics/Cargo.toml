@@ -26,7 +26,7 @@ reth-primitives.workspace = true
 # metrics
 metrics-exporter-prometheus = "=0.12.1"
 metrics-util = "0.15.0"
-metrics-process = "=1.0.14"
+metrics-process = "1"
 metrics.workspace = true
 prometheus = "0.13.4"
 
