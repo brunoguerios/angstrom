@@ -7,7 +7,7 @@ use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 use super::{
     liqrange::{LiqRange, LiqRangeRef},
     poolprice::PoolPrice,
-    Tick
+    Tick,
 };
 use crate::matching::{math::low_to_high, SqrtPriceX96};
 
@@ -16,16 +16,16 @@ use crate::matching::{math::low_to_high, SqrtPriceX96};
 pub struct PoolSnapshot {
     /// Known tick ranges and liquidity positions gleaned from the market
     /// snapshot
-    pub ranges:                Vec<LiqRange>,
+    pub ranges: Vec<LiqRange>,
     /// The current SqrtPriceX96 for this pairing as of this snapshot
     /// (𝛥Token1/𝛥Token0)
     pub(crate) sqrt_price_x96: SqrtPriceX96,
     /// The current tick our price lives in - price might not be precisely on a
     /// tick bound, this is the LOWER of the possible ticks
-    pub(crate) current_tick:   Tick,
+    pub(crate) current_tick: Tick,
     /// Index into the 'ranges' vector for the PoolRange that includes the tick
     /// our current price lives at/in
-    pub(crate) cur_tick_idx:   usize
+    pub(crate) cur_tick_idx: usize,
 }
 
 impl PoolSnapshot {
@@ -76,7 +76,7 @@ impl PoolSnapshot {
     pub fn ranges_for_ticks(
         &self,
         start_tick: Tick,
-        end_tick: Tick
+        end_tick: Tick,
     ) -> eyre::Result<Vec<LiqRangeRef>> {
         let (low, high) = low_to_high(&start_tick, &end_tick);
         let output = self

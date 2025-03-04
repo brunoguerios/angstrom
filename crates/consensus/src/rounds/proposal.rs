@@ -1,19 +1,19 @@
 use std::{
     collections::HashSet,
     task::{Context, Poll, Waker},
-    time::{Duration, Instant}
+    time::{Duration, Instant},
 };
 
 use alloy::{
     network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest,
-    sol_types::SolCall
+    sol_types::SolCall,
 };
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    orders::PoolSolution
+    orders::PoolSolution,
 };
 use futures::{future::BoxFuture, FutureExt, StreamExt};
 use matching_engine::MatchingEngineHandle;
@@ -33,12 +33,12 @@ type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, 
 /// is no need for others to verify.
 pub struct ProposalState {
     matching_engine_future: Option<MatchingEngineFuture>,
-    submission_future:      Option<BoxFuture<'static, bool>>,
-    pre_proposal_aggs:      Vec<PreProposalAggregation>,
-    proposal:               Option<Proposal>,
-    last_round_info:        Option<LastRoundInfo>,
-    trigger_time:           Instant,
-    waker:                  Waker
+    submission_future: Option<BoxFuture<'static, bool>>,
+    pre_proposal_aggs: Vec<PreProposalAggregation>,
+    proposal: Option<Proposal>,
+    last_round_info: Option<LastRoundInfo>,
+    trigger_time: Instant,
+    waker: Waker,
 }
 
 impl ProposalState {
@@ -46,11 +46,11 @@ impl ProposalState {
         pre_proposal_aggregation: HashSet<PreProposalAggregation>,
         handles: &mut SharedRoundState<P, Matching>,
         trigger_time: Instant,
-        waker: Waker
+        waker: Waker,
     ) -> Self
     where
         P: Provider + 'static,
-        Matching: MatchingEngineHandle
+        Matching: MatchingEngineHandle,
     {
         // queue building future
         waker.wake_by_ref();
@@ -58,28 +58,28 @@ impl ProposalState {
 
         Self {
             matching_engine_future: Some(
-                handles.matching_engine_output(pre_proposal_aggregation.clone())
+                handles.matching_engine_output(pre_proposal_aggregation.clone()),
             ),
             last_round_info: None,
             pre_proposal_aggs: pre_proposal_aggregation.into_iter().collect::<Vec<_>>(),
             submission_future: None,
             proposal: None,
             trigger_time,
-            waker
+            waker,
         }
     }
 
     fn try_build_proposal<P, Matching>(
         &mut self,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
-        handles: &mut SharedRoundState<P, Matching>
+        handles: &mut SharedRoundState<P, Matching>,
     ) -> bool
     where
         P: Provider + 'static,
-        Matching: MatchingEngineHandle
+        Matching: MatchingEngineHandle,
     {
         self.last_round_info = Some(LastRoundInfo {
-            time_to_complete: Instant::now().duration_since(self.trigger_time)
+            time_to_complete: Instant::now().duration_since(self.trigger_time),
         });
 
         tracing::debug!("starting to build proposal");
@@ -88,14 +88,14 @@ impl ProposalState {
                 "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
             );
         }) else {
-            return false
+            return false;
         };
 
         let proposal = Proposal::generate_proposal(
             handles.block_height,
             &handles.signer,
             self.pre_proposal_aggs.clone(),
-            pool_solution
+            pool_solution,
         );
 
         self.proposal = Some(proposal.clone());
@@ -108,7 +108,7 @@ impl ProposalState {
                 );
             })
         else {
-            return false
+            return false;
         };
 
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
@@ -130,7 +130,7 @@ impl ProposalState {
             let (hash, success) = provider.sign_and_send(signer, tx).await;
             tracing::info!("submitted bundle");
             if !success {
-                return false
+                return false;
             }
 
             // wait for next block. then see if transaction landed
@@ -161,12 +161,12 @@ impl ProposalState {
 impl<P, Matching> ConsensusState<P, Matching> for ProposalState
 where
     P: Provider + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
 {
     fn on_consensus_message(
         &mut self,
         _: &mut SharedRoundState<P, Matching>,
-        _: StromConsensusEvent
+        _: StromConsensusEvent,
     ) {
         // No messages at this point can effect the consensus round and thus are
         // ignored.
@@ -175,17 +175,17 @@ where
     fn poll_transition(
         &mut self,
         handles: &mut SharedRoundState<P, Matching>,
-        cx: &mut Context<'_>
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(state) => {
                     if !self.try_build_proposal(state, handles) {
                         // failed to build. we end here.
-                        return Poll::Ready(None)
+                        return Poll::Ready(None);
                     }
                 }
-                Poll::Pending => self.matching_engine_future = Some(b_fut)
+                Poll::Pending => self.matching_engine_future = Some(b_fut),
             }
         }
 
@@ -199,9 +199,9 @@ where
                             .push_back(ConsensusMessage::PropagateProposal(proposal));
                         cx.waker().wake_by_ref();
                     }
-                    return Poll::Ready(None)
+                    return Poll::Ready(None);
                 }
-                Poll::Pending => self.submission_future = Some(b_fut)
+                Poll::Pending => self.submission_future = Some(b_fut),
             }
         }
 

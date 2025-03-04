@@ -2,7 +2,7 @@ use std::{
     future::Future,
     sync::Arc,
     task::Poll,
-    time::{Duration, Instant}
+    time::{Duration, Instant},
 };
 
 use tokio::time::{interval, Interval};
@@ -31,22 +31,22 @@ const SCALING_REM_ADJUSTMENT: u32 = 3;
 #[derive(Debug)]
 pub struct PreProposalWaitTrigger {
     /// the base wait duration that we scale down based on orders.
-    wait_duration:  Duration,
+    wait_duration: Duration,
     /// the start instant
-    start_instant:  Instant,
+    start_instant: Instant,
     /// to track our scaling
-    order_storage:  Arc<OrderStorage>,
+    order_storage: Arc<OrderStorage>,
     /// Waker
-    check_interval: Interval
+    check_interval: Interval,
 }
 
 impl Clone for PreProposalWaitTrigger {
     fn clone(&self) -> Self {
         Self {
-            wait_duration:  self.wait_duration,
-            start_instant:  Instant::now(),
-            order_storage:  self.order_storage.clone(),
-            check_interval: interval(CHECK_INTERVAL)
+            wait_duration: self.wait_duration,
+            start_instant: Instant::now(),
+            order_storage: self.order_storage.clone(),
+            check_interval: interval(CHECK_INTERVAL),
         }
     }
 }
@@ -57,7 +57,7 @@ impl PreProposalWaitTrigger {
             wait_duration: DEFAULT_DURATION,
             order_storage,
             start_instant: Instant::now(),
-            check_interval: interval(CHECK_INTERVAL)
+            check_interval: interval(CHECK_INTERVAL),
         }
     }
 
@@ -100,7 +100,7 @@ impl Future for PreProposalWaitTrigger {
 
     fn poll(
         mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         while self.check_interval.poll_tick(cx).is_ready() {
             let order_cnt = self.order_storage.get_all_orders().total_orders();
@@ -110,7 +110,7 @@ impl Future for PreProposalWaitTrigger {
                 .saturating_sub(ORDER_SCALING * order_cnt as u32);
 
             if Instant::now().duration_since(self.start_instant) > target_resolve {
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
         }
 
@@ -124,5 +124,5 @@ impl Future for PreProposalWaitTrigger {
 #[derive(Debug)]
 pub struct LastRoundInfo {
     /// the start of the round to submitting the bundle
-    pub time_to_complete: Duration
+    pub time_to_complete: Duration,
 }

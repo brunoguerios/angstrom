@@ -5,19 +5,19 @@ use crate::METRICS_ENABLED;
 #[derive(Clone)]
 struct OrderStorageMetrics {
     // number of vanilla limit orders
-    vanilla_limit_orders:        IntGauge,
+    vanilla_limit_orders: IntGauge,
     // number of composable limit orders
-    composable_limit_orders:     IntGauge,
+    composable_limit_orders: IntGauge,
     // number of searcher orders
-    searcher_orders:             IntGauge,
+    searcher_orders: IntGauge,
     // number of pending finalization orders
     pending_finalization_orders: IntGauge,
     // number of cancelled vanilla orders
-    cancelled_vanilla_orders:    IntGauge,
+    cancelled_vanilla_orders: IntGauge,
     // number of cancelled composable orders
     cancelled_composable_orders: IntGauge,
     // number of cancelled searcher orders
-    cancelled_searcher_orders:   IntGauge
+    cancelled_searcher_orders: IntGauge,
 }
 
 impl Default for OrderStorageMetrics {
@@ -71,7 +71,7 @@ impl Default for OrderStorageMetrics {
             composable_limit_orders,
             cancelled_vanilla_orders,
             cancelled_composable_orders,
-            cancelled_searcher_orders
+            cancelled_searcher_orders,
         }
     }
 }
@@ -138,7 +138,7 @@ impl OrderStorageMetricsWrapper {
                 .get()
                 .copied()
                 .unwrap_or_default()
-                .then(OrderStorageMetrics::default)
+                .then(OrderStorageMetrics::default),
         )
     }
 

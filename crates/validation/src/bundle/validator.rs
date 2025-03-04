@@ -7,7 +7,7 @@ use crate::{ValidationClient, ValidationRequest};
 pub trait BundleValidatorHandle: Send + Sync + Clone + Unpin + 'static {
     fn fetch_gas_for_bundle(
         &self,
-        bundle: AngstromBundle
+        bundle: AngstromBundle,
     ) -> impl Future<Output = eyre::Result<BundleGasDetails>> + Send;
 }
 

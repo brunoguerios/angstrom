@@ -1,6 +1,6 @@
 use std::{
     pin::Pin,
-    task::{Context, Poll}
+    task::{Context, Poll},
 };
 
 use angstrom_types::primitive::PeerId;
@@ -10,7 +10,7 @@ use crate::{
     session::StromSessionManager,
     state::{StateEvent, StromState},
     types::message::StromMessage,
-    SessionEvent
+    SessionEvent,
 };
 
 #[derive(Debug)]
@@ -18,7 +18,7 @@ use crate::{
 pub struct Swarm<DB> {
     /// All sessions.
     sessions: StromSessionManager,
-    state:    StromState<DB>
+    state: StromState<DB>,
 }
 
 impl<DB: Unpin> Swarm<DB> {
@@ -63,7 +63,7 @@ impl<DB: Unpin> Swarm<DB> {
             SessionEvent::SessionEstablished { peer_id, .. } => {
                 Some(SwarmEvent::SessionEstablished { peer_id })
             }
-            _ => None
+            _ => None,
         }
     }
 
@@ -79,13 +79,13 @@ impl<DB: Unpin> Stream for Swarm<DB> {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         while let Poll::Ready(Some(event)) = self.sessions.poll_next_unpin(cx) {
             if let Some(event) = self.on_session_event(event) {
-                return Poll::Ready(Some(event))
+                return Poll::Ready(Some(event));
             }
         }
 
         while let Some(action) = self.state.poll(cx) {
             if let Some(res) = self.on_state_event(action) {
-                return Poll::Ready(Some(res))
+                return Poll::Ready(Some(res));
             }
         }
 
@@ -96,5 +96,5 @@ impl<DB: Unpin> Stream for Swarm<DB> {
 pub enum SwarmEvent {
     SessionEstablished { peer_id: PeerId },
     ValidMessage { peer_id: PeerId, msg: StromMessage },
-    Disconnected { peer_id: PeerId }
+    Disconnected { peer_id: PeerId },
 }

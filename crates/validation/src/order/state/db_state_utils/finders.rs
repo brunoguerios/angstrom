@@ -5,20 +5,20 @@ use std::fmt::Debug;
 
 use alloy::{
     primitives::{keccak256, Address, U256},
-    sol_types::*
+    sol_types::*,
 };
 use angstrom_types::contract_bindings::mintable_mock_erc_20::MintableMockERC20::{
-    allowanceCall, balanceOfCall
+    allowanceCall, balanceOfCall,
 };
 use revm::{
     db::CacheDB,
-    primitives::{EnvWithHandlerCfg, TxKind}
+    primitives::{EnvWithHandlerCfg, TxKind},
 };
 
 /// panics if we cannot find the slot for the given token
 pub fn find_slot_offset_for_balance<DB: revm::DatabaseRef>(db: &DB, token_address: Address) -> u64
 where
-    <DB as revm::DatabaseRef>::Error: Debug
+    <DB as revm::DatabaseRef>::Error: Debug,
 {
     let probe_address = Address::random();
 
@@ -50,7 +50,7 @@ where
         let output = evm.transact().unwrap().result.output().unwrap().to_vec();
         let return_data = balanceOfCall::abi_decode_returns(&output, false).unwrap();
         if return_data._0 == U256::from(123456789) {
-            return offset as u64
+            return offset as u64;
         }
     }
 
@@ -60,7 +60,7 @@ where
 /// panics if we cannot prove the slot for the given token
 pub fn find_slot_offset_for_approval<DB: revm::DatabaseRef>(db: &DB, token_address: Address) -> u64
 where
-    <DB as revm::DatabaseRef>::Error: Debug
+    <DB as revm::DatabaseRef>::Error: Debug,
 {
     let probe_user_address = Address::random();
     let probe_contract_address = Address::random();
@@ -73,7 +73,7 @@ where
         // set approval
         let approval_slot = keccak256(
             (probe_contract_address, keccak256((probe_user_address, offset as u64).abi_encode()))
-                .abi_encode()
+                .abi_encode(),
         );
 
         db.insert_account_storage(token_address, approval_slot.into(), U256::from(123456789))
@@ -99,7 +99,7 @@ where
         let output = evm.transact().unwrap().result.output().unwrap().to_vec();
         let return_data = allowanceCall::abi_decode_returns(&output, false).unwrap();
         if return_data._0 == U256::from(123456789) {
-            return offset as u64
+            return offset as u64;
         }
     }
 

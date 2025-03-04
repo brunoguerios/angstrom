@@ -18,13 +18,13 @@ use super::reputation::{is_banned_reputation, ReputationChangeKind};
 #[derive(Debug)]
 pub struct PeersManager {
     /// All peers known to the network
-    peers:              HashMap<PeerId, Peer>,
+    peers: HashMap<PeerId, Peer>,
     /// Buffered actions until the manager is polled.
-    queued_actions:     VecDeque<PeerAction>,
+    queued_actions: VecDeque<PeerAction>,
     /// How to weigh reputation changes
     reputation_weights: ReputationChangeWeights,
     /// Tracks unwanted ips/peer ids.
-    ban_list:           BanList
+    ban_list: BanList,
 }
 
 impl Default for PeersManager {
@@ -36,10 +36,10 @@ impl Default for PeersManager {
 impl PeersManager {
     pub fn new() -> Self {
         Self {
-            peers:              HashMap::new(),
-            queued_actions:     VecDeque::new(),
+            peers: HashMap::new(),
+            queued_actions: VecDeque::new(),
             reputation_weights: ReputationChangeWeights::default(),
-            ban_list:           BanList::default()
+            ban_list: BanList::default(),
         }
     }
 
@@ -47,7 +47,7 @@ impl PeersManager {
     pub fn remove_peer(&mut self, peer_id: PeerId) {
         let Entry::Occupied(entry) = self.peers.entry(peer_id) else { return };
         if entry.get().is_trusted() {
-            return
+            return;
         }
 
         trace!(target: "angstrom::net::peers",  ?peer_id, "remove discovered node");
@@ -80,7 +80,7 @@ impl PeersManager {
     pub fn remove_peer_from_trusted_set(&mut self, peer_id: PeerId) {
         let Entry::Occupied(mut entry) = self.peers.entry(peer_id) else { return };
         if !entry.get().is_trusted() {
-            return
+            return;
         }
 
         let peer = entry.get_mut();
@@ -121,7 +121,7 @@ pub enum PeerKind {
     /// Trusted peer kind.
     Trusted,
     /// Trusted mev guard
-    TrustedMevGuard
+    TrustedMevGuard,
 }
 
 /// Tracks info about a single peer.
@@ -130,9 +130,9 @@ pub struct Peer {
     /// Reputation of the peer.
     reputation: i32,
     /// The kind of peer
-    kind:       PeerKind,
+    kind: PeerKind,
     /// if peer is connected
-    connected:  bool
+    connected: bool,
 }
 
 /// Outcomes when a reputation change is applied to a peer
@@ -144,7 +144,7 @@ enum ReputationChangeOutcome {
     /// Ban and disconnect
     DisconnectAndBan,
     /// Unban the peer
-    Unban
+    Unban,
 }
 
 // === impl Peer ===
@@ -173,15 +173,15 @@ impl Peer {
 
         if self.connected && self.is_banned() {
             self.connected = false;
-            return ReputationChangeOutcome::DisconnectAndBan
+            return ReputationChangeOutcome::DisconnectAndBan;
         }
 
         if self.is_banned() && !is_banned_reputation(previous) {
-            return ReputationChangeOutcome::Ban
+            return ReputationChangeOutcome::Ban;
         }
 
         if !self.is_banned() && is_banned_reputation(previous) {
-            return ReputationChangeOutcome::Unban
+            return ReputationChangeOutcome::Unban;
         }
 
         ReputationChangeOutcome::None
@@ -214,26 +214,26 @@ pub enum PeerAction {
         /// The peer ID of the established connection.
         peer_id: PeerId,
         /// An optional reason for the disconnect.
-        reason:  Option<DisconnectReason>
+        reason: Option<DisconnectReason>,
     },
     /// Disconnect an existing incoming connection, because the peers reputation
     /// is below the banned threshold or is on the [`BanList`]
     DisconnectBannedIncoming {
         /// The peer ID of the established connection.
-        peer_id: PeerId
+        peer_id: PeerId,
     },
     /// Ban the peer temporarily
     BanPeer {
         /// The peer ID.
-        peer_id: PeerId
+        peer_id: PeerId,
     },
     /// Unban the peer temporarily
     UnBanPeer {
         /// The peer ID.
-        peer_id: PeerId
+        peer_id: PeerId,
     },
     /// Emit peerAdded event
     PeerAdded(PeerId),
     /// Emit peerRemoved event
-    PeerRemoved(PeerId)
+    PeerRemoved(PeerId),
 }

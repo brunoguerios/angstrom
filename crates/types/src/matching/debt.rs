@@ -3,10 +3,10 @@ use std::ops::{Add, AddAssign, Sub};
 use malachite::{
     num::{
         arithmetic::traits::{DivRound, FloorSqrt, Pow},
-        conversion::traits::SaturatingFrom
+        conversion::traits::SaturatingFrom,
     },
     rounding_modes::RoundingMode,
-    Natural
+    Natural,
 };
 use tracing::debug;
 
@@ -16,7 +16,7 @@ use crate::matching::const_2_192;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum DebtType {
     ExactIn(u128),
-    ExactOut(u128)
+    ExactOut(u128),
 }
 
 impl DebtType {
@@ -40,20 +40,20 @@ impl DebtType {
     pub fn round_up(&self) -> bool {
         match self {
             Self::ExactIn(_) => false,
-            Self::ExactOut(_) => true
+            Self::ExactOut(_) => true,
         }
     }
 
     pub fn same_type(&self, q: u128) -> Self {
         match self {
             Self::ExactIn(_) => Self::ExactIn(q),
-            Self::ExactOut(_) => Self::ExactOut(q)
+            Self::ExactOut(_) => Self::ExactOut(q),
         }
     }
 
     pub fn magnitude(&self) -> u128 {
         match self {
-            Self::ExactIn(q) | Self::ExactOut(q) => *q
+            Self::ExactIn(q) | Self::ExactOut(q) => *q,
         }
     }
 
@@ -66,7 +66,7 @@ impl DebtType {
         // and the input is rounded up
         let round_up = match self {
             Self::ExactIn(_) => false,
-            Self::ExactOut(_) => true
+            Self::ExactOut(_) => true,
         };
         let ray_price: Ray = price.into();
         ray_price.inverse_quantity(self.magnitude(), round_up)
@@ -77,7 +77,7 @@ impl DebtType {
         // If I'm on the Ask side (ExactOut debt) I need to substract 1 from my slack
         let ask_side = match self {
             Self::ExactIn(_) => 0,
-            Self::ExactOut(_) => 1
+            Self::ExactOut(_) => 1,
         };
         ray_price
             .inverse_remainder(self.magnitude())
@@ -105,7 +105,7 @@ impl Add for DebtType {
             (Self::ExactIn(q_1), Self::ExactOut(q_2)) if q_2 > q_1 => Self::ExactOut(q_2 - q_1),
             (Self::ExactIn(q_1), Self::ExactOut(q_2)) => Self::ExactIn(q_1 - q_2),
             (Self::ExactOut(q_1), Self::ExactIn(q_2)) if q_2 > q_1 => Self::ExactIn(q_2 - q_1),
-            (Self::ExactOut(q_1), Self::ExactIn(q_2)) => Self::ExactOut(q_1 - q_2)
+            (Self::ExactOut(q_1), Self::ExactIn(q_2)) => Self::ExactOut(q_1 - q_2),
         }
     }
 }
@@ -116,7 +116,7 @@ impl Sub<u128> for DebtType {
     fn sub(self, rhs: u128) -> Self::Output {
         match self {
             Self::ExactIn(q) => Self::ExactIn(q.saturating_sub(rhs)),
-            Self::ExactOut(q) => Self::ExactOut(q.saturating_sub(rhs))
+            Self::ExactOut(q) => Self::ExactOut(q.saturating_sub(rhs)),
         }
     }
 }
@@ -124,7 +124,7 @@ impl Sub<u128> for DebtType {
 #[derive(Copy, Clone, Debug)]
 pub struct Debt {
     cur_price: Ray,
-    magnitude: DebtType
+    magnitude: DebtType,
 }
 
 impl Debt {
@@ -181,7 +181,7 @@ impl Debt {
         let current_amount = self.current_t0();
         let bound_amount = match self.magnitude {
             DebtType::ExactIn(_) => current_amount + 1,
-            DebtType::ExactOut(_) => current_amount.saturating_sub(1)
+            DebtType::ExactOut(_) => current_amount.saturating_sub(1),
         };
         debug!(current_amount, bound_amount, "Getting price range between targets");
         let (current_price, bound_price) = match (current_amount, bound_amount) {
@@ -190,13 +190,13 @@ impl Debt {
             // If either value is 0, one of our bounds is max price
             (0, p) | (p, 0) => (
                 Ray::max_uniswap_price(),
-                Ray::calc_price_generic(p, self.magnitude(), self.magnitude.round_up())
+                Ray::calc_price_generic(p, self.magnitude(), self.magnitude.round_up()),
             ),
             // Otherwise we can just do our normal math
             (c, b) => (
                 Ray::calc_price_generic(c, self.magnitude(), self.magnitude.round_up()),
-                Ray::calc_price_generic(b, self.magnitude(), self.magnitude.round_up())
-            )
+                Ray::calc_price_generic(b, self.magnitude(), self.magnitude.round_up()),
+            ),
         };
         let (low, high) = low_to_high(&current_price, &bound_price);
         (*low, *high)
@@ -211,7 +211,7 @@ impl Debt {
 
         match self.magnitude {
             DebtType::ExactIn(_) => price > low && price <= high,
-            DebtType::ExactOut(_) => price >= low && price < high
+            DebtType::ExactOut(_) => price >= low && price < high,
         }
     }
 
@@ -263,7 +263,7 @@ impl Debt {
             false => self
                 .price()
                 .quantity(target_t0.saturating_sub(1), false)
-                .saturating_add(1)
+                .saturating_add(1),
         };
         self.magnitude().saturating_sub(target_t1)
     }
@@ -323,7 +323,7 @@ impl Debt {
         &self,
         amm_delta: u128,
         amm_liquidity: u128,
-        amm_positive_delta: bool
+        amm_positive_delta: bool,
     ) -> u128 {
         // Put our constants into Integer format
         let t1 = Natural::from(self.magnitude.magnitude());
@@ -368,7 +368,7 @@ impl Add<Debt> for Option<Debt> {
     fn add(self, rhs: Debt) -> Self::Output {
         match self {
             None => Some(rhs),
-            Some(d) => d + rhs
+            Some(d) => d + rhs,
         }
     }
 }
@@ -385,7 +385,7 @@ impl Add<Debt> for Debt {
     fn add(self, rhs: Debt) -> Self::Output {
         let magnitude = self.magnitude + rhs.magnitude;
         if magnitude.magnitude() == 0 {
-            return None
+            return None;
         }
         // If our new magnitude is on the same side, we stay at our price.  If we flip,
         // we flip to the other price

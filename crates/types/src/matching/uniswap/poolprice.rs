@@ -1,6 +1,6 @@
 use std::{
     cmp::{max, min},
-    ops::{Add, Sub}
+    ops::{Add, Sub},
 };
 
 use alloy::primitives::U256;
@@ -10,14 +10,14 @@ use malachite::rounding_modes::RoundingMode;
 use tracing::debug;
 use uniswap_v3_math::{
     swap_math::compute_swap_step,
-    tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio}
+    tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio},
 };
 
 use super::{liqrange::LiqRangeRef, poolpricevec::PoolPriceVec, Direction, Quantity, Tick};
 use crate::matching::{
     debt::Debt,
     math::{price_intersect_solve, resolve_precision},
-    Ray, SqrtPriceX96
+    Ray, SqrtPriceX96,
 };
 /// Representation of a specific price point in a Uniswap Pool.  Can be operated
 /// on to simulate the behavior of the price withing said pool.
@@ -34,9 +34,9 @@ pub struct PoolPrice<'a> {
     /// Current PoolRange that the price is in
     pub(crate) liq_range: LiqRangeRef<'a>,
     /// Tick number within the current PoolRange that we're working with
-    pub(crate) tick:      Tick,
+    pub(crate) tick: Tick,
     /// The ratio between Token0 and Token1
-    pub(crate) price:     SqrtPriceX96
+    pub(crate) price: SqrtPriceX96,
 }
 
 impl<'a> Eq for PoolPrice<'a> {}
@@ -87,7 +87,7 @@ impl<'a> PoolPrice<'a> {
     pub fn d_t0(&self, quantity: u128, direction: Direction) -> eyre::Result<Self> {
         // We can short-circuit for a transaction of zero
         if quantity == 0 {
-            return Ok(self.clone())
+            return Ok(self.clone());
         }
         // Otherwise let's calculate
         let mut sqrt_ratio_current_x_96 = self.price.into();
@@ -117,7 +117,7 @@ impl<'a> PoolPrice<'a> {
                 Direction::BuyingT0 => I256::unchecked_from(cur_quantity) * I256::MINUS_ONE,
                 // T0 when selling T0 is exact in (represented as a positive number in
                 // compute_swap_step)
-                Direction::SellingT0 => I256::unchecked_from(cur_quantity)
+                Direction::SellingT0 => I256::unchecked_from(cur_quantity),
             };
             debug!(
                 lower_tick = cur_liq_range.lower_tick,
@@ -131,7 +131,7 @@ impl<'a> PoolPrice<'a> {
                 sqrt_ratio_target_x_96,
                 cur_liq_range.liquidity(),
                 amount_remaining,
-                0
+                0,
             )?;
 
             // If we didn't hit our target and we didn't use all of our quantity then we've
@@ -154,7 +154,7 @@ impl<'a> PoolPrice<'a> {
             // Update our current quantity
             match direction {
                 Direction::BuyingT0 => cur_quantity -= amount_out,
-                Direction::SellingT0 => cur_quantity -= amount_in
+                Direction::SellingT0 => cur_quantity -= amount_in,
             }
             // Update our current price
             sqrt_ratio_current_x_96 = new_price;
@@ -194,7 +194,7 @@ impl<'a> PoolPrice<'a> {
         // If the debt is already valid at our current price we can just move it, we're
         // done
         if debt.valid_for_price(self.as_ray()) {
-            return Ok(0)
+            return Ok(0);
         }
         // Find out how much it would take to intersect with our debt presuming we stay
         // within our current liquidity range
@@ -206,13 +206,13 @@ impl<'a> PoolPrice<'a> {
             self.price,
             debt.magnitude(),
             debt.price(),
-            Direction::BuyingT0
+            Direction::BuyingT0,
         );
         debug!(solve = ?solve, "Solve");
         let step = resolve_precision(192, solve, RoundingMode::Floor);
         debug!(step, "Step");
         if step < t0_to_upper {
-            return Ok(step)
+            return Ok(step);
         }
         let new_debt = debt.partial_fill(step);
         // If our next range is in another liquidity pool
@@ -234,7 +234,7 @@ impl<'a> PoolPrice<'a> {
     pub fn order_to_target(
         &self,
         target_price: Option<SqrtPriceX96>,
-        buy: bool
+        buy: bool,
     ) -> Option<PoolPriceVec<'a>> {
         // Bounds check our target price if provided
         if let Some(p) = target_price {
@@ -292,8 +292,8 @@ impl<'a> PoolPrice<'a> {
         };
         let end_bound = Self {
             liq_range: LiqRangeRef { range: pool, range_idx: new_range_idx, ..self.liq_range },
-            price:     closest_price,
-            tick:      get_tick_at_sqrt_ratio(closest_price.into()).ok()?
+            price: closest_price,
+            tick: get_tick_at_sqrt_ratio(closest_price.into()).ok()?,
         };
         Some(PoolPriceVec::new(self.clone(), end_bound))
     }
@@ -347,7 +347,7 @@ mod test {
 
     use crate::matching::{
         uniswap::{Direction, LiqRange, PoolSnapshot},
-        Debt, Ray, SqrtPriceX96
+        Debt, Ray, SqrtPriceX96,
     };
 
     #[test]
@@ -355,12 +355,8 @@ mod test {
         let debt_price = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
         let debt = Debt::new(crate::matching::DebtType::ExactOut(1_000_000_000_u128), debt_price);
         let amm = PoolSnapshot::new(
-            vec![LiqRange {
-                liquidity:  1_000_000_000_u128,
-                lower_tick: 99900,
-                upper_tick: 100100
-            }],
-            SqrtPriceX96::at_tick(100001).unwrap()
+            vec![LiqRange { liquidity: 1_000_000_000_u128, lower_tick: 99900, upper_tick: 100100 }],
+            SqrtPriceX96::at_tick(100001).unwrap(),
         )
         .unwrap();
         let result = amm.current_price().intersect_with_debt(debt).unwrap();
@@ -374,17 +370,17 @@ mod test {
         let amm = PoolSnapshot::new(
             vec![
                 LiqRange {
-                    liquidity:  1_000_000_000_000_u128,
+                    liquidity: 1_000_000_000_000_u128,
                     lower_tick: 99900,
-                    upper_tick: 100100
+                    upper_tick: 100100,
                 },
                 LiqRange {
-                    liquidity:  1_000_000_000_000_000_u128,
+                    liquidity: 1_000_000_000_000_000_u128,
                     lower_tick: 100100,
-                    upper_tick: 100200
+                    upper_tick: 100200,
                 },
             ],
-            SqrtPriceX96::at_tick(100100).unwrap()
+            SqrtPriceX96::at_tick(100100).unwrap(),
         )
         .unwrap();
         let cur_price = amm.current_price();

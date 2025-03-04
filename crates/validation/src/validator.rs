@@ -11,8 +11,8 @@ use crate::{
     order::{
         order_validator::OrderValidator,
         state::{db_state_utils::StateFetchUtils, pools::PoolsTracker},
-        OrderValidationRequest, OrderValidationResults
-    }
+        OrderValidationRequest, OrderValidationResults,
+    },
 };
 
 pub enum ValidationRequest {
@@ -22,24 +22,24 @@ pub enum ValidationRequest {
     /// failure.
     Bundle {
         sender: tokio::sync::oneshot::Sender<eyre::Result<BundleGasDetails>>,
-        bundle: AngstromBundle
+        bundle: AngstromBundle,
     },
     NewBlock {
-        sender:       tokio::sync::oneshot::Sender<OrderValidationResults>,
+        sender: tokio::sync::oneshot::Sender<OrderValidationResults>,
         block_number: u64,
-        orders:       Vec<B256>,
-        addresses:    Vec<Address>
-    }
+        orders: Vec<B256>,
+        addresses: Vec<Address>,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub struct ValidationClient(pub UnboundedSender<ValidationRequest>);
 
 pub struct Validator<DB, Pools, Fetch> {
-    rx:               UnboundedReceiver<ValidationRequest>,
-    order_validator:  OrderValidator<DB, Pools, Fetch>,
+    rx: UnboundedReceiver<ValidationRequest>,
+    order_validator: OrderValidator<DB, Pools, Fetch>,
     bundle_validator: BundleValidator<DB>,
-    utils:            SharedTools
+    utils: SharedTools,
 }
 
 impl<DB, Pools, Fetch> Validator<DB, Pools, Fetch>
@@ -47,13 +47,13 @@ where
     DB: Unpin + Clone + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync + 'static,
     Pools: PoolsTracker + Send + Sync + 'static,
     Fetch: StateFetchUtils + Send + Sync + 'static,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
 {
     pub fn new(
         rx: UnboundedReceiver<ValidationRequest>,
         order_validator: OrderValidator<DB, Pools, Fetch>,
         bundle_validator: BundleValidator<DB>,
-        utils: SharedTools
+        utils: SharedTools,
     ) -> Self {
         Self { order_validator, rx, utils, bundle_validator }
     }
@@ -64,7 +64,7 @@ where
                 order,
                 self.utils.token_pricing_snapshot(),
                 &mut self.utils.thread_pool,
-                self.utils.metrics.clone()
+                self.utils.metrics.clone(),
             ),
             ValidationRequest::Bundle { sender, bundle } => {
                 tracing::debug!("simulating bundle");
@@ -78,7 +78,7 @@ where
                     &self.utils.token_pricing,
                     &mut self.utils.thread_pool,
                     self.utils.metrics.clone(),
-                    bn
+                    bn,
                 );
             }
             ValidationRequest::NewBlock { sender, block_number, orders, addresses } => {
@@ -100,13 +100,13 @@ where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Send + Sync,
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
     Pools: PoolsTracker + Send + Sync + Unpin + 'static,
-    Fetch: StateFetchUtils + Send + Sync + Unpin + 'static
+    Fetch: StateFetchUtils + Send + Sync + Unpin + 'static,
 {
     type Output = ();
 
     fn poll(
         mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some(req)) = self.rx.poll_recv(cx) {
             self.on_new_validation_request(req);

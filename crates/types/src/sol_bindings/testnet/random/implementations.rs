@@ -4,9 +4,9 @@ use crate::sol_bindings::{
     grouped_orders::{AllOrders, FlashVariants, StandingVariants},
     rpc_orders::{
         ExactFlashOrder, ExactStandingOrder, OrderMeta, PartialFlashOrder, PartialStandingOrder,
-        TopOfBlockOrder
+        TopOfBlockOrder,
     },
-    testnet::random::RandomizerSized
+    testnet::random::RandomizerSized,
 };
 
 impl Distribution<AllOrders> for Standard {
@@ -17,7 +17,7 @@ impl Distribution<AllOrders> for Standard {
             0 => AllOrders::Flash(rng.gen()),
             1 => AllOrders::Standing(rng.gen()),
             2 => AllOrders::TOB(rng.gen()),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -29,7 +29,7 @@ impl Distribution<FlashVariants> for Standard {
         match rand_variant {
             0 => FlashVariants::Exact(rng.gen()),
             1 => FlashVariants::Partial(rng.gen()),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -53,7 +53,7 @@ impl Distribution<StandingVariants> for Standard {
         match rand_variant {
             0 => StandingVariants::Exact(rng.gen()),
             1 => StandingVariants::Partial(rng.gen()),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }

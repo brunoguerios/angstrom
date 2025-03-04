@@ -2,7 +2,7 @@ use std::{fmt::Debug, pin::Pin, sync::Arc};
 
 use alloy::{
     primitives::{Address, U256},
-    sol_types::SolCall
+    sol_types::SolCall,
 };
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
@@ -11,30 +11,30 @@ use futures::Future;
 use pade::PadeEncode;
 use revm::{
     inspector_handle_register,
-    primitives::{EnvWithHandlerCfg, TxKind}
+    primitives::{EnvWithHandlerCfg, TxKind},
 };
 use tokio::runtime::Handle;
 
 use crate::{
     common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
-    order::sim::console_log::CallDataInspector
+    order::sim::console_log::CallDataInspector,
 };
 
 pub mod validator;
 pub use validator::*;
 
 pub struct BundleValidator<DB> {
-    db:               Arc<DB>,
+    db: Arc<DB>,
     angstrom_address: Address,
     /// the address associated with this node.
     /// this will ensure the  node has access and the simulation can pass
-    node_address:     Address
+    node_address: Address,
 }
 
 impl<DB> BundleValidator<DB>
 where
     DB: Unpin + Clone + 'static + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
 {
     pub fn new(db: Arc<DB>, angstrom_address: Address, node_address: Address) -> Self {
         Self { db, angstrom_address, node_address }
@@ -48,10 +48,10 @@ where
         thread_pool: &mut KeySplitThreadpool<
             Address,
             Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
-            Handle
+            Handle,
         >,
         metrics: ValidationMetrics,
-        number: u64
+        number: u64,
     ) {
         let node_address = self.node_address;
         let angstrom_address = self.angstrom_address;
@@ -98,14 +98,14 @@ where
                             "transaction simulation failed - failed to transaction with revm - \
                              {e:?}"
                         )));
-                        return
+                        return;
                     }
                 };
 
                 if !result.result.is_success() {
                     tracing::warn!(?result.result);
                     let _ = sender.send(Err(eyre!("transaction simulation failed")));
-                    return
+                    return;
                 }
 
                 let res = BundleGasDetails::new(conversion_lookup, result.result.gas_used());

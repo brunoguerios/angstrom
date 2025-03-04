@@ -16,7 +16,7 @@ pub trait Randomizer<T>: Rng {
 impl<T, R> Randomizer<T> for R
 where
     Standard: Distribution<T>,
-    R: Rng
+    R: Rng,
 {
     fn gen(&mut self) -> T {
         self.gen()
@@ -34,7 +34,7 @@ pub trait RandomizerSized<T>: Rng {
 pub trait RandomValues
 where
     Standard: Distribution<Self>,
-    Self: Sized
+    Self: Sized,
 {
     fn gen() -> Self {
         let mut rng = rand::thread_rng();
@@ -50,6 +50,6 @@ where
 impl<T> RandomValues for T
 where
     Standard: Distribution<T>,
-    T: Sized
+    T: Sized,
 {
 }

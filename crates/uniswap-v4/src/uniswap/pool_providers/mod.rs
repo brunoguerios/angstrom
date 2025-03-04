@@ -18,5 +18,5 @@ pub trait PoolManagerProvider: Send + Sync + Clone + Unpin {
 #[derive(Debug, Clone)]
 pub enum PoolMangerBlocks {
     NewBlock(u64),
-    Reorg(u64, RangeInclusive<u64>)
+    Reorg(u64, RangeInclusive<u64>),
 }

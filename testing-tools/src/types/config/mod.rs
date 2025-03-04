@@ -9,5 +9,5 @@ pub use testnet::*;
 #[derive(Debug, Clone)]
 pub enum TestingConfigKind {
     Testnet,
-    Devnet
+    Devnet,
 }

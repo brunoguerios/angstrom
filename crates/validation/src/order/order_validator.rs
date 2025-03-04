@@ -1,7 +1,7 @@
 use std::{
     fmt::Debug,
     pin::Pin,
-    sync::{atomic::AtomicU64, Arc}
+    sync::{atomic::AtomicU64, Arc},
 };
 
 use alloy::primitives::{Address, BlockNumber, B256};
@@ -14,19 +14,19 @@ use super::{
     sim::SimValidation,
     state::{
         account::user::UserAddress, db_state_utils::StateFetchUtils, pools::PoolsTracker,
-        StateValidation
+        StateValidation,
     },
-    OrderValidationRequest
+    OrderValidationRequest,
 };
 use crate::{
     common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
-    order::{state::account::UserAccountProcessor, OrderValidation}
+    order::{state::account::UserAccountProcessor, OrderValidation},
 };
 
 pub struct OrderValidator<DB, Pools, Fetch> {
-    sim:                     SimValidation<DB>,
-    state:                   StateValidation<Pools, Fetch>,
-    pub(crate) block_number: Arc<AtomicU64>
+    sim: SimValidation<DB>,
+    state: StateValidation<Pools, Fetch>,
+    pub(crate) block_number: Arc<AtomicU64>,
 }
 
 impl<DB, Pools, Fetch> OrderValidator<DB, Pools, Fetch>
@@ -34,14 +34,14 @@ where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Sync + Send,
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
     Pools: PoolsTracker + Send + Sync + 'static,
-    Fetch: StateFetchUtils + Send + Sync + 'static
+    Fetch: StateFetchUtils + Send + Sync + 'static,
 {
     pub async fn new(
         sim: SimValidation<DB>,
         block_number: Arc<AtomicU64>,
         pools: Pools,
         fetch: Fetch,
-        uniswap_pools: SyncedUniswapPools
+        uniswap_pools: SyncedUniswapPools,
     ) -> Self {
         let state = StateValidation::new(UserAccountProcessor::new(fetch), pools, uniswap_pools);
 
@@ -52,7 +52,7 @@ where
         &mut self,
         block_number: BlockNumber,
         completed_orders: Vec<B256>,
-        address_changes: Vec<Address>
+        address_changes: Vec<Address>,
     ) {
         self.block_number
             .store(block_number, std::sync::atomic::Ordering::SeqCst);
@@ -67,9 +67,9 @@ where
         thread_pool: &mut KeySplitThreadpool<
             UserAddress,
             Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
-            Handle
+            Handle,
         >,
-        metrics: ValidationMetrics
+        metrics: ValidationMetrics,
     ) {
         let block_number = self.block_number.load(std::sync::atomic::Ordering::SeqCst);
         let order_validation: OrderValidation = order.into();
@@ -87,13 +87,13 @@ where
                                 let mut results = cloned_state.handle_regular_order(
                                     order,
                                     block_number,
-                                    metrics.clone()
+                                    metrics.clone(),
                                 );
                                 results.add_gas_cost_or_invalidate(
                                     &cloned_sim,
                                     &token_conversion,
                                     true,
-                                    block_number
+                                    block_number,
                                 );
 
                                 let _ = tx.send(results);
@@ -111,16 +111,16 @@ where
                                     &cloned_sim,
                                     &token_conversion,
                                     false,
-                                    block_number
+                                    block_number,
                                 );
 
                                 let _ = tx.send(results);
                             })
                             .await;
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
-            })
+            }),
         );
     }
 }

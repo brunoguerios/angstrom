@@ -5,7 +5,7 @@ pub enum OrderPoolNewOrderResult {
     Valid,
     Invalid,
     TransitionedToBlock,
-    Error(String)
+    Error(String),
 }
 
 impl OrderPoolNewOrderResult {
@@ -18,7 +18,7 @@ impl<T: Into<Self>, E: std::error::Error> From<Result<T, E>> for OrderPoolNewOrd
     fn from(value: Result<T, E>) -> Self {
         match value {
             Ok(v) => v.into(),
-            Err(e) => OrderPoolNewOrderResult::Error(e.to_string())
+            Err(e) => OrderPoolNewOrderResult::Error(e.to_string()),
         }
     }
 }

@@ -4,7 +4,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{config::DevnetConfig, StateMachineCheckHookFn}
+    types::{config::DevnetConfig, StateMachineCheckHookFn},
 };
 
 pub trait WithCheck<C>
@@ -15,7 +15,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + Unpin
         + Clone
-        + 'static
+        + 'static,
 {
     type FunctionOutput;
 
@@ -30,7 +30,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + Unpin
         + Clone
-        + 'static
+        + 'static,
 {
     type FunctionOutput = StateMachineCheckHookFn<C>;
 

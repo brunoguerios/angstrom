@@ -4,10 +4,10 @@ use malachite::{
     num::{
         arithmetic::traits::{DivRound, FloorSqrt, Pow, PowerOf2},
         basic::traits::{One, Two, Zero},
-        conversion::traits::{RoundingFrom, SaturatingInto}
+        conversion::traits::{RoundingFrom, SaturatingInto},
     },
     rounding_modes::RoundingMode,
-    Integer, Natural, Rational
+    Integer, Natural, Rational,
 };
 use tracing::debug;
 
@@ -30,7 +30,7 @@ pub fn amm_debt_same_move_solve(
     debt_initial_t0: u128,
     debt_fixed_t1: u128,
     quantity_moved: u128,
-    direction: Direction
+    direction: Direction,
 ) -> u128 {
     let l = Integer::from(amm_liquidity);
     let l_squared = (&l).pow(2);
@@ -70,7 +70,7 @@ pub fn amm_debt_same_move_solve(
         Direction::SellingT0 => Integer::from(quantity_moved),
         // If the market is buying T0 from us, then we are on the ask side.  T is positive so -T is
         // negative
-        Direction::BuyingT0 => Integer::from(quantity_moved).neg()
+        Direction::BuyingT0 => Integer::from(quantity_moved).neg(),
     } << precision;
 
     debug!(c = ?c, "C factor");
@@ -81,7 +81,7 @@ pub fn amm_debt_same_move_solve(
         .0
         .filter(|i| match direction {
             Direction::BuyingT0 => *i <= Integer::ZERO,
-            Direction::SellingT0 => *i >= Integer::ZERO
+            Direction::SellingT0 => *i >= Integer::ZERO,
         })
         .map(|i| resolve_precision(precision, i, RoundingMode::Ceiling))
         .filter(|i| *i < quantity_moved)
@@ -89,7 +89,7 @@ pub fn amm_debt_same_move_solve(
             .1
             .filter(|i| match direction {
                 Direction::BuyingT0 => *i <= Integer::ZERO,
-                Direction::SellingT0 => *i >= Integer::ZERO
+                Direction::SellingT0 => *i >= Integer::ZERO,
             })
             .map(|i| resolve_precision(precision, i, RoundingMode::Ceiling))
             .filter(|i| *i < quantity_moved))
@@ -105,7 +105,7 @@ pub fn price_intersect_solve(
     amm_price: SqrtPriceX96,
     debt_fixed_t1: u128,
     debt_price: Ray,
-    direction: Direction
+    direction: Direction,
 ) -> Integer {
     debug!(amm_liquidity, amm_price = ?amm_price, debt_t1 = debt_fixed_t1, debt_price = ?debt_price, "Price intersect solve");
     let l = Integer::from(amm_liquidity);
@@ -125,7 +125,7 @@ pub fn price_intersect_solve(
     // b = [ 2/(L*sqrt(Pa)) - 1/(T1d) ]
     let b_first_part = Rational::from_integers_ref(
         &(Integer::TWO << (96 + precision)),
-        &(&l * &amm_sqrt_price_x96)
+        &(&l * &amm_sqrt_price_x96),
     );
     let b_second_part = Rational::from_integers_ref(&(Integer::ONE << precision), &debt_magnitude);
     let b = Integer::rounding_from(b_first_part - b_second_part, RoundingMode::Nearest).0;
@@ -135,12 +135,12 @@ pub fn price_intersect_solve(
     // Precision is x96
     let c_part_1 = Rational::from_integers(
         Integer::ONE << (192 + precision),
-        Integer::from(Natural::from_limbs_asc(amm_price.as_price_x192().as_limbs()))
+        Integer::from(Natural::from_limbs_asc(amm_price.as_price_x192().as_limbs())),
     );
     // Precision is x96
     let c_part_2 = Rational::from_integers(
         (Integer::ONE * Integer::from(const_1e27())) << precision,
-        Integer::from(Natural::from_limbs_asc(debt_price.as_limbs()))
+        Integer::from(Natural::from_limbs_asc(debt_price.as_limbs())),
     );
     let c = Integer::rounding_from(c_part_1 - c_part_2, RoundingMode::Nearest).0;
     debug!(c = ?c, "C factor");
@@ -184,7 +184,7 @@ pub fn quadratic_solve(
     a: Integer,
     b: Integer,
     c: Integer,
-    precision: usize
+    precision: usize,
 ) -> (Option<Integer>, Option<Integer>) {
     let numerator = (&c * &Integer::TWO) << precision;
     let b_squared = b.clone().pow(2);
@@ -229,7 +229,7 @@ pub fn resolve_precision(precision: usize, number: Integer, rm: RoundingMode) ->
 pub fn low_to_high<'a, T: Ord>(a: &'a T, b: &'a T) -> (&'a T, &'a T) {
     match a.cmp(b) {
         std::cmp::Ordering::Greater => (b, a),
-        _ => (a, b)
+        _ => (a, b),
     }
 }
 
@@ -239,7 +239,7 @@ pub fn max_t1_for_t0(t0: u128, direction: Direction, price: Ray) -> u128 {
         Direction::BuyingT0 => price.quantity(t0 + 1, true).saturating_sub(1),
         // If we're selling, we always round up, so the max for a quantity is just what's at the
         // quantity
-        Direction::SellingT0 => price.quantity(t0, false)
+        Direction::SellingT0 => price.quantity(t0, false),
     }
 }
 
@@ -263,7 +263,7 @@ mod tests {
             amm_price,
             debt_fixed_t1,
             debt_price,
-            Direction::BuyingT0
+            Direction::BuyingT0,
         );
         debug!(result = ?res, "Solution");
         // RoundingMode has to be UP here we want the greater value at all times
@@ -281,7 +281,7 @@ mod tests {
                     max_tick_target.into(),
                     amm_liquidity,
                     amount_remaining,
-                    0
+                    0,
                 )
                 .unwrap();
                 let amm_final_price = Ray::from(SqrtPriceX96::from(amm_result.0));
@@ -313,7 +313,7 @@ mod tests {
             debt_initial_t0,
             debt_fixed_t1,
             total_input,
-            Direction::SellingT0
+            Direction::SellingT0,
         );
         println!("AMM portion: {}", amm_portion);
         let debt_portion = total_input - amm_portion;

@@ -1,6 +1,6 @@
 use std::{
     ops::{Add, Deref},
-    sync::OnceLock
+    sync::OnceLock,
 };
 
 use alloy::primitives::U256;
@@ -17,7 +17,7 @@ mod tokens;
 pub mod uniswap;
 use malachite::{
     num::{arithmetic::traits::PowerOf2, conversion::traits::FromSciString},
-    Natural
+    Natural,
 };
 pub use sqrtprice::SqrtPriceX96;
 pub use tokens::TokenQuantity;
@@ -47,7 +47,7 @@ pub fn const_2_96() -> &'static Natural {
 
 pub enum BookSide {
     Bid,
-    Ask
+    Ask,
 }
 
 /// Internal price representation used in the matching engine.

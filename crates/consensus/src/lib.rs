@@ -18,7 +18,7 @@ pub enum ConsensusMessage {
     PrePropose(PreProposal),
     /// The Proposer broadcasts its signed proposal for validation.  This might
     /// be after execution-time but all nodes need to review this information
-    Proposal(Proposal)
+    Proposal(Proposal),
 }
 /// Listener for consensus data
 pub trait ConsensusListener: Send + Sync + 'static {

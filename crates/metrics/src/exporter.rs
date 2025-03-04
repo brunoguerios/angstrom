@@ -2,13 +2,13 @@
 use std::{
     convert::Infallible,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::Arc
+    sync::Arc,
 };
 
 use eyre::WrapErr;
 use hyper::{
     service::{make_service_fn, service_fn},
-    Body, Request, Response, Server
+    Body, Request, Response, Server,
 };
 #[allow(unused_imports)]
 use metrics::Unit;
@@ -27,7 +27,7 @@ impl<T: Fn() + Send + Sync> Hook for T {}
 /// metrics that are not automatically updated.
 pub(crate) async fn initialize_with_hooks<F: Hook + 'static>(
     listen_addr: SocketAddr,
-    hooks: impl IntoIterator<Item = F>
+    hooks: impl IntoIterator<Item = F>,
 ) -> eyre::Result<()> {
     let recorder = PrometheusBuilder::new().build_recorder();
     let handle = recorder.handle();
@@ -52,7 +52,7 @@ pub(crate) async fn initialize_with_hooks<F: Hook + 'static>(
 async fn start_endpoint<F: Hook + 'static>(
     listen_addr: SocketAddr,
     handle: PrometheusHandle,
-    hook: Arc<F>
+    hook: Arc<F>,
 ) -> eyre::Result<()> {
     let make_svc = make_service_fn(move |_| {
         let handle = handle.clone();
@@ -117,7 +117,7 @@ fn collect_memory_stats() {
         .map_err(|error| error!(%error, "Failed to advance jemalloc epoch"))
         .is_err()
     {
-        return
+        return;
     }
 
     if let Ok(value) = stats::active::read()
@@ -207,13 +207,13 @@ fn collect_io_stats() {
     let Ok(process) = procfs::process::Process::myself()
         .map_err(|error| error!(%error, "Failed to get currently running process"))
     else {
-        return
+        return;
     };
 
     let Ok(io) = process.io().map_err(
-        |error| error!(%error, "Failed to get IO stats for the currently running process")
+        |error| error!(%error, "Failed to get IO stats for the currently running process"),
     ) else {
-        return
+        return;
     };
 
     absolute_counter!("io.rchar", io.rchar);

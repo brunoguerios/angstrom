@@ -1,13 +1,13 @@
 use std::{
     net::IpAddr,
     path::{Path, PathBuf},
-    str::FromStr
+    str::FromStr,
 };
 
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{
     aliases::{I24, U24},
-    Address, Bytes, U160
+    Address, Bytes, U160,
 };
 use alloy_signer_local::LocalSigner;
 use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
@@ -20,26 +20,26 @@ use secp256k1::{Secp256k1, SecretKey};
 use serde::Deserialize;
 use testing_tools::{
     types::{config::TestnetConfig, initial_state::PartialConfigPoolKey},
-    utils::workspace_dir
+    utils::workspace_dir,
 };
 
 #[derive(Debug, Clone, clap::Parser)]
 pub struct TestnetCli {
     #[clap(long)]
-    pub mev_guard:              bool,
+    pub mev_guard: bool,
     #[clap(short, long)]
-    pub leader_eth_rpc_port:    Option<u16>,
+    pub leader_eth_rpc_port: Option<u16>,
     #[clap(short, long)]
     pub angstrom_base_rpc_port: Option<u16>,
     /// the amount of testnet nodes that will be spawned and connected to.
     #[clap(short, long, default_value = "3")]
-    pub nodes_in_network:       u64,
+    pub nodes_in_network: u64,
     /// eth rpc/ipc fork url
     #[clap(short, long, default_value = "ws://localhost:8546")]
-    pub eth_fork_url:           String,
+    pub eth_fork_url: String,
     /// path to the toml file with the pool keys
     #[clap(short, long, default_value = "./bin/testnet/pool_key_config.toml")]
-    pub pool_key_config:        PathBuf
+    pub pool_key_config: PathBuf,
 }
 
 impl TestnetCli {
@@ -52,7 +52,7 @@ impl TestnetCli {
             &self.eth_fork_url,
             self.mev_guard,
             self.leader_eth_rpc_port,
-            self.angstrom_base_rpc_port
+            self.angstrom_base_rpc_port,
         ))
     }
 }
@@ -62,25 +62,25 @@ impl Default for TestnetCli {
         let mut workspace_dir = workspace_dir();
         workspace_dir.push("bin/testnet/pool_key_config.toml");
         Self {
-            mev_guard:              false,
-            leader_eth_rpc_port:    None,
+            mev_guard: false,
+            leader_eth_rpc_port: None,
             angstrom_base_rpc_port: None,
-            nodes_in_network:       3,
-            eth_fork_url:           "ws://localhost:8546".to_string(),
-            pool_key_config:        workspace_dir
+            nodes_in_network: 3,
+            eth_fork_url: "ws://localhost:8546".to_string(),
+            pool_key_config: workspace_dir,
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct AllPoolKeyInners {
-    pool_keys: Option<Vec<PoolKeyInner>>
+    pool_keys: Option<Vec<PoolKeyInner>>,
 }
 
 impl AllPoolKeyInners {
     fn load_pool_keys(config_path: &PathBuf) -> eyre::Result<Vec<PartialConfigPoolKey>> {
         if !config_path.exists() {
-            return Err(eyre::eyre!("pool key config file does not exist at {:?}", config_path))
+            return Err(eyre::eyre!("pool key config file does not exist at {:?}", config_path));
         }
 
         let toml_content = std::fs::read_to_string(config_path)
@@ -106,7 +106,7 @@ impl TryInto<Vec<PartialConfigPoolKey>> for AllPoolKeyInners {
                     key.fee,
                     key.tick_spacing,
                     key.liquidity.parse()?,
-                    SqrtPriceX96::at_tick(key.tick)?
+                    SqrtPriceX96::at_tick(key.tick)?,
                 ))
             })
             .collect()
@@ -117,10 +117,10 @@ impl TryInto<Vec<PartialConfigPoolKey>> for AllPoolKeyInners {
 struct PoolKeyInner {
     // currency0:    String,
     // currency1:    String,
-    fee:          u64,
+    fee: u64,
     tick_spacing: i32,
-    liquidity:    String,
-    tick:         i32
+    liquidity: String,
+    tick: i32,
 }
 
 #[cfg(test)]

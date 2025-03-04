@@ -1,11 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
-    hash::Hasher
+    hash::Hasher,
 };
 
 use alloy::{
     primitives::{keccak256, BlockNumber},
-    signers::{Signature, SignerSync}
+    signers::{Signature, SignerSync},
 };
 use alloy_primitives::U256;
 use bytes::Bytes;
@@ -17,31 +17,31 @@ use crate::{
     primitive::{AngstromSigner, PoolId},
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder
-    }
+        rpc_orders::TopOfBlockOrder,
+    },
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct PreProposal {
     pub block_height: BlockNumber,
-    pub source:       PeerId,
+    pub source: PeerId,
     // TODO: this really should be HashMap<PoolId, GroupedVanillaOrder>
-    pub limit:        Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+    pub limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
     // TODO: this really should be another type with HashMap<PoolId, {order, tob_reward}>
-    pub searcher:     Vec<OrderWithStorageData<TopOfBlockOrder>>,
+    pub searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
     /// The signature is over the ethereum height as well as the limit and
     /// searcher sets
-    pub signature:    Signature
+    pub signature: Signature,
 }
 
 impl Default for PreProposal {
     fn default() -> Self {
         Self {
-            signature:    Signature::new(U256::ZERO, U256::ZERO, false),
+            signature: Signature::new(U256::ZERO, U256::ZERO, false),
             block_height: Default::default(),
-            source:       Default::default(),
-            limit:        Default::default(),
-            searcher:     Default::default()
+            source: Default::default(),
+            limit: Default::default(),
+            searcher: Default::default(),
         }
     }
 }
@@ -49,9 +49,9 @@ impl Default for PreProposal {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreProposalContent {
     pub block_height: BlockNumber,
-    pub source:       PeerId,
-    pub limit:        Vec<OrderWithStorageData<GroupedVanillaOrder>>,
-    pub searcher:     Vec<OrderWithStorageData<TopOfBlockOrder>>
+    pub source: PeerId,
+    pub limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+    pub searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
 }
 
 // the reason for the manual implementation is because EcDSA signatures are not
@@ -71,9 +71,9 @@ impl PreProposal {
     pub fn content(&self) -> PreProposalContent {
         PreProposalContent {
             block_height: self.block_height,
-            source:       self.source,
-            limit:        self.limit.clone(),
-            searcher:     self.searcher.clone()
+            source: self.source,
+            limit: self.limit.clone(),
+            searcher: self.searcher.clone(),
         }
     }
 }
@@ -88,7 +88,7 @@ impl PreProposal {
         ethereum_height: BlockNumber,
         sk: &AngstromSigner,
         limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
-        searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>
+        searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
     ) -> Self {
         let payload = Self::serialize_payload(&ethereum_height, &limit, &searcher);
         let signature = Self::sign_payload(sk, payload);
@@ -99,7 +99,7 @@ impl PreProposal {
     pub fn new(
         ethereum_height: u64,
         sk: &AngstromSigner,
-        orders: OrderSet<GroupedVanillaOrder, TopOfBlockOrder>
+        orders: OrderSet<GroupedVanillaOrder, TopOfBlockOrder>,
     ) -> Self {
         let OrderSet { limit, searcher } = orders;
         let limit_orders = limit.len();
@@ -122,7 +122,7 @@ impl PreProposal {
     fn serialize_payload(
         block_height: &BlockNumber,
         limit: &Vec<OrderWithStorageData<GroupedVanillaOrder>>,
-        searcher: &Vec<OrderWithStorageData<TopOfBlockOrder>>
+        searcher: &Vec<OrderWithStorageData<TopOfBlockOrder>>,
     ) -> Vec<u8> {
         let mut buf = Vec::new();
         buf.extend(bincode::serialize(block_height).unwrap());
@@ -136,7 +136,7 @@ impl PreProposal {
     }
 
     pub fn orders_by_pool_id(
-        preproposals: &[PreProposal]
+        preproposals: &[PreProposal],
     ) -> HashMap<PoolId, HashSet<OrderWithStorageData<GroupedVanillaOrder>>> {
         preproposals
             .iter()

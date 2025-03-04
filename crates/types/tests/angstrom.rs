@@ -45,7 +45,7 @@ fn build_bundle() {
             t0,
             t1,
             store_index,
-            shared_gas
+            shared_gas,
         )
         .expect("Bundle processing failed");
 
@@ -54,7 +54,7 @@ fn build_bundle() {
             pairs,
             pool_updates,
             top_of_block_orders,
-            user_orders
+            user_orders,
         );
         println!("Bundle: {:#?}", bundle);
     })

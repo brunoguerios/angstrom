@@ -13,8 +13,8 @@ use crate::{
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
         config::{DevnetConfig, TestingNodeConfig},
-        GlobalTestingConfig
-    }
+        GlobalTestingConfig,
+    },
 };
 
 impl<C> AngstromTestnet<C, DevnetConfig, WalletProvider>
@@ -25,7 +25,7 @@ where
         + Unpin
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
-        + 'static
+        + 'static,
 {
     pub async fn spawn_devnet(c: C, config: DevnetConfig) -> eyre::Result<Self> {
         let block_provider = TestnetBlockProvider::new();
@@ -36,7 +36,7 @@ where
             current_max_peer_id: 0,
             config: config.clone(),
             block_provider,
-            _anvil_instance: None
+            _anvil_instance: None,
         };
 
         tracing::info!("initializing devnet with {} nodes", config.node_count());
@@ -77,7 +77,7 @@ where
                 let mut initializer = AnvilProvider::new(
                     AnvilInitializer::new(node_config.clone(), node_addresses.clone()),
                     false,
-                    block_sync.clone()
+                    block_sync.clone(),
                 )
                 .await?;
                 let provider = initializer.provider_mut().provider_mut();
@@ -92,7 +92,7 @@ where
                 let provider = AnvilProvider::new(
                     WalletProvider::new(node_config.clone()),
                     false,
-                    block_sync.clone()
+                    block_sync.clone(),
                 )
                 .await?;
                 provider.set_state(state_bytes).await?;
@@ -109,7 +109,7 @@ where
                 initial_angstrom_state.clone().unwrap(),
                 self.block_provider.subscribe_to_new_blocks(),
                 vec![a],
-                block_sync
+                block_sync,
             )
             .await?;
             tracing::info!(node_id, "made angstrom node");
@@ -130,7 +130,7 @@ where
 
 fn a<'a>(
     _: &'a InitialTestnetState,
-    _: AgentConfig
+    _: AgentConfig,
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async { eyre::Ok(()) })
 }

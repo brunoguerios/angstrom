@@ -6,7 +6,7 @@ use angstrom_types::{
     matching::uniswap::PoolSnapshot,
     orders::PoolSolution,
     primitive::PoolId,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 use futures::{future::BoxFuture, FutureExt};
 use matching_engine::{book::BookOrder, MatchingEngineHandle};
@@ -19,7 +19,7 @@ impl MatchingEngineHandle for MockMatchingEngine {
         &self,
         _: Vec<BookOrder>,
         _: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        _: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        _: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> BoxFuture<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>> {
         async move { Ok((vec![], BundleGasDetails::default())) }.boxed()
     }

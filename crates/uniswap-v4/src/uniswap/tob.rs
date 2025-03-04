@@ -1,13 +1,13 @@
 use angstrom_types::{
     contract_payloads::tob::ToBOutcome,
     matching::uniswap::PoolSnapshot,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 
 // Basically only tests in here now
 pub fn calculate_reward(
     tob: &OrderWithStorageData<TopOfBlockOrder>,
-    snapshot: &PoolSnapshot
+    snapshot: &PoolSnapshot,
 ) -> eyre::Result<ToBOutcome> {
     ToBOutcome::from_tob_and_snapshot(tob, snapshot)
 }
@@ -17,7 +17,7 @@ mod test {
     use alloy::primitives::Uint;
     use angstrom_types::matching::{
         uniswap::{LiqRange, PoolSnapshot},
-        SqrtPriceX96
+        SqrtPriceX96,
     };
     use rand::thread_rng;
     use testing_tools::type_generator::orders::generate_top_of_block_order;
@@ -44,7 +44,7 @@ mod test {
             None,
             None,
             Some(total_payment),
-            Some(100000000_u128)
+            Some(100000000_u128),
         );
         let result = calculate_reward(&tob, &snapshot).expect("Error calculating tick donations");
         let total_donations = result.total_donations();
@@ -65,7 +65,7 @@ mod test {
             None,
             None,
             Some(10_000_000_u128),
-            Some(100000000_u128)
+            Some(100000000_u128),
         );
         let result = calculate_reward(&tob, &snapshot);
         assert!(result.is_err_and(|e| {
@@ -87,7 +87,7 @@ mod test {
             None,
             None,
             Some(total_payment),
-            Some(100000000_u128)
+            Some(100000000_u128),
         );
         let result = calculate_reward(&tob, &snapshot).expect("Error calculating tick donations");
         let total_donations = result.total_donations();
@@ -114,7 +114,7 @@ mod test {
             None,
             None,
             Some(total_payment),
-            Some(100000000_u128)
+            Some(100000000_u128),
         );
         let result = calculate_reward(&tob, &snapshot).expect("Error calculating tick donations");
         let total_donations = result.total_donations();
@@ -146,7 +146,7 @@ mod test {
             None,
             None,
             Some(10_000_000_000_000_u128),
-            Some(100000000_u128)
+            Some(100000000_u128),
         );
         let result = calculate_reward(&tob, &snapshot);
         assert!(result.is_ok());
@@ -162,7 +162,7 @@ mod test {
             None,
             None,
             Some(10_000_000_000_000_u128),
-            Some(800000000_u128)
+            Some(800000000_u128),
         );
         let result = calculate_reward(&tob, &snapshot);
         assert!(result.is_ok());
@@ -179,7 +179,7 @@ mod test {
             None,
             None,
             Some(total_payment),
-            Some(100000000_u128)
+            Some(100000000_u128),
         );
         let first_tick = 100000 - 1000;
         let result = calculate_reward(&tob, &snapshot).expect("Error calculating tick donations");

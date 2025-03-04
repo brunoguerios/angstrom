@@ -14,7 +14,7 @@ pub struct ParseVersionError(String);
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StromVersion {
     /// The `strom` protocol version 0
-    Strom0 = 0
+    Strom0 = 0,
 }
 
 impl StromVersion {
@@ -35,7 +35,7 @@ impl TryFrom<&str> for StromVersion {
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
             "0" => Ok(StromVersion::Strom0),
-            _ => Err(ParseVersionError(s.to_string()))
+            _ => Err(ParseVersionError(s.to_string())),
         }
     }
 }
@@ -48,7 +48,7 @@ impl TryFrom<u8> for StromVersion {
     fn try_from(u: u8) -> Result<Self, Self::Error> {
         match u {
             0 => Ok(StromVersion::Strom0),
-            _ => Err(ParseVersionError(u.to_string()))
+            _ => Err(ParseVersionError(u.to_string())),
         }
     }
 }
@@ -73,7 +73,7 @@ impl From<StromVersion> for &'static str {
     #[inline]
     fn from(v: StromVersion) -> &'static str {
         match v {
-            StromVersion::Strom0 => "0"
+            StromVersion::Strom0 => "0",
         }
     }
 }

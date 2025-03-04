@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     pin::Pin,
-    sync::Arc
+    sync::Arc,
 };
 
 use alloy_primitives::Address;
@@ -11,7 +11,7 @@ use angstrom_types::{
     matching::{match_estimate_response::BundleEstimate, uniswap::PoolSnapshot},
     orders::PoolSolution,
     primitive::PoolId,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 use futures::{stream::FuturesUnordered, Future};
 use futures_util::FutureExt;
@@ -19,9 +19,9 @@ use reth_tasks::TaskSpawner;
 use tokio::{
     sync::{
         mpsc::{Receiver, Sender},
-        oneshot
+        oneshot,
     },
-    task::JoinSet
+    task::JoinSet,
 };
 use tracing::trace;
 use validation::bundle::BundleValidatorHandle;
@@ -30,7 +30,7 @@ use crate::{
     book::{BookOrder, OrderBook},
     build_book,
     strategy::{MatchingStrategy, SimpleCheckpointStrategy},
-    MatchingEngineHandle
+    MatchingEngineHandle,
 };
 
 pub enum MatcherCommand {
@@ -38,19 +38,19 @@ pub enum MatcherCommand {
         Vec<BookOrder>,
         Vec<OrderWithStorageData<TopOfBlockOrder>>,
         HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
-        oneshot::Sender<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>
+        oneshot::Sender<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>,
     ),
     EstimateGasPerPool {
-        limit:    Vec<BookOrder>,
+        limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools:    HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
-        tx:       oneshot::Sender<eyre::Result<BundleEstimate>>
-    }
+        pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
+        tx: oneshot::Sender<eyre::Result<BundleEstimate>>,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub struct MatcherHandle {
-    pub sender: Sender<MatcherCommand>
+    pub sender: Sender<MatcherCommand>,
 }
 
 impl MatcherHandle {
@@ -69,7 +69,7 @@ impl MatchingEngineHandle for MatcherHandle {
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pools: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> futures_util::future::BoxFuture<eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>> {
         Box::pin(async move {
             let (tx, rx) = oneshot::channel();
@@ -80,17 +80,17 @@ impl MatchingEngineHandle for MatcherHandle {
 }
 
 pub struct MatchingManager<TP: TaskSpawner, V> {
-    _futures:          FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Sync + Send + 'static>>>,
+    _futures: FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Sync + Send + 'static>>>,
     validation_handle: V,
-    _tp:               Arc<TP>
+    _tp: Arc<TP>,
 }
 
 impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V> {
     pub fn new(tp: TP, validation: V) -> Self {
         Self {
-            _futures:          FuturesUnordered::default(),
+            _futures: FuturesUnordered::default(),
             validation_handle: validation,
-            _tp:               tp.into()
+            _tp: tp.into(),
         }
     }
 
@@ -117,7 +117,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
 
     pub fn build_non_proposal_books(
         limit: Vec<BookOrder>,
-        pool_snapshots: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pool_snapshots: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> Vec<OrderBook> {
         let book_sources = Self::orders_sorted_by_pool_id(limit);
 
@@ -132,7 +132,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
 
     pub fn build_books(
         preproposals: &[PreProposal],
-        pool_snapshots: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pool_snapshots: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> Vec<OrderBook> {
         // Pull all the orders out of all the preproposals and build OrderPools out of
         // them.  This is ugly and inefficient right now
@@ -151,7 +151,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pool_snapshots: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pool_snapshots: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> eyre::Result<(Vec<PoolSolution>, BundleGasDetails)> {
         tracing::info!("starting to build proposal");
         // Pull all the orders out of all the preproposals and build OrderPools out of
@@ -205,7 +205,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pool_snapshots: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pool_snapshots: HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> eyre::Result<BundleEstimate> {
         let books = Self::build_non_proposal_books(limit.clone(), &pool_snapshots);
 
@@ -246,7 +246,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
 pub async fn manager_thread<TP: TaskSpawner + 'static, V: BundleValidatorHandle>(
     mut input: Receiver<MatcherCommand>,
     tp: Arc<TP>,
-    validation_handle: V
+    validation_handle: V,
 ) {
     let manager =
         MatchingManager { _futures: FuturesUnordered::default(), _tp: tp, validation_handle };

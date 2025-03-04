@@ -1,6 +1,6 @@
 use std::sync::{
     atomic::{AtomicU64, Ordering},
-    Arc, RwLock
+    Arc, RwLock,
 };
 
 use alloy::{
@@ -8,7 +8,7 @@ use alloy::{
     eips::BlockNumberOrTag,
     primitives::Log,
     providers::Provider,
-    rpc::types::{Filter, FilterBlockOption}
+    rpc::types::{Filter, FilterBlockOption},
 };
 use futures_util::StreamExt;
 use reth_provider::CanonStateNotification;
@@ -19,49 +19,49 @@ use crate::uniswap::{pool_manager::PoolManagerError, pool_providers::PoolManager
 
 pub struct CanonicalStateAdapter<P>
 where
-    P: Provider + 'static
+    P: Provider + 'static,
 {
     canon_state_notifications: broadcast::Receiver<CanonStateNotification>,
-    last_logs:                 Arc<RwLock<Vec<Log>>>,
-    last_block_number:         Arc<AtomicU64>,
-    node_provider:             Arc<P>
+    last_logs: Arc<RwLock<Vec<Log>>>,
+    last_block_number: Arc<AtomicU64>,
+    node_provider: Arc<P>,
 }
 
 impl<P> Clone for CanonicalStateAdapter<P>
 where
-    P: Provider + 'static
+    P: Provider + 'static,
 {
     fn clone(&self) -> Self {
         Self {
             canon_state_notifications: self.canon_state_notifications.resubscribe(),
-            last_logs:                 self.last_logs.clone(),
-            last_block_number:         self.last_block_number.clone(),
-            node_provider:             self.node_provider.clone()
+            last_logs: self.last_logs.clone(),
+            last_block_number: self.last_block_number.clone(),
+            node_provider: self.node_provider.clone(),
         }
     }
 }
 
 impl<P> CanonicalStateAdapter<P>
 where
-    P: Provider + 'static
+    P: Provider + 'static,
 {
     pub fn new(
         canon_state_notifications: broadcast::Receiver<CanonStateNotification>,
         node_provider: Arc<P>,
-        block_number: u64
+        block_number: u64,
     ) -> Self {
         Self {
             canon_state_notifications,
             last_logs: Arc::new(RwLock::new(Vec::new())),
             last_block_number: Arc::new(AtomicU64::new(block_number)),
-            node_provider
+            node_provider,
         }
     }
 }
 
 impl<P> PoolManagerProvider for CanonicalStateAdapter<P>
 where
-    P: Provider + 'static
+    P: Provider + 'static,
 {
     fn provider(&self) -> Arc<impl Provider> {
         self.node_provider.clone()
@@ -117,7 +117,7 @@ where
                                     logs.extend(
                                         new.execution_outcome()
                                             .logs(block)
-                                            .map_or_else(Vec::new, |logs| logs.cloned().collect())
+                                            .map_or_else(Vec::new, |logs| logs.cloned().collect()),
                                     );
                                 }
 
@@ -132,7 +132,7 @@ where
                         None
                     }
                 }
-            }
+            },
         )
         .filter_map(futures_util::future::ready)
         .boxed()
@@ -154,7 +154,7 @@ where
 
 impl<P> CanonicalStateAdapter<P>
 where
-    P: Provider + 'static
+    P: Provider + 'static,
 {
     fn validate_filter(&self, filter: &Filter) -> Result<(), PoolManagerError> {
         let last_block = self.last_block_number.load(Ordering::SeqCst);
@@ -173,7 +173,7 @@ where
             });
 
             if !(from_equal_block_range && to_equal_to_block_range) {
-                return Err(PoolManagerError::InvalidBlockRange)
+                return Err(PoolManagerError::InvalidBlockRange);
             }
         }
         Ok(())
@@ -185,7 +185,7 @@ where
                 topic.matches(
                     log.topics()
                         .get(i)
-                        .unwrap_or(&alloy::primitives::B256::ZERO)
+                        .unwrap_or(&alloy::primitives::B256::ZERO),
                 )
             })
     }

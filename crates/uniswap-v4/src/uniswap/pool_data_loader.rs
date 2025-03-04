@@ -4,12 +4,12 @@ use alloy::{
     primitives::{aliases::I24, Address, BlockNumber, U256},
     providers::Provider,
     sol,
-    sol_types::{SolEvent, SolType}
+    sol_types::{SolEvent, SolType},
 };
 use alloy_primitives::{Log, B256, I256};
 use angstrom_types::{
     matching::Ray,
-    primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry}
+    primitive::{PoolId as AngstromPoolId, UniswapPoolRegistry},
 };
 use itertools::Itertools;
 
@@ -17,7 +17,7 @@ use super::loaders::{
     get_uniswap_v_3_pool_data::GetUniswapV3PoolData,
     get_uniswap_v_3_tick_data::GetUniswapV3TickData,
     get_uniswap_v_4_pool_data::GetUniswapV4PoolData,
-    get_uniswap_v_4_tick_data::GetUniswapV4TickData
+    get_uniswap_v_4_tick_data::GetUniswapV4TickData,
 };
 use crate::uniswap::{i128_to_i256, i256_to_i128, pool::PoolError};
 
@@ -95,27 +95,27 @@ sol! {
 
 #[derive(Debug, Clone)]
 pub struct SwapEvent {
-    pub sender:         Address,
-    pub amount0:        I256,
-    pub amount1:        I256,
+    pub sender: Address,
+    pub amount0: I256,
+    pub amount1: I256,
     pub sqrt_price_x96: U256,
-    pub liquidity:      u128,
-    pub tick:           i32
+    pub liquidity: u128,
+    pub tick: i32,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModifyPositionEvent {
-    pub sender:          Address,
-    pub tick_lower:      i32,
-    pub tick_upper:      i32,
-    pub liquidity_delta: i128
+    pub sender: Address,
+    pub tick_lower: i32,
+    pub tick_upper: i32,
+    pub liquidity_delta: i128,
 }
 
 #[derive(Default, Clone)]
 pub struct DataLoader<A> {
-    address:       A,
+    address: A,
     pool_registry: Option<UniswapPoolRegistry>,
-    pool_manager:  Option<Address>
+    pool_manager: Option<Address>,
 }
 
 impl<A> DataLoader<A> {
@@ -136,13 +136,13 @@ pub trait PoolDataLoader<A>: Clone {
         num_ticks: u16,
         tick_spacing: I24,
         block_number: Option<BlockNumber>,
-        provider: Arc<P>
+        provider: Arc<P>,
     ) -> impl Future<Output = Result<(Vec<TickData>, U256), PoolError>> + Send;
 
     fn load_pool_data<P: Provider>(
         &self,
         block_number: Option<BlockNumber>,
-        provider: Arc<P>
+        provider: Arc<P>,
     ) -> impl Future<Output = Result<PoolData, PoolError>> + Send;
 
     fn address(&self) -> A;
@@ -163,7 +163,7 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
         num_ticks: u16,
         tick_spacing: I24,
         block_number: Option<BlockNumber>,
-        provider: Arc<P>
+        provider: Arc<P>,
     ) -> Result<(Vec<TickData>, U256), PoolError> {
         let deployer = GetUniswapV3TickData::deploy_builder(
             provider.clone(),
@@ -171,12 +171,12 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
             zero_for_one,
             current_tick,
             num_ticks,
-            tick_spacing
+            tick_spacing,
         );
 
         let data = match block_number {
             Some(number) => deployer.block(number.into()).call_raw().await?,
-            None => deployer.call_raw().await?
+            None => deployer.call_raw().await?,
         };
 
         let result = TicksWithBlock::abi_decode(&data, true)?;
@@ -187,7 +187,7 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
     async fn load_pool_data<P: Provider>(
         &self,
         block_number: Option<BlockNumber>,
-        provider: Arc<P>
+        provider: Arc<P>,
     ) -> Result<PoolData, PoolError> {
         let deployer = GetUniswapV3PoolData::deploy_builder(provider, self.address);
         let res = if let Some(block_number) = block_number {
@@ -233,12 +233,12 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
     fn decode_swap_event(log: &Log) -> Result<SwapEvent, PoolError> {
         let swap_event = IUniswapV3Pool::Swap::decode_log(log, true)?;
         Ok(SwapEvent {
-            sender:         swap_event.sender,
-            amount0:        swap_event.amount0,
-            amount1:        swap_event.amount1,
+            sender: swap_event.sender,
+            amount0: swap_event.amount0,
+            amount1: swap_event.amount1,
             sqrt_price_x96: U256::from(swap_event.sqrtPriceX96),
-            liquidity:      swap_event.liquidity,
-            tick:           swap_event.tick.as_i32()
+            liquidity: swap_event.liquidity,
+            tick: swap_event.tick.as_i32(),
         })
     }
 
@@ -246,18 +246,18 @@ impl PoolDataLoader<Address> for DataLoader<Address> {
         if log.topics()[0] == IUniswapV3Pool::Mint::SIGNATURE_HASH {
             let mint_event = IUniswapV3Pool::Mint::decode_log(log, true)?;
             Ok(ModifyPositionEvent {
-                sender:          mint_event.sender,
-                tick_lower:      mint_event.tickLower.as_i32(),
-                tick_upper:      mint_event.tickUpper.as_i32(),
-                liquidity_delta: mint_event.amount as i128
+                sender: mint_event.sender,
+                tick_lower: mint_event.tickLower.as_i32(),
+                tick_upper: mint_event.tickUpper.as_i32(),
+                liquidity_delta: mint_event.amount as i128,
             })
         } else {
             let burn_event = IUniswapV3Pool::Burn::decode_log(log, true)?;
             Ok(ModifyPositionEvent {
-                sender:          burn_event.owner,
-                tick_lower:      burn_event.tickLower.as_i32(),
-                tick_upper:      burn_event.tickUpper.as_i32(),
-                liquidity_delta: -(burn_event.amount as i128)
+                sender: burn_event.owner,
+                tick_lower: burn_event.tickLower.as_i32(),
+                tick_upper: burn_event.tickUpper.as_i32(),
+                liquidity_delta: -(burn_event.amount as i128),
             })
         }
     }
@@ -278,7 +278,7 @@ impl DataLoader<AngstromPoolId> {
     pub fn new_with_registry(
         address: AngstromPoolId,
         registry: UniswapPoolRegistry,
-        pool_manager: Address
+        pool_manager: Address,
     ) -> Self {
         Self { address, pool_registry: Some(registry), pool_manager: Some(pool_manager) }
     }
@@ -288,7 +288,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
     async fn load_pool_data<P: Provider>(
         &self,
         block_number: Option<BlockNumber>,
-        provider: Arc<P>
+        provider: Arc<P>,
     ) -> Result<PoolData, PoolError> {
         let id = self
             .pool_registry
@@ -298,7 +298,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             .iter()
             .find_map(|(pubic, priva)| {
                 if priva == &self.address() {
-                    return Some(pubic)
+                    return Some(pubic);
                 }
                 None
             })
@@ -319,27 +319,27 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             self.address(),
             self.pool_manager(),
             pool_key.currency0,
-            pool_key.currency1
+            pool_key.currency1,
         );
 
         let data = match block_number {
             Some(number) => deployer.call_raw().block(number.into()).await?,
-            None => deployer.call_raw().await?
+            None => deployer.call_raw().await?,
         };
 
         let pool_data_v4 = PoolDataV4::abi_decode(&data, true)?;
 
         Ok(PoolData {
-            tokenA:         pool_key.currency0,
+            tokenA: pool_key.currency0,
             tokenADecimals: pool_data_v4.token0Decimals,
-            tokenB:         pool_key.currency1,
+            tokenB: pool_key.currency1,
             tokenBDecimals: pool_data_v4.token1Decimals,
-            liquidity:      pool_data_v4.liquidity,
-            sqrtPrice:      pool_data_v4.sqrtPrice,
-            tick:           pool_data_v4.tick,
-            tickSpacing:    pool_key.tickSpacing,
-            fee:            pool_key.fee,
-            liquidityNet:   pool_data_v4.liquidityNet
+            liquidity: pool_data_v4.liquidity,
+            sqrtPrice: pool_data_v4.sqrtPrice,
+            tick: pool_data_v4.tick,
+            tickSpacing: pool_key.tickSpacing,
+            fee: pool_key.fee,
+            liquidityNet: pool_data_v4.liquidityNet,
         })
     }
 
@@ -350,7 +350,7 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
         num_ticks: u16,
         tick_spacing: I24,
         block_number: Option<BlockNumber>,
-        provider: Arc<P>
+        provider: Arc<P>,
     ) -> Result<(Vec<TickData>, U256), PoolError> {
         let deployer = GetUniswapV4TickData::deploy_builder(
             provider.clone(),
@@ -359,12 +359,12 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
             zero_for_one,
             current_tick,
             num_ticks,
-            tick_spacing
+            tick_spacing,
         );
 
         let data = match block_number {
             Some(number) => deployer.call_raw().block(number.into()).await?,
-            None => deployer.call_raw().await?
+            None => deployer.call_raw().await?,
         };
 
         let result = TicksWithBlock::abi_decode(&data, true)?;
@@ -382,10 +382,10 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
                 if Self::is_modify_position_event(&log) {
                     let modify_event =
                         IUniswapV4Pool::ModifyLiquidity::decode_log(&log, true).ok()?;
-                    return Some((modify_event.id, log))
+                    return Some((modify_event.id, log));
                 } else if Self::is_swap_event(&log) {
                     let swap = IUniswapV4Pool::Swap::decode_log(&log, true).ok()?;
-                    return Some((swap.id, log))
+                    return Some((swap.id, log));
                 };
                 None
             })
@@ -411,24 +411,24 @@ impl PoolDataLoader<AngstromPoolId> for DataLoader<AngstromPoolId> {
     fn decode_swap_event(log: &Log) -> Result<SwapEvent, PoolError> {
         let swap_event = IUniswapV4Pool::Swap::decode_log(log, true)?;
         Ok(SwapEvent {
-            sender:         swap_event.sender,
-            amount0:        i128_to_i256(swap_event.amount0),
-            amount1:        i128_to_i256(swap_event.amount1),
+            sender: swap_event.sender,
+            amount0: i128_to_i256(swap_event.amount0),
+            amount1: i128_to_i256(swap_event.amount1),
             sqrt_price_x96: U256::from(swap_event.sqrtPriceX96),
-            liquidity:      swap_event.liquidity,
-            tick:           swap_event.tick.as_i32()
+            liquidity: swap_event.liquidity,
+            tick: swap_event.tick.as_i32(),
         })
     }
 
     fn decode_modify_position_event(log: &Log) -> Result<ModifyPositionEvent, PoolError> {
         let modify_event = IUniswapV4Pool::ModifyLiquidity::decode_log(log, true)?;
         Ok(ModifyPositionEvent {
-            sender:          modify_event.sender,
-            tick_lower:      modify_event.tickLower.as_i32(),
-            tick_upper:      modify_event.tickUpper.as_i32(),
+            sender: modify_event.sender,
+            tick_lower: modify_event.tickLower.as_i32(),
+            tick_upper: modify_event.tickUpper.as_i32(),
             // v4-core seems to be doing the same so it's ok
             // contracts/lib/v4-core/src/PoolManager.sol:160
-            liquidity_delta: i256_to_i128(modify_event.liquidityDelta)?
+            liquidity_delta: i256_to_i128(modify_event.liquidityDelta)?,
         })
     }
 }

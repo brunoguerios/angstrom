@@ -18,25 +18,25 @@ pub use initializer::*;
 
 use crate::{
     contracts::{anvil::WalletProviderRpc, environment::TestAnvilEnvironment},
-    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
+    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider},
 };
 
 #[derive(Debug, Clone)]
 pub struct WalletProvider {
-    provider:                  WalletProviderRpc,
-    pub controller_secret_key: PrivateKeySigner
+    provider: WalletProviderRpc,
+    pub controller_secret_key: PrivateKeySigner,
 }
 
 impl WalletProvider {
     pub async fn new<G: GlobalTestingConfig>(
-        config: TestingNodeConfig<G>
+        config: TestingNodeConfig<G>,
     ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
         config.spawn_anvil_rpc().await
     }
 
     pub(crate) fn new_with_provider(
         provider: WalletProviderRpc,
-        controller_secret_key: PrivateKeySigner
+        controller_secret_key: PrivateKeySigner,
     ) -> Self {
         Self { provider, controller_secret_key }
     }

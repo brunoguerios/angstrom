@@ -48,7 +48,7 @@ pub enum UniswapFlags {
     BeforeSwapReturnsDelta,
     AfterSwapReturnsDelta,
     AfterAddLiquidityReturnsDelta,
-    AfterRemoveLiquidityReturnsDelta
+    AfterRemoveLiquidityReturnsDelta,
 }
 
 impl UniswapFlags {
@@ -73,7 +73,7 @@ impl From<UniswapFlags> for U160 {
             UniswapFlags::BeforeSwapReturnsDelta => 3,
             UniswapFlags::AfterSwapReturnsDelta => 2,
             UniswapFlags::AfterAddLiquidityReturnsDelta => 1,
-            UniswapFlags::AfterRemoveLiquidityReturnsDelta => 0
+            UniswapFlags::AfterRemoveLiquidityReturnsDelta => 0,
         };
         U160::from(1_u8) << bitshift
     }

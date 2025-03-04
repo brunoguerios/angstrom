@@ -4,9 +4,9 @@ use alloy::primitives::{aliases::U320, Uint, U160, U256};
 use malachite::{
     num::{
         arithmetic::traits::{CeilingRoot, DivRound, Pow, PowerOf2},
-        conversion::traits::RoundingInto
+        conversion::traits::RoundingInto,
     },
-    Natural, Rational
+    Natural, Rational,
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio};

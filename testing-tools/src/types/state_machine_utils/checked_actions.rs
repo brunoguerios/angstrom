@@ -3,7 +3,7 @@ use std::{future::Future, pin::Pin};
 use angstrom_network::{manager::StromConsensusEvent, StromMessage};
 use angstrom_types::{
     consensus::{PreProposal, Proposal},
-    sol_bindings::grouped_orders::AllOrders
+    sol_bindings::grouped_orders::AllOrders,
 };
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
@@ -11,7 +11,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{config::DevnetConfig, StateMachineCheckedActionHookFn}
+    types::{config::DevnetConfig, StateMachineCheckedActionHookFn},
 };
 
 pub trait WithCheckedAction<'a, C>
@@ -22,7 +22,7 @@ where
         + Unpin
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
-        + 'static
+        + 'static,
 {
     type FunctionOutput;
 
@@ -41,7 +41,7 @@ where
         + Unpin
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
-        + 'static
+        + 'static,
 {
     type FunctionOutput = StateMachineCheckedActionHookFn<'a, C>;
 
@@ -50,7 +50,7 @@ where
             pin_action(testnet.broadcast_orders_message(
                 None,
                 StromMessage::PropagatePooledOrders(orders.clone()),
-                orders
+                orders,
             ))
         };
         self.add_checked_action("send bundles", f);
@@ -61,7 +61,7 @@ where
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::Propose(proposal.clone()),
-                StromConsensusEvent::Proposal(testnet.get_peer(0).peer_id(), proposal)
+                StromConsensusEvent::Proposal(testnet.get_peer(0).peer_id(), proposal),
             ))
         };
         self.add_checked_action("send propose", f);
@@ -72,7 +72,7 @@ where
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::PrePropose(preproposal.clone()),
-                StromConsensusEvent::PreProposal(testnet.get_peer(0).peer_id(), preproposal)
+                StromConsensusEvent::PreProposal(testnet.get_peer(0).peer_id(), preproposal),
             ))
         };
         self.add_checked_action("send prepropose", f);
@@ -81,7 +81,7 @@ where
 
 fn pin_action<'a, F>(fut: F) -> Pin<Box<dyn Future<Output = eyre::Result<bool>> + Send + Sync + 'a>>
 where
-    F: Future<Output = eyre::Result<bool>> + Send + Sync + 'a
+    F: Future<Output = eyre::Result<bool>> + Send + Sync + 'a,
 {
     Box::pin(fut)
 }

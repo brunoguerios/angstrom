@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use angstrom_types::{
     primitive::PoolId,
-    sol_bindings::{grouped_orders::GroupedVanillaOrder, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::GroupedVanillaOrder, rpc_orders::TopOfBlockOrder},
 };
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
@@ -13,10 +13,10 @@ mod pool_order_generator;
 use pool_order_generator::PoolOrderGenerator;
 
 pub struct OrderGenerator {
-    pools:             Vec<PoolOrderGenerator>,
+    pools: Vec<PoolOrderGenerator>,
     /// lower and upper bounds for the amount of book orders to generate
-    order_amt_range:   Range<usize>,
-    partial_pct_range: Range<f64>
+    order_amt_range: Range<usize>,
+    partial_pct_range: Range<f64>,
 }
 
 impl OrderGenerator {
@@ -24,7 +24,7 @@ impl OrderGenerator {
         pool_data: SyncedUniswapPools,
         block_number: u64,
         order_amt_range: Range<usize>,
-        partial_pct_range: Range<f64>
+        partial_pct_range: Range<f64>,
     ) -> Self {
         let pools = pool_data
             .iter()
@@ -49,7 +49,7 @@ impl OrderGenerator {
             .map(|pool| {
                 pool.generate_set(
                     rng.gen_range(self.order_amt_range.clone()),
-                    rng.gen_range(self.partial_pct_range.clone())
+                    rng.gen_range(self.partial_pct_range.clone()),
                 )
             })
             .collect::<Vec<_>>()
@@ -59,8 +59,8 @@ impl OrderGenerator {
 /// container for orders generated for a specific pool
 pub struct GeneratedPoolOrders {
     pub pool_id: PoolId,
-    pub tob:     TopOfBlockOrder,
-    pub book:    Vec<GroupedVanillaOrder>
+    pub tob: TopOfBlockOrder,
+    pub book: Vec<GroupedVanillaOrder>,
 }
 
 /// samples from a normal price distribution where true price is a
@@ -69,7 +69,7 @@ pub struct PriceDistribution<const N: usize = 10> {
     last_prices: [f64; N],
     upper_bound: f64,
     lower_bound: f64,
-    sd_factor:   f64
+    sd_factor: f64,
 }
 
 impl<const N: usize> PriceDistribution<N> {
@@ -90,7 +90,7 @@ impl<const N: usize> PriceDistribution<N> {
             res.push(
                 normal
                     .sample(&mut rng)
-                    .clamp(self.lower_bound, self.upper_bound)
+                    .clamp(self.lower_bound, self.upper_bound),
             );
         }
         res

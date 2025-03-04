@@ -4,7 +4,7 @@ use angstrom_types::contract_bindings::{
     i_position_descriptor::IPositionDescriptor,
     pool_gate::PoolGate::{self, PoolGateInstance},
     pool_manager::PoolManager,
-    position_manager::PositionManager
+    position_manager::PositionManager,
 };
 use tracing::debug;
 use validation::common::WETH_ADDRESS;
@@ -25,21 +25,21 @@ pub trait TestUniswapEnv: TestAnvilEnvironment {
         asset1: Address,
         lower_tick: I24,
         upper_tick: I24,
-        liquidity: U256
+        liquidity: U256,
     ) -> eyre::Result<TxHash>;
 }
 
 #[derive(Clone)]
 pub struct UniswapEnv<E: TestAnvilEnvironment> {
-    inner:            E,
-    pool_manager:     Address,
+    inner: E,
+    pool_manager: Address,
     position_manager: Address,
-    pool_gate:        Address
+    pool_gate: Address,
 }
 
 impl<E> UniswapEnv<E>
 where
-    E: TestAnvilEnvironment
+    E: TestAnvilEnvironment,
 {
     pub async fn new(inner: E) -> eyre::Result<Self> {
         let pool_manager = Self::deploy_pool_manager(&inner).await?;
@@ -84,7 +84,7 @@ where
                 PERMIT2_ADDRESS,
                 U256::from(100000),
                 *position_descriptor_addr.address(),
-                WETH_ADDRESS
+                WETH_ADDRESS,
             ))
             .await?;
         let position_manager_addr = *position_manager.address();
@@ -106,7 +106,7 @@ impl UniswapEnv<WalletProvider> {
 
 impl<E> TestAnvilEnvironment for UniswapEnv<E>
 where
-    E: TestAnvilEnvironment
+    E: TestAnvilEnvironment,
 {
     type P = E::P;
 
@@ -121,7 +121,7 @@ where
 
 impl<E> TestUniswapEnv for UniswapEnv<E>
 where
-    E: TestAnvilEnvironment
+    E: TestAnvilEnvironment,
 {
     fn pool_gate(&self) -> Address {
         self.pool_gate
@@ -141,7 +141,7 @@ where
         asset1: Address,
         lower_tick: I24,
         upper_tick: I24,
-        liquidity: U256
+        liquidity: U256,
     ) -> eyre::Result<TxHash> {
         self.pool_gate()
             .addLiquidity(asset0, asset1, lower_tick, upper_tick, liquidity, FixedBytes::default())

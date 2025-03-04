@@ -3,7 +3,7 @@ use std::{
     pin::Pin,
     sync::{atomic::AtomicU64, Arc},
     task::Poll,
-    time::Duration
+    time::Duration,
 };
 
 use alloy_primitives::{Address, U256};
@@ -16,40 +16,40 @@ use validation::{
     bundle::BundleValidator,
     common::{
         db::BlockStateProviderFactory, key_split_threadpool::KeySplitThreadpool, SharedTools,
-        TokenPriceGenerator
+        TokenPriceGenerator,
     },
     order::{
         order_validator::OrderValidator,
         sim::SimValidation,
         state::{
             db_state_utils::{nonces::Nonces, AutoMaxFetchUtils},
-            pools::AngstromPoolsTracker
-        }
+            pools::AngstromPoolsTracker,
+        },
     },
-    validator::{ValidationClient, ValidationRequest, Validator}
+    validator::{ValidationClient, ValidationRequest, Validator},
 };
 
 type ValidatorOperation<DB, T> =
     dyn FnOnce(
         TestOrderValidator<DB>,
-        T
+        T,
     ) -> Pin<Box<dyn Future<Output = (TestOrderValidator<DB>, T)> + Send>>;
 
 pub struct TestOrderValidator<DB>
 where
-    DB: BlockStateProviderFactory + revm::DatabaseRef + Clone + Unpin + 'static
+    DB: BlockStateProviderFactory + revm::DatabaseRef + Clone + Unpin + 'static,
 {
     /// allows us to set values to ensure
-    pub db:         Arc<DB>,
-    pub node_id:    u64,
-    pub client:     ValidationClient,
-    pub underlying: Validator<DB, AngstromPoolsTracker, AutoMaxFetchUtils>
+    pub db: Arc<DB>,
+    pub node_id: u64,
+    pub client: ValidationClient,
+    pub underlying: Validator<DB, AngstromPoolsTracker, AutoMaxFetchUtils>,
 }
 
 impl<DB> TestOrderValidator<DB>
 where
     DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
+    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug,
 {
     pub async fn new(
         db: DB,
@@ -61,7 +61,7 @@ where
         token_conversion: TokenPriceGenerator,
         token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>,
         pool_storage: AngstromPoolsTracker,
-        node_id: u64
+        node_id: u64,
     ) -> eyre::Result<Self> {
         let current_block = Arc::new(AtomicU64::new(BlockNumReader::best_block_number(&db)?));
         let db = Arc::new(db);
@@ -88,11 +88,11 @@ where
             duration,
             poll_fn(|cx| {
                 if self.underlying.poll_unpin(cx).is_ready() {
-                    return Poll::Ready(())
+                    return Poll::Ready(());
                 }
                 cx.waker().wake_by_ref();
                 Poll::Pending
-            })
+            }),
         )
         .await;
     }
@@ -107,7 +107,7 @@ where
 impl<DB> Future for TestOrderValidator<DB>
 where
     DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug + Unpin
+    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug + Unpin,
 {
     type Output = ();
 
@@ -123,19 +123,19 @@ where
 pub struct OrderValidatorChain<DB, T>
 where
     DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef,
-    T: 'static
+    T: 'static,
 {
-    validator:     TestOrderValidator<DB>,
-    state:         T,
-    operations:    Vec<Box<ValidatorOperation<DB, T>>>,
-    poll_duration: Duration
+    validator: TestOrderValidator<DB>,
+    state: T,
+    operations: Vec<Box<ValidatorOperation<DB, T>>>,
+    poll_duration: Duration,
 }
 
 impl<DB, T> OrderValidatorChain<DB, T>
 where
     DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef + BlockNumReader,
     T: 'static,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
+    <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug,
 {
     pub fn new(validator: TestOrderValidator<DB>, poll_duration: Duration, state: T) -> Self {
         Self { poll_duration, validator, operations: vec![], state }
@@ -145,9 +145,9 @@ where
     where
         F: FnOnce(
                 TestOrderValidator<DB>,
-                T
+                T,
             ) -> Pin<Box<dyn Future<Output = (TestOrderValidator<DB>, T)> + Send>>
-            + 'static
+            + 'static,
     {
         self.operations.push(Box::new(op));
         self

@@ -1,12 +1,12 @@
 use std::{
     cmp::Reverse,
-    collections::{BTreeMap, HashMap}
+    collections::{BTreeMap, HashMap},
 };
 
 use alloy::primitives::FixedBytes;
 use angstrom_types::{
     orders::OrderPriorityData,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 
 pub struct PendingPool {
@@ -14,10 +14,10 @@ pub struct PendingPool {
     orders: HashMap<FixedBytes<32>, OrderWithStorageData<TopOfBlockOrder>>,
     /// bids are sorted descending by price, TODO: This should be binned into
     /// ticks based off of the underlying pools params
-    bids:   BTreeMap<Reverse<OrderPriorityData>, FixedBytes<32>>,
+    bids: BTreeMap<Reverse<OrderPriorityData>, FixedBytes<32>>,
     /// asks are sorted ascending by price,  TODO: This should be binned into
     /// ticks based off of the underlying pools params
-    asks:   BTreeMap<OrderPriorityData, FixedBytes<32>>
+    asks: BTreeMap<OrderPriorityData, FixedBytes<32>>,
 }
 
 impl PendingPool {
@@ -42,7 +42,7 @@ impl PendingPool {
 
     pub fn remove_order(
         &mut self,
-        id: FixedBytes<32>
+        id: FixedBytes<32>,
     ) -> Option<OrderWithStorageData<TopOfBlockOrder>> {
         let order = self.orders.remove(&id)?;
 

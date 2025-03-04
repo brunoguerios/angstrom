@@ -4,9 +4,9 @@ use std::{
     ops::RangeInclusive,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc, RwLock
+        Arc, RwLock,
     },
-    task::Waker
+    task::Waker,
 };
 
 use dashmap::DashMap;
@@ -33,7 +33,7 @@ pub trait BlockSyncConsumer: Debug + Clone + Send + Sync + Unpin + 'static {
         &self,
         module: &'static str,
         block_range: RangeInclusive<u64>,
-        waker: Option<Waker>
+        waker: Option<Waker>,
     );
     fn sign_off_on_block(&self, module: &'static str, block_number: u64, waker: Option<Waker>);
     fn current_block_number(&self) -> u64;
@@ -56,24 +56,24 @@ pub trait BlockSyncConsumer: Debug + Clone + Send + Sync + Unpin + 'static {
 #[derive(Debug, Clone)]
 pub struct GlobalBlockSync {
     /// state that we are waiting on all sign offs for
-    pending_state:          Arc<RwLock<VecDeque<GlobalBlockState>>>,
+    pending_state: Arc<RwLock<VecDeque<GlobalBlockState>>>,
     /// the block number
-    block_number:           Arc<AtomicU64>,
+    block_number: Arc<AtomicU64>,
     /// the modules with there current sign off state for the transition of
     /// pending state -> cur state
-    registered_modules:     Arc<DashMap<&'static str, VecDeque<SignOffState>>>,
+    registered_modules: Arc<DashMap<&'static str, VecDeque<SignOffState>>>,
     /// Avoids having a module join the set while running. This is to ensure
     /// no race conditions.
-    all_modules_registered: Arc<AtomicBool>
+    all_modules_registered: Arc<AtomicBool>,
 }
 
 impl GlobalBlockSync {
     pub fn new(block_number: u64) -> Self {
         Self {
-            block_number:           Arc::new(AtomicU64::new(block_number)),
-            pending_state:          Arc::new(RwLock::new(VecDeque::with_capacity(2))),
-            registered_modules:     Arc::new(DashMap::default()),
-            all_modules_registered: AtomicBool::new(false).into()
+            block_number: Arc::new(AtomicU64::new(block_number)),
+            pending_state: Arc::new(RwLock::new(VecDeque::with_capacity(2))),
+            registered_modules: Arc::new(DashMap::default()),
+            all_modules_registered: AtomicBool::new(false).into(),
         }
     }
 
@@ -96,7 +96,7 @@ impl BlockSyncProducer for GlobalBlockSync {
 
         let mut lock = self.pending_state.write().unwrap();
         if lock.back() == Some(&GlobalBlockState::PendingProgression(block_number)) {
-            return
+            return;
         }
 
         lock.push_back(GlobalBlockState::PendingProgression(block_number));
@@ -120,7 +120,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
         &self,
         module: &'static str,
         block_range: RangeInclusive<u64>,
-        waker: Option<Waker>
+        waker: Option<Waker>,
     ) {
         // check to see if there is pending state
         if self.pending_state.read().unwrap().is_empty() {
@@ -149,7 +149,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
             let mut lock = self.pending_state.write().unwrap();
             let Some(new_state) = lock.pop_front() else {
                 // are racing and someone beat us to it!
-                return
+                return;
             };
             drop(lock);
 
@@ -198,7 +198,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
             let mut lock = self.pending_state.write().unwrap();
             let Some(new_state) = lock.pop_front() else {
                 // are racing and someone beat us to it!
-                return
+                return;
             };
 
             drop(lock);
@@ -239,7 +239,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
     fn register(&self, module_name: &'static str) {
         if self.all_modules_registered.load(Ordering::SeqCst) {
             tracing::warn!(%module_name, "tried to register a module after setting no more modules to true. This module won't be added");
-            return
+            return;
         }
         tracing::info!(%module_name, "registered module on block sync");
 
@@ -260,7 +260,7 @@ pub enum GlobalBlockState {
     /// a block that we need to deal with the reorg for
     PendingReorg(RangeInclusive<u64>),
     /// a new block that all modules need to index
-    PendingProgression(u64)
+    PendingProgression(u64),
 }
 
 #[derive(Debug, Clone)]
@@ -270,7 +270,7 @@ pub enum SignOffState {
     ReadyForNextBlock(Option<Waker>),
     /// module has registered that there was a reorg and has appropriately
     /// handled it and is ready to continue processing
-    HandledReorg(Option<Waker>)
+    HandledReorg(Option<Waker>),
 }
 
 impl SignOffState {

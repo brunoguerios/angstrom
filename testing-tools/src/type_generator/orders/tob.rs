@@ -1,19 +1,19 @@
 use alloy::{primitives::Address, signers::SignerSync};
 use angstrom_types::{
     primitive::{AngstromSigner, ANGSTROM_DOMAIN},
-    sol_bindings::rpc_orders::{OmitOrderMeta, OrderMeta, TopOfBlockOrder}
+    sol_bindings::rpc_orders::{OmitOrderMeta, OrderMeta, TopOfBlockOrder},
 };
 use pade::PadeEncode;
 
 #[derive(Default, Debug)]
 pub struct ToBOrderBuilder {
-    recipient:    Option<Address>,
-    asset_in:     Option<Address>,
-    asset_out:    Option<Address>,
-    quantity_in:  Option<u128>,
+    recipient: Option<Address>,
+    asset_in: Option<Address>,
+    asset_out: Option<Address>,
+    quantity_in: Option<u128>,
     quantity_out: Option<u128>,
-    valid_block:  Option<u64>,
-    signing_key:  Option<AngstromSigner>
+    valid_block: Option<u64>,
+    signing_key: Option<AngstromSigner>,
 }
 
 impl ToBOrderBuilder {
@@ -64,9 +64,9 @@ impl ToBOrderBuilder {
             let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
             let sig = signer.sign_hash_sync(&hash).unwrap();
             order.meta = OrderMeta {
-                isEcdsa:   true,
-                from:      signer.address(),
-                signature: sig.pade_encode().into()
+                isEcdsa: true,
+                from: signer.address(),
+                signature: sig.pade_encode().into(),
             };
         }
         order

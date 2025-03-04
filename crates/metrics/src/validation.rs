@@ -7,18 +7,18 @@ use crate::METRICS_ENABLED;
 #[derive(Clone)]
 struct ValidationMetricsInner {
     // generic
-    pending_verification:       IntGauge,
-    verification_wait_time:     Histogram,
-    eth_transition_updates:     Histogram,
+    pending_verification: IntGauge,
+    verification_wait_time: Histogram,
+    eth_transition_updates: Histogram,
     /// doesn't include the time waiting in the pending verification queue
-    processing_time:            HistogramVec,
+    processing_time: HistogramVec,
     // simulation
-    simulate_bundle:            Histogram,
-    fetch_gas_for_user:         HistogramVec,
+    simulate_bundle: Histogram,
+    fetch_gas_for_user: HistogramVec,
     // state
-    loading_balances:           Histogram,
-    loading_approvals:          Histogram,
-    applying_state_transitions: Histogram
+    loading_balances: Histogram,
+    loading_approvals: Histogram,
+    applying_state_transitions: Histogram,
 }
 
 impl Default for ValidationMetricsInner {
@@ -98,7 +98,7 @@ impl Default for ValidationMetricsInner {
             fetch_gas_for_user,
             loading_balances,
             loading_approvals,
-            applying_state_transitions
+            applying_state_transitions,
         }
     }
 }
@@ -136,7 +136,7 @@ impl ValidationMetricsInner {
 
     async fn handle_pending<'a, T>(
         &self,
-        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>
+        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>,
     ) -> T {
         self.inc_pending();
         let start = Instant::now();
@@ -162,7 +162,7 @@ impl ValidationMetricsInner {
     async fn new_order<T, F>(&self, is_searcher: bool, f: T)
     where
         T: FnOnce() -> F,
-        F: Future<Output = ()>
+        F: Future<Output = ()>,
     {
         let start = Instant::now();
         f().await;
@@ -213,16 +213,16 @@ impl ValidationMetrics {
                 .get()
                 .copied()
                 .unwrap_or_default()
-                .then(ValidationMetricsInner::default)
+                .then(ValidationMetricsInner::default),
         )
     }
 
     pub async fn measure_wait_time<'a, T>(
         &self,
-        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>
+        f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>,
     ) -> T {
         if let Some(inner) = self.0.as_ref() {
-            return inner.handle_pending(f).await
+            return inner.handle_pending(f).await;
         }
 
         f().await
@@ -231,12 +231,12 @@ impl ValidationMetrics {
     pub async fn new_order<T, F>(&self, is_searcher: bool, f: T)
     where
         T: FnOnce() -> F,
-        F: Future<Output = ()>
+        F: Future<Output = ()>,
     {
         if let Some(inner) = self.0.as_ref() {
             inner.new_order(is_searcher, f).await;
 
-            return
+            return;
         }
 
         f().await;
@@ -244,7 +244,7 @@ impl ValidationMetrics {
 
     pub fn fetch_gas_for_user<T>(&self, is_searcher: bool, f: impl FnOnce() -> T) -> T {
         if let Some(inner) = self.0.as_ref() {
-            return inner.fetch_gas_for_user(is_searcher, f)
+            return inner.fetch_gas_for_user(is_searcher, f);
         }
 
         f()

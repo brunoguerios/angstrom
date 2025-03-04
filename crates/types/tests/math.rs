@@ -18,7 +18,7 @@ fn compute_swap_step_oddity() {
         sqrt_ratio_target_x_96,
         liquidity,
         amount_remaining,
-        fee_pips
+        fee_pips,
     )
     .unwrap();
 
@@ -27,7 +27,7 @@ fn compute_swap_step_oddity() {
         sqrt_ratio_current_x_96,
         liquidity,
         res.1,
-        true
+        true,
     )
     .unwrap();
     println!("Next Res: {:?}", next_res);

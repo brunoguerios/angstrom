@@ -5,7 +5,7 @@ use angstrom_metrics::VanillaLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
 };
 use angstrom_utils::map::OwnedMap;
 
@@ -15,8 +15,8 @@ use crate::limit::LimitPoolError;
 #[derive(Default)]
 pub struct LimitPool {
     pub(super) pending_orders: HashMap<PoolId, PendingPool<GroupedVanillaOrder>>,
-    pub(super) parked_orders:  HashMap<PoolId, ParkedPool>,
-    metrics:                   VanillaLimitOrderPoolMetricsWrapper
+    pub(super) parked_orders: HashMap<PoolId, ParkedPool>,
+    metrics: VanillaLimitOrderPoolMetricsWrapper,
 }
 
 impl LimitPool {
@@ -25,9 +25,9 @@ impl LimitPool {
         let pending = ids.iter().map(|id| (*id, PendingPool::new())).collect();
 
         Self {
-            parked_orders:  parked,
+            parked_orders: parked,
             pending_orders: pending,
-            metrics:        VanillaLimitOrderPoolMetricsWrapper::new()
+            metrics: VanillaLimitOrderPoolMetricsWrapper::new(),
         }
     }
 
@@ -51,7 +51,7 @@ impl LimitPool {
     pub fn get_order(
         &self,
         pool_id: PoolId,
-        order_id: alloy::primitives::FixedBytes<32>
+        order_id: alloy::primitives::FixedBytes<32>,
     ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
         // Try to get from pending orders first
         self.pending_orders
@@ -67,7 +67,7 @@ impl LimitPool {
 
     pub fn add_order(
         &mut self,
-        order: OrderWithStorageData<GroupedVanillaOrder>
+        order: OrderWithStorageData<GroupedVanillaOrder>,
     ) -> Result<(), LimitPoolError> {
         let pool_id = order.pool_id;
         let err = || LimitPoolError::NoPool(pool_id);
@@ -92,7 +92,7 @@ impl LimitPool {
     pub fn remove_order(
         &mut self,
         pool_id: PoolId,
-        order_id: alloy::primitives::FixedBytes<32>
+        order_id: alloy::primitives::FixedBytes<32>,
     ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
         self.pending_orders
             .get_mut(&pool_id)

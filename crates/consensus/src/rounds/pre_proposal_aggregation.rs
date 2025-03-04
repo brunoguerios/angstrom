@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     task::{Context, Poll, Waker},
-    time::Instant
+    time::Instant,
 };
 
 use alloy::providers::Provider;
@@ -24,9 +24,9 @@ use crate::rounds::{finalization::FinalizationState, proposal::ProposalState};
 #[derive(Debug)]
 pub struct PreProposalAggregationState {
     pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-    proposal:                  Option<Proposal>,
-    trigger_time:              Instant,
-    waker:                     Waker
+    proposal: Option<Proposal>,
+    trigger_time: Instant,
+    waker: Waker,
 }
 
 impl PreProposalAggregationState {
@@ -35,17 +35,17 @@ impl PreProposalAggregationState {
         mut pre_proposals_aggregation: HashSet<PreProposalAggregation>,
         handles: &mut SharedRoundState<P, Matching>,
         trigger_time: Instant,
-        waker: Waker
+        waker: Waker,
     ) -> Self
     where
         P: Provider + 'static,
-        Matching: MatchingEngineHandle
+        Matching: MatchingEngineHandle,
     {
         // generate my pre_proposal aggregation
         let my_preproposal_aggregation = PreProposalAggregation::new(
             handles.block_height,
             &handles.signer,
-            pre_proposals.into_iter().collect::<Vec<_>>()
+            pre_proposals.into_iter().collect::<Vec<_>>(),
         );
 
         // propagate my pre_proposal
@@ -65,12 +65,12 @@ impl PreProposalAggregationState {
 impl<P, Matching> ConsensusState<P, Matching> for PreProposalAggregationState
 where
     P: Provider + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
 {
     fn on_consensus_message(
         &mut self,
         handles: &mut SharedRoundState<P, Matching>,
-        message: StromConsensusEvent
+        message: StromConsensusEvent,
     ) {
         match message {
             StromConsensusEvent::PreProposal(..) => {
@@ -80,7 +80,7 @@ where
                 .handle_pre_proposal_aggregation(
                     peer_id,
                     pre_proposal_agg,
-                    &mut self.pre_proposals_aggregation
+                    &mut self.pre_proposals_aggregation,
                 ),
             StromConsensusEvent::Proposal(peer_id, proposal) => {
                 if let Some(proposal) = handles.verify_proposal(peer_id, proposal) {
@@ -94,7 +94,7 @@ where
     fn poll_transition(
         &mut self,
         handles: &mut SharedRoundState<P, Matching>,
-        cx: &mut Context<'_>
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         // if we aren't the leader. we wait for the proposal to then verify in the
         // finalization state.
@@ -102,8 +102,8 @@ where
             return Poll::Ready(Some(Box::new(FinalizationState::new(
                 proposal,
                 handles,
-                cx.waker().clone()
-            ))))
+                cx.waker().clone(),
+            ))));
         }
         let cur_preproposals_aggs = self.pre_proposals_aggregation.len();
         let twthr = handles.two_thirds_of_validation_set();
@@ -120,8 +120,8 @@ where
                 std::mem::take(&mut self.pre_proposals_aggregation),
                 handles,
                 self.trigger_time,
-                cx.waker().clone()
-            ))))
+                cx.waker().clone(),
+            ))));
         }
 
         Poll::Pending

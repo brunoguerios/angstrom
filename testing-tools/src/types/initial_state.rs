@@ -1,13 +1,13 @@
 use alloy::providers::PendingTransaction;
 use alloy_primitives::{
     aliases::{I24, U24},
-    Address, TxHash
+    Address, TxHash,
 };
 use angstrom_types::{contract_bindings::angstrom::Angstrom::PoolKey, matching::SqrtPriceX96};
 
 pub struct PendingDeployedPools {
     pending_txs: Vec<PendingTransaction>,
-    pool_keys:   Vec<PoolKey>
+    pool_keys: Vec<PoolKey>,
 }
 
 impl Default for PendingDeployedPools {
@@ -49,10 +49,10 @@ impl PendingDeployedPools {
 pub struct PartialConfigPoolKey {
     // currency0:         Address,
     // currency1:         Address,
-    pub fee:               u64,
-    pub tick_spacing:      i32,
+    pub fee: u64,
+    pub tick_spacing: i32,
     pub initial_liquidity: u128,
-    pub sqrt_price:        SqrtPriceX96
+    pub sqrt_price: SqrtPriceX96,
 }
 
 impl PartialConfigPoolKey {
@@ -62,7 +62,7 @@ impl PartialConfigPoolKey {
         fee: u64,
         tick_spacing: i32,
         initial_liquidity: u128,
-        sqrt_price: SqrtPriceX96
+        sqrt_price: SqrtPriceX96,
     ) -> Self {
         Self { fee, tick_spacing, initial_liquidity, sqrt_price }
     }
@@ -71,14 +71,14 @@ impl PartialConfigPoolKey {
         &self,
         angstrom_address_hook: Address,
         cur0: Address,
-        cur1: Address
+        cur1: Address,
     ) -> PoolKey {
         PoolKey {
-            currency0:   cur0,
-            currency1:   cur1,
-            fee:         U24::from(self.fee),
+            currency0: cur0,
+            currency1: cur1,
+            fee: U24::from(self.fee),
             tickSpacing: I24::unchecked_from(self.tick_spacing),
-            hooks:       angstrom_address_hook
+            hooks: angstrom_address_hook,
         }
     }
 

@@ -11,27 +11,23 @@ const ONE_E3: u64 = 1000;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AngstromValidator {
-    pub peer_id:  PeerId,
+    pub peer_id: PeerId,
     voting_power: u64,
-    priority:     i64
+    priority: i64,
 }
 
 impl AngstromValidator {
     pub fn new(name: PeerId, voting_power: u64) -> Self {
-        AngstromValidator {
-            peer_id:      name,
-            voting_power: voting_power * ONE_E3,
-            priority:     0
-        }
+        AngstromValidator { peer_id: name, voting_power: voting_power * ONE_E3, priority: 0 }
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WeightedRoundRobin {
-    validators:                HashSet<AngstromValidator>,
+    validators: HashSet<AngstromValidator>,
     new_joiner_penalty_factor: u64,
-    block_number:              BlockNumber,
-    last_proposer:             Option<PeerId>
+    block_number: BlockNumber,
+    last_proposer: Option<PeerId>,
 }
 
 impl WeightedRoundRobin {
@@ -40,7 +36,7 @@ impl WeightedRoundRobin {
             validators: HashSet::from_iter(validators),
             new_joiner_penalty_factor: PENALTY_FACTOR,
             block_number,
-            last_proposer: None
+            last_proposer: None,
         }
     }
 
@@ -78,7 +74,7 @@ impl WeightedRoundRobin {
             // TODO: not the best because it encourages mining lower peer ids
             // however we need a way for this to be uniform across nodes and
             // this is the easiest
-            return a.peer_id.cmp(&b.peer_id)
+            return a.peer_id.cmp(&b.peer_id);
         }
         out.unwrap()
     }
@@ -139,7 +135,7 @@ impl WeightedRoundRobin {
                 self.last_proposer = Some(self.proposer_selection());
             }
 
-            return self.last_proposer
+            return self.last_proposer;
         }
 
         let rounds_to_catchup = (block_number - self.block_number) as usize;
@@ -207,7 +203,7 @@ mod tests {
     fn test_validator_hash() {
         use std::{
             collections::hash_map::DefaultHasher,
-            hash::{Hash, Hasher}
+            hash::{Hash, Hasher},
         };
 
         let peer_id = PeerId::random();
@@ -252,14 +248,11 @@ mod tests {
         let peer1 = PeerId::random();
         let peer2 = PeerId::random();
 
-        let v1 =
-            AngstromValidator { peer_id: peer1, voting_power: 100 * ONE_E3, priority: 10 };
+        let v1 = AngstromValidator { peer_id: peer1, voting_power: 100 * ONE_E3, priority: 10 };
 
-        let v2 =
-            AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 10 };
+        let v2 = AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 10 };
 
-        let v3 =
-            AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 20 };
+        let v3 = AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 20 };
 
         // Test equal priorities
         assert_eq!(
@@ -305,7 +298,7 @@ mod tests {
         let peers = HashMap::from([
             ("Alice".to_string(), PeerId::random()),
             ("Bob".to_string(), PeerId::random()),
-            ("Charlie".to_string(), PeerId::random())
+            ("Charlie".to_string(), PeerId::random()),
         ]);
         let validators = vec![
             AngstromValidator::new(peers["Alice"], 100),
@@ -449,7 +442,7 @@ mod tests {
         let peers = HashMap::from([
             ("Alice".to_string(), PeerId::random()),
             ("Bob".to_string(), PeerId::random()),
-            ("Charlie".to_string(), PeerId::random())
+            ("Charlie".to_string(), PeerId::random()),
         ]);
         let validators = vec![
             AngstromValidator::new(peers["Alice"], 100),

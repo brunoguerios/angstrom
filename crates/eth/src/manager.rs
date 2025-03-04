@@ -2,21 +2,21 @@ use std::{
     collections::HashSet,
     ops::RangeInclusive,
     sync::Arc,
-    task::{Context, Poll}
+    task::{Context, Poll},
 };
 
 use alloy::{
     consensus::{BlockHeader, Transaction},
     primitives::{aliases::I24, Address, BlockHash, BlockNumber, B256},
-    sol_types::SolEvent
+    sol_types::SolEvent,
 };
 use angstrom_types::{
     block_sync::BlockSyncProducer,
     contract_bindings::{
         angstrom::Angstrom::PoolKey,
-        controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
+        controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved},
     },
-    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore}
+    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore},
 };
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
@@ -41,28 +41,28 @@ const MAX_REORG_DEPTH: u64 = 150;
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
 pub struct EthDataCleanser<Sync> {
-    angstrom_address:  Address,
+    angstrom_address: Address,
     periphery_address: Address,
     /// our command receiver
-    commander:         ReceiverStream<EthCommand>,
+    commander: ReceiverStream<EthCommand>,
     /// people listening to events
-    event_listeners:   Vec<UnboundedSender<EthEvent>>,
+    event_listeners: Vec<UnboundedSender<EthEvent>>,
     /// for rebroadcasting
-    cannon_sender:     tokio::sync::broadcast::Sender<CanonStateNotification>,
+    cannon_sender: tokio::sync::broadcast::Sender<CanonStateNotification>,
     /// Notifications for Canonical Block updates
     canonical_updates: BroadcastStream<CanonStateNotification>,
-    angstrom_tokens:   HashSet<Address>,
+    angstrom_tokens: HashSet<Address>,
     /// handles syncing of blocks.
-    block_sync:        Sync,
+    block_sync: Sync,
     /// updated by periphery contract.
-    pool_store:        Arc<AngstromPoolConfigStore>,
+    pool_store: Arc<AngstromPoolConfigStore>,
     /// the set of currently active nodes.
-    node_set:          HashSet<Address>
+    node_set: HashSet<Address>,
 }
 
 impl<Sync> EthDataCleanser<Sync>
 where
-    Sync: BlockSyncProducer
+    Sync: BlockSyncProducer,
 {
     pub fn spawn<TP: TaskSpawner>(
         angstrom_address: Address,
@@ -75,7 +75,7 @@ where
         pool_store: Arc<AngstromPoolConfigStore>,
         sync: Sync,
         node_set: HashSet<Address>,
-        event_listeners: Vec<UnboundedSender<EthEvent>>
+        event_listeners: Vec<UnboundedSender<EthEvent>>,
     ) -> anyhow::Result<EthHandle> {
         let stream = ReceiverStream::new(rx);
         let (cannon_tx, _) = tokio::sync::broadcast::channel(1000);
@@ -90,7 +90,7 @@ where
             block_sync: sync,
             pool_store,
             node_set,
-            event_listeners
+            event_listeners,
         };
         // ensure we broadcast node set. will allow for proper connections
         // on the network side
@@ -107,7 +107,7 @@ where
     }
 
     fn subscribe_cannon_notifications(
-        &self
+        &self,
     ) -> tokio::sync::broadcast::Receiver<CanonStateNotification> {
         self.cannon_sender.subscribe()
     }
@@ -129,7 +129,7 @@ where
     fn on_canon_update(&mut self, canonical_updates: CanonStateNotification) {
         match canonical_updates.clone() {
             CanonStateNotification::Reorg { old, new } => self.handle_reorg(old, new),
-            CanonStateNotification::Commit { new } => self.handle_commit(new)
+            CanonStateNotification::Commit { new } => self.handle_commit(new),
         }
         let _ = self.cannon_sender.send(canonical_updates);
     }
@@ -153,9 +153,9 @@ where
         let reorged_orders = EthEvent::ReorgedOrders(difference, reorg);
 
         let transitions = EthEvent::NewBlockTransitions {
-            block_number:      new.tip_number(),
-            filled_orders:     new_filled.into_iter().collect(),
-            address_changeset: eoas
+            block_number: new.tip_number(),
+            filled_orders: new_filled.into_iter().collect(),
+            address_changeset: eoas,
         };
 
         self.send_events(transitions);
@@ -176,7 +176,7 @@ where
         let transitions = EthEvent::NewBlockTransitions {
             block_number: new.tip_number(),
             filled_orders,
-            address_changeset: eoas
+            address_changeset: eoas,
         };
         self.send_events(transitions);
     }
@@ -205,11 +205,11 @@ where
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
 
                     let pool_key = PoolKey {
-                        currency1:   removed_pool.asset1,
-                        currency0:   removed_pool.asset0,
-                        fee:         removed_pool.feeInE6,
+                        currency1: removed_pool.asset1,
+                        currency0: removed_pool.asset0,
+                        fee: removed_pool.feeInE6,
                         tickSpacing: removed_pool.tickSpacing,
-                        hooks:       self.angstrom_address
+                        hooks: self.angstrom_address,
                     };
                     self.send_events(EthEvent::RemovedPool { pool: pool_key });
                 }
@@ -218,15 +218,15 @@ where
                     let asset1 = added_pool.asset1;
                     let entry = AngPoolConfigEntry {
                         pool_partial_key: AngstromPoolConfigStore::derive_store_key(asset0, asset1),
-                        tick_spacing:     added_pool.tickSpacing,
-                        fee_in_e6:        added_pool.bundleFee.to(),
-                        store_index:      self.pool_store.length()
+                        tick_spacing: added_pool.tickSpacing,
+                        fee_in_e6: added_pool.bundleFee.to(),
+                        store_index: self.pool_store.length(),
                     };
 
                     let pool_key = PoolKey {
-                        currency1:   asset1,
-                        currency0:   asset0,
-                        fee:         added_pool.bundleFee,
+                        currency1: asset1,
+                        currency0: asset0,
+                        fee: added_pool.bundleFee,
                         tickSpacing: I24::try_from_be_slice(&{
                             let bytes = added_pool.tickSpacing.to_be_bytes();
                             let mut a = [0u8; 3];
@@ -234,7 +234,7 @@ where
                             a
                         })
                         .unwrap(),
-                        hooks:       self.angstrom_address
+                        hooks: self.angstrom_address,
                     };
 
                     self.pool_store.new_pool(asset0, asset1, entry);
@@ -248,7 +248,7 @@ where
 
     fn fetch_filled_order<'a>(
         &'a self,
-        chain: &'a impl ChainExt
+        chain: &'a impl ChainExt,
     ) -> impl Iterator<Item = B256> + 'a {
         let tip_txs = chain.tip_transactions().cloned();
 
@@ -285,7 +285,7 @@ where
 
 impl<Sync> Future for EthDataCleanser<Sync>
 where
-    Sync: BlockSyncProducer
+    Sync: BlockSyncProducer,
 {
     type Output = ();
 
@@ -299,7 +299,7 @@ where
                 .is_some()
         }) {
             if !is_some {
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
         }
 
@@ -316,20 +316,20 @@ pub enum EthEvent {
     //TODO: add shit here
     NewBlock(u64),
     NewBlockTransitions {
-        block_number:      u64,
-        filled_orders:     Vec<B256>,
-        address_changeset: Vec<Address>
+        block_number: u64,
+        filled_orders: Vec<B256>,
+        address_changeset: Vec<Address>,
     },
     ReorgedOrders(Vec<B256>, RangeInclusive<u64>),
     FinalizedBlock(u64),
     NewPool {
-        pool: PoolKey
+        pool: PoolKey,
     },
     RemovedPool {
-        pool: PoolKey
+        pool: PoolKey,
     },
     AddedNode(Address),
-    RemovedNode(Address)
+    RemovedNode(Address),
 }
 
 #[auto_impl::auto_impl(&,Arc)]
@@ -398,20 +398,20 @@ pub mod test {
         hex,
         primitives::{aliases::U24, b256, Log, TxKind, U256},
         signers::Signature,
-        sol_types::SolEvent
+        sol_types::SolEvent,
     };
     use angstrom_types::{
         block_sync::*,
         contract_bindings::controller_v_1::ControllerV1::{
-            NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved
+            NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved,
         },
         contract_payloads::{
             angstrom::{TopOfBlockOrder, UserOrder},
-            Asset, Pair
+            Asset, Pair,
         },
         orders::OrderOutcome,
         primitive::AngstromSigner,
-        sol_bindings::grouped_orders::OrderWithStorageData
+        sol_bindings::grouped_orders::OrderWithStorageData,
     };
     use pade::PadeEncode;
     use reth_primitives::LogData;
@@ -421,10 +421,10 @@ pub mod test {
 
     #[derive(Default)]
     pub struct MockChain<'a> {
-        pub hash:         BlockHash,
-        pub number:       BlockNumber,
+        pub hash: BlockHash,
+        pub number: BlockNumber,
         pub transactions: Vec<TransactionSigned>,
-        pub receipts:     Vec<&'a Receipt>
+        pub receipts: Vec<&'a Receipt>,
     }
 
     impl ChainExt for MockChain<'_> {
@@ -454,22 +454,22 @@ pub mod test {
     }
 
     fn setup_non_subscription_eth_manager(
-        angstrom_address: Option<Address>
+        angstrom_address: Option<Address>,
     ) -> EthDataCleanser<GlobalBlockSync> {
         let (_command_tx, command_rx) = tokio::sync::mpsc::channel(3);
         let (_cannon_tx, cannon_rx) = tokio::sync::broadcast::channel(3);
         let (tx, _) = tokio::sync::broadcast::channel(3);
         EthDataCleanser {
-            commander:         ReceiverStream::new(command_rx),
-            event_listeners:   vec![],
-            angstrom_tokens:   HashSet::default(),
-            node_set:          HashSet::default(),
-            angstrom_address:  angstrom_address.unwrap_or_default(),
+            commander: ReceiverStream::new(command_rx),
+            event_listeners: vec![],
+            angstrom_tokens: HashSet::default(),
+            node_set: HashSet::default(),
+            angstrom_address: angstrom_address.unwrap_or_default(),
             periphery_address: Address::default(),
             canonical_updates: BroadcastStream::new(cannon_rx),
-            block_sync:        GlobalBlockSync::new(1),
-            cannon_sender:     tx,
-            pool_store:        Default::default()
+            block_sync: GlobalBlockSync::new(1),
+            cannon_sender: tx,
+            pool_store: Default::default(),
         }
     }
 
@@ -493,15 +493,10 @@ pub mod test {
             .build();
 
         let outcome = OrderOutcome {
-            id:      user_order.order_id,
-            outcome: angstrom_types::orders::OrderFillState::CompleteFill
+            id: user_order.order_id,
+            outcome: angstrom_types::orders::OrderFillState::CompleteFill,
         };
-        let pair = Pair {
-            index0:       0,
-            index1:       1,
-            store_index:  0,
-            price_1over0: U256::default()
-        };
+        let pair = Pair { index0: 0, index1: 1, store_index: 0, price_1over0: U256::default() };
 
         let asset0 = Asset { addr: t.asset_out, ..Default::default() };
         let asset1 = Asset { addr: t.asset_in, ..Default::default() };
@@ -522,7 +517,7 @@ pub mod test {
             pair,
             vec![],
             vec![finalized_tob],
-            vec![finalized_user_order]
+            vec![finalized_user_order],
         );
 
         let leg = TxLegacy {
@@ -590,7 +585,7 @@ pub mod test {
             asset1,
             bundleFee: fee,
             unlockedFee: fee,
-            tickSpacing: tick_spacing
+            tickSpacing: tick_spacing,
         };
         let configured_log =
             Log { address: periphery_addr, data: pool_configured.encode_log_data() };
@@ -600,7 +595,7 @@ pub mod test {
             asset0,
             asset1,
             feeInE6: fee,
-            tickSpacing: I24::try_from(tick_spacing).unwrap()
+            tickSpacing: I24::try_from(tick_spacing).unwrap(),
         };
         let removed_log = Log { address: periphery_addr, data: pool_removed.encode_log_data() };
 
@@ -659,7 +654,7 @@ pub mod test {
                     assert_eq!(*range.end(), 95);
                     received_reorg = true;
                 }
-                _ => panic!("Unexpected event type")
+                _ => panic!("Unexpected event type"),
             }
         }
 
@@ -689,7 +684,7 @@ pub mod test {
                 assert!(filled_orders.is_empty());
                 assert!(address_changeset.is_empty());
             }
-            _ => panic!("Expected NewBlockTransitions event")
+            _ => panic!("Expected NewBlockTransitions event"),
         }
     }
 
@@ -710,7 +705,7 @@ pub mod test {
                 b256!("000000000000000000000000ecc5a3c54f85ab375de921a40247d726bc8ed376"),
                 b256!("00000000000000000000000094293bf0193f9acf3762b7440126f379eb70cbfd"),
             ],
-            hex!("00000000000000000000000000000000000000000000000001166b47e1c20000").into()
+            hex!("00000000000000000000000000000000000000000000000001166b47e1c20000").into(),
         )
         .unwrap();
 
@@ -766,14 +761,11 @@ pub mod test {
         // Create an invalid log
         let invalid_log = Log {
             address: token_addr,
-            data:    LogData::new_unchecked(vec![B256::random()], vec![1, 2, 3].into())
+            data: LogData::new_unchecked(vec![B256::random()], vec![1, 2, 3].into()),
         };
 
-        let valid_transfer = Transfer {
-            _from:  Address::random(),
-            _to:    Address::random(),
-            _value: U256::from(100)
-        };
+        let valid_transfer =
+            Transfer { _from: Address::random(), _to: Address::random(), _value: U256::from(100) };
         let valid_log = Log { address: token_addr, data: valid_transfer.encode_log_data() };
 
         let mock_recip = Receipt { logs: vec![invalid_log, valid_log], ..Default::default() };
@@ -803,7 +795,7 @@ pub mod test {
                 assert!(filled_orders.is_empty());
                 assert!(address_changeset.is_empty());
             }
-            _ => panic!("Expected NewBlockTransitions event")
+            _ => panic!("Expected NewBlockTransitions event"),
         }
     }
 
@@ -821,7 +813,7 @@ pub mod test {
         // Create multiple node events
         enum NodeEvent {
             Added(NodeAdded),
-            Removed(NodeRemoved)
+            Removed(NodeRemoved),
         }
 
         let events = vec![
@@ -873,20 +865,20 @@ pub mod test {
             asset1,
             bundleFee: fee,
             unlockedFee: fee,
-            tickSpacing: tick_spacing
+            tickSpacing: tick_spacing,
         };
         let configure2 = PoolConfigured {
             asset0,
             asset1,
             bundleFee: fee,
             unlockedFee: fee,
-            tickSpacing: tick_spacing * 2 // Different spacing
+            tickSpacing: tick_spacing * 2, // Different spacing
         };
         let remove = PoolRemoved {
             asset0,
             asset1,
             feeInE6: fee,
-            tickSpacing: I24::try_from(tick_spacing).unwrap()
+            tickSpacing: I24::try_from(tick_spacing).unwrap(),
         };
 
         let logs = vec![
@@ -915,15 +907,12 @@ pub mod test {
         eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
 
         // Create transfer for non-tracked token
-        let transfer = Transfer {
-            _from:  Address::random(),
-            _to:    Address::random(),
-            _value: U256::from(100)
-        };
+        let transfer =
+            Transfer { _from: Address::random(), _to: Address::random(), _value: U256::from(100) };
 
         let logs = vec![Log {
             address: non_tracked_token, // Using non-tracked token address
-            data:    transfer.encode_log_data()
+            data: transfer.encode_log_data(),
         }];
 
         let mock_recip = Receipt { logs, ..Default::default() };
@@ -952,13 +941,13 @@ pub mod test {
             asset1,
             bundleFee: fee,
             unlockedFee: fee,
-            tickSpacing: tick_spacing
+            tickSpacing: tick_spacing,
         };
         let remove = PoolRemoved {
             asset0,
             asset1,
             feeInE6: fee,
-            tickSpacing: I24::try_from(tick_spacing).unwrap()
+            tickSpacing: I24::try_from(tick_spacing).unwrap(),
         };
 
         let logs = vec![
