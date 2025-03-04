@@ -1,6 +1,4 @@
-use std::collections::hash_map::HashMap;
-
-use alloy_primitives::{Address, I256, U256};
+use alloy_primitives::{I256, U256};
 use angstrom_types::{
     contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
@@ -14,7 +12,6 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use rand_distr::num_traits::ToPrimitive;
 
 use crate::OrderBook;
 
@@ -187,7 +184,6 @@ impl<'a> DeltaMatcher<'a> {
         let (Some(is_ask), Some(extra_t0), Some(_extra_t1), Some(id)) =
             (extra_is_ask, extra_t0, extra_t1, id)
         else {
-            tracing::info!(?t0_sum, ?t1_sum, ?price, "no extra");
             return if t0_sum < I256::ZERO {
                 SupplyDemandResult::MoreDemand
             } else {
@@ -270,22 +266,14 @@ impl<'a> DeltaMatcher<'a> {
     fn fetch_orders_at_ucp(&self, fetch: &UcpSolution) -> Vec<OrderOutcome> {
         // we can only have partial fills when ucp is exactly on.
         let (order_id, amount) = fetch.get_partial_unfill().unzip();
-        let mut map: HashMap<Address, i128> = HashMap::new();
-        let mut map2: HashMap<Address, i128> = HashMap::new();
 
-        let res = self
-            .book
+        self.book
             .bids()
             .iter()
             .map(|bid| OrderOutcome {
                 id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
                     // partials are always exact in, so we need to convert this out
-                    println!(
-                        "{} - {} is bid: true",
-                        bid.amount(),
-                        (U256::try_from(amount.unwrap()).unwrap()).to::<u128>()
-                    );
                     // the amount here is always in Y. however for bids that are exact in, we want
                     // X
                     let partial_am = fetch
@@ -294,18 +282,9 @@ impl<'a> DeltaMatcher<'a> {
                         .to::<u128>();
 
                     let amount_in_partial = bid.min_amount() + partial_am;
-                    let (amount_in, amount_out) =
-                        Self::get_amount_in_out(bid, amount_in_partial, fetch.ucp);
-                    *map.entry(bid.token_in()).or_default() += amount_in.to_i128().unwrap();
-                    *map.entry(bid.token_out()).or_default() -= amount_out.to_i128().unwrap();
 
                     OrderFillState::PartialFill(amount_in_partial)
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
-                    let (amount_in, amount_out) =
-                        Self::get_amount_in_out(bid, bid.amount(), fetch.ucp);
-
-                    *map.entry(bid.token_in()).or_default() += amount_in.to_i128().unwrap();
-                    *map.entry(bid.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::CompleteFill
                 } else {
                     OrderFillState::Unfilled
@@ -317,52 +296,14 @@ impl<'a> DeltaMatcher<'a> {
                     let amount_parital =
                         ask.min_amount() + U256::try_from(amount.unwrap()).unwrap().to::<u128>();
 
-                    let (amount_in, amount_out) =
-                        Self::get_amount_in_out(ask, amount_parital, fetch.ucp);
-
-                    *map2.entry(ask.token_in()).or_default() += amount_in.to_i128().unwrap();
-                    *map2.entry(ask.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::PartialFill(amount_parital)
                 } else if fetch.ucp >= ask.price() {
-                    let (amount_in, amount_out) =
-                        Self::get_amount_in_out(ask, ask.amount(), fetch.ucp);
-                    *map2.entry(ask.token_in()).or_default() += amount_in.to_i128().unwrap();
-                    *map2.entry(ask.token_out()).or_default() -= amount_out.to_i128().unwrap();
                     OrderFillState::CompleteFill
                 } else {
                     OrderFillState::Unfilled
                 }
             }))
-            .collect::<Vec<_>>();
-
-        let (zero, one) = self
-            .book
-            .asks()
-            .first()
-            .map(|a| (a.token_in(), a.token_out()))
-            .unwrap();
-
-        if let Some(amm) = self.fetch_amm_movement_at_ucp(fetch.ucp) {
-            match amm {
-                // ask
-                NetAmmOrder::Buy(t0, t1) => {
-                    *map.entry(zero).or_default() -= t0.to_i128().unwrap();
-                    *map.entry(one).or_default() += t1.to_i128().unwrap();
-                }
-                // bid
-                NetAmmOrder::Sell(t0, t1) => {
-                    *map.entry(zero).or_default() += t0.to_i128().unwrap();
-                    *map.entry(one).or_default() -= t1.to_i128().unwrap();
-                }
-            }
-        }
-
-        for (k, v) in map2 {
-            *map.entry(k).or_default() += v;
-        }
-        tracing::info!("order outcome\n\n\n {:#?}", map);
-
-        res
+            .collect::<Vec<_>>()
     }
 
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
