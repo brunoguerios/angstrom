@@ -13,7 +13,7 @@ use std::future::Future;
 use alloy::primitives::{Address, B256, FixedBytes};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
-    primitive::OrderPoolNewOrderResult,
+    primitive::OrderValidationError,
     sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 pub use angstrom_utils::*;
@@ -37,7 +37,7 @@ pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
         &self,
         origin: OrderOrigin,
         order: AllOrders
-    ) -> impl Future<Output = OrderPoolNewOrderResult> + Send;
+    ) -> impl Future<Output = Result<(), OrderValidationError>> + Send;
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate>;
 

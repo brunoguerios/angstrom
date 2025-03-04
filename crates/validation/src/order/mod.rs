@@ -3,6 +3,7 @@ use std::{fmt::Debug, future::Future, pin::Pin};
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderOrigin,
+    primitive::OrderValidationError,
     sol_bindings::{
         ext::RawPoolOrder,
         grouped_orders::{
@@ -11,7 +12,6 @@ use angstrom_types::{
     }
 };
 use sim::SimValidation;
-use state::account::UserAccountVerificationError;
 use tokio::sync::oneshot::{Sender, channel};
 
 use crate::{common::TokenPriceGenerator, validator::ValidationRequest};
@@ -50,22 +50,6 @@ impl From<OrderValidationRequest> for OrderValidation {
 
 pub enum ValidationMessage {
     ValidationResults(OrderValidationResults)
-}
-
-#[derive(Debug, Clone, thiserror::Error)]
-pub enum OrderValidationError {
-    #[error(transparent)]
-    StateError(#[from] UserAccountVerificationError),
-    #[error("the input or output generates a invalid tob swap")]
-    InvalidToBSwap,
-    #[error("min qty on partial < max gas amount")]
-    InvalidPartialOrder,
-    #[error("invalid signature")]
-    InvalidSignature,
-    #[error("invalid pool")]
-    InvalidPool,
-    #[error("not enough gas t0")]
-    NotEnoughGas
 }
 
 #[derive(Debug, Clone)]

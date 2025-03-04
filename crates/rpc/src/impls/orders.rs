@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use alloy_primitives::{Address, B256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
-    primitive::{OrderPoolNewOrderResult, PoolId},
+    primitive::{OrderValidationError, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
@@ -37,7 +37,7 @@ where
     Spawner: TaskSpawner + 'static,
     Validator: OrderValidatorHandle
 {
-    async fn send_order(&self, order: AllOrders) -> RpcResult<OrderPoolNewOrderResult> {
+    async fn send_order(&self, order: AllOrders) -> RpcResult<Result<(), OrderValidationError>> {
         Ok(self.pool.new_order(OrderOrigin::External, order).await)
     }
 
@@ -240,7 +240,7 @@ mod tests {
             api.send_order(standing_order)
                 .await
                 .expect("to not throw error")
-                .is_valid()
+                .is_ok()
         );
 
         // Test flash order
@@ -249,7 +249,7 @@ mod tests {
             api.send_order(flash_order)
                 .await
                 .expect("to not throw error")
-                .is_valid()
+                .is_ok()
         );
 
         // Test TOB order
@@ -258,7 +258,7 @@ mod tests {
             api.send_order(tob_order)
                 .await
                 .expect("to not throw error")
-                .is_valid()
+                .is_ok()
         );
     }
 
@@ -300,13 +300,13 @@ mod tests {
             &self,
             origin: OrderOrigin,
             order: AllOrders
-        ) -> impl Future<Output = OrderPoolNewOrderResult> + Send {
+        ) -> impl Future<Output = Result<(), OrderValidationError>> + Send {
             let (tx, _) = tokio::sync::oneshot::channel();
             let _ = self
                 .sender
                 .send(OrderCommand::NewOrder(origin, order, tx))
                 .is_ok();
-            future::ready(OrderPoolNewOrderResult::Valid)
+            future::ready(Ok(()))
         }
 
         fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {

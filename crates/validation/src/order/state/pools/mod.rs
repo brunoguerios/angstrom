@@ -6,21 +6,14 @@ use alloy::primitives::{
 };
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
-    contract_payloads::angstrom::AngstromPoolConfigStore, primitive::PoolId,
+    contract_payloads::angstrom::AngstromPoolConfigStore,
+    primitive::{PoolId, UserOrderPoolInfo},
     sol_bindings::ext::RawPoolOrder
 };
 
 pub trait PoolsTracker: Send + Unpin {
     /// Returns None if no pool is found
     fn fetch_pool_info_for_order<O: RawPoolOrder>(&self, order: &O) -> Option<UserOrderPoolInfo>;
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct UserOrderPoolInfo {
-    // token in for pool
-    pub token:   Address,
-    pub is_bid:  bool,
-    pub pool_id: PoolId
 }
 
 /// keeps track of all valid pools and the mappings of asset id to pool id

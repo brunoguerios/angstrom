@@ -3,8 +3,11 @@ use std::sync::Arc;
 use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::sol_bindings::{
-    Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
+use angstrom_types::{
+    primitive::OrderValidationError,
+    sol_bindings::{
+        Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
+    }
 };
 use db_state_utils::StateFetchUtils;
 use parking_lot::RwLock;
@@ -12,7 +15,6 @@ use pools::PoolsTracker;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use super::OrderValidationResults;
-use crate::order::OrderValidationError;
 
 pub mod account;
 pub mod config;

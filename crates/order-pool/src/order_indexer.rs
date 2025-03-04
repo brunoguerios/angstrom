@@ -299,9 +299,16 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     });
                 }
                 self.order_storage.log_cancel_order(&order);
+            } else {
+                self.notify_validation_subscribers(
+                    &hash,
+                    OrderValidationResults::Invalid {
+                        hash,
+                        error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
+                    }
+                );
+                return;
             }
-            self.notify_validation_subscribers(&hash, OrderValidationResults::Invalid(hash));
-            return;
         }
 
         let hash = order.order_hash();
@@ -433,7 +440,11 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 if valid.valid_block != self.block_number {
                     self.notify_validation_subscribers(
                         &hash,
-                        OrderValidationResults::Invalid(hash)
+                        OrderValidationResults::Invalid {
+                            hash,
+                            error:
+                                angstrom_types::primitive::OrderValidationError::InvalidOrderAtBlock
+                        }
                     );
 
                     self.seen_invalid_orders.insert(hash);
@@ -454,16 +465,10 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
                 Ok(PoolInnerEvent::Propagation(to_propagate))
             }
-            OrderValidationResults::Invalid(bad_hash) => {
-                self.notify_validation_subscribers(
-                    &bad_hash,
-                    OrderValidationResults::Invalid(bad_hash)
-                );
-                self.seen_invalid_orders.insert(bad_hash);
-                let peers = self
-                    .order_hash_to_peer_id
-                    .remove(&bad_hash)
-                    .unwrap_or_default();
+            this @ OrderValidationResults::Invalid { hash, .. } => {
+                self.notify_validation_subscribers(&hash, this);
+                self.seen_invalid_orders.insert(hash);
+                let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
             OrderValidationResults::TransitionedToBlock => Ok(PoolInnerEvent::None)
@@ -941,7 +946,10 @@ mod tests {
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
 
         indexer
-            .handle_validated_order(OrderValidationResults::Invalid(order_hash))
+            .handle_validated_order(OrderValidationResults::Invalid {
+                hash:  order_hash,
+                error: angstrom_types::primitive::OrderValidationError::InvalidPool
+            })
             .unwrap();
 
         // Verify order was marked as invalid
@@ -949,7 +957,7 @@ mod tests {
 
         // Verify validation result
         match rx.await {
-            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
+            Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
             _ => panic!("Expected invalid order result")
         }
     }
@@ -1200,7 +1208,7 @@ mod tests {
 
         // The duplicate order should be rejected
         match rx2.await {
-            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
+            Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
             _ => panic!("Expected invalid order result")
         }
     }

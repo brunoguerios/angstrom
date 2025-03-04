@@ -3,12 +3,12 @@
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderId,
+    primitive::{UserAccountVerificationError, UserOrderPoolInfo},
     sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData}
 };
-use thiserror::Error;
 use user::UserAccounts;
 
-use super::{db_state_utils::StateFetchUtils, pools::UserOrderPoolInfo};
+use super::db_state_utils::StateFetchUtils;
 
 pub mod user;
 
@@ -136,20 +136,6 @@ pub trait StorageWithData: RawPoolOrder {
             tob_reward: U256::ZERO
         }
     }
-}
-
-#[derive(Debug, Error, Clone)]
-pub enum UserAccountVerificationError {
-    #[error("tried to verify for block {} where current is {}", requested, current)]
-    BlockMissMatch { requested: u64, current: u64, pool_info: UserOrderPoolInfo },
-    #[error("order hash has been cancelled {0:?}")]
-    OrderIsCancelled(B256),
-    #[error("Nonce exists for a current order hash: {0:?}")]
-    DuplicateNonce(B256),
-    #[error("block for flash order is not for next block. next_block: {0}, requested_block: {1}.")]
-    BadBlock(u64, u64),
-    #[error("currently hooks are not supported. this field should be empty bytes")]
-    NonEmptyHook
 }
 
 #[cfg(test)]
