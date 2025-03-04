@@ -48,8 +48,8 @@ dashmap.workspace = true
 auto_impl.workspace = true
 
 [build-dependencies]
-convert_case = "0.6.0"
-itertools = "0.13.0"
+convert_case.workspace = true
+itertools.workspace = true
 
 [dev-dependencies]
 rand.workspace = true
