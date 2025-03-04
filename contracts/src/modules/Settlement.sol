@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {UniConsumer} from "./UniConsumer.sol";
-import {console} from "forge-std/console.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 import {DeltaTracker} from "../types/DeltaTracker.sol";
@@ -81,7 +80,6 @@ abstract contract Settlement is UniConsumer {
             int256 delta = bundleDeltas.sub(addr, saving + settle);
 
             if (delta != 0) {
-                console.log("non zero delta", delta);
                 revert BundlDeltaUnresolved(addr);
             }
 
