@@ -35,7 +35,7 @@ thiserror.workspace = true
 reth-provider.workspace = true
 
 arraydeque = "0"
-num-bigfloat = "1"
+num-bigfloat.workspace = true
 once_cell.workspace = true
 
 # Using clap for our bookgen command-line tool

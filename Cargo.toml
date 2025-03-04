@@ -193,6 +193,7 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 rand = "0.8.5"
 rand_distr = "0.4.3"
 num-traits = "0"
+num-bigfloat = "1"
 strum = "0"
 rayon = "1"
 itertools = "0"
