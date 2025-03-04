@@ -21,8 +21,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: cargo fmt
-        run: cargo fmt --all -- --check
+      - name: Install Nightly
+        run: rustup toolchain install nightly
+
+      - name: cargo +nightly fmt
+        run: cargo +nightly fmt --all -- --check
 
   cargo-check:
     name: cargo check
