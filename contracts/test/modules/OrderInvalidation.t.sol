@@ -11,6 +11,7 @@ contract InvalidationManagerTest is Test, OrderInvalidation {
 
     bytes4 internal constant NONCES_SLOT = bytes4(keccak256("angstrom-v1_0.unordered-nonces.slot"));
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzzing_revertsUponReuse(address owner, uint64 nonce) public {
         _invalidateNonce(owner.brutalize(), nonce.brutalize());
         vm.expectRevert(OrderInvalidation.NonceReuse.selector);

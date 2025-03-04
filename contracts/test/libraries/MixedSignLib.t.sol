@@ -6,6 +6,7 @@ import {MixedSignLib} from "../../src/libraries/MixedSignLib.sol";
 
 /// @author philogy <https://github.com/philogy>
 contract MixedSignTest is Test {
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzzing_add(uint128 x, int128 y) public {
         uint128 absY = _abs128(y);
 
@@ -23,6 +24,7 @@ contract MixedSignTest is Test {
         }
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzzing_sub(uint128 x, int128 y) public {
         uint128 absY = _abs128(y);
 
