@@ -4,7 +4,7 @@ use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
-    ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder, Ray
+    Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
 };
 use db_state_utils::StateFetchUtils;
 use parking_lot::RwLock;

@@ -1,18 +1,18 @@
 use alloy::{
-    contract::RawCallBuilder, network::Ethereum, primitives::Address, sol_types::SolValue,
+    contract::RawCallBuilder, network::Ethereum, primitives::Address, sol_types::SolValue
 };
 use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom;
 
-use super::{mine_create3_address, mine_create3_address_uni, SUB_ZERO_FACTORY};
+use super::{SUB_ZERO_FACTORY, mine_create3_address, mine_create3_address_uni};
 
 pub async fn deploy_angstrom_create3<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, Ethereum> + alloy::providers::WalletProvider<Ethereum>,
+    P: alloy::contract::private::Provider<T, Ethereum> + alloy::providers::WalletProvider<Ethereum>
 >(
     provider: &P,
     pool_manager: Address,
-    controller: Address,
+    controller: Address
 ) -> eyre::Result<Address> {
     let owner = provider.default_signer_address();
 
@@ -58,10 +58,10 @@ mod _private {
 
 pub async fn deploy_uni_create3<
     T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, Ethereum> + alloy::providers::WalletProvider<Ethereum>,
+    P: alloy::contract::private::Provider<T, Ethereum> + alloy::providers::WalletProvider<Ethereum>
 >(
     provider: &P,
-    controller: Address,
+    controller: Address
 ) -> Address {
     let owner = provider.default_signer_address();
 

@@ -4,17 +4,17 @@ use eyre::{Context, OptionExt, eyre};
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
     sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta},
-    tick_math::get_tick_at_sqrt_ratio,
+    tick_math::get_tick_at_sqrt_ratio
 };
 
 use super::{
     Tick,
     liqrange::{LiqRange, LiqRangeRef},
-    poolprice::PoolPrice,
+    poolprice::PoolPrice
 };
 use crate::{
     matching::{SqrtPriceX96, math::low_to_high},
-    sol_bindings::Ray,
+    sol_bindings::Ray
 };
 
 /// Snapshot of a particular Uniswap pool and a map of its liquidity.
@@ -22,16 +22,16 @@ use crate::{
 pub struct PoolSnapshot {
     /// Known tick ranges and liquidity positions gleaned from the market
     /// snapshot
-    pub ranges: Vec<LiqRange>,
+    pub ranges:                Vec<LiqRange>,
     /// The current SqrtPriceX96 for this pairing as of this snapshot
     /// (𝛥Token1/𝛥Token0)
     pub(crate) sqrt_price_x96: SqrtPriceX96,
     /// The current tick our price lives in - price might not be precisely on a
     /// tick bound, this is the LOWER of the possible ticks
-    pub(crate) current_tick: Tick,
+    pub(crate) current_tick:   Tick,
     /// Index into the 'ranges' vector for the PoolRange that includes the tick
     /// our current price lives at/in
-    pub(crate) cur_tick_idx: usize,
+    pub(crate) cur_tick_idx:   usize
 }
 
 impl PoolSnapshot {
@@ -82,7 +82,7 @@ impl PoolSnapshot {
     pub fn ranges_for_ticks(
         &self,
         start_tick: Tick,
-        end_tick: Tick,
+        end_tick: Tick
     ) -> eyre::Result<Vec<LiqRangeRef>> {
         let (low, high) = low_to_high(&start_tick, &end_tick);
         let output = self
@@ -158,7 +158,7 @@ impl PoolSnapshot {
     pub fn get_amm_swap_with_start(
         &self,
         price: Ray,
-        start_price: SqrtPriceX96,
+        start_price: SqrtPriceX96
     ) -> Option<(u128, u128)> {
         let end_price = SqrtPriceX96::from(price);
         let is_bid = start_price < end_price;
@@ -194,7 +194,7 @@ impl PoolSnapshot {
                 range_start_price.into(),
                 range_end_price.into(),
                 range.liquidity,
-                true,
+                true
             )
             .ok()?
             .to::<u128>();
@@ -202,7 +202,7 @@ impl PoolSnapshot {
                 range_start_price.into(),
                 range_end_price.into(),
                 range.liquidity,
-                true,
+                true
             )
             .ok()?
             .to::<u128>();
@@ -249,7 +249,7 @@ mod tests {
                         range_start_price.into(),
                         range_end_price.into(),
                         range.liquidity,
-                        true,
+                        true
                     )
                     .ok()?
                     .to::<u128>()
@@ -258,7 +258,7 @@ mod tests {
                         range_end_price.into(),
                         range_start_price.into(),
                         range.liquidity,
-                        true,
+                        true
                     )
                     .ok()?
                     .to::<u128>()
@@ -371,7 +371,7 @@ mod tests {
             LiqRange {
                 lower_tick: 0,
                 upper_tick: 100,
-                liquidity: 10000, // 10x more liquidity
+                liquidity:  10000 // 10x more liquidity
             },
             LiqRange { lower_tick: 100, upper_tick: 200, liquidity: 20000 },
         ];

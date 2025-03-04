@@ -6,18 +6,18 @@ use angstrom_types::{
     matching::Ray,
     orders::{OrderId, OrderOrigin, OrderPriorityData},
     sol_bindings::{
-        grouped_orders::{AllOrders, OrderWithStorageData},
-        RawPoolOrder
+        RawPoolOrder,
+        grouped_orders::{AllOrders, OrderWithStorageData}
     },
     testnet::InitialTestnetState
 };
 use futures::{Future, StreamExt};
 use matching_engine::{
-    book::{sort::SortStrategy, BookOrder, OrderBook},
+    book::{BookOrder, OrderBook, sort::SortStrategy},
     matcher::delta::DeltaMatcher,
     strategy::{MatchingStrategy, SimpleCheckpointStrategy}
 };
-use reth_provider::{noop::NoopProvider, CanonStateSubscriptions};
+use reth_provider::{CanonStateSubscriptions, noop::NoopProvider};
 use reth_tasks::TaskExecutor;
 use testing_tools::{
     agents::AgentConfig,
@@ -28,7 +28,7 @@ use testing_tools::{
         config::DevnetConfig
     }
 };
-use tracing::{debug, info, span, Instrument, Level};
+use tracing::{Instrument, Level, debug, info, span};
 
 use crate::cli::compare_engines::CompareEnginesCli;
 

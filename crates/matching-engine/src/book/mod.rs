@@ -6,8 +6,8 @@ use angstrom_types::{
     matching::uniswap::PoolSnapshot,
     primitive::PoolId,
     sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        Ray
+        Ray,
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
     }
 };
 use serde::{Deserialize, Serialize};

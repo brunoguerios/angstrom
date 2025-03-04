@@ -4,14 +4,14 @@ use alloy_primitives::{Address, I256, U256};
 use angstrom_types::{
     contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
-        uniswap::{Direction, PoolPrice, PoolPriceVec},
-        SqrtPriceX96
+        SqrtPriceX96,
+        uniswap::{Direction, PoolPrice, PoolPriceVec}
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
+        RawPoolOrder, Ray,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
-        RawPoolOrder, Ray
+        rpc_orders::TopOfBlockOrder
     }
 };
 use rand_distr::num_traits::ToPrimitive;
@@ -53,7 +53,7 @@ impl<'a> DeltaMatcher<'a> {
         let direction = Direction::from_is_bid(!zfo);
 
         let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
-            return Default::default()
+            return Default::default();
         };
 
         if zfo {
@@ -130,7 +130,7 @@ impl<'a> DeltaMatcher<'a> {
                     side = Some(true);
                     id = Some(ask.order_id);
 
-                    return
+                    return;
                 }
 
                 // max amount
@@ -159,7 +159,7 @@ impl<'a> DeltaMatcher<'a> {
                     side = Some(false);
 
                     id = Some(bid.order_id);
-                    return
+                    return;
                 }
 
                 let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), price);
@@ -181,7 +181,7 @@ impl<'a> DeltaMatcher<'a> {
         let t1_sum = book_t1 + normal_t1 + partial_t1;
 
         if t0_sum.is_zero() && t1_sum.is_zero() {
-            return SupplyDemandResult::NaturallyEqual
+            return SupplyDemandResult::NaturallyEqual;
         }
 
         let (Some(is_ask), Some(extra_t0), Some(_extra_t1), Some(id)) =
@@ -192,7 +192,7 @@ impl<'a> DeltaMatcher<'a> {
                 SupplyDemandResult::MoreDemand
             } else {
                 SupplyDemandResult::MoreSupply
-            }
+            };
         };
 
         // means we have extra demand we can add.
@@ -203,7 +203,7 @@ impl<'a> DeltaMatcher<'a> {
             let delta = t0_sum - I256::try_from(extra_t0).unwrap();
             // delta neg so we flipped
             if delta <= I256::ZERO {
-                return SupplyDemandResult::PartialFillEq { extra_fill_t0: t0_sum, id }
+                return SupplyDemandResult::PartialFillEq { extra_fill_t0: t0_sum, id };
             }
 
         // means we have extra supply we can add
@@ -217,7 +217,7 @@ impl<'a> DeltaMatcher<'a> {
                 return SupplyDemandResult::PartialFillEq {
                     extra_fill_t0: t0_sum.saturating_neg(),
                     id
-                }
+                };
             }
         }
 
@@ -366,7 +366,7 @@ impl<'a> DeltaMatcher<'a> {
     }
 
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
-        let Some(start_price) = self.amm_start_price.clone() else { return None };
+        let start_price = self.amm_start_price.clone()?;
 
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(ucp);
@@ -374,7 +374,7 @@ impl<'a> DeltaMatcher<'a> {
         let direction = Direction::from_is_bid(!zfo);
 
         let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
-            return None
+            return None;
         };
 
         let mut tob_amm = NetAmmOrder::new(direction);
@@ -407,7 +407,7 @@ impl<'a> DeltaMatcher<'a> {
                     }))
                     .collect(),
                 ..Default::default()
-            }
+            };
         };
 
         let limit = self.fetch_orders_at_ucp(&price_and_partial_solution);
@@ -449,7 +449,7 @@ impl<'a> DeltaMatcher<'a> {
                         ucp:           p_mid,
                         extra_t0_fill: None,
                         partial_id:    None
-                    })
+                    });
                 }
                 SupplyDemandResult::PartialFillEq { extra_fill_t0, id } => {
                     println!("solved based on sup, demand with partial order");
@@ -457,7 +457,7 @@ impl<'a> DeltaMatcher<'a> {
                         ucp:           p_mid,
                         extra_t0_fill: Some(extra_fill_t0),
                         partial_id:    Some(id)
-                    })
+                    });
                 }
             }
         }

@@ -10,7 +10,7 @@ use validation::common::WETH_ADDRESS;
 
 use super::TestAnvilEnvironment;
 use crate::{
-    contracts::{deploy::angstrom::deploy_uni_create3, DebugTransaction},
+    contracts::{DebugTransaction, deploy::angstrom::deploy_uni_create3},
     providers::WalletProvider
 };
 
