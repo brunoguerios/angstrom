@@ -170,10 +170,10 @@ pub fn generate_top_of_block_order(
     let pool_id = pool_id.unwrap_or_default();
     let valid_block = valid_block.unwrap_or_default();
     // Could update this to be within a distribution
-    let price: u128 = rng.gen();
-    let volume: u128 = rng.gen();
-    let gas: U256 = rng.gen();
-    let gas_units: u64 = rng.gen();
+    let price: u128 = rng.r#gen();
+    let volume: u128 = rng.r#gen();
+    let gas: U256 = rng.r#gen();
+    let gas_units: u64 = rng.r#gen();
     let order = ToBOrderBuilder::new()
         .quantity_in(quantity_in.unwrap_or_default())
         .quantity_out(quantity_out.unwrap_or_default())

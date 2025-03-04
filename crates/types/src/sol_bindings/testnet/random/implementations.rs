@@ -1,4 +1,4 @@
-use rand::{distributions::Standard, prelude::Distribution, Rng};
+use rand::{Rng, distributions::Standard, prelude::Distribution};
 
 use crate::sol_bindings::{
     grouped_orders::{AllOrders, FlashVariants, StandingVariants},
@@ -14,9 +14,9 @@ impl Distribution<AllOrders> for Standard {
         let rand_variant = rng.gen_range(0..3);
 
         match rand_variant {
-            0 => AllOrders::Flash(rng.gen()),
-            1 => AllOrders::Standing(rng.gen()),
-            2 => AllOrders::TOB(rng.gen()),
+            0 => AllOrders::Flash(rng.r#gen()),
+            1 => AllOrders::Standing(rng.r#gen()),
+            2 => AllOrders::TOB(rng.r#gen()),
             _ => unreachable!(),
         }
     }
@@ -27,8 +27,8 @@ impl Distribution<FlashVariants> for Standard {
         let rand_variant = rng.gen_range(0..2);
 
         match rand_variant {
-            0 => FlashVariants::Exact(rng.gen()),
-            1 => FlashVariants::Partial(rng.gen()),
+            0 => FlashVariants::Exact(rng.r#gen()),
+            1 => FlashVariants::Partial(rng.r#gen()),
             _ => unreachable!(),
         }
     }
@@ -36,13 +36,13 @@ impl Distribution<FlashVariants> for Standard {
 
 impl Distribution<ExactFlashOrder> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> ExactFlashOrder {
-        ExactFlashOrder { hook_data: rng.gen_sized::<150>(), ..rng.gen() }
+        ExactFlashOrder { hook_data: rng.gen_sized::<150>(), ..rng.r#gen() }
     }
 }
 
 impl Distribution<PartialFlashOrder> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> PartialFlashOrder {
-        PartialFlashOrder { hook_data: rng.gen_sized::<150>(), ..rng.gen() }
+        PartialFlashOrder { hook_data: rng.gen_sized::<150>(), ..rng.r#gen() }
     }
 }
 
@@ -51,8 +51,8 @@ impl Distribution<StandingVariants> for Standard {
         let rand_variant = rng.gen_range(0..2);
 
         match rand_variant {
-            0 => StandingVariants::Exact(rng.gen()),
-            1 => StandingVariants::Partial(rng.gen()),
+            0 => StandingVariants::Exact(rng.r#gen()),
+            1 => StandingVariants::Partial(rng.r#gen()),
             _ => unreachable!(),
         }
     }
@@ -60,25 +60,25 @@ impl Distribution<StandingVariants> for Standard {
 
 impl Distribution<ExactStandingOrder> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> ExactStandingOrder {
-        ExactStandingOrder { hook_data: rng.gen_sized::<150>(), ..rng.gen() }
+        ExactStandingOrder { hook_data: rng.gen_sized::<150>(), ..rng.r#gen() }
     }
 }
 
 impl Distribution<PartialStandingOrder> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> PartialStandingOrder {
-        PartialStandingOrder { hook_data: rng.gen_sized::<150>(), ..rng.gen() }
+        PartialStandingOrder { hook_data: rng.gen_sized::<150>(), ..rng.r#gen() }
     }
 }
 
 impl Distribution<TopOfBlockOrder> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> TopOfBlockOrder {
-        TopOfBlockOrder { ..rng.gen() }
+        TopOfBlockOrder { ..rng.r#gen() }
     }
 }
 
 impl Distribution<OrderMeta> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> OrderMeta {
-        OrderMeta { isEcdsa: rng.gen(), from: rng.gen(), signature: rng.gen_sized::<64>() }
+        OrderMeta { isEcdsa: rng.r#gen(), from: rng.r#gen(), signature: rng.gen_sized::<64>() }
     }
 }
 
@@ -106,16 +106,16 @@ impl Distribution<OrderMeta> for Standard {
 //     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) ->
 // crate::sol_bindings::sol::TopOfBlockOrder {
 //         crate::sol_bindings::sol::TopOfBlockOrder {
-//             recipient:     rng.gen(),
-//             hook:          rng.gen(),
+//             recipient:     rng.r#gen(),
+//             hook:          rng.r#gen(),
 //             hookPayload:   rng.gen_sized::<150>(),
-//             amountIn:      rng.gen(),
-//             amountOut:     rng.gen(),
-//             assetInIndex:  rng.gen(),
-//             assetInForm:   rng.gen(),
-//             assetOutIndex: rng.gen(),
-//             assetOutForm:  rng.gen(),
-//             from:          rng.gen(),
+//             amountIn:      rng.r#gen(),
+//             amountOut:     rng.r#gen(),
+//             assetInIndex:  rng.r#gen(),
+//             assetInForm:   rng.r#gen(),
+//             assetOutIndex: rng.r#gen(),
+//             assetOutForm:  rng.r#gen(),
+//             from:          rng.r#gen(),
 //             signature:     rng.gen_sized::<64>()
 //         }
 //     }
@@ -124,10 +124,10 @@ impl Distribution<OrderMeta> for Standard {
 // impl Distribution<crate::sol_bindings::sol::SolSwap> for Standard {
 //     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) ->
 // crate::sol_bindings::sol::SolSwap {         crate::sol_bindings::sol::SolSwap
-// {             amountIn:    rng.gen(),
-//             asset0Index: rng.gen(),
-//             asset1Index: rng.gen(),
-//             zeroForOne:  rng.gen()
+// {             amountIn:    rng.r#gen(),
+//             asset0Index: rng.r#gen(),
+//             asset1Index: rng.r#gen(),
+//             zeroForOne:  rng.r#gen()
 //         }
 //     }
 // }
@@ -136,21 +136,21 @@ impl Distribution<OrderMeta> for Standard {
 //     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) ->
 // crate::sol_bindings::sol::SolGenericOrder {
 //         crate::sol_bindings::sol::SolGenericOrder {
-//             otype:           rng.gen(),
-//             mode:            rng.gen(),
-//             amountSpecified: rng.gen(),
-//             minPrice:        rng.gen(),
-//             assetInIndex:    rng.gen(),
-//             assetInForm:     rng.gen(),
-//             assetOutIndex:   rng.gen(),
-//             assetOutForm:    rng.gen(),
-//             nonce:           rng.gen(),
-//             deadline:        rng.gen(),
-//             recipient:       rng.gen(),
-//             hook:            rng.gen(),
+//             otype:           rng.r#gen(),
+//             mode:            rng.r#gen(),
+//             amountSpecified: rng.r#gen(),
+//             minPrice:        rng.r#gen(),
+//             assetInIndex:    rng.r#gen(),
+//             assetInForm:     rng.r#gen(),
+//             assetOutIndex:   rng.r#gen(),
+//             assetOutForm:    rng.r#gen(),
+//             nonce:           rng.r#gen(),
+//             deadline:        rng.r#gen(),
+//             recipient:       rng.r#gen(),
+//             hook:            rng.r#gen(),
 //             hookPayload:     rng.gen_sized::<150>(),
-//             amountFilled:    rng.gen(),
-//             from:            rng.gen(),
+//             amountFilled:    rng.r#gen(),
+//             from:            rng.r#gen(),
 //             signature:       rng.gen_sized::<64>()
 //         }
 //     }
@@ -210,12 +210,12 @@ impl Distribution<OrderMeta> for Standard {
 //     fn sample<R: Rng + ?Sized>(&self, mut rng: &mut R) ->
 // crate::sol_bindings::sol::SolDonate {
 //         crate::sol_bindings::sol::SolDonate {
-//             asset0Index:    rng.gen(),
-//             asset1Index:    rng.gen(),
+//             asset0Index:    rng.r#gen(),
+//             asset1Index:    rng.r#gen(),
 //             startTick:
 // Signed::from_be_bytes(rng.gen_range(-8388608..=8388607).to_be_bytes()),
-//             totalTicks:     rng.gen(),
-//             startLiquidity: rng.gen(),
+//             totalTicks:     rng.r#gen(),
+//             startLiquidity: rng.r#gen(),
 //             amounts0:       rng.gen_many(1)
 //         }
 //     }
