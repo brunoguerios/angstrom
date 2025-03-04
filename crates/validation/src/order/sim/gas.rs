@@ -1,10 +1,11 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use alloy::{
-    primitives::{address, keccak256, Address, Bytes, TxKind, B256, U160, U256},
+    primitives::{Address, B256, Bytes, TxKind, U160, U256, address, keccak256},
     sol_types::{SolCall, SolValue},
 };
 use angstrom_types::{
+    CHAIN_ID,
     contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
     matching::uniswap::UniswapFlags,
     sol_bindings::{
@@ -15,10 +16,10 @@ use angstrom_types::{
 use eyre::eyre;
 use reth_provider::BlockNumReader;
 use revm::{
+    DatabaseRef,
     db::CacheDB,
     inspector_handle_register,
     primitives::{EnvWithHandlerCfg, ResultAndState, TxEnv},
-    DatabaseRef,
 };
 use tracing::trace;
 
@@ -350,9 +351,9 @@ where
         ?angstrom,
         "Applying slot overrides for tokens"
     );
-    let balance_slot_in = find_slot_offset_for_balance(&db, token_in);
-    let balance_slot_out = find_slot_offset_for_balance(&db, token_out);
-    let approval_slot_in = find_slot_offset_for_approval(&db, token_in);
+    let balance_slot_in = find_slot_offset_for_balance(&db, token_in)?;
+    let balance_slot_out = find_slot_offset_for_balance(&db, token_out)?;
+    let approval_slot_in = find_slot_offset_for_approval(&db, token_in)?;
 
     // first thing we will do is setup the users token_in balance.
     let user_balance_slot = keccak256((user, balance_slot_in).abi_encode());
@@ -367,15 +368,15 @@ where
 
     // set the users balance on the token_in
     db.insert_account_storage(token_in, user_balance_slot.into(), U256::from(2) * amount_in)
-        .unwrap();
+        .map_err(|e| eyre::eyre!("{e:?}"))?;
     // give angstrom approval
     db.insert_account_storage(token_in, user_approval_slot.into(), U256::from(2) * amount_in)
-        .unwrap();
+        .map_err(|e| eyre::eyre!("{e:?}"))?;
     db.insert_account_storage(token_in, user_approval_slot2.into(), U256::from(2) * amount_in)
-        .unwrap();
+        .map_err(|e| eyre::eyre!("{e:?}"))?;
     // give angstrom funds on token_out
     db.insert_account_storage(token_out, angstrom_balance_out.into(), U256::from(2) * amount_out)
-        .unwrap();
+        .map_err(|e| eyre::eyre!("{e:?}"))?;
 
     // verify that everything is setup as we want
     verify_overrides(db, token_in, token_out, amount_in, amount_out, user, angstrom)?;
@@ -518,8 +519,8 @@ pub mod test {
 
     use alloy::{
         node_bindings::WEI_IN_ETHER,
-        primitives::{hex, Uint, U256},
-        signers::{local::LocalSigner, SignerSync},
+        primitives::{U256, Uint, hex},
+        signers::{SignerSync, local::LocalSigner},
     };
     use angstrom_types::{
         reth_db_wrapper::RethDbWrapper,

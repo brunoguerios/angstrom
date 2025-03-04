@@ -4,7 +4,7 @@
 use std::fmt::Debug;
 
 use alloy::{
-    primitives::{keccak256, Address, U256},
+    primitives::{Address, U256, keccak256},
     sol_types::*,
 };
 use angstrom_types::contract_bindings::mintable_mock_erc_20::MintableMockERC20::{
@@ -59,7 +59,7 @@ where
             .to_vec();
         let return_data = balanceOfCall::abi_decode_returns(&output, false)?;
         if return_data._0 == U256::from(123456789) {
-            return offset as u64;
+            return Ok(offset as u64);
         }
     }
 
@@ -117,7 +117,7 @@ where
             .to_vec();
         let return_data = allowanceCall::abi_decode_returns(&output, false)?;
         if return_data._0 == U256::from(123456789) {
-            return offset as u64;
+            return Ok(offset as u64);
         }
     }
 
