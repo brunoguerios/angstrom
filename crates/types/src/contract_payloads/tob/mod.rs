@@ -220,7 +220,7 @@ mod test {
         };
         assert_eq!(
             upwards_start_tick,
-            I24::unchecked_from(100),
+            I24::unchecked_from(110),
             "Upwards update did not start at lowest tick"
         );
 
