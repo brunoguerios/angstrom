@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
     ops::Deref,
-    sync::Arc
+    sync::Arc,
 };
 
 use alloy::{
@@ -10,7 +10,7 @@ use alloy::{
     network::Network,
     primitives::{Address, B256, FixedBytes, U256, keccak256},
     providers::Provider,
-    sol_types::SolValue
+    sol_types::SolValue,
 };
 use alloy_primitives::I256;
 use base64::Engine;
@@ -24,7 +24,7 @@ use super::{
     Asset, CONFIG_STORE_SLOT, POOL_CONFIG_STORE_ENTRY_SIZE, Pair,
     asset::builder::{AssetBuilder, AssetBuilderStage},
     rewards::PoolUpdate,
-    tob::ToBOutcome
+    tob::ToBOutcome,
 };
 use crate::{
     consensus::{PreProposal, Proposal},
@@ -32,16 +32,16 @@ use crate::{
     contract_payloads::rewards::RewardsUpdate,
     matching::{
         Ray,
-        uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity}
+        uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity},
     },
     orders::{OrderFillState, OrderOutcome, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
         RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
+        rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder,
     },
-    testnet::TestnetStateOverrides
+    testnet::TestnetStateOverrides,
 };
 
 mod order;
@@ -51,11 +51,11 @@ pub use tob::*;
 
 #[derive(Debug, PadeEncode, PadeDecode)]
 pub struct AngstromBundle {
-    pub assets:              Vec<Asset>,
-    pub pairs:               Vec<Pair>,
-    pub pool_updates:        Vec<PoolUpdate>,
+    pub assets: Vec<Asset>,
+    pub pairs: Vec<Pair>,
+    pub pool_updates: Vec<PoolUpdate>,
     pub top_of_block_orders: Vec<TopOfBlockOrder>,
-    pub user_orders:         Vec<UserOrder>
+    pub user_orders: Vec<UserOrder>,
 }
 
 impl AngstromBundle {
@@ -100,8 +100,8 @@ impl AngstromBundle {
                 // (t1)
                 (false, false) => price.quantity(
                     order.order_quantities.fetch_max_amount() + order.extra_fee_asset0,
-                    true
-                )
+                    true,
+                ),
             };
 
             tracing::info!(?token, from_address = ?address, qty, "Building user order override");
@@ -211,12 +211,12 @@ impl AngstromBundle {
             .chain(
                 self.user_orders
                     .iter()
-                    .map(move |order| order.order_hash(&self.pairs, &self.assets, block_number))
+                    .map(move |order| order.order_hash(&self.pairs, &self.assets, block_number)),
             )
     }
 
     pub fn build_dummy_for_tob_gas(
-        user_order: &OrderWithStorageData<RpcTopOfBlockOrder>
+        user_order: &OrderWithStorageData<RpcTopOfBlockOrder>,
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
         let pool_updates = Vec::new();
@@ -237,12 +237,8 @@ impl AngstromBundle {
         let t0_idx = asset_builder.add_or_get_asset(t0) as u16;
         let t1_idx = asset_builder.add_or_get_asset(t1) as u16;
 
-        let pair = Pair {
-            index0:       t0_idx,
-            index1:       t1_idx,
-            store_index:  0,
-            price_1over0: U256::from(1)
-        };
+        let pair =
+            Pair { index0: t0_idx, index1: t1_idx, store_index: 0, price_1over0: U256::from(1) };
         pairs.push(pair);
 
         asset_builder.external_swap(
@@ -250,7 +246,7 @@ impl AngstromBundle {
             user_order.token_in(),
             user_order.token_out(),
             user_order.quantity_in,
-            user_order.quantity_out
+            user_order.quantity_out,
         );
         // is bid = true, false
 
@@ -271,12 +267,12 @@ impl AngstromBundle {
             pairs,
             pool_updates,
             top_of_block_orders,
-            user_orders
+            user_orders,
         ))
     }
 
     pub fn build_dummy_for_user_gas(
-        user_order: &OrderWithStorageData<GroupedVanillaOrder>
+        user_order: &OrderWithStorageData<GroupedVanillaOrder>,
     ) -> eyre::Result<Self> {
         // in order to properly build this. we will create a fake order with the
         // amount's flipped going the other way so we have a direct match and
@@ -304,25 +300,23 @@ impl AngstromBundle {
             // hacky but works
             if pairs.is_empty() {
                 let pair = Pair {
-                    index0:       t0_idx,
-                    index1:       t1_idx,
-                    store_index:  0,
-                    price_1over0: user_order.limit_price()
+                    index0: t0_idx,
+                    index1: t1_idx,
+                    store_index: 0,
+                    price_1over0: user_order.limit_price(),
                 };
                 pairs.push(pair);
             }
 
             let pair_idx = pairs.len() - 1;
 
-            let outcome = OrderOutcome {
-                id:      user_order.order_id,
-                outcome: OrderFillState::CompleteFill
-            };
+            let outcome =
+                OrderOutcome { id: user_order.order_id, outcome: OrderFillState::CompleteFill };
             // Get our list of user orders, if we have any
             user_orders.push(UserOrder::from_internal_order_max_gas(
                 user_order,
                 &outcome,
-                pair_idx as u16
+                pair_idx as u16,
             ));
         }
 
@@ -331,7 +325,7 @@ impl AngstromBundle {
             pairs,
             pool_updates,
             top_of_block_orders,
-            user_orders
+            user_orders,
         ))
     }
 
@@ -341,7 +335,7 @@ impl AngstromBundle {
     pub fn for_gas_finalization(
         limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
         solutions: Vec<PoolSolution>,
-        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();
@@ -351,7 +345,7 @@ impl AngstromBundle {
 
         let orders_by_pool: HashMap<
             alloy_primitives::FixedBytes<32>,
-            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
+            HashSet<OrderWithStorageData<GroupedVanillaOrder>>,
         > = limit.iter().fold(HashMap::new(), |mut acc, x| {
             acc.entry(x.pool_id).or_default().insert(x.clone());
             acc
@@ -384,7 +378,7 @@ impl AngstromBundle {
                 *t0,
                 *t1,
                 *store_index,
-                None
+                None,
             )?;
         }
         Ok(Self::new(
@@ -392,28 +386,35 @@ impl AngstromBundle {
             pairs,
             pool_updates,
             top_of_block_orders,
-            user_orders
+            user_orders,
         ))
     }
 
     fn fetch_total_orders_and_gas_delegated_to_orders(
         orders_by_pool: &HashMap<
             FixedBytes<32>,
-            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
+            HashSet<OrderWithStorageData<GroupedVanillaOrder>>,
         >,
-        solutions: &[PoolSolution]
+        solutions: &[PoolSolution],
     ) -> (u64, u64) {
         solutions
             .iter()
             .map(|s| (s, orders_by_pool.get(&s.id).cloned()))
             .filter_map(|(solution, order_list)| {
-                let mut order_list = order_list?.into_iter().collect::<Vec<_>>();
+                let Some(mut order_list) = order_list.map(|i| i.into_iter().collect::<Vec<_>>())
+                else {
+                    return solution
+                        .searcher
+                        .as_ref()
+                        .map(|searcher| (1, searcher.priority_data.gas_units));
+                };
+
                 // Sort the user order list so we can properly associate it with our
                 // OrderOutcomes.  First bids by price then asks by price.
                 order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
                     (true, true) => b.priority_data.cmp(&a.priority_data),
                     (false, false) => a.priority_data.cmp(&b.priority_data),
-                    (..) => b.is_bid.cmp(&a.is_bid)
+                    (..) => b.is_bid.cmp(&a.is_bid),
                 });
                 let mut cnt = 0;
                 let mut total_gas = 0;
@@ -447,7 +448,7 @@ impl AngstromBundle {
         user_orders: &mut Vec<UserOrder>,
         orders_by_pool: &HashMap<
             FixedBytes<32>,
-            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
+            HashSet<OrderWithStorageData<GroupedVanillaOrder>>,
         >,
         top_of_block_orders: &mut Vec<TopOfBlockOrder>,
         pool_updates: &mut Vec<PoolUpdate>,
@@ -456,7 +457,7 @@ impl AngstromBundle {
         t0: Address,
         t1: Address,
         store_index: u16,
-        shared_gas: Option<U256>
+        shared_gas: Option<U256>,
     ) -> eyre::Result<()> {
         // Dump the solution
         let json = serde_json::to_string(&(
@@ -466,7 +467,7 @@ impl AngstromBundle {
             t0,
             t1,
             store_index,
-            shared_gas
+            shared_gas,
         ))
         .unwrap();
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
@@ -515,7 +516,7 @@ impl AngstromBundle {
             .unwrap_or_default();
         let net_swap_t0 = match (amm_swap_t0, tob_swap_t0) {
             (Some(a), Some(t)) => Some(a + t),
-            (any_a, any_t) => any_a.or(any_t)
+            (any_a, any_t) => any_a.or(any_t),
         };
         let merged_amm_swap = net_swap_t0.map(|s| {
             let net_direction =
@@ -550,14 +551,14 @@ impl AngstromBundle {
             asset_in_index as usize,
             asset_out_index as usize,
             quantity_in,
-            quantity_out
+            quantity_out,
         );
         // Account for our reward
         asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward);
         let rewards_update = tob_outcome.rewards_update_range(
             tob_outcome.start_tick,
             tob_outcome.end_tick,
-            snapshot
+            snapshot,
         );
         tracing::info!(?tob_outcome.tribute);
         // Account for our tribute
@@ -568,14 +569,14 @@ impl AngstromBundle {
             zero_for_one: false,
             pair_index: pair_idx as u16,
             swap_in_quantity: 0,
-            rewards_update
+            rewards_update,
         });
         // Push the actual swap with no reward
         pool_updates.push(PoolUpdate {
             zero_for_one,
             pair_index: pair_idx as u16,
             swap_in_quantity: quantity_in,
-            rewards_update: RewardsUpdate::empty()
+            rewards_update: RewardsUpdate::empty(),
         });
 
         // Add the ToB order to our tob order list - This is currently converting
@@ -587,21 +588,21 @@ impl AngstromBundle {
                 tob.asset_in,
                 tob.asset_out,
                 tob.quantity_in,
-                tob.quantity_out
+                tob.quantity_out,
             );
             let contract_tob = if let Some(g) = shared_gas {
                 let order = TopOfBlockOrder::of(tob, g, pair_idx as u16)?;
                 asset_builder.add_gas_fee(
                     AssetBuilderStage::TopOfBlock,
                     t0,
-                    order.gas_used_asset_0
+                    order.gas_used_asset_0,
                 );
                 order
             } else {
                 asset_builder.add_gas_fee(
                     AssetBuilderStage::TopOfBlock,
                     t0,
-                    tob.priority_data.gas.to()
+                    tob.priority_data.gas.to(),
                 );
                 TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
             };
@@ -618,7 +619,7 @@ impl AngstromBundle {
         order_list.sort_by(|a, b| match (a.is_bid, b.is_bid) {
             (true, true) => a.priority_data.cmp(&b.priority_data),
             (false, false) => a.priority_data.cmp(&b.priority_data),
-            (..) => b.is_bid.cmp(&a.is_bid)
+            (..) => b.is_bid.cmp(&a.is_bid),
         });
 
         let mut map: HashMap<Address, i128> = HashMap::new();
@@ -647,7 +648,7 @@ impl AngstromBundle {
                     fill_amount,
                     // am out - round down because we'll always try to give you less
                     inverse_ray_ucp.quantity(fill_amount, false)
-                        - order.priority_data.gas.to::<u128>()
+                        - order.priority_data.gas.to::<u128>(),
                 ),
                 // fill amount is the exact amount of T0 being output for a T1 input
                 (true, false) => {
@@ -657,9 +658,9 @@ impl AngstromBundle {
                         // true),
                         inverse_ray_ucp.inverse_quantity(
                             fill_amount + order.priority_data.gas.to::<u128>(),
-                            true
+                            true,
                         ),
-                        fill_amount
+                        fill_amount,
                     )
                 }
                 // fill amount is the exact amount of T0 being input for a T1 output
@@ -667,7 +668,7 @@ impl AngstromBundle {
                     // Round down because we'll always try to give you less
                     (
                         fill_amount,
-                        ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false)
+                        ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false),
                     )
                 }
                 // fill amount is the exact amount of T1 expected out for a given T0 input
@@ -675,8 +676,8 @@ impl AngstromBundle {
                     // Round up because we'll always ask you to pay more
                     ray_ucp.inverse_quantity(fill_amount, true)
                         + order.priority_data.gas.to::<u128>(),
-                    fill_amount
-                )
+                    fill_amount,
+                ),
             };
             *map.entry(order.token_in()).or_default() += quantity_in.to_i128().unwrap();
             *map.entry(order.token_out()).or_default() -= quantity_out.to_i128().unwrap();
@@ -688,7 +689,7 @@ impl AngstromBundle {
                 order.token_in(),
                 order.token_out(),
                 quantity_in,
-                quantity_out
+                quantity_out,
             );
             let user_order = if let Some(g) = shared_gas {
                 UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
@@ -706,7 +707,7 @@ impl AngstromBundle {
     pub fn from_proposal(
         proposal: &Proposal,
         gas_details: BundleGasDetails,
-        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>,
     ) -> eyre::Result<Self> {
         trace!("Starting from_proposal");
         let mut top_of_block_orders = Vec::new();
@@ -722,7 +723,7 @@ impl AngstromBundle {
         // fetch the accumulated amount of gas delegated to the users
         let (total_swaps, total_gas) = Self::fetch_total_orders_and_gas_delegated_to_orders(
             &orders_by_pool,
-            &proposal.solutions
+            &proposal.solutions,
         );
         // this should never underflow. if it does. means that there is underlying
         // problem with the gas delegation module
@@ -730,11 +731,8 @@ impl AngstromBundle {
         if total_swaps == 0 {
             return Err(eyre::eyre!("have a total swaps count of 0"));
         }
-        let shared_gas_in_wei = gas_details
-            .total_gas_cost_wei
-            .checked_sub(total_gas)
-            .ok_or_eyre(eyre::eyre!("Total_gas greater than total_gas_cost_wei"))?
-            / total_swaps;
+        let shared_gas_in_wei =
+            gas_details.total_gas_cost_wei.saturating_sub(total_gas) / total_swaps;
 
         // fetch gas used
         // Walk through our solutions to add them to the structure
@@ -755,12 +753,12 @@ impl AngstromBundle {
             let conversion_rate_to_token0 =
                 gas_details.token_price_per_wei.get(&(*t0, *t1)).expect(
                     "don't have price for a critical pair. should be unreachable since no orders \
-                     would get validated. this would always be skipped"
+                     would get validated. this would always be skipped",
                 );
 
             // calculate the shared amount of gas in token 0 to share over this pool
             let shared_gas = Some(
-                (*conversion_rate_to_token0 * U256::from(shared_gas_in_wei)).scale_out_of_ray()
+                (*conversion_rate_to_token0 * U256::from(shared_gas_in_wei)).scale_out_of_ray(),
             );
 
             // Call our processing function with a fixed amount of shared gas
@@ -776,7 +774,7 @@ impl AngstromBundle {
                 *t0,
                 *t1,
                 *store_index,
-                shared_gas
+                shared_gas,
             )?;
         }
         Ok(Self::new(
@@ -784,7 +782,7 @@ impl AngstromBundle {
             pairs,
             pool_updates,
             top_of_block_orders,
-            user_orders
+            user_orders,
         ))
     }
 }
@@ -795,13 +793,13 @@ pub struct BundleGasDetails {
     /// gas
     token_price_per_wei: HashMap<(Address, Address), Ray>,
     /// total gas to execute the bundle on angstrom
-    total_gas_cost_wei:  u64
+    total_gas_cost_wei: u64,
 }
 
 impl BundleGasDetails {
     pub fn new(
         token_price_per_wei: HashMap<(Address, Address), Ray>,
-        total_gas_cost_wei: u64
+        total_gas_cost_wei: u64,
     ) -> Self {
         Self { token_price_per_wei, total_gas_cost_wei }
     }
@@ -813,7 +811,7 @@ impl AngstromBundle {
         pairs: Vec<Pair>,
         pool_updates: Vec<PoolUpdate>,
         top_of_block_orders: Vec<TopOfBlockOrder>,
-        user_orders: Vec<UserOrder>
+        user_orders: Vec<UserOrder>,
     ) -> Self {
         Self { assets, pairs, pool_updates, top_of_block_orders, user_orders }
     }
@@ -833,25 +831,25 @@ impl Deref for AngstromPoolPartialKey {
 #[derive(Debug, Copy, Clone)]
 pub struct AngPoolConfigEntry {
     pub pool_partial_key: AngstromPoolPartialKey,
-    pub tick_spacing:     u16,
-    pub fee_in_e6:        u32,
-    pub store_index:      usize
+    pub tick_spacing: u16,
+    pub fee_in_e6: u32,
+    pub store_index: usize,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct AngstromPoolConfigStore {
-    entries: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>
+    entries: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>,
 }
 
 impl AngstromPoolConfigStore {
     pub async fn load_from_chain<N, P>(
         angstrom_contract: Address,
         block_id: BlockId,
-        provider: &P
+        provider: &P,
     ) -> Result<AngstromPoolConfigStore, String>
     where
         N: Network,
-        P: Provider<N>
+        P: Provider<N>,
     {
         // offset of 6 bytes
         let value = provider
@@ -936,8 +934,8 @@ impl TryFrom<&[u8]> for AngstromPoolConfigStore {
                         pool_partial_key,
                         tick_spacing,
                         fee_in_e6,
-                        store_index: index
-                    }
+                        store_index: index,
+                    },
                 )
             })
             .collect();
@@ -948,14 +946,14 @@ impl TryFrom<&[u8]> for AngstromPoolConfigStore {
 
 #[derive(Default, Clone)]
 pub struct UniswapAngstromRegistry {
-    uniswap_pools:         UniswapPoolRegistry,
-    angstrom_config_store: Arc<AngstromPoolConfigStore>
+    uniswap_pools: UniswapPoolRegistry,
+    angstrom_config_store: Arc<AngstromPoolConfigStore>,
 }
 
 impl UniswapAngstromRegistry {
     pub fn new(
         uniswap_pools: UniswapPoolRegistry,
-        angstrom_config_store: Arc<AngstromPoolConfigStore>
+        angstrom_config_store: Arc<AngstromPoolConfigStore>,
     ) -> Self {
         UniswapAngstromRegistry { uniswap_pools, angstrom_config_store }
     }
@@ -998,7 +996,7 @@ mod test {
             47, 227, 99, 27, 110, 150, 112, 234, 129, 56, 107, 225, 163, 117, 76, 121, 246, 253,
             249, 39, 68, 131, 150, 103, 127, 217, 176, 52, 185, 222, 70, 255, 251, 186, 8, 243,
             112, 12, 12, 247, 87, 89, 190, 161, 56, 9, 90, 204, 75, 252, 28, 228, 93, 15, 115, 133,
-            106, 184, 0, 241, 21, 160, 212, 52, 123, 21, 16, 129, 0, 0, 0
+            106, 184, 0, 241, 21, 160, 212, 52, 123, 21, 16, 129, 0, 0, 0,
         ];
         let slice = &mut bundle.as_slice();
 
@@ -1026,7 +1024,7 @@ mod test {
             3, 204, 100, 109, 27, 173, 77, 129, 8, 3, 181, 255, 66, 55, 66, 206, 216, 73, 59, 189,
             66, 160, 50, 207, 190, 202, 63, 115, 71, 92, 14, 98, 123, 109, 168, 226, 241, 91, 144,
             45, 255, 160, 52, 65, 145, 173, 31, 90, 90, 206, 232, 240, 156, 123, 216, 158, 62, 155,
-            36, 55, 255, 111, 67, 204, 109, 84, 52, 115, 11
+            36, 55, 255, 111, 67, 204, 109, 84, 52, 115, 11,
         ];
         let slice = &mut bundle.as_slice();
 
