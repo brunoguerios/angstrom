@@ -235,7 +235,7 @@ impl StromSession {
                 msg.map(|bytes| {
                     let msg = StromProtocolMessage::decode_message(&mut bytes.deref());
 
-                    msg.map_or(false, |msg| {
+                    msg.is_ok_and(|msg| {
                         // first message has to be status
                         if let StromMessage::Status(status) = msg.message {
                             tracing::debug!(?status, peer=?self.remote_peer_id, "decoded status message");

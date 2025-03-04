@@ -34,7 +34,7 @@ impl<'a> From<CompositeOrder<'a>> for OrderContainer<'a> {
     }
 }
 
-impl<'a> OrderContainer<'a> {
+impl OrderContainer<'_> {
     pub fn id(&self) -> Option<OrderId> {
         match self {
             Self::BookOrder { order, .. } => Some(order.order_id),

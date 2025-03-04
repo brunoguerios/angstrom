@@ -395,7 +395,7 @@ impl Add<Debt> for Debt {
     }
 }
 
-impl<'a> Add<DebtType> for &'a Debt {
+impl Add<DebtType> for &Debt {
     type Output = Debt;
 
     fn add(self, rhs: DebtType) -> Self::Output {

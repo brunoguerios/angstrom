@@ -191,7 +191,7 @@ impl TokenPriceGenerator {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
 
-            return Some(
+            Some(
                 prices
                     .iter()
                     .map(|price| {
@@ -204,7 +204,7 @@ impl TokenPriceGenerator {
                     })
                     .sum::<Ray>()
                     / U256::from(size),
-            );
+            )
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
             // because we are going through token1 here and we want token zero, we need to
             // do some extra math

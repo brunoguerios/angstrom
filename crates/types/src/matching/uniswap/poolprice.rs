@@ -39,21 +39,21 @@ pub struct PoolPrice<'a> {
     pub(crate) price: SqrtPriceX96,
 }
 
-impl<'a> Eq for PoolPrice<'a> {}
+impl Eq for PoolPrice<'_> {}
 
-impl<'a> PartialEq for PoolPrice<'a> {
+impl PartialEq for PoolPrice<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.price.eq(&other.price) && self.liq_range == other.liq_range
     }
 }
 
-impl<'a> PartialOrd for PoolPrice<'a> {
+impl PartialOrd for PoolPrice<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> Ord for PoolPrice<'a> {
+impl Ord for PoolPrice<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.price.cmp(&other.price)
     }
@@ -335,7 +335,7 @@ impl<'a> Sub<Quantity> for PoolPrice<'a> {
     }
 }
 
-impl<'a> From<PoolPrice<'a>> for U256 {
+impl From<PoolPrice<'_>> for U256 {
     fn from(value: PoolPrice) -> Self {
         value.price.into()
     }

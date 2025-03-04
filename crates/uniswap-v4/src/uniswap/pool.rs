@@ -475,8 +475,7 @@ where
         if self.sync_swap_with_sim {
             self.sync_swap_with_sim(log)
         } else {
-            self._sync_from_swap_log(log).map_err(Into::into)
-        }
+            self._sync_from_swap_log(log)}
     }
 
     fn sync_swap_with_sim(&mut self, log: Log) -> Result<(), PoolError> {

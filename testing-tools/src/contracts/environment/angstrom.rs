@@ -283,7 +283,7 @@ mod tests {
 
         let controller_signing_key = AngstromSigner::new(
             PrivateKeySigner::from_slice(
-                &spawned_anvil.anvil.keys()[7].clone().to_bytes().to_vec(),
+                &spawned_anvil.anvil.keys()[7].clone().to_bytes(),
             )
             .unwrap(),
         );

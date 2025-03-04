@@ -1,7 +1,7 @@
 use super::BookOrder;
 
-/// There are lots of different ways we can sort the orders we get in, so let's
-/// make this modular
+// There are lots of different ways we can sort the orders we get in, so let's
+// make this modular
 
 pub enum SortStrategy {
     Unsorted,

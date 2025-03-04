@@ -271,8 +271,8 @@ where
         !self.state_lock.consensus_state()
     }
 
-    /// Testing Utils
-    /// -------------------------------------
+    // Testing Utils
+    // -------------------------------------
 
     fn add_validator_bidirectional(&self, other: &Self) {
         self.add_strom_validator(other.network.pubkey());

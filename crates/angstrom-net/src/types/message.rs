@@ -110,16 +110,16 @@ impl From<StromBroadcastMessage> for ProtocolBroadcastMessage {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StromMessage {
-    /// init
+    // init
     Status(Status),
-    /// TODO: do we need a status ack?
+    // TODO: do we need a status ack?
 
-    /// Consensus
+    // Consensus
     PrePropose(PreProposal),
     PreProposeAgg(PreProposalAggregation),
     Propose(Proposal),
 
-    /// Propagation messages that broadcast new orders to all peers
+    // Propagation messages that broadcast new orders to all peers
     PropagatePooledOrders(Vec<AllOrders>),
     OrderCancellation(CancelOrderRequest),
 }

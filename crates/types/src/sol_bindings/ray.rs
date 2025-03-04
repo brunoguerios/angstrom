@@ -192,7 +192,7 @@ impl From<MatchingPrice> for Ray {
     }
 }
 
-impl<'a> From<PoolPrice<'a>> for Ray {
+impl From<PoolPrice<'_>> for Ray {
     fn from(value: PoolPrice) -> Self {
         Self::from(value.price)
     }

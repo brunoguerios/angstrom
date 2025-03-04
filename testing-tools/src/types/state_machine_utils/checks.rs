@@ -22,7 +22,7 @@ where
     fn check_block(&mut self, block_number: u64);
 }
 
-impl<'a, C> WithCheck<C> for DevnetStateMachine<'a, C>
+impl<C> WithCheck<C> for DevnetStateMachine<'_, C>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>
