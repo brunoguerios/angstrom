@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use alloy::primitives::{Address, B256, U256};
 use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -73,6 +75,7 @@ impl TopOfBlockOrder {
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
         pairs_index: u16
     ) -> Self {
+        assert!(internal.is_valid_signature());
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
         let recipient = Some(internal.recipient);
@@ -99,7 +102,7 @@ impl TopOfBlockOrder {
 
     pub fn of(
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
-        shared_gas: U256,
+        _shared_gas: U256,
         pairs_index: u16
     ) -> eyre::Result<Self> {
         let quantity_in = internal.quantity_in;
@@ -112,7 +115,7 @@ impl TopOfBlockOrder {
             alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
                 .unwrap();
         let signature = Signature::from(decoded_signature);
-        let used_gas: u128 = (internal.priority_data.gas + shared_gas).saturating_to();
+        let used_gas: u128 = (internal.priority_data.gas).saturating_to();
 
         if used_gas > internal.max_gas_asset0 {
             return Err(eyre::eyre!("order went over gas limit"));

@@ -123,6 +123,12 @@ impl From<U256> for Ray {
     }
 }
 
+impl From<u128> for Ray {
+    fn from(value: u128) -> Self {
+        Self(U256::from(value))
+    }
+}
+
 impl From<Ray> for U256 {
     fn from(value: Ray) -> Self {
         value.0
@@ -268,12 +274,6 @@ impl Ray {
         *self = Ray::from(this);
     }
 
-    /// self * ray / other
-    pub fn div_ray(mut self, other: Ray) -> Ray {
-        self.div_ray_assign(other);
-        self
-    }
-
     fn invert(&self, rm: RoundingMode) -> Self {
         let (res, _) = const_1e54().div_round(Natural::from(*self), rm);
         Self(U256::from_limbs_slice(&res.to_limbs_asc()))
@@ -293,8 +293,15 @@ impl Ray {
         *self = self.invert(RoundingMode::Floor);
     }
 
+    pub fn inv_ray_assign_round(&mut self, round_up: bool) {
+        *self = self.inv_ray_round(round_up);
+    }
+
     /// 1e54 / self
     pub fn inv_ray(self) -> Ray {
+        if self.is_zero() {
+            return self;
+        }
         self.invert(RoundingMode::Floor)
     }
 

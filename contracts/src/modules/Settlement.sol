@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {UniConsumer} from "./UniConsumer.sol";
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 import {DeltaTracker} from "../types/DeltaTracker.sol";
 import {AssetArray, Asset, FEE_SUMMARY_ENTRY_SIZE} from "../types/Asset.sol";
@@ -76,7 +77,9 @@ abstract contract Settlement is UniConsumer {
             uint256 saving = asset.save();
             uint256 settle = asset.settle();
 
-            if (bundleDeltas.sub(addr, saving + settle) != 0) {
+            int256 delta = bundleDeltas.sub(addr, saving + settle);
+
+            if (delta != 0) {
                 revert BundlDeltaUnresolved(addr);
             }
 
@@ -103,6 +106,7 @@ abstract contract Settlement is UniConsumer {
         internal
     {
         uint256 amount = amountIn.into();
+
         bundleDeltas.add(asset, amount);
         if (useInternal) {
             _balances[asset][from] -= amount;

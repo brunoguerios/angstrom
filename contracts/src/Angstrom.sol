@@ -219,7 +219,6 @@ contract Angstrom is
         // For flash orders sets the current block number as `validForBlock` so that it's
         // implicitly validated via hashing later.
         reader = buffer.readOrderValidation(reader, variantMap);
-
         AmountIn amountIn;
         AmountOut amountOut;
         (reader, amountIn, amountOut) = buffer.loadAndComputeQuantity(reader, variantMap, price);

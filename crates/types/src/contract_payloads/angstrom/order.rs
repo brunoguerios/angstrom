@@ -112,7 +112,7 @@ impl UserOrder {
                     // exact flash
                     ExactFlashOrder {
                         ref_id:               self.ref_id,
-                        exact_in:             true,
+                        exact_in:             self.exact_in,
                         use_internal:         self.use_internal,
                         asset_in:             if self.zero_for_one {
                             asset[pair.index0 as usize].addr
@@ -312,7 +312,7 @@ impl UserOrder {
         let (order_quantities, standing_validation, recipient) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
                 FlashVariants::Exact(e) => {
-                    (OrderQuantities::Exact { quantity: order.amount_in() }, None, e.recipient)
+                    (OrderQuantities::Exact { quantity: order.amount() }, None, e.recipient)
                 }
                 FlashVariants::Partial(p_o) => (
                     OrderQuantities::Partial {
@@ -326,7 +326,7 @@ impl UserOrder {
             },
             GroupedVanillaOrder::Standing(o) => match o {
                 StandingVariants::Exact(e) => (
-                    OrderQuantities::Exact { quantity: order.amount_in() },
+                    OrderQuantities::Exact { quantity: order.amount() },
                     Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
                     e.recipient
                 ),
@@ -392,7 +392,7 @@ impl UserOrder {
         let (order_quantities, standing_validation, recipient) = match &order.order {
             GroupedVanillaOrder::KillOrFill(o) => match o {
                 FlashVariants::Exact(e) => {
-                    (OrderQuantities::Exact { quantity: order.amount_in() }, None, e.recipient)
+                    (OrderQuantities::Exact { quantity: order.amount() }, None, e.recipient)
                 }
                 FlashVariants::Partial(p_o) => (
                     OrderQuantities::Partial {
@@ -406,7 +406,7 @@ impl UserOrder {
             },
             GroupedVanillaOrder::Standing(o) => match o {
                 StandingVariants::Exact(e) => (
-                    OrderQuantities::Exact { quantity: order.amount_in() },
+                    OrderQuantities::Exact { quantity: order.amount() },
                     Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
                     e.recipient
                 ),
@@ -452,7 +452,7 @@ impl UserOrder {
             standing_validation,
             order_quantities,
             max_extra_fee_asset0: order.max_gas_token_0(),
-            extra_fee_asset0: order.max_gas_token_0(),
+            extra_fee_asset0: order.priority_data.gas.to(),
             exact_in: order.exact_in(),
             signature: Signature::from(decoded_signature)
         }

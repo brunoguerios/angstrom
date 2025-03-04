@@ -30,7 +30,7 @@ use crate::{
     MatchingEngineHandle,
     book::{BookOrder, OrderBook},
     build_book,
-    strategy::{MatchingStrategy, SimpleCheckpointStrategy}
+    strategy::{BinarySearchStrategy, MatchingStrategy, SimpleCheckpointStrategy}
 };
 
 pub enum MatcherCommand {
@@ -173,7 +173,9 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
             // not a problem while I'm testing, but leaving this note here as it may be
             // important for future efficiency gains
             solution_set.spawn_blocking(move || {
-                SimpleCheckpointStrategy::run(&b).map(|s| s.solution(searcher))
+                Some(BinarySearchStrategy::run(&b, searcher))
+                // SimpleCheckpointStrategy::run(&b).map(|s|
+                // s.solution(searcher))
             });
         });
         let mut solutions = Vec::new();
