@@ -37,7 +37,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         order: O,
         pool_info: UserOrderPoolInfo,
         block: u64
-    ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError<O>> {
+    ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError> {
         let user = order.from();
         let order_hash = order.order_hash();
 
@@ -56,6 +56,11 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                     return Err(UserAccountVerificationError::BadBlock(block + 1, order_block));
                 }
             }
+        }
+
+        // verify that there is not any hooks set.
+        if order.has_hook() {
+            return Err(UserAccountVerificationError::NonEmptyHook);
         }
 
         // very we don't have a respend conflict
@@ -133,16 +138,18 @@ pub trait StorageWithData: RawPoolOrder {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum UserAccountVerificationError<O: RawPoolOrder> {
+#[derive(Debug, Error, Clone)]
+pub enum UserAccountVerificationError {
     #[error("tried to verify for block {} where current is {}", requested, current)]
-    BlockMissMatch { requested: u64, current: u64, order: O, pool_info: UserOrderPoolInfo },
+    BlockMissMatch { requested: u64, current: u64, pool_info: UserOrderPoolInfo },
     #[error("order hash has been cancelled {0:?}")]
     OrderIsCancelled(B256),
     #[error("Nonce exists for a current order hash: {0:?}")]
     DuplicateNonce(B256),
     #[error("block for flash order is not for next block. next_block: {0}, requested_block: {1}.")]
-    BadBlock(u64, u64)
+    BadBlock(u64, u64),
+    #[error("currently hooks are not supported. this field should be empty bytes")]
+    NonEmptyHook
 }
 
 #[cfg(test)]

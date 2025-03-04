@@ -3,16 +3,15 @@ use std::{fmt::Debug, future::Future, pin::Pin};
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderOrigin,
-    primitive::OrderPoolNewOrderResult,
     sol_bindings::{
         ext::RawPoolOrder,
         grouped_orders::{
             AllOrders, GroupedComposableOrder, GroupedVanillaOrder, OrderWithStorageData
-        },
-        rpc_orders::TopOfBlockOrder
+        }
     }
 };
 use sim::SimValidation;
+use state::account::UserAccountVerificationError;
 use tokio::sync::oneshot::{Sender, channel};
 
 use crate::{common::TokenPriceGenerator, validator::ValidationRequest};
@@ -41,32 +40,9 @@ impl From<OrderValidationRequest> for OrderValidation {
     fn from(value: OrderValidationRequest) -> Self {
         match value {
             OrderValidationRequest::ValidateOrder(tx, order, orign) => match order {
-                AllOrders::Standing(p) => {
-                    // TODO: check hook data and deal with composable
-                    // if p.hook_data.is_empty() {
-                    OrderValidation::Limit(tx, GroupedVanillaOrder::Standing(p), orign)
-                    // } else {
-                    //
-                    //     OrderValidation::LimitComposable(
-                    //         tx,
-                    //         GroupedComposableOrder::Partial(p),
-                    //         orign
-                    //     )
-                    // }
-                }
-                AllOrders::Flash(kof) => {
-                    // TODO: check hook data and deal with composable
-                    // if kof.hook_data.is_empty() {
-                    OrderValidation::Limit(tx, GroupedVanillaOrder::KillOrFill(kof), orign)
-                    // } else {
-                    //     OrderValidation::LimitComposable(
-                    //         tx,
-                    //         GroupedComposableOrder::KillOrFill(kof),
-                    //         orign
-                    //     )
-                    // }
-                }
-                AllOrders::TOB(tob) => OrderValidation::Searcher(tx, tob, orign)
+                order @ AllOrders::Standing(_) => OrderValidation::Limit(tx, order, orign),
+                order @ AllOrders::Flash(_) => OrderValidation::Limit(tx, order, orign),
+                tob @ AllOrders::TOB(_) => OrderValidation::Searcher(tx, tob, orign)
             }
         }
     }
@@ -76,11 +52,27 @@ pub enum ValidationMessage {
     ValidationResults(OrderValidationResults)
 }
 
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum OrderValidationError {
+    #[error(transparent)]
+    StateError(#[from] UserAccountVerificationError),
+    #[error("the input or output generates a invalid tob swap")]
+    InvalidToBSwap,
+    #[error("min qty on partial < max gas amount")]
+    InvalidPartialOrder,
+    #[error("invalid signature")]
+    InvalidSignature,
+    #[error("invalid pool")]
+    InvalidPool,
+    #[error("not enough gas t0")]
+    NotEnoughGas
+}
+
 #[derive(Debug, Clone)]
 pub enum OrderValidationResults {
     Valid(OrderWithStorageData<AllOrders>),
     // the raw hash to be removed
-    Invalid(B256),
+    Invalid { hash: B256, error: OrderValidationError },
     TransitionedToBlock
 }
 
@@ -124,7 +116,10 @@ impl OrderValidationResults {
 
                 if let Err(e) = res {
                     tracing::info!(%e, "failed to add gas to order");
-                    *self = OrderValidationResults::Invalid(order_hash);
+                    *self = OrderValidationResults::Invalid {
+                        hash:  order_hash,
+                        error: OrderValidationError::NotEnoughGas
+                    };
 
                     return;
                 }
@@ -145,7 +140,10 @@ impl OrderValidationResults {
                 );
                 if let Err(e) = res {
                     tracing::info!(%e, "failed to add gas to order");
-                    *self = OrderValidationResults::Invalid(order_hash);
+                    *self = OrderValidationResults::Invalid {
+                        hash:  order_hash,
+                        error: OrderValidationError::NotEnoughGas
+                    };
 
                     return;
                 }
@@ -188,22 +186,10 @@ impl OrderValidationResults {
     }
 }
 
-impl From<OrderValidationResults> for OrderPoolNewOrderResult {
-    fn from(val: OrderValidationResults) -> Self {
-        match val {
-            OrderValidationResults::Valid(_) => OrderPoolNewOrderResult::Valid,
-            OrderValidationResults::Invalid(_) => OrderPoolNewOrderResult::Invalid,
-            OrderValidationResults::TransitionedToBlock => {
-                OrderPoolNewOrderResult::TransitionedToBlock
-            }
-        }
-    }
-}
-
 pub enum OrderValidation {
-    Limit(Sender<OrderValidationResults>, GroupedVanillaOrder, OrderOrigin),
+    Limit(Sender<OrderValidationResults>, AllOrders, OrderOrigin),
     LimitComposable(Sender<OrderValidationResults>, GroupedComposableOrder, OrderOrigin),
-    Searcher(Sender<OrderValidationResults>, TopOfBlockOrder, OrderOrigin)
+    Searcher(Sender<OrderValidationResults>, AllOrders, OrderOrigin)
 }
 impl OrderValidation {
     pub fn user(&self) -> Address {
@@ -288,7 +274,9 @@ impl OrderValidatorHandle for ValidationClient {
                 OrderValidationResults::Valid(o) => {
                     Ok((o.priority_data.gas_units, o.priority_data.gas))
                 }
-                OrderValidationResults::Invalid(e) => Err(format!("Invalid order: {}", e)),
+                OrderValidationResults::Invalid { error, .. } => {
+                    Err(format!("Invalid order: {}", error))
+                }
                 OrderValidationResults::TransitionedToBlock => {
                     Err("Order transitioned to block".to_string())
                 }
