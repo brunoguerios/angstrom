@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {ANGSTROM_INIT_HOOK_FEE} from "../modules/UniConsumer.sol";
-import {console} from "forge-std/console.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/src/types/BalanceDelta.sol";
 
 // forgefmt: disable-next-item
@@ -74,13 +73,5 @@ library SwapCallLib {
             returndatacopy(free, 0, returndatasize())
             delta := mload(free)
         }
-
-        int128 delta_0 = delta.amount0();
-        int128 delta_1 = delta.amount1();
-
-        console.log("swap_delta0");
-        console.logInt(int256(delta_0));
-        console.log("swap_delta1");
-        console.logInt(int256(delta_1));
     }
 }
