@@ -59,7 +59,6 @@ library SwapCallLib {
     }
 
     function call(SwapCall memory self, IPoolManager uni) internal {
-        BalanceDelta delta;
         assembly ("memory-safe") {
             let success :=
                 call(gas(), uni, 0, add(self, CALL_PAYLOAD_START_OFFSET), CALL_PAYLOAD_CD_BYTES, 0, 0)
@@ -68,10 +67,6 @@ library SwapCallLib {
                 returndatacopy(free, 0, returndatasize())
                 revert(free, returndatasize())
             }
-
-            let free := mload(0x40)
-            returndatacopy(free, 0, returndatasize())
-            delta := mload(free)
         }
     }
 }
