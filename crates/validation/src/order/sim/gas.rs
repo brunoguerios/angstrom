@@ -523,6 +523,7 @@ pub mod test {
         }
     };
     use eyre::eyre;
+    use pade::PadeEncode;
     use reth_provider::BlockNumReader;
     use reth_revm::primitives::Bytecode;
     use revm::primitives::AccountInfo;
