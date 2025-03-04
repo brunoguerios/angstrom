@@ -10,7 +10,7 @@ use alloy::{
 };
 use futures::{Future, FutureExt};
 
-use crate::{primitive::AngstromSigner, CHAIN_ID};
+use crate::{CHAIN_ID, primitive::AngstromSigner};
 
 /// Allows for us to have a look at the angstrom payload to ensure that we can
 /// set balances properly for when the transaction is submitted

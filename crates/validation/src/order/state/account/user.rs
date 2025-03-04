@@ -13,24 +13,24 @@ pub type Amount = U256;
 
 #[derive(Debug, Default)]
 pub struct BaselineState {
-    token_approval: HashMap<TokenAddress, Amount>,
-    token_balance: HashMap<TokenAddress, Amount>,
-    angstrom_balance: HashMap<TokenAddress, Amount>,
+    token_approval:   HashMap<TokenAddress, Amount>,
+    token_balance:    HashMap<TokenAddress, Amount>,
+    angstrom_balance: HashMap<TokenAddress, Amount>
 }
 
 #[derive(Debug)]
 pub struct LiveState {
-    pub token: TokenAddress,
-    pub approval: Amount,
-    pub balance: Amount,
-    pub angstrom_balance: Amount,
+    pub token:            TokenAddress,
+    pub approval:         Amount,
+    pub balance:          Amount,
+    pub angstrom_balance: Amount
 }
 
 impl LiveState {
     pub fn can_support_order<O: RawPoolOrder>(
         &self,
         order: &O,
-        pool_info: &UserOrderPoolInfo,
+        pool_info: &UserOrderPoolInfo
     ) -> Option<PendingUserAction> {
         assert_eq!(order.token_in(), self.token, "incorrect lives state for order");
         let amount_in = U256::from(order.amount());
@@ -54,7 +54,7 @@ impl LiveState {
             token_delta,
             angstrom_delta,
             token_approval: amount_in,
-            pool_info: pool_info.clone(),
+            pool_info: pool_info.clone()
         })
     }
 }
@@ -63,19 +63,19 @@ impl LiveState {
 #[derive(Clone, Debug)]
 pub struct PendingUserAction {
     /// hash of order
-    pub order_hash: B256,
-    pub respend: RespendAvoidanceMethod,
+    pub order_hash:     B256,
+    pub respend:        RespendAvoidanceMethod,
     // for each order, there will be two different deltas
-    pub token_address: TokenAddress,
+    pub token_address:  TokenAddress,
     // although we have deltas for two tokens, we only
     // apply for 1 given the execution of angstrom,
     // all tokens are required before execution.
-    pub token_delta: Amount,
+    pub token_delta:    Amount,
     pub token_approval: Amount,
     // balance spent from angstrom
     pub angstrom_delta: Amount,
 
-    pub pool_info: UserOrderPoolInfo,
+    pub pool_info: UserOrderPoolInfo
 }
 
 pub struct UserAccounts {
@@ -83,7 +83,7 @@ pub struct UserAccounts {
     pending_actions: Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,
 
     /// the last updated state of a given user.
-    last_known_state: Arc<DashMap<UserAddress, BaselineState>>,
+    last_known_state: Arc<DashMap<UserAddress, BaselineState>>
 }
 
 impl Default for UserAccounts {
@@ -95,8 +95,8 @@ impl Default for UserAccounts {
 impl UserAccounts {
     pub fn new() -> Self {
         Self {
-            pending_actions: Arc::new(DashMap::default()),
-            last_known_state: Arc::new(DashMap::default()),
+            pending_actions:  Arc::new(DashMap::default()),
+            last_known_state: Arc::new(DashMap::default())
         }
     }
 
@@ -131,7 +131,7 @@ impl UserAccounts {
     pub fn respend_conflicts(
         &self,
         user: UserAddress,
-        avoidance: RespendAvoidanceMethod,
+        avoidance: RespendAvoidanceMethod
     ) -> Vec<PendingUserAction> {
         match avoidance {
             nonce @ RespendAvoidanceMethod::Nonce(_) => self
@@ -145,7 +145,7 @@ impl UserAccounts {
                         .collect()
                 })
                 .unwrap_or_default(),
-            RespendAvoidanceMethod::Block(_) => Vec::new(),
+            RespendAvoidanceMethod::Block(_) => Vec::new()
         }
     }
 
@@ -154,7 +154,7 @@ impl UserAccounts {
         user: UserAddress,
         token: TokenAddress,
         respend: RespendAvoidanceMethod,
-        utils: &S,
+        utils: &S
     ) -> eyre::Result<LiveState> {
         let out = self
             .try_fetch_live_pending_state(user, token, respend)
@@ -174,7 +174,7 @@ impl UserAccounts {
         &self,
         user: UserAddress,
         token: TokenAddress,
-        utils: &S,
+        utils: &S
     ) -> eyre::Result<()> {
         let approvals = utils
             .fetch_approval_balance_for_token(user, token)?
@@ -196,7 +196,7 @@ impl UserAccounts {
     pub fn insert_pending_user_action(
         &self,
         user: UserAddress,
-        action: PendingUserAction,
+        action: PendingUserAction
     ) -> Vec<B256> {
         let token = action.token_address;
         let mut entry = self.pending_actions.entry(user).or_default();
@@ -256,7 +256,7 @@ impl UserAccounts {
         &self,
         user: UserAddress,
         token: TokenAddress,
-        respend: RespendAvoidanceMethod,
+        respend: RespendAvoidanceMethod
     ) -> Option<LiveState> {
         let baseline = self.last_known_state.get(&user)?;
         let baseline_approval = *baseline.token_approval.get(&token)?;
@@ -281,7 +281,7 @@ impl UserAccounts {
                             balance_spend += x.token_delta;
                             angstrom_spend += x.angstrom_delta;
                             (approvals_spend, balance_spend, angstrom_spend)
-                        },
+                        }
                     )
             })
             .unwrap_or_default();
@@ -295,7 +295,7 @@ impl UserAccounts {
             token,
             balance: live_balance,
             approval: live_approval,
-            angstrom_balance: live_angstrom_balance,
+            angstrom_balance: live_angstrom_balance
         })
     }
 }
@@ -315,7 +315,7 @@ mod tests {
         token_delta: U256,
         angstrom_delta: U256,
         token_approval: U256,
-        nonce: u64,
+        nonce: u64
     ) -> PendingUserAction {
         PendingUserAction {
             order_hash: B256::random(),
@@ -324,7 +324,7 @@ mod tests {
             token_delta,
             token_approval,
             angstrom_delta,
-            pool_info: UserOrderPoolInfo { token, ..Default::default() },
+            pool_info: UserOrderPoolInfo { token, ..Default::default() }
         }
     }
 
@@ -547,7 +547,7 @@ mod tests {
             U256::from(200),
             U256::from(100),
             U256::from(200),
-            1,
+            1
         );
 
         accounts.insert_pending_user_action(user, action1);

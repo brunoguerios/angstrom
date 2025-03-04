@@ -2,7 +2,7 @@ use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
     providers::ext::AnvilApi,
-    signers::local::PrivateKeySigner,
+    signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, U256};
 use angstrom_types::primitive::AngstromSigner;
@@ -12,21 +12,21 @@ use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use super::TestingConfigKind;
 use crate::{
     providers::WalletProvider,
-    types::{GlobalTestingConfig, HACKED_TOKEN_BALANCE, initial_state::PartialConfigPoolKey},
+    types::{GlobalTestingConfig, HACKED_TOKEN_BALANCE, initial_state::PartialConfigPoolKey}
 };
 
 const TESTNET_LEADER_SECRET_KEY: [u8; 32] = [
     102, 27, 190, 55, 135, 232, 40, 136, 200, 139, 236, 174, 205, 166, 147, 166, 128, 135, 124,
-    214, 190, 241, 2, 235, 9, 139, 91, 116, 204, 130, 120, 159,
+    214, 190, 241, 2, 235, 9, 139, 91, 116, 204, 130, 120, 159
 ];
 
 #[derive(Debug, Clone)]
 pub struct TestingNodeConfig<C> {
-    pub node_id: u64,
+    pub node_id:       u64,
     pub global_config: C,
-    pub pub_key: PublicKey,
-    pub secret_key: SecretKey,
-    pub voting_power: u64,
+    pub pub_key:       PublicKey,
+    pub secret_key:    SecretKey,
+    pub voting_power:  u64
 }
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
@@ -44,7 +44,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
             global_config,
             pub_key: secret_key.public_key(&Secp256k1::default()),
             voting_power,
-            secret_key,
+            secret_key
         }
     }
 
@@ -126,7 +126,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     async fn spawn_testnet_anvil_rpc(
-        &self,
+        &self
     ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
         let anvil = self
             .global_config
@@ -162,7 +162,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     async fn spawn_devnet_anvil_rpc(
-        &self,
+        &self
     ) -> eyre::Result<(WalletProvider, Option<AnvilInstance>)> {
         let anvil = self.configure_devnet_anvil().try_spawn()?;
 

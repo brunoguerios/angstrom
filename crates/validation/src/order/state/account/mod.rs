@@ -3,7 +3,7 @@
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderId,
-    sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData},
+    sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData}
 };
 use thiserror::Error;
 use user::UserAccounts;
@@ -19,7 +19,7 @@ pub struct UserAccountProcessor<S> {
     user_accounts: UserAccounts,
     /// utils for fetching the required data to verify
     /// a order.
-    fetch_utils: S,
+    fetch_utils:   S
 }
 
 impl<S: StateFetchUtils> UserAccountProcessor<S> {
@@ -36,7 +36,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         &self,
         order: O,
         pool_info: UserOrderPoolInfo,
-        block: u64,
+        block: u64
     ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError<O>> {
         let user = order.from();
         let order_hash = order.order_hash();
@@ -91,7 +91,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 (
                     true,
                     self.user_accounts
-                        .insert_pending_user_action(order.from(), pending_user_action),
+                        .insert_pending_user_action(order.from(), pending_user_action)
                 )
             })
             .unwrap_or_default();
@@ -112,15 +112,15 @@ pub trait StorageWithData: RawPoolOrder {
         is_cur_valid: bool,
         is_valid: bool,
         pool_info: UserOrderPoolInfo,
-        invalidates: Vec<B256>,
+        invalidates: Vec<B256>
     ) -> OrderWithStorageData<Self> {
         OrderWithStorageData {
             priority_data: angstrom_types::orders::OrderPriorityData {
-                price: self.limit_price(),
+                price:     self.limit_price(),
                 // it is always t1. this is because we don't
-                volume: self.amount(),
-                gas: U256::ZERO,
-                gas_units: 0,
+                volume:    self.amount(),
+                gas:       U256::ZERO,
+                gas_units: 0
             },
             pool_id: pool_info.pool_id,
             is_currently_valid: is_cur_valid,
@@ -130,7 +130,7 @@ pub trait StorageWithData: RawPoolOrder {
             order_id: OrderId::from_all_orders(&self, pool_info.pool_id),
             invalidates,
             order: self,
-            tob_reward: U256::ZERO,
+            tob_reward: U256::ZERO
         }
     }
 }
@@ -146,7 +146,7 @@ pub enum UserAccountVerificationError<O: RawPoolOrder> {
     #[error("Could not fetch: {0:?}")]
     CouldNotFetch(eyre::ErrReport),
     #[error("block for flash order is not for next block. next_block: {0}, requested_block: {1}.")]
-    BadBlock(u64, u64),
+    BadBlock(u64, u64)
 }
 
 #[cfg(test)]
@@ -156,7 +156,7 @@ pub mod tests {
     use alloy::primitives::{Address, U256};
     use angstrom_types::{
         primitive::{AngstromSigner, PoolId},
-        sol_bindings::{RawPoolOrder, grouped_orders::GroupedVanillaOrder},
+        sol_bindings::{RawPoolOrder, grouped_orders::GroupedVanillaOrder}
     };
     use testing_tools::type_generator::orders::UserOrderBuilder;
     use tracing::info;
@@ -165,7 +165,7 @@ pub mod tests {
     use super::{UserAccountProcessor, UserAccountVerificationError, UserAccounts};
     use crate::order::state::{
         db_state_utils::test_fetching::MockFetch,
-        pools::{PoolsTracker, pool_tracker_mock::MockPoolTracker},
+        pools::{PoolsTracker, pool_tracker_mock::MockPoolTracker}
     };
     /// Initialize the tracing subscriber for tests
     fn init_tracing() {
@@ -173,7 +173,7 @@ pub mod tests {
             .with_env_filter(
                 EnvFilter::from_default_env()
                     .add_directive("validation=trace".parse().unwrap())
-                    .add_directive("info".parse().unwrap()),
+                    .add_directive("info".parse().unwrap())
             )
             .with_test_writer()
             .try_init();
@@ -183,7 +183,7 @@ pub mod tests {
         init_tracing();
         UserAccountProcessor {
             user_accounts: UserAccounts::new(),
-            fetch_utils: MockFetch::default(),
+            fetch_utils:   MockFetch::default()
         }
     }
 
@@ -263,12 +263,12 @@ pub mod tests {
         processor.fetch_utils.set_balance_for_user(
             user,
             token0,
-            U256::from(order.amount()) * U256::from(2),
+            U256::from(order.amount()) * U256::from(2)
         );
         processor.fetch_utils.set_approval_for_user(
             user,
             token0,
-            U256::from(order.amount()) * U256::from(2),
+            U256::from(order.amount()) * U256::from(2)
         );
 
         println!("finished first order config");
@@ -335,12 +335,12 @@ pub mod tests {
         processor.fetch_utils.set_balance_for_user(
             user,
             token0,
-            U256::from(order0.amount()) + U256::from(order1.amount()) - U256::from(10),
+            U256::from(order0.amount()) + U256::from(order1.amount()) - U256::from(10)
         );
         processor.fetch_utils.set_approval_for_user(
             user,
             token0,
-            U256::from(order0.amount()) + U256::from(order1.amount()) - U256::from(10),
+            U256::from(order0.amount()) + U256::from(order1.amount()) - U256::from(10)
         );
 
         let order0_hash = order0.hash();

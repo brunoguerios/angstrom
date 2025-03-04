@@ -8,7 +8,7 @@ use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::providers::{BlockchainProvider, ReadOnlyConfig};
 use tracing::Level;
 use tracing_subscriber::{
-    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
+    EnvFilter, Layer, Registry, layer::SubscriberExt, util::SubscriberInitExt
 };
 
 use crate::agents::AgentConfig;
