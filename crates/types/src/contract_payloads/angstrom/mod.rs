@@ -478,11 +478,6 @@ impl AngstromBundle {
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw solution data");
 
-        // sort
-        // if t1 < t0 {
-        //     std::mem::swap(&mut t1, &mut t0)
-        // };
-
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
 
         // Make sure the involved assets are in our assets array and we have the
@@ -627,7 +622,6 @@ impl AngstromBundle {
             (..) => b.is_bid.cmp(&a.is_bid)
         });
 
-        let mut map: HashMap<Address, i128> = HashMap::new();
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
         let ray_ucp = Ray::from(ucp);
@@ -684,8 +678,6 @@ impl AngstromBundle {
                     fill_amount
                 )
             };
-            *map.entry(order.token_in()).or_default() += quantity_in.to_i128().unwrap();
-            *map.entry(order.token_out()).or_default() -= quantity_out.to_i128().unwrap();
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
@@ -703,8 +695,6 @@ impl AngstromBundle {
             };
             user_orders.push(user_order);
         }
-
-        tracing::info!("{:#?}", map);
 
         Ok(())
     }
