@@ -194,11 +194,11 @@ rayon = "1.7"
 itertools = "0.12.1"
 parking_lot = "0.12"
 metrics = "0.21.1"
-anyhow = "1.0.85"
-url = "2.4.1"
-auto_impl = "1.1.0"
-toml = "0.8.19"
-k256 = { version = "0.13", default-features = false }
+anyhow = "1"
+url = "2"
+auto_impl = "1"
+toml = "0"
+k256 = { version = "0", default-features = false }
 clap = "4"
 
 ### proc-macros
