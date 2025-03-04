@@ -45,7 +45,7 @@ clap.workspace = true
 pade.workspace = true
 pade-macro.workspace = true
 testing-tools.workspace = true
-divan = "0"
+divan.workspace = true
 tokio-stream.workspace = true
 
 [build-dependencies]
