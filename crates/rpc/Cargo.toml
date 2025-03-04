@@ -39,13 +39,13 @@ metrics.workspace = true
 tracing.workspace = true
 futures.workspace = true
 
-tower-http = { version = "0.5.2", features = ["full"] }
-tower = { version = "0.4.13", features = ["full"] }
-hyper = "1.2.0"
+tower-http = { version = "0", features = ["full"] }
+tower = { version = "0", features = ["full"] }
+hyper = "1"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "tracing"] }
-rand = "0.8.5"
+rand = "0"
 
 [features]
 default = ["client"]
