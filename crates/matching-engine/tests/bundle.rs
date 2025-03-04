@@ -1,7 +1,7 @@
 use base64::Engine;
 use matching_engine::{
     book::OrderBook,
-    matcher::{VolumeFillMatcher, delta::DeltaMatcher}
+    matcher::{VolumeFillMatcher, delta::DeltaMatcher},
 };
 
 mod booklib;
@@ -67,7 +67,7 @@ fn delta_matcher_test() {
             .unwrap();
         let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
         // println!("Book: {:#?}", book);
-        let mut matcher = DeltaMatcher::new(&book, None);
+        let mut matcher = DeltaMatcher::new(&book, None, 0);
         let solution = matcher.solution(None);
         println!("Solution: {:#?}", solution);
     })
