@@ -3,7 +3,7 @@ use std::{
     num::NonZeroUsize,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker},
+    task::{Context, Poll, Waker}
 };
 
 use alloy::primitives::{Address, B256, FixedBytes};
@@ -12,22 +12,22 @@ use angstrom_types::{
     block_sync::BlockSyncConsumer,
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::{NewInitializedPool, OrderValidationError, PeerId, PoolId},
-    sol_bindings::grouped_orders::AllOrders,
+    sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
 use order_pool::{
     OrderIndexer, OrderPoolHandle, PoolConfig, PoolInnerEvent, PoolManagerUpdate,
-    order_storage::OrderStorage,
+    order_storage::OrderStorage
 };
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_tasks::TaskSpawner;
 use tokio::sync::{
     broadcast,
-    mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel},
+    mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}
 };
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use validation::order::{
-    OrderValidationResults, OrderValidatorHandle, state::pools::AngstromPoolsTracker,
+    OrderValidationResults, OrderValidatorHandle, state::pools::AngstromPoolsTracker
 };
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};
@@ -40,8 +40,8 @@ const PEER_ORDER_CACHE_LIMIT: usize = 1024 * 10;
 /// Api to interact with [`PoolManager`] task.
 #[derive(Debug, Clone)]
 pub struct PoolHandle {
-    pub manager_tx: UnboundedSender<OrderCommand>,
-    pub pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
+    pub manager_tx:      UnboundedSender<OrderCommand>,
+    pub pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
 }
 
 #[derive(Debug)]
@@ -51,7 +51,7 @@ pub enum OrderCommand {
     CancelOrder(CancelOrderRequest, tokio::sync::oneshot::Sender<bool>),
     PendingOrders(Address, tokio::sync::oneshot::Sender<Vec<AllOrders>>),
     OrdersByPool(FixedBytes<32>, OrderLocation, tokio::sync::oneshot::Sender<Vec<AllOrders>>),
-    OrderStatus(B256, tokio::sync::oneshot::Sender<Option<OrderStatus>>),
+    OrderStatus(B256, tokio::sync::oneshot::Sender<Option<OrderStatus>>)
 }
 
 impl PoolHandle {
@@ -64,21 +64,21 @@ impl OrderPoolHandle for PoolHandle {
     fn new_order(
         &self,
         origin: OrderOrigin,
-        order: AllOrders,
+        order: AllOrders
     ) -> impl Future<Output = Result<(), OrderValidationError>> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let _ = self.send(OrderCommand::NewOrder(origin, order, tx));
         rx.map(|res| {
             let Ok(result) = res else {
                 return Err(OrderValidationError::Unknown(
-                    "a channel failed on the backend".to_string(),
+                    "a channel failed on the backend".to_string()
                 ));
             };
             match result {
                 OrderValidationResults::TransitionedToBlock | OrderValidationResults::Valid(_) => {
                     Ok(())
                 }
-                OrderValidationResults::Invalid { error, .. } => Err(error),
+                OrderValidationResults::Invalid { error, .. } => Err(error)
             }
         })
     }
@@ -90,7 +90,7 @@ impl OrderPoolHandle for PoolHandle {
     fn fetch_orders_from_pool(
         &self,
         pool_id: FixedBytes<32>,
-        location: OrderLocation,
+        location: OrderLocation
     ) -> impl Future<Output = Vec<AllOrders>> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
 
@@ -103,7 +103,7 @@ impl OrderPoolHandle for PoolHandle {
 
     fn fetch_order_status(
         &self,
-        order_hash: B256,
+        order_hash: B256
     ) -> impl Future<Output = Option<OrderStatus>> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let _ = self
@@ -129,22 +129,22 @@ impl OrderPoolHandle for PoolHandle {
 pub struct PoolManagerBuilder<V, GlobalSync>
 where
     V: OrderValidatorHandle,
-    GlobalSync: BlockSyncConsumer,
+    GlobalSync: BlockSyncConsumer
 {
-    validator: V,
-    global_sync: GlobalSync,
-    order_storage: Option<Arc<OrderStorage>>,
-    network_handle: StromNetworkHandle,
+    validator:            V,
+    global_sync:          GlobalSync,
+    order_storage:        Option<Arc<OrderStorage>>,
+    network_handle:       StromNetworkHandle,
     strom_network_events: UnboundedReceiverStream<StromNetworkEvent>,
-    eth_network_events: UnboundedReceiverStream<EthEvent>,
-    order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
-    config: PoolConfig,
+    eth_network_events:   UnboundedReceiverStream<EthEvent>,
+    order_events:         UnboundedMeteredReceiver<NetworkOrderEvent>,
+    config:               PoolConfig
 }
 
 impl<V, GlobalSync> PoolManagerBuilder<V, GlobalSync>
 where
     V: OrderValidatorHandle<Order = AllOrders> + Unpin,
-    GlobalSync: BlockSyncConsumer,
+    GlobalSync: BlockSyncConsumer
 {
     pub fn new(
         validator: V,
@@ -152,7 +152,7 @@ where
         network_handle: StromNetworkHandle,
         eth_network_events: UnboundedReceiverStream<EthEvent>,
         order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
-        global_sync: GlobalSync,
+        global_sync: GlobalSync
     ) -> Self {
         Self {
             order_events,
@@ -162,7 +162,7 @@ where
             network_handle,
             validator,
             order_storage,
-            config: Default::default(),
+            config: Default::default()
         }
     }
 
@@ -182,7 +182,7 @@ where
         tx: UnboundedSender<OrderCommand>,
         rx: UnboundedReceiver<OrderCommand>,
         pool_storage: AngstromPoolsTracker,
-        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
+        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
     ) -> PoolHandle {
         let rx = UnboundedReceiverStream::new(rx);
         let order_storage = self
@@ -195,22 +195,22 @@ where
             order_storage.clone(),
             0,
             pool_manager_tx.clone(),
-            pool_storage,
+            pool_storage
         );
         self.global_sync.register(MODULE_NAME);
 
         task_spawner.spawn_critical(
             "transaction manager",
             Box::pin(PoolManager {
-                eth_network_events: self.eth_network_events,
+                eth_network_events:   self.eth_network_events,
                 strom_network_events: self.strom_network_events,
-                order_events: self.order_events,
-                peer_to_info: HashMap::default(),
-                order_indexer: inner,
-                network: self.network_handle,
-                command_rx: rx,
-                global_sync: self.global_sync,
-            }),
+                order_events:         self.order_events,
+                peer_to_info:         HashMap::default(),
+                order_indexer:        inner,
+                network:              self.network_handle,
+                command_rx:           rx,
+                global_sync:          self.global_sync
+            })
         );
 
         handle
@@ -219,7 +219,7 @@ where
     pub fn build<TP: TaskSpawner>(
         self,
         pool_storage: AngstromPoolsTracker,
-        task_spawner: TP,
+        task_spawner: TP
     ) -> PoolHandle {
         let (tx, rx) = unbounded_channel();
         let rx = UnboundedReceiverStream::new(rx);
@@ -234,21 +234,21 @@ where
             order_storage.clone(),
             0,
             pool_manager_tx.clone(),
-            pool_storage,
+            pool_storage
         );
 
         task_spawner.spawn_critical(
             "transaction manager",
             Box::pin(PoolManager {
-                eth_network_events: self.eth_network_events,
+                eth_network_events:   self.eth_network_events,
                 strom_network_events: self.strom_network_events,
-                order_events: self.order_events,
-                peer_to_info: HashMap::default(),
-                order_indexer: inner,
-                network: self.network_handle,
-                command_rx: rx,
-                global_sync: self.global_sync,
-            }),
+                order_events:         self.order_events,
+                peer_to_info:         HashMap::default(),
+                order_indexer:        inner,
+                network:              self.network_handle,
+                command_rx:           rx,
+                global_sync:          self.global_sync
+            })
         );
 
         handle
@@ -258,32 +258,32 @@ where
 pub struct PoolManager<V, GlobalSync>
 where
     V: OrderValidatorHandle,
-    GlobalSync: BlockSyncConsumer,
+    GlobalSync: BlockSyncConsumer
 {
     /// access to validation and sorted storage of orders.
-    order_indexer: OrderIndexer<V>,
-    global_sync: GlobalSync,
+    order_indexer:        OrderIndexer<V>,
+    global_sync:          GlobalSync,
     /// Network access.
-    network: StromNetworkHandle,
+    network:              StromNetworkHandle,
     /// Subscriptions to all the strom-network related events.
     ///
     /// From which we get all new incoming order related messages.
     strom_network_events: UnboundedReceiverStream<StromNetworkEvent>,
     /// Ethereum updates stream that tells the pool manager about orders that
     /// have been filled  
-    eth_network_events: UnboundedReceiverStream<EthEvent>,
+    eth_network_events:   UnboundedReceiverStream<EthEvent>,
     /// receiver half of the commands to the pool manager
-    command_rx: UnboundedReceiverStream<OrderCommand>,
+    command_rx:           UnboundedReceiverStream<OrderCommand>,
     /// Incoming events from the ProtocolManager.
-    order_events: UnboundedMeteredReceiver<NetworkOrderEvent>,
+    order_events:         UnboundedMeteredReceiver<NetworkOrderEvent>,
     /// All the connected peers.
-    peer_to_info: HashMap<PeerId, StromPeer>,
+    peer_to_info:         HashMap<PeerId, StromPeer>
 }
 
 impl<V, GlobalSync> PoolManager<V, GlobalSync>
 where
     V: OrderValidatorHandle<Order = AllOrders>,
-    GlobalSync: BlockSyncConsumer,
+    GlobalSync: BlockSyncConsumer
 {
     fn on_command(&mut self, cmd: OrderCommand) {
         match cmd {
@@ -319,7 +319,7 @@ where
                 self.order_indexer.start_new_block_processing(
                     block_number,
                     filled_orders,
-                    address_changeset,
+                    address_changeset
                 );
                 waker.clone().wake_by_ref();
             }
@@ -360,7 +360,7 @@ where
                     self.order_indexer.new_network_order(
                         peer_id,
                         OrderOrigin::External,
-                        order.clone(),
+                        order.clone()
                     );
                 });
             }
@@ -380,11 +380,13 @@ where
                 self.peer_to_info.insert(
                     peer_id,
                     StromPeer {
-                        orders: LruCache::new(NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()),
-                        cancellations: LruCache::new(
-                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap(),
+                        orders:        LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
                         ),
-                    },
+                        cancellations: LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
+                        )
+                    }
                 );
             }
             StromNetworkEvent::SessionClosed { peer_id, .. } => {
@@ -398,11 +400,13 @@ where
                 self.peer_to_info.insert(
                     peer_id,
                     StromPeer {
-                        orders: LruCache::new(NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()),
-                        cancellations: LruCache::new(
-                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap(),
+                        orders:        LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
                         ),
-                    },
+                        cancellations: LruCache::new(
+                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
+                        )
+                    }
                 );
             }
         }
@@ -417,7 +421,7 @@ where
                     o.into_iter().for_each(|peer| {
                         self.network.peer_reputation_change(
                             peer,
-                            crate::ReputationChangeKind::InvalidOrder,
+                            crate::ReputationChangeKind::InvalidOrder
                         );
                     });
                     None
@@ -427,7 +431,7 @@ where
                         .sign_off_on_block(MODULE_NAME, block, Some(waker()));
                     None
                 }
-                PoolInnerEvent::None => None,
+                PoolInnerEvent::None => None
             })
             .collect::<Vec<_>>();
 
@@ -453,7 +457,7 @@ where
                 if !info.orders.contains(&order_hash) {
                     self.network.send_message(
                         *peer_id,
-                        StromMessage::PropagatePooledOrders(vec![order.clone()]),
+                        StromMessage::PropagatePooledOrders(vec![order.clone()])
                     );
                     info.orders.insert(order_hash);
                 }
@@ -465,7 +469,7 @@ where
 impl<V, GlobalSync> Future for PoolManager<V, GlobalSync>
 where
     V: OrderValidatorHandle<Order = AllOrders> + Unpin,
-    GlobalSync: BlockSyncConsumer,
+    GlobalSync: BlockSyncConsumer
 {
     type Output = ();
 
@@ -521,13 +525,13 @@ pub enum NetworkTransactionEvent {
     /// Received list of transactions from the given peer.
     ///
     /// This represents transactions that were broadcasted to use from the peer.
-    IncomingOrders { peer_id: PeerId, msg: Vec<AllOrders> },
+    IncomingOrders { peer_id: PeerId, msg: Vec<AllOrders> }
 }
 
 /// Tracks a single peer
 #[derive(Debug)]
 struct StromPeer {
     /// Keeps track of transactions that we know the peer has seen.
-    orders: LruCache<B256>,
-    cancellations: LruCache<B256>,
+    orders:        LruCache<B256>,
+    cancellations: LruCache<B256>
 }
