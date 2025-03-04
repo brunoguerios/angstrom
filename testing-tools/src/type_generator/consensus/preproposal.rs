@@ -113,8 +113,8 @@ impl PreproposalBuilder {
                 let priority_data = OrderPriorityData {
                     price: U256::from(price),
                     volume: 1,
-                    gas: Randomizer::gen(&mut rng),
-                    gas_units: Randomizer::gen(&mut rng),
+                    gas: Randomizer::generate(&mut rng),
+                    gas_units: Randomizer::generate(&mut rng),
                 };
                 OrderWithStorageData {
                     invalidates: vec![],

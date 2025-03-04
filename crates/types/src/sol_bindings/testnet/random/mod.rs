@@ -6,10 +6,10 @@ use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 // need to redefine the Random trait due to trait + types (reth) not being ours
 pub trait Randomizer<T>: Rng {
-    fn gen(&mut self) -> T;
+    fn generate(&mut self) -> T;
 
     fn gen_many(&mut self, count: usize) -> Vec<T> {
-        (0..count).map(|_| Randomizer::gen(self)).collect()
+        (0..count).map(|_| Randomizer::generate(self)).collect()
     }
 }
 
@@ -18,7 +18,7 @@ where
     Standard: Distribution<T>,
     R: Rng,
 {
-    fn gen(&mut self) -> T {
+    fn generate(&mut self) -> T {
         self.gen()
     }
 }
