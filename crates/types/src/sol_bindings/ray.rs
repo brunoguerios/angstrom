@@ -350,6 +350,9 @@ impl Ray {
 
     /// 1e54 / self
     pub fn inv_ray(self) -> Ray {
+        if self.is_zero() {
+            return self
+        }
         self.invert(RoundingMode::Floor)
     }
 
