@@ -33,7 +33,7 @@ impl<T: Hash + Eq> LruCache<T> {
                 // remove the oldest element in the set
                 self.remove_lru();
             }
-            return true
+            return true;
         }
         false
     }

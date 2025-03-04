@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::{
     primitive::PoolId,
-    sol_bindings::{ext::RespendAvoidanceMethod, RawPoolOrder}
+    sol_bindings::{RawPoolOrder, ext::RespendAvoidanceMethod}
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

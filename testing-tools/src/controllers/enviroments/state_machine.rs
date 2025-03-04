@@ -6,7 +6,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 use super::AngstromTestnet;
 use crate::{
     providers::WalletProvider,
-    types::{config::DevnetConfig, HookResult, StateMachineHook}
+    types::{HookResult, StateMachineHook, config::DevnetConfig}
 };
 
 pub struct DevnetStateMachine<'a, C> {

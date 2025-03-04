@@ -1,7 +1,7 @@
 use std::{
-    future::{poll_fn, Future},
+    future::{Future, poll_fn},
     pin::Pin,
-    sync::{atomic::AtomicU64, Arc},
+    sync::{Arc, atomic::AtomicU64},
     task::Poll,
     time::Duration
 };
@@ -15,14 +15,14 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 use validation::{
     bundle::BundleValidator,
     common::{
-        db::BlockStateProviderFactory, key_split_threadpool::KeySplitThreadpool, SharedTools,
-        TokenPriceGenerator
+        SharedTools, TokenPriceGenerator, db::BlockStateProviderFactory,
+        key_split_threadpool::KeySplitThreadpool
     },
     order::{
         order_validator::OrderValidator,
         sim::SimValidation,
         state::{
-            db_state_utils::{nonces::Nonces, AutoMaxFetchUtils},
+            db_state_utils::{AutoMaxFetchUtils, nonces::Nonces},
             pools::AngstromPoolsTracker
         }
     },
@@ -88,7 +88,7 @@ where
             duration,
             poll_fn(|cx| {
                 if self.underlying.poll_unpin(cx).is_ready() {
-                    return Poll::Ready(())
+                    return Poll::Ready(());
                 }
                 cx.waker().wake_by_ref();
                 Poll::Pending

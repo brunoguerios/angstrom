@@ -15,12 +15,12 @@ use angstrom_types::{
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution
 };
-use futures::{future::BoxFuture, FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::MatchingEngineHandle;
 use pade::PadeEncode;
 
 use super::{ConsensusState, SharedRoundState};
-use crate::rounds::{preproposal_wait_trigger::LastRoundInfo, ConsensusMessage};
+use crate::rounds::{ConsensusMessage, preproposal_wait_trigger::LastRoundInfo};
 
 type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>>;
 
@@ -33,7 +33,7 @@ type MatchingEngineFuture = BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, 
 /// is no need for others to verify.
 pub struct ProposalState {
     matching_engine_future: Option<MatchingEngineFuture>,
-    submission_future:      Option<BoxFuture<'static, bool>>,
+    submission_future:      Option<BoxFuture<'static, Result<bool, tokio::task::JoinError>>>,
     pre_proposal_aggs:      Vec<PreProposalAggregation>,
     proposal:               Option<Proposal>,
     last_round_info:        Option<LastRoundInfo>,
@@ -88,7 +88,7 @@ impl ProposalState {
                 "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
             );
         }) else {
-            return false
+            return false;
         };
 
         let proposal = Proposal::generate_proposal(
@@ -108,7 +108,7 @@ impl ProposalState {
                 );
             })
         else {
-            return false
+            return false;
         };
 
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
@@ -130,7 +130,7 @@ impl ProposalState {
             let (hash, success) = provider.sign_and_send(signer, tx).await;
             tracing::info!("submitted bundle");
             if !success {
-                return false
+                return false;
             }
 
             // wait for next block. then see if transaction landed
@@ -152,7 +152,7 @@ impl ProposalState {
         .boxed();
 
         self.waker.wake_by_ref();
-        self.submission_future = Some(submission_future);
+        self.submission_future = Some(tokio::spawn(submission_future).boxed());
 
         true
     }
@@ -182,7 +182,7 @@ where
                 Poll::Ready(state) => {
                     if !self.try_build_proposal(state, handles) {
                         // failed to build. we end here.
-                        return Poll::Ready(None)
+                        return Poll::Ready(None);
                     }
                 }
                 Poll::Pending => self.matching_engine_future = Some(b_fut)
@@ -192,14 +192,14 @@ where
         if let Some(mut b_fut) = self.submission_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(transaction_landed) => {
-                    if transaction_landed {
+                    if transaction_landed.unwrap_or_default() {
                         let proposal = self.proposal.take().unwrap();
                         handles
                             .messages
                             .push_back(ConsensusMessage::PropagateProposal(proposal));
                         cx.waker().wake_by_ref();
                     }
-                    return Poll::Ready(None)
+                    return Poll::Ready(None);
                 }
                 Poll::Pending => self.submission_future = Some(b_fut)
             }

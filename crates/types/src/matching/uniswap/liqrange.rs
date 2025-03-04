@@ -58,7 +58,7 @@ pub struct LiqRangeRef<'a> {
     pub(super) range_idx: usize
 }
 
-impl<'a> Deref for LiqRangeRef<'a> {
+impl Deref for LiqRangeRef<'_> {
     type Target = LiqRange;
 
     fn deref(&self) -> &Self::Target {
@@ -66,7 +66,7 @@ impl<'a> Deref for LiqRangeRef<'a> {
     }
 }
 
-impl<'a> PartialEq for LiqRangeRef<'a> {
+impl PartialEq for LiqRangeRef<'_> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.pool_snap, other.pool_snap)
             && std::ptr::eq(self.range, other.range)
@@ -74,7 +74,7 @@ impl<'a> PartialEq for LiqRangeRef<'a> {
     }
 }
 
-impl<'a> Eq for LiqRangeRef<'a> {}
+impl Eq for LiqRangeRef<'_> {}
 
 impl<'a> LiqRangeRef<'a> {
     pub fn new(market: &'a PoolSnapshot, range: &'a LiqRange, range_idx: usize) -> Self {
@@ -132,7 +132,7 @@ impl<'a> LiqRangeRef<'a> {
     }
 }
 
-impl<'a> Debug for LiqRangeRef<'a> {
+impl Debug for LiqRangeRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut builder = f.debug_struct("LiqRangeRef");
         builder.field("range", &self.range);

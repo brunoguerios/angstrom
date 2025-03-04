@@ -6,7 +6,7 @@ use std::{
     time::Instant
 };
 
-use alloy::primitives::{BlockNumber, FixedBytes, B256};
+use alloy::primitives::{B256, BlockNumber, FixedBytes};
 use angstrom_metrics::OrderStorageMetricsWrapper;
 use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderSet, OrderStatus},
@@ -18,10 +18,10 @@ use angstrom_types::{
 };
 
 use crate::{
+    PoolConfig,
     finalization_pool::FinalizationPool,
     limit::{LimitOrderPool, LimitPoolError},
-    searcher::{SearcherPool, SearcherPoolError},
-    PoolConfig
+    searcher::{SearcherPool, SearcherPoolError}
 };
 
 /// The Storage of all verified orders.
@@ -80,7 +80,7 @@ impl OrderStorage {
                 .expect("poisoned")
                 .has_order(&order)
         {
-            return Some(OrderStatus::Filled)
+            return Some(OrderStatus::Filled);
         }
 
         if self
@@ -89,7 +89,7 @@ impl OrderStorage {
             .expect("poisoned")
             .has_order(order)
         {
-            return Some(OrderStatus::Pending)
+            return Some(OrderStatus::Pending);
         }
 
         self.limit_orders
@@ -115,7 +115,7 @@ impl OrderStorage {
             .expect("poisoned")
             .has_order(&order_id.hash)
         {
-            return None
+            return None;
         }
 
         match order_id.location {
@@ -189,7 +189,7 @@ impl OrderStorage {
         if order.is_vanilla() {
             let mapped_order = order.try_map_inner(|this| {
                 let GroupedUserOrder::Vanilla(order) = this else {
-                    return Err(eyre::eyre!("unreachable"))
+                    return Err(eyre::eyre!("unreachable"));
                 };
                 Ok(order)
             })?;
@@ -202,7 +202,7 @@ impl OrderStorage {
         } else {
             let mapped_order = order.try_map_inner(|this| {
                 let GroupedUserOrder::Composable(order) = this else {
-                    return Err(eyre::eyre!("unreachable"))
+                    return Err(eyre::eyre!("unreachable"));
                 };
                 Ok(order)
             })?;

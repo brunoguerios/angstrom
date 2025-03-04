@@ -1,9 +1,9 @@
 use reth::{chainspec::ChainSpec, transaction_pool::TransactionPool};
 use reth_network::{
-    protocol::IntoRlpxSubProtocol, EthNetworkPrimitives, NetworkHandle, NetworkManager
+    EthNetworkPrimitives, NetworkHandle, NetworkManager, protocol::IntoRlpxSubProtocol
 };
 use reth_node_builder::{
-    components::NetworkBuilder, node::FullNodeTypes, BuilderContext, NodeTypes, TxTy
+    BuilderContext, NodeTypes, TxTy, components::NetworkBuilder, node::FullNodeTypes
 };
 use reth_primitives::{EthPrimitives, PooledTransaction};
 use reth_transaction_pool::PoolTransaction;

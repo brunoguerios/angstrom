@@ -2,8 +2,8 @@ use std::{
     future::Future,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc
+        Arc,
+        atomic::{AtomicBool, Ordering}
     },
     task::{Context, Poll}
 };
@@ -19,7 +19,7 @@ use reth_chainspec::Hardforks;
 use reth_network::test_utils::Peer;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use tokio::task::JoinHandle;
-use tracing::{span, Level};
+use tracing::{Level, span};
 
 use crate::{
     providers::{AnvilStateProvider, WalletProvider},
@@ -165,19 +165,19 @@ where
         let e = span.enter();
 
         if this.eth_peer.fut.poll_unpin(cx).is_ready() {
-            return Poll::Ready(())
+            return Poll::Ready(());
         }
 
         if this.strom_network_manager.fut.poll_unpin(cx).is_ready() {
-            return Poll::Ready(())
+            return Poll::Ready(());
         }
 
         if this.strom_consensus.fut.poll_unpin(cx).is_ready() {
-            return Poll::Ready(())
+            return Poll::Ready(());
         }
 
         if this.validation.fut.poll_unpin(cx).is_ready() {
-            return Poll::Ready(())
+            return Poll::Ready(());
         }
 
         drop(e);
@@ -248,7 +248,7 @@ where
         span.in_scope(|| {
             if this.lock.load(Ordering::Relaxed) && this.inner.lock_arc().poll_unpin(cx).is_ready()
             {
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
             cx.waker().wake_by_ref();
             Poll::Pending

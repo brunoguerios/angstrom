@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc, RwLock
+    Arc, RwLock,
+    atomic::{AtomicU64, Ordering}
 };
 
 use alloy::{
@@ -161,19 +161,19 @@ where
         if let FilterBlockOption::Range { from_block, to_block } = &filter.block_option {
             tracing::debug!(?from_block, ?to_block, ?last_block);
 
-            let from_equal_block_range = from_block.as_ref().map_or(false, |from| {
+            let from_equal_block_range = from_block.as_ref().is_some_and(|from| {
                 matches!(from, BlockNumberOrTag::Number(from_num)
                     if last_block == *from_num
                 )
             });
-            let to_equal_to_block_range = to_block.as_ref().map_or(false, |to| {
+            let to_equal_to_block_range = to_block.as_ref().is_some_and(|to| {
                 matches!(to, BlockNumberOrTag::Number(to_num)
                     if last_block == *to_num
                 )
             });
 
             if !(from_equal_block_range && to_equal_to_block_range) {
-                return Err(PoolManagerError::InvalidBlockRange)
+                return Err(PoolManagerError::InvalidBlockRange);
             }
         }
         Ok(())

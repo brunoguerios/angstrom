@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy_primitives::{keccak256, Address, FixedBytes};
+use alloy_primitives::{Address, FixedBytes, keccak256};
 use angstrom_types::{
     self,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},

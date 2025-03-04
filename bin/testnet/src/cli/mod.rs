@@ -1,8 +1,10 @@
+pub mod compare_engines;
 pub mod devnet;
 pub mod e2e_orders;
 pub mod testnet;
-use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
+use angstrom_metrics::{METRICS_ENABLED, initialize_prometheus_metrics};
 use clap::{ArgAction, Parser, Subcommand};
+use compare_engines::CompareEnginesCli;
 use devnet::DevnetCli;
 use e2e_orders::End2EndOrdersCli;
 use reth_tasks::TaskExecutor;
@@ -10,10 +12,13 @@ use testing_tools::types::config::{DevnetConfig, TestnetConfig};
 use testnet::TestnetCli;
 use tracing::Level;
 use tracing_subscriber::{
-    filter, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry
+    EnvFilter, Layer, Registry, filter, layer::SubscriberExt, util::SubscriberInitExt
 };
 
-use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};
+use crate::{
+    run_devnet, run_testnet,
+    simulations::{e2e_orders::run_e2e_orders, matching_comp::compare_matching_engines}
+};
 
 #[derive(Parser)]
 pub struct AngstromTestnetCli {
@@ -70,7 +75,9 @@ pub enum TestnetSubcommmand {
     #[command(name = "devnet")]
     Devnet(DevnetCli),
     #[command(name = "e2e")]
-    End2EndOrders(End2EndOrdersCli)
+    End2EndOrders(End2EndOrdersCli),
+    #[command(name = "engine-sim")]
+    Compare(CompareEnginesCli)
 }
 
 impl TestnetSubcommmand {
@@ -78,7 +85,8 @@ impl TestnetSubcommmand {
         match self {
             TestnetSubcommmand::Testnet(testnet_cli) => run_testnet(executor, testnet_cli).await,
             TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await,
-            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await
+            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await,
+            TestnetSubcommmand::Compare(cli) => compare_matching_engines(executor, cli).await
         }
     }
 }
@@ -108,7 +116,26 @@ pub fn init_tracing(verbosity: u8) {
         layer_builder(format!("order_pool={level}")),
     ];
 
-    tracing_subscriber::registry().with(layers).init();
+    if let Some(f) = envfilter {
+        tracing_subscriber::registry().with(format).with(f).init();
+    } else {
+        let filter = filter::Targets::new()
+            .with_target("testnet", level)
+            .with_target("devnet", level)
+            .with_target("angstrom_rpc", level)
+            .with_target("angstrom", level)
+            .with_target("testing_tools", level)
+            .with_target("angstrom_eth", level)
+            .with_target("matching_engine", level)
+            .with_target("uniswap_v4", level)
+            .with_target("consensus", level)
+            .with_target("validation", level)
+            .with_target("order_pool", level);
+        tracing_subscriber::registry()
+            .with(format)
+            .with(filter)
+            .init();
+    }
 }
 
 fn layer_builder(filter_str: String) -> Box<dyn Layer<Registry> + Send + Sync> {

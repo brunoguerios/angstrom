@@ -4,21 +4,21 @@ use std::{
     sync::OnceLock
 };
 
-use alloy::primitives::{aliases::U320, Uint, U256, U512};
+use alloy::primitives::{U256, U512, Uint, aliases::U320};
 use alloy_primitives::U160;
 use malachite::{
+    Natural, Rational,
     num::{
         arithmetic::traits::{DivRound, Mod, Pow},
         conversion::traits::{RoundingInto, SaturatingFrom}
     },
-    rounding_modes::RoundingMode,
-    Natural, Rational
+    rounding_modes::RoundingMode
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
 use crate::matching::{
-    const_1e27, const_1e54, const_2_192, uniswap::PoolPrice, MatchingPrice, SqrtPriceX96
+    MatchingPrice, SqrtPriceX96, const_1e27, const_1e54, const_2_192, uniswap::PoolPrice
 };
 
 fn max_tick_ray() -> &'static Ray {
@@ -123,6 +123,12 @@ impl From<U256> for Ray {
     }
 }
 
+impl From<u128> for Ray {
+    fn from(value: u128) -> Self {
+        Self(U256::from(value))
+    }
+}
+
 impl From<Ray> for U256 {
     fn from(value: Ray) -> Self {
         value.0
@@ -192,7 +198,7 @@ impl From<MatchingPrice> for Ray {
     }
 }
 
-impl<'a> From<PoolPrice<'a>> for Ray {
+impl From<PoolPrice<'_>> for Ray {
     fn from(value: PoolPrice) -> Self {
         Self::from(value.price)
     }
@@ -268,12 +274,6 @@ impl Ray {
         *self = Ray::from(this);
     }
 
-    /// self * ray / other
-    pub fn div_ray(mut self, other: Ray) -> Ray {
-        self.div_ray_assign(other);
-        self
-    }
-
     fn invert(&self, rm: RoundingMode) -> Self {
         let (res, _) = const_1e54().div_round(Natural::from(*self), rm);
         Self(U256::from_limbs_slice(&res.to_limbs_asc()))
@@ -285,11 +285,7 @@ impl Ray {
     /// where we want to ensure that, depending on the bid/ask nature of the
     /// order, we always round in a direction that is most favorable to us
     pub fn inv_ray_round(&self, round_up: bool) -> Ray {
-        if round_up {
-            self.invert(RoundingMode::Ceiling)
-        } else {
-            self.invert(RoundingMode::Floor)
-        }
+        if round_up { self.invert(RoundingMode::Ceiling) } else { self.invert(RoundingMode::Floor) }
     }
 
     /// 1e54 / self
@@ -297,8 +293,15 @@ impl Ray {
         *self = self.invert(RoundingMode::Floor);
     }
 
+    pub fn inv_ray_assign_round(&mut self, round_up: bool) {
+        *self = self.inv_ray_round(round_up);
+    }
+
     /// 1e54 / self
     pub fn inv_ray(self) -> Ray {
+        if self.is_zero() {
+            return self;
+        }
         self.invert(RoundingMode::Floor)
     }
 
@@ -381,7 +384,7 @@ impl Ray {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::U160;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     use super::*;
 

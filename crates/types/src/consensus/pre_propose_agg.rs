@@ -1,5 +1,5 @@
 use alloy::{
-    primitives::{keccak256, BlockNumber, U256},
+    primitives::{BlockNumber, U256, keccak256},
     signers::{Signature, SignerSync}
 };
 use bytes::Bytes;
@@ -61,7 +61,7 @@ impl PreProposalAggregation {
             .iter()
             .all(|prop| prop.is_valid(block_height))
         {
-            return false
+            return false;
         }
         let hash = keccak256(self.payload());
         let Ok(source) = self.signature.recover_from_prehash(&hash) else {

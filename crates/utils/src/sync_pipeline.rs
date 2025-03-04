@@ -5,7 +5,7 @@ use std::{
     task::{Context, Poll, Waker}
 };
 
-use futures::{stream::FuturesUnordered, Future, FutureExt, StreamExt};
+use futures::{Future, FutureExt, StreamExt, stream::FuturesUnordered};
 
 type OperationMap<OP, CX> = HashMap<u8, fn(OP, &mut CX) -> PipelineFut<OP>>;
 

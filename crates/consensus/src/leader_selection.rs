@@ -78,7 +78,7 @@ impl WeightedRoundRobin {
             // TODO: not the best because it encourages mining lower peer ids
             // however we need a way for this to be uniform across nodes and
             // this is the easiest
-            return a.peer_id.cmp(&b.peer_id)
+            return a.peer_id.cmp(&b.peer_id);
         }
         out.unwrap()
     }
@@ -139,7 +139,7 @@ impl WeightedRoundRobin {
                 self.last_proposer = Some(self.proposer_selection());
             }
 
-            return self.last_proposer
+            return self.last_proposer;
         }
 
         let rounds_to_catchup = (block_number - self.block_number) as usize;

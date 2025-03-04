@@ -196,6 +196,7 @@ abstract contract PoolUpdates is
             // The swap delta is tracked on Uniswap's side so we don't need to here. It's accounted for in the asset
             // take & settle steps.
             swapCall.call(UNI_V4);
+
             currentTick = UNI_V4.getSlot0(id).tick();
 
             poolRewards[id].updateAfterTickMove(

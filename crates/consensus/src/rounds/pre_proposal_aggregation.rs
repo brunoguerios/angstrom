@@ -103,7 +103,7 @@ where
                 proposal,
                 handles,
                 cx.waker().clone()
-            ))))
+            ))));
         }
         let cur_preproposals_aggs = self.pre_proposals_aggregation.len();
         let twthr = handles.two_thirds_of_validation_set();
@@ -121,7 +121,7 @@ where
                 handles,
                 self.trigger_time,
                 cx.waker().clone()
-            ))))
+            ))));
         }
 
         Poll::Pending

@@ -1,13 +1,13 @@
 use std::{
     cell::Cell,
-    cmp::{max, Ordering}
+    cmp::{Ordering, max}
 };
 
 use alloy::primitives::U256;
 use angstrom_types::{
     matching::{
-        uniswap::{Direction, PoolPrice, PoolPriceVec},
-        CompositeOrder, Debt, Ray
+        CompositeOrder, Debt, Ray,
+        uniswap::{Direction, PoolPrice, PoolPriceVec}
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
@@ -17,7 +17,7 @@ use eyre::eyre;
 use tracing::{debug, info, trace, warn};
 
 use super::Solution;
-use crate::book::{order::OrderContainer, BookOrder, OrderBook};
+use crate::book::{BookOrder, OrderBook, order::OrderContainer};
 
 #[derive(Debug)]
 pub enum VolumeFillMatchEndReason {
@@ -131,7 +131,7 @@ impl<'a> VolumeFillMatcher<'a> {
             let max_liq =
                 max(final_amm_order.end_bound.liquidity(), final_amm_order.start_bound.liquidity());
             warn!(liquidity = max_liq, "Liquidity graunlarity too high");
-            return Err(eyre!("Unable to process a pool with liquidity {}", max_liq))
+            return Err(eyre!("Unable to process a pool with liquidity {}", max_liq));
         }
         *amm = new_amm.clone();
         // Add to our solution
@@ -156,7 +156,7 @@ impl<'a> VolumeFillMatcher<'a> {
         loop {
             if let Some(r) = self.single_match() {
                 tracing::debug!(?r);
-                return r
+                return r;
             }
             i += 1;
             if i > 1000 {
@@ -187,7 +187,7 @@ impl<'a> VolumeFillMatcher<'a> {
             self.book.asks(),
             &self.ask_outcomes
         ) else {
-            return Some(VolumeFillMatchEndReason::NoMoreAsks)
+            return Some(VolumeFillMatchEndReason::NoMoreAsks);
         };
 
         debug!(bid = ?bid, ask = ?ask, "Raw orders");
@@ -195,12 +195,12 @@ impl<'a> VolumeFillMatcher<'a> {
         // Check to see if we've hit an end state
         // If we're talking to the AMM on both sides, we're done
         if bid.is_amm() && ask.is_amm() {
-            return Some(VolumeFillMatchEndReason::BothSidesAMM)
+            return Some(VolumeFillMatchEndReason::BothSidesAMM);
         }
 
         // If our prices no longer cross, we're done
         if ask.price() > bid.price() {
-            return Some(VolumeFillMatchEndReason::NoLongerCross)
+            return Some(VolumeFillMatchEndReason::NoLongerCross);
         }
 
         // Limit to price so that AMM orders will only offer the quantity they can
@@ -394,7 +394,7 @@ impl<'a> VolumeFillMatcher<'a> {
         // fine
         // A 0-volume match can happen if we have some kind of "slack" bid or ask left
         if ask_q == 0 || bid_q == 0 {
-            return Some(VolumeFillMatchEndReason::ZeroQuantity)
+            return Some(VolumeFillMatchEndReason::ZeroQuantity);
         }
 
         // Determine how much we matched and if our orders totally annihilated
@@ -635,7 +635,7 @@ impl<'a> VolumeFillMatcher<'a> {
         if let Some(state @ OrderFillState::PartialFill(_)) = fill_state.get(book_idx.get()) {
             return book
                 .get(book_idx.get())
-                .map(|order| OrderContainer::BookOrder { order, state: *state })
+                .map(|order| OrderContainer::BookOrder { order, state: *state });
         }
         // Fix what makes a price "less" or "more" advantageous depending on direction
         let (less_advantageous, more_advantageous) = if bid {
@@ -692,7 +692,7 @@ impl<'a> VolumeFillMatcher<'a> {
                         *debt,
                         amm.cloned(),
                         bound_price
-                    )))
+                    )));
                 }
                 // Debt more advantageous than AMM -> CompositeOrder(Debt), bound to the closer of
                 // the AMM or the next book order
@@ -707,7 +707,7 @@ impl<'a> VolumeFillMatcher<'a> {
                         *debt,
                         None,
                         bound_price
-                    )))
+                    )));
                 }
                 // Debt is more advantageous than book but less advantageous than the AMM, wherever
                 // it might be
@@ -784,7 +784,7 @@ mod tests {
     use alloy::primitives::Uint;
     use alloy_primitives::FixedBytes;
     use angstrom_types::{
-        matching::{uniswap::PoolSnapshot, Debt, DebtType, Ray, SqrtPriceX96},
+        matching::{Debt, DebtType, Ray, SqrtPriceX96, uniswap::PoolSnapshot},
         orders::OrderFillState,
         primitive::PoolId
     };
@@ -793,7 +793,7 @@ mod tests {
     };
 
     use super::VolumeFillMatcher;
-    use crate::book::{order::OrderContainer, BookOrder, OrderBook};
+    use crate::book::{BookOrder, OrderBook, order::OrderContainer};
 
     #[test]
     fn runs_cleanly_on_empty_book() {

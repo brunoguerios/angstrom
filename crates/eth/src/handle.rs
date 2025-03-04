@@ -3,7 +3,7 @@ use std::pin::Pin;
 use futures::Future;
 use futures_util::Stream;
 use reth_provider::CanonStateNotification;
-use tokio::sync::mpsc::{unbounded_channel, Sender, UnboundedSender};
+use tokio::sync::mpsc::{Sender, UnboundedSender, unbounded_channel};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::manager::EthEvent;

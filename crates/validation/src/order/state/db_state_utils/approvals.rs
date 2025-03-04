@@ -42,7 +42,7 @@ impl Approvals {
                 let slot_addr = slot.generate_slot(user, self.angstrom_address).ok()?;
                 if let Some(address_slots) = overrides.get(&token) {
                     if let Some(s_override) = address_slots.get(&slot_addr) {
-                        return Some(*s_override)
+                        return Some(*s_override);
                     }
                 }
 

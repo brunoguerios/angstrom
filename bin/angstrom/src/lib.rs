@@ -7,13 +7,13 @@ use std::path::PathBuf;
 use alloy::signers::local::PrivateKeySigner;
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_network::AngstromNetworkBuilder;
-use angstrom_rpc::{api::OrderApiServer, OrderApi};
+use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::primitive::AngstromSigner;
 use clap::Parser;
 use cli::AngstromConfig;
 use reth::{chainspec::EthereumChainSpecParser, cli::Cli};
 use reth_node_builder::{Node, NodeHandle};
-use reth_node_ethereum::{node::EthereumAddOns, EthereumNode};
+use reth_node_ethereum::{EthereumNode, node::EthereumAddOns};
 use validation::validator::ValidationClient;
 
 use crate::components::{

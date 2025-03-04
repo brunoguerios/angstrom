@@ -1,14 +1,14 @@
 use angstrom_types::{
-    matching::{max_t1_for_t0, uniswap::Direction, CompositeOrder, Debt, DebtType},
+    matching::{CompositeOrder, Debt, DebtType, max_t1_for_t0, uniswap::Direction},
     orders::{OrderFillState, OrderId, OrderPrice, OrderVolume},
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
-        },
-        RawPoolOrder
+        }
     }
 };
-use eyre::{eyre, OptionExt};
+use eyre::{OptionExt, eyre};
 
 use super::BookOrder;
 
@@ -34,7 +34,7 @@ impl<'a> From<CompositeOrder<'a>> for OrderContainer<'a> {
     }
 }
 
-impl<'a> OrderContainer<'a> {
+impl OrderContainer<'_> {
     pub fn id(&self) -> Option<OrderId> {
         match self {
             Self::BookOrder { order, .. } => Some(order.order_id),
@@ -65,21 +65,13 @@ impl<'a> OrderContainer<'a> {
     /// Is `true` when the order in the container includes the AMM, either as a
     /// distinct AMM order or as a Composite order that includes the AMM
     pub fn is_amm(&self) -> bool {
-        if let Self::Composite(o) = self {
-            o.has_amm()
-        } else {
-            false
-        }
+        if let Self::Composite(o) = self { o.has_amm() } else { false }
     }
 
     /// Is `true` when the order in the container includes debt, this can only
     /// be true of a Composite order
     pub fn is_debt(&self) -> bool {
-        if let Self::Composite(o) = self {
-            o.has_debt()
-        } else {
-            false
-        }
+        if let Self::Composite(o) = self { o.has_debt() } else { false }
     }
 
     /// Returns a Debt item covering the partially matched order at its current
@@ -111,7 +103,7 @@ impl<'a> OrderContainer<'a> {
                     .map(|l| std::cmp::min(l, whole_order))
                     .unwrap_or(whole_order);
                 let magnitude = DebtType::new(debt_q, is_bid);
-                return Some(Debt::new(magnitude, o.price_for_book_side(is_bid)))
+                return Some(Debt::new(magnitude, o.price_for_book_side(is_bid)));
             }
         }
         None
@@ -229,19 +221,11 @@ impl<'a> OrderContainer<'a> {
 
     /// Raw quantity of a book order
     pub fn raw_book_quantity(&self) -> u128 {
-        if let Self::BookOrder { order: o, .. } = self {
-            o.max_q()
-        } else {
-            0
-        }
+        if let Self::BookOrder { order: o, .. } = self { o.max_q() } else { 0 }
     }
 
     pub fn composite_quantities_to_price(&self, target_price: OrderPrice) -> (u128, u128) {
-        if let Self::Composite(c) = self {
-            c.calc_quantities(target_price.into())
-        } else {
-            (0, 0)
-        }
+        if let Self::Composite(c) = self { c.calc_quantities(target_price.into()) } else { (0, 0) }
     }
 
     /// Retrieve the quantity available within the bounds of a given order
@@ -280,7 +264,7 @@ impl<'a> OrderContainer<'a> {
             Self::BookOrder { order, .. } => {
                 // If I'm not an inverse order, I can never produce any T1 for T0
                 if !self.inverse_order() {
-                    return None
+                    return None;
                 }
                 // If the debt is opposed, we can consume that first
                 // if let Some(d) = debt {
@@ -314,11 +298,7 @@ impl<'a> OrderContainer<'a> {
     /// Gets the amount of T1 a composite order needs to self-fill in order to
     /// move to a new target price
     pub fn negative_quantity_t1(&self, target_price: OrderPrice) -> OrderVolume {
-        if let Self::Composite(c) = self {
-            c.negative_quantity_t1(target_price.into())
-        } else {
-            0
-        }
+        if let Self::Composite(c) = self { c.negative_quantity_t1(target_price.into()) } else { 0 }
     }
 
     /// Retrieve the starting price bound for a given order.  This price is

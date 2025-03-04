@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{aliases::U24, Address},
+    primitives::{Address, aliases::U24},
     sol,
     sol_types::eip712_domain
 };
@@ -21,6 +21,8 @@ use crate::primitive::PoolId;
 pub const TESTNET_ANGSTROM_ADDRESS: Address =
     alloy::primitives::address!("293954613283cC7B82BfE9676D3cc0fb0A58fAa0");
 
+pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
+    alloy::primitives::address!("48bC5A530873DcF0b890aD50120e7ee5283E0112");
 // The `eip712_domain` macro lets you easily define an EIP-712 domain
 // object :)
 #[cfg(not(feature = "testnet"))]

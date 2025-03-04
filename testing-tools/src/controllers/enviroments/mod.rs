@@ -8,23 +8,23 @@ use std::{
 
 use alloy::{node_bindings::AnvilInstance, providers::Provider};
 use angstrom_network::{
-    manager::StromConsensusEvent, NetworkOrderEvent, StromMessage, StromNetworkManager
+    NetworkOrderEvent, StromMessage, StromNetworkManager, manager::StromConsensusEvent
 };
 use angstrom_types::sol_bindings::grouped_orders::AllOrders;
 use futures::TryFutureExt;
 use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
-    metered_unbounded_channel, UnboundedMeteredReceiver, UnboundedMeteredSender
+    UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 pub use state_machine::*;
 use tokio_stream::StreamExt;
-use tracing::{span, Instrument, Level};
+use tracing::{Instrument, Level, span};
 
 use crate::{
     controllers::strom::TestnetNode,
-    providers::{utils::async_to_sync, AnvilProvider, TestnetBlockProvider},
+    providers::{TestnetBlockProvider, utils::async_to_sync},
     types::{GlobalTestingConfig, WithWalletProvider}
 };
 
@@ -231,12 +231,13 @@ where
     {
         let id = if let Some(i) = id {
             assert!(!self.peers.is_empty());
-            assert!(self
-                .peers
-                .keys()
-                .copied()
-                .collect::<HashSet<_>>()
-                .contains(&i));
+            assert!(
+                self.peers
+                    .keys()
+                    .copied()
+                    .collect::<HashSet<_>>()
+                    .contains(&i)
+            );
             i
         } else {
             self.random_valid_id()

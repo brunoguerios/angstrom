@@ -1,4 +1,4 @@
-use alloy::primitives::{address, fixed_bytes, uint, Address, B256, U160, U256};
+use alloy::primitives::{Address, B256, U160, U256, address, fixed_bytes, uint};
 
 pub mod angstrom;
 pub mod tokens;
@@ -21,6 +21,15 @@ pub fn mine_create3_address(owner: Address) -> (Address, U256, u8) {
         }
         salt += uint!(1U256);
     }
+    (addr, salt, nonce)
+}
+
+pub fn mine_create3_address_uni(owner: Address) -> (Address, U256, u8) {
+    let mut salt = U256::from(Into::<U160>::into(owner));
+    let nonce = 0u8;
+    salt <<= 96;
+    salt += uint!(69420U256);
+    let addr = sub_zero_create3(salt.into(), nonce);
     (addr, salt, nonce)
 }
 

@@ -44,7 +44,7 @@ impl NodeConfig {
         let config_path = config.ok_or_else(|| eyre::eyre!("Config path not provided"))?;
 
         if !config_path.exists() {
-            return Err(eyre::eyre!("Config file does not exist at {:?}", config_path))
+            return Err(eyre::eyre!("Config file does not exist at {:?}", config_path));
         }
 
         let toml_content = std::fs::read_to_string(&config_path)

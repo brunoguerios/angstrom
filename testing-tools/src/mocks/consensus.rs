@@ -7,8 +7,8 @@ use angstrom_types::{
 };
 use tokio::{
     sync::{
-        mpsc::{unbounded_channel, UnboundedSender},
-        Mutex
+        Mutex,
+        mpsc::{UnboundedSender, unbounded_channel}
     },
     time::Interval
 };

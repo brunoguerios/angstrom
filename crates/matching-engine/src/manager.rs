@@ -13,7 +13,7 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
-use futures::{stream::FuturesUnordered, Future};
+use futures::{Future, stream::FuturesUnordered};
 use futures_util::FutureExt;
 use reth_tasks::TaskSpawner;
 use tokio::{
@@ -27,10 +27,10 @@ use tracing::trace;
 use validation::bundle::BundleValidatorHandle;
 
 use crate::{
+    MatchingEngineHandle,
     book::{BookOrder, OrderBook},
     build_book,
-    strategy::{MatchingStrategy, SimpleCheckpointStrategy},
-    MatchingEngineHandle
+    strategy::{BinarySearchStrategy, MatchingStrategy, SimpleCheckpointStrategy}
 };
 
 pub enum MatcherCommand {
@@ -173,7 +173,9 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
             // not a problem while I'm testing, but leaving this note here as it may be
             // important for future efficiency gains
             solution_set.spawn_blocking(move || {
-                SimpleCheckpointStrategy::run(&b).map(|s| s.solution(searcher))
+                Some(BinarySearchStrategy::run(&b, searcher))
+                // SimpleCheckpointStrategy::run(&b).map(|s|
+                // s.solution(searcher))
             });
         });
         let mut solutions = Vec::new();

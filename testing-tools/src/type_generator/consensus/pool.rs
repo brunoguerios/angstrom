@@ -1,12 +1,12 @@
 use alloy_primitives::{
-    aliases::{I24, U24},
-    Address
+    Address,
+    aliases::{I24, U24}
 };
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{
-        uniswap::{LiqRange, PoolPrice, PoolSnapshot},
-        SqrtPriceX96
+        SqrtPriceX96,
+        uniswap::{LiqRange, PoolPrice, PoolSnapshot}
     },
     primitive::PoolId,
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}

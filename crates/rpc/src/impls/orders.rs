@@ -7,15 +7,15 @@ use angstrom_types::{
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
-use jsonrpsee::{core::RpcResult, PendingSubscriptionSink, SubscriptionMessage};
+use jsonrpsee::{PendingSubscriptionSink, SubscriptionMessage, core::RpcResult};
 use order_pool::{OrderPoolHandle, PoolManagerUpdate};
 use reth_tasks::TaskSpawner;
 use validation::order::OrderValidatorHandle;
 
 use crate::{
+    OrderApiError::GasEstimationError,
     api::{GasEstimateResponse, OrderApiServer},
-    types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult},
-    OrderApiError::GasEstimationError
+    types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult}
 };
 
 pub struct OrderApi<OrderPool, Spawner, Validator> {
@@ -86,14 +86,14 @@ where
         self.task_spawner.spawn(Box::pin(async move {
             while let Some(Ok(order)) = subscription.next().await {
                 if sink.is_closed() {
-                    break
+                    break;
                 }
 
                 if let Some(result) = order {
                     match SubscriptionMessage::from_json(&result) {
                         Ok(message) => {
                             if sink.send(message).await.is_err() {
-                                break
+                                break;
                             }
                         }
                         Err(e) => {
@@ -212,7 +212,7 @@ mod tests {
     use futures::FutureExt;
     use order_pool::PoolManagerUpdate;
     use reth_tasks::TokioTaskExecutor;
-    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+    use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
     use tokio_stream::wrappers::BroadcastStream;
     use validation::order::{GasEstimationFuture, ValidationFuture};
 
@@ -237,31 +237,34 @@ mod tests {
 
         // Test standing order
         let standing_order = create_standing_order();
-        assert!(api
-            .send_order(standing_order)
-            .await
-            .expect("to not throw error")
-            .is_valid());
+        assert!(
+            api.send_order(standing_order)
+                .await
+                .expect("to not throw error")
+                .is_valid()
+        );
 
         // Test flash order
         let flash_order = create_flash_order();
-        assert!(api
-            .send_order(flash_order)
-            .await
-            .expect("to not throw error")
-            .is_valid());
+        assert!(
+            api.send_order(flash_order)
+                .await
+                .expect("to not throw error")
+                .is_valid()
+        );
 
         // Test TOB order
         let tob_order = create_tob_order();
-        assert!(api
-            .send_order(tob_order)
-            .await
-            .expect("to not throw error")
-            .is_valid());
+        assert!(
+            api.send_order(tob_order)
+                .await
+                .expect("to not throw error")
+                .is_valid()
+        );
     }
 
-    fn setup_order_api(
-    ) -> (OrderApiTestHandle, OrderApi<MockOrderPoolHandle, TokioTaskExecutor, MockValidator>) {
+    fn setup_order_api()
+    -> (OrderApiTestHandle, OrderApi<MockOrderPoolHandle, TokioTaskExecutor, MockValidator>) {
         let (to_pool, pool_rx) = unbounded_channel();
         let pool_handle = MockOrderPoolHandle::new(to_pool);
         let task_executor = TokioTaskExecutor::default();

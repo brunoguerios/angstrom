@@ -1,6 +1,6 @@
 use alloy::{primitives::Address, signers::SignerSync};
 use angstrom_types::{
-    primitive::{AngstromSigner, ANGSTROM_DOMAIN},
+    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::rpc_orders::{OmitOrderMeta, OrderMeta, TopOfBlockOrder}
 };
 use pade::PadeEncode;
@@ -56,8 +56,15 @@ impl ToBOrderBuilder {
             quantity_in: self.quantity_in.unwrap_or_default(),
             quantity_out: self.quantity_out.unwrap_or_default(),
             valid_for_block: self.valid_block.unwrap_or_default(),
-            recipient: self.recipient.unwrap_or_else(|| Address::random()),
-            max_gas_asset0: 0,
+            recipient: self.recipient.unwrap_or_default(),
+            max_gas_asset0: {
+                // zero for 1
+                if self.asset_in < self.asset_out {
+                    self.quantity_in.unwrap_or_default() / 2
+                } else {
+                    self.quantity_out.unwrap_or_default() / 2
+                }
+            },
             ..Default::default()
         };
         if let Some(signer) = self.signing_key {

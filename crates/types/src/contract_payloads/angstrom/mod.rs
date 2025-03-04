@@ -8,32 +8,38 @@ use std::{
 use alloy::{
     eips::BlockId,
     network::Network,
-    primitives::{keccak256, Address, FixedBytes, B256, U256},
+    primitives::{Address, B256, FixedBytes, U256, keccak256},
     providers::Provider,
     sol_types::SolValue
 };
 use alloy_primitives::I256;
 use base64::Engine;
 use dashmap::DashMap;
+use eyre::OptionExt;
+use num_traits::cast::ToPrimitive;
 use pade_macro::{PadeDecode, PadeEncode};
 use tracing::{debug, trace, warn};
 
 use super::{
+    Asset, CONFIG_STORE_SLOT, POOL_CONFIG_STORE_ENTRY_SIZE, Pair,
     asset::builder::{AssetBuilder, AssetBuilderStage},
     rewards::PoolUpdate,
-    tob::ToBOutcome,
-    Asset, Pair, CONFIG_STORE_SLOT, POOL_CONFIG_STORE_ENTRY_SIZE
+    tob::ToBOutcome
 };
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
-    matching::{uniswap::PoolSnapshot, Ray},
+    contract_payloads::rewards::RewardsUpdate,
+    matching::{
+        Ray,
+        uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity}
+    },
     orders::{OrderFillState, OrderOutcome, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder,
-        RawPoolOrder
+        rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
     testnet::TestnetStateOverrides
 };
@@ -59,8 +65,6 @@ impl AngstromBundle {
 
     #[cfg(feature = "testnet")]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
-        use crate::primitive::TESTNET_ANGSTROM_ADDRESS;
-
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
 
@@ -74,12 +78,49 @@ impl AngstromBundle {
             };
 
             // need to recover sender from signature
-            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
-            let qty = order.order_quantities.fetch_max_amount();
-            approvals.entry(token).or_default().insert(address, qty);
-            balances.entry(token).or_default().insert(address, qty);
+            // Grab the price because we need it most of the time
+            let price = Ray::from(self.pairs[order.pair_index as usize].price_1over0);
+            let qty = match (order.zero_for_one, order.exact_in) {
+                // Zero for one, exact in -> quantity on the order (t0).  Extra fee is deducted from
+                // this
+                (true, true) => order.order_quantities.fetch_max_amount(),
+                // Zero for one, exact out -> quantity needed to produce output amount (t0) + extra
+                // fee (t0)
+                (true, false) => {
+                    price.inverse_quantity(order.order_quantities.fetch_max_amount(), true)
+                        + order.extra_fee_asset0
+                }
+                // One for zero, exact in -> quantity on the order (t1) and fee is taken from the
+                // ouptut
+                (false, true) => order.order_quantities.fetch_max_amount(),
+                // One for zero, exact out -> quantity needed to produce the output amount + fee
+                // (t1)
+                (false, false) => price.quantity(
+                    order.order_quantities.fetch_max_amount() + order.extra_fee_asset0,
+                    true
+                )
+            };
+
+            tracing::info!(?token, from_address = ?address, qty, "Building user order override");
+            approvals
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
+                .or_insert(qty);
+            balances
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
+                .or_insert(qty);
         });
 
         // tob
@@ -92,21 +133,32 @@ impl AngstromBundle {
             };
 
             // need to recover sender from signature
-            let hash = order.order_hash(&self.pairs, &self.assets, block_number);
+            let hash = order.signing_hash(&self.pairs, &self.assets, block_number);
             let address = order.signature.recover_signer(hash);
 
-            let qty = order.quantity_in;
-            approvals.entry(token).or_default().insert(address, qty);
-            balances.entry(token).or_default().insert(address, qty);
-        });
+            let mut qty = order.quantity_in;
+            if order.zero_for_1 {
+                qty += order.gas_used_asset_0;
+            }
 
-        // approvals cuz diff map but same
-        for token in approvals.keys() {
-            balances
-                .entry(*token)
+            tracing::info!(?token, from_address = ?address, qty, "Building ToB order override");
+            approvals
+                .entry(token)
                 .or_default()
-                .insert(TESTNET_ANGSTROM_ADDRESS, u128::MAX - 1);
-        }
+                .entry(address)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
+                .or_insert(qty);
+            balances
+                .entry(token)
+                .or_default()
+                .entry(address)
+                .and_modify(|q| {
+                    *q = q.saturating_add(qty);
+                })
+                .or_insert(qty);
+        });
 
         TestnetStateOverrides { approvals, balances }
     }
@@ -167,7 +219,7 @@ impl AngstromBundle {
         user_order: &OrderWithStorageData<RpcTopOfBlockOrder>
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
-        let mut pool_updates = Vec::new();
+        let pool_updates = Vec::new();
         let mut pairs = Vec::new();
         let user_orders = Vec::new();
         let mut asset_builder = AssetBuilder::new();
@@ -178,11 +230,7 @@ impl AngstromBundle {
             let token_in = user_order.token_in();
             let token_out = user_order.token_out();
 
-            if token_in < token_out {
-                (token_in, token_out)
-            } else {
-                (token_out, token_in)
-            }
+            if token_in < token_out { (token_in, token_out) } else { (token_out, token_in) }
         };
         // Make sure the involved assets are in our assets array and we have the
         // appropriate asset index for them
@@ -204,13 +252,16 @@ impl AngstromBundle {
             user_order.quantity_in,
             user_order.quantity_out
         );
+        // is bid = true, false
 
-        pool_updates.push(PoolUpdate {
-            zero_for_one:     false,
-            pair_index:       0,
-            swap_in_quantity: user_order.quantity_out,
-            rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
-        });
+        // works when false
+        // let zfo = !user_order.is_bid; // false works // true
+        // pool_updates.push(PoolUpdate {
+        //     zero_for_one:     user_order.is_bid,
+        //     pair_index:       0,
+        //     swap_in_quantity: user_order.quantity_out,
+        //     rewards_update:   super::rewards::RewardsUpdate::CurrentOnly { amount: 0
+        // } });
 
         // Get our list of user orders, if we have any
         top_of_block_orders.push(TopOfBlockOrder::of_max_gas(user_order, 0));
@@ -243,11 +294,7 @@ impl AngstromBundle {
             let (t0, t1) = {
                 let token_in = user_order.token_in();
                 let token_out = user_order.token_out();
-                if token_in < token_out {
-                    (token_in, token_out)
-                } else {
-                    (token_out, token_in)
-                }
+                if token_in < token_out { (token_in, token_out) } else { (token_out, token_in) }
             };
             // Make sure the involved assets are in our assets array and we have the
             // appropriate asset index for them
@@ -309,22 +356,6 @@ impl AngstromBundle {
             acc.entry(x.pool_id).or_default().insert(x.clone());
             acc
         });
-
-        // Break out our input orders into lists of orders by pool
-
-        // So we know that every solution has an associated pool, every pool has an
-        // associated pair and every pair is a pair of addresses With this we
-        // can create the data structs we need for the Angstrom payload
-        // Get the addresses from all solutions and check
-        // let new_solutions = solutions.iter().flat_map(|s| {
-        //     let Some((t0, t1, snapshot, store_index)) = pools.get(&s.id) else {
-        //         warn!(solution_id = ?s.id, pools = ?pools, "Skipped a solution as we
-        // couldn't find a pool for it");         return None;
-        //     };
-        //     None
-        // }).collect();
-        // Sort the solutions themselves by the pair idx so the pairs are added in the
-        // right order
 
         // Walk through our solutions to add them to the structure
         for solution in solutions.iter() {
@@ -441,6 +472,11 @@ impl AngstromBundle {
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw solution data");
 
+        // sort
+        // if t1 < t0 {
+        //     std::mem::swap(&mut t1, &mut t0)
+        // };
+
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
 
         // Make sure the involved assets are in our assets array and we have the
@@ -455,57 +491,55 @@ impl AngstromBundle {
         pairs.push(pair);
         let pair_idx = pairs.len() - 1;
 
-        // Pull out our net AMM order
-        let net_amm_order = solution
-            .amm_quantity
-            .as_ref()
-            .map(|amm_o| amm_o.to_order_tuple(t0_idx, t1_idx));
-        // Pull out our TOB swap and TOB reward
-        let (tob_swap, tob_rewards) = solution
+        // Find the net T0 motion of our AMM order and ToB swap
+        let amm_swap_t0 = solution.amm_quantity.as_ref().map(|ao| ao.get_t0_signed());
+        let (tob_outcome, tob_swap_t0) = solution
             .searcher
             .as_ref()
             .map(|tob| {
                 trace!(tob_order = ?tob, "Mapping TOB Swap");
                 let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
-                // Make sure the input for our swap is precisely what's used in the swap portion
-                let input = if let Some(ref o) = outcome {
-                    o.total_cost.clone().saturating_to()
-                } else {
-                    tob.quantity_in
-                };
-                let swap = if tob.is_bid {
-                    (t1_idx, t0_idx, input, tob.quantity_out)
-                } else {
-                    (t0_idx, t1_idx, input, tob.quantity_out)
-                };
-                // We swallow an error here
-                (Some(swap), outcome)
+                let swap_t0 = outcome.as_ref().map(|o| {
+                    if tob.is_bid {
+                        // If the ToB order is a bid, then we are outputting a positive number
+                        // because we are purchasing T0 from the AMM
+                        I256::unchecked_from(o.total_swap_output)
+                    } else {
+                        // If the ToB order is an ask, we are outputting a negative number
+                        // because we are selling T0 to the AMM
+                        I256::unchecked_from(o.total_cost).saturating_neg()
+                    }
+                });
+                (outcome.unwrap_or_default(), swap_t0)
             })
             .unwrap_or_default();
-        // Merge our net AMM order with the TOB swap
-        trace!(tob_swap = ?tob_swap, net_amm_order = ?net_amm_order, "Merging Net AMM with TOB Swap");
-        let merged_amm_swap = match (net_amm_order, tob_swap) {
-            (Some(amm), Some(tob)) => {
-                if amm.0 == tob.0 {
-                    // If they're in the same direction we just sum them
-                    Some((amm.0, amm.1, (amm.2 + tob.2), (amm.3 + tob.3)))
-                } else {
-                    // If they're in opposite directions then we see if we have to flip them
-                    if tob.2 > amm.3 {
-                        Some((tob.0, tob.1, tob.2 - amm.3, tob.3 - amm.2))
-                    } else {
-                        Some((amm.0, amm.1, amm.2 - tob.3, amm.3 - tob.2))
-                    }
-                }
-            }
-            (net_amm_order, tob_swap) => net_amm_order.or(tob_swap)
+        let net_swap_t0 = match (amm_swap_t0, tob_swap_t0) {
+            (Some(a), Some(t)) => Some(a + t),
+            (any_a, any_t) => any_a.or(any_t)
         };
+        let merged_amm_swap = net_swap_t0.map(|s| {
+            let net_direction =
+                if s.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
+
+            let quantity = Quantity::Token0(s.unsigned_abs().to::<u128>());
+
+            // Create a poolpricevec based on this data
+            let v =
+                PoolPriceVec::from_swap(snapshot.current_price(), net_direction, quantity).unwrap();
+
+            // Put together our merged swap
+            if s.is_negative() {
+                (t0_idx, t1_idx, v.d_t0, v.d_t1)
+            } else {
+                (t1_idx, t0_idx, v.d_t1, v.d_t0)
+            }
+        });
+
         trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
         // Unwrap our merged amm order or provide a zero default
+
         let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
             merged_amm_swap.unwrap_or((t0_idx, t1_idx, 0_u128, 0_u128));
-        // If we don't have a rewards update, we insert a default "empty" struct
-        let tob_outcome = tob_rewards.unwrap_or_default();
 
         // Determine whether our net AMM order is zero_for_one
         let zero_for_one = asset_in_index == t0_idx;
@@ -519,32 +553,56 @@ impl AngstromBundle {
             quantity_out
         );
         // Account for our reward
-        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward.to());
-        let rewards_update = tob_outcome.to_rewards_update();
-        // Push the pool update
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward);
+        let rewards_update = tob_outcome.rewards_update_range(
+            tob_outcome.start_tick,
+            tob_outcome.end_tick,
+            snapshot
+        );
+        tracing::info!(?tob_outcome.tribute);
+        // Account for our tribute
+        asset_builder.tribute(AssetBuilderStage::Reward, t0, tob_outcome.tribute);
+        // Let's do this stupidly for now and work on improving later
+        // Push our null swap with reward
+        pool_updates.push(PoolUpdate {
+            zero_for_one: false,
+            pair_index: pair_idx as u16,
+            swap_in_quantity: 0,
+            rewards_update
+        });
+        // Push the actual swap with no reward
         pool_updates.push(PoolUpdate {
             zero_for_one,
             pair_index: pair_idx as u16,
             swap_in_quantity: quantity_in,
-            rewards_update
+            rewards_update: RewardsUpdate::empty()
         });
 
         // Add the ToB order to our tob order list - This is currently converting
         // between two ToB order formats
         if let Some(tob) = solution.searcher.as_ref() {
             // Account for our ToB order
-            let (asset_in, asset_out) = if tob.is_bid { (t1, t0) } else { (t0, t1) };
-
             asset_builder.external_swap(
                 AssetBuilderStage::TopOfBlock,
-                asset_in,
-                asset_out,
+                tob.asset_in,
+                tob.asset_out,
                 tob.quantity_in,
                 tob.quantity_out
             );
             let contract_tob = if let Some(g) = shared_gas {
-                TopOfBlockOrder::of(tob, g, pair_idx as u16)?
+                let order = TopOfBlockOrder::of(tob, g, pair_idx as u16)?;
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::TopOfBlock,
+                    t0,
+                    order.gas_used_asset_0
+                );
+                order
             } else {
+                asset_builder.add_gas_fee(
+                    AssetBuilderStage::TopOfBlock,
+                    t0,
+                    tob.priority_data.gas.to()
+                );
                 TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
             };
             top_of_block_orders.push(contract_tob);
@@ -562,40 +620,75 @@ impl AngstromBundle {
             (false, false) => a.priority_data.cmp(&b.priority_data),
             (..) => b.is_bid.cmp(&a.is_bid)
         });
+
+        let mut map: HashMap<Address, i128> = HashMap::new();
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
         let ray_ucp = Ray::from(ucp);
+        // We need to calculate our bids with this inverse ray
+        let inverse_ray_ucp = ray_ucp.inv_ray();
         for (outcome, order) in solution
             .limit
             .iter()
             .zip(order_list.iter())
             .filter(|(outcome, _)| outcome.is_filled())
         {
+            trace!(user_order = ?order, "Mapping User Order");
             // Calculate our final amounts based on whether the order is in T0 or T1 context
-            let inverse_order = order.is_bid() == order.exact_in();
             assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");
-            let (t0_moving, t1_moving) = if inverse_order {
-                let t1_moving = outcome.fill_amount(order.max_q());
-                let t0_moving = ray_ucp.inverse_quantity(t1_moving, !order.is_bid());
-                (U256::from(t0_moving), U256::from(t1_moving))
-            } else {
-                let t0_moving = U256::from(outcome.fill_amount(order.max_q()));
-                let t1_moving = Ray::from(ucp).mul_quantity(t0_moving);
-                (t0_moving, t1_moving)
-            };
 
-            let (quantity_in, quantity_out) =
-                if order.is_bid { (t1_moving, t0_moving) } else { (t0_moving, t1_moving) };
+            let fill_amount = outcome.fill_amount(order.max_q());
+
+            // we don't account for the gas here in these quantites as the order
+            let (quantity_in, quantity_out) = match (order.is_bid(), order.exact_in()) {
+                // fill_amount is the exact amount of T1 being input to get a T0 output
+                (true, true) => (
+                    // am in
+                    fill_amount,
+                    // am out - round down because we'll always try to give you less
+                    inverse_ray_ucp.quantity(fill_amount, false)
+                        - order.priority_data.gas.to::<u128>()
+                ),
+                // fill amount is the exact amount of T0 being output for a T1 input
+                (true, false) => {
+                    // Round up because we'll always ask you to pay more
+                    (
+                        // ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(),
+                        // true),
+                        inverse_ray_ucp.inverse_quantity(
+                            fill_amount + order.priority_data.gas.to::<u128>(),
+                            true
+                        ),
+                        fill_amount
+                    )
+                }
+                // fill amount is the exact amount of T0 being input for a T1 output
+                (false, true) => {
+                    // Round down because we'll always try to give you less
+                    (
+                        fill_amount,
+                        ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false)
+                    )
+                }
+                // fill amount is the exact amount of T1 expected out for a given T0 input
+                (false, false) => (
+                    // Round up because we'll always ask you to pay more
+                    ray_ucp.inverse_quantity(fill_amount, true)
+                        + order.priority_data.gas.to::<u128>(),
+                    fill_amount
+                )
+            };
+            *map.entry(order.token_in()).or_default() += quantity_in.to_i128().unwrap();
+            *map.entry(order.token_out()).or_default() -= quantity_out.to_i128().unwrap();
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
             // Account for our user order
-            let (asset_in, asset_out) = if order.is_bid { (t1, t0) } else { (t0, t1) };
             asset_builder.external_swap(
                 AssetBuilderStage::UserOrder,
-                asset_in,
-                asset_out,
-                quantity_in.to(),
-                quantity_out.to()
+                order.token_in(),
+                order.token_out(),
+                quantity_in,
+                quantity_out
             );
             let user_order = if let Some(g) = shared_gas {
                 UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
@@ -604,6 +697,9 @@ impl AngstromBundle {
             };
             user_orders.push(user_order);
         }
+
+        tracing::info!("{:#?}", map);
+
         Ok(())
     }
 
@@ -628,19 +724,17 @@ impl AngstromBundle {
             &orders_by_pool,
             &proposal.solutions
         );
-
         // this should never underflow. if it does. means that there is underlying
         // problem with the gas delegation module
-        assert!(
-            gas_details.total_gas_cost_wei > total_gas,
-            "Total gas cost '{}' greater than total gas '{}'",
-            gas_details.total_gas_cost_wei,
-            total_gas
-        );
+
         if total_swaps == 0 {
             return Err(eyre::eyre!("have a total swaps count of 0"));
         }
-        let shared_gas_in_wei = (gas_details.total_gas_cost_wei - total_gas) / total_swaps;
+        let shared_gas_in_wei = gas_details
+            .total_gas_cost_wei
+            .checked_sub(total_gas)
+            .ok_or_eyre(eyre::eyre!("Total_gas greater than total_gas_cost_wei"))?
+            / total_swaps;
 
         // fetch gas used
         // Walk through our solutions to add them to the structure
@@ -820,13 +914,13 @@ impl TryFrom<&[u8]> for AngstromPoolConfigStore {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if value.first() != Some(&0) {
-            return Err("Invalid encoded entries: must start with a safety byte of 0".to_string())
+            return Err("Invalid encoded entries: must start with a safety byte of 0".to_string());
         }
         let adjusted_entries = &value[1..];
         if adjusted_entries.len() % POOL_CONFIG_STORE_ENTRY_SIZE != 0 {
             return Err(
                 "Invalid encoded entries: incorrect length after removing safety byte".to_string()
-            )
+            );
         }
         let entries = adjusted_entries
             .chunks(POOL_CONFIG_STORE_ENTRY_SIZE)

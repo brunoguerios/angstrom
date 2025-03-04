@@ -1,9 +1,9 @@
 use angstrom_types::{
-    matching::{uniswap::PoolSnapshot, SqrtPriceX96},
+    matching::{SqrtPriceX96, uniswap::PoolSnapshot},
     primitive::PoolId,
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
-use matching_engine::book::{sort::SortStrategy, OrderBook};
+use matching_engine::book::{OrderBook, sort::SortStrategy};
 use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 
 use super::{

@@ -22,7 +22,7 @@ use angstrom_types::{
     sol_bindings::grouped_orders::OrderWithStorageData
 };
 use bid_aggregation::BidAggregationState;
-use futures::{future::BoxFuture, FutureExt, Stream};
+use futures::{FutureExt, Stream, future::BoxFuture};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
@@ -135,7 +135,7 @@ where
         }
 
         if let Some(message) = this.shared_state.messages.pop_front() {
-            return Poll::Ready(Some(message))
+            return Poll::Ready(Some(message));
         }
 
         Poll::Pending
@@ -279,7 +279,7 @@ where
     fn verify_proposal(&mut self, peer_id: PeerId, proposal: Proposal) -> Option<Proposal> {
         if self.round_leader != peer_id {
             tracing::debug!("got invalid proposal");
-            return None
+            return None;
         }
 
         proposal.is_valid(&self.block_height).then(|| {
@@ -315,12 +315,12 @@ where
     {
         if !self.validators.iter().map(|v| v.peer_id).contains(&peer_id) {
             tracing::warn!(peer=?peer_id,"got a consensus message from a invalid peer");
-            return
+            return;
         }
         // ensure pre_proposal is valid
         if !valid(&proposal, &self.block_height) {
             tracing::info!(peer=?peer_id,"got a invalid consensus message");
-            return
+            return;
         }
 
         // if  we don't have the pre_proposal, propagate it and then store it.
@@ -366,7 +366,7 @@ pub mod tests {
 
     use alloy::{
         primitives::Address,
-        providers::{fillers::*, network::Ethereum, ProviderBuilder, RootProvider, *}
+        providers::{ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *}
     };
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_network::manager::StromConsensusEvent;
@@ -375,23 +375,23 @@ pub mod tests {
         mev_boost::MevBoostProvider,
         primitive::{AngstromSigner, PeerId, UniswapPoolRegistry}
     };
-    use futures::{pin_mut, Stream};
-    use order_pool::{order_storage::OrderStorage, PoolConfig};
+    use futures::{Stream, pin_mut};
+    use order_pool::{PoolConfig, order_storage::OrderStorage};
     use testing_tools::{
         mocks::matching_engine::MockMatchingEngine,
         type_generator::consensus::{
             pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder
         }
     };
-    use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
     use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
     use super::{
-        pre_proposal::PreProposalState, ConsensusMessage, RoundStateMachine, SharedRoundState
+        ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState
     };
     use crate::{
-        rounds::{pre_proposal_aggregation::PreProposalAggregationState, ConsensusState},
-        AngstromValidator
+        AngstromValidator,
+        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine> {

@@ -222,7 +222,7 @@ impl ValidationMetrics {
         f: impl FnOnce() -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'a>>
     ) -> T {
         if let Some(inner) = self.0.as_ref() {
-            return inner.handle_pending(f).await
+            return inner.handle_pending(f).await;
         }
 
         f().await
@@ -236,7 +236,7 @@ impl ValidationMetrics {
         if let Some(inner) = self.0.as_ref() {
             inner.new_order(is_searcher, f).await;
 
-            return
+            return;
         }
 
         f().await;
@@ -244,7 +244,7 @@ impl ValidationMetrics {
 
     pub fn fetch_gas_for_user<T>(&self, is_searcher: bool, f: impl FnOnce() -> T) -> T {
         if let Some(inner) = self.0.as_ref() {
-            return inner.fetch_gas_for_user(is_searcher, f)
+            return inner.fetch_gas_for_user(is_searcher, f);
         }
 
         f()

@@ -1,11 +1,12 @@
 mod fillstate;
 mod origin;
 use alloy::{
-    primitives::{keccak256, Address, FixedBytes, PrimitiveSignature, B256},
+    primitives::{Address, B256, FixedBytes, PrimitiveSignature, keccak256},
     sol_types::SolValue
 };
 pub mod orderpool;
 
+use alloy_primitives::I256;
 pub use fillstate::*;
 pub use orderpool::*;
 pub use origin::*;
@@ -17,7 +18,7 @@ pub type OrderVolume = u128;
 pub type OrderPrice = MatchingPrice;
 
 use crate::{
-    matching::{uniswap::Direction, MatchingPrice, Ray},
+    matching::{MatchingPrice, Ray, uniswap::Direction},
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
@@ -51,8 +52,8 @@ impl Default for NetAmmOrder {
 impl NetAmmOrder {
     pub fn new(direction: Direction) -> Self {
         match direction {
-            Direction::BuyingT0 => Self::Sell(0, 0),
-            Direction::SellingT0 => Self::Buy(0, 0)
+            Direction::BuyingT0 => Self::Buy(0, 0),
+            Direction::SellingT0 => Self::Sell(0, 0)
         }
     }
 
@@ -72,10 +73,29 @@ impl NetAmmOrder {
         *my_quantity += quantity;
     }
 
-    fn get_directions(&self) -> (u128, u128) {
+    pub fn remove_quantity(&mut self, quantity: u128, cost: u128) {
+        let (my_quantity, my_cost) = match self {
+            Self::Buy(q, c) => (q, c),
+            Self::Sell(q, c) => (q, c)
+        };
+        *my_cost -= cost;
+        *my_quantity -= quantity;
+    }
+
+    pub fn get_directions(&self) -> (u128, u128) {
         match self {
             Self::Buy(amount_out, amount_in) => (*amount_in, *amount_out),
             Self::Sell(amount_in, amount_out) => (*amount_in, *amount_out)
+        }
+    }
+
+    /// Gets the net AMM order as a signed quantity of T0.  The quantity is
+    /// positive if we are purchasing T0 from the AMM and negative if we are
+    /// selling T0 into the AMM
+    pub fn get_t0_signed(&self) -> I256 {
+        match self {
+            Self::Buy(t0, _) => I256::unchecked_from(*t0),
+            Self::Sell(t0, _) => I256::unchecked_from(*t0).saturating_neg()
         }
     }
 
@@ -92,6 +112,10 @@ impl NetAmmOrder {
             NetAmmOrder::Buy(q, c) => (t1_idx, t0_idx, *c, *q),
             NetAmmOrder::Sell(q, c) => (t0_idx, t1_idx, *q, *c)
         }
+    }
+
+    pub fn is_bid(&self) -> bool {
+        matches!(self, Self::Buy(_, _))
     }
 }
 
