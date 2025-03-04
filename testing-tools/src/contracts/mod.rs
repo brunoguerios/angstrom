@@ -33,8 +33,7 @@ pub trait DebugTransaction {
 
 impl<T, P, D> DebugTransaction for CallBuilder<T, P, D>
 where
-    T: Clone + Send + Sync + alloy::transports::Transport,
-    P: alloy::providers::Provider<T> + Clone,
+    P: alloy::providers::Provider + Clone,
     D: alloy::contract::CallDecoder
 {
     async fn run_safe(self) -> eyre::Result<TxHash> {
@@ -204,7 +203,7 @@ pub async fn anvil_mine_delay<F0: Future + Unpin>(
         return v
     }
     provider
-        .anvil_mine(Some(U256::from(1)), None)
+        .anvil_mine(Some(1), None)
         .await
         .expect("anvil failed to mine");
 

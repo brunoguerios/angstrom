@@ -6,7 +6,7 @@ use std::{
 };
 
 use alloy::{
-    consensus::Transaction,
+    consensus::{BlockHeader, Transaction},
     primitives::{aliases::I24, Address, BlockHash, BlockNumber, B256},
     sol_types::SolEvent
 };
@@ -22,7 +22,8 @@ use futures::Future;
 use futures_util::{FutureExt, StreamExt};
 use itertools::Itertools;
 use pade::PadeDecode;
-use reth_primitives::{Receipt, SealedBlockWithSenders, TransactionSigned};
+use reth_ethereum_primitives::{Block, Receipt, TransactionSigned};
+use reth_primitives_traits::RecoveredBlock;
 use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain};
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
@@ -250,9 +251,10 @@ where
         &'a self,
         chain: &'a impl ChainExt
     ) -> impl Iterator<Item = B256> + 'a {
-        chain
-            .tip_transactions()
-            .filter(|tx| tx.transaction.to() == Some(self.angstrom_address))
+        let tip_txs = chain.tip_transactions().cloned();
+
+        tip_txs
+            .filter(|tx| tx.to() == Some(self.angstrom_address))
             .filter_map(|transaction| {
                 let mut input: &[u8] = transaction.input();
                 AngstromBundle::pade_decode(&mut input, None).ok()
@@ -339,12 +341,24 @@ pub trait ChainExt {
     fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>>;
     fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_;
     fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>>;
-    fn blocks_iter(&self) -> impl Iterator<Item = &SealedBlockWithSenders> + '_;
+    fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_;
 }
 
 impl ChainExt for Chain {
+    fn tip_number(&self) -> BlockNumber {
+        self.tip().number
+    }
+
     fn tip_hash(&self) -> BlockHash {
         self.tip().hash()
+    }
+
+    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>> {
+        self.receipts_by_block_hash(block_hash)
+    }
+
+    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
+        self.tip().body().transactions.iter()
     }
 
     fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>> {
@@ -354,10 +368,10 @@ impl ChainExt for Chain {
 
         let mut range = self
             .blocks_iter()
-            .filter(|b| b.block.number >= start)
-            .zip(new.blocks_iter().filter(|b| b.block.number >= start))
-            .filter(|&(old, new)| (old.block.hash() != new.block.hash()))
-            .map(|(_, new)| new.block.number)
+            .filter(|b| b.number() >= start)
+            .zip(new.blocks_iter().filter(|b| b.number() >= start))
+            .filter(|&(old, new)| (old.hash() != new.hash()))
+            .map(|(_, new)| new.number())
             .collect::<Vec<_>>();
 
         match range.len() {
@@ -374,28 +388,18 @@ impl ChainExt for Chain {
         }
     }
 
-    fn blocks_iter(&self) -> impl Iterator<Item = &SealedBlockWithSenders> + '_ {
+    fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_ {
         self.blocks_iter()
-    }
-
-    fn tip_number(&self) -> BlockNumber {
-        self.tip().number
-    }
-
-    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>> {
-        self.receipts_by_block_hash(block_hash)
-    }
-
-    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
-        self.tip().transactions().iter()
     }
 }
 
 #[cfg(test)]
 pub mod test {
     use alloy::{
+        consensus::TxLegacy,
         hex,
         primitives::{aliases::U24, b256, Log, TxKind, U256},
+        signers::Signature,
         sol_types::SolEvent
     };
     use angstrom_types::{
@@ -412,7 +416,7 @@ pub mod test {
         sol_bindings::grouped_orders::OrderWithStorageData
     };
     use pade::PadeEncode;
-    use reth_primitives::{LogData, Transaction};
+    use reth_primitives::LogData;
     use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
     use super::*;
@@ -426,16 +430,12 @@ pub mod test {
     }
 
     impl ChainExt for MockChain<'_> {
-        fn tip_hash(&self) -> BlockHash {
-            self.hash
-        }
-
-        fn blocks_iter(&self) -> impl Iterator<Item = &SealedBlockWithSenders> + '_ {
-            vec![].into_iter()
-        }
-
         fn tip_number(&self) -> BlockNumber {
             self.number
+        }
+
+        fn tip_hash(&self) -> BlockHash {
+            self.hash
         }
 
         fn receipts_by_block_hash(&self, _: BlockHash) -> Option<Vec<&Receipt>> {
@@ -448,6 +448,10 @@ pub mod test {
 
         fn reorged_range(&self, _: impl ChainExt) -> Option<RangeInclusive<u64>> {
             None
+        }
+
+        fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_ {
+            vec![].into_iter()
         }
     }
 
@@ -523,13 +527,13 @@ pub mod test {
             vec![finalized_user_order]
         );
 
-        let mut mock_tx = TransactionSigned::default();
+        let leg = TxLegacy {
+            to: TxKind::Call(angstrom_address),
+            input: angstrom_bundle_with_orders.pade_encode().into(),
+            ..Default::default()
+        };
 
-        if let Transaction::Legacy(leg) = &mut mock_tx.transaction {
-            leg.to = TxKind::Call(angstrom_address);
-            leg.input = angstrom_bundle_with_orders.pade_encode().into();
-        }
-
+        let mock_tx = TransactionSigned::new_unhashed(leg.into(), Signature::test_signature());
         let mock_chain = MockChain { transactions: vec![mock_tx], ..Default::default() };
         let filled_set = eth.fetch_filled_order(&mock_chain).collect::<HashSet<_>>();
 
@@ -998,12 +1002,14 @@ pub mod test {
         let angstrom_address = Address::random();
         let eth = setup_non_subscription_eth_manager(Some(angstrom_address));
 
-        let mut mock_tx = TransactionSigned::default();
-        if let Transaction::Legacy(leg) = &mut mock_tx.transaction {
-            leg.to = TxKind::Call(angstrom_address);
-            leg.input = vec![0, 1, 2, 3].into(); // Invalid input data
-        }
+        let leg = TxLegacy {
+            to: TxKind::Call(angstrom_address),
+            // Invalid input data
+            input: vec![0, 1, 2, 3].into(),
+            ..Default::default()
+        };
 
+        let mock_tx = TransactionSigned::new_unhashed(leg.into(), Signature::test_signature());
         let mock_chain = MockChain { transactions: vec![mock_tx], ..Default::default() };
 
         // Should handle malformed input gracefully

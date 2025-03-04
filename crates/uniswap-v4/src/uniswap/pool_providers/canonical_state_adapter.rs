@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use alloy::{
+    consensus::BlockHeader,
     eips::BlockNumberOrTag,
     primitives::Log,
     providers::Provider,
@@ -85,19 +86,19 @@ where
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
                                 tracing::info!(?block.number,"updated number");
-                                Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
+                                Some(Some(PoolMangerBlocks::NewBlock(block.number())))
                             }
                             CanonStateNotification::Reorg { old, new } => {
-                                let tip = new.tip().block.number;
+                                let tip = new.tip().number();
                                 // search 30 blocks back;
                                 let start = tip - 30;
 
                                 let range = old
                                     .blocks_iter()
-                                    .filter(|b| b.block.number >= start)
-                                    .zip(new.blocks_iter().filter(|b| b.block.number >= start))
-                                    .filter(|&(old, new)| (old.block.hash() != new.block.hash()))
-                                    .map(|(_, new)| new.block.number)
+                                    .filter(|b| b.number() >= start)
+                                    .zip(new.blocks_iter().filter(|b| b.number() >= start))
+                                    .filter(|&(old, new)| (old.hash() != new.hash()))
+                                    .map(|(_, new)| new.number())
                                     .collect::<Vec<_>>();
 
                                 let range = match range.len() {

@@ -11,7 +11,7 @@ use crate::{
             FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
         },
         rpc_orders::{
-            ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, PartialFlashOrder,
+            ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder
         },
         RawPoolOrder
@@ -74,14 +74,131 @@ pub struct UserOrder {
 
 impl UserOrder {
     pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        // need so we can generate proper order hash.
+        let from = self
+            .signature
+            .recover_signer(self.signing_hash(pair, asset, block));
+
         let pair = &pair[self.pair_index as usize];
         match self.order_quantities {
             OrderQuantities::Exact { quantity } => {
                 if let Some(validation) = &self.standing_validation {
                     // exact standing
                     ExactStandingOrder {
+                        ref_id:               self.ref_id,
+                        exact_in:             self.exact_in,
+                        use_internal:         self.use_internal,
+                        asset_in:             if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out:            if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient:            self.recipient.unwrap_or_default(),
+                        nonce:                validation.nonce,
+                        deadline:             U40::from_limbs([validation.deadline]),
+                        amount:               quantity,
+                        min_price:            self.min_price,
+                        hook_data:            self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        meta:                 OrderMeta { from, ..Default::default() }
+                    }
+                    .order_hash()
+                } else {
+                    // exact flash
+                    ExactFlashOrder {
+                        ref_id:               self.ref_id,
+                        exact_in:             self.exact_in,
+                        use_internal:         self.use_internal,
+                        asset_in:             if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out:            if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient:            self.recipient.unwrap_or_default(),
+                        valid_for_block:      block,
+                        amount:               quantity,
+                        min_price:            self.min_price,
+                        hook_data:            self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        meta:                 OrderMeta { from, ..Default::default() }
+                    }
+                    .order_hash()
+                }
+            }
+            OrderQuantities::Partial { min_quantity_in, max_quantity_in, .. } => {
+                if let Some(validation) = &self.standing_validation {
+                    PartialStandingOrder {
+                        ref_id:               self.ref_id,
+                        use_internal:         self.use_internal,
+                        asset_in:             if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out:            if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient:            self.recipient.unwrap_or_default(),
+                        deadline:             U40::from_limbs([validation.deadline]),
+                        nonce:                validation.nonce,
+                        min_amount_in:        min_quantity_in,
+                        max_amount_in:        max_quantity_in,
+                        min_price:            self.min_price,
+                        hook_data:            self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        meta:                 OrderMeta { from, ..Default::default() }
+                    }
+                    .order_hash()
+                } else {
+                    PartialFlashOrder {
+                        ref_id:               self.ref_id,
+                        use_internal:         self.use_internal,
+                        asset_in:             if self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        asset_out:            if !self.zero_for_one {
+                            asset[pair.index0 as usize].addr
+                        } else {
+                            asset[pair.index1 as usize].addr
+                        },
+                        recipient:            self.recipient.unwrap_or_default(),
+                        valid_for_block:      block,
+                        max_amount_in:        max_quantity_in,
+                        min_amount_in:        min_quantity_in,
+                        min_price:            self.min_price,
+                        hook_data:            self.hook_data.clone().unwrap_or_default(),
+                        max_extra_fee_asset0: self.max_extra_fee_asset0,
+                        meta:                 OrderMeta { from, ..Default::default() }
+                    }
+                    .order_hash()
+                }
+            }
+        }
+    }
+
+    pub fn signing_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
+        let pair = &pair[self.pair_index as usize];
+        match self.order_quantities {
+            OrderQuantities::Exact { quantity } => {
+                if let Some(validation) = &self.standing_validation {
+                    // exact standing
+                    let recovered = ExactStandingOrder {
                         ref_id: self.ref_id,
-                        exact_in: true,
+                        exact_in: self.exact_in,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
                             asset[pair.index0 as usize].addr
@@ -101,11 +218,11 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .order_hash()
+                    };
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 } else {
                     // exact flash
-                    ExactFlashOrder {
+                    let recovered = ExactFlashOrder {
                         ref_id: self.ref_id,
                         exact_in: self.exact_in,
                         use_internal: self.use_internal,
@@ -126,13 +243,14 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .order_hash()
+                    };
+
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 }
             }
             OrderQuantities::Partial { min_quantity_in, max_quantity_in, .. } => {
                 if let Some(validation) = &self.standing_validation {
-                    PartialStandingOrder {
+                    let recovered = PartialStandingOrder {
                         ref_id: self.ref_id,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
@@ -154,10 +272,10 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .order_hash()
+                    };
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 } else {
-                    PartialFlashOrder {
+                    let recovered = PartialFlashOrder {
                         ref_id: self.ref_id,
                         use_internal: self.use_internal,
                         asset_in: if self.zero_for_one {
@@ -178,8 +296,8 @@ impl UserOrder {
                         hook_data: self.hook_data.clone().unwrap_or_default(),
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
-                    }
-                    .order_hash()
+                    };
+                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
                 }
             }
         }

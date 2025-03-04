@@ -67,7 +67,7 @@ library SwapCallLib {
             if iszero(success) {
                 let free := mload(0x40)
                 returndatacopy(free, 0, returndatasize())
-                revert(0, returndatasize())
+                revert(free, returndatasize())
             }
 
             let free := mload(0x40)

@@ -208,14 +208,14 @@ impl AllOrders {
     pub fn order_hash(&self) -> FixedBytes<32> {
         match self {
             Self::Standing(p) => match p {
-                StandingVariants::Exact(e) => e.eip712_hash_struct(),
-                StandingVariants::Partial(e) => e.eip712_hash_struct()
+                StandingVariants::Exact(e) => e.unique_order_hash(e.from()),
+                StandingVariants::Partial(e) => e.unique_order_hash(e.from())
             },
             Self::Flash(f) => match f {
-                FlashVariants::Exact(e) => e.eip712_hash_struct(),
-                FlashVariants::Partial(e) => e.eip712_hash_struct()
+                FlashVariants::Exact(e) => e.unique_order_hash(e.from()),
+                FlashVariants::Partial(e) => e.unique_order_hash(e.from())
             },
-            Self::TOB(t) => t.eip712_hash_struct()
+            Self::TOB(t) => t.unique_order_hash(t.from())
         }
     }
 }
@@ -813,12 +813,12 @@ impl GroupedComposableOrder {
     pub fn hash(&self) -> B256 {
         match self {
             Self::Partial(p) => match p {
-                StandingVariants::Partial(p) => p.eip712_hash_struct(),
-                StandingVariants::Exact(e) => e.eip712_hash_struct()
+                StandingVariants::Partial(p) => p.unique_order_hash(p.from()),
+                StandingVariants::Exact(e) => e.unique_order_hash(e.from())
             },
             Self::KillOrFill(k) => match k {
-                FlashVariants::Partial(p) => p.eip712_hash_struct(),
-                FlashVariants::Exact(e) => e.eip712_hash_struct()
+                FlashVariants::Partial(p) => p.unique_order_hash(p.from()),
+                FlashVariants::Exact(e) => e.unique_order_hash(e.from())
             }
         }
     }
@@ -846,7 +846,7 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn order_hash(&self) -> TxHash {
-        self.eip712_hash_struct()
+        self.unique_order_hash(self.from())
     }
 
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod {
@@ -948,7 +948,7 @@ impl RawPoolOrder for PartialStandingOrder {
     }
 
     fn order_hash(&self) -> TxHash {
-        self.eip712_hash_struct()
+        self.unique_order_hash(self.from())
     }
 
     fn token_in(&self) -> Address {
@@ -1025,7 +1025,7 @@ impl RawPoolOrder for ExactStandingOrder {
     }
 
     fn order_hash(&self) -> TxHash {
-        self.eip712_hash_struct()
+        self.unique_order_hash(self.from())
     }
 
     fn token_in(&self) -> Address {
@@ -1082,7 +1082,7 @@ impl RawPoolOrder for PartialFlashOrder {
     }
 
     fn order_hash(&self) -> TxHash {
-        self.eip712_hash_struct()
+        self.unique_order_hash(self.from())
     }
 
     fn from(&self) -> Address {
@@ -1167,7 +1167,7 @@ impl RawPoolOrder for ExactFlashOrder {
     }
 
     fn order_hash(&self) -> TxHash {
-        self.eip712_hash_struct()
+        self.unique_order_hash(self.from())
     }
 
     fn from(&self) -> Address {

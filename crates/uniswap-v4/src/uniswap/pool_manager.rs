@@ -520,8 +520,7 @@ mod annoying_tests {
 
     use alloy::{
         primitives::Address,
-        providers::{fillers::*, network::Ethereum, Provider, ProviderBuilder, RootProvider, *},
-        transports::BoxTransport
+        providers::{fillers::*, network::Ethereum, Provider, ProviderBuilder, RootProvider, *}
     };
     use alloy_primitives::LogData;
     use angstrom_types::block_sync::GlobalBlockState;
@@ -534,8 +533,7 @@ mod annoying_tests {
             Identity,
             JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>
         >,
-        RootProvider<BoxTransport>,
-        BoxTransport,
+        RootProvider,
         Ethereum
     >;
     // Mock implementations for testing
@@ -549,8 +547,7 @@ mod annoying_tests {
         async fn new() -> Self {
             Self {
                 logs: Arc::new(RwLock::new(Vec::new())),
-                p:    ProviderBuilder::<_, _, Ethereum>::default()
-                    .with_recommended_fillers()
+                p:    ProviderBuilder::new()
                     .on_builtin("https://eth.llamarpc.com")
                     .await
                     .unwrap()
@@ -563,13 +560,13 @@ mod annoying_tests {
         }
     }
     impl PoolManagerProvider for MockProvider {
-        fn get_logs(&self, _filter: &Filter) -> Result<Vec<Log>, PoolManagerError> {
-            Ok(self.logs.read().unwrap().clone())
-        }
-
         fn subscribe_blocks(self) -> BoxStream<'static, Option<PoolMangerBlocks>> {
             let (_, rx) = mpsc::channel(1);
             Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx))
+        }
+
+        fn get_logs(&self, _filter: &Filter) -> Result<Vec<Log>, PoolManagerError> {
+            Ok(self.logs.read().unwrap().clone())
         }
 
         fn provider(&self) -> Arc<impl Provider> {
@@ -578,7 +575,7 @@ mod annoying_tests {
     }
 
     impl Provider for MockProvider {
-        fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+        fn root(&self) -> &RootProvider<Ethereum> {
             self.p.root()
         }
     }
@@ -587,10 +584,6 @@ mod annoying_tests {
     struct MockBlockSync;
 
     impl BlockSyncConsumer for MockBlockSync {
-        fn register(&self, _module: &'static str) {}
-
-        fn sign_off_on_block(&self, _module: &'static str, _block: u64, _data: Option<Waker>) {}
-
         fn sign_off_reorg(
             &self,
             _module: &'static str,
@@ -598,6 +591,8 @@ mod annoying_tests {
             _data: Option<Waker>
         ) {
         }
+
+        fn sign_off_on_block(&self, _module: &'static str, _block: u64, _data: Option<Waker>) {}
 
         fn current_block_number(&self) -> u64 {
             0
@@ -610,6 +605,8 @@ mod annoying_tests {
         fn fetch_current_proposal(&self) -> Option<GlobalBlockState> {
             None
         }
+
+        fn register(&self, _module: &'static str) {}
     }
 
     #[tokio::test]

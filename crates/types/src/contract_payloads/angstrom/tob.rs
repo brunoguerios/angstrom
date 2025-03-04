@@ -58,7 +58,12 @@ impl TopOfBlockOrder {
     }
 
     pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
-        self.recover_order(pair, asset, block).order_hash()
+        let mut order = self.recover_order(pair, asset, block);
+        let from = self
+            .signature
+            .recover_signer(self.signing_hash(pair, asset, block));
+        order.meta.from = from;
+        order.order_hash()
     }
 
     pub fn signing_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {

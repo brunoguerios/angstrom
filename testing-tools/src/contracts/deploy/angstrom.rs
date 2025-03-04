@@ -23,7 +23,7 @@ pub async fn deploy_angstrom_create3<
 
     let mint_call = _private::mintCall { to: owner, id: salt, nonce };
 
-    RawCallBuilder::new_raw(&provider, mint_call.abi_encode().into())
+    RawCallBuilder::<(), _, _>::new_raw(&provider, mint_call.abi_encode().into())
         .to(SUB_ZERO_FACTORY)
         .from(owner)
         .gas(50e6 as u64)
@@ -34,7 +34,7 @@ pub async fn deploy_angstrom_create3<
 
     let deploy_call = _private::deployCall { id: salt, initcode: code.into() };
 
-    RawCallBuilder::new_raw(&provider, deploy_call.abi_encode().into())
+    RawCallBuilder::<(), _, _>::new_raw(&provider, deploy_call.abi_encode().into())
         .from(owner)
         .gas(50e6 as u64)
         .to(SUB_ZERO_FACTORY)
