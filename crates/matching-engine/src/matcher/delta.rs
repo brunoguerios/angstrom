@@ -1,6 +1,4 @@
-use std::collections::hash_map::HashMap;
-
-use alloy_primitives::{Address, I256, U256};
+use alloy_primitives::{I256, U256};
 use angstrom_types::{
     contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
@@ -14,7 +12,6 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use rand_distr::num_traits::ToPrimitive;
 
 use crate::OrderBook;
 

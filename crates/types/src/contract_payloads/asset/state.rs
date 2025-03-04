@@ -87,13 +87,12 @@ impl BorrowStateTracker {
         // The amount we're saving for later just adds up
         let amount_save = self.save + other.save;
 
-        let res = Self {
+        Self {
             take:            borrow_needed,
             contract_liquid: amount_onhand,
             settle:          amount_owed,
             save:            amount_save
-        };
-        res
+        }
     }
 }
 
