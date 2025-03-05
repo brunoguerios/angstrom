@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IAngstromAuth} from "../interfaces/IAngstromAuth.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 import {
     PoolConfigStore,
     PoolConfigStoreLib,
@@ -10,7 +10,7 @@ import {
     STORE_HEADER_SIZE
 } from "../libraries/PoolConfigStore.sol";
 import {ConfigEntry, ENTRY_SIZE, KEY_MASK} from "../types/ConfigEntry.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {AddressSet} from "solady/src/utils/g/EnumerableSetLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {AngstromView} from "./AngstromView.sol";
 
@@ -26,9 +26,8 @@ struct Asset {
 }
 
 /// @author philogy <https://github.com/philogy>
-contract ControllerV1 is Ownable2Step {
+contract ControllerV1 is Ownable {
     using AngstromView for IAngstromAuth;
-    using EnumerableSet for EnumerableSet.AddressSet;
     using SafeTransferLib for address;
 
     event NewControllerSet(address indexed newController);
@@ -55,6 +54,7 @@ contract ControllerV1 is Ownable2Step {
     error NotNode();
     error NonexistentPool(address asset0, address asset1);
     error TotalNotDistributed();
+    error FunctionDisabled();
 
     struct Pool {
         address asset0;
@@ -64,12 +64,21 @@ contract ControllerV1 is Ownable2Step {
     IAngstromAuth public immutable ANGSTROM;
 
     address public setController;
-    EnumerableSet.AddressSet internal _nodes;
+    AddressSet internal _nodes;
 
     mapping(StoreKey key => Pool) public pools;
 
-    constructor(IAngstromAuth angstrom, address initialOwner) Ownable(initialOwner) {
+    constructor(IAngstromAuth angstrom, address initialOwner) {
+        _initializeOwner(initialOwner);
         ANGSTROM = angstrom;
+    }
+
+    function transferOwnership(address) public payable override {
+        revert FunctionDisabled();
+    }
+
+    function renounceOwnership() public payable override {
+        revert FunctionDisabled();
     }
 
     function setNewController(address newController) public {

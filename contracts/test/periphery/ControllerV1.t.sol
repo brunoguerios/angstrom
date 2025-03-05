@@ -10,7 +10,7 @@ import {LibSort} from "solady/src/utils/LibSort.sol";
 import {
     PoolConfigStoreLib, PoolConfigStore, StoreKey
 } from "../../src/libraries/PoolConfigStore.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 
 import {console} from "forge-std/console.sol";
@@ -42,21 +42,21 @@ contract ControllerV1Test is BaseTest {
     function test_fuzzing_canTransferOwner(address newOwner) public {
         vm.assume(newOwner != address(0));
 
-        vm.prank(controller_owner);
-        controller.transferOwnership(newOwner);
         vm.prank(newOwner);
-        controller.acceptOwnership();
+        controller.requestOwnershipHandover();
+        vm.prank(controller_owner);
+        controller.completeOwnershipHandover(newOwner);
 
         assertEq(controller.owner(), newOwner);
 
         if (newOwner != controller_owner) {
+            address newNewOwner = makeAddr("newNewOwner");
+            vm.prank(newNewOwner);
+            controller.requestOwnershipHandover();
+
             vm.prank(controller_owner);
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    Ownable.OwnableUnauthorizedAccount.selector, controller_owner
-                )
-            );
-            controller.transferOwnership(controller_owner);
+            vm.expectRevert(Ownable.Unauthorized.selector);
+            controller.completeOwnershipHandover(newNewOwner);
         }
     }
 
@@ -137,12 +137,13 @@ contract ControllerV1Test is BaseTest {
     }
 
     function test_fuzzing_preventsNonOwnerTransfer(address nonOwner, address newOwner) public {
+        vm.prank(newOwner);
+        controller.requestOwnershipHandover();
+
         vm.assume(nonOwner != controller_owner);
         vm.prank(nonOwner);
-        vm.expectRevert(
-            abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner)
-        );
-        controller.transferOwnership(newOwner);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        controller.completeOwnershipHandover(newOwner);
     }
 
     function test_controllerMigration() public {
