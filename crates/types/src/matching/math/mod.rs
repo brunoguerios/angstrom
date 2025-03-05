@@ -3,7 +3,7 @@ use std::ops::Neg;
 use malachite::{
     Integer, Natural, Rational,
     num::{
-        arithmetic::traits::{DivRound, FloorSqrt, Pow, PowerOf2},
+        arithmetic::traits::{DivRound, FloorSqrt, Pow, PowerOf2, SaturatingSub},
         basic::traits::{One, Two, Zero},
         conversion::traits::{RoundingFrom, SaturatingInto}
     },
@@ -11,7 +11,7 @@ use malachite::{
 };
 use tracing::debug;
 
-use super::{Ray, SqrtPriceX96, const_1e27, uniswap::Direction};
+use super::{Ray, SqrtPriceX96, const_1e6, const_1e27, uniswap::Direction};
 
 /// Given an AMM with a constant liquidity, a debt, and a quantity of T0 will
 /// find the amount of T0 to feed into both the AMM and the debt to ensure that
@@ -19,6 +19,25 @@ use super::{Ray, SqrtPriceX96, const_1e27, uniswap::Direction};
 #[allow(unused)]
 pub fn equal_move_solve() -> Integer {
     Integer::default()
+}
+
+/// For a given quantity, computes Q/(1 - F) which is primarily used to figure
+/// out how much T0 was input pre-fee given a post-fee quantity of T0 for a bid
+/// order
+pub fn add_t0_bid_fee(quantity: u128, fee: u128) -> u128 {
+    let fee_factor = const_1e6().saturating_sub(Natural::from(fee));
+    let numerator = Natural::from(quantity) * const_1e6();
+    let res = numerator.div_round(fee_factor, RoundingMode::Ceiling).0;
+    (&res).saturating_into()
+}
+
+/// For a given quantity, computes Q * (1 - F) which is primarily used to figure
+/// out the post-fee quantity of T0 available to the market for an ask order
+pub fn sub_t0_ask_fee(quantity: u128, fee: u128) -> u128 {
+    let fee_factor = const_1e6().saturating_sub(Natural::from(fee));
+    let numerator = Natural::from(quantity) * const_1e6();
+    let res = numerator.div_round(fee_factor, RoundingMode::Ceiling).0;
+    (&res).saturating_into()
 }
 
 /// Given a quantity of input T0 as well as an AMM with constant liquidity and a

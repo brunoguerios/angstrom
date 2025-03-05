@@ -7,15 +7,15 @@ use angstrom_types::{
     orders::{OrderId, OrderOrigin, OrderPriorityData},
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{AllOrders, OrderWithStorageData}
+        grouped_orders::{AllOrders, OrderWithStorageData},
     },
-    testnet::InitialTestnetState
+    testnet::InitialTestnetState,
 };
 use futures::{Future, StreamExt};
 use matching_engine::{
     book::{BookOrder, OrderBook, sort::SortStrategy},
     matcher::delta::DeltaMatcher,
-    strategy::{MatchingStrategy, SimpleCheckpointStrategy}
+    strategy::{MatchingStrategy, SimpleCheckpointStrategy},
 };
 use reth_provider::{CanonStateSubscriptions, noop::NoopProvider};
 use reth_tasks::TaskExecutor;
@@ -25,8 +25,8 @@ use testing_tools::{
     order_generator::{self, GeneratedPoolOrders, OrderGenerator},
     types::{
         actions::WithAction, checked_actions::WithCheckedAction, checks::WithCheck,
-        config::DevnetConfig
-    }
+        config::DevnetConfig,
+    },
 };
 use tracing::{Instrument, Level, debug, info, span};
 
@@ -36,7 +36,7 @@ static USE_AMM: AtomicBool = AtomicBool::new(false);
 
 pub async fn compare_matching_engines(
     executor: TaskExecutor,
-    cli: CompareEnginesCli
+    cli: CompareEnginesCli,
 ) -> eyre::Result<()> {
     let config = cli.testnet_config.make_config()?;
     USE_AMM.store(cli.include_amm, std::sync::atomic::Ordering::SeqCst);
@@ -56,14 +56,14 @@ pub async fn compare_matching_engines(
 
 fn cmp_agent<'a>(
     _: &'a InitialTestnetState,
-    agent_config: AgentConfig
+    agent_config: AgentConfig,
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async move {
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
             10..12,
-            0.2..0.6
+            0.2..0.6,
         );
 
         let mut stream =
@@ -72,7 +72,7 @@ fn cmp_agent<'a>(
                 .canonical_state_stream()
                 .map(|node| match node {
                     reth_provider::CanonStateNotification::Commit { new }
-                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
+                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number(),
                 });
 
         tokio::spawn(
@@ -155,17 +155,17 @@ fn cmp_agent<'a>(
                             use_amm.then_some(amm),
                             bids,
                             asks,
-                            Some(SortStrategy::ByPriceByVolume)
+                            Some(SortStrategy::ByPriceByVolume),
                         );
 
                         let tob = OrderWithStorageData {
                             invalidates: vec![],
                             order: tob.clone(),
                             priority_data: OrderPriorityData {
-                                price:     tob.limit_price(),
-                                volume:    tob.amount(),
-                                gas:       U256::ZERO,
-                                gas_units: 0
+                                price: tob.limit_price(),
+                                volume: tob.amount(),
+                                gas: U256::ZERO,
+                                gas_units: 0,
                             },
                             is_bid: tob.is_bid(),
                             is_valid: true,
@@ -178,19 +178,19 @@ fn cmp_agent<'a>(
                                 address: Default::default(),
                                 deadline: None,
                                 pool_id,
-                                location: angstrom_types::orders::OrderLocation::Limit
+                                location: angstrom_types::orders::OrderLocation::Limit,
                             },
                             pool_id,
                             valid_block: 0,
-                            tob_reward: U256::ZERO
+                            tob_reward: U256::ZERO,
                         };
 
                         let debt_engine = SimpleCheckpointStrategy::run(&book)
                             .unwrap()
                             .solution(Some(tob.clone()));
 
-                        let bisection =
-                            DeltaMatcher::new(&book, Some(tob.clone())).solution(Some(tob.clone()));
+                        let bisection = DeltaMatcher::new(&book, Some(tob.clone()), 0)
+                            .solution(Some(tob.clone()));
 
                         if bisection != debt_engine {
                             println!(
@@ -201,7 +201,7 @@ fn cmp_agent<'a>(
                     }
                 }
             }
-            .instrument(span!(Level::ERROR, "matching engine cmp", ?agent_config.agent_id))
+            .instrument(span!(Level::ERROR, "matching engine cmp", ?agent_config.agent_id)),
         );
         Ok(())
     })

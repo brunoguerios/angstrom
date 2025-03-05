@@ -2,32 +2,32 @@ use alloy_primitives::{I256, U256};
 use angstrom_types::{
     contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
-        SqrtPriceX96,
-        uniswap::{Direction, PoolPrice, PoolPriceVec},
+        SqrtPriceX96, add_t0_bid_fee, sub_t0_ask_fee,
+        uniswap::{Direction, PoolPrice, PoolPriceVec}
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
         RawPoolOrder, Ray,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
-    },
+        rpc_orders::TopOfBlockOrder
+    }
 };
 
 use crate::OrderBook;
 
 #[derive(Clone)]
 pub struct DeltaMatcher<'a> {
-    book: &'a OrderBook,
-    fee: u128,
+    book:            &'a OrderBook,
+    fee:             u128,
     /// changes if there is a tob or not
-    amm_start_price: Option<PoolPrice<'a>>,
+    amm_start_price: Option<PoolPrice<'a>>
 }
 
 impl<'a> DeltaMatcher<'a> {
     pub fn new(
         book: &'a OrderBook,
         tob: Option<OrderWithStorageData<TopOfBlockOrder>>,
-        fee: u128,
+        fee: u128
     ) -> Self {
         let amm_start_price = if let Some(tob) = tob {
             if let Some(a) = book.amm() {
@@ -77,7 +77,7 @@ impl<'a> DeltaMatcher<'a> {
             .iter()
             .filter(|ask| price >= ask.pre_fee_price(self.fee) && !ask.is_partial())
             .for_each(|ask| {
-                let (q_in, q_out) = Self::get_amount_in_out(ask, ask.amount(), price);
+                let (q_in, q_out) = Self::get_amount_in_out(ask, ask.amount(), self.fee, price);
                 // given its a ask, q_in is always t0
                 t0_delta += I256::try_from(q_in).unwrap();
                 t1_delta -= I256::try_from(q_out).unwrap();
@@ -90,7 +90,7 @@ impl<'a> DeltaMatcher<'a> {
                 price <= bid.pre_fee_price(self.fee).inv_ray_round(true) && !bid.is_partial()
             })
             .for_each(|bid| {
-                let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), price);
+                let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), self.fee, price);
                 // given its a bid, q_in is always t1
                 t0_delta -= I256::try_from(q_out).unwrap();
                 t1_delta += I256::try_from(q_in).unwrap();
@@ -104,7 +104,7 @@ impl<'a> DeltaMatcher<'a> {
     /// this favours partially filling
     fn fetch_amount_in_amount_out_partials(
         &self,
-        price: Ray,
+        price: Ray
     ) -> (I256, I256, Option<bool>, Option<u128>, Option<u128>, Option<OrderId>) {
         let mut t0_delta = I256::ZERO;
         let mut t1_delta = I256::ZERO;
@@ -122,12 +122,13 @@ impl<'a> DeltaMatcher<'a> {
                 if price == ask.price() {
                     // min prices
                     let (q_in_min, q_out_min) =
-                        Self::get_amount_in_out(ask, ask.min_amount(), price);
+                        Self::get_amount_in_out(ask, ask.min_amount(), self.fee, price);
                     t0_delta += I256::try_from(q_in_min).unwrap();
                     t1_delta -= I256::try_from(q_out_min).unwrap();
 
                     // max amount
-                    let (q_in_max, q_out_max) = Self::get_amount_in_out(ask, ask.amount(), price);
+                    let (q_in_max, q_out_max) =
+                        Self::get_amount_in_out(ask, ask.amount(), self.fee, price);
                     // if we are asks then
                     extra_t0 = Some(q_in_max - q_in_min);
                     extra_t1 = Some(q_out_max - q_out_min);
@@ -138,7 +139,7 @@ impl<'a> DeltaMatcher<'a> {
                 }
 
                 // max amount
-                let (q_in, q_out) = Self::get_amount_in_out(ask, ask.amount(), price);
+                let (q_in, q_out) = Self::get_amount_in_out(ask, ask.amount(), self.fee, price);
                 // given its a ask, q_in is always t0
                 t0_delta += I256::try_from(q_in).unwrap();
                 t1_delta -= I256::try_from(q_out).unwrap();
@@ -154,12 +155,13 @@ impl<'a> DeltaMatcher<'a> {
                 // favour filling asks for now. will come back and fix later
                 if price == bid.price().inv_ray_round(true) && extra_t0.is_none() {
                     let (q_in_min, q_out_min) =
-                        Self::get_amount_in_out(bid, bid.min_amount(), price);
+                        Self::get_amount_in_out(bid, bid.min_amount(), self.fee, price);
 
                     t0_delta -= I256::try_from(q_out_min).unwrap();
                     t1_delta += I256::try_from(q_in_min).unwrap();
 
-                    let (q_in_max, q_out_max) = Self::get_amount_in_out(bid, bid.amount(), price);
+                    let (q_in_max, q_out_max) =
+                        Self::get_amount_in_out(bid, bid.amount(), self.fee, price);
                     extra_t1 = Some(q_in_max - q_in_min);
                     extra_t0 = Some(q_out_max - q_out_min);
                     side = Some(false);
@@ -168,7 +170,7 @@ impl<'a> DeltaMatcher<'a> {
                     return;
                 }
 
-                let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), price);
+                let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), self.fee, price);
                 // given its a bid, q_in is always t1
                 t0_delta -= I256::try_from(q_out).unwrap();
                 t1_delta += I256::try_from(q_in).unwrap();
@@ -221,7 +223,7 @@ impl<'a> DeltaMatcher<'a> {
             if delta >= I256::ZERO {
                 return SupplyDemandResult::PartialFillEq {
                     extra_fill_t0: t0_sum.saturating_neg(),
-                    id,
+                    id
                 };
             }
         }
@@ -239,35 +241,57 @@ impl<'a> DeltaMatcher<'a> {
     fn get_amount_in_out(
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         fill_amount: u128,
-        ray_ucp: Ray,
+        fee: u128,
+        ray_ucp: Ray
     ) -> (u128, u128) {
         match (order.is_bid(), order.exact_in()) {
-            // fill_amount is the exact amount of T1 being input to get a T0 output
+            // ExactIn Bid - fill_amount is the exact amount of T1 being input to get a T0 output
             (true, true) => (
-                // am in
+                // The amount of T1 input is constant for this order
                 fill_amount,
                 // am out - round down because we'll always try to give you less
-                ray_ucp.inverse_quantity(fill_amount, false) - order.priority_data.gas.to::<u128>(),
+                // The amount of liquidity consumed by this order is the amount of T0 that we can
+                // purchase at the UCP plus the overall gas cost.  This ends up being (t0_output +
+                // fee + gas) as the contract will send the reduced sum back to the user after
+                // adjusting the UCP
+                ray_ucp.inverse_quantity(fill_amount, false) + order.priority_data.gas.to::<u128>()
             ),
-            // fill amount is the exact amount of T0 being output for a T1 input
+            // ExactOut Bid - fill amount is the exact amount of T0 being output for a T1 input
             (true, false) => {
+                // The total t0 you need to buy such that your output is the exact output amount
+                // = the exact output amount divided by the fee factor
+                let total_t0_purchased =
+                    add_t0_bid_fee(fill_amount, fee) + order.priority_data.gas.to::<u128>();
                 // Round up because we'll always ask you to pay more
-                (ray_ucp.quantity(fill_amount, true), fill_amount)
+                // Total T0 consumed is exact_out + fee + gas.  We only send exact_out back to
+                // the user, but we need our fee and gas in T0 so we have to consume that from
+                // the market
+                (ray_ucp.quantity(total_t0_purchased, true), total_t0_purchased)
             }
-            // fill amount is the exact amount of T0 being input for a T1 output
+            // ExactIn Ask - fill amount is the exact amount of T0 being input for a T1 output
             (false, true) => {
-                // Round down because we'll always try to give you less
+                // Total incoming T0 liquidity added to the market is the fill amount minus the
+                // gas and shifted for fee
+                let net_t0_sold = sub_t0_ask_fee(
+                    fill_amount.saturating_sub(order.priority_data.gas.to::<u128>()),
+                    fee
+                );
                 (
-                    fill_amount,
-                    ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false),
+                    net_t0_sold,
+                    // Total T1 returned is as if we only sold the net t0
+                    ray_ucp.quantity(net_t0_sold, false)
                 )
             }
-            // fill amount is the exact amount of T1 expected out for a given T0 input
+            // ExactOut Ask - fill amount is the exact amount of T1 expected out for a given T0
+            // input
             (false, false) => (
-                // Round up because we'll always ask you to pay more
+                // Total incoming T0 liquidity is the amount of T0 that can be sold at UCP to hit
+                // the ExactOut T1 quantity.  The contract will pull in the additional T0 to cover
+                // fee and gas, but that never enters the market.
                 ray_ucp.inverse_quantity(fill_amount, true),
-                fill_amount,
-            ),
+                // Total T1 output is the precise amount needed to fill the order
+                fill_amount
+            )
         }
     }
 
@@ -280,7 +304,7 @@ impl<'a> DeltaMatcher<'a> {
             .bids()
             .iter()
             .map(|bid| OrderOutcome {
-                id: bid.order_id,
+                id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
                     // partials are always exact in, so we need to convert this out
                     // the amount here is always in Y. however for bids that are exact in, we want
@@ -297,10 +321,10 @@ impl<'a> DeltaMatcher<'a> {
                     OrderFillState::CompleteFill
                 } else {
                     OrderFillState::Unfilled
-                },
+                }
             })
             .chain(self.book.asks().iter().map(|ask| OrderOutcome {
-                id: ask.order_id,
+                id:      ask.order_id,
                 outcome: if order_id == Some(ask.order_id) {
                     let amount_parital =
                         ask.min_amount() + U256::try_from(amount.unwrap()).unwrap().to::<u128>();
@@ -310,7 +334,7 @@ impl<'a> DeltaMatcher<'a> {
                     OrderFillState::CompleteFill
                 } else {
                     OrderFillState::Unfilled
-                },
+                }
             }))
             .collect::<Vec<_>>()
     }
@@ -336,7 +360,7 @@ impl<'a> DeltaMatcher<'a> {
     // short on asks.
     pub fn solution(
         &mut self,
-        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>,
+        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let Some(price_and_partial_solution) = self.solve_clearing_price() else {
             tracing::info!("no solve");
@@ -347,10 +371,13 @@ impl<'a> DeltaMatcher<'a> {
                     .book
                     .bids()
                     .iter()
-                    .map(|o| OrderOutcome { id: o.order_id, outcome: OrderFillState::Unfilled })
+                    .map(|o| OrderOutcome {
+                        id:      o.order_id,
+                        outcome: OrderFillState::Unfilled
+                    })
                     .chain(self.book.asks().iter().map(|o| OrderOutcome {
-                        id: o.order_id,
-                        outcome: OrderFillState::Unfilled,
+                        id:      o.order_id,
+                        outcome: OrderFillState::Unfilled
                     }))
                     .collect(),
                 ..Default::default()
@@ -366,7 +393,7 @@ impl<'a> DeltaMatcher<'a> {
             ucp: price_and_partial_solution.ucp,
             amm_quantity: amm,
             limit,
-            searcher,
+            searcher
         }
     }
 
@@ -392,14 +419,18 @@ impl<'a> DeltaMatcher<'a> {
                 SupplyDemandResult::NaturallyEqual => {
                     println!("solved based on sup, demand no partials");
 
-                    return Some(UcpSolution { ucp: p_mid, extra_t0_fill: None, partial_id: None });
+                    return Some(UcpSolution {
+                        ucp:           p_mid,
+                        extra_t0_fill: None,
+                        partial_id:    None
+                    });
                 }
                 SupplyDemandResult::PartialFillEq { extra_fill_t0, id } => {
                     println!("solved based on sup, demand with partial order");
                     return Some(UcpSolution {
-                        ucp: p_mid,
+                        ucp:           p_mid,
                         extra_t0_fill: Some(extra_fill_t0),
-                        partial_id: Some(id),
+                        partial_id:    Some(id)
                     });
                 }
             }
@@ -411,10 +442,10 @@ impl<'a> DeltaMatcher<'a> {
 
 #[derive(Debug)]
 struct UcpSolution {
-    ucp: Ray,
+    ucp:           Ray,
     // true means supply
     extra_t0_fill: Option<I256>,
-    partial_id: Option<OrderId>,
+    partial_id:    Option<OrderId>
 }
 
 impl UcpSolution {
@@ -428,5 +459,5 @@ pub enum SupplyDemandResult {
     MoreSupply,
     MoreDemand,
     NaturallyEqual,
-    PartialFillEq { extra_fill_t0: I256, id: OrderId },
+    PartialFillEq { extra_fill_t0: I256, id: OrderId }
 }
