@@ -98,25 +98,6 @@ where
         }
     }
 
-    /// Will make sure that the current round completes before shutting down.
-    pub async fn run_till_shutdown(mut self, sig: GracefulShutdown) {
-        let mut g = None;
-        tokio::select! {
-            _ = &mut self => {
-            }
-            cancel = sig => {
-                g = Some(cancel);
-            }
-        }
-
-        // ensure we shutdown properly.
-        if g.is_some() {
-            self.process_till_new_state().await;
-        }
-
-        drop(g);
-    }
-
     fn on_blockchain_state(&mut self, notification: CanonStateNotification, waker: Waker) {
         tracing::info!("got new block_chain state");
         let new_block = notification.tip();
@@ -178,6 +159,25 @@ where
 
             }
         }
+    }
+
+    /// Will make sure that the current round completes before shutting down.
+    pub async fn run_till_shutdown(mut self, sig: GracefulShutdown) {
+        let mut g = None;
+        tokio::select! {
+            _ = &mut self => {
+            }
+            cancel = sig => {
+                g = Some(cancel);
+            }
+        }
+
+        // ensure we shutdown properly.
+        if g.is_some() {
+            self.process_till_new_state().await;
+        }
+
+        drop(g);
     }
 }
 
