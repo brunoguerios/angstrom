@@ -22,6 +22,7 @@ use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_provider::{CanonStateNotification, CanonStateNotifications};
+use reth_tasks::shutdown::GracefulShutdown;
 use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
@@ -97,6 +98,25 @@ where
         }
     }
 
+    /// Will make sure that the current round completes before shutting down.
+    pub async fn run_till_shutdown(mut self, sig: GracefulShutdown) {
+        let mut g = None;
+        tokio::select! {
+            _ = &mut self => {
+            }
+            cancel = sig => {
+                g = Some(cancel);
+            }
+        }
+
+        // ensure we shutdown properly.
+        if g.is_some() {
+            self.process_till_new_state().await;
+        }
+
+        drop(g);
+    }
+
     fn on_blockchain_state(&mut self, notification: CanonStateNotification, waker: Waker) {
         tracing::info!("got new block_chain state");
         let new_block = notification.tip();
@@ -140,6 +160,23 @@ where
             ConsensusMessage::PropagatePreProposalAgg(p) => self
                 .network
                 .broadcast_message(StromMessage::PreProposeAgg(p))
+        }
+    }
+
+    async fn process_till_new_state(mut self) {
+        loop {
+            tokio::select! {
+                Some(Ok(_)) = &mut self.canonical_block_stream.next() => {
+                    break;
+                }
+                Some(msg) = &mut self.strom_consensus_event.next() => {
+                    self.on_network_event(msg);
+                }
+                Some(msg) = &mut self.consensus_round_state.next() => {
+                    self.on_round_event(msg);
+                }
+
+            }
         }
     }
 }
