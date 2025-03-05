@@ -2,31 +2,23 @@ use std::{fmt::Debug, pin::Pin, sync::Arc};
 
 use alloy::{
     primitives::{Address, U256},
-    sol_types::{SolCall, SolValue}
+    sol_types::SolCall
 };
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
-#[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
-use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
 use eyre::eyre;
 use futures::Future;
 use pade::PadeEncode;
 use revm::{
     db::CacheDB,
     inspector_handle_register,
-    primitives::{EnvWithHandlerCfg, TxKind, keccak256}
+    primitives::{EnvWithHandlerCfg, TxKind}
 };
 use tokio::runtime::Handle;
-use tracing::trace;
 
 use crate::{
     common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
-    order::{
-        sim::console_log::CallDataInspector,
-        state::db_state_utils::finders::{
-            find_slot_offset_for_approval, find_slot_offset_for_balance
-        }
-    }
+    order::sim::console_log::CallDataInspector
 };
 
 pub mod validator;
@@ -59,6 +51,10 @@ where
     ) where
         <DB as revm::DatabaseRef>::Error: Debug
     {
+        use alloy::sol_types::SolValue;
+        use revm::primitives::keccak256;
+
+        use crate::order::state::db_state_utils::finders::*;
         // Find the slot for balance and approval for us to take from Uniswap
         let balance_slot = find_slot_offset_for_balance(&db, token);
         let approval_slot = find_slot_offset_for_approval(&db, token);
@@ -91,7 +87,7 @@ where
     ) {
         let node_address = self.node_address;
         let angstrom_address = self.angstrom_address;
-        let mut db = self.db.clone();
+        let db = self.db.clone();
 
         let conversion_lookup = price_gen.generate_lookup_map();
 
@@ -99,13 +95,17 @@ where
 
             #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
             {
+                use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
+                use alloy::sol_types::SolValue;
+
+                let mut db = db.clone();
                 let overrides = bundle.fetch_needed_overrides(number + 1);
                 for (token, slot, value) in overrides.into_slots_with_overrides(angstrom_address) {
-                    trace!(?token, ?slot, ?value, "Inserting bundle override");
+                    tracing::trace!(?token, ?slot, ?value, "Inserting bundle override");
                     db.insert_account_storage(token, slot.into(), value).unwrap();
                 }
                 for asset in bundle.assets.iter() {
-                    trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?TESTNET_POOL_MANAGER_ADDRESS, ?angstrom_address, "Inserting asset override");
+                    tracing::trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?TESTNET_POOL_MANAGER_ADDRESS, ?angstrom_address, "Inserting asset override");
                     Self::apply_slot_overrides_for_token(
                         &mut db,
                         asset.addr,
