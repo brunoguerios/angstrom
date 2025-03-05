@@ -96,7 +96,6 @@ where
             #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
             {
                 use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
-                use alloy::sol_types::SolValue;
 
                 let mut db = db.clone();
                 let overrides = bundle.fetch_needed_overrides(number + 1);
