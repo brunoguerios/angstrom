@@ -24,6 +24,8 @@ use super::{
     rewards::PoolUpdate,
     tob::ToBOutcome
 };
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
@@ -38,8 +40,7 @@ use crate::{
         RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
-    },
-    testnet::TestnetStateOverrides
+    }
 };
 
 mod order;

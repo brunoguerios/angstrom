@@ -32,30 +32,35 @@ impl SubmitTx for AnvilSubmissionProvider {
             // decoded encoded payload, then apply all mock approvals + balances for the
             // given token
 
-            let data_vec = tx.input.input.clone().unwrap().to_vec();
-            let slice = data_vec.as_slice();
-            // problem is we have abi enocded as bytes so we need to unabi incode
-            let bytes = Angstrom::executeCall::abi_decode(slice, true)
-                .unwrap()
-                .encoded;
-            let vecd = bytes.to_vec();
-            let mut slice = vecd.as_slice();
+            #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+            {
+                let data_vec = tx.input.input.clone().unwrap().to_vec();
+                let slice = data_vec.as_slice();
+                // problem is we have abi enocded as bytes so we need to unabi incode
+                let bytes = Angstrom::executeCall::abi_decode(slice, true)
+                    .unwrap()
+                    .encoded;
 
-            let bundle = AngstromBundle::pade_decode(&mut slice, None).unwrap();
-            let block = self.provider.get_block_number().await.unwrap() + 1;
-            let order_overrides = bundle.fetch_needed_overrides(block);
-            let angstrom_address = *tx.to.as_ref().unwrap().to().unwrap();
+                let vecd = bytes.to_vec();
+                let mut slice = vecd.as_slice();
 
-            let _ =
-                futures::stream::iter(order_overrides.into_slots_with_overrides(angstrom_address))
-                    .then(|(token, slot, value)| async move {
-                        self.provider
-                            .anvil_set_storage_at(token, slot.into(), value.into())
-                            .await
-                            .expect("failed to use anvil_set_storage_at");
-                    })
-                    .collect::<Vec<_>>()
-                    .await;
+                let bundle = AngstromBundle::pade_decode(&mut slice, None).unwrap();
+                let block = self.provider.get_block_number().await.unwrap() + 1;
+                let order_overrides = bundle.fetch_needed_overrides(block);
+                let angstrom_address = *tx.to.as_ref().unwrap().to().unwrap();
+
+                let _ = futures::stream::iter(
+                    order_overrides.into_slots_with_overrides(angstrom_address)
+                )
+                .then(|(token, slot, value)| async move {
+                    self.provider
+                        .anvil_set_storage_at(token, slot.into(), value.into())
+                        .await
+                        .expect("failed to use anvil_set_storage_at");
+                })
+                .collect::<Vec<_>>()
+                .await;
+            }
 
             let tx = tx.build(&signer).await.unwrap();
 

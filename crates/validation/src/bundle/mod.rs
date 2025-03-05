@@ -5,10 +5,9 @@ use alloy::{
     sol_types::{SolCall, SolValue}
 };
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::{
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    primitive::TESTNET_POOL_MANAGER_ADDRESS
-};
+use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
+#[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
+use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
 use eyre::eyre;
 use futures::Future;
 use pade::PadeEncode;
