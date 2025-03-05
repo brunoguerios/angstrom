@@ -104,3 +104,4 @@ tracing-subscriber.workspace = true
 default = ["testnet"]
 reth-db-dep-tests = []
 testnet = []
+testnet-sepolia = []

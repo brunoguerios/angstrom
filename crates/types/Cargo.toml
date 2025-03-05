@@ -60,6 +60,7 @@ angstrom-types.workspace = true
 [features]
 default = ["serde", "testnet"]
 testnet = ["dep:rand"]
+testnet-sepolia = ["dep:rand"]
 # serde = ["dep:serde", "alloy-primitives/serde"]
 serde = ["dep:serde"]
 anvil = []

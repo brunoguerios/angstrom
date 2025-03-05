@@ -50,6 +50,7 @@ where
         Self { db: CacheDB::new(db), angstrom_address, node_address }
     }
 
+    #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
     fn apply_slot_overrides_for_token(
         db: &mut CacheDB<Arc<DB>>,
         token: Address,
@@ -96,20 +97,24 @@ where
         let conversion_lookup = price_gen.generate_lookup_map();
 
         thread_pool.spawn_raw(Box::pin(async move {
-            let overrides = bundle.fetch_needed_overrides(number + 1);
-            for (token, slot, value) in overrides.into_slots_with_overrides(angstrom_address) {
-                trace!(?token, ?slot, ?value, "Inserting bundle override");
-                db.insert_account_storage(token, slot.into(), value).unwrap();
-            }
-            for asset in bundle.assets.iter() {
-                trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?TESTNET_POOL_MANAGER_ADDRESS, ?angstrom_address, "Inserting asset override");
-                Self::apply_slot_overrides_for_token(
-                    &mut db,
-                    asset.addr,
-                    U256::from(asset.take),
-                    TESTNET_POOL_MANAGER_ADDRESS,
-                    angstrom_address
-                );
+
+            #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+            {
+                let overrides = bundle.fetch_needed_overrides(number + 1);
+                for (token, slot, value) in overrides.into_slots_with_overrides(angstrom_address) {
+                    trace!(?token, ?slot, ?value, "Inserting bundle override");
+                    db.insert_account_storage(token, slot.into(), value).unwrap();
+                }
+                for asset in bundle.assets.iter() {
+                    trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?TESTNET_POOL_MANAGER_ADDRESS, ?angstrom_address, "Inserting asset override");
+                    Self::apply_slot_overrides_for_token(
+                        &mut db,
+                        asset.addr,
+                        U256::from(asset.take),
+                        TESTNET_POOL_MANAGER_ADDRESS,
+                        angstrom_address
+                    );
+                }
             }
             metrics.simulate_bundle(|| {
                 let bundle = bundle.pade_encode();
