@@ -1,8 +1,10 @@
 use std::{future::Future, pin::Pin};
 
+use alloy_primitives::{Address, keccak256};
 use angstrom_network::{StromMessage, manager::StromConsensusEvent};
 use angstrom_types::{
     consensus::{PreProposal, Proposal},
+    primitive::PeerId,
     sol_bindings::grouped_orders::AllOrders
 };
 use reth_chainspec::Hardforks;
@@ -61,7 +63,10 @@ where
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::Propose(proposal.clone()),
-                StromConsensusEvent::Proposal(testnet.get_peer(0).peer_id(), proposal)
+                StromConsensusEvent::Proposal(
+                    peer_id_to_addr(testnet.get_peer(0).peer_id()),
+                    proposal
+                )
             ))
         };
         self.add_checked_action("send propose", f);
@@ -72,7 +77,10 @@ where
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::PrePropose(preproposal.clone()),
-                StromConsensusEvent::PreProposal(testnet.get_peer(0).peer_id(), preproposal)
+                StromConsensusEvent::PreProposal(
+                    peer_id_to_addr(testnet.get_peer(0).peer_id()),
+                    preproposal
+                )
             ))
         };
         self.add_checked_action("send prepropose", f);
@@ -84,4 +92,8 @@ where
     F: Future<Output = eyre::Result<bool>> + Send + Sync + 'a
 {
     Box::pin(fut)
+}
+
+pub fn peer_id_to_addr(id: PeerId) -> Address {
+    Address::try_from(&keccak256(id)[12..]).unwrap()
 }
