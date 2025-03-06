@@ -64,12 +64,9 @@ impl AngstromBundle {
 
     #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
-        use crate::primitive::ANGSTROM_DOMAIN;
-
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
 
-        tracing::info!(domain=?ANGSTROM_DOMAIN);
         // user orders
         self.user_orders.iter().for_each(|order| {
             let token = if order.zero_for_one {
