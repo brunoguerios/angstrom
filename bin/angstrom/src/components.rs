@@ -24,6 +24,7 @@ use angstrom_types::{
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
     primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
+    reth_db_provider::RethDbLayer,
     reth_db_wrapper::RethDbWrapper
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
@@ -39,7 +40,7 @@ use reth::{
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
 use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAddOns};
-use reth_provider::BlockReader;
+use reth_provider::{BlockReader, DatabaseProviderFactory, TryIntoHistoricalStateProvider};
 use tokio::sync::mpsc::{
     Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel
 };
@@ -154,10 +155,14 @@ pub async fn initialize_strom_components<Node, AddOns>(
             Block = reth::primitives::Block,
             Receipt = reth::primitives::Receipt,
             Header = reth::primitives::Header
-        >,
-    AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>
+        > + DatabaseProviderFactory,
+    AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
+    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider:
+        TryIntoHistoricalStateProvider,
+    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader
 {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
+
     let node_address = signer.address();
 
     // NOTE:
@@ -166,6 +171,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
     // so it will be quicker than rpc + won't be bounded by the rpc threadpool.
     let querying_provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
         .with_recommended_fillers()
+        .layer(RethDbLayer::new(node.provider().clone()))
+        // backup
         .on_builtin(node.rpc_server_handle().ws_url().unwrap().as_str())
         .await
         .unwrap()
