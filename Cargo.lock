@@ -1760,6 +1760,7 @@ dependencies = [
  "pade",
  "pade-macro",
  "rand 0.8.5",
+ "reth",
  "reth-chainspec 1.2.2",
  "reth-ethereum-primitives",
  "reth-network-peers 1.2.2",
