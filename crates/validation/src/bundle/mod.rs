@@ -115,8 +115,6 @@ where
                 }
             }
 
-
-
             metrics.simulate_bundle(|| {
 
                 let bundle = bundle.pade_encode();
