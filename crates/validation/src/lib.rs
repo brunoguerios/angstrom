@@ -44,8 +44,7 @@ pub fn init_validation<
     price_generator: TokenPriceGenerator,
     pool_store: Arc<AngstromPoolConfigStore>,
     validator_rx: UnboundedReceiver<ValidationRequest>
-) -> std::thread::JoinHandle<()>
-where
+) where
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     let current_block = Arc::new(AtomicU64::new(current_block));
@@ -79,5 +78,5 @@ where
         rt.block_on(async {
             Validator::new(validator_rx, order_validator, bundle_validator, shared_utils).await
         })
-    })
+    });
 }

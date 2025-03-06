@@ -144,24 +144,6 @@ where
         }
     }
 
-    async fn process_till_new_state(mut self) {
-        loop {
-            tokio::select! {
-                Some(Ok(_)) = &mut self.canonical_block_stream.next() => {
-                    break;
-                }
-                Some(msg) = &mut self.strom_consensus_event.next() => {
-                    self.on_network_event(msg);
-                }
-                Some(msg) = &mut self.consensus_round_state.next() => {
-                    self.on_round_event(msg);
-                }
-
-            }
-        }
-    }
-
-    /// Will make sure that the current round completes before shutting down.
     pub async fn run_till_shutdown(mut self, sig: GracefulShutdown) {
         let mut g = None;
         tokio::select! {
@@ -174,11 +156,17 @@ where
 
         // ensure we shutdown properly.
         if g.is_some() {
-            self.process_till_new_state().await;
+            self.cleanup().await;
         }
 
         drop(g);
     }
+
+    /// Currently this doesn't do much. However,
+    /// once we start adding slashing. this will be critical in storing
+    /// all of our evidence.
+    #[allow(unused)]
+    async fn cleanup(mut self) {}
 }
 
 impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>

@@ -251,7 +251,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
 
     let block_height = node.provider.best_block_number().unwrap();
 
-    let _handle = init_validation(
+    init_validation(
         RethDbWrapper::new(node.provider.clone()),
         block_height,
         node_config.angstrom_address,
@@ -326,7 +326,6 @@ pub async fn initialize_strom_components<Node, AddOns>(
     executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
         manager.run_till_shutdown(grace)
     });
-    // let _consensus_handle = executor.spawn_critical("consensus",
-    // Box::pin(manager)); ensure no more modules can be added to block sync.
+
     global_block_sync.finalize_modules();
 }

@@ -108,8 +108,19 @@ where
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
-        while let Poll::Ready(Some(req)) = self.rx.poll_recv(cx) {
-            self.on_new_validation_request(req);
+        loop {
+            match self.rx.poll_recv(cx) {
+                Poll::Ready(Some(req)) => {
+                    self.on_new_validation_request(req);
+                }
+                // we only check this here as we use this as the shutdown signal.
+                Poll::Ready(None) => {
+                    return Poll::Ready(());
+                }
+                _ => {
+                    break;
+                }
+            }
         }
 
         self.utils.poll_unpin(cx)
