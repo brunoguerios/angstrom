@@ -249,3 +249,5 @@ base64 = "0"
 base64-serde = "*"
 convert_case = "0"
 divan = "0"
+
+ring = "=0.17.12"

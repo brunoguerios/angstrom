@@ -72,6 +72,7 @@ where
             .unwrap();
     }
 
+    #[allow(unused_mut)]
     pub fn simulate_bundle(
         &self,
         sender: tokio::sync::oneshot::Sender<eyre::Result<BundleGasDetails>>,
@@ -87,7 +88,7 @@ where
     ) {
         let node_address = self.node_address;
         let angstrom_address = self.angstrom_address;
-        let db = self.db.clone();
+        let mut db = self.db.clone();
 
         let conversion_lookup = price_gen.generate_lookup_map();
 
@@ -97,7 +98,6 @@ where
             {
                 use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
 
-                let mut db = db.clone();
                 let overrides = bundle.fetch_needed_overrides(number + 1);
                 for (token, slot, value) in overrides.into_slots_with_overrides(angstrom_address) {
                     tracing::trace!(?token, ?slot, ?value, "Inserting bundle override");
@@ -114,7 +114,9 @@ where
                     );
                 }
             }
+
             metrics.simulate_bundle(|| {
+
                 let bundle = bundle.pade_encode();
                 let mut console_log_inspector = CallDataInspector {};
 

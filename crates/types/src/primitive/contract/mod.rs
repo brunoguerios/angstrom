@@ -52,7 +52,11 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     verifying_contract: TESTNET_ANGSTROM_ADDRESS,
 );
 
-// odd cases that we need to handle
+// odd cases that we need to handle but should be unreachable.
+#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
+pub const TESTNET_ANGSTROM_ADDRESS: Address =
+    alloy::primitives::address!("293954613283cC7B82BfE9676D3cc0fb0A58fAa0");
+
 #[cfg(all(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
@@ -64,6 +68,8 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
     version: "v1",
     chain_id: 1,
+    verifying_contract: TESTNET_ANGSTROM_ADDRESS,
+
 );
 #[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
 pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
