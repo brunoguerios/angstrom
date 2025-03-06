@@ -204,7 +204,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
             pool_storage,
-            strom_handles.pool_manager_tx
+            strom_handles.pool_manager_tx,
+            block_number
         );
 
         let rpc_port = node_config.strom_rpc_port();

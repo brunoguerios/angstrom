@@ -164,10 +164,9 @@ pub async fn initialize_strom_components<Node, AddOns>(
     // no key is installed and this is strictly for internal usage. Realsically, we
     // should build a alloy provider impl that just uses the raw underlying db
     // so it will be quicker than rpc + won't be bounded by the rpc threadpool.
-
     let querying_provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
         .with_recommended_fillers()
-        .on_builtin(node.rpc_server_handle().http_url().unwrap().as_str())
+        .on_builtin(node.rpc_server_handle().ws_url().unwrap().as_str())
         .await
         .unwrap()
         .into();
@@ -244,7 +243,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     .await;
 
     let uniswap_pools = uniswap_pool_manager.pools();
-    executor.spawn(Box::pin(uniswap_pool_manager));
+    executor.spawn_critical("uniswap pool manager", Box::pin(uniswap_pool_manager));
     let price_generator =
         TokenPriceGenerator::new(querying_provider.clone(), block_id, uniswap_pools.clone(), None)
             .await
@@ -292,7 +291,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
         handles.orderpool_tx,
         handles.orderpool_rx,
         angstrom_pool_tracker,
-        handles.pool_manager_tx
+        handles.pool_manager_tx,
+        block_id
     );
 
     // TODO load the stakes from Eigen using node.provider
@@ -323,7 +323,9 @@ pub async fn initialize_strom_components<Node, AddOns>(
         global_block_sync.clone()
     );
 
-    let _consensus_handle = executor.spawn_critical("consensus", Box::pin(manager));
-    // ensure no more modules can be added to block sync.
+    executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
+        manager.run_till_shutdown(grace)
+    });
+
     global_block_sync.finalize_modules();
 }

@@ -162,8 +162,8 @@ where
 
 impl<P, BlockSync, Loader, A> UniswapPoolManager<P, BlockSync, Loader, A>
 where
-    A: Eq + Hash + Debug + Default + Copy + Sync + Send + 'static,
-    Loader: PoolDataLoader<A> + Default + Clone + Send + Sync + 'static,
+    A: Eq + Hash + Debug + Default + Copy + Sync + Send + Unpin + 'static,
+    Loader: PoolDataLoader<A> + Default + Clone + Send + Sync + Unpin + 'static,
     BlockSync: BlockSyncConsumer,
     P: PoolManagerProvider + Send + Sync + 'static
 {

@@ -182,7 +182,8 @@ where
         tx: UnboundedSender<OrderCommand>,
         rx: UnboundedReceiver<OrderCommand>,
         pool_storage: AngstromPoolsTracker,
-        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
+        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
+        block_number: u64
     ) -> PoolHandle {
         let rx = UnboundedReceiverStream::new(rx);
         let order_storage = self
@@ -193,7 +194,7 @@ where
         let inner = OrderIndexer::new(
             self.validator.clone(),
             order_storage.clone(),
-            0,
+            block_number,
             pool_manager_tx.clone(),
             pool_storage
         );
