@@ -52,7 +52,7 @@ angstrom-network.workspace = true
 angstrom-eth.workspace = true
 angstrom-rpc.workspace = true
 angstrom.workspace = true
-testing-tools.workspace = true
+testing-tools = { workspace = true, features = ["testnet"] }
 order-pool.workspace = true
 validation = { workspace = true, features = ["testnet"] }
 angstrom-metrics.workspace = true
