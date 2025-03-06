@@ -2,7 +2,7 @@ use alloy_primitives::{I256, U256};
 use angstrom_types::{
     contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
-        SqrtPriceX96, add_t0_bid_fee, sub_t0_ask_fee,
+        SqrtPriceX96, get_quantities_at_price,
         uniswap::{Direction, PoolPrice, PoolPriceVec}
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
@@ -244,55 +244,18 @@ impl<'a> DeltaMatcher<'a> {
         fee: u128,
         ray_ucp: Ray
     ) -> (u128, u128) {
-        match (order.is_bid(), order.exact_in()) {
-            // ExactIn Bid - fill_amount is the exact amount of T1 being input to get a T0 output
-            (true, true) => (
-                // The amount of T1 input is constant for this order
-                fill_amount,
-                // am out - round down because we'll always try to give you less
-                // The amount of liquidity consumed by this order is the amount of T0 that we can
-                // purchase at the UCP plus the overall gas cost.  This ends up being (t0_output +
-                // fee + gas) as the contract will send the reduced sum back to the user after
-                // adjusting the UCP
-                ray_ucp.inverse_quantity(fill_amount, false) + order.priority_data.gas.to::<u128>()
-            ),
-            // ExactOut Bid - fill amount is the exact amount of T0 being output for a T1 input
-            (true, false) => {
-                // The total t0 you need to buy such that your output is the exact output amount
-                // = the exact output amount divided by the fee factor
-                let total_t0_purchased =
-                    add_t0_bid_fee(fill_amount, fee) + order.priority_data.gas.to::<u128>();
-                // Round up because we'll always ask you to pay more
-                // Total T0 consumed is exact_out + fee + gas.  We only send exact_out back to
-                // the user, but we need our fee and gas in T0 so we have to consume that from
-                // the market
-                (ray_ucp.quantity(total_t0_purchased, true), total_t0_purchased)
-            }
-            // ExactIn Ask - fill amount is the exact amount of T0 being input for a T1 output
-            (false, true) => {
-                // Total incoming T0 liquidity added to the market is the fill amount minus the
-                // gas and shifted for fee
-                let net_t0_sold = sub_t0_ask_fee(
-                    fill_amount.saturating_sub(order.priority_data.gas.to::<u128>()),
-                    fee
-                );
-                (
-                    net_t0_sold,
-                    // Total T1 returned is as if we only sold the net t0
-                    ray_ucp.quantity(net_t0_sold, false)
-                )
-            }
-            // ExactOut Ask - fill amount is the exact amount of T1 expected out for a given T0
-            // input
-            (false, false) => (
-                // Total incoming T0 liquidity is the amount of T0 that can be sold at UCP to hit
-                // the ExactOut T1 quantity.  The contract will pull in the additional T0 to cover
-                // fee and gas, but that never enters the market.
-                ray_ucp.inverse_quantity(fill_amount, true),
-                // Total T1 output is the precise amount needed to fill the order
-                fill_amount
-            )
-        }
+        let is_bid = order.is_bid();
+        let exact_in = order.exact_in();
+        let gas = order.priority_data.gas.to::<u128>();
+        let (t1, t0_net, t0_fee) =
+            get_quantities_at_price(is_bid, exact_in, fill_amount, gas, fee, ray_ucp);
+
+        // If our order is a bid, our T1 entirely enters the market for liquidity but we
+        // have to consume t0_net, t0_fee and gas from the market as we convert the
+        // incoming T1 into T0.  For asks, because our fee and gas are taken from the
+        // incoming T0, only t0_net enters the market as liquidity.  The entire t1
+        // quantity exits.
+        if is_bid { (t1, t0_net + t0_fee + gas) } else { (t0_net, t1) }
     }
 
     /// helper functions for grabbing all orders that we filled at ucp

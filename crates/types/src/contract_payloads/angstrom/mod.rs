@@ -31,7 +31,7 @@ use crate::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::rewards::RewardsUpdate,
     matching::{
-        Ray,
+        Ray, get_quantities_at_price,
         uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity}
     },
     orders::{OrderFillState, OrderOutcome, PoolSolution},
@@ -639,44 +639,26 @@ impl AngstromBundle {
 
             let fill_amount = outcome.fill_amount(order.max_q());
 
+            let fee = 0;
+            let gas = order.priority_data.gas.to::<u128>();
+            let (t1, t0_net, t0_fee) = get_quantities_at_price(
+                order.is_bid(),
+                order.exact_in(),
+                fill_amount,
+                gas,
+                fee,
+                ray_ucp
+            );
+
             // we don't account for the gas here in these quantites as the order
-            let (quantity_in, quantity_out) = match (order.is_bid(), order.exact_in()) {
-                // fill_amount is the exact amount of T1 being input to get a T0 output
-                (true, true) => (
-                    // am in
-                    fill_amount,
-                    // am out - round down because we'll always try to give you less
-                    inverse_ray_ucp.quantity(fill_amount, false)
-                        - order.priority_data.gas.to::<u128>()
-                ),
-                // fill amount is the exact amount of T0 being output for a T1 input
-                (true, false) => {
-                    // Round up because we'll always ask you to pay more
-                    (
-                        // ray_ucp.quantity(fill_amount + order.priority_data.gas.to::<u128>(),
-                        // true),
-                        inverse_ray_ucp.inverse_quantity(
-                            fill_amount + order.priority_data.gas.to::<u128>(),
-                            true
-                        ),
-                        fill_amount
-                    )
-                }
-                // fill amount is the exact amount of T0 being input for a T1 output
-                (false, true) => {
-                    // Round down because we'll always try to give you less
-                    (
-                        fill_amount,
-                        ray_ucp.quantity(fill_amount - order.priority_data.gas.to::<u128>(), false)
-                    )
-                }
-                // fill amount is the exact amount of T1 expected out for a given T0 input
-                (false, false) => (
-                    // Round up because we'll always ask you to pay more
-                    ray_ucp.inverse_quantity(fill_amount, true)
-                        + order.priority_data.gas.to::<u128>(),
-                    fill_amount
-                )
+            let (quantity_in, quantity_out) = if order.is_bid() {
+                // If the order is a bid, we're getting all our T1 in and we're sending t0_net
+                // back to the contract
+                (t1, t0_net)
+            } else {
+                // If the order is an ask, we're getting t0_net + t0_fee + gas in and we're
+                // sending t1 back to the contract
+                (t0_net + t0_fee + gas, t1)
             };
 
             trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");

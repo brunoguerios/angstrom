@@ -1,6 +1,6 @@
 use std::{
     ops::{Add, Deref},
-    sync::OnceLock,
+    sync::OnceLock
 };
 
 use alloy::primitives::U256;
@@ -11,15 +11,13 @@ pub mod debt;
 pub use debt::{Debt, DebtType};
 pub mod match_estimate_response;
 mod math;
-pub use math::add_t0_bid_fee;
-pub use math::max_t1_for_t0;
-pub use math::sub_t0_ask_fee;
+pub use math::{add_t0_bid_fee, get_quantities_at_price, max_t1_for_t0, sub_t0_ask_fee};
 mod sqrtprice;
 mod tokens;
 pub mod uniswap;
 use malachite::{
     Natural,
-    num::{arithmetic::traits::PowerOf2, conversion::traits::FromSciString},
+    num::{arithmetic::traits::PowerOf2, conversion::traits::FromSciString}
 };
 pub use sqrtprice::SqrtPriceX96;
 pub use tokens::TokenQuantity;
@@ -54,7 +52,7 @@ pub fn const_2_96() -> &'static Natural {
 
 pub enum BookSide {
     Bid,
-    Ask,
+    Ask
 }
 
 /// Internal price representation used in the matching engine.

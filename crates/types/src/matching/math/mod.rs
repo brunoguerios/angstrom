@@ -40,6 +40,90 @@ pub fn sub_t0_ask_fee(quantity: u128, fee: u128) -> u128 {
     (&res).saturating_into()
 }
 
+/// Output should be:
+/// (t1 liquidity change, t0 allocated to order fulfillment post-gas, t0
+/// allocated to fee)
+pub fn get_quantities_at_price(
+    is_bid: bool,
+    exact_in: bool,
+    fill_amount: u128,
+    gas: u128,
+    fee: u128,
+    ray_ucp: Ray
+) -> (u128, u128, u128) {
+    // Recreate our calculation that we do in the contract to make sure the numbers
+    // all check out
+
+    match (is_bid, exact_in) {
+        // ExactIn Bid - fill_amount is the exact amount of T1 being input to get a T0 output
+        (true, true) => {
+            // Invert our price because we're working with a bid
+            let bid_price = ray_ucp.inv_ray();
+            // Find the fee price
+            let bid_fee_price = bid_price.scale_to_fee(fee);
+
+            // The total amount of t0 exchanged at UCP for the input T1
+            let exchanged_t0 = bid_price.quantity(fill_amount, false);
+            // The amount of T0 post-fee that will be the output of this order (gas is
+            // subtracted from this)
+            let net_t0 = bid_fee_price.quantity(fill_amount, false);
+            let contract_t0 = exchanged_t0.saturating_sub(net_t0);
+            (fill_amount, net_t0.saturating_sub(gas), contract_t0)
+        }
+        // ExactOut Bid - fill amount is the exact amount of T0 being output for a T1 input
+        (true, false) => {
+            // Invert our price because we're working with a bid
+            let bid_price = ray_ucp.inv_ray();
+            // Find the fee price
+            let bid_fee_price = bid_price.scale_to_fee(fee);
+
+            // Find out how much T1 it would take to purchase the ExactOut quantity and gas
+            // post-fee
+            let t1_required = bid_fee_price.inverse_quantity(fill_amount + gas, true);
+            // Find out how much that T0 that T1 could have purchased at the base UCP
+            let total_t0_purchased = bid_price.quantity(t1_required, false);
+            // Use the difference between the two to calculate the fee in T0
+            let contract_t0 = total_t0_purchased.saturating_sub(fill_amount + gas);
+            (t1_required, fill_amount, contract_t0)
+        }
+        // ExactIn Ask - fill amount is the exact amount of T0 being input for a T1 output
+        (false, true) => {
+            // Get our adjusted fee price
+            let ask_fee_price = ray_ucp.scale_to_fee(fee);
+
+            // Find the amount of T1 we will return to the user
+            let net_t1_out = ask_fee_price.quantity(fill_amount.saturating_sub(gas), false);
+
+            // The amount of T0 you could buy with that T1 at UCP is the net T0 sold
+            let net_t0_sold = ray_ucp.inverse_quantity(net_t1_out, true);
+
+            // The contract fee is TotalT0 - Gas - NetT0Sold
+            let contract_t0 = fill_amount.saturating_sub(gas).saturating_sub(net_t0_sold);
+
+            (net_t1_out, net_t0_sold, contract_t0)
+        }
+        // ExactOut Ask - fill amount is the exact amount of T1 expected out for a given T0
+        // input
+        (false, false) => {
+            // Get our adjusted fee price
+            let ask_fee_price = ray_ucp.scale_to_fee(fee);
+
+            // fill_amount is the exact amount of T1 we want to move
+
+            // This is the total t0 input - net + fee + gas
+            let total_t0_input = ask_fee_price.inverse_quantity(fill_amount, true) + gas;
+
+            // How much T0 would it have cost to fill this T1 at the more advantageous price
+            // (net only)
+            let net_t0 = ray_ucp.inverse_quantity(fill_amount, true);
+
+            let contract_fee = total_t0_input.saturating_sub(gas).saturating_sub(net_t0);
+
+            (fill_amount, net_t0, contract_fee)
+        }
+    }
+}
+
 /// Given a quantity of input T0 as well as an AMM with constant liquidity and a
 /// debt that are at the same initial price, this will find the amount of T0 out
 /// of the total input amount that should be given to the AMM and the debt in
@@ -337,5 +421,92 @@ mod tests {
         println!("AMM portion: {}", amm_portion);
         let debt_portion = total_input - amm_portion;
         println!("Debt portion: {}", debt_portion);
+    }
+
+    #[test]
+    fn get_amount_at_price_test() {
+        let ray_ucp = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
+        let res = get_quantities_at_price(
+            true,
+            true,
+            1_000_000_000_000_000_000_u128,
+            10,
+            100000_u128,
+            ray_ucp
+        );
+
+        assert_eq!(
+            res.0, 1_000_000_000_000_000_000_u128,
+            "Input quantity not aligned for ExactIn Bid"
+        );
+
+        assert_eq!(
+            res.1 + res.2 + 10,
+            ray_ucp.inverse_quantity(res.0, false),
+            "Unbalanced numbers in ExactIn Bid"
+        );
+
+        let res = get_quantities_at_price(
+            true,
+            false,
+            1_000_000_000_000_000_000_u128,
+            10,
+            100000_u128,
+            ray_ucp
+        );
+
+        assert_eq!(
+            res.1, 1_000_000_000_000_000_000_u128,
+            "Didn't receive right quantity of T0 for ExactOut Bid"
+        );
+
+        assert_eq!(
+            res.1 + res.2 + 10,
+            ray_ucp.inverse_quantity(res.0, false),
+            "Unbalanced numbers in ExactOut Bid"
+        );
+
+        let res = get_quantities_at_price(
+            false,
+            true,
+            1_000_000_000_000_000_000_u128,
+            10,
+            100000_u128,
+            ray_ucp
+        );
+
+        // Gas + Fee + Net == input quantity
+        assert_eq!(
+            res.1 + res.2 + 10,
+            1_000_000_000_000_000_000_u128,
+            "T0 outputs do not equal input for ExactIn Ask"
+        );
+        // Validate that you sold the rest at UCP
+        assert_eq!(
+            res.1,
+            ray_ucp.inverse_quantity(res.0, true),
+            "Unbalanced numbers in ExactIn Ask"
+        );
+
+        let res = get_quantities_at_price(
+            false,
+            false,
+            1_000_000_000_000_000_000_u128,
+            10,
+            100000_u128,
+            ray_ucp
+        );
+
+        assert_eq!(
+            res.0, 1_000_000_000_000_000_000_u128,
+            "Output numbers incorrect for ExactOut Ask"
+        );
+
+        // Gas + Fee + Net == input quantity
+        assert_eq!(
+            res.1,
+            ray_ucp.inverse_quantity(res.0, true),
+            "Unbalanced numbers in ExactOut Ask"
+        );
     }
 }
