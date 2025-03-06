@@ -1,13 +1,11 @@
 use alloy::{
     eips::{BlockId, BlockNumberOrTag},
-    primitives::{Address, U64},
+    primitives::{Address, Bytes, FixedBytes, StorageValue, U64, U256},
     providers::{Provider, ProviderCall, ProviderLayer, RootProvider, RpcWithBlock},
     rpc::client::NoParams,
     transports::TransportErrorKind
 };
 use eyre::Result;
-// use reth_node_ethereum::EthereumNode;
-// use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::{
     BlockNumReader, DatabaseProviderFactory, ProviderError, StateProvider,
     TryIntoHistoricalStateProvider
@@ -20,7 +18,6 @@ where
     db: DB
 }
 
-/// Initialize the `RethDBLayer` with the path to the reth datadir.
 impl<DB> RethDbLayer<DB>
 where
     DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone
@@ -134,6 +131,48 @@ where
             ProviderCall::ready(Ok(nonce))
         })
     }
+
+    fn get_storage_at(
+        &self,
+        address: Address,
+        key: U256
+    ) -> RpcWithBlock<(Address, U256), StorageValue> {
+        let this = self.factory().clone();
+
+        RpcWithBlock::new_provider(move |block_id| {
+            let provider = this
+                .provider_at(block_id)
+                .map_err(TransportErrorKind::custom)
+                .unwrap();
+
+            ProviderCall::ready(
+                provider
+                    .storage(address, FixedBytes::from(key))
+                    .map(|v| v.unwrap_or_default())
+                    .map_err(TransportErrorKind::custom)
+            )
+        })
+    }
+
+    fn get_code_at(&self, address: Address) -> RpcWithBlock<Address, Bytes> {
+        let this = self.factory().clone();
+
+        RpcWithBlock::new_provider(move |block_id| {
+            let provider = this
+                .provider_at(block_id)
+                .map_err(TransportErrorKind::custom)
+                .unwrap();
+
+            ProviderCall::ready(
+                provider
+                    .account_code(&address)
+                    .map(|f| f.unwrap_or_default().bytecode().clone())
+                    .map_err(TransportErrorKind::custom)
+            )
+        })
+    }
+
+    // TODO: eth_call, raw_call
 }
 
 /// A helper type to get the appropriate DB provider.
