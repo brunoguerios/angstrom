@@ -23,6 +23,10 @@ const TARGET_SUBMISSION_TIME_REM: Duration = Duration::from_millis(800);
 const ETH_BLOCK_TIME: Duration = Duration::from_secs(12);
 /// The amount of the difference we scale by to reach
 const SCALING_REM_ADJUSTMENT: u32 = 3;
+/// Minimum wait time before consensus starts (in seconds)
+const MIN_WAIT_DURATION: f64 = 6.0;
+/// Maximum wait time before consensus starts (in seconds)
+const MAX_WAIT_DURATION: f64 = 10.0;
 
 /// When we should trigger to build our pre-proposals
 /// this is very important for maximizing how long we can
@@ -83,18 +87,15 @@ impl PreProposalWaitTrigger {
         let base = ETH_BLOCK_TIME - TARGET_SUBMISSION_TIME_REM;
 
         if info.time_to_complete < base && self.wait_duration < base {
-            // if we overestimated the time, we will push our trigger back
             self.wait_duration += (base - info.time_to_complete) / SCALING_REM_ADJUSTMENT;
         } else {
-            // otherwise if we underestimated, we will move back
             self.wait_duration -= (info.time_to_complete - base) * SCALING_REM_ADJUSTMENT;
         }
 
-        let mills = self.wait_duration.as_millis();
-        tracing::info!(
-            trigger = mills,
-            "updated wait duration to trigger building!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        );
+        self.wait_duration = sigmoid_clamp(self.wait_duration);
+
+        let millis = self.wait_duration.as_millis();
+        tracing::info!(trigger = millis, "Updated wait duration to trigger building");
     }
 }
 
@@ -129,4 +130,18 @@ impl Future for PreProposalWaitTrigger {
 pub struct LastRoundInfo {
     /// the start of the round to submitting the bundle
     pub time_to_complete: Duration
+}
+
+/// Sigmoid function to clamp the wait time between [`MIN_WAIT_DURATION`] and
+/// [`MAX_WAIT_DURATION`].
+#[inline(always)]
+fn sigmoid_clamp(x: Duration) -> Duration {
+    const X_O: f64 = (MIN_WAIT_DURATION + MAX_WAIT_DURATION) / 2.0; // Center point
+    const K: f64 = 1.5; // Steepness of sigmoid
+
+    let x_secs = x.as_secs_f64();
+    let adjusted = MIN_WAIT_DURATION
+        + (MAX_WAIT_DURATION - MIN_WAIT_DURATION) / (1.0 + (-K * (x_secs - X_O)).exp());
+
+    Duration::from_secs_f64(adjusted)
 }
