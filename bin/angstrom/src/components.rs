@@ -220,8 +220,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         node_config.angstrom_deploy_block as usize,
         block_id as usize,
         node_config.angstrom_address,
-        &node.provider /* .try_into_history_at_block(block_id)
-                        * .unwrap(), */
+        &node.provider
     )
     .await;
 
