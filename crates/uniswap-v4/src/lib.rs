@@ -18,6 +18,7 @@ use reth_provider::{
     CanonStateNotifications, DatabaseProviderFactory, ReceiptProvider, StateProvider,
     TryIntoHistoricalStateProvider
 };
+use uniswap::pool_factory::V4PoolFactory;
 
 use crate::uniswap::{
     pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
@@ -120,43 +121,13 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
     update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
 ) -> UniswapPoolManager<
     CanonicalStateAdapter<impl Provider + 'static>,
-    BlockSync,
-    DataLoader<PoolId>,
-    PoolId
+    impl Provider + 'static,
+    BlockSync
 > {
-    let mut uniswap_pools: Vec<_> = uniswap_pool_registry
-        .pools()
-        .keys()
-        .map(|pool_id| {
-            let internal = uniswap_pool_registry.conversion_map.get(pool_id).unwrap();
-
-            let initial_ticks_per_side = 200;
-            EnhancedUniswapPool::new(
-                DataLoader::new_with_registry(
-                    *internal,
-                    uniswap_pool_registry.clone(),
-                    pool_manager_address
-                ),
-                initial_ticks_per_side
-            )
-        })
-        .collect();
-
-    for pool in uniswap_pools.iter_mut() {
-        pool.initialize(Some(current_block), provider.clone())
-            .await
-            .unwrap();
-    }
+    let factory = V4PoolFactory::new(provider.clone(), uniswap_pool_registry, pool_manager_address);
 
     let notifier =
         Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
 
-    UniswapPoolManager::new(
-        uniswap_pools,
-        uniswap_pool_registry.conversion_map,
-        current_block,
-        notifier,
-        block_sync,
-        update_stream
-    )
+    UniswapPoolManager::new(factory, current_block, notifier, block_sync, update_stream).await
 }

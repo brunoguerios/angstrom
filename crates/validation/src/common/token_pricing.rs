@@ -34,15 +34,12 @@ pub struct TokenPriceGenerator {
 impl TokenPriceGenerator {
     /// is a bit of a pain as we need todo a look-back in-order to grab last 5
     /// blocks.
-    pub async fn new<P: Provider, Loader>(
+    pub async fn new<P: Provider>(
         provider: Arc<P>,
         current_block: u64,
-        uni: SyncedUniswapPools<PoolId, Loader>,
+        uni: SyncedUniswapPools,
         blocks_to_avg_price_override: Option<u64>
-    ) -> eyre::Result<Self>
-    where
-        Loader: PoolDataLoader<PoolId> + Default + Clone + Send + Sync + 'static
-    {
+    ) -> eyre::Result<Self> {
         let mut pair_to_pool = HashMap::default();
         for (key, pool) in uni.iter() {
             let pool = pool.read().unwrap();

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use alloy::{
     dyn_abi::Eip712Domain,
     primitives::{Address, aliases::U24},
     sol,
-    sol_types::eip712_domain,
+    sol_types::eip712_domain
 };
 
 use crate::contract_bindings::angstrom::Angstrom::PoolKey;
@@ -77,9 +77,10 @@ pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
 
 #[derive(Debug, Default, Clone)]
 pub struct UniswapPoolRegistry {
-    pools: HashMap<PoolId, PoolKey>,
-    pub conversion_map: HashMap<PoolId, PoolId>,
+    pub pools:          HashMap<PoolId, PoolKey>,
+    pub conversion_map: HashMap<PoolId, PoolId>
 }
+
 impl UniswapPoolRegistry {
     pub fn get(&self, pool_id: &PoolId) -> Option<&PoolKey> {
         self.pools.get(pool_id)
@@ -89,6 +90,7 @@ impl UniswapPoolRegistry {
         self.pools.clone()
     }
 }
+
 impl From<Vec<PoolKey>> for UniswapPoolRegistry {
     fn from(pools: Vec<PoolKey>) -> Self {
         let pubmap = pools
