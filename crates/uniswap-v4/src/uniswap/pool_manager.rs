@@ -6,13 +6,13 @@ use std::{
     ops::Deref,
     pin::Pin,
     sync::{Arc, RwLock, RwLockReadGuard},
-    task::Poll
+    task::Poll,
 };
 
 use alloy::{
     primitives::{Address, BlockNumber},
     rpc::types::{Block, eth::Filter},
-    transports::{RpcError, TransportErrorKind}
+    transports::{RpcError, TransportErrorKind},
 };
 use alloy_primitives::Log;
 use angstrom_eth::manager::EthEvent;
@@ -21,7 +21,7 @@ use angstrom_types::{
     contract_payloads::tob::ToBOutcome,
     matching::uniswap::PoolSnapshot,
     primitive::PoolId,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 use arraydeque::ArrayDeque;
 use futures::Stream;
@@ -33,10 +33,10 @@ use super::{pool::PoolError, pool_providers::PoolMangerBlocks};
 use crate::uniswap::{
     pool::EnhancedUniswapPool,
     pool_data_loader::{DataLoader, PoolDataLoader},
-    pool_providers::PoolManagerProvider
+    pool_providers::PoolManagerProvider,
 };
 
-pub type StateChangeCache<Loader, A> = HashMap<A, ArrayDeque<StateChange<Loader, A>, 150>>;
+pub type StateChangeCache<A> = HashMap<A, ArrayDeque<StateChange<A>, 150>>;
 
 pub type SyncedUniswapPool<A = PoolId, Loader = DataLoader<A>> =
     Arc<RwLock<EnhancedUniswapPool<Loader, A>>>;
@@ -45,28 +45,28 @@ const MODULE_NAME: &str = "UniswapV4";
 
 #[derive(Debug, Clone, Copy)]
 pub struct TickRangeToLoad<A = PoolId> {
-    pub pool_id:    A,
+    pub pool_id: A,
     pub start_tick: i32,
-    pub zfo:        bool,
-    pub tick_count: u16
+    pub zfo: bool,
+    pub tick_count: u16,
 }
 
-type PoolMap<Loader, A> = Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<Loader, A>>>>>;
+type PoolMap<A> = Arc<HashMap<A, Arc<RwLock<EnhancedUniswapPool<DataLoader<A>, A>>>>>;
 
 #[derive(Clone)]
-pub struct SyncedUniswapPools<A = PoolId, Loader = DataLoader<A>>
+pub struct SyncedUniswapPools<A = PoolId>
 where
-    Loader: PoolDataLoader<A>
+    DataLoader<A>: PoolDataLoader<A>,
 {
-    pools: PoolMap<Loader, A>,
-    tx:    tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Arc<Notify>)>
+    pools: PoolMap<A>,
+    tx: tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Arc<Notify>)>,
 }
 
-impl<A, Loader> Deref for SyncedUniswapPools<A, Loader>
+impl<A> Deref for SyncedUniswapPools<A>
 where
-    Loader: PoolDataLoader<A>
+    DataLoader<A>: PoolDataLoader<A>,
 {
-    type Target = PoolMap<Loader, A>;
+    type Target = PoolMap<A>;
 
     fn deref(&self) -> &Self::Target {
         &self.pools
@@ -78,14 +78,14 @@ const OUT_OF_SCOPE_TICKS: u16 = 20;
 
 const ATTEMPTS: u8 = 5;
 
-impl<A, Loader> SyncedUniswapPools<A, Loader>
+impl<A> SyncedUniswapPools<A>
 where
-    Loader: PoolDataLoader<A> + Default,
-    A: Debug + Hash + PartialEq + Eq + Copy + Default
+    A: Debug + Hash + PartialEq + Eq + Copy + Default,
+    DataLoader<A>: PoolDataLoader<A>,
 {
     pub fn new(
-        pools: PoolMap<Loader, A>,
-        tx: tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Arc<Notify>)>
+        pools: PoolMap<A>,
+        tx: tokio::sync::mpsc::Sender<(TickRangeToLoad<A>, Arc<Notify>)>,
     ) -> Self {
         Self { pools, tx }
     }
@@ -97,7 +97,7 @@ where
     pub async fn calculate_rewards(
         &self,
         pool_id: A,
-        tob: &OrderWithStorageData<TopOfBlockOrder>
+        tob: &OrderWithStorageData<TopOfBlockOrder>,
     ) -> eyre::Result<ToBOutcome> {
         tracing::info!("calculate_rewards function");
 
@@ -127,9 +127,9 @@ where
                             pool_id,
                             start_tick,
                             zfo,
-                            tick_count: OUT_OF_SCOPE_TICKS
+                            tick_count: OUT_OF_SCOPE_TICKS,
                         },
-                        not.clone()
+                        not.clone(),
                     ))
                     .await;
 
@@ -148,36 +148,37 @@ where
     }
 }
 
-pub struct UniswapPoolManager<P, BlockSync, Loader: PoolDataLoader<A>, A = Address>
+pub struct UniswapPoolManager<P, BlockSync, A = Address>
 where
-    A: Debug + Copy
+    A: Debug + Copy,
+    DataLoader<A>: PoolDataLoader<A>,
 {
     /// the poolId with the fee to the dynamic fee poolId
-    conversion_map:      HashMap<A, A>,
-    pools:               SyncedUniswapPools<A, Loader>,
+    conversion_map: HashMap<A, A>,
+    pools: SyncedUniswapPools<A>,
     latest_synced_block: u64,
-    state_change_cache:  Arc<RwLock<StateChangeCache<Loader, A>>>,
-    provider:            Arc<P>,
-    block_sync:          BlockSync,
-    block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
-    update_stream:       Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>,
-    rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Arc<Notify>)>
+    state_change_cache: Arc<RwLock<StateChangeCache<A>>>,
+    provider: Arc<P>,
+    block_sync: BlockSync,
+    block_stream: BoxStream<'static, Option<PoolMangerBlocks>>,
+    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>,
+    rx: tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Arc<Notify>)>,
 }
 
-impl<P, BlockSync, Loader, A> UniswapPoolManager<P, BlockSync, Loader, A>
+impl<P, BlockSync, A> UniswapPoolManager<P, BlockSync, A>
 where
     A: Eq + Hash + Debug + Default + Copy + Sync + Send + Unpin + 'static,
-    Loader: PoolDataLoader<A> + Default + Clone + Send + Sync + Unpin + 'static,
+    DataLoader<A>: PoolDataLoader<A> + Default + Clone + Send + Sync + Unpin + 'static,
     BlockSync: BlockSyncConsumer,
-    P: PoolManagerProvider + Send + Sync + 'static
+    P: PoolManagerProvider + Send + Sync + 'static,
 {
     pub fn new(
-        pools: Vec<EnhancedUniswapPool<Loader, A>>,
+        pools: Vec<EnhancedUniswapPool<DataLoader<A>, A>>,
         conversion_map: HashMap<A, A>,
         latest_synced_block: BlockNumber,
         provider: Arc<P>,
         block_sync: BlockSync,
-        update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
+        update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>,
     ) -> Self {
         block_sync.register(MODULE_NAME);
 
@@ -199,7 +200,7 @@ where
             provider,
             block_sync,
             update_stream,
-            rx
+            rx,
         }
     }
 
@@ -210,7 +211,7 @@ where
                 // gotta
                 Some((
                     self.convert_to_pub_id(key),
-                    pool.read().unwrap().fetch_pool_snapshot().ok()?.2
+                    pool.read().unwrap().fetch_pool_snapshot().ok()?.2,
                 ))
             })
             .collect()
@@ -220,13 +221,13 @@ where
         self.pools.keys().map(|k| self.convert_to_pub_id(k))
     }
 
-    pub fn pools(&self) -> SyncedUniswapPools<A, Loader> {
+    pub fn pools(&self) -> SyncedUniswapPools<A> {
         let mut c = self.pools.clone();
         c.pools = Arc::new(
             c.pools
                 .iter()
                 .map(|(k, v)| (self.convert_to_pub_id(k), v.clone()))
-                .collect()
+                .collect(),
         );
 
         c
@@ -245,7 +246,10 @@ where
             .unwrap()
     }
 
-    pub fn pool(&self, address: &A) -> Option<RwLockReadGuard<'_, EnhancedUniswapPool<Loader, A>>> {
+    pub fn pool(
+        &self,
+        address: &A,
+    ) -> Option<RwLockReadGuard<'_, EnhancedUniswapPool<DataLoader<A>, A>>> {
         let addr = self.conversion_map.get(address)?;
         let pool = self.pools.get(addr)?;
         Some(pool.read().unwrap())
@@ -261,9 +265,9 @@ where
     /// Unwinds the state changes cache for every block from the most recent
     /// state change cache back to the block to unwind -1.
     fn unwind_state_changes(
-        pool: &mut EnhancedUniswapPool<Loader, A>,
-        state_change_cache: &mut StateChangeCache<Loader, A>,
-        block_to_unwind: u64
+        pool: &mut EnhancedUniswapPool<DataLoader<A>, A>,
+        state_change_cache: &mut StateChangeCache<A>,
+        block_to_unwind: u64,
     ) -> Result<(), PoolManagerError> {
         if let Some(cache) = state_change_cache.get_mut(&pool.address()) {
             loop {
@@ -301,9 +305,9 @@ where
     }
 
     fn add_state_change_to_cache(
-        state_change_cache: &mut StateChangeCache<Loader, A>,
-        state_change: StateChange<Loader, A>,
-        address: A
+        state_change_cache: &mut StateChangeCache<A>,
+        state_change: StateChange<A>,
+        address: A,
     ) -> Result<(), PoolManagerError> {
         let cache = state_change_cache.entry(address).or_default();
         if cache.is_full() {
@@ -315,10 +319,10 @@ where
     }
 
     fn handle_state_changes_from_logs(
-        pool: &mut EnhancedUniswapPool<Loader, A>,
-        state_change_cache: &mut StateChangeCache<Loader, A>,
+        pool: &mut EnhancedUniswapPool<DataLoader<A>, A>,
+        state_change_cache: &mut StateChangeCache<A>,
         logs: Vec<Log>,
-        block_number: BlockNumber
+        block_number: BlockNumber,
     ) -> Result<(), PoolManagerError> {
         for log in logs {
             pool.sync_from_log(log)?;
@@ -328,7 +332,7 @@ where
         Self::add_state_change_to_cache(
             state_change_cache,
             StateChange::new(Some(pool_clone), block_number),
-            pool.address()
+            pool.address(),
         )
     }
 
@@ -355,7 +359,7 @@ where
                 &self
                     .filter()
                     .from_block(self.latest_synced_block + 1)
-                    .to_block(chain_head_block_number)
+                    .to_block(chain_head_block_number),
             )
             .expect("should never fail");
 
@@ -367,13 +371,13 @@ where
                 Self::unwind_state_changes(
                     &mut pool_guard,
                     &mut state_change_cache,
-                    chain_head_block_number
+                    chain_head_block_number,
                 )
                 .expect("should never fail");
             }
         }
 
-        let logs_by_address = Loader::group_logs(logs);
+        let logs_by_address = DataLoader::<A>::group_logs(logs);
 
         for (addr, logs) in logs_by_address {
             if logs.is_empty() {
@@ -390,7 +394,7 @@ where
                 &mut pool_guard,
                 &mut state_change_cache,
                 logs,
-                chain_head_block_number
+                chain_head_block_number,
             )
             .expect("never fail");
         }
@@ -398,7 +402,7 @@ where
         Self::pool_update_workaround(
             chain_head_block_number,
             self.pools.clone(),
-            self.provider.clone()
+            self.provider.clone(),
         );
 
         self.latest_synced_block = chain_head_block_number;
@@ -412,11 +416,7 @@ where
         }
     }
 
-    fn pool_update_workaround(
-        block_number: u64,
-        pools: SyncedUniswapPools<A, Loader>,
-        provider: Arc<P>
-    ) {
+    fn pool_update_workaround(block_number: u64, pools: SyncedUniswapPools<A>, provider: Arc<P>) {
         tracing::info!("starting poll");
         for pool in pools.pools.values() {
             let mut l = pool.write().unwrap();
@@ -427,9 +427,9 @@ where
 
     fn load_more_ticks(
         notifier: Arc<Notify>,
-        pools: SyncedUniswapPools<A, Loader>,
+        pools: SyncedUniswapPools<A>,
         provider: Arc<P>,
-        tick_req: TickRangeToLoad<A>
+        tick_req: TickRangeToLoad<A>,
     ) {
         let node_provider = provider.provider();
         let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
@@ -444,18 +444,18 @@ where
     }
 }
 
-impl<P, BlockSync, Loader, A> Future for UniswapPoolManager<P, BlockSync, Loader, A>
+impl<P, BlockSync, A> Future for UniswapPoolManager<P, BlockSync, A>
 where
     A: Eq + Hash + Debug + Default + Copy + Sync + Send + Unpin + 'static,
-    Loader: PoolDataLoader<A> + Default + Clone + Send + Sync + Unpin + 'static,
+    DataLoader<A>: PoolDataLoader<A> + Default + Clone + Send + Sync + Unpin + 'static,
     BlockSync: BlockSyncConsumer,
-    P: PoolManagerProvider + Send + Sync + 'static
+    P: PoolManagerProvider + Send + Sync + 'static,
 {
     type Output = ();
 
     fn poll(
         mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
             self.handle_new_block_info(block_info);
@@ -480,13 +480,22 @@ pub fn async_to_sync<F: Future>(f: F) -> F::Output {
 }
 
 #[derive(Debug)]
-pub struct StateChange<Loader: PoolDataLoader<A>, A> {
-    state_change: Option<EnhancedUniswapPool<Loader, A>>,
-    block_number: u64
+pub struct StateChange<A>
+where
+    DataLoader<A>: PoolDataLoader<A>,
+{
+    state_change: Option<EnhancedUniswapPool<DataLoader<A>, A>>,
+    block_number: u64,
 }
 
-impl<Loader: PoolDataLoader<A>, A> StateChange<Loader, A> {
-    pub fn new(state_change: Option<EnhancedUniswapPool<Loader, A>>, block_number: u64) -> Self {
+impl<A> StateChange<A>
+where
+    DataLoader<A>: PoolDataLoader<A>,
+{
+    pub fn new(
+        state_change: Option<EnhancedUniswapPool<DataLoader<A>, A>>,
+        block_number: u64,
+    ) -> Self {
         Self { state_change, block_number }
     }
 }
@@ -512,92 +521,5 @@ pub enum PoolManagerError {
     #[error("Synchronization has already been started")]
     SyncAlreadyStarted,
     #[error(transparent)]
-    RpcTransportError(#[from] RpcError<TransportErrorKind>)
+    RpcTransportError(#[from] RpcError<TransportErrorKind>),
 }
-
-// #[cfg(test)]
-// mod annoying_tests {
-//     use std::{sync::Arc, task::Waker};
-//
-//     use alloy::providers::{
-//         Provider, ProviderBuilder, RootProvider, fillers::*,
-// network::Ethereum, *,     };
-//     use angstrom_types::block_sync::GlobalBlockState;
-//     use tokio::sync::mpsc;
-//
-//     use super::*;
-//
-// Mock implementations for testing
-// #[derive(Clone)]
-// struct MockProvider {
-//     logs: Arc<RwLock<Vec<Log>>>,
-//     p:    ProviderDef
-// }
-//
-// impl MockProvider {
-//     async fn new() -> Self {
-//         Self {
-//             logs: Arc::new(RwLock::new(Vec::new())),
-//             p:    ProviderBuilder::new()
-//                 .on_builtin("https://eth.llamarpc.com")
-//                 .await
-//                 .unwrap()
-//         }
-//     }
-//
-//     fn add_logs(&self, logs: Vec<Log>) {
-//         let mut guard = self.logs.write().unwrap();
-//         guard.extend(logs);
-//     }
-// }
-// impl PoolManagerProvider for MockProvider {
-//     fn subscribe_blocks(self) -> BoxStream<'static, Option<PoolMangerBlocks>>
-// {         let (_, rx) = mpsc::channel(1);
-//         Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx))
-//     }
-//
-//     fn get_logs(&self, _filter: &Filter) -> Result<Vec<Log>,
-// PoolManagerError> {         Ok(self.logs.read().unwrap().clone())
-//     }
-//
-//     fn provider(&self) -> Arc<impl Provider> {
-//         Arc::new(self.clone())
-//     }
-// }
-//
-// impl Provider for MockProvider {
-//     fn root(&self) -> &RootProvider<Ethereum> {
-//         self.p.root()
-//     }
-// }
-//
-// #[derive(Debug, Clone)]
-// struct MockBlockSync;
-//
-// impl BlockSyncConsumer for MockBlockSync {
-//     fn sign_off_reorg(
-//         &self,
-//         _module: &'static str,
-//         _range: std::ops::RangeInclusive<u64>,
-//         _data: Option<Waker>,
-//     ) {
-//     }
-//
-//     fn sign_off_on_block(&self, _module: &'static str, _block: u64, _data:
-// Option<Waker>) {}
-//
-//     fn current_block_number(&self) -> u64 {
-//         0
-//     }
-//
-//     fn has_proposal(&self) -> bool {
-//         false
-//     }
-//
-//     fn fetch_current_proposal(&self) -> Option<GlobalBlockState> {
-//         None
-//     }
-//
-//     fn register(&self, _module: &'static str) {}
-// }
-// }

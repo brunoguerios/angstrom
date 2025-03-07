@@ -8,6 +8,7 @@ use thiserror::Error;
 pub mod loaders;
 pub mod pool;
 pub mod pool_data_loader;
+pub mod pool_factory;
 pub mod pool_manager;
 pub mod pool_providers;
 pub mod tob;
@@ -63,7 +64,7 @@ pub enum ConversionError {
     #[error("overflow from i32 to i24 {0:?}")]
     OverflowErrorI24(i32),
     #[error("overflow from I256 to I128 {0:?}")]
-    OverflowErrorI28(I256)
+    OverflowErrorI28(I256),
 }
 
 #[cfg(test)]
@@ -77,12 +78,12 @@ mod tests {
         let test_values = [
             (
                 I256::from_dec_str("-170141183460469231731687303715884105729").unwrap(),
-                "Expected overflow error for I256 to i128 conversion"
+                "Expected overflow error for I256 to i128 conversion",
             ),
             (
                 I256::from_dec_str("170141183460469231731687303715884105728").unwrap(),
-                "Expected underflow error for I256 to i128 conversion"
-            )
+                "Expected underflow error for I256 to i128 conversion",
+            ),
         ];
 
         for (value, message) in test_values.iter() {
@@ -97,7 +98,7 @@ mod tests {
             i128::MIN,
             i128::MAX,
             -170141183460469231731687303715884105720_i128,
-            170141183460469231731687303715884105727_i128
+            170141183460469231731687303715884105727_i128,
         ];
         for &original in test_values.iter() {
             let converted = i128_to_i256(original);
@@ -132,7 +133,7 @@ mod tests {
             1024_i32,
             1000_i32,
             -1000_i32,
-            I24::MAX.as_i32() - 1
+            I24::MAX.as_i32() - 1,
         ];
         for &original in test_values.iter() {
             let converted = i32_to_i24(original).unwrap();
