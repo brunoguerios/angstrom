@@ -51,6 +51,7 @@ pub fn build_book(id: PoolId, amm: Option<PoolSnapshot>, orders: HashSet<BookOrd
     OrderBook::new(id, amm, bids, asks, Some(book::sort::SortStrategy::ByPriceByVolume))
 }
 
+/// TODO: move this into uniswap-4
 pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
     provider: Arc<impl Provider + 'static>,
     state_notification: CanonStateNotifications,
