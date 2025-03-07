@@ -40,10 +40,13 @@ use reth::{
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
 use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAddOns};
-use reth_provider::{BlockReader, DatabaseProviderFactory, TryIntoHistoricalStateProvider};
+use reth_provider::{
+    BlockReader, DatabaseProviderFactory, ReceiptProvider, TryIntoHistoricalStateProvider
+};
 use tokio::sync::mpsc::{
     Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel
 };
+use uniswap_v4::fetch_angstrom_pools;
 use validation::{
     common::TokenPriceGenerator,
     init_validation,
@@ -158,7 +161,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         > + DatabaseProviderFactory,
     AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
     <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider:
-        TryIntoHistoricalStateProvider,
+        TryIntoHistoricalStateProvider + ReceiptProvider,
     <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader
 {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
@@ -185,6 +188,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         this is done to ensure all modules start on the same state and we don't hit the rare  \
         condition of a block while starting modules");
 
+    // wait for the next block so that we have a full 12 seconds on startup.
     let _ = node
         .provider
         .subscribe_to_canonical_state()
@@ -208,8 +212,21 @@ pub async fn initialize_strom_components<Node, AddOns>(
         .unwrap()
     );
 
+    // we take the subscription before we load the pools as this is a slow process
+    // and we want to make sure that any pool changes from now till when the pools
+    // are loaded isn't missed.
+    let eth_data_sub = node.provider.subscribe_to_canonical_state();
+    // load the angstrom pools;
+    let pools = fetch_angstrom_pools(
+        node_config.angstrom_deploy_block as usize,
+        block_id as usize,
+        node_config.angstrom_address,
+        &node.provider
+    )
+    .await;
+
     // this right here problem
-    let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
+    let uniswap_registry: UniswapPoolRegistry = pools.into();
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
@@ -228,7 +245,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     let eth_handle = EthDataCleanser::spawn(
         node_config.angstrom_address,
         node_config.periphery_addr,
-        node.provider.subscribe_to_canonical_state(),
+        eth_data_sub,
         executor.clone(),
         handles.eth_tx,
         handles.eth_rx,

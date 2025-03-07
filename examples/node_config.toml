@@ -1,4 +1,4 @@
-# An example angstrom node config for  
+# An example angstrom node config for sepolia
 
 # sepolia testnet address 
 angstrom_address="0x9D0ce8B3DF426008c4a4E74E7845B1bffF346a90"
@@ -6,12 +6,5 @@ angstrom_address="0x9D0ce8B3DF426008c4a4E74E7845B1bffF346a90"
 periphery_address="0x4De4326613020a00F5545074bC578C87761295c7"
 # sepolia testnet address
 pool_manager_address="0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"
-
-# basic pool here.
-[[pools]]
-currency0 = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
-currency1 = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-fee = 0
-tickSpacing = 60
-# sepolia testnet address
-hooks="0x9D0ce8B3DF426008c4a4E74E7845B1bffF346a90"
+# sepolia deploy block
+angstrom_deploy_block=7838402

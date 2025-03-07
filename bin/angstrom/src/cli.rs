@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use alloy_primitives::Address;
 use angstrom_metrics::initialize_prometheus_metrics;
-use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
 use eyre::Context;
 use serde::Deserialize;
 use url::Url;
@@ -32,10 +31,10 @@ pub struct AngstromConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct NodeConfig {
-    pub angstrom_address:     Address,
-    pub periphery_addr:       Address,
-    pub pool_manager_address: Address,
-    pub pools:                Vec<PoolKey>
+    pub angstrom_address:      Address,
+    pub periphery_addr:        Address,
+    pub pool_manager_address:  Address,
+    pub angstrom_deploy_block: u64
 }
 
 impl NodeConfig {
