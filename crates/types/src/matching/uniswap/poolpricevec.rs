@@ -10,7 +10,7 @@ use uniswap_v3_math::{
     swap_math::compute_swap_step
 };
 
-use super::{Direction, LiqRangeRef, Quantity, Tick, poolprice::PoolPrice};
+use super::{Direction, LiqRangeRef, PoolSnapshot, Quantity, Tick, poolprice::PoolPrice};
 use crate::{
     matching::{Ray, SqrtPriceX96, math::low_to_high},
     orders::OrderPrice
@@ -208,22 +208,42 @@ impl<'a> PoolPriceVec<'a> {
     /// `start_bound`.  This should be used in quick-and-dirty situations
     /// when we know that we're building a short-range PoolPriceVec that exists
     /// within a single liquidity position
-    pub fn new(start_bound: PoolPrice<'a>, end_bound: PoolPrice<'a>) -> Self {
-        let (d_t0, d_t1) =
-            Self::delta_to_price(start_bound.price, end_bound.price, start_bound.liquidity());
-        Self { start_bound, end_bound, d_t0, d_t1, steps: None }
+    pub fn new(start: PoolPrice<'a>, end: PoolPrice<'a>) -> Self {
+        Self::from_price_range(start.clone(), end.clone())
+            .ok()
+            .unwrap_or_else(|| Self {
+                start_bound: start,
+                end_bound:   end,
+                d_t0:        0,
+                d_t1:        0,
+                steps:       None
+            })
     }
 
     pub fn input(&self) -> u128 {
-        if self.end_bound.price > self.start_bound.price { self.d_t1 } else { self.d_t0 }
+        if self.zero_for_one() { self.d_t0 } else { self.d_t1 }
     }
 
     pub fn output(&self) -> u128 {
-        if self.end_bound.price > self.start_bound.price { self.d_t0 } else { self.d_t1 }
+        if self.zero_for_one() { self.d_t1 } else { self.d_t0 }
+    }
+
+    /// Returns a boolean indicating whether this PoolPriceVec is
+    /// `zero_for_one`.  This will be true if the AMM is buying T0 and the AMM
+    /// price is decreasing, false if the AMM is selling T0 and the AMM price is
+    /// increasing.
+    pub fn zero_for_one(&self) -> bool {
+        self.start_bound.price > self.end_bound.price
     }
 
     pub fn steps(&self) -> Option<&Vec<SwapStep>> {
         self.steps.as_ref()
+    }
+
+    /// Return a reference to the underlying AMM snapshot that this PoolPriceVec
+    /// is operating on
+    pub fn snapshot(&self) -> &'a PoolSnapshot {
+        self.start_bound.liq_range.pool_snap
     }
 
     /// Create a new PoolPriceVec from a start and end price with full safety
@@ -245,39 +265,9 @@ impl<'a> PoolPriceVec<'a> {
         Self::from_steps(start, end, steps)
     }
 
-    pub fn to_price_bound(start: PoolPrice<'a>, end: SqrtPriceX96) -> eyre::Result<Self> {
-        let end_tick = end.to_tick()?;
-        let steps = start
-            .liq_range
-            .pool_snap
-            .ranges_for_ticks(start.tick, end_tick)?
-            .iter()
-            .map(|liq_range| {
-                let (start, end) = low_to_high(&start.price, &end);
-                SwapStep::for_price_range(start, end, liq_range)
-            })
-            .collect::<eyre::Result<Vec<SwapStep>>>()?;
-        let end = if let Some(l) = steps.last() {
-            let tick = l.end_price.to_tick()?;
-            PoolPrice { liq_range: l.liq_range, price: l.end_price, tick }
-        } else {
-            return Err(eyre!("Unable to find actual end price"));
-        };
-        Self::from_steps(start, end, steps)
-    }
-
-    pub fn to_upper(start: PoolPrice<'a>) -> eyre::Result<Self> {
-        let end = if let Some(range) = start
-            .liq_range
-            .pool_snap
-            .get_range_for_tick(start.liq_range.upper_tick)
-        {
-            range.start_price(Direction::BuyingT0)
-        } else {
-            start.liq_range.end_price(Direction::BuyingT0)
-        };
-        let steps = vec![SwapStep::to_bound(start.clone(), Direction::BuyingT0)?];
-        Self::from_steps(start, end, steps)
+    pub fn to_price_bound(start: PoolPrice<'a>, end_x96: SqrtPriceX96) -> eyre::Result<Self> {
+        let end = start.snapshot().at_price(end_x96)?;
+        Self::from_price_range(start, end)
     }
 
     fn from_steps(
@@ -520,94 +510,6 @@ impl<'a> PoolPriceVec<'a> {
             total_donated,
             tribute
         }
-    }
-
-    // Seems to be unused
-    pub fn to_price(&self, target: SqrtPriceX96) -> Option<Self> {
-        let (start_in_bounds, end_in_bounds) = if self.is_buy() {
-            (Ordering::Greater, Ordering::Less)
-        } else {
-            (Ordering::Less, Ordering::Greater)
-        };
-        if self.start_bound.price.cmp(&target) == start_in_bounds {
-            if self.end_bound.price.cmp(&target) == end_in_bounds {
-                // If the target price is between the start and end bounds, make a subvec
-                let new_upper = self.start_bound.liq_range.pool_snap.at_price(target).ok()?;
-                Some(Self::new(self.start_bound.clone(), new_upper))
-            } else {
-                // If the target price is beyond the end bound in the appropriate direction,
-                // return a copy of this existing vector
-                Some(self.clone())
-            }
-        } else {
-            // If the target price is equal to or beyond the start price in an inappropriate
-            // direction, there is no vector to be made
-            None
-        }
-    }
-
-    /// A very raw delta to a specific price presuming the liquidity is constant
-    /// for the duration of the swap
-    fn delta_to_price(
-        start_price: SqrtPriceX96,
-        end_price: SqrtPriceX96,
-        liquidity: u128
-    ) -> (u128, u128) {
-        let sqrt_ratio_a_x_96 = start_price.into();
-        let sqrt_ratio_b_x_96 = end_price.into();
-        let d_t0 = _get_amount_0_delta(sqrt_ratio_a_x_96, sqrt_ratio_b_x_96, liquidity, false)
-            .unwrap_or(Uint::from(0));
-        let d_t1 = _get_amount_1_delta(sqrt_ratio_a_x_96, sqrt_ratio_b_x_96, liquidity, false)
-            .unwrap_or(Uint::from(0));
-        (d_t0.to(), d_t1.to())
-    }
-
-    pub fn is_buy(&self) -> bool {
-        self.start_bound.price < self.end_bound.price
-    }
-
-    /// Returns `(d_t0, d_t1, price)`
-    pub fn quantity(&self, target_price: OrderPrice) -> (u128, u128, OrderPrice) {
-        let t: SqrtPriceX96 = Ray::from(*target_price).into();
-
-        // If our target price is past our end bound, our quantity is the entire range
-        if (self.is_buy() && t > self.end_bound.price) || t < self.end_bound.price {
-            return (self.d_t0, self.d_t1, OrderPrice::from(self.end_bound.price));
-        }
-
-        let (d_t0, d_t1) =
-            Self::delta_to_price(self.start_bound.price, t, self.start_bound.liquidity());
-        (d_t0, d_t1, target_price)
-    }
-
-    // Maybe it's OK that I don't check the price again here because in the matching
-    // algo I've only offered a quantity bounded by the price, so we should
-    // always be OK?
-    pub fn fill(&self, quantity: u128) -> Self {
-        let liquidity = self.start_bound.liquidity();
-        let end_sqrt_price = if self.is_buy() {
-            get_next_sqrt_price_from_output(
-                self.start_bound.price.into(),
-                liquidity,
-                U256::from(quantity),
-                true
-            )
-            .map(SqrtPriceX96::from)
-            .unwrap()
-        } else {
-            get_next_sqrt_price_from_input(
-                self.start_bound.price.into(),
-                liquidity,
-                U256::from(quantity),
-                true
-            )
-            .map(SqrtPriceX96::from)
-            .unwrap()
-        };
-        let (d_t0, d_t1) = Self::delta_to_price(self.start_bound.price, end_sqrt_price, liquidity);
-        let mut end_bound = self.start_bound.clone();
-        end_bound.price = end_sqrt_price;
-        Self { end_bound, start_bound: self.start_bound.clone(), d_t0, d_t1, steps: None }
     }
 
     pub fn swap_to_price(

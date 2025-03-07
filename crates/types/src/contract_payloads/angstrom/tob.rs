@@ -1,12 +1,14 @@
 use std::hash::Hash;
 
 use alloy::primitives::{Address, B256, U256};
+use eyre::eyre;
 use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
+    matching::uniswap::{PoolPriceVec, PoolSnapshot, Quantity},
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
         RawPoolOrder,
@@ -134,4 +136,221 @@ impl TopOfBlockOrder {
             signature
         })
     }
+
+    pub fn calc_vec_and_reward<'a>(
+        tob: &OrderWithStorageData<RpcTopOfBlockOrder>,
+        snapshot: &'a PoolSnapshot
+    ) -> eyre::Result<(PoolPriceVec<'a>, u128)> {
+        // First let's simulate the actual ToB swap and use that to determine what our
+        // leftover T0 is for rewards
+        if tob.is_bid {
+            // If I'm a bid, I'm buying T0.  In order to reward I will offer in more T1 than
+            // needed, and I should compare the T0 I get out with the T0 I expect back in
+            // order to determine the reward quantity
+            let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
+
+            let leftover = pricevec
+                .d_t0
+                .checked_sub(tob.quantity_out)
+                .ok_or_else(|| eyre!("Not enough output to cover the transaction"))?;
+            Ok((pricevec, leftover))
+        } else {
+            // If I'm an ask, I'm selling T0.  In order to reward I will offer in more T0
+            // than needed and I should compare the T0 I offer to the T0 needed to produce
+            // the T1 I expect to get back
+            // First we find the amount of T0 in it would take to at least hit our quantity
+            // out
+            let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
+
+            let leftover = tob
+                .quantity_in
+                .checked_sub(cost)
+                .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
+
+            tracing::info!(?cost,?tob.quantity_out,?tob.quantity_in);
+            // But then we have to operate in the right direction to calculate how much T1
+            // we ACTUALLY get out
+            let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
+            Ok((pricevec, leftover))
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use angstrom_types::matching::{
+        SqrtPriceX96,
+        uniswap::{LiqRange, PoolSnapshot}
+    };
+    use rand::thread_rng;
+    use testing_tools::type_generator::orders::generate_top_of_block_order;
+    use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
+
+    use super::TopOfBlockOrder;
+
+    fn generate_amm_market(target_tick: i32) -> PoolSnapshot {
+        let range =
+            LiqRange::new(target_tick - 1000, target_tick + 1000, 100_000_000_000_000).unwrap();
+        let ranges = vec![range];
+        let sqrt_price_x96 = SqrtPriceX96::from(get_sqrt_ratio_at_tick(target_tick).unwrap());
+        PoolSnapshot::new(ranges, sqrt_price_x96).unwrap()
+    }
+
+    // #[test]
+    // fn calculates_reward() {
+    //     let mut rng = thread_rng();
+    //     let snapshot = generate_amm_market(100000);
+    //     let total_payment = 10_000_000_000_000_u128;
+    //     let tob = generate_top_of_block_order(
+    //         &mut rng,
+    //         true,
+    //         None,
+    //         None,
+    //         Some(total_payment),
+    //         Some(100000000_u128)
+    //     );
+    //     let (res_vec, to_donate) = TopOfBlockOrder::calc_vec_and_reward(&tob,
+    // &snapshot)         .expect("Error building base reward data");
+    //     let donations = res_vec.t0_donation_to_end_price(to_donate);
+    //     assert_eq!(
+    //         donations.total_donated + donations.tribute + res_vec.d_t0,
+    //         total_payment,
+    //         "Total allocations do not add up to input payment"
+    //     );
+    // }
+
+    //     #[test]
+    //     fn handles_insufficient_funds() {
+    //         let mut rng = thread_rng();
+    //         let snapshot = generate_amm_market(100000);
+    //         let tob = generate_top_of_block_order(
+    //             &mut rng,
+    //             true,
+    //             None,
+    //             None,
+    //             Some(10_000_000_u128),
+    //             Some(100000000_u128)
+    //         );
+    //         let result = calculate_reward(&tob, &snapshot);
+    //         assert!(result.is_err_and(|e| {
+    //             e.to_string()
+    //                 .starts_with("Not enough input to cover the transaction")
+    //         }));
+    //     }
+
+    //     #[test]
+    //     fn handles_precisely_zero_donation() {
+    //         let mut rng = thread_rng();
+    //         let snapshot = generate_amm_market(100000);
+    //         // Hand-calculated that this is the correct payment for this
+    // starting price and         // liquidity
+    //         let total_payment = 2_201_872_310_000_u128;
+    //         let tob = generate_top_of_block_order(
+    //             &mut rng,
+    //             true,
+    //             None,
+    //             None,
+    //             Some(total_payment),
+    //             Some(100000000_u128)
+    //         );
+    //         let result = calculate_reward(&tob, &snapshot).expect("Error
+    // calculating tick donations");         let total_donations =
+    // result.total_donations();         assert!(
+    //             result.tick_donations.is_empty(),
+    //             "Donations are being offered when we shouldn't have any"
+    //         );
+    //         assert_eq!(
+    //             total_donations + result.total_cost + result.tribute,
+    //             total_payment,
+    //             "Total allocations do not add up to input payment"
+    //         );
+    //     }
+
+    //     #[test]
+    //     fn handles_partial_donation() {
+    //         let mut rng = thread_rng();
+    //         let snapshot = generate_amm_market(100000);
+    //         let partial_donation = 20_000_000_u128;
+    //         let total_payment = 2_201_872_310_000_u128 + partial_donation;
+    //         let tob = generate_top_of_block_order(
+    //             &mut rng,
+    //             true,
+    //             None,
+    //             None,
+    //             Some(total_payment),
+    //             Some(100000000_u128)
+    //         );
+    //         let result = calculate_reward(&tob, &snapshot).expect("Error
+    // calculating tick donations");         let total_donations =
+    // result.total_donations();         assert_eq!(result.tick_donations.len(),
+    // 1, "Wrong number of donations");
+    // assert!(result.tick_donations. contains_key(&(99000, 101000)),
+    // "Donation missing");         assert_eq!(
+    // *result.tick_donations.get(&(99000, 101000)).unwrap(),
+    // partial_donation,             "Donation of incorrect size"
+    //         );
+    //         assert_eq!(
+    //             total_donations + result.total_cost + result.tribute,
+    //             total_payment,
+    //             "Total allocations do not add up to input payment"
+    //         );
+    //     }
+
+    //     #[test]
+    //     fn handles_bid_order() {
+    //         let mut rng = thread_rng();
+    //         let snapshot = generate_amm_market(100000);
+    //         let tob = generate_top_of_block_order(
+    //             &mut rng,
+    //             true,
+    //             None,
+    //             None,
+    //             Some(10_000_000_000_000_u128),
+    //             Some(100000000_u128)
+    //         );
+    //         let result = calculate_reward(&tob, &snapshot);
+    //         assert!(result.is_ok());
+    //     }
+
+    //     #[test]
+    //     fn handles_ask_order() {
+    //         let mut rng = thread_rng();
+    //         let snapshot = generate_amm_market(100000);
+    //         let tob = generate_top_of_block_order(
+    //             &mut rng,
+    //             false,
+    //             None,
+    //             None,
+    //             Some(10_000_000_000_000_u128),
+    //             Some(800000000_u128)
+    //         );
+    //         let result = calculate_reward(&tob, &snapshot);
+    //         assert!(result.is_ok());
+    //     }
+
+    //     #[test]
+    //     fn only_rewards_initialized_ticks() {
+    //         let mut rng = thread_rng();
+    //         let snapshot = generate_amm_market(100000);
+    //         let total_payment = 2_203_371_417_593_u128;
+    //         let tob = generate_top_of_block_order(
+    //             &mut rng,
+    //             true,
+    //             None,
+    //             None,
+    //             Some(total_payment),
+    //             Some(100000000_u128)
+    //         );
+    //         let first_tick = 100000 - 1000;
+    //         let last_tick = 100000 + 1000;
+    //         let result = calculate_reward(&tob, &snapshot).expect("Error
+    // calculating tick donations");         assert!(
+    //             result.tick_donations.len() == 1,
+    //             "Too many donations - only one initialized tick in this
+    // market"         );
+    //         assert!(
+    //             result.tick_donations.contains_key(&(first_tick, last_tick)),
+    //             "Donation not made to only initialized tick"
+    //         );
+    //     }
 }

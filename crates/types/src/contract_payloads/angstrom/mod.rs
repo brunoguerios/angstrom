@@ -487,97 +487,68 @@ impl AngstromBundle {
 
         // Build our Pair featuring our uniform clearing price
         // This price is in Ray format as requested.
-        let ucp: U256 = *solution.ucp;
-        let pair = Pair { index0: t0_idx, index1: t1_idx, store_index, price_1over0: ucp };
-        pairs.push(pair);
+        pairs.push(Pair {
+            index0: t0_idx,
+            index1: t1_idx,
+            store_index,
+            price_1over0: *solution.ucp
+        });
         let pair_idx = pairs.len() - 1;
 
         // Find the net T0 motion of our AMM order and ToB swap
         let amm_swap_t0 = solution.amm_quantity.as_ref().map(|ao| ao.get_t0_signed());
-        let (tob_outcome, tob_swap_t0) = solution
+        let tob_reward_data = solution
             .searcher
             .as_ref()
-            .map(|tob| {
-                trace!(tob_order = ?tob, "Mapping TOB Swap");
-                let outcome = ToBOutcome::from_tob_and_snapshot(tob, snapshot).ok();
-                let swap_t0 = outcome.as_ref().map(|o| {
-                    if tob.is_bid {
-                        // If the ToB order is a bid, then we are outputting a positive number
-                        // because we are purchasing T0 from the AMM
-                        I256::unchecked_from(o.total_swap_output)
-                    } else {
-                        // If the ToB order is an ask, we are outputting a negative number
-                        // because we are selling T0 to the AMM
-                        I256::unchecked_from(o.total_cost).saturating_neg()
-                    }
-                });
-                (outcome.unwrap_or_default(), swap_t0)
-            })
-            .unwrap_or_default();
+            .and_then(|tob| TopOfBlockOrder::calc_vec_and_reward(tob, snapshot).ok());
+        let tob_swap_t0 = tob_reward_data.as_ref().map(|(v, _)| {
+            let d_t0 = I256::unchecked_from(v.d_t0);
+            if v.zero_for_one() {
+                // We're buying T0 from the AMM
+                d_t0
+            } else {
+                // We're selling T0 to the AMM
+                d_t0.saturating_neg()
+            }
+        });
         let net_swap_t0 = match (amm_swap_t0, tob_swap_t0) {
             (Some(a), Some(t)) => Some(a + t),
             (any_a, any_t) => any_a.or(any_t)
         };
-        let merged_amm_swap = net_swap_t0.map(|s| {
-            let net_direction =
-                if s.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
 
-            let quantity = Quantity::Token0(s.unsigned_abs().to::<u128>());
+        // If we have a net swap, let's account for it
+        if let Some(net_t0) = net_swap_t0 {
+            let net_direction =
+                if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
+
+            let quantity = Quantity::Token0(net_t0.unsigned_abs().to::<u128>());
 
             // Create a poolpricevec based on this data
-            let v =
+            let v: PoolPriceVec<'_> =
                 PoolPriceVec::from_swap(snapshot.current_price(), net_direction, quantity).unwrap();
 
-            // Put together our merged swap
-            if s.is_negative() {
-                (t0_idx, t1_idx, v.d_t0, v.d_t1)
-            } else {
-                (t1_idx, t0_idx, v.d_t1, v.d_t0)
-            }
-        });
+            let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
+                if net_t0.is_negative() {
+                    (t0_idx, t1_idx, v.d_t0, v.d_t1)
+                } else {
+                    (t1_idx, t0_idx, v.d_t1, v.d_t0)
+                };
 
-        trace!(merged_swap = ?merged_amm_swap, "Merged AMM/TOB swap");
-        // Unwrap our merged amm order or provide a zero default
-
-        let (asset_in_index, asset_out_index, quantity_in, quantity_out) =
-            merged_amm_swap.unwrap_or((t0_idx, t1_idx, 0_u128, 0_u128));
-
-        // Determine whether our net AMM order is zero_for_one
-        let zero_for_one = asset_in_index == t0_idx;
-
-        // Account for our net AMM Order
-        asset_builder.uniswap_swap(
-            AssetBuilderStage::Swap,
-            asset_in_index as usize,
-            asset_out_index as usize,
-            quantity_in,
-            quantity_out
-        );
-        // Account for our reward
-        asset_builder.allocate(AssetBuilderStage::Reward, t0, tob_outcome.total_reward);
-        let rewards_update = tob_outcome.rewards_update_range(
-            tob_outcome.start_tick,
-            tob_outcome.end_tick,
-            snapshot
-        );
-        tracing::info!(?tob_outcome.tribute);
-        // Account for our tribute
-        asset_builder.tribute(AssetBuilderStage::Reward, t0, tob_outcome.tribute);
-        // Let's do this stupidly for now and work on improving later
-        // Push our null swap with reward
-        pool_updates.push(PoolUpdate {
-            zero_for_one: false,
-            pair_index: pair_idx as u16,
-            swap_in_quantity: 0,
-            rewards_update
-        });
-        // Push the actual swap with no reward
-        pool_updates.push(PoolUpdate {
-            zero_for_one,
-            pair_index: pair_idx as u16,
-            swap_in_quantity: quantity_in,
-            rewards_update: RewardsUpdate::empty()
-        });
+            trace!(
+                asset_in_index,
+                asset_out_index, quantity_in, quantity_out, "Merged swap evaluated"
+            );
+            // Account for our net AMM Order
+            asset_builder.uniswap_swap(
+                AssetBuilderStage::Swap,
+                asset_in_index as usize,
+                asset_out_index as usize,
+                quantity_in,
+                quantity_out
+            );
+        } else {
+            trace!("No net AMM Swap to be evaluated");
+        }
 
         // Add the ToB order to our tob order list - This is currently converting
         // between two ToB order formats
@@ -624,9 +595,8 @@ impl AngstromBundle {
 
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
-        let ray_ucp = Ray::from(ucp);
+        let mut total_user_fees: u128 = 0;
         // We need to calculate our bids with this inverse ray
-        let inverse_ray_ucp = ray_ucp.inv_ray();
         for (outcome, order) in solution
             .limit
             .iter()
@@ -647,8 +617,11 @@ impl AngstromBundle {
                 fill_amount,
                 gas,
                 fee,
-                ray_ucp
+                solution.ucp
             );
+
+            // Add the contract fee to our total user fees
+            total_user_fees = total_user_fees.saturating_add(t0_fee);
 
             // we don't account for the gas here in these quantites as the order
             let (quantity_in, quantity_out) = if order.is_bid() {
@@ -676,6 +649,37 @@ impl AngstromBundle {
                 UserOrder::from_internal_order_max_gas(order, outcome, pair_idx as u16)
             };
             user_orders.push(user_order);
+        }
+
+        // Now if we have a TOB swap and/or reward, we can put together our rewards
+        // outcome
+        if let Some((v, tob_reward)) = tob_reward_data {
+            // We might want to split this in some way in the future
+            let total_reward = tob_reward + total_user_fees;
+            let tribute = 0_u128;
+
+            // Allocate the reward quantity
+            asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
+            // Account for our tribute
+            asset_builder.tribute(AssetBuilderStage::Reward, t0, tribute);
+
+            // Build the RewardsUpdate
+            let rewards_update = RewardsUpdate::from_vec(&v, total_reward);
+
+            // Push our null swap with reward
+            pool_updates.push(PoolUpdate {
+                zero_for_one: false,
+                pair_index: pair_idx as u16,
+                swap_in_quantity: 0,
+                rewards_update
+            });
+            // Push the actual swap with no reward
+            pool_updates.push(PoolUpdate {
+                zero_for_one:     v.zero_for_one(),
+                pair_index:       pair_idx as u16,
+                swap_in_quantity: v.input(),
+                rewards_update:   RewardsUpdate::empty()
+            });
         }
 
         Ok(())

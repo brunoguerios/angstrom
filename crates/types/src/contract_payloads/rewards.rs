@@ -1,7 +1,9 @@
 use alloy::primitives::aliases::I24;
+use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
 
 use super::{Asset, Pair};
+use crate::matching::uniswap::PoolPriceVec;
 
 #[derive(Debug, PadeEncode, PadeDecode)]
 pub enum RewardsUpdate {
@@ -10,6 +12,54 @@ pub enum RewardsUpdate {
 }
 
 impl RewardsUpdate {
+    pub fn from_vec(pricevec: &PoolPriceVec, total_donation: u128) -> Self {
+        let range_tick = pricevec.end_bound.tick;
+        let current_tick = pricevec.start_bound.tick;
+        let snapshot = pricevec.snapshot();
+
+        let vec_donations = pricevec.t0_donation_to_end_price(total_donation);
+        let from_above = range_tick > current_tick;
+        let (low, high) =
+            if from_above { (&current_tick, &range_tick) } else { (&range_tick, &current_tick) };
+        let mut quantities = vec_donations
+            .tick_donations
+            .iter()
+            .filter(|((low_tick, high_tick), _)| *high_tick > *low && *low_tick <= *high)
+            // Sorts from the lowest tick to the highest tick
+            .sorted_by_key(|f| f.0)
+            .map(|f| *f.1)
+            .collect::<Vec<_>>();
+
+        // If we're coming from above we have to reverse, we want highest tick to lowest
+        // tick
+        if from_above {
+            quantities.reverse();
+        }
+
+        let (start_tick, start_liquidity) = snapshot
+            .get_range_for_tick(range_tick)
+            .map(|r| (if from_above { r.lower_tick() } else { r.upper_tick() }, r.liquidity()))
+            .unwrap_or_default();
+
+        tracing::trace!(
+            start_tick,
+            start_liquidity,
+            current_tick,
+            ?quantities,
+            quantities_len = quantities.len(),
+            "Rewards update range dump"
+        );
+
+        match quantities.len() {
+            0 | 1 => Self::CurrentOnly { amount: quantities.first().copied().unwrap_or_default() },
+            _ => Self::MultiTick {
+                start_tick: I24::try_from(start_tick).unwrap_or_default(),
+                start_liquidity,
+                quantities
+            }
+        }
+    }
+
     pub fn empty() -> Self {
         Self::CurrentOnly { amount: 0 }
     }
