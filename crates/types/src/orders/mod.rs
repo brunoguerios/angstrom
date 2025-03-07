@@ -93,6 +93,7 @@ impl NetAmmOrder {
     /// positive if we are purchasing T0 from the AMM and negative if we are
     /// selling T0 into the AMM
     pub fn get_t0_signed(&self) -> I256 {
+        tracing::trace!(net_amm_order = ?self, "Processing net AMM order into t0signed");
         match self {
             Self::Buy(t0, _) => I256::unchecked_from(*t0),
             Self::Sell(t0, _) => I256::unchecked_from(*t0).saturating_neg()

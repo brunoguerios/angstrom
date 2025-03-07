@@ -50,23 +50,34 @@ impl Quantity {
 /// amount of T0 left in the pool.
 /// TODO: CONSISTENCY CHECK FOR USAGE
 pub enum Direction {
-    /// When buying T0, the price will go up and the tick number will increase
+    /// When the contract is buying T0 from the pool, the price will go up and
+    /// the tick number will increase
     BuyingT0,
-    /// When selling T0, the price will go down and the tick number will
-    /// decrease
+    /// When the contract is selling T0 to the pool, the price will go down and
+    /// the tick number will decrease
     SellingT0
 }
 
 impl Direction {
+    /// Returns the Direction associated with an order type.  `is_bid` is true
+    /// if the order or AMM interaction we are referencing is acting as a bid
+    /// (Offering to purchase T0 from the contract) or false if the order or AMM
+    /// interaction we are referencing is acting as an ask (Offering to sell T0
+    /// to the contract)
     pub fn from_is_bid(is_bid: bool) -> Self {
         match is_bid {
-            true => Self::BuyingT0,
-            false => Self::SellingT0
+            // If the pool is acting as a bid, the contract is selling T0 to the pool
+            true => Self::SellingT0,
+            // If the pool is acting as an ask, the contract is buying T0 from the pool
+            false => Self::BuyingT0
         }
     }
 
+    /// Returns `true` if this direction is the proper direction to represent a
+    /// bid-type interaction from the contract's perspective (An interaction
+    /// that is purchasing T0 from the contract)
     pub fn is_bid(&self) -> bool {
-        matches!(self, Self::BuyingT0)
+        matches!(self, Self::SellingT0)
     }
 
     /// Determine the direction of sale from a start and end price

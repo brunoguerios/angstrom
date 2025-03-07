@@ -47,18 +47,26 @@ impl<'a> DeltaMatcher<'a> {
 
     fn fetch_concentrated_liquidity(&self, price: Ray) -> (I256, I256) {
         let Some(start_price) = self.amm_start_price.clone() else { return Default::default() };
+        let Ok(end_price) = start_price.snapshot().at_price(SqrtPriceX96::from(price)) else {
+            return Default::default()
+        };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
 
-        let zfo = start_sqrt >= end_sqrt;
+        // If the AMM price is decreasing, it is because the AMM is accepting T0 from
+        // the contract.  An order that purchases T0 from the contract is a bid
+        let is_bid = start_sqrt >= end_sqrt;
 
-        let direction = Direction::from_is_bid(!zfo);
+        // let direction = Direction::from_is_bid(is_bid);
 
-        let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
+        let Ok(res) = PoolPriceVec::from_price_range(start_price, end_price) else {
             return Default::default();
         };
+        // let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt,
+        // direction) else {     return Default::default();
+        // };
 
-        if zfo {
+        if is_bid {
             // if the amm is swapping from zero to one, it means that we need more liquidity
             // it in token 1 and less in token zero
             (I256::try_from(res.d_t0).unwrap() * I256::MINUS_ONE, I256::try_from(res.d_t1).unwrap())

@@ -504,11 +504,11 @@ impl AngstromBundle {
         let tob_swap_t0 = tob_reward_data.as_ref().map(|(v, _)| {
             let d_t0 = I256::unchecked_from(v.d_t0);
             if v.zero_for_one() {
+                // We're selling T0 into the AMM
+                d_t0.saturating_neg()
+            } else {
                 // We're buying T0 from the AMM
                 d_t0
-            } else {
-                // We're selling T0 to the AMM
-                d_t0.saturating_neg()
             }
         });
         let net_swap_t0 = match (amm_swap_t0, tob_swap_t0) {
@@ -517,7 +517,7 @@ impl AngstromBundle {
         };
 
         // If we have a net swap, let's account for it
-        if let Some(net_t0) = net_swap_t0 {
+        let merged_swap_details = if let Some(net_t0) = net_swap_t0 {
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
 
@@ -546,9 +546,11 @@ impl AngstromBundle {
                 quantity_in,
                 quantity_out
             );
+            Some((net_t0.is_negative(), quantity_in))
         } else {
             trace!("No net AMM Swap to be evaluated");
-        }
+            None
+        };
 
         // Add the ToB order to our tob order list - This is currently converting
         // between two ToB order formats
@@ -643,6 +645,8 @@ impl AngstromBundle {
                 quantity_in,
                 quantity_out
             );
+            // Account for the gas used by the order
+            asset_builder.add_gas_fee(AssetBuilderStage::UserOrder, t0, gas);
             let user_order = if let Some(g) = shared_gas {
                 UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
             } else {
@@ -673,13 +677,15 @@ impl AngstromBundle {
                 swap_in_quantity: 0,
                 rewards_update
             });
-            // Push the actual swap with no reward
-            pool_updates.push(PoolUpdate {
-                zero_for_one:     v.zero_for_one(),
-                pair_index:       pair_idx as u16,
-                swap_in_quantity: v.input(),
-                rewards_update:   RewardsUpdate::empty()
-            });
+            if let Some((zero_for_one, swap_in_quantity)) = merged_swap_details {
+                // Push the actual swap with no reward
+                pool_updates.push(PoolUpdate {
+                    zero_for_one,
+                    pair_index: pair_idx as u16,
+                    swap_in_quantity,
+                    rewards_update: RewardsUpdate::empty()
+                });
+            }
         }
 
         Ok(())

@@ -211,7 +211,7 @@ impl<'a> PoolPriceVec<'a> {
     pub fn new(start: PoolPrice<'a>, end: PoolPrice<'a>) -> Self {
         Self::from_price_range(start.clone(), end.clone())
             .ok()
-            .unwrap_or_else(|| Self {
+            .unwrap_or(Self {
                 start_bound: start,
                 end_bound:   end,
                 d_t0:        0,
