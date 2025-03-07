@@ -255,8 +255,10 @@ pub async fn manager_thread<TP: TaskSpawner + 'static, V: BundleValidatorHandle>
     while let Some(c) = input.recv().await {
         match c {
             MatcherCommand::BuildProposal(limit, searcher, snapshot, r) => {
-                r.send(manager.build_proposal(limit, searcher, snapshot).await)
-                    .unwrap();
+                let r = r.send(manager.build_proposal(limit, searcher, snapshot).await);
+                if r.is_err() {
+                    tracing::error!("failed to send built proposal back to caller");
+                }
             }
             MatcherCommand::EstimateGasPerPool { .. } => {
                 todo!()
