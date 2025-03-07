@@ -4,6 +4,7 @@ use std::{
     future::Future,
     hash::Hash,
     ops::Deref,
+    pin::Pin,
     sync::{Arc, RwLock, RwLockReadGuard},
     task::Poll
 };
@@ -14,6 +15,7 @@ use alloy::{
     transports::{RpcError, TransportErrorKind}
 };
 use alloy_primitives::Log;
+use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_payloads::tob::ToBOutcome,
@@ -22,6 +24,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
+use futures::Stream;
 use futures_util::{StreamExt, stream::BoxStream};
 use thiserror::Error;
 use tokio::sync::Notify;
@@ -157,6 +160,7 @@ where
     provider:            Arc<P>,
     block_sync:          BlockSync,
     block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
+    update_stream:       Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>,
     rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad<A>, Arc<Notify>)>
 }
 
@@ -172,7 +176,8 @@ where
         conversion_map: HashMap<A, A>,
         latest_synced_block: BlockNumber,
         provider: Arc<P>,
-        block_sync: BlockSync
+        block_sync: BlockSync,
+        update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
     ) -> Self {
         block_sync.register(MODULE_NAME);
 
@@ -193,6 +198,7 @@ where
             block_stream,
             provider,
             block_sync,
+            update_stream,
             rx
         }
     }

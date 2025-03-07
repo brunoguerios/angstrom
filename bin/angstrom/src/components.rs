@@ -1,6 +1,6 @@
 //! CLI definition and entrypoint to executable
 
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, pin::Pin, sync::Arc};
 
 use alloy::{
     self,
@@ -28,6 +28,7 @@ use angstrom_types::{
     reth_db_wrapper::RethDbWrapper
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
+use futures::Stream;
 use matching_engine::{MatchingManager, manager::MatcherCommand};
 use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
 use reth::{
@@ -256,6 +257,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
         vec![handles.eth_handle_tx.take().unwrap()]
     )
     .unwrap();
+    let network_stream = Box::pin(eth_handle.subscribe_network())
+        as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
     let uniswap_pool_manager = configure_uniswap_manager(
         querying_provider.clone(),
@@ -263,7 +266,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
         uniswap_registry,
         block_id,
         global_block_sync.clone(),
-        node_config.pool_manager_address
+        node_config.pool_manager_address,
+        network_stream
     )
     .await;
 

@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
-use angstrom_eth::handle::Eth;
+use angstrom_eth::{handle::Eth, manager::EthEvent};
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
 use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::{
@@ -132,6 +132,9 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             .map_err(|e| eyre::eyre!("{e}"))?
         );
 
+        let network_stream = Box::pin(eth_handle.subscribe_network())
+            as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
+
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
             state_provider
@@ -140,7 +143,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_registry.clone(),
             block_number,
             block_sync.clone(),
-            inital_angstrom_state.pool_manager_addr
+            inital_angstrom_state.pool_manager_addr,
+            network_stream
         )
         .await;
 

@@ -1565,6 +1565,7 @@ dependencies = [
  "clap",
  "consensus",
  "eyre",
+ "futures",
  "matching-engine",
  "order-pool",
  "reth",

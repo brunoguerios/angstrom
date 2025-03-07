@@ -1,9 +1,10 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, pin::Pin, sync::Arc};
 
 use alloy::{
     consensus::TxReceipt, primitives::aliases::I24, providers::Provider, sol_types::SolEvent
 };
 use alloy_primitives::{Address, BlockNumber, FixedBytes};
+use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_bindings::{
@@ -12,6 +13,7 @@ use angstrom_types::{
     },
     primitive::{PoolId, UniswapPoolRegistry}
 };
+use futures::Stream;
 use reth_provider::{
     CanonStateNotifications, DatabaseProviderFactory, ReceiptProvider, StateProvider,
     TryIntoHistoricalStateProvider
@@ -114,7 +116,8 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
     uniswap_pool_registry: UniswapPoolRegistry,
     current_block: BlockNumber,
     block_sync: BlockSync,
-    pool_manager_address: Address
+    pool_manager_address: Address,
+    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
 ) -> UniswapPoolManager<
     CanonicalStateAdapter<impl Provider + 'static>,
     BlockSync,
@@ -153,6 +156,7 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
         uniswap_pool_registry.conversion_map,
         current_block,
         notifier,
-        block_sync
+        block_sync,
+        update_stream
     )
 }
