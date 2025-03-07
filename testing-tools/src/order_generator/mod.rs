@@ -28,7 +28,9 @@ impl OrderGenerator {
     ) -> Self {
         let pools = pool_data
             .iter()
-            .map(|(pool_id, pool_data)| {
+            .map(|item| {
+                let pool_id = item.key();
+                let pool_data = item.value();
                 PoolOrderGenerator::new(*pool_id, pool_data.clone(), block_number)
             })
             .collect::<Vec<_>>();

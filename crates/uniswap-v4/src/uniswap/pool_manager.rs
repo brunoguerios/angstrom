@@ -2,20 +2,18 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     future::Future,
-    hash::Hash,
     ops::Deref,
     pin::Pin,
-    sync::{Arc, RwLock, RwLockReadGuard},
+    sync::{Arc, RwLock},
     task::Poll
 };
 
 use alloy::{
-    primitives::{BlockNumber, FixedBytes},
+    primitives::BlockNumber,
     providers::Provider,
-    rpc::types::{Block, eth::Filter},
+    rpc::types::Block,
     transports::{RpcError, TransportErrorKind}
 };
-use alloy_primitives::Log;
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
@@ -25,6 +23,7 @@ use angstrom_types::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
+use dashmap::DashMap;
 use futures::Stream;
 use futures_util::{StreamExt, stream::BoxStream};
 use thiserror::Error;
@@ -51,7 +50,7 @@ pub struct TickRangeToLoad {
     pub tick_count: u16
 }
 
-type PoolMap = Arc<HashMap<PoolId, Arc<RwLock<EnhancedUniswapPool<DataLoader>>>>>;
+type PoolMap = Arc<DashMap<PoolId, Arc<RwLock<EnhancedUniswapPool<DataLoader>>>>>;
 
 #[derive(Clone)]
 pub struct SyncedUniswapPools
@@ -103,7 +102,8 @@ where
         let mut cnt = ATTEMPTS;
         loop {
             let market_snapshot = {
-                let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
+                let p_lock = self.pools.get(&pool_id).unwrap();
+                let pool = p_lock.read().unwrap();
                 pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
             };
 
@@ -114,7 +114,8 @@ where
                 let not = Arc::new(Notify::new());
                 // scope for awaits
                 let start_tick = {
-                    let pool = self.pools.get(&pool_id).unwrap().read().unwrap();
+                    let p_lock = self.pools.get(&pool_id).unwrap();
+                    let pool = p_lock.read().unwrap();
                     if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() }
                 };
 
@@ -156,7 +157,7 @@ where
     factory:             V4PoolFactory<PP>,
     pools:               SyncedUniswapPools,
     latest_synced_block: u64,
-    state_change_cache:  Arc<RwLock<StateChangeCache>>,
+    _state_change_cache: Arc<RwLock<StateChangeCache>>,
     provider:            Arc<P>,
     block_sync:          BlockSync,
     block_stream:        BoxStream<'static, Option<PoolMangerBlocks>>,
@@ -195,7 +196,7 @@ where
             factory,
             pools: SyncedUniswapPools::new(Arc::new(rwlock_pools), tx),
             latest_synced_block,
-            state_change_cache: Arc::new(RwLock::new(HashMap::new())),
+            _state_change_cache: Arc::new(RwLock::new(HashMap::new())),
             block_stream,
             provider,
             block_sync,
@@ -207,7 +208,9 @@ where
     pub fn fetch_pool_snapshots(&self) -> HashMap<PoolId, PoolSnapshot> {
         self.pools
             .iter()
-            .filter_map(|(key, pool)| {
+            .filter_map(|refr| {
+                let key = refr.key();
+                let pool = refr.value();
                 // gotta
                 Some((
                     self.convert_to_pub_id(key),
@@ -218,7 +221,7 @@ where
     }
 
     pub fn pool_addresses(&self) -> impl Iterator<Item = PoolId> + '_ {
-        self.pools.keys().map(|k| self.convert_to_pub_id(k))
+        self.pools.iter().map(|k| self.convert_to_pub_id(k.key()))
     }
 
     pub fn pools(&self) -> SyncedUniswapPools {
@@ -226,7 +229,12 @@ where
         c.pools = Arc::new(
             c.pools
                 .iter()
-                .map(|(k, v)| (self.convert_to_pub_id(k), v.clone()))
+                .map(|refr| {
+                    let k = refr.key();
+                    let v = refr.value();
+
+                    (self.convert_to_pub_id(k), v.clone())
+                })
                 .collect()
         );
 
@@ -247,96 +255,6 @@ where
             .unwrap()
     }
 
-    pub fn pool(
-        &self,
-        address: &PoolId
-    ) -> Option<RwLockReadGuard<'_, EnhancedUniswapPool<DataLoader>>> {
-        let addr = self.factory.conversion_map().get(address)?;
-        let pool = self.pools.get(addr)?;
-        Some(pool.read().unwrap())
-    }
-
-    pub fn filter(&self) -> Filter {
-        // it should crash given that no pools makes no sense
-        let pool = self.pools.values().next().unwrap();
-        let pool = pool.read().unwrap();
-        Filter::new().event_signature(pool.event_signatures())
-    }
-
-    /// Unwinds the state changes cache for every block from the most recent
-    /// state change cache back to the block to unwind -1.
-    fn unwind_state_changes(
-        pool: &mut EnhancedUniswapPool<DataLoader>,
-        state_change_cache: &mut StateChangeCache,
-        block_to_unwind: u64
-    ) -> Result<(), PoolManagerError> {
-        if let Some(cache) = state_change_cache.get_mut(&pool.address()) {
-            loop {
-                // check if the most recent state change block is >= the block to unwind
-                match cache.get(0) {
-                    Some(state_change) if state_change.block_number >= block_to_unwind => {
-                        if let Some(option_state_change) = cache.pop_front() {
-                            if let Some(pool_state) = option_state_change.state_change {
-                                *pool = pool_state;
-                            }
-                        } else {
-                            // We know that there is a state change from cache.get(0) so
-                            // when we pop front without returning a value,
-                            // there is an issue
-                            return Err(PoolManagerError::PopFrontError);
-                        }
-                    }
-                    Some(_) => return Ok(()),
-                    None => {
-                        // We return an error here because we never want to be unwinding past where
-                        // we have state changes. For example, if you
-                        // initialize a state space that syncs to block 100,
-                        // then immediately after there is a chain reorg to 95,
-                        // we can not roll back the state changes for an accurate state
-                        // space. In this case, we return an error
-                        tracing::warn!(addr=?pool.address(),"cache.get(0) == None");
-                        return Err(PoolManagerError::NoStateChangesInCache);
-                    }
-                }
-            }
-        } else {
-            tracing::warn!("get_mut failed");
-            Err(PoolManagerError::NoStateChangesInCache)
-        }
-    }
-
-    fn add_state_change_to_cache(
-        state_change_cache: &mut StateChangeCache,
-        state_change: StateChange,
-        address: PoolId
-    ) -> Result<(), PoolManagerError> {
-        let cache = state_change_cache.entry(address).or_default();
-        if cache.is_full() {
-            cache.pop_back();
-        }
-        cache
-            .push_front(state_change)
-            .map_err(|_| PoolManagerError::CapacityError)
-    }
-
-    fn handle_state_changes_from_logs(
-        pool: &mut EnhancedUniswapPool<DataLoader>,
-        state_change_cache: &mut StateChangeCache,
-        logs: Vec<Log>,
-        block_number: BlockNumber
-    ) -> Result<(), PoolManagerError> {
-        for log in logs {
-            pool.sync_from_log(log)?;
-        }
-
-        let pool_clone = pool.clone();
-        Self::add_state_change_to_cache(
-            state_change_cache,
-            StateChange::new(Some(pool_clone), block_number),
-            pool.address()
-        )
-    }
-
     fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
         // If there is a reorg, unwind state changes from last_synced block to the
         // chain head block number
@@ -353,52 +271,6 @@ where
                 (tip, Some(range), true)
             }
         };
-
-        let logs = self
-            .provider
-            .get_logs(
-                &self
-                    .filter()
-                    .from_block(self.latest_synced_block + 1)
-                    .to_block(chain_head_block_number)
-            )
-            .expect("should never fail");
-
-        if is_reorg {
-            // scope for locks
-            let mut state_change_cache = self.state_change_cache.write().unwrap();
-            for pool in self.pools.values() {
-                let mut pool_guard = pool.write().unwrap();
-                Self::unwind_state_changes(
-                    &mut pool_guard,
-                    &mut state_change_cache,
-                    chain_head_block_number
-                )
-                .expect("should never fail");
-            }
-        }
-
-        let logs_by_address = DataLoader::group_logs(logs);
-
-        for (addr, logs) in logs_by_address {
-            if logs.is_empty() {
-                continue;
-            }
-
-            let Some(pool) = self.pools.get(&addr) else {
-                continue;
-            };
-
-            let mut pool_guard = pool.write().unwrap();
-            let mut state_change_cache = self.state_change_cache.write().unwrap();
-            Self::handle_state_changes_from_logs(
-                &mut pool_guard,
-                &mut state_change_cache,
-                logs,
-                chain_head_block_number
-            )
-            .expect("never fail");
-        }
 
         Self::pool_update_workaround(
             chain_head_block_number,
@@ -419,7 +291,8 @@ where
 
     fn pool_update_workaround(block_number: u64, pools: SyncedUniswapPools, provider: Arc<P>) {
         tracing::info!("starting poll");
-        for pool in pools.pools.values() {
+        for pool in pools.pools.iter() {
+            let pool = pool.value();
             let mut l = pool.write().unwrap();
             async_to_sync(l.update_to_block(Some(block_number), provider.provider())).unwrap();
         }
@@ -433,7 +306,8 @@ where
         tick_req: TickRangeToLoad
     ) {
         let node_provider = provider.provider();
-        let mut pool = pools.get(&tick_req.pool_id).unwrap().write().unwrap();
+        let binding = pools.get(&tick_req.pool_id).unwrap();
+        let mut pool = binding.write().unwrap();
 
         // given we force this to resolve, should'nt be problematic
         let ticks = async_to_sync(pool.load_more_ticks(tick_req, None, node_provider)).unwrap();
@@ -461,6 +335,23 @@ where
         while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
             self.handle_new_block_info(block_info);
         }
+        while let Poll::Ready(Some(event)) = self.update_stream.poll_next_unpin(cx) {
+            match event {
+                EthEvent::NewPool { pool } => {
+                    let block = self.latest_synced_block;
+                    let pool =
+                        async_to_sync(self.factory.create_new_angstrom_pool(pool.clone(), block));
+                    let key = pool.address();
+                    self.pools.insert(key, Arc::new(RwLock::new(pool)));
+                }
+                EthEvent::RemovedPool { pool } => {
+                    let id = self.factory.remove_pool(pool);
+                    self.pools.remove(&id);
+                }
+                _ => {}
+            }
+        }
+
         while let Poll::Ready(Some((mut ticks, not))) = self.rx.poll_recv(cx) {
             // hacky for now but only way to avoid lock problems
             let pools = self.pools.clone();
@@ -485,16 +376,16 @@ pub struct StateChange
 where
     DataLoader: PoolDataLoader
 {
-    state_change: Option<EnhancedUniswapPool<DataLoader>>,
-    block_number: u64
+    _state_change: Option<EnhancedUniswapPool<DataLoader>>,
+    _block_number: u64
 }
 
 impl StateChange
 where
     DataLoader: PoolDataLoader
 {
-    pub fn new(state_change: Option<EnhancedUniswapPool<DataLoader>>, block_number: u64) -> Self {
-        Self { state_change, block_number }
+    pub fn new(_state_change: Option<EnhancedUniswapPool<DataLoader>>, _block_number: u64) -> Self {
+        Self { _state_change, _block_number }
     }
 }
 

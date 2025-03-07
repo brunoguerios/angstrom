@@ -11,7 +11,7 @@ use angstrom_types::{
         angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
     },
-    primitive::{PoolId, UniswapPoolRegistry}
+    primitive::UniswapPoolRegistry
 };
 use futures::Stream;
 use reth_provider::{
@@ -21,7 +21,7 @@ use reth_provider::{
 use uniswap::pool_factory::V4PoolFactory;
 
 use crate::uniswap::{
-    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
+    pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
     pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
 

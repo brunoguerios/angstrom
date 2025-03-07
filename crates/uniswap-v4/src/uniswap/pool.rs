@@ -677,10 +677,6 @@ where
         !(self.token0.is_zero() || self.token1.is_zero())
     }
 
-    pub(crate) fn event_signatures(&self) -> Vec<B256> {
-        Loader::event_signatures()
-    }
-
     pub(crate) fn update_position(
         &mut self,
         tick_lower: i32,
@@ -844,7 +840,7 @@ mod tests {
     #[derive(Debug, Clone, Default)]
     struct MockLoader;
 
-    impl<A> PoolDataLoader<A> for MockLoader {
+    impl PoolDataLoader for MockLoader {
         async fn load_tick_data<P: Provider>(
             &self,
             _: I24,
@@ -865,11 +861,11 @@ mod tests {
             unimplemented!()
         }
 
-        fn address(&self) -> A {
+        fn address(&self) -> PoolId {
             unimplemented!()
         }
 
-        fn group_logs(_: Vec<Log>) -> HashMap<A, Vec<Log>> {
+        fn group_logs(_: Vec<Log>) -> HashMap<PoolId, Vec<Log>> {
             unimplemented!()
         }
 

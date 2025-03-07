@@ -47,6 +47,12 @@ where
         &self.registry.conversion_map
     }
 
+    pub fn remove_pool(&mut self, pool_key: PoolKey) -> PoolId {
+        let id = PoolId::from(pool_key);
+        let _ = self.registry.pools.remove(&id);
+        self.registry.conversion_map.remove(&id).unwrap()
+    }
+
     pub async fn create_new_angstrom_pool(
         &mut self,
         mut pool_key: PoolKey,
@@ -57,14 +63,12 @@ where
     {
         // add to registry
         let pub_key = PoolId::from(pool_key.clone());
-        self.registry.pools.insert(pub_key.into(), pool_key.clone());
+        self.registry.pools.insert(pub_key, pool_key.clone());
 
         // priv key
         pool_key.fee = U24::from(0x800000);
         let priv_key = PoolId::from(pool_key.clone());
-        self.registry
-            .conversion_map
-            .insert(pub_key.into(), priv_key.into());
+        self.registry.conversion_map.insert(pub_key, priv_key);
 
         let internal = self.registry.conversion_map.get(&pub_key).unwrap();
 
