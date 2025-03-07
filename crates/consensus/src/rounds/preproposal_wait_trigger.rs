@@ -24,9 +24,9 @@ const ETH_BLOCK_TIME: Duration = Duration::from_secs(12);
 /// The amount of the difference we scale by to reach
 const SCALING_REM_ADJUSTMENT: u32 = 3;
 /// Minimum wait time before consensus starts (in seconds)
-const MIN_WAIT_DURATION: f64 = 6.0;
+const MIN_WAIT_DURATION: f64 = 0.9;
 /// Maximum wait time before consensus starts (in seconds)
-const MAX_WAIT_DURATION: f64 = 10.0;
+const MAX_WAIT_DURATION: f64 = 2.0;
 
 /// When we should trigger to build our pre-proposals
 /// this is very important for maximizing how long we can
