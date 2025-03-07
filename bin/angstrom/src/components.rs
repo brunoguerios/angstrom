@@ -23,7 +23,7 @@ use angstrom_types::{
     contract_bindings::controller_v_1::ControllerV1,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
-    primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
+    primitive::{AngstromSigner, UniswapPoolRegistry},
     reth_db_provider::RethDbLayer,
     reth_db_wrapper::RethDbWrapper
 };
@@ -208,6 +208,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         .unwrap()
     );
 
+    // this right here problem
     let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
@@ -234,7 +235,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         HashSet::new(),
         pool_config_store.clone(),
         global_block_sync.clone(),
-        node_set,
+        node_set.clone(),
         vec![handles.eth_handle_tx.take().unwrap()]
     )
     .unwrap();
@@ -301,13 +302,11 @@ pub async fn initialize_strom_components<Node, AddOns>(
         handles.pool_manager_tx,
         block_id
     );
-
-    // TODO load the stakes from Eigen using node.provider
-    let validators = vec![
-        AngstromValidator::new(PeerId::default(), 100),
-        AngstromValidator::new(PeerId::default(), 200),
-        AngstromValidator::new(PeerId::default(), 300),
-    ];
+    let validators = node_set
+        .into_iter()
+        // use same weight for all validators
+        .map(|addr| AngstromValidator::new(addr, 100))
+        .collect::<Vec<_>>();
 
     // spinup matching engine
     let matching_handle = MatchingManager::spawn(executor.clone(), validation_handle.clone());

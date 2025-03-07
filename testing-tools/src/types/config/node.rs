@@ -12,7 +12,9 @@ use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use super::TestingConfigKind;
 use crate::{
     providers::WalletProvider,
-    types::{GlobalTestingConfig, initial_state::PartialConfigPoolKey}
+    types::{
+        GlobalTestingConfig, checked_actions::peer_id_to_addr, initial_state::PartialConfigPoolKey
+    }
 };
 
 const TESTNET_LEADER_SECRET_KEY: [u8; 32] = [
@@ -65,7 +67,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     }
 
     pub fn angstrom_validator(&self) -> AngstromValidator {
-        let id = self.angstrom_signer().id();
+        let id = peer_id_to_addr(self.angstrom_signer().id());
         AngstromValidator::new(id, self.voting_power)
     }
 
