@@ -12361,6 +12361,7 @@ version = "0.1.0"
 dependencies = [
  "alloy 0.11.1",
  "alloy-primitives 0.8.22",
+ "angstrom-eth",
  "angstrom-types",
  "angstrom-utils",
  "arraydeque",

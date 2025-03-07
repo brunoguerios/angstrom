@@ -17,12 +17,13 @@ use angstrom_types::{
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::{Future, Stream, StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::{MatchingManager, configure_uniswap_manager, manager::MatcherHandle};
+use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::{Instrument, span};
+use uniswap_v4::configure_uniswap_manager;
 use validation::{
     common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient

@@ -28,7 +28,7 @@ use angstrom_types::{
     reth_db_wrapper::RethDbWrapper
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use matching_engine::{MatchingManager, configure_uniswap_manager, manager::MatcherCommand};
+use matching_engine::{MatchingManager, manager::MatcherCommand};
 use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
 use reth::{
     api::NodeAddOns,
@@ -46,7 +46,7 @@ use reth_provider::{
 use tokio::sync::mpsc::{
     Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel
 };
-use uniswap_v4::fetch_angstrom_pools;
+use uniswap_v4::{configure_uniswap_manager, fetch_angstrom_pools};
 use validation::{
     common::TokenPriceGenerator,
     init_validation,
