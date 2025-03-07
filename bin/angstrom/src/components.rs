@@ -213,7 +213,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
     );
 
     // we take the subscription before we load the pools as this is a slow process
-    // and we want to make sure that
+    // and we want to make sure that any pool changes from now till when the pools
+    // are loaded isn't missed.
     let eth_data_sub = node.provider.subscribe_to_canonical_state();
     // load the angstrom pools;
     let pools = fetch_angstrom_pools(
