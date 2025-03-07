@@ -210,7 +210,9 @@ where
     ) -> HashMap<FixedBytes<32>, (Address, Address, PoolSnapshot, u16)> {
         self.uniswap_pools
             .iter()
-            .map(|(key, pool)| {
+            .map(|item| {
+                let key = item.key();
+                let pool = item.value();
                 tracing::info!(?key, "getting snapshot");
                 let (token_a, token_b, snapshot) =
                     pool.read().unwrap().fetch_pool_snapshot().unwrap();
@@ -358,7 +360,7 @@ impl From<PreProposalAggregation> for ConsensusMessage {
 #[cfg(test)]
 pub mod tests {
     use std::{
-        collections::{HashMap, HashSet},
+        collections::HashSet,
         sync::Arc,
         task::{Context, Poll},
         time::{Duration, Instant}
@@ -375,6 +377,7 @@ pub mod tests {
         mev_boost::MevBoostProvider,
         primitive::{AngstromSigner, UniswapPoolRegistry}
     };
+    use dashmap::DashMap;
     use futures::{Stream, pin_mut};
     use order_pool::{PoolConfig, order_storage::OrderStorage};
     use testing_tools::{
@@ -428,7 +431,7 @@ pub mod tests {
         // Initialize test components
         let pool_store = Arc::new(AngstromPoolConfigStore::default());
         let (tx, _rx) = tokio::sync::mpsc::channel(2);
-        let uniswap_pools = SyncedUniswapPools::new(Arc::new(HashMap::new()), tx);
+        let uniswap_pools = SyncedUniswapPools::new(Arc::new(DashMap::new()), tx);
         let reg = UniswapPoolRegistry::default();
 
         let pool_registry = UniswapAngstromRegistry::new(reg, pool_store);

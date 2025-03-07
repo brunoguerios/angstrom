@@ -11,7 +11,9 @@ exclude.workspace = true
 
 [dependencies]
 serde.workspace =true
+dashmap.workspace =true
 angstrom-types.workspace = true
+angstrom-eth.workspace=true
 angstrom-utils.workspace = true
 alloy.workspace = true
 alloy-primitives.workspace = true

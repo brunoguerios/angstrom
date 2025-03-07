@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use alloy::{
     dyn_abi::Eip712Domain,
@@ -75,11 +75,12 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
 pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
     alloy::primitives::address!("48bC5A530873DcF0b890aD50120e7ee5283E0112");
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct UniswapPoolRegistry {
-    pools:              HashMap<PoolId, PoolKey>,
+    pub pools:          HashMap<PoolId, PoolKey>,
     pub conversion_map: HashMap<PoolId, PoolId>
 }
+
 impl UniswapPoolRegistry {
     pub fn get(&self, pool_id: &PoolId) -> Option<&PoolKey> {
         self.pools.get(pool_id)
@@ -89,6 +90,7 @@ impl UniswapPoolRegistry {
         self.pools.clone()
     }
 }
+
 impl From<Vec<PoolKey>> for UniswapPoolRegistry {
     fn from(pools: Vec<PoolKey>) -> Self {
         let pubmap = pools

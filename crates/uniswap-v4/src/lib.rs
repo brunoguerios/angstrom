@@ -1,13 +1,28 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, pin::Pin, sync::Arc};
 
-use alloy::{consensus::TxReceipt, primitives::aliases::I24, sol_types::SolEvent};
-use alloy_primitives::{Address, FixedBytes};
-use angstrom_types::contract_bindings::{
-    angstrom::Angstrom::PoolKey,
-    controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
+use alloy::{
+    consensus::TxReceipt, primitives::aliases::I24, providers::Provider, sol_types::SolEvent
 };
+use alloy_primitives::{Address, BlockNumber, FixedBytes};
+use angstrom_eth::manager::EthEvent;
+use angstrom_types::{
+    block_sync::BlockSyncConsumer,
+    contract_bindings::{
+        angstrom::Angstrom::PoolKey,
+        controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
+    },
+    primitive::UniswapPoolRegistry
+};
+use futures::Stream;
 use reth_provider::{
-    DatabaseProviderFactory, ReceiptProvider, StateProvider, TryIntoHistoricalStateProvider
+    CanonStateNotifications, DatabaseProviderFactory, ReceiptProvider, StateProvider,
+    TryIntoHistoricalStateProvider
+};
+use uniswap::pool_factory::V4PoolFactory;
+
+use crate::uniswap::{
+    pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
+    pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
 
 /// This module should have information on all the Constant Function Market
@@ -94,4 +109,25 @@ where
         })
         .into_iter()
         .collect::<Vec<_>>()
+}
+
+pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
+    provider: Arc<impl Provider + 'static>,
+    state_notification: CanonStateNotifications,
+    uniswap_pool_registry: UniswapPoolRegistry,
+    current_block: BlockNumber,
+    block_sync: BlockSync,
+    pool_manager_address: Address,
+    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
+) -> UniswapPoolManager<
+    CanonicalStateAdapter<impl Provider + 'static>,
+    impl Provider + 'static,
+    BlockSync
+> {
+    let factory = V4PoolFactory::new(provider.clone(), uniswap_pool_registry, pool_manager_address);
+
+    let notifier =
+        Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
+
+    UniswapPoolManager::new(factory, current_block, notifier, block_sync, update_stream).await
 }

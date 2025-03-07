@@ -34,17 +34,16 @@ pub struct TokenPriceGenerator {
 impl TokenPriceGenerator {
     /// is a bit of a pain as we need todo a look-back in-order to grab last 5
     /// blocks.
-    pub async fn new<P: Provider, Loader>(
+    pub async fn new<P: Provider>(
         provider: Arc<P>,
         current_block: u64,
-        uni: SyncedUniswapPools<PoolId, Loader>,
+        uni: SyncedUniswapPools,
         blocks_to_avg_price_override: Option<u64>
-    ) -> eyre::Result<Self>
-    where
-        Loader: PoolDataLoader<PoolId> + Default + Clone + Send + Sync + 'static
-    {
+    ) -> eyre::Result<Self> {
         let mut pair_to_pool = HashMap::default();
-        for (key, pool) in uni.iter() {
+        for id in uni.iter() {
+            let key = id.key();
+            let pool = id.value();
             let pool = pool.read().unwrap();
             pair_to_pool.insert((pool.token0, pool.token1), *key);
         }
@@ -53,7 +52,9 @@ impl TokenPriceGenerator {
         // for each pool, we want to load the last 5 blocks and get the sqrt_price_96
         // and then convert it into the price of the underlying pool
         let pools = futures::stream::iter(uni.iter())
-            .map(|(pool_key, pool)| {
+            .map(|id| {
+                let pool_key = *id.key();
+                let pool = id.value().clone();
                 let provider = provider.clone();
 
                 async move {
@@ -86,7 +87,7 @@ impl TokenPriceGenerator {
                         });
                     }
 
-                    (*pool_key, queue)
+                    (pool_key, queue)
                 }
             })
             .fold(HashMap::default(), |mut acc, x| async {
