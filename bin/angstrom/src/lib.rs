@@ -77,7 +77,7 @@ fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
     match exists {
         Ok(true) => {
             let contents = std::fs::read_to_string(sk_path)?;
-            tracing::info!(?contents);
+            tracing::info!(?contents, "sk");
             Ok(AngstromSigner::new(contents.trim().parse::<PrivateKeySigner>()?))
         }
         _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path)),
