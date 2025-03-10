@@ -25,7 +25,8 @@ use tokio_stream::wrappers::BroadcastStream;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
 use validation::{
-    common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
+    common::{TokenPriceGenerator, WETH_ADDRESS},
+    order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
 };
 
@@ -159,6 +160,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
+            WETH_ADDRESS,
             Some(1)
         )
         .await

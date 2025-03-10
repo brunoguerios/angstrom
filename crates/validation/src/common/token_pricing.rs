@@ -27,6 +27,9 @@ pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c75
 pub struct TokenPriceGenerator {
     prev_prices:         HashMap<PoolId, VecDeque<PairsWithPrice>>,
     pair_to_pool:        HashMap<(Address, Address), PoolId>,
+    /// the token that is the wrapped version of the gas token on the given
+    /// chain
+    base_gas_token:      Address,
     cur_block:           u64,
     blocks_to_avg_price: u64
 }
@@ -38,6 +41,7 @@ impl TokenPriceGenerator {
         provider: Arc<P>,
         current_block: u64,
         uni: SyncedUniswapPools,
+        base_gas_token: Address,
         blocks_to_avg_price_override: Option<u64>
     ) -> eyre::Result<Self> {
         let mut pair_to_pool = HashMap::default();
@@ -97,7 +101,13 @@ impl TokenPriceGenerator {
             })
             .await;
 
-        Ok(Self { prev_prices: pools, cur_block: current_block, pair_to_pool, blocks_to_avg_price })
+        Ok(Self {
+            prev_prices: pools,
+            base_gas_token,
+            cur_block: current_block,
+            pair_to_pool,
+            blocks_to_avg_price
+        })
     }
 
     pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), Ray> {
@@ -138,12 +148,12 @@ impl TokenPriceGenerator {
     /// the previous prices are stored in RAY (1e27).
     /// we take this price. then
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
-        if token_0 == WETH_ADDRESS {
+        if token_0 == self.base_gas_token {
             return Some(Ray::scale_to_ray(U256::from(1)));
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
-        if token_1 == WETH_ADDRESS {
+        if token_1 == self.base_gas_token {
             // if so, just pull the price
             let pool_key = self
                 .pair_to_pool
@@ -170,16 +180,16 @@ impl TokenPriceGenerator {
         }
 
         // need to pass through a pair.
-        let (first_flip, token_0_hop1, token_1_hop1) = if token_0 < WETH_ADDRESS {
-            (false, token_0, WETH_ADDRESS)
+        let (first_flip, token_0_hop1, token_1_hop1) = if token_0 < self.base_gas_token {
+            (false, token_0, self.base_gas_token)
         } else {
-            (true, WETH_ADDRESS, token_0)
+            (true, self.base_gas_token, token_0)
         };
 
-        let (second_flip, token_0_hop2, token_1_hop2) = if token_1 < WETH_ADDRESS {
-            (false, token_1, WETH_ADDRESS)
+        let (second_flip, token_0_hop2, token_1_hop2) = if token_1 < self.base_gas_token {
+            (false, token_1, self.base_gas_token)
         } else {
-            (true, WETH_ADDRESS, token_1)
+            (true, self.base_gas_token, token_1)
         };
 
         // check token_0 first for a weth pair. otherwise, check token_1.
@@ -353,6 +363,7 @@ pub mod test {
         TokenPriceGenerator {
             cur_block:           0,
             prev_prices:         prices,
+            base_gas_token:      WETH_ADDRESS,
             pair_to_pool:        pairs_to_key,
             blocks_to_avg_price: BLOCKS_TO_AVG_PRICE
         }
