@@ -200,6 +200,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
     let block_id = querying_provider.get_block_number().await.unwrap();
+    tracing::info!(?block_id, "starting up with block");
 
     let global_block_sync = GlobalBlockSync::new(block_id);
 
@@ -231,7 +232,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
-    let periphery_c = ControllerV1::new(node_config.periphery_addr, querying_provider.clone());
+    let periphery_c = ControllerV1::new(node_config.periphery_address, querying_provider.clone());
     let node_set = periphery_c
         .nodes()
         .call()
@@ -245,7 +246,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     // created
     let eth_handle = EthDataCleanser::spawn(
         node_config.angstrom_address,
-        node_config.periphery_addr,
+        node_config.periphery_address,
         eth_data_sub,
         executor.clone(),
         handles.eth_tx,
@@ -360,4 +361,5 @@ pub async fn initialize_strom_components<Node, AddOns>(
     });
 
     global_block_sync.finalize_modules();
+    tracing::info!("started angstrom");
 }

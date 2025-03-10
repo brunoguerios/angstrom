@@ -26,7 +26,7 @@ pub struct AngstromConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct NodeConfig {
     pub angstrom_address:     Address,
-    pub periphery_addr:       Address,
+    pub periphery_address:    Address,
     pub pool_manager_address: Address,
     pub gas_token_address:    Address,
 
