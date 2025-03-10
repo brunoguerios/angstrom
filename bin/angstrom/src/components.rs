@@ -273,10 +273,15 @@ pub async fn initialize_strom_components<Node, AddOns>(
 
     let uniswap_pools = uniswap_pool_manager.pools();
     executor.spawn_critical("uniswap pool manager", Box::pin(uniswap_pool_manager));
-    let price_generator =
-        TokenPriceGenerator::new(querying_provider.clone(), block_id, uniswap_pools.clone(), None)
-            .await
-            .expect("failed to start token price generator");
+    let price_generator = TokenPriceGenerator::new(
+        querying_provider.clone(),
+        block_id,
+        uniswap_pools.clone(),
+        node_config.gas_token_address,
+        None
+    )
+    .await
+    .expect("failed to start token price generator");
 
     let block_height = node.provider.best_block_number().unwrap();
 
