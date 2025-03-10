@@ -200,6 +200,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
     let block_id = querying_provider.get_block_number().await.unwrap();
+    tracing::info!(?block_id, "starting up with block");
 
     let global_block_sync = GlobalBlockSync::new(block_id);
 
