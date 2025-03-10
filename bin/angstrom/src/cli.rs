@@ -9,18 +9,12 @@ use url::Url;
 #[derive(Debug, Clone, Default, clap::Args)]
 pub struct AngstromConfig {
     #[clap(long)]
-    pub mev_guard:           bool,
-    #[clap(long)]
     pub secret_key_location: PathBuf,
-    #[clap(long)]
-    pub angstrom_addr:       Option<Address>,
-    #[clap(long)]
-    pub pool_manager_addr:   Option<Address>,
     #[clap(long)]
     pub node_config:         PathBuf,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
-    pub metrics:             bool,
+    pub metrics_enabled:     bool,
     /// spawns the prometheus metrics exporter at the specified port
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
