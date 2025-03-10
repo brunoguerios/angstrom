@@ -29,6 +29,11 @@ impl<'a> DeltaMatcher<'a> {
         tob: Option<OrderWithStorageData<TopOfBlockOrder>>,
         fee: u128
     ) -> Self {
+        // Dump the book
+        let json = serde_json::to_string(&book).unwrap();
+        let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+        trace!(data = b64_output, "Raw book data");
+
         let amm_start_price = if let Some(tob) = tob {
             if let Some(a) = book.amm() {
                 let end = generate_current_price_adjusted_for_donation(&tob, a)
@@ -195,6 +200,19 @@ impl<'a> DeltaMatcher<'a> {
 
         let t0_sum = book_t0 + normal_t0 + partial_t0;
         let t1_sum = book_t1 + normal_t1 + partial_t1;
+
+        tracing::trace!(
+            ?price,
+            ?book_t0,
+            ?book_t1,
+            ?normal_t0,
+            ?normal_t1,
+            ?partial_t0,
+            ?partial_t1,
+            ?t0_sum,
+            ?t1_sum,
+            "Testing price"
+        );
 
         if t0_sum.is_zero() && t1_sum.is_zero() {
             return SupplyDemandResult::NaturallyEqual;
