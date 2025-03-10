@@ -30,7 +30,7 @@ pub fn run() -> eyre::Result<()> {
     Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, args| async move {
         let executor = builder.task_executor().clone();
 
-        if args.metrics {
+        if args.metrics_enabled {
             executor.spawn_critical("metrics", crate::cli::init_metrics(args.metrics_port));
             METRICS_ENABLED.set(true).unwrap();
         } else {
