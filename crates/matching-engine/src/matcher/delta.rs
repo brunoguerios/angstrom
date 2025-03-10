@@ -12,6 +12,8 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
+use base64::Engine;
+use tracing::trace;
 
 use crate::OrderBook;
 
