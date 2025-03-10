@@ -2,9 +2,9 @@ use std::{pin::Pin, sync::Arc};
 
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
-use angstrom_eth::handle::Eth;
-use angstrom_network::{pool_manager::PoolHandle, PoolManagerBuilder, StromNetworkHandle};
-use angstrom_rpc::{api::OrderApiServer, OrderApi};
+use angstrom_eth::{handle::Eth, manager::EthEvent};
+use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
+use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
@@ -17,14 +17,16 @@ use angstrom_types::{
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::{Future, Stream, StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::{configure_uniswap_manager, manager::MatcherHandle, MatchingManager};
-use order_pool::{order_storage::OrderStorage, PoolConfig};
+use matching_engine::{MatchingManager, manager::MatcherHandle};
+use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
-use tracing::{span, Instrument};
+use tracing::{Instrument, span};
+use uniswap_v4::configure_uniswap_manager;
 use validation::{
-    common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
+    common::{TokenPriceGenerator, WETH_ADDRESS},
+    order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
 };
 
@@ -32,11 +34,11 @@ use crate::{
     agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
     providers::{
-        utils::StromContractInstance, AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider,
-        AnvilSubmissionProvider, WalletProvider
+        AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider,
+        WalletProvider, utils::StromContractInstance
     },
     types::{
-        config::TestingNodeConfig, GlobalTestingConfig, SendingStromHandles, WithWalletProvider
+        GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig
     },
     validation::TestOrderValidator
 };
@@ -117,7 +119,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
         block_sync.clear();
         let block_number = b.tip().number;
 
-        tracing::debug!(block_number, "creating strom internals");
+        tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.clone().into();
 
@@ -131,6 +133,9 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             .map_err(|e| eyre::eyre!("{e}"))?
         );
 
+        let network_stream = Box::pin(eth_handle.subscribe_network())
+            as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
+
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
             state_provider
@@ -139,7 +144,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             uniswap_registry.clone(),
             block_number,
             block_sync.clone(),
-            inital_angstrom_state.pool_manager_addr
+            inital_angstrom_state.pool_manager_addr,
+            network_stream
         )
         .await;
 
@@ -154,6 +160,7 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
+            WETH_ADDRESS,
             Some(1)
         )
         .await
@@ -204,7 +211,8 @@ impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
             pool_storage,
-            strom_handles.pool_manager_tx
+            strom_handles.pool_manager_tx,
+            block_number
         );
 
         let rpc_port = node_config.strom_rpc_port();

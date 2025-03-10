@@ -1,4 +1,7 @@
+use std::sync::OnceLock;
+
 use alloy::{
+    hex::FromHex,
     primitives::{Address, FixedBytes, U256},
     sol_types::Eip712Domain
 };
@@ -12,7 +15,7 @@ use angstrom_types::{
     }
 };
 use enr::k256::ecdsa::SigningKey;
-use rand::{rngs::ThreadRng, Rng};
+use rand::{Rng, rngs::ThreadRng};
 
 // mod stored;
 mod distribution;
@@ -22,10 +25,16 @@ pub use distribution::OrderDistributionBuilder;
 pub use tob::ToBOrderBuilder;
 pub use user::UserOrderBuilder;
 
-// fn build_priority_data(order: &GroupedVanillaOrder) -> OrderPriorityData {
-//     OrderPriorityData { price: order.price().into(), volume: order.quantity()
-// as u128, gas: 10 } }
+pub fn default_low_addr() -> &'static Address {
+    static LOWADDR: OnceLock<Address> = OnceLock::new();
+    LOWADDR.get_or_init(|| Address::from_hex("0x0000000000000000000000000000000000000001").unwrap())
+}
 
+pub fn default_high_addr() -> &'static Address {
+    static HIGHADDR: OnceLock<Address> = OnceLock::new();
+    HIGHADDR
+        .get_or_init(|| Address::from_hex("0x0000000000000000000000000000000000000010").unwrap())
+}
 #[derive(Clone, Debug)]
 pub struct SigningInfo {
     pub domain:  Eip712Domain,
@@ -90,7 +99,7 @@ impl StoredOrderBuilder {
             .unwrap_or_default();
         let priority_data = OrderPriorityData {
             price:     self.order.price_for_book_side(is_bid).into(),
-            volume:    self.order.quantity(),
+            volume:    self.order.max_q(),
             gas:       U256::ZERO,
             gas_units: 0
         };
@@ -161,10 +170,10 @@ pub fn generate_top_of_block_order(
     let pool_id = pool_id.unwrap_or_default();
     let valid_block = valid_block.unwrap_or_default();
     // Could update this to be within a distribution
-    let price: u128 = rng.gen();
-    let volume: u128 = rng.gen();
-    let gas: U256 = rng.gen();
-    let gas_units: u64 = rng.gen();
+    let price: u128 = rng.r#gen();
+    let volume: u128 = rng.r#gen();
+    let gas: U256 = rng.r#gen();
+    let gas_units: u64 = rng.r#gen();
     let order = ToBOrderBuilder::new()
         .quantity_in(quantity_in.unwrap_or_default())
         .quantity_out(quantity_out.unwrap_or_default())

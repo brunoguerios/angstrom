@@ -1,9 +1,10 @@
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc, RwLock
+    Arc, RwLock,
+    atomic::{AtomicU64, Ordering}
 };
 
 use alloy::{
+    consensus::BlockHeader,
     eips::BlockNumberOrTag,
     primitives::Log,
     providers::Provider,
@@ -85,19 +86,19 @@ where
                                 *last_log_write = logs;
                                 this.last_block_number.store(block.number, Ordering::SeqCst);
                                 tracing::info!(?block.number,"updated number");
-                                Some(Some(PoolMangerBlocks::NewBlock(block.block.number)))
+                                Some(Some(PoolMangerBlocks::NewBlock(block.number())))
                             }
                             CanonStateNotification::Reorg { old, new } => {
-                                let tip = new.tip().block.number;
+                                let tip = new.tip().number();
                                 // search 30 blocks back;
                                 let start = tip - 30;
 
                                 let range = old
                                     .blocks_iter()
-                                    .filter(|b| b.block.number >= start)
-                                    .zip(new.blocks_iter().filter(|b| b.block.number >= start))
-                                    .filter(|&(old, new)| (old.block.hash() != new.block.hash()))
-                                    .map(|(_, new)| new.block.number)
+                                    .filter(|b| b.number() >= start)
+                                    .zip(new.blocks_iter().filter(|b| b.number() >= start))
+                                    .filter(|&(old, new)| (old.hash() != new.hash()))
+                                    .map(|(_, new)| new.number())
                                     .collect::<Vec<_>>();
 
                                 let range = match range.len() {
@@ -160,19 +161,19 @@ where
         if let FilterBlockOption::Range { from_block, to_block } = &filter.block_option {
             tracing::debug!(?from_block, ?to_block, ?last_block);
 
-            let from_equal_block_range = from_block.as_ref().map_or(false, |from| {
+            let from_equal_block_range = from_block.as_ref().is_some_and(|from| {
                 matches!(from, BlockNumberOrTag::Number(from_num)
                     if last_block == *from_num
                 )
             });
-            let to_equal_to_block_range = to_block.as_ref().map_or(false, |to| {
+            let to_equal_to_block_range = to_block.as_ref().is_some_and(|to| {
                 matches!(to, BlockNumberOrTag::Number(to_num)
                     if last_block == *to_num
                 )
             });
 
             if !(from_equal_block_range && to_equal_to_block_range) {
-                return Err(PoolManagerError::InvalidBlockRange)
+                return Err(PoolManagerError::InvalidBlockRange);
             }
         }
         Ok(())

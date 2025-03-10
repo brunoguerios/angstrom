@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use alloy::sol_types::SolValue;
-use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256, keccak256};
 
 use crate::contract_bindings::angstrom::Angstrom::PoolKey;
 
@@ -42,13 +42,13 @@ impl TestnetStateOverrides {
                 i.into_iter().map(move |(user, amount)| {
                     let slot =
                         keccak256((angstrom_addr, keccak256((user, 2).abi_encode())).abi_encode());
-                    (token, slot, U256::from(amount))
+                    (token, slot, U256::from(amount) * U256::from(2))
                 })
             })
             .chain(self.balances.into_iter().flat_map(move |(token, i)| {
                 i.into_iter().map(move |(user, qty)| {
                     let slot = keccak256((user, 1).abi_encode());
-                    (token, slot, U256::from(qty))
+                    (token, slot, U256::from(qty) * U256::from(2))
                 })
             }))
     }

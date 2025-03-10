@@ -18,11 +18,11 @@ use angstrom_types::{
     matching::uniswap::PoolSnapshot,
     mev_boost::MevBoostProvider,
     orders::PoolSolution,
-    primitive::{AngstromSigner, PeerId},
+    primitive::AngstromSigner,
     sol_bindings::grouped_orders::OrderWithStorageData
 };
 use bid_aggregation::BidAggregationState;
-use futures::{future::BoxFuture, FutureExt, Stream};
+use futures::{FutureExt, Stream, future::BoxFuture};
 use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
@@ -91,7 +91,7 @@ where
         }
     }
 
-    pub fn reset_round(&mut self, new_block: u64, new_leader: PeerId) {
+    pub fn reset_round(&mut self, new_block: u64, new_leader: Address) {
         // grab the last round info if we were the leader.
         let info = self.current_state.last_round_info();
 
@@ -135,7 +135,7 @@ where
         }
 
         if let Some(message) = this.shared_state.messages.pop_front() {
-            return Poll::Ready(Some(message))
+            return Poll::Ready(Some(message));
         }
 
         Poll::Pending
@@ -147,7 +147,7 @@ pub struct SharedRoundState<P, Matching> {
     angstrom_address: Address,
     matching_engine:  Matching,
     signer:           AngstromSigner,
-    round_leader:     PeerId,
+    round_leader:     Address,
     validators:       Vec<AngstromValidator>,
     order_storage:    Arc<OrderStorage>,
     _metrics:         ConsensusMetricsWrapper,
@@ -169,7 +169,7 @@ where
         angstrom_address: Address,
         order_storage: Arc<OrderStorage>,
         signer: AngstromSigner,
-        round_leader: PeerId,
+        round_leader: Address,
         validators: Vec<AngstromValidator>,
         metrics: ConsensusMetricsWrapper,
         pool_registry: UniswapAngstromRegistry,
@@ -198,7 +198,7 @@ where
     }
 
     fn i_am_leader(&self) -> bool {
-        self.round_leader == self.signer.id()
+        self.round_leader == self.signer.address()
     }
 
     fn two_thirds_of_validation_set(&self) -> usize {
@@ -210,7 +210,9 @@ where
     ) -> HashMap<FixedBytes<32>, (Address, Address, PoolSnapshot, u16)> {
         self.uniswap_pools
             .iter()
-            .map(|(key, pool)| {
+            .map(|item| {
+                let key = item.key();
+                let pool = item.value();
                 tracing::info!(?key, "getting snapshot");
                 let (token_a, token_b, snapshot) =
                     pool.read().unwrap().fetch_pool_snapshot().unwrap();
@@ -264,7 +266,7 @@ where
 
     fn handle_pre_proposal_aggregation(
         &mut self,
-        peer_id: PeerId,
+        peer_id: Address,
         pre_proposal_agg: PreProposalAggregation,
         pre_proposal_agg_set: &mut HashSet<PreProposalAggregation>
     ) {
@@ -276,10 +278,10 @@ where
         )
     }
 
-    fn verify_proposal(&mut self, peer_id: PeerId, proposal: Proposal) -> Option<Proposal> {
+    fn verify_proposal(&mut self, peer_id: Address, proposal: Proposal) -> Option<Proposal> {
         if self.round_leader != peer_id {
             tracing::debug!("got invalid proposal");
-            return None
+            return None;
         }
 
         proposal.is_valid(&self.block_height).then(|| {
@@ -292,7 +294,7 @@ where
 
     fn handle_pre_proposal(
         &mut self,
-        peer_id: PeerId,
+        peer_id: Address,
         pre_proposal: PreProposal,
         pre_proposal_set: &mut HashSet<PreProposal>
     ) {
@@ -306,7 +308,7 @@ where
 
     fn handle_proposal_verification<Pro>(
         &mut self,
-        peer_id: PeerId,
+        peer_id: Address,
         proposal: Pro,
         proposal_set: &mut HashSet<Pro>,
         valid: impl FnOnce(&Pro, &BlockNumber) -> bool
@@ -315,12 +317,12 @@ where
     {
         if !self.validators.iter().map(|v| v.peer_id).contains(&peer_id) {
             tracing::warn!(peer=?peer_id,"got a consensus message from a invalid peer");
-            return
+            return;
         }
         // ensure pre_proposal is valid
         if !valid(&proposal, &self.block_height) {
             tracing::info!(peer=?peer_id,"got a invalid consensus message");
-            return
+            return;
         }
 
         // if  we don't have the pre_proposal, propagate it and then store it.
@@ -358,7 +360,7 @@ impl From<PreProposalAggregation> for ConsensusMessage {
 #[cfg(test)]
 pub mod tests {
     use std::{
-        collections::{HashMap, HashSet},
+        collections::HashSet,
         sync::Arc,
         task::{Context, Poll},
         time::{Duration, Instant}
@@ -366,33 +368,33 @@ pub mod tests {
 
     use alloy::{
         primitives::Address,
-        providers::{fillers::*, network::Ethereum, ProviderBuilder, RootProvider, *},
-        transports::BoxTransport
+        providers::{ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *}
     };
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_network::manager::StromConsensusEvent;
     use angstrom_types::{
         contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
         mev_boost::MevBoostProvider,
-        primitive::{AngstromSigner, PeerId, UniswapPoolRegistry}
+        primitive::{AngstromSigner, UniswapPoolRegistry}
     };
-    use futures::{pin_mut, Stream};
-    use order_pool::{order_storage::OrderStorage, PoolConfig};
+    use dashmap::DashMap;
+    use futures::{Stream, pin_mut};
+    use order_pool::{PoolConfig, order_storage::OrderStorage};
     use testing_tools::{
         mocks::matching_engine::MockMatchingEngine,
         type_generator::consensus::{
             pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder
         }
     };
-    use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
     use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
     use super::{
-        pre_proposal::PreProposalState, ConsensusMessage, RoundStateMachine, SharedRoundState
+        ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState
     };
     use crate::{
-        rounds::{pre_proposal_aggregation::PreProposalAggregationState, ConsensusState},
-        AngstromValidator
+        AngstromValidator,
+        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine> {
@@ -409,8 +411,7 @@ pub mod tests {
             Identity,
             JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>
         >,
-        RootProvider<BoxTransport>,
-        BoxTransport,
+        RootProvider,
         Ethereum
     >;
 
@@ -425,12 +426,12 @@ pub mod tests {
     async fn setup_state_machine() -> RoundStateMachine<ProviderDef, MockMatchingEngine> {
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
         let signer = AngstromSigner::random();
-        let leader_id = signer.id();
+        let leader_id = signer.address();
 
         // Initialize test components
         let pool_store = Arc::new(AngstromPoolConfigStore::default());
         let (tx, _rx) = tokio::sync::mpsc::channel(2);
-        let uniswap_pools = SyncedUniswapPools::new(Arc::new(HashMap::new()), tx);
+        let uniswap_pools = SyncedUniswapPools::new(Arc::new(DashMap::new()), tx);
         let reg = UniswapPoolRegistry::default();
 
         let pool_registry = UniswapAngstromRegistry::new(reg, pool_store);
@@ -516,7 +517,7 @@ pub mod tests {
             .build();
 
         // Handle PreProposal message
-        let signer_id = state_machine.shared_state.signer.id();
+        let signer_id = state_machine.shared_state.signer.address();
         state_machine.handle_message(StromConsensusEvent::PreProposal(signer_id, pre_proposal));
 
         // Should transition to PreProposalAggregation state
@@ -560,7 +561,7 @@ pub mod tests {
             .build();
 
         // Handle PreProposalAggregation message
-        let signer_id = state_machine.shared_state.signer.id();
+        let signer_id = state_machine.shared_state.signer.address();
         state_machine.handle_message(StromConsensusEvent::PreProposalAgg(
             signer_id,
             pre_proposal_agg.clone()
@@ -583,7 +584,7 @@ pub mod tests {
         init_tracing();
         let mut state_machine = setup_state_machine().await;
         let new_block = 2;
-        let new_leader = PeerId::random();
+        let new_leader = Address::random();
 
         // Reset round with new block and leader
         state_machine.reset_round(new_block, new_leader);
@@ -606,7 +607,7 @@ pub mod tests {
     async fn test_invalid_messages_in_bid_aggregation_state() {
         init_tracing();
         let state_machine = setup_state_machine().await;
-        let invalid_peer = PeerId::random();
+        let invalid_peer = Address::random();
         let invalid_signer = AngstromSigner::random();
 
         pin_mut!(state_machine);
@@ -633,7 +634,7 @@ pub mod tests {
     async fn test_invalid_messages_in_pre_proposal_aggregation_state() {
         init_tracing();
         let mut state_machine = setup_state_machine().await;
-        let invalid_peer = PeerId::random();
+        let invalid_peer = Address::random();
         let invalid_signer = AngstromSigner::random();
 
         let handles = &mut state_machine.shared_state;

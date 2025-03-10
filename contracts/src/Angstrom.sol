@@ -64,6 +64,7 @@ contract Angstrom is
         (reader, pairs) = PairLib.readFromAndValidate(reader, assets, _configStore);
 
         _takeAssets(assets);
+
         reader = _updatePools(reader, pairs);
         reader = _validateAndExecuteToBOrders(reader, pairs);
         reader = _validateAndExecuteUserOrders(reader, pairs);
@@ -218,7 +219,6 @@ contract Angstrom is
         // For flash orders sets the current block number as `validForBlock` so that it's
         // implicitly validated via hashing later.
         reader = buffer.readOrderValidation(reader, variantMap);
-
         AmountIn amountIn;
         AmountOut amountOut;
         (reader, amountIn, amountOut) = buffer.loadAndComputeQuantity(reader, variantMap, price);

@@ -10,16 +10,16 @@ mod validator;
 
 use std::future::Future;
 
-use alloy::primitives::{Address, FixedBytes, B256};
+use alloy::primitives::{Address, B256, FixedBytes};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
+    primitive::OrderValidationError,
     sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 pub use angstrom_utils::*;
 pub use config::PoolConfig;
 pub use order_indexer::*;
 use tokio_stream::wrappers::BroadcastStream;
-use validation::order::OrderPoolNewOrderResult;
 
 #[derive(Debug, Clone)]
 pub enum PoolManagerUpdate {
@@ -37,7 +37,7 @@ pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
         &self,
         origin: OrderOrigin,
         order: AllOrders
-    ) -> impl Future<Output = OrderPoolNewOrderResult> + Send;
+    ) -> impl Future<Output = Result<(), OrderValidationError>> + Send;
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate>;
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::primitives::{FixedBytes, B256};
+use alloy::primitives::{B256, FixedBytes};
 use angstrom_metrics::SearcherOrderPoolMetricsWrapper;
 use angstrom_types::{
     orders::OrderId,
@@ -10,7 +10,7 @@ use angstrom_types::{
 use angstrom_utils::map::OwnedMap;
 use pending::PendingPool;
 
-use crate::{common::SizeTracker, AllOrders};
+use crate::{AllOrders, common::SizeTracker};
 
 mod pending;
 
@@ -72,7 +72,7 @@ impl SearcherPool {
     ) -> Result<(), SearcherPoolError> {
         let size = order.size();
         if !self.size.has_space(size) {
-            return Err(SearcherPoolError::MaxSize)
+            return Err(SearcherPoolError::MaxSize);
         }
 
         let pool_id = order.pool_id;

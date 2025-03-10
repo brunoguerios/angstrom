@@ -2,18 +2,18 @@ use alloy::{primitives::U256, signers::SignerSync};
 use pade::PadeEncode;
 
 use super::{
-    grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
-    GenerateFlippedOrder
+    GenerateFlippedOrder,
+    grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants}
 };
 use crate::{
     matching::Ray,
-    primitive::{AngstromSigner, ANGSTROM_DOMAIN},
+    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::{
+        RawPoolOrder,
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder
-        },
-        RawPoolOrder
+        }
     }
 };
 
@@ -50,7 +50,7 @@ impl GenerateFlippedOrder for PartialFlashOrder {
     {
         let new_signer = AngstromSigner::random();
         let price = Ray::from(self.min_price);
-        let amount_out_max = price.mul_quantity(U256::from(self.amount_in()));
+        let amount_out_max = price.mul_quantity(U256::from(self.amount()));
         let min = price.mul_quantity(U256::from(self.min_amount_in));
 
         let mut this = Self {
@@ -105,7 +105,7 @@ impl GenerateFlippedOrder for PartialStandingOrder {
     {
         let new_signer = AngstromSigner::random();
         let price = Ray::from(self.min_price);
-        let amount_out_max = price.mul_quantity(U256::from(self.amount_in()));
+        let amount_out_max = price.mul_quantity(U256::from(self.amount()));
         let min = price.mul_quantity(U256::from(self.min_amount_in));
 
         let mut this = Self {

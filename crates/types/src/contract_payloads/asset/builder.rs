@@ -1,7 +1,7 @@
 use alloy::primitives::Address;
 use itertools::Itertools;
 
-use super::{state::StageTracker, AssetArray};
+use super::{AssetArray, state::StageTracker};
 use crate::contract_payloads::Asset;
 
 pub enum AssetBuilderStage {
@@ -44,6 +44,7 @@ impl AssetBuilder {
     ) {
         let asset_in_addr = self.assets.get_asset_addr(asset_in);
         let asset_out_addr = self.assets.get_asset_addr(asset_out);
+        tracing::info!(?asset_in_addr, ?asset_out_addr, ?quantity_in, ?quantity_out);
         self.get_stage(stage).uniswap_swap(
             asset_in_addr,
             asset_out_addr,
@@ -79,8 +80,16 @@ impl AssetBuilder {
             .external_swap(asset_in, asset_out, quantity_in, quantity_out);
     }
 
+    pub fn add_gas_fee(&mut self, stage: AssetBuilderStage, asset: Address, qty: u128) {
+        self.get_stage(stage).add_gas_fee(asset, qty);
+    }
+
     pub fn allocate(&mut self, stage: AssetBuilderStage, asset: Address, quantity: u128) {
         self.get_stage(stage).allocate(asset, quantity);
+    }
+
+    pub fn tribute(&mut self, stage: AssetBuilderStage, asset: Address, quantity: u128) {
+        self.get_stage(stage).tribute(asset, quantity);
     }
 
     pub fn add_or_get_asset(&mut self, asset: Address) -> usize {
@@ -92,14 +101,16 @@ impl AssetBuilder {
             .swaps
             .and_then(&self.top_of_block)
             .and_then(&self.user_orders)
-            .and_then(&self.rewards);
+            .and_then(&self.rewards)
+            .collect_extra();
         self.assets
             .get_asset_array()
             .into_iter()
             .map(|mut asset| {
                 if let Some(tracker) = combined_assets.get_asset(&asset.addr) {
-                    asset.borrow = tracker.take;
+                    asset.take = tracker.take;
                     asset.settle = tracker.settle;
+                    asset.save = tracker.save;
                 }
                 asset
             })

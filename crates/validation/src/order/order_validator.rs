@@ -1,26 +1,27 @@
 use std::{
     fmt::Debug,
     pin::Pin,
-    sync::{atomic::AtomicU64, Arc}
+    sync::{Arc, atomic::AtomicU64}
 };
 
-use alloy::primitives::{Address, BlockNumber, B256};
+use alloy::primitives::{Address, B256, BlockNumber};
 use angstrom_metrics::validation::ValidationMetrics;
+use angstrom_types::sol_bindings::grouped_orders::AllOrders;
 use futures::Future;
 use tokio::runtime::Handle;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use super::{
+    OrderValidationRequest,
     sim::SimValidation,
     state::{
-        account::user::UserAddress, db_state_utils::StateFetchUtils, pools::PoolsTracker,
-        StateValidation
-    },
-    OrderValidationRequest
+        StateValidation, account::user::UserAddress, db_state_utils::StateFetchUtils,
+        pools::PoolsTracker
+    }
 };
 use crate::{
-    common::{key_split_threadpool::KeySplitThreadpool, TokenPriceGenerator},
-    order::{state::account::UserAccountProcessor, OrderValidation}
+    common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
+    order::{OrderValidation, state::account::UserAccountProcessor}
 };
 
 pub struct OrderValidator<DB, Pools, Fetch> {
@@ -103,17 +104,16 @@ where
                     OrderValidation::Searcher(tx, order, _) => {
                         metrics
                             .new_order(true, || async {
+                                let AllOrders::TOB(order) = order else { panic!() };
                                 let mut results = cloned_state
                                     .handle_tob_order(order, block_number, metrics.clone())
                                     .await;
-
                                 results.add_gas_cost_or_invalidate(
                                     &cloned_sim,
                                     &token_conversion,
                                     false,
                                     block_number
                                 );
-
                                 let _ = tx.send(results);
                             })
                             .await;

@@ -41,14 +41,8 @@ reth-node-types.workspace = true
 reth-node-ethereum.workspace = true
 reth-revm.workspace = true
 revm.workspace = true
-reth-beacon-consensus = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-blockchain-tree = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-tokio-util = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-ecies = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-network-peers = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-prune-types = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
+reth-chainspec.workspace = true
+reth-network-peers = { workspace = true, features = ["secp256k1"] }
 alloy-chains.workspace = true
 
 
@@ -84,10 +78,15 @@ serial_test.workspace = true
 tempfile.workspace = true
 
 parking_lot.workspace = true
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 eyre.workspace = true
 uniswap_v3_math.workspace = true
 create3 = { git = "https://github.com/AmanRaj1608/create3" }
 
 [features]
-reth-db-dep-tests = []
+default = ["testnet"]
+testnet = ["angstrom-types/testnet", "validation/testnet"]
+testnet-sepolia = ["angstrom-types/testnet-sepolia", "validation/testnet-sepolia"]
+reth-db-dep-tests = ["testnet"]
+
+

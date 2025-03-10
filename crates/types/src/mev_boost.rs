@@ -6,7 +6,7 @@ use alloy::{
     primitives::{Address, TxHash},
     providers::{Provider, ProviderBuilder, RootProvider},
     rpc::types::TransactionRequest,
-    transports::{http::reqwest::Url, Transport}
+    transports::http::reqwest::Url
 };
 use futures::{Future, FutureExt};
 
@@ -23,10 +23,7 @@ pub trait SubmitTx: Send + Sync {
 }
 
 // Default impl
-impl<T> SubmitTx for RootProvider<T>
-where
-    T: Transport + Clone
-{
+impl SubmitTx for RootProvider {
     fn submit_transaction<'a>(
         &'a self,
         signer: &'a AngstromSigner,
@@ -43,6 +40,10 @@ where
         .boxed()
     }
 }
+
+/// On sepolia, there is a low frequency of mev-boost. This is
+/// so that hopefully we can have bundles land frequently
+const SEND_NORMAL: bool = cfg!(feature = "testnet-sepolia");
 
 pub struct MevBoostProvider<P> {
     mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>,
@@ -101,6 +102,15 @@ where
         let mut phash = None;
         for provider in self.mev_boost_providers.clone() {
             let (hash, sent) = provider.submit_transaction(&signer, tx.clone()).await;
+            phash = Some(hash);
+            submitted &= sent;
+        }
+        if SEND_NORMAL {
+            let (hash, sent) = self
+                .node_provider
+                .root()
+                .submit_transaction(&signer, tx)
+                .await;
             phash = Some(hash);
             submitted &= sent;
         }

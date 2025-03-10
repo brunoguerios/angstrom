@@ -12,6 +12,7 @@ pub use poolsnapshot::PoolSnapshot;
 
 pub type Tick = i32;
 
+#[derive(Debug)]
 pub enum Quantity {
     Token0(u128),
     Token1(u128)
@@ -47,6 +48,7 @@ impl Quantity {
 /// perspective of the Uniswap pool itself.  In other words, "buying T0" means
 /// putting T1 into the pool to get T0 out, which will decrease the overall
 /// amount of T0 left in the pool.
+/// TODO: CONSISTENCY CHECK FOR USAGE
 pub enum Direction {
     /// When buying T0, the price will go up and the tick number will increase
     BuyingT0,

@@ -1,6 +1,7 @@
-use std::ops::Deref;
+use std::{fmt::Debug, ops::Deref};
 
 use eyre::eyre;
+use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_TICK, MIN_TICK};
 
 use super::{Direction, PoolPrice, PoolSnapshot, Tick};
@@ -8,7 +9,7 @@ use crate::matching::SqrtPriceX96;
 
 /// A LiqRange describes the liquidity conditions within a specific range of
 /// ticks.  A LiqRange covers ticks [lower_tick, upper_tick)
-#[derive(Default, Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
 pub struct LiqRange {
     /// Lower tick for this range
     pub(super) lower_tick: Tick,
@@ -50,14 +51,14 @@ impl LiqRange {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct LiqRangeRef<'a> {
     pub(super) pool_snap: &'a PoolSnapshot,
     pub(super) range:     &'a LiqRange,
     pub(super) range_idx: usize
 }
 
-impl<'a> Deref for LiqRangeRef<'a> {
+impl Deref for LiqRangeRef<'_> {
     type Target = LiqRange;
 
     fn deref(&self) -> &Self::Target {
@@ -65,7 +66,7 @@ impl<'a> Deref for LiqRangeRef<'a> {
     }
 }
 
-impl<'a> PartialEq for LiqRangeRef<'a> {
+impl PartialEq for LiqRangeRef<'_> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.pool_snap, other.pool_snap)
             && std::ptr::eq(self.range, other.range)
@@ -73,7 +74,7 @@ impl<'a> PartialEq for LiqRangeRef<'a> {
     }
 }
 
-impl<'a> Eq for LiqRangeRef<'a> {}
+impl Eq for LiqRangeRef<'_> {}
 
 impl<'a> LiqRangeRef<'a> {
     pub fn new(market: &'a PoolSnapshot, range: &'a LiqRange, range_idx: usize) -> Self {
@@ -85,7 +86,6 @@ impl<'a> LiqRangeRef<'a> {
         if let Ok(price_tick) = price.to_tick() {
             price_tick >= self.lower_tick && price_tick < self.upper_tick
         } else {
-            println!("Default false");
             false
         }
     }
@@ -129,5 +129,14 @@ impl<'a> LiqRangeRef<'a> {
             Direction::BuyingT0 => self.pool_snap.get_range_for_tick(self.range.upper_tick),
             Direction::SellingT0 => self.pool_snap.get_range_for_tick(self.range.lower_tick - 1)
         }
+    }
+}
+
+impl Debug for LiqRangeRef<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut builder = f.debug_struct("LiqRangeRef");
+        builder.field("range", &self.range);
+        builder.field("range_idx", &self.range_idx);
+        builder.finish()
     }
 }

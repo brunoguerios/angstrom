@@ -35,6 +35,7 @@ alloy-rlp.workspace = true
 reth-tasks.workspace = true
 secp256k1.workspace = true
 itertools.workspace = true
+rand.workspace = true
 
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
@@ -47,6 +48,7 @@ eyre.workspace = true
 pade.workspace = true
 
 [dev-dependencies]
+dashmap.workspace=true
 testing-tools.workspace = true
 tracing.workspace = true
 tracing-appender.workspace = true

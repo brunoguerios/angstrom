@@ -7,16 +7,17 @@ use alloy::primitives::U256;
 use alloy_primitives::I256;
 use eyre::eyre;
 use malachite::rounding_modes::RoundingMode;
+use tracing::debug;
 use uniswap_v3_math::{
     swap_math::compute_swap_step,
     tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio}
 };
 
-use super::{liqrange::LiqRangeRef, poolpricevec::PoolPriceVec, Direction, Quantity, Tick};
+use super::{Direction, Quantity, Tick, liqrange::LiqRangeRef, poolpricevec::PoolPriceVec};
 use crate::matching::{
+    Ray, SqrtPriceX96,
     debt::Debt,
-    math::{price_intersect_solve, resolve_precision},
-    Ray, SqrtPriceX96
+    math::{price_intersect_solve, resolve_precision}
 };
 /// Representation of a specific price point in a Uniswap Pool.  Can be operated
 /// on to simulate the behavior of the price withing said pool.
@@ -38,27 +39,37 @@ pub struct PoolPrice<'a> {
     pub(crate) price:     SqrtPriceX96
 }
 
-impl<'a> Eq for PoolPrice<'a> {}
+impl Eq for PoolPrice<'_> {}
 
-impl<'a> PartialEq for PoolPrice<'a> {
+impl PartialEq for PoolPrice<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.price.eq(&other.price) && self.liq_range == other.liq_range
     }
 }
 
-impl<'a> PartialOrd for PoolPrice<'a> {
+impl PartialOrd for PoolPrice<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> Ord for PoolPrice<'a> {
+impl Ord for PoolPrice<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.price.cmp(&other.price)
     }
 }
 
 impl<'a> PoolPrice<'a> {
+    pub fn checked_new(liq_range: LiqRangeRef<'a>, price: SqrtPriceX96, tick: i32) -> Self {
+        if tick < liq_range.lower_tick || tick > liq_range.upper_tick {
+            panic!("Created PoolPrice with out of range tick!");
+        }
+        if get_tick_at_sqrt_ratio(price.into()).unwrap() != tick {
+            panic!("Created PoolPrice with price that doesn't match the given tick!");
+        }
+        Self { liq_range, price, tick }
+    }
+
     pub fn tick(&self) -> Tick {
         self.tick
     }
@@ -76,18 +87,18 @@ impl<'a> PoolPrice<'a> {
     pub fn d_t0(&self, quantity: u128, direction: Direction) -> eyre::Result<Self> {
         // We can short-circuit for a transaction of zero
         if quantity == 0 {
-            return Ok(self.clone())
+            return Ok(self.clone());
         }
         // Otherwise let's calculate
         let mut sqrt_ratio_current_x_96 = self.price.into();
-        println!("Current price: {:?}", sqrt_ratio_current_x_96);
+        debug!(current_price = ?sqrt_ratio_current_x_96, "Current price");
         let mut active_liq_range: Option<LiqRangeRef<'a>> = None;
         let mut cur_quantity = U256::from(quantity);
         while cur_quantity > U256::ZERO {
-            println!("Starting new loop");
+            debug!("Starting new loop");
             // There might be a more suave way to do this
             let cur_liq_range = if let Some(lqr) = active_liq_range.as_mut() {
-                println!("Bumping forward liquidity range");
+                debug!("Bumping forward liquidity range");
                 // If we already tested a liquidity range let's move to the next one
                 let new_lqr = lqr.next(direction).ok_or_else(|| {
                     eyre!("Unable to find liquidity ranges that span the whole transaction")
@@ -108,8 +119,13 @@ impl<'a> PoolPrice<'a> {
                 // compute_swap_step)
                 Direction::SellingT0 => I256::unchecked_from(cur_quantity)
             };
+            debug!(
+                lower_tick = cur_liq_range.lower_tick,
+                upper_tick = cur_liq_range.upper_tick,
+                "Current liq range"
+            );
             let sqrt_ratio_target_x_96 = cur_liq_range.end_price(direction).price.into();
-            println!("Cur_q: {}, amount_remaining: {:?}", cur_quantity, amount_remaining);
+            debug!(cur_quantity = ?cur_quantity, amount_remaining = ?amount_remaining, target_price = ?sqrt_ratio_target_x_96, "Settings before compute_swap_step");
             let (new_price, amount_in, amount_out, _) = compute_swap_step(
                 sqrt_ratio_current_x_96,
                 sqrt_ratio_target_x_96,
@@ -117,10 +133,24 @@ impl<'a> PoolPrice<'a> {
                 amount_remaining,
                 0
             )?;
-            println!(
-                "new_price: {:?}\namount_in: {}\namount_out: {}",
-                new_price, amount_in, amount_out
-            );
+
+            // If we didn't hit our target and we didn't use all of our quantity then we've
+            // hit a weird error
+            if new_price != sqrt_ratio_target_x_96 {
+                match direction {
+                    Direction::BuyingT0 => {
+                        if amount_out < cur_quantity {
+                            return Err(eyre!("Bad stuff"));
+                        }
+                    }
+                    Direction::SellingT0 => {
+                        if amount_in < cur_quantity {
+                            return Err(eyre!("Bad stuff"));
+                        }
+                    }
+                }
+            }
+            debug!(next_price = ?new_price, amount_in = ?amount_in, amount_out = ?amount_out, "Settings after compute_swap_step");
             // Update our current quantity
             match direction {
                 Direction::BuyingT0 => cur_quantity -= amount_out,
@@ -135,8 +165,9 @@ impl<'a> PoolPrice<'a> {
         let liq_range = active_liq_range.ok_or_else(|| {
             eyre!("Somehow have no active liquidity range despite iterationg - should never happen")
         })?;
-        println!("End price: {:?}", price);
-        Ok(PoolPrice { liq_range, price, tick })
+        debug!(final_price = ?price, "Final price");
+        let new_price = PoolPrice::checked_new(liq_range, price, tick);
+        Ok(new_price)
     }
 
     /// Create a PoolPriceVec from the current price to a specific target price
@@ -163,20 +194,25 @@ impl<'a> PoolPrice<'a> {
         // If the debt is already valid at our current price we can just move it, we're
         // done
         if debt.valid_for_price(self.as_ray()) {
-            return Ok(0)
+            return Ok(0);
         }
         // Find out how much it would take to intersect with our debt presuming we stay
         // within our current liquidity range
         let vec_to_upper = self.to_liq_range_upper()?;
         let next_range_start = vec_to_upper.end_bound;
         let t0_to_upper = vec_to_upper.d_t0;
-        let solve =
-            price_intersect_solve(self.liquidity(), self.price, debt.magnitude(), debt.price());
-        println!("Solve: {}", solve);
+        let solve = price_intersect_solve(
+            self.liquidity(),
+            self.price,
+            debt.magnitude(),
+            debt.price(),
+            Direction::BuyingT0
+        );
+        debug!(solve = ?solve, "Solve");
         let step = resolve_precision(192, solve, RoundingMode::Floor);
-        println!("Step: {}", step);
+        debug!(step, "Step");
         if step < t0_to_upper {
-            return Ok(step)
+            return Ok(step);
         }
         let new_debt = debt.partial_fill(step);
         // If our next range is in another liquidity pool
@@ -246,11 +282,7 @@ impl<'a> PoolPrice<'a> {
             };
         }
         let closest_price = if let Some(p) = target_price {
-            if buy {
-                min(p, tick_bound_price)
-            } else {
-                max(p, tick_bound_price)
-            }
+            if buy { min(p, tick_bound_price) } else { max(p, tick_bound_price) }
         } else {
             tick_bound_price
         };
@@ -299,7 +331,7 @@ impl<'a> Sub<Quantity> for PoolPrice<'a> {
     }
 }
 
-impl<'a> From<PoolPrice<'a>> for U256 {
+impl From<PoolPrice<'_>> for U256 {
     fn from(value: PoolPrice) -> Self {
         value.price.into()
     }
@@ -310,8 +342,8 @@ mod test {
     use alloy_primitives::U160;
 
     use crate::matching::{
-        uniswap::{Direction, LiqRange, PoolSnapshot},
-        Debt, Ray, SqrtPriceX96
+        Debt, Ray, SqrtPriceX96,
+        uniswap::{Direction, LiqRange, PoolSnapshot}
     };
 
     #[test]

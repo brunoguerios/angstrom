@@ -11,8 +11,8 @@ use futures::FutureExt;
 use matching_engine::MatchingEngineHandle;
 
 use super::{
-    finalization::FinalizationState, pre_proposal::PreProposalState,
-    preproposal_wait_trigger::PreProposalWaitTrigger, ConsensusState, SharedRoundState
+    ConsensusState, SharedRoundState, finalization::FinalizationState,
+    pre_proposal::PreProposalState, preproposal_wait_trigger::PreProposalWaitTrigger
 };
 
 /// BidAggregationState
@@ -97,7 +97,7 @@ where
                 proposal,
                 handles,
                 cx.waker().clone()
-            ))))
+            ))));
         }
 
         if self.transition_timeout.poll_unpin(cx).is_ready() {
@@ -113,7 +113,7 @@ where
             );
 
             // return the transition
-            return Poll::Ready(Some(Box::new(pre_proposal)))
+            return Poll::Ready(Some(Box::new(pre_proposal)));
         }
 
         Poll::Pending

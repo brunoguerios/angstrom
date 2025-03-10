@@ -4,9 +4,8 @@ use std::{
 };
 
 use alloy::{
-    primitives::{address, Address, U256},
-    providers::Provider,
-    transports::Transport
+    primitives::{Address, U256, address},
+    providers::Provider
 };
 use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray};
 use futures::StreamExt;
@@ -28,6 +27,9 @@ pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c75
 pub struct TokenPriceGenerator {
     prev_prices:         HashMap<PoolId, VecDeque<PairsWithPrice>>,
     pair_to_pool:        HashMap<(Address, Address), PoolId>,
+    /// the token that is the wrapped version of the gas token on the given
+    /// chain
+    base_gas_token:      Address,
     cur_block:           u64,
     blocks_to_avg_price: u64
 }
@@ -35,26 +37,28 @@ pub struct TokenPriceGenerator {
 impl TokenPriceGenerator {
     /// is a bit of a pain as we need todo a look-back in-order to grab last 5
     /// blocks.
-    pub async fn new<P: Provider<T>, T: Transport + Clone, Loader>(
+    pub async fn new<P: Provider>(
         provider: Arc<P>,
         current_block: u64,
-        uni: SyncedUniswapPools<PoolId, Loader>,
+        uni: SyncedUniswapPools,
+        base_gas_token: Address,
         blocks_to_avg_price_override: Option<u64>
-    ) -> eyre::Result<Self>
-    where
-        Loader: PoolDataLoader<PoolId> + Default + Clone + Send + Sync + 'static
-    {
+    ) -> eyre::Result<Self> {
         let mut pair_to_pool = HashMap::default();
-        for (key, pool) in uni.iter() {
+        for id in uni.iter() {
+            let key = id.key();
+            let pool = id.value();
             let pool = pool.read().unwrap();
-            pair_to_pool.insert((pool.token_a, pool.token_b), *key);
+            pair_to_pool.insert((pool.token0, pool.token1), *key);
         }
 
         let blocks_to_avg_price = blocks_to_avg_price_override.unwrap_or(BLOCKS_TO_AVG_PRICE);
         // for each pool, we want to load the last 5 blocks and get the sqrt_price_96
         // and then convert it into the price of the underlying pool
         let pools = futures::stream::iter(uni.iter())
-            .map(|(pool_key, pool)| {
+            .map(|id| {
+                let pool_key = *id.key();
+                let pool = id.value().clone();
                 let provider = provider.clone();
 
                 async move {
@@ -87,7 +91,7 @@ impl TokenPriceGenerator {
                         });
                     }
 
-                    (*pool_key, queue)
+                    (pool_key, queue)
                 }
             })
             .fold(HashMap::default(), |mut acc, x| async {
@@ -97,13 +101,19 @@ impl TokenPriceGenerator {
             })
             .await;
 
-        Ok(Self { prev_prices: pools, cur_block: current_block, pair_to_pool, blocks_to_avg_price })
+        Ok(Self {
+            prev_prices: pools,
+            base_gas_token,
+            cur_block: current_block,
+            pair_to_pool,
+            blocks_to_avg_price
+        })
     }
 
     pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), Ray> {
         self.pair_to_pool
             .keys()
-            .filter_map(|(mut token0, mut token1)| {
+            .filter_map(|&(mut token0, mut token1)| {
                 if token1 < token0 {
                     std::mem::swap(&mut token0, &mut token1)
                 };
@@ -138,12 +148,12 @@ impl TokenPriceGenerator {
     /// the previous prices are stored in RAY (1e27).
     /// we take this price. then
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
-        if token_0 == WETH_ADDRESS {
-            return Some(Ray::scale_to_ray(U256::from(1)))
+        if token_0 == self.base_gas_token {
+            return Some(Ray::scale_to_ray(U256::from(1)));
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
-        if token_1 == WETH_ADDRESS {
+        if token_1 == self.base_gas_token {
             // if so, just pull the price
             let pool_key = self
                 .pair_to_pool
@@ -166,20 +176,20 @@ impl TokenPriceGenerator {
                     })
                     .sum::<Ray>()
                     / U256::from(size)
-            )
+            );
         }
 
         // need to pass through a pair.
-        let (first_flip, token_0_hop1, token_1_hop1) = if token_0 < WETH_ADDRESS {
-            (false, token_0, WETH_ADDRESS)
+        let (first_flip, token_0_hop1, token_1_hop1) = if token_0 < self.base_gas_token {
+            (false, token_0, self.base_gas_token)
         } else {
-            (true, WETH_ADDRESS, token_0)
+            (true, self.base_gas_token, token_0)
         };
 
-        let (second_flip, token_0_hop2, token_1_hop2) = if token_1 < WETH_ADDRESS {
-            (false, token_1, WETH_ADDRESS)
+        let (second_flip, token_0_hop2, token_1_hop2) = if token_1 < self.base_gas_token {
+            (false, token_1, self.base_gas_token)
         } else {
-            (true, WETH_ADDRESS, token_1)
+            (true, self.base_gas_token, token_1)
         };
 
         // check token_0 first for a weth pair. otherwise, check token_1.
@@ -192,7 +202,7 @@ impl TokenPriceGenerator {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
 
-            return Some(
+            Some(
                 prices
                     .iter()
                     .map(|price| {
@@ -272,7 +282,7 @@ pub mod test {
     use angstrom_types::{pair_with_price::PairsWithPrice, sol_bindings::Ray};
     use revm::primitives::address;
 
-    use super::{TokenPriceGenerator, BLOCKS_TO_AVG_PRICE, WETH_ADDRESS};
+    use super::{BLOCKS_TO_AVG_PRICE, TokenPriceGenerator, WETH_ADDRESS};
 
     const TOKEN0: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
     const TOKEN1: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc3");
@@ -353,6 +363,7 @@ pub mod test {
         TokenPriceGenerator {
             cur_block:           0,
             prev_prices:         prices,
+            base_gas_token:      WETH_ADDRESS,
             pair_to_pool:        pairs_to_key,
             blocks_to_avg_price: BLOCKS_TO_AVG_PRICE
         }

@@ -45,12 +45,14 @@ contract RayMathLibTest is BaseTest {
         assertEq(34.287e18.divRayDown(1.00023879e27), 34.278814561870770878e18);
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzzing_divRay_prevents_divide_by_zero(uint256 x) public {
         x = bound(x, 0, type(uint256).max / RayMathLib.RAY);
         vm.expectRevert(stdError.divisionError);
         x.divRayDown(0);
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_fuzzing_mulRay_prevents_overflow(uint256 x, uint256 y) public {
         x = bound(x, 2, type(uint256).max);
         y = bound(y, type(uint256).max / x + 1, type(uint256).max);

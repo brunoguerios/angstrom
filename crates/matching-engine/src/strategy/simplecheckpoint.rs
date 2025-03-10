@@ -5,7 +5,7 @@ use crate::matcher::VolumeFillMatcher;
 /// solve" checkpoint and presume we're done there.
 pub struct SimpleCheckpointStrategy {}
 
-impl<'a> MatchingStrategy<'a> for SimpleCheckpointStrategy {
+impl MatchingStrategy<'_> for SimpleCheckpointStrategy {
     fn finalize(solver: VolumeFillMatcher) -> Option<VolumeFillMatcher> {
         solver.from_checkpoint()
     }

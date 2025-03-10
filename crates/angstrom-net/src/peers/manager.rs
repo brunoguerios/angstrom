@@ -1,4 +1,4 @@
-use std::collections::{hash_map::Entry, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque, hash_map::Entry};
 
 use reth_eth_wire::DisconnectReason;
 use reth_net_banlist::BanList;
@@ -6,7 +6,7 @@ use reth_network_peers::PeerId;
 use tracing::trace;
 
 pub use super::reputation::ReputationChangeWeights;
-use super::reputation::{is_banned_reputation, ReputationChangeKind};
+use super::reputation::{ReputationChangeKind, is_banned_reputation};
 
 /// Maintains the state of _all_ the peers known to the network.
 ///
@@ -47,7 +47,7 @@ impl PeersManager {
     pub fn remove_peer(&mut self, peer_id: PeerId) {
         let Entry::Occupied(entry) = self.peers.entry(peer_id) else { return };
         if entry.get().is_trusted() {
-            return
+            return;
         }
 
         trace!(target: "angstrom::net::peers",  ?peer_id, "remove discovered node");
@@ -80,7 +80,7 @@ impl PeersManager {
     pub fn remove_peer_from_trusted_set(&mut self, peer_id: PeerId) {
         let Entry::Occupied(mut entry) = self.peers.entry(peer_id) else { return };
         if !entry.get().is_trusted() {
-            return
+            return;
         }
 
         let peer = entry.get_mut();
@@ -173,15 +173,15 @@ impl Peer {
 
         if self.connected && self.is_banned() {
             self.connected = false;
-            return ReputationChangeOutcome::DisconnectAndBan
+            return ReputationChangeOutcome::DisconnectAndBan;
         }
 
         if self.is_banned() && !is_banned_reputation(previous) {
-            return ReputationChangeOutcome::Ban
+            return ReputationChangeOutcome::Ban;
         }
 
         if !self.is_banned() && is_banned_reputation(previous) {
-            return ReputationChangeOutcome::Unban
+            return ReputationChangeOutcome::Unban;
         }
 
         ReputationChangeOutcome::None

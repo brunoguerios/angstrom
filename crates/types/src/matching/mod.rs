@@ -11,12 +11,13 @@ pub mod debt;
 pub use debt::{Debt, DebtType};
 pub mod match_estimate_response;
 mod math;
+pub use math::max_t1_for_t0;
 mod sqrtprice;
 mod tokens;
 pub mod uniswap;
 use malachite::{
-    num::{arithmetic::traits::PowerOf2, conversion::traits::FromSciString},
-    Natural
+    Natural,
+    num::{arithmetic::traits::PowerOf2, conversion::traits::FromSciString}
 };
 pub use sqrtprice::SqrtPriceX96;
 pub use tokens::TokenQuantity;
@@ -93,7 +94,7 @@ impl From<U256> for MatchingPrice {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::{U160, U256};
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     use super::{MatchingPrice, Ray};
     use crate::matching::SqrtPriceX96;

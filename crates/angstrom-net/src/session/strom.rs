@@ -10,8 +10,8 @@ use alloy::rlp::{BytesMut, Encodable};
 use angstrom_types::primitive::{AngstromSigner, PeerId};
 use angstrom_utils::{GenericExt, PollFlatten};
 use futures::{
-    task::{Context, Poll},
-    Stream, StreamExt
+    Stream, StreamExt,
+    task::{Context, Poll}
 };
 use reth_eth_wire::multiplex::ProtocolConnection;
 use reth_metrics::common::mpsc::MeteredPollSender;
@@ -21,11 +21,11 @@ use tokio_util::sync::PollSender;
 
 use super::handle::SessionCommand;
 use crate::{
+    StatusBuilder, StromMessage, StromSessionHandle, StromSessionMessage,
     types::{
         message::StromProtocolMessage,
         status::{Status, StatusState}
-    },
-    StatusBuilder, StromMessage, StromSessionHandle, StromSessionMessage
+    }
 };
 
 const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;
@@ -127,7 +127,7 @@ impl StromSession {
                 self.to_session_manager
                     .send_item(StromSessionMessage::Established { handle })
                     .unwrap();
-                return None
+                return None;
             }
             Poll::Ready(Err(_)) => {
                 // channel closed
@@ -144,7 +144,7 @@ impl StromSession {
         match tx.poll_reserve(cx) {
             Poll::Pending => {
                 self.terminate_message = Some((tx, msg));
-                return Some(Poll::Pending)
+                return Some(Poll::Pending);
             }
             Poll::Ready(Ok(())) => {
                 tracing::debug!("terminate_message");
@@ -203,7 +203,7 @@ impl StromSession {
             })
         }) {
             if let Err(e) = msg {
-                return Some(e)
+                return Some(e);
             }
         }
 
@@ -224,7 +224,7 @@ impl StromSession {
             let mut buf = BytesMut::new();
             msg.encode(&mut buf);
 
-            return Poll::Ready(Some(buf))
+            return Poll::Ready(Some(buf));
         }
 
         self.conn
@@ -237,7 +237,7 @@ impl StromSession {
                 msg.map(|bytes| {
                     let msg = StromProtocolMessage::decode_message(&mut bytes.deref());
 
-                    msg.map_or(false, |msg| {
+                    msg.is_ok_and(|msg| {
                         // first message has to be status
                         if let StromMessage::Status(status) = msg.message {
                             tracing::debug!(?status, peer=?self.remote_peer_id, "decoded status message");
@@ -267,7 +267,7 @@ impl StromSession {
             if let Some(item) = self.outbound_buffer.pop_front() {
                 self.to_session_manager.send_item(item).unwrap();
             } else {
-                return
+                return;
             }
         }
     }
@@ -281,7 +281,7 @@ impl StromSession {
         let status_time = status.state.timestamp + STATUS_TIMESTAMP_TIMEOUT_MS;
         let verification = status.verify();
         if verification.is_err() {
-            return false
+            return false;
         }
 
         current_time <= status_time && verification.unwrap() == self.remote_peer_id
@@ -293,27 +293,27 @@ impl Stream for StromSession {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.pending_handle.is_some() && self.poll_init_connection(cx).is_some() {
-            return Poll::Pending
+            return Poll::Pending;
         }
 
         if !self.verification_sidecar.is_verified() {
-            return self.poll_verification(cx)
+            return self.poll_verification(cx);
         }
 
         // if the session is terminate we have to send the termination message before we
         // can close
         if let Some(terminate) = self.poll_terminate_message(cx) {
-            return terminate
+            return terminate;
         }
 
         // progress manager commands
         if let Some(msg) = self.poll_commands(cx) {
-            return msg
+            return msg;
         }
 
         // processes messages from the wire
         if let Some(msg) = self.poll_incoming(cx) {
-            return msg
+            return msg;
         }
 
         self.try_send_outbound(cx);

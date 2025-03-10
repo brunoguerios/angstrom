@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderStatus},
-    primitive::PoolId,
+    primitive::{OrderValidationError, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
@@ -12,7 +12,6 @@ use jsonrpsee::{
     proc_macros::rpc
 };
 use serde::Deserialize;
-use validation::order::OrderPoolNewOrderResult;
 
 use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind};
 
@@ -28,7 +27,7 @@ pub struct GasEstimateResponse {
 pub trait OrderApi {
     /// Submit any type of order
     #[method(name = "sendOrder")]
-    async fn send_order(&self, order: AllOrders) -> RpcResult<OrderPoolNewOrderResult>;
+    async fn send_order(&self, order: AllOrders) -> RpcResult<Result<(), OrderValidationError>>;
 
     #[method(name = "pendingOrder")]
     async fn pending_order(&self, from: Address) -> RpcResult<Vec<AllOrders>>;
@@ -62,7 +61,10 @@ pub trait OrderApi {
 
     // MULTI CALL
     #[method(name = "sendOrders")]
-    async fn send_orders(&self, orders: Vec<AllOrders>) -> RpcResult<Vec<OrderPoolNewOrderResult>> {
+    async fn send_orders(
+        &self,
+        orders: Vec<AllOrders>
+    ) -> RpcResult<Vec<Result<(), OrderValidationError>>> {
         futures::stream::iter(orders.into_iter())
             .map(|order| async { self.send_order(order).await })
             .buffered(3)

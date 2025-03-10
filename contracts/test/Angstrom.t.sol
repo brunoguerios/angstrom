@@ -15,6 +15,8 @@ import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
 
+// to force compile
+import {IPositionDescriptor} from "v4-periphery/src/interfaces/IPositionDescriptor.sol";
 import {console} from "forge-std/console.sol";
 
 /// @author philogy <https://github.com/philogy>

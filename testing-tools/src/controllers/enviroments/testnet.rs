@@ -2,9 +2,8 @@ use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc};
 
 use alloy::{
     primitives::Address,
-    providers::{ext::AnvilApi, WalletProvider as _}
+    providers::{WalletProvider as _, ext::AnvilApi}
 };
-use alloy_primitives::U256;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, StreamExt};
 use reth_chainspec::Hardforks;
@@ -17,8 +16,8 @@ use crate::{
     controllers::strom::TestnetNode,
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
-        config::{TestingNodeConfig, TestnetConfig},
-        GlobalTestingConfig, WithWalletProvider
+        GlobalTestingConfig, WithWalletProvider,
+        config::{TestingNodeConfig, TestnetConfig}
     }
 };
 
@@ -214,7 +213,7 @@ where
         let initial_state = initializer.initialize_state_no_bytes().await?;
         initializer
             .rpc_provider()
-            .anvil_mine(Some(U256::from(10)), None)
+            .anvil_mine(Some(10), None)
             .await?;
 
         Ok((provider.into_state_provider(), initial_state))

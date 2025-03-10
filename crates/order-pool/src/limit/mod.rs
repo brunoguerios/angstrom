@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use alloy::primitives::{FixedBytes, B256};
+use alloy::primitives::{B256, FixedBytes};
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
@@ -71,7 +71,7 @@ impl LimitOrderPool {
     ) -> Result<(), LimitPoolError> {
         let size = order.size();
         if !self.size.has_space(size) {
-            return Err(LimitPoolError::MaxSize)
+            return Err(LimitPoolError::MaxSize);
         }
 
         self.composable_orders.add_order(order)
@@ -83,7 +83,7 @@ impl LimitOrderPool {
     ) -> Result<(), LimitPoolError> {
         let size = order.size();
         if !self.size.has_space(size) {
-            return Err(LimitPoolError::MaxSize)
+            return Err(LimitPoolError::MaxSize);
         }
 
         self.limit_orders.add_order(order)

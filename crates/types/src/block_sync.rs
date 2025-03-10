@@ -3,8 +3,8 @@ use std::{
     fmt::Debug,
     ops::RangeInclusive,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc, RwLock
+        Arc, RwLock,
+        atomic::{AtomicBool, AtomicU64, Ordering}
     },
     task::Waker
 };
@@ -96,7 +96,7 @@ impl BlockSyncProducer for GlobalBlockSync {
 
         let mut lock = self.pending_state.write().unwrap();
         if lock.back() == Some(&GlobalBlockState::PendingProgression(block_number)) {
-            return
+            return;
         }
 
         lock.push_back(GlobalBlockState::PendingProgression(block_number));
@@ -149,7 +149,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
             let mut lock = self.pending_state.write().unwrap();
             let Some(new_state) = lock.pop_front() else {
                 // are racing and someone beat us to it!
-                return
+                return;
             };
             drop(lock);
 
@@ -198,7 +198,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
             let mut lock = self.pending_state.write().unwrap();
             let Some(new_state) = lock.pop_front() else {
                 // are racing and someone beat us to it!
-                return
+                return;
             };
 
             drop(lock);
@@ -239,7 +239,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
     fn register(&self, module_name: &'static str) {
         if self.all_modules_registered.load(Ordering::SeqCst) {
             tracing::warn!(%module_name, "tried to register a module after setting no more modules to true. This module won't be added");
-            return
+            return;
         }
         tracing::info!(%module_name, "registered module on block sync");
 

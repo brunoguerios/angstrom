@@ -24,8 +24,8 @@ use parking_lot::RwLock;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use reth_network::{
-    test_utils::{Peer, PeerHandle},
-    NetworkHandle, NetworkInfo, Peers
+    NetworkHandle, NetworkInfo, Peers,
+    test_utils::{Peer, PeerHandle}
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
@@ -38,7 +38,7 @@ use crate::{
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
     providers::AnvilProvider,
-    types::{config::TestingNodeConfig, GlobalTestingConfig, WithWalletProvider}
+    types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig}
 };
 
 pub struct TestnetNode<C, P> {
@@ -60,7 +60,7 @@ where
         + 'static,
     P: WithWalletProvider
 {
-    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider, agents), fields(id = node_config.node_id))]
+    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider, agents, block_sync), fields(id = node_config.node_id))]
     pub async fn new<G: GlobalTestingConfig, F>(
         c: C,
         node_config: TestingNodeConfig<G>,
@@ -271,8 +271,8 @@ where
         !self.state_lock.consensus_state()
     }
 
-    /// Testing Utils
-    /// -------------------------------------
+    // Testing Utils
+    // -------------------------------------
 
     fn add_validator_bidirectional(&self, other: &Self) {
         self.add_strom_validator(other.network.pubkey());
@@ -328,23 +328,25 @@ where
     pub(crate) async fn initialize_internal_connections(&mut self, connections_needed: usize) {
         tracing::debug!(pubkey = ?self.network.pubkey, "attempting connections to {connections_needed} peers");
         let mut last_peer_count = 0;
-        std::future::poll_fn(|cx| loop {
-            if self
-                .state_lock
-                .poll_fut_to_initialize_network_connections(cx)
-                .is_ready()
-            {
-                panic!("peer connection failed");
-            }
+        std::future::poll_fn(|cx| {
+            loop {
+                if self
+                    .state_lock
+                    .poll_fut_to_initialize_network_connections(cx)
+                    .is_ready()
+                {
+                    panic!("peer connection failed");
+                }
 
-            let peer_cnt = self.network.strom_handle.peer_count();
-            if last_peer_count != peer_cnt {
-                tracing::trace!("connected to {peer_cnt}/{connections_needed} peers");
-                last_peer_count = peer_cnt;
-            }
+                let peer_cnt = self.network.strom_handle.peer_count();
+                if last_peer_count != peer_cnt {
+                    tracing::trace!("connected to {peer_cnt}/{connections_needed} peers");
+                    last_peer_count = peer_cnt;
+                }
 
-            if connections_needed == peer_cnt {
-                return Poll::Ready(())
+                if connections_needed == peer_cnt {
+                    return Poll::Ready(());
+                }
             }
         })
         .await

@@ -2,10 +2,10 @@ use std::{pin::pin, sync::OnceLock, time::Duration};
 
 use alloy::{
     contract::CallBuilder,
-    primitives::{address, Address, U256},
+    primitives::{Address, U256, address},
     providers::{
-        ext::{AnvilApi, DebugApi},
-        WalletProvider
+        WalletProvider,
+        ext::{AnvilApi, DebugApi}
     },
     rpc::types::trace::geth::{
         GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions,
@@ -27,12 +27,13 @@ pub mod environment;
 pub trait DebugTransaction {
     #[allow(async_fn_in_trait)] // OK because this is not for public consumption
     async fn run_safe(self) -> eyre::Result<TxHash>;
+    #[allow(async_fn_in_trait)] // OK because this is not for public consumption
+    async fn run_with_results_safe(self) -> eyre::Result<TxHash>;
 }
 
 impl<T, P, D> DebugTransaction for CallBuilder<T, P, D>
 where
-    T: Clone + Send + Sync + alloy::transports::Transport,
-    P: alloy::providers::Provider<T> + Clone,
+    P: alloy::providers::Provider + Clone,
     D: alloy::contract::CallDecoder
 {
     async fn run_safe(self) -> eyre::Result<TxHash> {
@@ -44,8 +45,10 @@ where
             let default_options = GethDebugTracingOptions::default();
             let _call_options = GethDebugTracingOptions {
                 config: GethDefaultTracingOptions {
-                    disable_storage: Some(true),
+                    disable_storage: Some(false),
+                    disable_stack: Some(false),
                     enable_memory: Some(false),
+                    debug: Some(true),
                     ..Default::default()
                 },
                 tracer: Some(GethDebugTracerType::BuiltInTracer(
@@ -59,6 +62,36 @@ where
 
             println!("TRACE: {result:?}");
             // We can make this do a cool backtrace later
+            Err(eyre!("Transaction with hash {} failed", receipt.transaction_hash))
+        }
+    }
+
+    async fn run_with_results_safe(self) -> eyre::Result<TxHash> {
+        let provider = self.provider.clone();
+        let receipt = self.gas(50_000_000_u64).send().await?.get_receipt().await?;
+        let default_options = GethDebugTracingOptions::default();
+        let _call_options = GethDebugTracingOptions {
+            config: GethDefaultTracingOptions {
+                disable_storage: Some(false),
+                disable_stack: Some(false),
+                enable_memory: Some(false),
+                debug: Some(true),
+                ..Default::default()
+            },
+            tracer: Some(GethDebugTracerType::BuiltInTracer(
+                GethDebugBuiltInTracerType::CallTracer
+            )),
+            ..Default::default()
+        };
+        let result = provider
+            .debug_trace_transaction(receipt.transaction_hash, default_options)
+            .await?;
+
+        println!("TRACE: {result:?}");
+        // We can make this do a cool backtrace later
+        if receipt.inner.status() {
+            Ok(receipt.transaction_hash)
+        } else {
             Err(eyre!("Transaction with hash {} failed", receipt.transaction_hash))
         }
     }
@@ -167,10 +200,10 @@ pub async fn anvil_mine_delay<F0: Future + Unpin>(
 ) -> F0::Output {
     let mut pinned = pin!(f0);
     if let Ok(v) = tokio::time::timeout(delay, &mut pinned).await {
-        return v
+        return v;
     }
     provider
-        .anvil_mine(Some(U256::from(1)), None)
+        .anvil_mine(Some(1), None)
         .await
         .expect("anvil failed to mine");
 

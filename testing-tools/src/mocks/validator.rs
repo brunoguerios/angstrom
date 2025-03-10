@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy_primitives::{keccak256, Address, FixedBytes};
+use alloy_primitives::{Address, FixedBytes, keccak256};
 use angstrom_types::{
     self,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
@@ -71,7 +71,9 @@ impl OrderValidatorHandle for MockValidator {
                 OrderValidationResults::Valid(o) => {
                     Ok((o.priority_data.gas_units, o.priority_data.gas))
                 }
-                OrderValidationResults::Invalid(e) => Err(format!("Invalid order: {}", e)),
+                OrderValidationResults::Invalid { error, .. } => {
+                    Err(format!("Invalid order: {}", error))
+                }
                 OrderValidationResults::TransitionedToBlock => {
                     Err("Order transitioned to block".to_string())
                 }

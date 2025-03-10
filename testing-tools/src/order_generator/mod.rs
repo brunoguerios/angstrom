@@ -28,7 +28,9 @@ impl OrderGenerator {
     ) -> Self {
         let pools = pool_data
             .iter()
-            .map(|(pool_id, pool_data)| {
+            .map(|item| {
+                let pool_id = item.key();
+                let pool_data = item.value();
                 PoolOrderGenerator::new(*pool_id, pool_data.clone(), block_number)
             })
             .collect::<Vec<_>>();
@@ -99,7 +101,7 @@ impl<const N: usize> PriceDistribution<N> {
     /// updates the mean price
     pub fn generate_price(&mut self) -> f64 {
         let price_avg = self.last_prices.iter().sum::<f64>() / N as f64;
-        let normal = Normal::new(price_avg, price_avg / self.sd_factor).unwrap();
+        let normal = Normal::new(price_avg, price_avg * (self.sd_factor / 100.0)).unwrap();
         let mut rng = rand::thread_rng();
 
         let new_price = normal

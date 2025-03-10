@@ -36,12 +36,12 @@ reth-network-peers.workspace = true
 reth-node-builder.workspace = true
 reth.workspace = true
 
-reth-network-p2p = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-net-banlist = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
-reth-tokio-util = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
+reth-network-p2p = { git = "https://github.com/paradigmxyz/reth", version = "1.1.5", tag = "v1.1.5" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "1.1.5", tag = "v1.1.5" }
+reth-net-banlist = { git = "https://github.com/paradigmxyz/reth", version = "1.1.5", tag = "v1.1.5" }
+reth-tokio-util = { git = "https://github.com/paradigmxyz/reth", version = "1.1.5", tag = "v1.1.5" }
 reth-discv4.workspace = true
-reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.1.4", tag = "v1.1.4" }
+reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.1.5", tag = "v1.1.5" }
 
 alloy.workspace = true
 alloy-chains.workspace = true
@@ -65,7 +65,7 @@ tokio-util.workspace = true
 
 # io
 serde.workspace = true
-humantime-serde = { version = "1.1", optional = true }
+humantime-serde = { version = "1", optional = true }
 serde_json = { workspace = true, optional = true }
 
 # metrics
@@ -79,14 +79,14 @@ tracing.workspace = true
 thiserror.workspace = true
 parking_lot.workspace = true
 async-trait.workspace = true
-linked_hash_set = "0.1"
-linked-hash-map = "0.5.6"
+linked_hash_set = "0"
+linked-hash-map = "0"
 rand.workspace = true
 secp256k1.workspace = true
 eyre.workspace = true
 
 enr = { workspace = true, features = ["rust-secp256k1"], optional = true }
-tempfile = { version = "3.3", optional = true }
+tempfile = { workspace = true, optional = true }
 k256.workspace = true
 
 [dev-dependencies]

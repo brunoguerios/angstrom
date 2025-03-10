@@ -3,12 +3,12 @@
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::OrderId,
+    primitive::{UserAccountVerificationError, UserOrderPoolInfo},
     sol_bindings::{ext::RawPoolOrder, grouped_orders::OrderWithStorageData}
 };
-use thiserror::Error;
 use user::UserAccounts;
 
-use super::{db_state_utils::StateFetchUtils, pools::UserOrderPoolInfo};
+use super::db_state_utils::StateFetchUtils;
 
 pub mod user;
 
@@ -37,7 +37,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         order: O,
         pool_info: UserOrderPoolInfo,
         block: u64
-    ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError<O>> {
+    ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError> {
         let user = order.from();
         let order_hash = order.order_hash();
 
@@ -47,15 +47,20 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         match respend {
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Nonce(nonce) => {
                 if !self.fetch_utils.is_valid_nonce(user, nonce) {
-                    return Err(UserAccountVerificationError::DuplicateNonce(order_hash))
+                    return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
                 }
             }
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(order_block) => {
                 // order should be for block + 1
                 if block + 1 != order_block {
-                    return Err(UserAccountVerificationError::BadBlock(block + 1, order_block))
+                    return Err(UserAccountVerificationError::BadBlock(block + 1, order_block));
                 }
             }
+        }
+
+        // verify that there is not any hooks set.
+        if order.has_hook() {
+            return Err(UserAccountVerificationError::NonEmptyHook);
         }
 
         // very we don't have a respend conflict
@@ -64,7 +69,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             .iter()
             .any(|o| o.order_hash <= order_hash)
         {
-            return Err(UserAccountVerificationError::DuplicateNonce(order_hash))
+            return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
         }
         tracing::trace!(?conflicting_orders);
 
@@ -115,7 +120,8 @@ pub trait StorageWithData: RawPoolOrder {
         OrderWithStorageData {
             priority_data: angstrom_types::orders::OrderPriorityData {
                 price:     self.limit_price(),
-                volume:    self.amount_in(),
+                // it is always t1. this is because we don't
+                volume:    self.amount(),
                 gas:       U256::ZERO,
                 gas_units: 0
             },
@@ -132,18 +138,6 @@ pub trait StorageWithData: RawPoolOrder {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum UserAccountVerificationError<O: RawPoolOrder> {
-    #[error("tried to verify for block {} where current is {}", requested, current)]
-    BlockMissMatch { requested: u64, current: u64, order: O, pool_info: UserOrderPoolInfo },
-    #[error("order hash has been cancelled {0:?}")]
-    OrderIsCancelled(B256),
-    #[error("Nonce exists for a current order hash: {0:?}")]
-    DuplicateNonce(B256),
-    #[error("block for flash order is not for next block. next_block: {0}, requested_block: {1}.")]
-    BadBlock(u64, u64)
-}
-
 #[cfg(test)]
 pub mod tests {
     use std::collections::HashSet;
@@ -151,16 +145,16 @@ pub mod tests {
     use alloy::primitives::{Address, U256};
     use angstrom_types::{
         primitive::{AngstromSigner, PoolId},
-        sol_bindings::{grouped_orders::GroupedVanillaOrder, RawPoolOrder}
+        sol_bindings::{RawPoolOrder, grouped_orders::GroupedVanillaOrder}
     };
     use testing_tools::type_generator::orders::UserOrderBuilder;
     use tracing::info;
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
 
     use super::{UserAccountProcessor, UserAccountVerificationError, UserAccounts};
     use crate::order::state::{
         db_state_utils::test_fetching::MockFetch,
-        pools::{pool_tracker_mock::MockPoolTracker, PoolsTracker}
+        pools::{PoolsTracker, pool_tracker_mock::MockPoolTracker}
     };
     /// Initialize the tracing subscriber for tests
     fn init_tracing() {
@@ -215,10 +209,10 @@ pub mod tests {
         println!("setting balances and approvals");
         processor
             .fetch_utils
-            .set_balance_for_user(user, token0, U256::from(order.amount_in()));
+            .set_balance_for_user(user, token0, U256::from(order.amount()));
         processor
             .fetch_utils
-            .set_approval_for_user(user, token0, U256::from(order.amount_in()));
+            .set_approval_for_user(user, token0, U256::from(order.amount()));
 
         println!("verifying orders");
         processor
@@ -258,12 +252,12 @@ pub mod tests {
         processor.fetch_utils.set_balance_for_user(
             user,
             token0,
-            U256::from(order.amount_in()) * U256::from(2)
+            U256::from(order.amount()) * U256::from(2)
         );
         processor.fetch_utils.set_approval_for_user(
             user,
             token0,
-            U256::from(order.amount_in()) * U256::from(2)
+            U256::from(order.amount()) * U256::from(2)
         );
 
         println!("finished first order config");
@@ -330,12 +324,12 @@ pub mod tests {
         processor.fetch_utils.set_balance_for_user(
             user,
             token0,
-            U256::from(order0.amount_in()) + U256::from(order1.amount_in()) - U256::from(10)
+            U256::from(order0.amount()) + U256::from(order1.amount()) - U256::from(10)
         );
         processor.fetch_utils.set_approval_for_user(
             user,
             token0,
-            U256::from(order0.amount_in()) + U256::from(order1.amount_in()) - U256::from(10)
+            U256::from(order0.amount()) + U256::from(order1.amount()) - U256::from(10)
         );
 
         let order0_hash = order0.hash();
@@ -395,10 +389,10 @@ pub mod tests {
 
         processor
             .fetch_utils
-            .set_balance_for_user(user, token0, U256::from(order.amount_in()));
+            .set_balance_for_user(user, token0, U256::from(order.amount()));
         processor
             .fetch_utils
-            .set_approval_for_user(user, token0, U256::from(order.amount_in()));
+            .set_approval_for_user(user, token0, U256::from(order.amount()));
 
         // Should succeed for current block 420 (order block is 421)
         processor
@@ -581,10 +575,10 @@ pub mod tests {
 
         processor
             .fetch_utils
-            .set_balance_for_user(user, token0, U256::from(order.amount_in()));
+            .set_balance_for_user(user, token0, U256::from(order.amount()));
         processor
             .fetch_utils
-            .set_approval_for_user(user, token0, U256::from(order.amount_in()));
+            .set_approval_for_user(user, token0, U256::from(order.amount()));
 
         // Add order
         processor
@@ -874,10 +868,10 @@ pub mod tests {
         // Set up proper balance and approval
         processor
             .fetch_utils
-            .set_balance_for_user(user, token0, U256::from(order.amount_in()));
+            .set_balance_for_user(user, token0, U256::from(order.amount()));
         processor
             .fetch_utils
-            .set_approval_for_user(user, token0, U256::from(order.amount_in()));
+            .set_approval_for_user(user, token0, U256::from(order.amount()));
 
         // Mark nonce as already used
         processor

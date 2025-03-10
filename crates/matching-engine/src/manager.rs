@@ -13,7 +13,7 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
-use futures::{stream::FuturesUnordered, Future};
+use futures::{Future, stream::FuturesUnordered};
 use futures_util::FutureExt;
 use reth_tasks::TaskSpawner;
 use tokio::{
@@ -23,13 +23,14 @@ use tokio::{
     },
     task::JoinSet
 };
+use tracing::trace;
 use validation::bundle::BundleValidatorHandle;
 
 use crate::{
+    MatchingEngineHandle,
     book::{BookOrder, OrderBook},
     build_book,
-    strategy::{MatchingStrategy, SimpleCheckpointStrategy},
-    MatchingEngineHandle
+    strategy::{BinarySearchStrategy, MatchingStrategy, SimpleCheckpointStrategy}
 };
 
 pub enum MatcherCommand {
@@ -172,7 +173,9 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
             // not a problem while I'm testing, but leaving this note here as it may be
             // important for future efficiency gains
             solution_set.spawn_blocking(move || {
-                SimpleCheckpointStrategy::run(&b).map(|s| s.solution(searcher))
+                Some(BinarySearchStrategy::run(&b, searcher))
+                // SimpleCheckpointStrategy::run(&b).map(|s|
+                // s.solution(searcher))
             });
         });
         let mut solutions = Vec::new();
@@ -183,10 +186,10 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         }
 
         // generate bundle without final gas known.
+        trace!("Building bundle for gas finalization");
         let bundle =
             AngstromBundle::for_gas_finalization(limit, solutions.clone(), &pool_snapshots)?;
 
-        println!("{:#?}", bundle);
         let gas_response = self.validation_handle.fetch_gas_for_bundle(bundle).await?;
 
         Ok((solutions, gas_response))
@@ -252,8 +255,10 @@ pub async fn manager_thread<TP: TaskSpawner + 'static, V: BundleValidatorHandle>
     while let Some(c) = input.recv().await {
         match c {
             MatcherCommand::BuildProposal(limit, searcher, snapshot, r) => {
-                r.send(manager.build_proposal(limit, searcher, snapshot).await)
-                    .unwrap();
+                let r = r.send(manager.build_proposal(limit, searcher, snapshot).await);
+                if r.is_err() {
+                    tracing::error!("failed to send built proposal back to caller");
+                }
             }
             MatcherCommand::EstimateGasPerPool { .. } => {
                 todo!()

@@ -6,28 +6,28 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
-use alloy::primitives::{Address, BlockNumber, FixedBytes, B256, U256};
+use alloy::primitives::{Address, B256, BlockNumber, FixedBytes, U256};
 use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderOrigin, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::{
+        RawPoolOrder,
         grouped_orders::{AllOrders, OrderWithStorageData, *},
-        rpc_orders::TopOfBlockOrder,
-        RawPoolOrder
+        rpc_orders::TopOfBlockOrder
     }
 };
 use futures_util::{Stream, StreamExt};
 use tokio::sync::oneshot::Sender;
 use tracing::{error, trace};
 use validation::order::{
-    state::{account::user::UserAddress, pools::AngstromPoolsTracker},
-    OrderValidationResults, OrderValidatorHandle
+    OrderValidationResults, OrderValidatorHandle,
+    state::{account::user::UserAddress, pools::AngstromPoolsTracker}
 };
 
 use crate::{
+    PoolManagerUpdate,
     order_storage::OrderStorage,
-    validator::{OrderValidator, OrderValidatorRes},
-    PoolManagerUpdate
+    validator::{OrderValidator, OrderValidatorRes}
 };
 
 /// This is used to remove validated orders. During validation
@@ -173,7 +173,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         if self.order_hash_to_order_id.contains_key(order_hash) || self.is_seen_invalid(order_hash)
         {
             trace!(?order_hash, "got duplicate order");
-            return true
+            return true;
         }
 
         false
@@ -199,7 +199,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         }
 
         if self.is_seen_invalid(&request.order_id) || self.is_cancelled(&request.order_id) {
-            return true
+            return true;
         }
 
         // the cancel arrived before the new order request
@@ -217,7 +217,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 Some(U256::from(deadline))
             );
 
-            return true
+            return true;
         }
         let id = self.order_hash_to_order_id.remove(&request.order_id);
         if let Some(order) = id.and_then(|v| self.order_storage.cancel_order(&v)) {
@@ -234,7 +234,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 user:       order.from(),
                 pool_id:    order.pool_id
             });
-            return true
+            return true;
         }
 
         false
@@ -299,9 +299,16 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     });
                 }
                 self.order_storage.log_cancel_order(&order);
+            } else {
+                self.notify_validation_subscribers(
+                    &hash,
+                    OrderValidationResults::Invalid {
+                        hash,
+                        error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
+                    }
+                );
+                return;
             }
-            self.notify_validation_subscribers(&hash, OrderValidationResults::Invalid(hash));
-            return
         }
 
         let hash = order.order_hash();
@@ -362,7 +369,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                         OrderLocation::Limit => self.order_storage.remove_limit_order(&id),
                         OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id)
                     }) else {
-                        return
+                        return;
                     };
 
                     self.validator
@@ -389,7 +396,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
     /// Removes all filled orders from the pools and moves to regular pool
     fn filled_orders(&mut self, block_number: BlockNumber, orders: &[B256]) {
         if orders.is_empty() {
-            return
+            return;
         }
 
         let filled_orders = orders
@@ -433,12 +440,16 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 if valid.valid_block != self.block_number {
                     self.notify_validation_subscribers(
                         &hash,
-                        OrderValidationResults::Invalid(hash)
+                        OrderValidationResults::Invalid {
+                            hash,
+                            error:
+                                angstrom_types::primitive::OrderValidationError::InvalidOrderAtBlock
+                        }
                     );
 
                     self.seen_invalid_orders.insert(hash);
                     let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
-                    return Ok(PoolInnerEvent::BadOrderMessages(peers))
+                    return Ok(PoolInnerEvent::BadOrderMessages(peers));
                 }
 
                 self.notify_order_subscribers(PoolManagerUpdate::NewOrder(valid.clone()));
@@ -454,16 +465,10 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
                 Ok(PoolInnerEvent::Propagation(to_propagate))
             }
-            OrderValidationResults::Invalid(bad_hash) => {
-                self.notify_validation_subscribers(
-                    &bad_hash,
-                    OrderValidationResults::Invalid(bad_hash)
-                );
-                self.seen_invalid_orders.insert(bad_hash);
-                let peers = self
-                    .order_hash_to_peer_id
-                    .remove(&bad_hash)
-                    .unwrap_or_default();
+            this @ OrderValidationResults::Invalid { hash, .. } => {
+                self.notify_validation_subscribers(&hash, this);
+                self.seen_invalid_orders.insert(hash);
+                let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
             OrderValidationResults::TransitionedToBlock => Ok(PoolInnerEvent::None)
@@ -599,11 +604,7 @@ where
             }
         }
 
-        if validated.is_empty() {
-            Poll::Pending
-        } else {
-            Poll::Ready(Some(validated))
-        }
+        if validated.is_empty() { Poll::Pending } else { Poll::Ready(Some(validated)) }
     }
 }
 
@@ -637,14 +638,14 @@ mod tests {
         contract_payloads::angstrom::AngstromPoolConfigStore,
         orders::OrderId,
         primitive::AngstromSigner,
-        sol_bindings::{grouped_orders::GroupedVanillaOrder, RespendAvoidanceMethod}
+        sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
     };
     use revm::primitives::keccak256;
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
     };
     use tokio::sync::broadcast;
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
 
     use super::*;
     use crate::PoolConfig;
@@ -945,7 +946,10 @@ mod tests {
         indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
 
         indexer
-            .handle_validated_order(OrderValidationResults::Invalid(order_hash))
+            .handle_validated_order(OrderValidationResults::Invalid {
+                hash:  order_hash,
+                error: angstrom_types::primitive::OrderValidationError::InvalidPool
+            })
             .unwrap();
 
         // Verify order was marked as invalid
@@ -953,7 +957,7 @@ mod tests {
 
         // Verify validation result
         match rx.await {
-            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
+            Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
             _ => panic!("Expected invalid order result")
         }
     }
@@ -1204,7 +1208,7 @@ mod tests {
 
         // The duplicate order should be rejected
         match rx2.await {
-            Ok(OrderValidationResults::Invalid(hash)) => assert_eq!(hash, order_hash),
+            Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
             _ => panic!("Expected invalid order result")
         }
     }

@@ -1,8 +1,10 @@
 use std::{future::Future, pin::Pin};
 
-use angstrom_network::{manager::StromConsensusEvent, StromMessage};
+use alloy_primitives::{Address, keccak256};
+use angstrom_network::{StromMessage, manager::StromConsensusEvent};
 use angstrom_types::{
     consensus::{PreProposal, Proposal},
+    primitive::PeerId,
     sol_bindings::grouped_orders::AllOrders
 };
 use reth_chainspec::Hardforks;
@@ -11,7 +13,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{config::DevnetConfig, StateMachineCheckedActionHookFn}
+    types::{StateMachineCheckedActionHookFn, config::DevnetConfig}
 };
 
 pub trait WithCheckedAction<'a, C>
@@ -24,7 +26,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    type FunctionOutput = StateMachineCheckedActionHookFn<'a, C>;
+    type FunctionOutput;
 
     fn send_pooled_orders(&mut self, orders: Vec<AllOrders>);
 
@@ -43,6 +45,8 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
+    type FunctionOutput = StateMachineCheckedActionHookFn<'a, C>;
+
     fn send_pooled_orders(&mut self, orders: Vec<AllOrders>) {
         let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             pin_action(testnet.broadcast_orders_message(
@@ -59,7 +63,10 @@ where
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::Propose(proposal.clone()),
-                StromConsensusEvent::Proposal(testnet.get_peer(0).peer_id(), proposal)
+                StromConsensusEvent::Proposal(
+                    peer_id_to_addr(testnet.get_peer(0).peer_id()),
+                    proposal
+                )
             ))
         };
         self.add_checked_action("send propose", f);
@@ -70,7 +77,10 @@ where
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::PrePropose(preproposal.clone()),
-                StromConsensusEvent::PreProposal(testnet.get_peer(0).peer_id(), preproposal)
+                StromConsensusEvent::PreProposal(
+                    peer_id_to_addr(testnet.get_peer(0).peer_id()),
+                    preproposal
+                )
             ))
         };
         self.add_checked_action("send prepropose", f);
@@ -82,4 +92,8 @@ where
     F: Future<Output = eyre::Result<bool>> + Send + Sync + 'a
 {
     Box::pin(fut)
+}
+
+pub fn peer_id_to_addr(id: PeerId) -> Address {
+    Address::try_from(&keccak256(id)[12..]).unwrap()
 }

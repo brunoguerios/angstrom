@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy_primitives::{Address, FixedBytes, B256};
+use alloy_primitives::{Address, B256, FixedBytes};
 use angstrom_types::{consensus::*, sol_bindings::grouped_orders::AllOrders};
 use serde::{Deserialize, Serialize};
 

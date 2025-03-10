@@ -1,4 +1,4 @@
-use std::sync::{atomic::AtomicUsize, Arc};
+use std::sync::{Arc, atomic::AtomicUsize};
 
 use angstrom_types::{
     orders::CancelOrderRequest, primitive::PeerId, sol_bindings::grouped_orders::AllOrders
@@ -6,7 +6,7 @@ use angstrom_types::{
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use reth_network::DisconnectReason;
 use tokio::sync::{
-    mpsc::{unbounded_channel, UnboundedSender},
+    mpsc::{UnboundedSender, unbounded_channel},
     oneshot
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;

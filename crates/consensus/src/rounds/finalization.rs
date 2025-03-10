@@ -43,7 +43,9 @@ impl FinalizationState {
         let future = handles
             .matching_engine_output(preproposal)
             .map(move |output| {
-                let (solution, _) = output.unwrap();
+                let Ok((solution, _)) = output else {
+                    return false;
+                };
 
                 let mut proposal_solution = proposal.solutions.clone();
                 proposal_solution.sort();
@@ -59,7 +61,7 @@ impl FinalizationState {
                     tracing::error!(
                         "Violation DETECTED. in future this will be related to slashing"
                     );
-                    return false
+                    return false;
                 }
 
                 true
@@ -93,13 +95,13 @@ where
         cx: &mut Context<'_>
     ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if self.completed {
-            return Poll::Ready(None)
+            return Poll::Ready(None);
         }
 
         if let Poll::Ready(result) = self.verification_future.poll_unpin(cx) {
             tracing::info!(%result, "consensus result");
             self.completed = true;
-            return Poll::Ready(None)
+            return Poll::Ready(None);
         }
 
         Poll::Pending

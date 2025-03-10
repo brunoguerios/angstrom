@@ -1,12 +1,16 @@
-use std::{net::IpAddr, path::PathBuf, str::FromStr};
+use std::{
+    net::IpAddr,
+    path::{Path, PathBuf},
+    str::FromStr
+};
 
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{
-    aliases::{I24, U24},
-    Address, Bytes, U160
+    Address, Bytes, U160,
+    aliases::{I24, U24}
 };
 use alloy_signer_local::LocalSigner;
-use angstrom_metrics::{initialize_prometheus_metrics, METRICS_ENABLED};
+use angstrom_metrics::{METRICS_ENABLED, initialize_prometheus_metrics};
 use angstrom_types::{contract_bindings::angstrom::Angstrom::PoolKey, matching::SqrtPriceX96};
 use consensus::AngstromValidator;
 use enr::k256::ecdsa::SigningKey;
@@ -14,9 +18,12 @@ use eyre::Context;
 use reth_network_peers::pk2id;
 use secp256k1::{Secp256k1, SecretKey};
 use serde::Deserialize;
-use testing_tools::types::{config::TestnetConfig, initial_state::PartialConfigPoolKey};
+use testing_tools::{
+    types::{config::TestnetConfig, initial_state::PartialConfigPoolKey},
+    utils::workspace_dir
+};
 
-#[derive(Debug, Clone, Default, clap::Parser)]
+#[derive(Debug, Clone, clap::Parser)]
 pub struct TestnetCli {
     #[clap(long)]
     pub mev_guard:              bool,
@@ -50,6 +57,21 @@ impl TestnetCli {
     }
 }
 
+impl Default for TestnetCli {
+    fn default() -> Self {
+        let mut workspace_dir = workspace_dir();
+        workspace_dir.push("bin/testnet/pool_key_config.toml");
+        Self {
+            mev_guard:              false,
+            leader_eth_rpc_port:    None,
+            angstrom_base_rpc_port: None,
+            nodes_in_network:       3,
+            eth_fork_url:           "ws://localhost:8546".to_string(),
+            pool_key_config:        workspace_dir
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct AllPoolKeyInners {
     pool_keys: Option<Vec<PoolKeyInner>>
@@ -58,7 +80,7 @@ struct AllPoolKeyInners {
 impl AllPoolKeyInners {
     fn load_pool_keys(config_path: &PathBuf) -> eyre::Result<Vec<PartialConfigPoolKey>> {
         if !config_path.exists() {
-            return Err(eyre::eyre!("pool key config file does not exist at {:?}", config_path))
+            return Err(eyre::eyre!("pool key config file does not exist at {:?}", config_path));
         }
 
         let toml_content = std::fs::read_to_string(config_path)

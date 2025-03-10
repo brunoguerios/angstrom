@@ -54,6 +54,7 @@ abstract contract TopLevelAuth is UniConsumer, IAngstromAuth {
         StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(assetA, assetB);
         _configStore = _configStore.setIntoNew(key, assetA, assetB, tickSpacing, bundleFee);
         unlockedFee.validate();
+
         _unlockedFeePackedSet[key] = (uint256(unlockedFee) << 1) | 1;
     }
 

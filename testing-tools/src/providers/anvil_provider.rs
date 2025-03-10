@@ -3,14 +3,14 @@ use std::{future::Future, pin::Pin, task::Poll};
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
-    providers::{builder, ext::AnvilApi, Provider},
-    rpc::types::{anvil::MineOptions, Block},
+    providers::{Provider, builder, ext::AnvilApi},
+    rpc::types::{Block, anvil::MineOptions},
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::Bytes;
 use alloy_rpc_types::{BlockTransactionsKind, Header, Transaction};
 use angstrom_types::block_sync::GlobalBlockSync;
-use futures::{stream::FuturesUnordered, Stream, StreamExt};
+use futures::{Stream, StreamExt, stream::FuturesUnordered};
 
 use super::{AnvilStateProvider, WalletProvider};
 use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
@@ -118,7 +118,7 @@ where
 
     pub async fn subscribe_blocks(
         &self
-    ) -> eyre::Result<impl Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send> {
+    ) -> eyre::Result<impl Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + use<P>> {
         let stream = self.rpc_provider().subscribe_blocks().await?.into_stream();
 
         Ok(StreamBlockProvider::new(self.rpc_provider(), stream))
@@ -202,7 +202,7 @@ impl Stream for StreamBlockProvider {
         }
 
         if let Poll::Ready(Some(val)) = this.futs.poll_next_unpin(cx) {
-            return Poll::Ready(Some(val))
+            return Poll::Ready(Some(val));
         }
 
         Poll::Pending

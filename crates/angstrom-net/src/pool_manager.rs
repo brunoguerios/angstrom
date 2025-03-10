@@ -6,29 +6,28 @@ use std::{
     task::{Context, Poll, Waker}
 };
 
-use alloy::primitives::{Address, FixedBytes, B256};
+use alloy::primitives::{Address, B256, FixedBytes};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
-    primitive::{NewInitializedPool, PeerId, PoolId},
+    primitive::{NewInitializedPool, OrderValidationError, PeerId, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
 use order_pool::{
-    order_storage::OrderStorage, OrderIndexer, OrderPoolHandle, PoolConfig, PoolInnerEvent,
-    PoolManagerUpdate
+    OrderIndexer, OrderPoolHandle, PoolConfig, PoolInnerEvent, PoolManagerUpdate,
+    order_storage::OrderStorage
 };
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_tasks::TaskSpawner;
 use tokio::sync::{
     broadcast,
-    mpsc::{error::SendError, unbounded_channel, UnboundedReceiver, UnboundedSender}
+    mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}
 };
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use validation::order::{
-    state::pools::AngstromPoolsTracker, OrderPoolNewOrderResult, OrderValidationResults,
-    OrderValidatorHandle
+    OrderValidationResults, OrderValidatorHandle, state::pools::AngstromPoolsTracker
 };
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};
@@ -66,10 +65,22 @@ impl OrderPoolHandle for PoolHandle {
         &self,
         origin: OrderOrigin,
         order: AllOrders
-    ) -> impl Future<Output = OrderPoolNewOrderResult> + Send {
+    ) -> impl Future<Output = Result<(), OrderValidationError>> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let _ = self.send(OrderCommand::NewOrder(origin, order, tx));
-        rx.map(Into::into)
+        rx.map(|res| {
+            let Ok(result) = res else {
+                return Err(OrderValidationError::Unknown(
+                    "a channel failed on the backend".to_string()
+                ));
+            };
+            match result {
+                OrderValidationResults::TransitionedToBlock | OrderValidationResults::Valid(_) => {
+                    Ok(())
+                }
+                OrderValidationResults::Invalid { error, .. } => Err(error)
+            }
+        })
     }
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {
@@ -171,7 +182,8 @@ where
         tx: UnboundedSender<OrderCommand>,
         rx: UnboundedReceiver<OrderCommand>,
         pool_storage: AngstromPoolsTracker,
-        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
+        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
+        block_number: u64
     ) -> PoolHandle {
         let rx = UnboundedReceiverStream::new(rx);
         let order_storage = self
@@ -182,7 +194,7 @@ where
         let inner = OrderIndexer::new(
             self.validator.clone(),
             order_storage.clone(),
-            0,
+            block_number,
             pool_manager_tx.clone(),
             pool_storage
         );

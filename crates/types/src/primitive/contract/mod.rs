@@ -1,6 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, sol, sol_types::eip712_domain};
+use alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::{Address, aliases::U24},
+    sol,
+    sol_types::eip712_domain
+};
 
 use crate::contract_bindings::angstrom::Angstrom::PoolKey;
 
@@ -12,11 +17,17 @@ ERC20,
 pub use ERC20::*;
 
 use crate::primitive::PoolId;
-const TESTNET_ANGSTROM_ADDRESS: Address =
-    alloy::primitives::address!("efa489c72885095170b02ca2d826c22fecb51a90");
 
-// The `eip712_domain` macro lets you easily define an EIP-712 domain
-// object :)
+// internal anvil testnet
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+pub const TESTNET_ANGSTROM_ADDRESS: Address =
+    alloy::primitives::address!("293954613283cC7B82BfE9676D3cc0fb0A58fAa0");
+
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
+    alloy::primitives::address!("48bC5A530873DcF0b890aD50120e7ee5283E0112");
+
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
     version: "v1",
@@ -24,10 +35,52 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     verifying_contract: TESTNET_ANGSTROM_ADDRESS,
 );
 
-#[derive(Default, Clone)]
+// sepolia testnet
+#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
+pub const TESTNET_ANGSTROM_ADDRESS: Address =
+    alloy::primitives::address!("9D0ce8B3DF426008c4a4E74E7845B1bffF346a90");
+
+#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
+pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
+    alloy::primitives::address!("E03A1074c86CFeDd5C142C4F04F1a1536e203543");
+
+#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
+pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
+    name: "Angstrom",
+    version: "v1",
+    chain_id: 11155111,
+    verifying_contract: TESTNET_ANGSTROM_ADDRESS,
+);
+
+// odd cases that we need to handle but should be unreachable.
+#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
+pub const TESTNET_ANGSTROM_ADDRESS: Address =
+    alloy::primitives::address!("293954613283cC7B82BfE9676D3cc0fb0A58fAa0");
+
+#[cfg(all(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
+pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
+    name: "Angstrom",
+    version: "v1",
+    chain_id: 1,
+);
+#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
+pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
+    name: "Angstrom",
+    version: "v1",
+    chain_id: 1,
+    verifying_contract: TESTNET_ANGSTROM_ADDRESS,
+
+);
+#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
+pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
+    alloy::primitives::address!("48bC5A530873DcF0b890aD50120e7ee5283E0112");
+
+#[derive(Debug, Default, Clone)]
 pub struct UniswapPoolRegistry {
-    pools: HashMap<PoolId, PoolKey>
+    pub pools:          HashMap<PoolId, PoolKey>,
+    pub conversion_map: HashMap<PoolId, PoolId>
 }
+
 impl UniswapPoolRegistry {
     pub fn get(&self, pool_id: &PoolId) -> Option<&PoolKey> {
         self.pools.get(pool_id)
@@ -37,15 +90,26 @@ impl UniswapPoolRegistry {
         self.pools.clone()
     }
 }
+
 impl From<Vec<PoolKey>> for UniswapPoolRegistry {
     fn from(pools: Vec<PoolKey>) -> Self {
-        let pools = pools
-            .into_iter()
+        let pubmap = pools
+            .iter()
             .map(|pool_key| {
                 let pool_id = PoolId::from(pool_key.clone());
-                (pool_id, pool_key)
+                (pool_id, pool_key.clone())
             })
             .collect();
-        Self { pools }
+
+        let priv_map = pools
+            .into_iter()
+            .map(|mut pool_key| {
+                let pool_id_pub = PoolId::from(pool_key.clone());
+                pool_key.fee = U24::from(0x800000);
+                let pool_id_priv = PoolId::from(pool_key.clone());
+                (pool_id_pub, pool_id_priv)
+            })
+            .collect();
+        Self { pools: pubmap, conversion_map: priv_map }
     }
 }

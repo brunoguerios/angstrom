@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use alloy_primitives::{aliases::I24, I256};
+use alloy_primitives::{I256, aliases::I24};
 use malachite::num::arithmetic::traits::Sign;
 use once_cell::sync::Lazy;
 use thiserror::Error;
@@ -8,6 +8,7 @@ use thiserror::Error;
 pub mod loaders;
 pub mod pool;
 pub mod pool_data_loader;
+pub mod pool_factory;
 pub mod pool_manager;
 pub mod pool_providers;
 pub mod tob;
@@ -68,9 +69,9 @@ pub enum ConversionError {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{aliases::I24, I256};
+    use alloy_primitives::{I256, aliases::I24};
 
-    use crate::uniswap::{i128_to_i256, i256_to_i128, i32_to_i24, MAX_I24, MIN_I24};
+    use crate::uniswap::{MAX_I24, MIN_I24, i32_to_i24, i128_to_i256, i256_to_i128};
 
     #[test]
     fn test_i256_to_i128_overflow() {

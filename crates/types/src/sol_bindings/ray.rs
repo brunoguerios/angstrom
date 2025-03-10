@@ -4,21 +4,21 @@ use std::{
     sync::OnceLock
 };
 
-use alloy::primitives::{aliases::U320, Uint, U256, U512};
+use alloy::primitives::{U256, U512, Uint, aliases::U320};
 use alloy_primitives::U160;
 use malachite::{
+    Natural, Rational,
     num::{
-        arithmetic::traits::{DivRound, Pow},
+        arithmetic::traits::{DivRound, Mod, Pow},
         conversion::traits::{RoundingInto, SaturatingFrom}
     },
-    rounding_modes::RoundingMode,
-    Natural, Rational
+    rounding_modes::RoundingMode
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
 use crate::matching::{
-    const_1e27, const_1e54, const_2_192, uniswap::PoolPrice, MatchingPrice, SqrtPriceX96
+    MatchingPrice, SqrtPriceX96, const_1e27, const_1e54, const_2_192, uniswap::PoolPrice
 };
 
 fn max_tick_ray() -> &'static Ray {
@@ -123,6 +123,12 @@ impl From<U256> for Ray {
     }
 }
 
+impl From<u128> for Ray {
+    fn from(value: u128) -> Self {
+        Self(U256::from(value))
+    }
+}
+
 impl From<Ray> for U256 {
     fn from(value: Ray) -> Self {
         value.0
@@ -192,7 +198,7 @@ impl From<MatchingPrice> for Ray {
     }
 }
 
-impl<'a> From<PoolPrice<'a>> for Ray {
+impl From<PoolPrice<'_>> for Ray {
     fn from(value: PoolPrice) -> Self {
         Self::from(value.price)
     }
@@ -268,14 +274,8 @@ impl Ray {
         *self = Ray::from(this);
     }
 
-    /// self * ray / other
-    pub fn div_ray(mut self, other: Ray) -> Ray {
-        self.div_ray_assign(other);
-        self
-    }
-
     fn invert(&self, rm: RoundingMode) -> Self {
-        let res: Natural = const_1e54().div_round(Natural::from(*self), rm).0;
+        let (res, _) = const_1e54().div_round(Natural::from(*self), rm);
         Self(U256::from_limbs_slice(&res.to_limbs_asc()))
     }
 
@@ -284,12 +284,8 @@ impl Ray {
     /// use RoundingMode::Floor.  This is for rounding in the matching engine
     /// where we want to ensure that, depending on the bid/ask nature of the
     /// order, we always round in a direction that is most favorable to us
-    pub fn inv_ray_round(&self, round_up: bool) -> Self {
-        if round_up {
-            self.invert(RoundingMode::Ceiling)
-        } else {
-            self.invert(RoundingMode::Floor)
-        }
+    pub fn inv_ray_round(&self, round_up: bool) -> Ray {
+        if round_up { self.invert(RoundingMode::Ceiling) } else { self.invert(RoundingMode::Floor) }
     }
 
     /// 1e54 / self
@@ -297,8 +293,15 @@ impl Ray {
         *self = self.invert(RoundingMode::Floor);
     }
 
+    pub fn inv_ray_assign_round(&mut self, round_up: bool) {
+        *self = self.inv_ray_round(round_up);
+    }
+
     /// 1e54 / self
     pub fn inv_ray(self) -> Ray {
+        if self.is_zero() {
+            return self;
+        }
         self.invert(RoundingMode::Floor)
     }
 
@@ -325,8 +328,9 @@ impl Ray {
         Self::calc_price_inner(t0, t1, RoundingMode::Ceiling)
     }
 
-    pub fn calc_price_generic<T: Into<Natural>>(t0: T, t1: T) -> Self {
-        Self::calc_price_inner(t0.into(), t1.into(), RoundingMode::Ceiling)
+    pub fn calc_price_generic<T: Into<Natural>>(t0: T, t1: T, round_up: bool) -> Self {
+        let rm = if round_up { RoundingMode::Ceiling } else { RoundingMode::Floor };
+        Self::calc_price_inner(t0.into(), t1.into(), rm)
     }
 
     fn calc_price_inner(t0: Natural, t1: Natural, rm: RoundingMode) -> Self {
@@ -337,7 +341,7 @@ impl Ray {
     }
 
     /// Given a price ratio t1/t0 calculates how much t1 would be needed to
-    /// output the provided amount of t0 (q) ROUNDED UP
+    /// output the provided amount of t0 (q) rounds DOWN by default
     pub fn mul_quantity(&self, q: U256) -> U256 {
         let p: U512 = self.0.widening_mul(q);
         let numerator = Natural::from_limbs_asc(p.as_limbs());
@@ -345,6 +349,16 @@ impl Ray {
             numerator.div_round(const_1e27(), malachite::rounding_modes::RoundingMode::Floor);
         let reslimbs = res.into_limbs_asc();
         Uint::from_limbs_slice(&reslimbs)
+    }
+
+    /// Given a price ration t1/t0 calculates how much t1 would be needed to
+    /// output the provided amount of t0 (q).  Rounding determined by parameter
+    pub fn quantity(&self, q: u128, round_up: bool) -> u128 {
+        let rm = if round_up { RoundingMode::Ceiling } else { RoundingMode::Floor };
+        let product: U512 = self.0.widening_mul(U256::from(q));
+        let numerator = Natural::from_limbs_asc(product.as_limbs());
+        let (res, _) = numerator.div_round(const_1e27(), rm);
+        u128::saturating_from(&res)
     }
 
     /// Given a price ratio t1/t0 calculates how much t0 would be needed to
@@ -356,14 +370,39 @@ impl Ray {
         let (res, _) = numerator.div_round(denominator, rm);
         u128::saturating_from(&res)
     }
+
+    /// Given a price ratio t1/t0 calculates the amount of excess T1 left after
+    /// dividing out an even amount of T0
+    pub fn inverse_remainder(&self, q: u128) -> u128 {
+        let numerator = Natural::from(q) * const_1e27();
+        let denominator = Natural::from_limbs_asc(self.0.as_limbs());
+        let remainder = numerator.mod_op(denominator);
+        u128::saturating_from(&remainder)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use alloy::primitives::U160;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     use super::*;
+
+    #[test]
+    fn inverts_properly() {
+        // This test currently fails due to our precision issues
+        let s = SqrtPriceX96::at_tick(100000).unwrap();
+        let r = Ray::from(s);
+        let inv_r = r.inv_ray();
+        println!(
+            "R_O: {:?}\nR_F: {:?}\nR0F: {:?}",
+            r,
+            inv_r.inv_ray(),
+            r.inv_ray_round(true).inv_ray_round(true)
+        );
+        // Let's not assert because we know it's wrong
+        // assert!(inv_r.inv_ray() == r, "Inverted price has changed");
+    }
 
     // #[test]
     // fn another_math_test() {

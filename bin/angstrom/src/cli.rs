@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use alloy_primitives::Address;
 use angstrom_metrics::initialize_prometheus_metrics;
-use angstrom_types::contract_bindings::angstrom::Angstrom::PoolKey;
 use eyre::Context;
 use serde::Deserialize;
 use url::Url;
@@ -10,18 +9,12 @@ use url::Url;
 #[derive(Debug, Clone, Default, clap::Args)]
 pub struct AngstromConfig {
     #[clap(long)]
-    pub mev_guard:           bool,
-    #[clap(long)]
     pub secret_key_location: PathBuf,
-    #[clap(long)]
-    pub angstrom_addr:       Option<Address>,
-    #[clap(long)]
-    pub pool_manager_addr:   Option<Address>,
     #[clap(long)]
     pub node_config:         PathBuf,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
-    pub metrics:             bool,
+    pub metrics_enabled:     bool,
     /// spawns the prometheus metrics exporter at the specified port
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
@@ -32,11 +25,12 @@ pub struct AngstromConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct NodeConfig {
-    pub secret_key:           String,
     pub angstrom_address:     Address,
     pub periphery_addr:       Address,
     pub pool_manager_address: Address,
-    pub pools:                Vec<PoolKey>
+    pub gas_token_address:    Address,
+
+    pub angstrom_deploy_block: u64
 }
 
 impl NodeConfig {
@@ -44,7 +38,7 @@ impl NodeConfig {
         let config_path = config.ok_or_else(|| eyre::eyre!("Config path not provided"))?;
 
         if !config_path.exists() {
-            return Err(eyre::eyre!("Config file does not exist at {:?}", config_path))
+            return Err(eyre::eyre!("Config file does not exist at {:?}", config_path));
         }
 
         let toml_content = std::fs::read_to_string(&config_path)

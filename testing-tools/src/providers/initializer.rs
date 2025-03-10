@@ -1,11 +1,11 @@
 use alloy::{
     node_bindings::AnvilInstance,
     primitives::{
+        Address,
         aliases::{I24, U24},
-        keccak256, Address
+        keccak256
     },
-    providers::{ext::AnvilApi, Provider},
-    transports::BoxTransport
+    providers::{Provider, ext::AnvilApi}
 };
 use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
@@ -14,13 +14,12 @@ use angstrom_types::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
         mintable_mock_erc_20::MintableMockERC20,
-        pool_gate::PoolGate::PoolGateInstance,
-        pool_manager::PoolManager::PoolManagerInstance
+        pool_gate::PoolGate::PoolGateInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
 };
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use validation::common::WETH_ADDRESS;
 
 use super::WalletProvider;
@@ -28,26 +27,25 @@ use crate::{
     contracts::{
         anvil::{SafeDeployPending, WalletProviderRpc},
         environment::{
+            TestAnvilEnvironment,
             angstrom::AngstromEnv,
-            uniswap::{TestUniswapEnv, UniswapEnv},
-            TestAnvilEnvironment
+            uniswap::{TestUniswapEnv, UniswapEnv}
         }
     },
     types::{
+        GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
-        initial_state::{PartialConfigPoolKey, PendingDeployedPools},
-        GlobalTestingConfig, WithWalletProvider
+        initial_state::{PartialConfigPoolKey, PendingDeployedPools}
     }
 };
 
 pub struct AnvilInitializer {
-    provider:       WalletProvider,
-    angstrom_env:   AngstromEnv<UniswapEnv<WalletProvider>>,
-    _controller_v1: ControllerV1Instance<BoxTransport, WalletProviderRpc>,
-    angstrom:       AngstromInstance<BoxTransport, WalletProviderRpc>,
-    pool_gate:      PoolGateInstance<BoxTransport, WalletProviderRpc>,
-    _pool_manager:  PoolManagerInstance<BoxTransport, WalletProviderRpc>,
-    pending_state:  PendingDeployedPools
+    provider:      WalletProvider,
+    angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1: ControllerV1Instance<(), WalletProviderRpc>,
+    angstrom:      AngstromInstance<(), WalletProviderRpc>,
+    pool_gate:     PoolGateInstance<(), WalletProviderRpc>,
+    pending_state: PendingDeployedPools
 }
 
 impl AnvilInitializer {
@@ -59,15 +57,12 @@ impl AnvilInitializer {
 
         tracing::debug!("deploying UniV4 enviroment");
         let uniswap_env = UniswapEnv::new(provider.clone()).await?;
-
         tracing::info!("deployed UniV4 enviroment");
-
-        let _pool_manager =
-            PoolManagerInstance::new(uniswap_env.pool_manager(), provider.provider().clone());
 
         tracing::debug!("deploying Angstrom enviroment");
         let angstrom_env = AngstromEnv::new(uniswap_env, nodes).await?;
-        tracing::info!("deployed Angstrom enviroment");
+        let addr = angstrom_env.angstrom();
+        tracing::info!(?addr, "deployed Angstrom enviroment");
 
         let angstrom =
             AngstromInstance::new(angstrom_env.angstrom(), angstrom_env.provider().clone());
@@ -75,23 +70,15 @@ impl AnvilInitializer {
         let pool_gate =
             PoolGateInstance::new(angstrom_env.pool_gate(), angstrom_env.provider().clone());
 
-        let _controller_v1 = ControllerV1Instance::new(
+        let controller_v1 = ControllerV1Instance::new(
             angstrom_env.controller_v1(),
             angstrom_env.provider().clone()
         );
-        tracing::info!(ang_addr=?angstrom_env.angstrom());
 
         let pending_state = PendingDeployedPools::new();
 
-        let this = Self {
-            provider,
-            _controller_v1,
-            angstrom_env,
-            angstrom,
-            pending_state,
-            _pool_manager,
-            pool_gate
-        };
+        let this =
+            Self { provider, controller_v1, angstrom_env, angstrom, pending_state, pool_gate };
 
         Ok((this, anvil))
     }
@@ -216,6 +203,7 @@ impl AnvilInitializer {
         price: SqrtPriceX96,
         store_index: U256
     ) -> eyre::Result<()> {
+        tracing::info!(?pool_key, ?liquidity, ?price, ?store_index);
         let nonce = self
             .provider
             .provider
@@ -227,8 +215,8 @@ impl AnvilInitializer {
         tracing::info!(?pool_key, ?encoded, ?price);
 
         tracing::debug!("configuring pool");
-        let configure_pool = self
-            .angstrom
+        let controller_configure_pool = self
+            .controller_v1
             .configurePool(
                 pool_key.currency0,
                 pool_key.currency1,
@@ -240,17 +228,19 @@ impl AnvilInitializer {
             .nonce(nonce)
             .deploy_pending()
             .await?;
-        self.pending_state.add_pending_tx(configure_pool);
+        tracing::debug!("success: controller_configure_pool");
+        self.pending_state.add_pending_tx(controller_configure_pool);
 
         tracing::debug!("initializing pool");
-        let i = self
+        let initialize_angstrom_pool = self
             .angstrom
             .initializePool(pool_key.currency0, pool_key.currency1, store_index, *price)
             .from(self.provider.controller())
             .nonce(nonce + 1)
             .deploy_pending()
             .await?;
-        self.pending_state.add_pending_tx(i);
+        tracing::debug!("success: angstrom.initializePool");
+        self.pending_state.add_pending_tx(initialize_angstrom_pool);
 
         tracing::debug!("tick spacing");
         let pool_gate = self
@@ -260,14 +250,16 @@ impl AnvilInitializer {
             .nonce(nonce + 2)
             .deploy_pending()
             .await?;
+        tracing::debug!("success: pool_gate");
         self.pending_state.add_pending_tx(pool_gate);
 
         let mut rng = thread_rng();
 
         let tick = price.to_tick()?;
-        for i in 0..200 {
-            let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (101 - i)));
+        for i in 0..400 {
+            let lower = I24::unchecked_from(tick - (pool_key.tickSpacing.as_i32() * (200 - i)));
             let upper = lower + pool_key.tickSpacing;
+            let liquidity = U256::from(rng.gen_range(liquidity / 2..liquidity));
 
             let add_liq = self
                 .pool_gate
@@ -276,15 +268,15 @@ impl AnvilInitializer {
                     pool_key.currency1,
                     lower,
                     upper,
-                    U256::from(rng.gen_range(liquidity / 2..liquidity)),
+                    liquidity,
                     FixedBytes::<32>::default()
                 )
                 .from(self.provider.controller())
                 .nonce(nonce + 3 + (i as u64))
                 .deploy_pending()
                 .await?;
-
             self.pending_state.add_pending_tx(add_liq);
+            tracing::trace!(lower_tick = ?lower, upper_tick = ?upper, ?liquidity, "Adding liquidity to pool");
         }
 
         Ok(())

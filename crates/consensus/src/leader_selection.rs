@@ -1,7 +1,6 @@
 use std::{cmp::Ordering, collections::HashSet};
 
-use alloy::primitives::BlockNumber;
-use angstrom_types::primitive::PeerId;
+use alloy::primitives::{Address, BlockNumber};
 
 // https://github.com/tendermint/tendermint/pull/2785#discussion_r235038971
 // 1.125
@@ -11,13 +10,13 @@ const ONE_E3: u64 = 1000;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AngstromValidator {
-    pub peer_id:  PeerId,
+    pub peer_id:  Address,
     voting_power: u64,
     priority:     i64
 }
 
 impl AngstromValidator {
-    pub fn new(name: PeerId, voting_power: u64) -> Self {
+    pub fn new(name: Address, voting_power: u64) -> Self {
         AngstromValidator {
             peer_id:      name,
             voting_power: voting_power * ONE_E3,
@@ -31,7 +30,7 @@ pub struct WeightedRoundRobin {
     validators:                HashSet<AngstromValidator>,
     new_joiner_penalty_factor: u64,
     block_number:              BlockNumber,
-    last_proposer:             Option<PeerId>
+    last_proposer:             Option<Address>
 }
 
 impl WeightedRoundRobin {
@@ -44,7 +43,7 @@ impl WeightedRoundRobin {
         }
     }
 
-    fn proposer_selection(&mut self) -> PeerId {
+    fn proposer_selection(&mut self) -> Address {
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
 
         //  apply all priorities.
@@ -78,7 +77,7 @@ impl WeightedRoundRobin {
             // TODO: not the best because it encourages mining lower peer ids
             // however we need a way for this to be uniform across nodes and
             // this is the easiest
-            return a.peer_id.cmp(&b.peer_id)
+            return a.peer_id.cmp(&b.peer_id);
         }
         out.unwrap()
     }
@@ -128,7 +127,7 @@ impl WeightedRoundRobin {
         }
     }
 
-    pub fn choose_proposer(&mut self, block_number: BlockNumber) -> Option<PeerId> {
+    pub fn choose_proposer(&mut self, block_number: BlockNumber) -> Option<Address> {
         // 1. this is not ideal, since on multi-block reorgs the same proposer will be
         //    chosen for the length of the reorg
         // 2. reverting the block number (self.block_number = block_number) is also not
@@ -139,7 +138,7 @@ impl WeightedRoundRobin {
                 self.last_proposer = Some(self.proposer_selection());
             }
 
-            return self.last_proposer
+            return self.last_proposer;
         }
 
         let rounds_to_catchup = (block_number - self.block_number) as usize;
@@ -155,13 +154,13 @@ impl WeightedRoundRobin {
     }
 
     #[allow(dead_code)]
-    fn remove_validator(&mut self, peer_id: &PeerId) {
+    fn remove_validator(&mut self, peer_id: &Address) {
         let validator = AngstromValidator::new(*peer_id, 0);
         self.validators.remove(&validator);
     }
 
     #[allow(dead_code)]
-    fn add_validator(&mut self, peer_id: PeerId, voting_power: u64) {
+    fn add_validator(&mut self, peer_id: Address, voting_power: u64) {
         let mut new_validator = AngstromValidator::new(peer_id, voting_power);
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
         new_validator.priority -=
@@ -194,10 +193,10 @@ mod tests {
 
     #[test]
     fn test_validator_equality() {
-        let peer_id = PeerId::random();
+        let peer_id = Address::random();
         let v1 = AngstromValidator::new(peer_id, 100);
         let v2 = AngstromValidator::new(peer_id, 200);
-        let v3 = AngstromValidator::new(PeerId::random(), 100);
+        let v3 = AngstromValidator::new(Address::random(), 100);
 
         assert_eq!(v1, v2, "Validators with same peer_id should be equal");
         assert_ne!(v1, v3, "Validators with different peer_id should not be equal");
@@ -210,7 +209,7 @@ mod tests {
             hash::{Hash, Hasher}
         };
 
-        let peer_id = PeerId::random();
+        let peer_id = Address::random();
         let v1 = AngstromValidator::new(peer_id, 100);
         let v2 = AngstromValidator::new(peer_id, 200);
 
@@ -228,7 +227,7 @@ mod tests {
         let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
 
         // Test adding new validator
-        let new_peer = PeerId::random();
+        let new_peer = Address::random();
         let initial_count = algo.validators.len();
         algo.add_validator(new_peer, 150);
         assert_eq!(algo.validators.len(), initial_count + 1);
@@ -249,8 +248,8 @@ mod tests {
 
     #[test]
     fn test_priority_comparison() {
-        let peer1 = PeerId::random();
-        let peer2 = PeerId::random();
+        let peer1 = Address::random();
+        let peer2 = Address::random();
 
         let v1 =
             AngstromValidator { peer_id: peer1, voting_power: 100 * ONE_E3, priority: 10 };
@@ -296,16 +295,16 @@ mod tests {
 
     #[test]
     fn test_voting_power_scaling() {
-        let peer_id = PeerId::random();
+        let peer_id = Address::random();
         let validator = AngstromValidator::new(peer_id, 100);
         assert_eq!(validator.voting_power, 100 * ONE_E3, "Voting power should be scaled by ONE_E3");
     }
 
-    fn create_test_validators() -> (HashMap<String, PeerId>, Vec<AngstromValidator>) {
+    fn create_test_validators() -> (HashMap<String, Address>, Vec<AngstromValidator>) {
         let peers = HashMap::from([
-            ("Alice".to_string(), PeerId::random()),
-            ("Bob".to_string(), PeerId::random()),
-            ("Charlie".to_string(), PeerId::random())
+            ("Alice".to_string(), Address::random()),
+            ("Bob".to_string(), Address::random()),
+            ("Charlie".to_string(), Address::random())
         ]);
         let validators = vec![
             AngstromValidator::new(peers["Alice"], 100),
@@ -447,9 +446,9 @@ mod tests {
     #[test]
     fn test_round_robin_simulation() {
         let peers = HashMap::from([
-            ("Alice".to_string(), PeerId::random()),
-            ("Bob".to_string(), PeerId::random()),
-            ("Charlie".to_string(), PeerId::random())
+            ("Alice".to_string(), Address::random()),
+            ("Bob".to_string(), Address::random()),
+            ("Charlie".to_string(), Address::random())
         ]);
         let validators = vec![
             AngstromValidator::new(peers["Alice"], 100),
@@ -458,7 +457,10 @@ mod tests {
         ];
         let mut algo = WeightedRoundRobin::new(validators, BlockNumber::default());
 
-        fn simulate_rounds(algo: &mut WeightedRoundRobin, rounds: usize) -> HashMap<PeerId, usize> {
+        fn simulate_rounds(
+            algo: &mut WeightedRoundRobin,
+            rounds: usize
+        ) -> HashMap<Address, usize> {
             let mut stats = HashMap::new();
             for i in 1..=rounds {
                 let proposer = algo.choose_proposer(BlockNumber::from(i as u64)).unwrap();

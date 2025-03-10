@@ -1,11 +1,11 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{Arc, atomic::AtomicUsize},
     task::{Context, Poll}
 };
 
-use alloy::primitives::BlockNumber;
+use alloy::primitives::{Address, BlockNumber};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
@@ -161,7 +161,7 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
             work -= 1;
             if work == 0 {
                 cx.waker().wake_by_ref();
-                break
+                break;
             }
 
             match self.from_handle_rx.poll_next_unpin(cx) {
@@ -170,7 +170,7 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                     // This is only possible if the channel was deliberately closed since we always
                     // have an instance of `NetworkHandle`
                     error!("Strom network message channel closed.");
-                    return Poll::Ready(())
+                    return Poll::Ready(());
                 }
                 _ => {}
             };
@@ -190,36 +190,47 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
 
             if let Poll::Ready(Some(event)) = self.swarm.poll_next_unpin(cx) {
                 match event {
-                    SwarmEvent::ValidMessage { peer_id, msg } => match msg {
-                        StromMessage::PrePropose(p) => {
-                            self.to_consensus_manager.as_ref().inspect(|tx| {
-                                let _ = tx.send(StromConsensusEvent::PreProposal(peer_id, p));
-                            });
+                    SwarmEvent::ValidMessage { peer_id, msg } => {
+                        let address =
+                            Address::try_from(&alloy::primitives::keccak256(peer_id)[12..])
+                                .unwrap();
+
+                        match msg {
+                            StromMessage::PrePropose(p) => {
+                                self.to_consensus_manager.as_ref().inspect(|tx| {
+                                    let _ = tx.send(StromConsensusEvent::PreProposal(address, p));
+                                });
+                            }
+                            StromMessage::PreProposeAgg(p) => {
+                                self.to_consensus_manager.as_ref().inspect(|tx| {
+                                    let _ =
+                                        tx.send(StromConsensusEvent::PreProposalAgg(address, p));
+                                });
+                            }
+                            StromMessage::Propose(a) => {
+                                self.to_consensus_manager.as_ref().inspect(|tx| {
+                                    let _ = tx.send(StromConsensusEvent::Proposal(address, a));
+                                });
+                            }
+                            StromMessage::PropagatePooledOrders(a) => {
+                                self.to_pool_manager.as_ref().inspect(|tx| {
+                                    let _ = tx.send(NetworkOrderEvent::IncomingOrders {
+                                        peer_id,
+                                        orders: a
+                                    });
+                                });
+                            }
+                            StromMessage::OrderCancellation(a) => {
+                                self.to_pool_manager.as_ref().inspect(|tx| {
+                                    let _ = tx.send(NetworkOrderEvent::CancelOrder {
+                                        peer_id,
+                                        request: a
+                                    });
+                                });
+                            }
+                            StromMessage::Status(_) => {}
                         }
-                        StromMessage::PreProposeAgg(p) => {
-                            self.to_consensus_manager.as_ref().inspect(|tx| {
-                                let _ = tx.send(StromConsensusEvent::PreProposalAgg(peer_id, p));
-                            });
-                        }
-                        StromMessage::Propose(a) => {
-                            self.to_consensus_manager.as_ref().inspect(|tx| {
-                                let _ = tx.send(StromConsensusEvent::Proposal(peer_id, a));
-                            });
-                        }
-                        StromMessage::PropagatePooledOrders(a) => {
-                            self.to_pool_manager.as_ref().inspect(|tx| {
-                                let _ = tx
-                                    .send(NetworkOrderEvent::IncomingOrders { peer_id, orders: a });
-                            });
-                        }
-                        StromMessage::OrderCancellation(a) => {
-                            self.to_pool_manager.as_ref().inspect(|tx| {
-                                let _ =
-                                    tx.send(NetworkOrderEvent::CancelOrder { peer_id, request: a });
-                            });
-                        }
-                        StromMessage::Status(_) => {}
-                    },
+                    }
                     SwarmEvent::Disconnected { peer_id } => {
                         self.notify_listeners(StromNetworkEvent::SessionClosed {
                             peer_id,
@@ -267,9 +278,9 @@ pub enum StromNetworkEvent {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum StromConsensusEvent {
-    PreProposal(PeerId, PreProposal),
-    PreProposalAgg(PeerId, PreProposalAggregation),
-    Proposal(PeerId, Proposal)
+    PreProposal(Address, PreProposal),
+    PreProposalAgg(Address, PreProposalAggregation),
+    Proposal(Address, Proposal)
 }
 
 impl StromConsensusEvent {
@@ -281,7 +292,7 @@ impl StromConsensusEvent {
         }
     }
 
-    pub fn sender(&self) -> PeerId {
+    pub fn sender(&self) -> Address {
         match self {
             StromConsensusEvent::PreProposal(peer_id, _)
             | StromConsensusEvent::Proposal(peer_id, _)

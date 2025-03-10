@@ -1,7 +1,10 @@
+use tracing::debug;
+
 use super::{
+    Ray,
     debt::Debt,
-    uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
-    Ray
+    math::amm_debt_same_move_solve,
+    uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity}
 };
 
 #[derive(Clone, Debug, Default)]
@@ -39,7 +42,8 @@ impl<'a> CompositeOrder<'a> {
         self.bound_price
     }
 
-    fn calc_quantities(&self, target_price: Ray) -> (u128, u128) {
+    pub fn calc_quantities(&self, target_price: Ray) -> (u128, u128) {
+        debug!(target_price = ?target_price, "Calculating quantities to target price");
         let amm_q = self
             .amm
             .as_ref()
@@ -49,6 +53,13 @@ impl<'a> CompositeOrder<'a> {
             .debt
             .map(|d| d.dq_to_price(&target_price))
             .unwrap_or_default();
+        debug!(amm_q, debt_q, "Calculated quantities");
+        if let Some(a) = self.amm.as_ref() {
+            debug!(amm_price = ?Ray::from(a.price()), liquidity = a.liquidity(), "AMM final stats");
+        }
+        if let Some(d) = self.debt.as_ref() {
+            debug!(debt_price = ?d.price(), "Debt final stats");
+        }
         (amm_q, debt_q)
     }
 
@@ -57,11 +68,7 @@ impl<'a> CompositeOrder<'a> {
             let cur_price = self.start_price();
             let external_dp = external_bound.abs_diff(*cur_price);
             let internal_dp = ib.abs_diff(*cur_price);
-            if internal_dp < external_dp {
-                ib
-            } else {
-                external_bound
-            }
+            if internal_dp < external_dp { ib } else { external_bound }
         } else {
             external_bound
         }
@@ -114,6 +121,53 @@ impl<'a> CompositeOrder<'a> {
         }
     }
 
+    pub fn negative_quantity_t1(&self, external_bound: Ray) -> u128 {
+        // cur_q - amm contribution * external_bound.inverse_quantity
+        if let Some(d) = self.debt {
+            let target_price = self.find_closest_bound(external_bound);
+            let (amm_q, _) = self.calc_quantities(target_price);
+            if let Some(Direction::BuyingT0) = self.debt_direction(target_price) {
+                let t0_f = d.current_t0().saturating_sub(amm_q);
+                let t1_f = target_price.quantity(t0_f, false);
+                return t1_f.saturating_sub(d.magnitude());
+            }
+        }
+        0
+    }
+
+    /// Compute the final state for the AMM and for the Debt when we partially
+    /// fill this order with T1
+    pub fn partial_fill_t1(&self, _partial_q_t1: u128) -> Self {
+        self.clone()
+    }
+
+    /// Given an incoming amount of T0, determine how much of that T0 should go
+    /// to the debt vs the AMM to ensure an equal movement of both
+    /// quantities.  Works fine if we have only a debt or only an AMM
+    pub fn t0_quantities(
+        &self,
+        t0_input: u128,
+        direction: Direction
+    ) -> (Option<u128>, Option<u128>) {
+        match (self.amm.as_ref(), self.debt.as_ref()) {
+            (None, None) => (None, None),
+            (Some(_), None) => (Some(t0_input), None),
+            (None, Some(_)) => (None, Some(t0_input)),
+            (Some(a), Some(d)) => {
+                let amm_portion = amm_debt_same_move_solve(
+                    a.liquidity(),
+                    d.current_t0(),
+                    d.magnitude(),
+                    t0_input,
+                    direction
+                );
+                // Maybe build in some safety here around partial quantities
+                let debt_portion = t0_input.saturating_sub(amm_portion);
+                (Some(amm_portion), Some(debt_portion))
+            }
+        }
+    }
+
     /// Compute the final state for the AMM and for the Debt when we partially
     /// fill this order.  The requirements for this final state are as follows:
     ///
@@ -121,22 +175,24 @@ impl<'a> CompositeOrder<'a> {
     /// 2. The debt and the AMM end up at as close a price to each other as
     ///    possible
     pub fn partial_fill(&self, partial_q: u128, direction: Direction) -> Self {
-        // If we only have one thing (AMM or Debt) do a partial fill of that thing
-        if self.amm.is_none() || self.debt.is_none() {
-            // We can implement both maps here because it's all good
-            let new_amm = self.amm.clone().map(|a| {
-                let quantity = Quantity::Token0(partial_q);
+        let (amm_quantity, debt_quantity) = self.t0_quantities(partial_q, direction);
+        let new_amm = if let Some(amm_q) = amm_quantity {
+            self.amm.clone().map(|a| {
+                let quantity = Quantity::Token0(amm_q);
                 PoolPriceVec::from_swap(a.clone(), direction, quantity)
                     .map(|v| v.end_bound)
                     .ok()
                     .unwrap_or_else(|| a.clone())
-            });
-            let new_debt = self.debt.map(|d| d.partial_fill(partial_q));
-            Self { amm: new_amm, debt: new_debt, bound_price: self.bound_price }
+            })
         } else {
-            // If we have both the AMM AND Debt, we should do a combined fill of the two
-            self.clone()
-        }
+            self.amm.clone()
+        };
+        let new_debt = if let Some(debt_q) = debt_quantity {
+            self.debt.map(|d| d.partial_fill(debt_q))
+        } else {
+            self.debt
+        };
+        Self { amm: new_amm, debt: new_debt, bound_price: self.bound_price }
     }
 
     /// Initial price of this composite order in Ray format.  Will default to
@@ -156,8 +212,8 @@ mod tests {
 
     use super::*;
     use crate::matching::{
-        uniswap::{LiqRange, PoolSnapshot},
-        DebtType, SqrtPriceX96
+        DebtType, SqrtPriceX96,
+        uniswap::{LiqRange, PoolSnapshot}
     };
 
     // Have to define this locally because testing_tools requires this crate and

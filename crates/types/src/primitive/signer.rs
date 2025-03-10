@@ -4,7 +4,7 @@ use alloy::{
     consensus::{SignableTransaction, TypedTransaction},
     network::{Ethereum, NetworkWallet},
     primitives::PrimitiveSignature,
-    signers::{local::PrivateKeySigner, SignerSync}
+    signers::{SignerSync, local::PrivateKeySigner}
 };
 use alloy_primitives::Address;
 use k256::{ecdsa::VerifyingKey, elliptic_curve::sec1::ToEncodedPoint};

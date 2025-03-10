@@ -194,11 +194,12 @@ as the loop progresses to ensure consistency of reward distribution.
 |-----|-----------|
 |`start_tick: i24`| When `below = true` the current tick: the first tick **above** the first tick to donate to. <br> When rewarding above: just the first tick actually being donated to. |
 |`start_liquidity: u128`|The current liquidity if the first tick to donate to were the current tick.|
-|`quantities: List<u128>`|The reward for each initialized tick range *including* the current tick in `asset0` base units.|
+|`quantities: List<u128>`|The reward for each initialized tick range *including* the current tick in
+`asset0` base units.|
 
-**Reward Update Internals**
+**Reward Update Internals**ß
 
-To gain a better intuition over how parameters need to be set it's good to understand how the reward
+To gain a better intuition over how parameters need to be set it's good to understandßßßßßß how the reward
 update loop operates. The main purpose of the loop is to update the _internal_
 `reward_growth_outside` value of the ticks it passes. The "growth outside" values represent
 cumulative rewards in such a way where the total rewards accrued by a liquidity range can be

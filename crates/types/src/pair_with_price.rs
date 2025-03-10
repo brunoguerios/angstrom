@@ -1,6 +1,7 @@
 use alloy::{consensus::Transaction, primitives::Address};
 use futures::{Stream, StreamExt};
 use pade::PadeDecode;
+use reth_primitives_traits::BlockBody;
 use reth_provider::CanonStateNotificationStream;
 
 use crate::{contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray};
@@ -43,9 +44,10 @@ impl PairsWithPrice {
             let block_num = new_cannon_chain.tip().number;
             new_cannon_chain
                 .tip()
-                .transactions()
-                .iter()
-                .filter(|tx| tx.transaction.to() == Some(angstrom_address))
+                .body()
+                .clone_transactions()
+                .into_iter()
+                .filter(|tx| tx.to() == Some(angstrom_address))
                 .filter_map(|transaction| {
                     let mut input: &[u8] = transaction.input();
                     AngstromBundle::pade_decode(&mut input, None).ok()

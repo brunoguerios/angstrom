@@ -7,11 +7,12 @@ use std::{
 };
 
 use alloy::{
+    consensus::BlockHeader,
     primitives::{Address, BlockNumber},
     providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
-use angstrom_network::{manager::StromConsensusEvent, StromMessage, StromNetworkHandle};
+use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensusEvent};
 use angstrom_types::{
     block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry,
     mev_boost::MevBoostProvider, primitive::AngstromSigner
@@ -21,13 +22,14 @@ use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_provider::{CanonStateNotification, CanonStateNotifications};
+use reth_tasks::shutdown::GracefulShutdown;
 use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
+    AngstromValidator,
     leader_selection::WeightedRoundRobin,
-    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
-    AngstromValidator
+    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState}
 };
 
 const MODULE_NAME: &str = "Consensus";
@@ -99,7 +101,7 @@ where
     fn on_blockchain_state(&mut self, notification: CanonStateNotification, waker: Waker) {
         tracing::info!("got new block_chain state");
         let new_block = notification.tip();
-        self.current_height = new_block.block.number;
+        self.current_height = new_block.number();
         let round_leader = self
             .leader_selection
             .choose_proposer(self.current_height)
@@ -122,7 +124,7 @@ where
                 current_height=%self.current_height,
                 "ignoring event for wrong block",
             );
-            return
+            return;
         }
 
         self.consensus_round_state.handle_message(event);
@@ -141,6 +143,30 @@ where
                 .broadcast_message(StromMessage::PreProposeAgg(p))
         }
     }
+
+    pub async fn run_till_shutdown(mut self, sig: GracefulShutdown) {
+        let mut g = None;
+        tokio::select! {
+            _ = &mut self => {
+            }
+            cancel = sig => {
+                g = Some(cancel);
+            }
+        }
+
+        // ensure we shutdown properly.
+        if g.is_some() {
+            self.cleanup().await;
+        }
+
+        drop(g);
+    }
+
+    /// Currently this doesn't do much. However,
+    /// once we start adding slashing. this will be critical in storing
+    /// all of our evidence.
+    #[allow(unused)]
+    async fn cleanup(mut self) {}
 }
 
 impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>

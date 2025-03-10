@@ -3,15 +3,15 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 use alloy::{
     network::EthereumWallet,
     node_bindings::AnvilInstance,
-    primitives::{Address, U256},
-    providers::{ext::AnvilApi, Provider, ProviderBuilder},
+    primitives::Address,
+    providers::{Provider, ProviderBuilder, ext::AnvilApi},
     signers::local::PrivateKeySigner
 };
 use futures::Future;
 use tracing::debug;
 
 use super::anvil::WalletProviderRpc;
-use crate::contracts::anvil::{spawn_anvil, LocalAnvilRpc};
+use crate::contracts::anvil::{LocalAnvilRpc, spawn_anvil};
 
 pub mod angstrom;
 pub mod uniswap;
@@ -25,18 +25,19 @@ pub trait TestAnvilEnvironment: Clone {
 
     async fn execute_then_mine<O>(&self, f: impl Future<Output = O> + Send) -> O {
         let mut fut = Box::pin(f);
-        // poll for 500 ms. if  not resolves then we mine and join
+        // poll for 500 ms. if not resolves then we mine
         tokio::select! {
             o = &mut fut => {
+                let _ = self.provider().anvil_mine(Some(1), None).await;
                 return o
             },
-            _ = tokio::time::sleep(Duration::from_millis(500)) => {
+            _ = tokio::time::sleep(Duration::from_millis(250)) => {
             }
         };
 
-        let mine_one_fut = self.provider().anvil_mine(Some(U256::from(1)), None);
-        let (res, _) = futures::join!(fut, mine_one_fut);
-        res
+        let mine_one_fut = self.provider().anvil_mine(Some(1), None);
+        let _ = mine_one_fut.await;
+        fut.await
     }
 
     async fn override_address(
@@ -58,7 +59,7 @@ pub trait TestAnvilEnvironment: Clone {
 #[derive(Clone)]
 pub struct SpawnedAnvil {
     #[allow(dead_code)]
-    anvil:      Arc<AnvilInstance>,
+    pub anvil:  Arc<AnvilInstance>,
     provider:   WalletProviderRpc,
     controller: Address
 }
@@ -99,7 +100,6 @@ impl LocalAnvil {
         .unwrap();
         let wallet = EthereumWallet::new(sk);
         let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(wallet)
             .on_builtin(&url)
             .await
