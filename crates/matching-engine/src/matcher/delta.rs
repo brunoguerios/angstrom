@@ -73,6 +73,7 @@ impl<'a> DeltaMatcher<'a> {
         // direction) else {     return Default::default();
         // };
 
+        trace!(?start_sqrt, ?end_sqrt, ?price, res.d_t0, res.d_t1, is_bid, "AMM swap calc");
         if is_bid {
             // if the amm is swapping from zero to one, it means that we need more liquidity
             // it in token 1 and less in token zero
@@ -211,6 +212,9 @@ impl<'a> DeltaMatcher<'a> {
             ?normal_t1,
             ?partial_t0,
             ?partial_t1,
+            ?extra_is_ask,
+            ?extra_t0,
+            ?extra_t1,
             ?t0_sum,
             ?t1_sum,
             "Testing price"
@@ -332,17 +336,17 @@ impl<'a> DeltaMatcher<'a> {
 
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
         let start_price = self.amm_start_price.clone()?;
+        let end_price = start_price
+            .snapshot()
+            .at_price(SqrtPriceX96::from(ucp))
+            .ok()?;
 
-        let start_sqrt = start_price.as_sqrtpricex96();
-        let end_sqrt = SqrtPriceX96::from(ucp);
-        let zfo = start_sqrt >= end_sqrt;
-        let direction = Direction::from_is_bid(!zfo);
-
-        let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt, direction) else {
+        let Ok(res) = PoolPriceVec::from_price_range(start_price, end_price) else {
+            tracing::error!("Unable to create AMM movement at UCP");
             return None;
         };
 
-        let mut tob_amm = NetAmmOrder::new(direction);
+        let mut tob_amm = NetAmmOrder::new(Direction::from_is_bid(res.zero_for_one()));
         tob_amm.add_quantity(res.d_t0, res.d_t1);
 
         Some(tob_amm)
