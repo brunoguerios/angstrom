@@ -1,6 +1,6 @@
 use angstrom_types::{
     orders::PoolSolution,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
 use crate::{book::OrderBook, matcher::delta::DeltaMatcher};
@@ -11,9 +11,9 @@ impl BinarySearchStrategy {
     pub fn run(
         book: &OrderBook,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>,
-        fee: u128,
+        fee: u128
     ) -> PoolSolution {
-        let mut matcher = DeltaMatcher::new(book, searcher.clone(), fee);
+        let mut matcher = DeltaMatcher::new(book, searcher.clone(), fee, false);
         matcher.solution(searcher)
     }
 }

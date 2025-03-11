@@ -21,6 +21,8 @@ use crate::OrderBook;
 pub struct DeltaMatcher<'a> {
     book:            &'a OrderBook,
     fee:             u128,
+    /// If true, we solve for T0.  If false we solve for T1.
+    solve_for_t0:    bool,
     /// changes if there is a tob or not
     amm_start_price: Option<PoolPrice<'a>>
 }
@@ -29,7 +31,8 @@ impl<'a> DeltaMatcher<'a> {
     pub fn new(
         book: &'a OrderBook,
         tob: Option<OrderWithStorageData<TopOfBlockOrder>>,
-        fee: u128
+        fee: u128,
+        solve_for_t0: bool
     ) -> Self {
         // Dump the book
         let json = serde_json::to_string(&book).unwrap();
@@ -49,7 +52,7 @@ impl<'a> DeltaMatcher<'a> {
             book.amm().map(|f| f.current_price())
         };
 
-        Self { book, amm_start_price, fee }
+        Self { book, amm_start_price, fee, solve_for_t0 }
     }
 
     fn fetch_concentrated_liquidity(&self, price: Ray) -> (I256, I256) {
@@ -205,6 +208,7 @@ impl<'a> DeltaMatcher<'a> {
         let t1_sum = book_t1 + normal_t1 + partial_t1;
 
         tracing::trace!(
+            self.solve_for_t0,
             ?price,
             ?book_t0,
             ?book_t1,
@@ -224,44 +228,48 @@ impl<'a> DeltaMatcher<'a> {
             return SupplyDemandResult::NaturallyEqual;
         }
 
-        let (Some(is_ask), Some(extra_t0), Some(_extra_t1), Some(id)) =
+        // Depending on how we're solving, we want to look at a specific excess
+        // liquidity
+        let excess_liquidity = if self.solve_for_t0 { &t0_sum } else { &t1_sum };
+
+        let (Some(is_ask), Some(extra_t0), Some(extra_t1), Some(id)) =
             (extra_is_ask, extra_t0, extra_t1, id)
         else {
-            return if t0_sum < I256::ZERO {
+            return if *excess_liquidity < I256::ZERO {
                 SupplyDemandResult::MoreDemand
             } else {
                 SupplyDemandResult::MoreSupply
             };
         };
 
+        // If we're solving for t0, `bid` orders drain liquidity.  If we're solving for
+        // T1, `ask` orders drain liquidity
+        let partial_drains_liquidity = if self.solve_for_t0 { !is_ask } else { is_ask };
+        // Use the appropriate extra amount depending on if we're solving for T0 or T1
+        let available_partial_q = if self.solve_for_t0 { &extra_t0 } else { &extra_t1 };
+
         // means we have extra demand we can add.
-        if t0_sum > I256::ZERO && !is_ask {
-            tracing::info!("is bid is partial and t0_sum > 0");
-            // if we are a bid, then we are adding t1 and subtracing t0.
-            // if we are able to flip the exquality, this means we can possibly solve here
-            let delta = t0_sum - I256::try_from(extra_t0).unwrap();
-            // delta neg so we flipped
-            if delta <= I256::ZERO {
-                return SupplyDemandResult::PartialFillEq { extra_fill_t0: t0_sum, id };
+        if *excess_liquidity > I256::ZERO && partial_drains_liquidity {
+            tracing::info!("partial drains liquidity and excess_liquidity > 0");
+            // If we have positive excess liquidity, we need to drain it so we check to see
+            // if our partial order can drain the entire amount we need to take care of
+            if I256::try_from(*available_partial_q).unwrap() >= *excess_liquidity {
+                return SupplyDemandResult::PartialFillEq { extra_fill_t0: *excess_liquidity, id };
             }
-
-        // means we have extra supply we can add
-        // we are getting errors here.
-        } else if t0_sum < I256::ZERO && is_ask {
-            tracing::info!("is ask is partial and t0_sum < 0");
-            // if we are a ask, then we are adding t0 and subtracing t1
-            let delta = t0_sum + I256::try_from(extra_t0).unwrap();
-
-            if delta >= I256::ZERO {
+        } else if *excess_liquidity < I256::ZERO && !partial_drains_liquidity {
+            tracing::info!("partial provides liquidity and excess_liquidity < 0");
+            // If we have negative excess liquidity, we need to fill it so we check to see
+            // if our partial order can fill the entire amount we need to take care of
+            if I256::try_from(*available_partial_q).unwrap() >= *excess_liquidity {
                 return SupplyDemandResult::PartialFillEq {
-                    extra_fill_t0: t0_sum.saturating_neg(),
+                    extra_fill_t0: excess_liquidity.saturating_neg(),
                     id
                 };
             }
         }
 
-        tracing::info!(?t0_sum, ?t1_sum, ?price);
-        if t0_sum < I256::ZERO {
+        tracing::info!(?t0_sum, ?t1_sum, ?price, self.solve_for_t0);
+        if *excess_liquidity < I256::ZERO {
             SupplyDemandResult::MoreDemand
         } else {
             SupplyDemandResult::MoreSupply
@@ -294,6 +302,9 @@ impl<'a> DeltaMatcher<'a> {
     fn fetch_orders_at_ucp(&self, fetch: &UcpSolution) -> Vec<OrderOutcome> {
         // we can only have partial fills when ucp is exactly on.
         let (order_id, amount) = fetch.get_partial_unfill().unzip();
+        let abs_partial_am = amount
+            .map(|a| a.unsigned_abs().to::<u128>())
+            .unwrap_or_default();
 
         self.book
             .bids()
@@ -301,17 +312,18 @@ impl<'a> DeltaMatcher<'a> {
             .map(|bid| OrderOutcome {
                 id:      bid.order_id,
                 outcome: if order_id == Some(bid.order_id) {
-                    // partials are always exact in, so we need to convert this out
-                    // the amount here is always in Y. however for bids that are exact in, we want
-                    // X
-                    let partial_am = fetch
-                        .ucp
-                        .mul_quantity(U256::try_from(amount.unwrap()).unwrap())
-                        .to::<u128>();
+                    // Partial bids are always exact in so our bid partial is in T1.  Let's check if
+                    // we need to flip this
+                    let partial_amount = if self.solve_for_t0 {
+                        // If we're solving for T0, our extra is T0, so we inverse this to T1
+                        // rounding up
+                        fetch.ucp.inverse_quantity(abs_partial_am, true)
+                    } else {
+                        // If we're solving for T1, this is all in T1 so no need to flip
+                        abs_partial_am
+                    };
 
-                    let amount_in_partial = bid.min_amount() + partial_am;
-
-                    OrderFillState::PartialFill(amount_in_partial)
+                    OrderFillState::PartialFill(bid.min_amount() + partial_amount)
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
                     OrderFillState::CompleteFill
                 } else {
@@ -321,10 +333,17 @@ impl<'a> DeltaMatcher<'a> {
             .chain(self.book.asks().iter().map(|ask| OrderOutcome {
                 id:      ask.order_id,
                 outcome: if order_id == Some(ask.order_id) {
-                    let amount_parital =
-                        ask.min_amount() + U256::try_from(amount.unwrap()).unwrap().to::<u128>();
+                    // Partial asks are always exact in so our ask partial is in T0.  Let's check if
+                    // we need to flip this
+                    let partial_amount = if self.solve_for_t0 {
+                        // If we're solving for T0, this is all in T0 so no need to flip
+                        abs_partial_am
+                    } else {
+                        // If we're solving for T1, we need to flip our partial amount from T1 to T0
+                        fetch.ucp.inverse_quantity(abs_partial_am, true)
+                    };
 
-                    OrderFillState::PartialFill(amount_parital)
+                    OrderFillState::PartialFill(ask.min_amount() + partial_amount)
                 } else if fetch.ucp >= ask.price() {
                     OrderFillState::CompleteFill
                 } else {
@@ -334,6 +353,7 @@ impl<'a> DeltaMatcher<'a> {
             .collect::<Vec<_>>()
     }
 
+    /// Return the NetAmmOrder that moves the AMM to our UCP
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
         let start_price = self.amm_start_price.clone()?;
         let end_price = start_price
@@ -406,12 +426,12 @@ impl<'a> DeltaMatcher<'a> {
             // the delta of t0
             let res = self.check_ucp(p_mid);
 
-            match res {
-                SupplyDemandResult::MoreSupply => {
-                    p_max = p_mid;
-                }
-                SupplyDemandResult::MoreDemand => p_min = p_mid,
-                SupplyDemandResult::NaturallyEqual => {
+            match (res, self.solve_for_t0) {
+                // If there's too much supply of T0 or too much demand of T1, we want to look at a lower price
+                (SupplyDemandResult::MoreSupply, true) | (SupplyDemandResult::MoreDemand, false) => p_max = p_mid,
+                // If there's too much supply of T1 or too much demand for T0, we want to look at a higher price
+                (SupplyDemandResult::MoreSupply, false) | (SupplyDemandResult::MoreDemand, true) => p_min = p_mid,
+                (SupplyDemandResult::NaturallyEqual, _) => {
                     println!("solved based on sup, demand no partials");
 
                     return Some(UcpSolution {
@@ -420,7 +440,7 @@ impl<'a> DeltaMatcher<'a> {
                         partial_id:    None
                     });
                 }
-                SupplyDemandResult::PartialFillEq { extra_fill_t0, id } => {
+                (SupplyDemandResult::PartialFillEq { extra_fill_t0, id }, _) => {
                     println!("solved based on sup, demand with partial order");
                     return Some(UcpSolution {
                         ucp:           p_mid,

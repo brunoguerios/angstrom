@@ -69,7 +69,7 @@ fn delta_matcher_test() {
             .decode(DELTA_BOOK_TEST)
             .unwrap();
         let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
-        let mut matcher = DeltaMatcher::new(&book, None, 0);
+        let mut matcher = DeltaMatcher::new(&book, None, 0, false);
         let solution = matcher.solution(None);
         println!("Solution: {:#?}", solution);
     })
