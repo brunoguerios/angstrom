@@ -271,8 +271,15 @@ fn compute_reward_checksum(
             [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
 
         reward_checksum = *keccak256(&hash_input); // update checksum
-        liquidity = liquidity.wrapping_add(quantity); // adjust liquidity
 
+        // adjust liquidity based on direction
+        liquidity = if from_above {
+            liquidity.wrapping_sub(quantity)
+        } else {
+            liquidity.wrapping_add(quantity)
+        };
+
+        // adjust tick based on direction
         tick += if from_above { -tick_spacing } else { tick_spacing };
     }
 
