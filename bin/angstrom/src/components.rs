@@ -1,6 +1,6 @@
 //! CLI definition and entrypoint to executable
 
-use std::{collections::HashSet, pin::Pin, sync::Arc};
+use std::{collections::HashSet, pin::Pin, sync::Arc, time::Duration};
 
 use alloy::{
     self,
@@ -36,7 +36,7 @@ use reth::{
     builder::FullNodeComponents,
     chainspec::ChainSpec,
     primitives::EthPrimitives,
-    providers::{BlockNumReader, CanonStateSubscriptions},
+    providers::{BlockNumReader, CanonStateNotification, CanonStateSubscriptions},
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
@@ -190,12 +190,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
         condition of a block while starting modules");
 
     // wait for the next block so that we have a full 12 seconds on startup.
-    let _ = node
-        .provider
-        .subscribe_to_canonical_state()
-        .recv()
-        .await
-        .expect("startup sequence failed");
+    let sub = node.provider.subscribe_to_canonical_state();
+    handle_init_block_spam(sub).await;
 
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
@@ -362,4 +358,24 @@ pub async fn initialize_strom_components<Node, AddOns>(
 
     global_block_sync.finalize_modules();
     tracing::info!("started angstrom");
+}
+
+async fn handle_init_block_spam(
+    mut canon: tokio::sync::broadcast::Receiver<CanonStateNotification>
+) {
+    // wait for the first notification
+    let _ = canon.recv().await.expect("first block");
+
+    loop {
+        tokio::select! {
+            // if we can go 1 second without a update, we know that all of the pending cannon
+            // state notifications have been processed and we are at the tip.
+            _ = tokio::time::sleep(Duration::from_millis(250)) => {
+                break;
+            }
+            Ok(_) = canon.recv() => {
+
+            }
+        }
+    }
 }
