@@ -368,7 +368,7 @@ async fn handle_init_block_spam(
 
     loop {
         tokio::select! {
-            // if we can go 1 second without a update, we know that all of the pending cannon
+            // if we can go 250ms without a update, we know that all of the pending cannon
             // state notifications have been processed and we are at the tip.
             _ = tokio::time::sleep(Duration::from_millis(250)) => {
                 break;
