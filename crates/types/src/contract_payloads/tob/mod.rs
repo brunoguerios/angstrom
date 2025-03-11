@@ -4,7 +4,7 @@ use alloy::primitives::aliases::I24;
 use alloy_primitives::{U160, U256};
 use eyre::eyre;
 use itertools::Itertools;
-use tiny_keccak::{Hasher, Keccak};
+use sha3::{Digest, Keccak256};
 
 use super::rewards::RewardsUpdate;
 use crate::{
@@ -138,11 +138,15 @@ impl ToBOutcome {
             0 | 1 => RewardsUpdate::CurrentOnly {
                 amount: quantities.first().copied().unwrap_or_default()
             },
-            _ => RewardsUpdate::MultiTick {
-                start_tick: I24::try_from(start_tick).unwrap_or_default(),
-                start_liquidity,
-                quantities,
-                reward_checksum: todo!()
+            _ => {
+                let reward_checksum =
+                    compute_reward_checksum(start_tick, start_liquidity, &quantities);
+                RewardsUpdate::MultiTick {
+                    start_tick: I24::try_from(start_tick).unwrap_or_default(),
+                    start_liquidity,
+                    quantities,
+                    reward_checksum
+                }
             }
         }
     }
@@ -243,19 +247,17 @@ mod test {
 }
 
 fn compute_reward_checksum(start_tick: i32, start_liquidity: u128, quantities: &[u128]) -> U160 {
-    let mut hasher = Keccak::v256();
-    let mut reward_checksum = [0u8; 32];
+    let mut reward_checksum = [0u8; 32]; // Initialize to zero
 
     // Process all tick reward updates
     let mut liquidity = start_liquidity;
     for (tick, &quantity) in (start_tick..).zip(quantities.iter()) {
-        let mut tick_hasher = Keccak::v256();
-        tick_hasher.update(&reward_checksum); // previous checksum
-        tick_hasher.update(&liquidity.to_le_bytes());
-        tick_hasher.update(&tick.to_le_bytes());
+        let mut hasher = Keccak256::new();
+        hasher.update(&reward_checksum); // previous checksum
+        hasher.update(&liquidity.to_le_bytes()); // liquidity as u128 (little-endian)
+        hasher.update(&tick.to_le_bytes()); // tick as i24 (little-endian)
 
-        tick_hasher.finalize(&mut reward_checksum);
-
+        reward_checksum.copy_from_slice(&hasher.finalize());
         liquidity = liquidity.wrapping_add(quantity); // adjust liquidity
     }
 
@@ -264,4 +266,19 @@ fn compute_reward_checksum(start_tick: i32, start_liquidity: u128, quantities: &
     let hash_as_u160 = U160::from(hash_as_u256 >> 96); // truncate to top 160 bits
 
     hash_as_u160
+}
+
+#[test]
+fn test_compute_reward_checksum() {
+    let start_tick = 100;
+    let start_liquidity = 1_000_000;
+    let quantities = vec![500, 300, 200];
+
+    let checksum = compute_reward_checksum(start_tick, start_liquidity, &quantities);
+    assert_eq!(
+        checksum,
+        "531817260818303791352222464873085320247433767695"
+            .parse()
+            .unwrap()
+    );
 }
