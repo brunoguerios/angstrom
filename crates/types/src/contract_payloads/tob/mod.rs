@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
 use alloy::primitives::aliases::I24;
-use alloy_primitives::{U160, U256};
+use alloy_primitives::{U160, U256, keccak256};
 use eyre::eyre;
 use itertools::Itertools;
-use sha3::{Digest, Keccak256};
 
 use super::rewards::RewardsUpdate;
 use crate::{
@@ -249,20 +248,24 @@ mod test {
 fn compute_reward_checksum(start_tick: i32, start_liquidity: u128, quantities: &[u128]) -> U160 {
     let mut reward_checksum = [0u8; 32]; // Initialize to zero
 
-    // Process all tick reward updates
+    // process all tick reward updates
     let mut liquidity = start_liquidity;
     for (tick, &quantity) in (start_tick..).zip(quantities.iter()) {
-        let mut hasher = Keccak256::new();
-        hasher.update(&reward_checksum); // previous checksum
-        hasher.update(&liquidity.to_le_bytes()); // liquidity as u128 (little-endian)
-        hasher.update(&tick.to_le_bytes()); // tick as i24 (little-endian)
+        let tick_bytes = &tick.to_be_bytes()[1..]; // extract last 3 bytes for i24
 
-        reward_checksum.copy_from_slice(&hasher.finalize());
+        let hash_input = [
+            reward_checksum.as_slice(),
+            &liquidity.to_be_bytes(), // ethereum uses big endian
+            tick_bytes                // correct i24 encoding (only 3 bytes)
+        ]
+        .concat();
+
+        reward_checksum = *keccak256(&hash_input); // update checksum
         liquidity = liquidity.wrapping_add(quantity); // adjust liquidity
     }
 
     // convert Keccak-256 hash to U160 by keeping the highest 160 bits
-    let hash_as_u256 = U256::from_le_bytes(reward_checksum);
+    let hash_as_u256 = U256::from_be_bytes(reward_checksum);
     let hash_as_u160 = U160::from(hash_as_u256 >> 96); // truncate to top 160 bits
 
     hash_as_u160
@@ -277,7 +280,7 @@ fn test_compute_reward_checksum() {
     let checksum = compute_reward_checksum(start_tick, start_liquidity, &quantities);
     assert_eq!(
         checksum,
-        "531817260818303791352222464873085320247433767695"
+        "1340742918255787378014433506485307760864154076314"
             .parse()
             .unwrap()
     );
