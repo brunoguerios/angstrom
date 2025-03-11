@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use alloy::primitives::aliases::I24;
+use alloy_primitives::{U160, U256};
 use eyre::eyre;
 use itertools::Itertools;
+use tiny_keccak::{Hasher, Keccak};
 
 use super::rewards::RewardsUpdate;
 use crate::{
@@ -139,7 +141,8 @@ impl ToBOutcome {
             _ => RewardsUpdate::MultiTick {
                 start_tick: I24::try_from(start_tick).unwrap_or_default(),
                 start_liquidity,
-                quantities
+                quantities,
+                reward_checksum: todo!()
             }
         }
     }
@@ -237,4 +240,28 @@ mod test {
             "Downwards update did not start at highest tick"
         );
     }
+}
+
+fn compute_reward_checksum(start_tick: i32, start_liquidity: u128, quantities: &[u128]) -> U160 {
+    let mut hasher = Keccak::v256();
+    let mut reward_checksum = [0u8; 32];
+
+    // Process all tick reward updates
+    let mut liquidity = start_liquidity;
+    for (tick, &quantity) in (start_tick..).zip(quantities.iter()) {
+        let mut tick_hasher = Keccak::v256();
+        tick_hasher.update(&reward_checksum); // previous checksum
+        tick_hasher.update(&liquidity.to_le_bytes());
+        tick_hasher.update(&tick.to_le_bytes());
+
+        tick_hasher.finalize(&mut reward_checksum);
+
+        liquidity = liquidity.wrapping_add(quantity); // adjust liquidity
+    }
+
+    // convert Keccak-256 hash to U160 by keeping the highest 160 bits
+    let hash_as_u256 = U256::from_le_bytes(reward_checksum);
+    let hash_as_u160 = U160::from(hash_as_u256 >> 96); // truncate to top 160 bits
+
+    hash_as_u160
 }
