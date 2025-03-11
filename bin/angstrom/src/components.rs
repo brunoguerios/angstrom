@@ -199,8 +199,6 @@ pub async fn initialize_strom_components<Node, AddOns>(
     let block_id = querying_provider.get_block_number().await.unwrap();
     tracing::info!(?block_id, "starting up with block");
 
-    let global_block_sync = GlobalBlockSync::new(block_id);
-
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
             node_config.angstrom_address,
@@ -211,10 +209,6 @@ pub async fn initialize_strom_components<Node, AddOns>(
         .unwrap()
     );
 
-    // we take the subscription before we load the pools as this is a slow process
-    // and we want to make sure that any pool changes from now till when the pools
-    // are loaded isn't missed.
-    let eth_data_sub = node.provider.subscribe_to_canonical_state();
     // load the angstrom pools;
     tracing::info!("starting search for pools");
     let pools = fetch_angstrom_pools(
@@ -225,6 +219,12 @@ pub async fn initialize_strom_components<Node, AddOns>(
     )
     .await;
     tracing::info!("found pools");
+
+    // we take the subscription before we load the pools as this is a slow process
+    // and we want to make sure that any pool changes from now till when the pools
+    // are loaded isn't missed.
+    let eth_data_sub = node.provider.subscribe_to_canonical_state();
+    let global_block_sync = GlobalBlockSync::new(block_id);
 
     // this right here problem
     let uniswap_registry: UniswapPoolRegistry = pools.into();
@@ -372,9 +372,9 @@ async fn handle_init_block_spam(
 
     loop {
         tokio::select! {
-            // if we can go 250ms without a update, we know that all of the pending cannon
+            // if we can go 9s without a update, we know that all of the pending cannon
             // state notifications have been processed and we are at the tip.
-            _ = tokio::time::sleep(Duration::from_millis(250)) => {
+            _ = tokio::time::sleep(Duration::from_secs(9)) => {
                 break;
             }
             Ok(_) = canon.recv() => {

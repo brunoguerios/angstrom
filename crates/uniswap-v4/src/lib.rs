@@ -14,6 +14,7 @@ use angstrom_types::{
     primitive::UniswapPoolRegistry
 };
 use futures::Stream;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use reth_provider::{
     CanonStateNotifications, DatabaseProviderFactory, ReceiptProvider, StateProvider,
     TryIntoHistoricalStateProvider
@@ -50,7 +51,8 @@ where
     DB: DatabaseProviderFactory + ReceiptProvider,
     <DB as DatabaseProviderFactory>::Provider: TryIntoHistoricalStateProvider
 {
-    (deploy_block..=end_block)
+    let logs = (deploy_block..=end_block)
+        .into_par_iter()
         .flat_map(|block| {
             let storage_provider = db
                 .database_provider_ro()
@@ -72,7 +74,11 @@ where
                 .into_iter()
                 .flat_map(|receipt| receipt.logs().to_vec())
                 .filter(move |log| log.address == controller_addr)
+                .collect::<Vec<_>>()
         })
+        .collect::<Vec<_>>();
+
+    logs.into_iter()
         .fold(HashSet::new(), |mut set, log| {
             if let Ok(pool) = PoolConfigured::decode_log(&log, true) {
                 let pool_key = PoolKey {
