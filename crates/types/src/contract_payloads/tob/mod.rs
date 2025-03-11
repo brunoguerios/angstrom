@@ -266,9 +266,9 @@ fn compute_reward_checksum(start_tick: i32, start_liquidity: u128, quantities: &
 
     // convert Keccak-256 hash to U160 by keeping the highest 160 bits
     let hash_as_u256 = U256::from_be_bytes(reward_checksum);
-    let hash_as_u160 = U160::from(hash_as_u256 >> 96); // truncate to top 160 bits
+     // truncate to top 160 bits
 
-    hash_as_u160
+    U160::from(hash_as_u256 >> 96)
 }
 
 #[test]
