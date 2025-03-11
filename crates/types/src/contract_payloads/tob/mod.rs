@@ -138,8 +138,13 @@ impl ToBOutcome {
                 amount: quantities.first().copied().unwrap_or_default()
             },
             _ => {
-                let reward_checksum =
-                    compute_reward_checksum(start_tick, start_liquidity, &quantities);
+                let reward_checksum = compute_reward_checksum(
+                    start_tick,
+                    start_liquidity,
+                    &quantities,
+                    snapshot.tick_spacing(),
+                    from_above
+                );
                 RewardsUpdate::MultiTick {
                     start_tick: I24::try_from(start_tick).unwrap_or_default(),
                     start_liquidity,
@@ -245,29 +250,36 @@ mod test {
     }
 }
 
-fn compute_reward_checksum(start_tick: i32, start_liquidity: u128, quantities: &[u128]) -> U160 {
-    let mut reward_checksum = [0u8; 32]; // Initialize to zero
-
-    // process all tick reward updates
+/// Computes the reward checksum for a given range of ticks
+///
+/// `from_above`: true = high to low, false = low to high
+fn compute_reward_checksum(
+    start_tick: i32,
+    start_liquidity: u128,
+    quantities: &[u128],
+    tick_spacing: i32,
+    from_above: bool
+) -> U160 {
+    let mut reward_checksum = [0u8; 32];
     let mut liquidity = start_liquidity;
-    for (tick, &quantity) in (start_tick..).zip(quantities.iter()) {
+    let mut tick = start_tick;
+
+    for &quantity in quantities {
         let tick_bytes = &tick.to_be_bytes()[1..]; // extract last 3 bytes for i24
 
-        let hash_input = [
-            reward_checksum.as_slice(),
-            &liquidity.to_be_bytes(), // ethereum uses big endian
-            tick_bytes                // correct i24 encoding (only 3 bytes)
-        ]
-        .concat();
+        let hash_input =
+            [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
 
         reward_checksum = *keccak256(&hash_input); // update checksum
         liquidity = liquidity.wrapping_add(quantity); // adjust liquidity
+
+        tick += if from_above { -tick_spacing } else { tick_spacing };
     }
 
-    // convert Keccak-256 hash to U160 by keeping the highest 160 bits
+    // Convert Keccak-256 hash to U160 by keeping the highest 160 bits
     let hash_as_u256 = U256::from_be_bytes(reward_checksum);
-    // truncate to top 160 bits
 
+    // truncate to top 160 bits
     U160::from(hash_as_u256 >> 96)
 }
 
@@ -276,12 +288,17 @@ fn test_compute_reward_checksum() {
     let start_tick = 100;
     let start_liquidity = 1_000_000;
     let quantities = vec![500, 300, 200];
+    let tick_spacing = 10;
 
-    let checksum = compute_reward_checksum(start_tick, start_liquidity, &quantities);
+    let checksum_1 =
+        compute_reward_checksum(start_tick, start_liquidity, &quantities, tick_spacing, false);
+    let checksum_2 =
+        compute_reward_checksum(start_tick, start_liquidity, &quantities, tick_spacing, true);
     assert_eq!(
-        checksum,
-        "1340742918255787378014433506485307760864154076314"
+        checksum_1,
+        "916716190280663127860804890900494458459603794619"
             .parse()
             .unwrap()
     );
+    assert_ne!(checksum_1, checksum_2);
 }

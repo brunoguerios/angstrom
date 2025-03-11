@@ -199,6 +199,20 @@ impl PoolSnapshot {
         }
         Some((d_0, d_1))
     }
+
+    /// Gets the tick spacing for this [`PoolSnapshot`].
+    ///
+    /// This is the difference between the upper and lower ticks of the first
+    /// range in the snapshot, but should be the same for all ranges in the
+    /// snapshot.
+    ///
+    /// Panics if there are no ranges, but this should never happen
+    pub fn tick_spacing(&self) -> i32 {
+        let Some(first_range) = self.ranges.first() else {
+            unreachable!("at least one range must be defined");
+        };
+        (first_range.upper_tick - first_range.lower_tick).abs()
+    }
 }
 
 #[cfg(test)]
