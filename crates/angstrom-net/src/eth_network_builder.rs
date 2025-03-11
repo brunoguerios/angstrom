@@ -1,6 +1,6 @@
 use reth::{chainspec::ChainSpec, transaction_pool::TransactionPool};
 use reth_network::{
-    EthNetworkPrimitives, NetworkHandle, NetworkManager, protocol::IntoRlpxSubProtocol
+    EthNetworkPrimitives, NetworkHandle, NetworkManager, PeersInfo, protocol::IntoRlpxSubProtocol
 };
 use reth_node_builder::{
     BuilderContext, NodeTypes, TxTy, components::NetworkBuilder, node::FullNodeTypes
@@ -40,7 +40,7 @@ where
 
         let network = NetworkManager::builder(network_config).await?;
         let handle = ctx.start_network(network, pool);
-
+        tracing::info!(enode=%handle.local_node_record(), "P2P networking initialized");
         Ok(handle)
     }
 }
