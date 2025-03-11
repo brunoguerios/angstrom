@@ -190,8 +190,9 @@ pub async fn initialize_strom_components<Node, AddOns>(
         condition of a block while starting modules");
 
     // wait for the next block so that we have a full 12 seconds on startup.
-    let sub = node.provider.subscribe_to_canonical_state();
-    handle_init_block_spam(sub).await;
+    let mut sub = node.provider.subscribe_to_canonical_state();
+    handle_init_block_spam(&mut sub).await;
+    let _ = sub.recv().await.expect("next block");
 
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
@@ -215,6 +216,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     // are loaded isn't missed.
     let eth_data_sub = node.provider.subscribe_to_canonical_state();
     // load the angstrom pools;
+    tracing::info!("starting search for pools");
     let pools = fetch_angstrom_pools(
         node_config.angstrom_deploy_block as usize,
         block_id as usize,
@@ -222,6 +224,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         &node.provider
     )
     .await;
+    tracing::info!("found pools");
 
     // this right here problem
     let uniswap_registry: UniswapPoolRegistry = pools.into();
@@ -361,7 +364,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
 }
 
 async fn handle_init_block_spam(
-    mut canon: tokio::sync::broadcast::Receiver<CanonStateNotification>
+    canon: &mut tokio::sync::broadcast::Receiver<CanonStateNotification>
 ) {
     // wait for the first notification
     let _ = canon.recv().await.expect("first block");
