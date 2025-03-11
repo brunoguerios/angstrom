@@ -365,6 +365,7 @@ async fn handle_init_block_spam(
 ) {
     // wait for the first notification
     let _ = canon.recv().await.expect("first block");
+    tracing::info!("got first block");
 
     loop {
         tokio::select! {
@@ -378,4 +379,5 @@ async fn handle_init_block_spam(
             }
         }
     }
+    tracing::info!("finished handling block-spam");
 }
