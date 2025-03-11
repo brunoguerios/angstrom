@@ -220,9 +220,10 @@ pub async fn initialize_strom_components<Node, AddOns>(
     .await;
     tracing::info!("found pools");
 
-    // we take the subscription before we load the pools as this is a slow process
-    // and we want to make sure that any pool changes from now till when the pools
-    // are loaded isn't missed.
+    // re-fetch given the fetch pools takes awhile. given this, we do techincally
+    // have a gap in which a pool is deployed durning startup. This isn't
+    // critical but we will want to fix this down the road.
+    let block_id = querying_provider.get_block_number().await.unwrap();
     let eth_data_sub = node.provider.subscribe_to_canonical_state();
     let global_block_sync = GlobalBlockSync::new(block_id);
 
