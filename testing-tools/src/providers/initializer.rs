@@ -3,9 +3,9 @@ use alloy::{
     primitives::{
         Address,
         aliases::{I24, U24},
-        keccak256
+        keccak256,
     },
-    providers::{Provider, ext::AnvilApi}
+    providers::{Provider, ext::AnvilApi},
 };
 use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
@@ -13,10 +13,10 @@ use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
-        pool_gate::PoolGate::PoolGateInstance
+        pool_gate::PoolGate::PoolGateInstance,
     },
     matching::SqrtPriceX96,
-    testnet::InitialTestnetState
+    testnet::InitialTestnetState,
 };
 use rand::{Rng, thread_rng};
 
@@ -27,30 +27,30 @@ use crate::{
         environment::{
             TestAnvilEnvironment,
             angstrom::AngstromEnv,
-            uniswap::{TestUniswapEnv, UniswapEnv}
-        }
+            uniswap::{TestUniswapEnv, UniswapEnv},
+        },
     },
     types::{
         GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
-        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools}
-    }
+        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools},
+    },
 };
 
 pub struct AnvilInitializer {
-    provider:             WalletProvider,
-    angstrom_env:         AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1:        ControllerV1Instance<(), WalletProviderRpc>,
-    angstrom:             AngstromInstance<(), WalletProviderRpc>,
-    pool_gate:            PoolGateInstance<(), WalletProviderRpc>,
-    pending_state:        PendingDeployedPools,
-    initial_state_config: InitialStateConfig
+    provider: WalletProvider,
+    angstrom_env: AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1: ControllerV1Instance<(), WalletProviderRpc>,
+    angstrom: AngstromInstance<(), WalletProviderRpc>,
+    pool_gate: PoolGateInstance<(), WalletProviderRpc>,
+    pending_state: PendingDeployedPools,
+    initial_state_config: InitialStateConfig,
 }
 
 impl AnvilInitializer {
     pub async fn new<G: GlobalTestingConfig>(
         config: TestingNodeConfig<G>,
-        nodes: Vec<Address>
+        nodes: Vec<Address>,
     ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
         let (provider, anvil) = config.spawn_anvil_rpc().await?;
 
@@ -71,7 +71,7 @@ impl AnvilInitializer {
 
         let controller_v1 = ControllerV1Instance::new(
             angstrom_env.controller_v1(),
-            angstrom_env.provider().clone()
+            angstrom_env.provider().clone(),
         );
 
         let pending_state = PendingDeployedPools::new();
@@ -83,7 +83,7 @@ impl AnvilInitializer {
             angstrom,
             pending_state,
             pool_gate,
-            initial_state_config: config.global_config.initial_state_config()
+            initial_state_config: config.global_config.initial_state_config(),
         };
 
         Ok((this, anvil))
@@ -92,7 +92,7 @@ impl AnvilInitializer {
     /// deploys multiple pools (pool key, liquidity, sqrt price)
     pub async fn deploy_pool_fulls(
         &mut self,
-        pool_keys: Vec<PartialConfigPoolKey>
+        pool_keys: Vec<PartialConfigPoolKey>,
     ) -> eyre::Result<()> {
         for (i, key) in pool_keys.into_iter().enumerate() {
             let (cur0, cur1) = self.deploy_currencies(&key).await?;
@@ -100,7 +100,7 @@ impl AnvilInitializer {
                 key.make_pool_key(*self.angstrom.address(), cur0, cur1),
                 key.initial_liquidity(),
                 key.sqrt_price(),
-                U256::from(i)
+                U256::from(i),
             )
             .await?
         }
@@ -109,17 +109,46 @@ impl AnvilInitializer {
     }
 
     async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
-        let mut tokens = Vec::new();
+        // deploys the tokens
+        let mut tokens_with_meta = Vec::new();
         for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
-            let token = token_to_deploy
+            let token_addr = token_to_deploy
                 .deploy_token(
                     &self.provider,
                     nonce,
-                    Some(&self.initial_state_config.addresses_with_tokens)
+                    &mut self.pending_state, //
                 )
                 .await?;
-            tokens.push(token);
+            tokens_with_meta.push((token_addr, token_to_deploy.clone()));
         }
+        self.pending_state.finalize_pending_txs().await?;
+
+        // sets the token metas
+        let mut tokens = Vec::new();
+        for (token_addr, token_meta) in &tokens_with_meta {
+            token_meta
+                .set_token_meta(&self.provider, *token_addr, nonce, &mut self.pending_state)
+                .await?;
+
+            tokens.push(*token_addr);
+        }
+        self.pending_state.finalize_pending_txs().await?;
+
+        // overrides address and sets user amounts
+        for (token_addr, token_meta) in &mut tokens_with_meta {
+            token_meta
+                .set_address_overrides(
+                    &self.provider,
+                    token_addr,
+                    nonce,
+                    &mut self.pending_state,
+                    Some(&self.initial_state_config.addresses_with_tokens),
+                )
+                .await?;
+
+            tokens.push(*token_addr);
+        }
+        self.pending_state.finalize_pending_txs().await?;
 
         let (token0, token1) = (tokens[0], tokens[1]);
         let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
@@ -131,7 +160,7 @@ impl AnvilInitializer {
 
     pub async fn deploy_currencies(
         &mut self,
-        c: &PartialConfigPoolKey
+        c: &PartialConfigPoolKey,
     ) -> eyre::Result<(Address, Address)> {
         let mut nonce = self
             .provider
@@ -146,7 +175,7 @@ impl AnvilInitializer {
             currency1,
             fee: U24::from(c.fee),
             tickSpacing: I24::unchecked_from(c.tick_spacing),
-            hooks: *self.angstrom.address()
+            hooks: *self.angstrom.address(),
         };
         self.pending_state.add_pool_key(pool_key.clone());
 
@@ -168,7 +197,7 @@ impl AnvilInitializer {
             currency1,
             fee: U24::ZERO,
             tickSpacing: I24::unchecked_from(60),
-            hooks: *self.angstrom.address()
+            hooks: *self.angstrom.address(),
         };
         self.pending_state.add_pool_key(pool_key.clone());
 
@@ -187,7 +216,7 @@ impl AnvilInitializer {
         pool_key: PoolKey,
         liquidity: u128,
         price: SqrtPriceX96,
-        store_index: U256
+        store_index: U256,
     ) -> eyre::Result<()> {
         tracing::info!(?pool_key, ?liquidity, ?price, ?store_index);
         let nonce = self
@@ -208,7 +237,7 @@ impl AnvilInitializer {
                 pool_key.currency1,
                 pool_key.tickSpacing.as_i32() as u16,
                 pool_key.fee,
-                pool_key.fee
+                pool_key.fee,
             )
             .from(self.provider.controller())
             .nonce(nonce)
@@ -255,7 +284,7 @@ impl AnvilInitializer {
                     lower,
                     upper,
                     liquidity,
-                    FixedBytes::<32>::default()
+                    FixedBytes::<32>::default(),
                 )
                 .from(self.provider.controller())
                 .nonce(nonce + 3 + (i as u64))
@@ -276,7 +305,7 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             Some(state_bytes),
-            pool_keys.clone()
+            pool_keys.clone(),
         );
 
         tracing::info!("initalized angstrom pool state");
@@ -304,7 +333,7 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             None,
-            pool_keys.clone()
+            pool_keys.clone(),
         );
         for key in pool_keys {
             let out = self

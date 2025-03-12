@@ -1,22 +1,22 @@
 use alloy::providers::PendingTransaction;
 use alloy_primitives::{
     Address, TxHash, U256,
-    aliases::{I24, U24}
+    aliases::{I24, U24},
 };
 use angstrom_types::{
     contract_bindings::{angstrom::Angstrom::PoolKey, mintable_mock_erc_20::MintableMockERC20},
-    matching::SqrtPriceX96
+    matching::SqrtPriceX96,
 };
 
 use crate::{
     contracts::{anvil::SafeDeployPending, environment::TestAnvilEnvironment},
     providers::WalletProvider,
-    types::{HACKED_TOKEN_BALANCE, traits::WithWalletProvider}
+    types::{HACKED_TOKEN_BALANCE, traits::WithWalletProvider},
 };
 
 pub struct PendingDeployedPools {
     pending_txs: Vec<PendingTransaction>,
-    pool_keys:   Vec<PoolKey>
+    pool_keys: Vec<PoolKey>,
 }
 
 impl Default for PendingDeployedPools {
@@ -58,10 +58,10 @@ impl PendingDeployedPools {
 pub struct PartialConfigPoolKey {
     // currency0:         Address,
     // currency1:         Address,
-    pub fee:               u64,
-    pub tick_spacing:      i32,
+    pub fee: u64,
+    pub tick_spacing: i32,
     pub initial_liquidity: u128,
-    pub sqrt_price:        SqrtPriceX96
+    pub sqrt_price: SqrtPriceX96,
 }
 
 impl PartialConfigPoolKey {
@@ -71,7 +71,7 @@ impl PartialConfigPoolKey {
         fee: u64,
         tick_spacing: i32,
         initial_liquidity: u128,
-        sqrt_price: SqrtPriceX96
+        sqrt_price: SqrtPriceX96,
     ) -> Self {
         Self { fee, tick_spacing, initial_liquidity, sqrt_price }
     }
@@ -80,14 +80,14 @@ impl PartialConfigPoolKey {
         &self,
         angstrom_address_hook: Address,
         cur0: Address,
-        cur1: Address
+        cur1: Address,
     ) -> PoolKey {
         PoolKey {
-            currency0:   cur0,
-            currency1:   cur1,
-            fee:         U24::from(self.fee),
+            currency0: cur0,
+            currency1: cur1,
+            fee: U24::from(self.fee),
             tickSpacing: I24::unchecked_from(self.tick_spacing),
-            hooks:       angstrom_address_hook
+            hooks: angstrom_address_hook,
         }
     }
 
@@ -102,41 +102,100 @@ impl PartialConfigPoolKey {
 
 #[derive(Debug, Clone)]
 pub struct Erc20ToDeploy {
-    pub name:             String,
-    pub symbol:           String,
-    pub _overwrite_token: Option<Address>
+    pub name: String,
+    pub symbol: String,
+    pub overwrite_token: Option<Address>,
 }
 
 impl Erc20ToDeploy {
     pub fn new(name: &str, symbol: &str, overwrite_token: Option<Address>) -> Self {
-        Self {
-            name:             name.to_string(),
-            symbol:           symbol.to_string(),
-            _overwrite_token: overwrite_token
-        }
+        Self { name: name.to_string(), symbol: symbol.to_string(), overwrite_token }
     }
+
+    // pub async fn deploy_token0(
+    //     &self,
+    //     provider: &WalletProvider,
+    //     nonce: &mut u64,
+    //     addresses_with_hacked_balance: Option<&[Address]>,
+    // ) -> eyre::Result<Address> {
+    //     let (pending_tx, mut token_address) =
+    //         MintableMockERC20::deploy_builder(provider.provider_ref())
+    //             .deploy_pending_creation(*nonce, provider.controller())
+    //             .await?;
+
+    //     pending_tx.await?;
+    //     *nonce += 1;
+
+    //     let token_instance = MintableMockERC20::new(token_address, provider.rpc_provider());
+    //     token_instance
+    //         .setMeta(self.name.clone(), self.symbol.clone())
+    //         .nonce(*nonce)
+    //         .deploy_pending()
+    //         .await?
+    //         .await?;
+    //     *nonce += 1;
+
+    //     tracing::debug!(
+    //         "deployed token '{}' ('{}') at '{token_address:?}'",
+    //         self.name,
+    //         self.symbol
+    //     );
+
+    //     if let Some(overwrite_addr) = self.overwrite_token {
+    //         provider
+    //             .override_address(&mut token_address, overwrite_addr)
+    //             .await?;
+    //     }
+
+    //     if let Some(addresses) = addresses_with_hacked_balance {
+    //         for user_addr in addresses {
+    //             let _ = token_instance
+    //                 .mint(*user_addr, U256::from(HACKED_TOKEN_BALANCE))
+    //                 .nonce(*nonce)
+    //                 .send()
+    //                 .await?
+    //                 .watch()
+    //                 .await?;
+
+    //             *nonce += 1;
+    //         }
+    //     }
+
+    //     Ok(token_address)
+    // }
 
     pub async fn deploy_token(
         &self,
         provider: &WalletProvider,
         nonce: &mut u64,
-        addresses_with_hacked_balance: Option<&[Address]>
+        pending_state: &mut PendingDeployedPools,
     ) -> eyre::Result<Address> {
         let (pending_tx, token_address) =
             MintableMockERC20::deploy_builder(provider.provider_ref())
                 .deploy_pending_creation(*nonce, provider.controller())
                 .await?;
 
-        pending_tx.await?;
+        pending_state.add_pending_tx(pending_tx);
         *nonce += 1;
 
+        Ok(token_address)
+    }
+
+    pub async fn set_token_meta(
+        &self,
+        provider: &WalletProvider,
+        token_address: Address,
+        nonce: &mut u64,
+        pending_state: &mut PendingDeployedPools,
+    ) -> eyre::Result<()> {
         let token_instance = MintableMockERC20::new(token_address, provider.rpc_provider());
-        token_instance
+        let pending_tx = token_instance
             .setMeta(self.name.clone(), self.symbol.clone())
             .nonce(*nonce)
             .deploy_pending()
-            .await?
             .await?;
+
+        pending_state.add_pending_tx(pending_tx);
         *nonce += 1;
 
         tracing::debug!(
@@ -145,27 +204,44 @@ impl Erc20ToDeploy {
             self.symbol
         );
 
+        Ok(())
+    }
+
+    pub async fn set_address_overrides(
+        &self,
+        provider: &WalletProvider,
+        token_address: &mut Address,
+        nonce: &mut u64,
+        pending_state: &mut PendingDeployedPools,
+        addresses_with_hacked_balance: Option<&[Address]>,
+    ) -> eyre::Result<()> {
+        if let Some(overwrite_addr) = self.overwrite_token {
+            provider
+                .override_address(token_address, overwrite_addr)
+                .await?;
+        }
+
         if let Some(addresses) = addresses_with_hacked_balance {
+            let token_instance = MintableMockERC20::new(*token_address, provider.rpc_provider());
             for user_addr in addresses {
-                let _ = token_instance
+                let pending_tx = token_instance
                     .mint(*user_addr, U256::from(HACKED_TOKEN_BALANCE))
                     .nonce(*nonce)
-                    .send()
-                    .await?
-                    .watch()
+                    .deploy_pending()
                     .await?;
+                pending_state.add_pending_tx(pending_tx);
 
                 *nonce += 1;
             }
         }
 
-        Ok(token_address)
+        Ok(())
     }
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct InitialStateConfig {
     pub addresses_with_tokens: Vec<Address>,
-    pub tokens_to_deploy:      Vec<Erc20ToDeploy>,
-    pub pool_keys:             Vec<PartialConfigPoolKey>
+    pub tokens_to_deploy: Vec<Erc20ToDeploy>,
+    pub pool_keys: Vec<PartialConfigPoolKey>,
 }
