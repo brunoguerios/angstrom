@@ -13,14 +13,12 @@ use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
-        mintable_mock_erc_20::MintableMockERC20,
         pool_gate::PoolGate::PoolGateInstance
     },
     matching::SqrtPriceX96,
     testnet::InitialTestnetState
 };
 use rand::{Rng, thread_rng};
-use validation::common::WETH_ADDRESS;
 
 use super::WalletProvider;
 use crate::{
@@ -35,17 +33,18 @@ use crate::{
     types::{
         GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
-        initial_state::{PartialConfigPoolKey, PendingDeployedPools}
+        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools}
     }
 };
 
 pub struct AnvilInitializer {
-    provider:      WalletProvider,
-    angstrom_env:  AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1: ControllerV1Instance<(), WalletProviderRpc>,
-    angstrom:      AngstromInstance<(), WalletProviderRpc>,
-    pool_gate:     PoolGateInstance<(), WalletProviderRpc>,
-    pending_state: PendingDeployedPools
+    provider:             WalletProvider,
+    angstrom_env:         AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1:        ControllerV1Instance<(), WalletProviderRpc>,
+    angstrom:             AngstromInstance<(), WalletProviderRpc>,
+    pool_gate:            PoolGateInstance<(), WalletProviderRpc>,
+    pending_state:        PendingDeployedPools,
+    initial_state_config: InitialStateConfig
 }
 
 impl AnvilInitializer {
@@ -77,8 +76,15 @@ impl AnvilInitializer {
 
         let pending_state = PendingDeployedPools::new();
 
-        let this =
-            Self { provider, controller_v1, angstrom_env, angstrom, pending_state, pool_gate };
+        let this = Self {
+            provider,
+            controller_v1,
+            angstrom_env,
+            angstrom,
+            pending_state,
+            pool_gate,
+            initial_state_config: config.global_config.initial_state_config()
+        };
 
         Ok((this, anvil))
     }
@@ -102,42 +108,38 @@ impl AnvilInitializer {
         Ok(())
     }
 
+    async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
+        let mut tokens = Vec::new();
+        for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
+            let token = token_to_deploy
+                .deploy_token(
+                    &self.provider,
+                    nonce,
+                    Some(&self.initial_state_config.addresses_with_tokens)
+                )
+                .await?;
+            tokens.push(token);
+        }
+
+        let (token0, token1) = (tokens[0], tokens[1]);
+        let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
+
+        self.rpc_provider().anvil_mine(Some(1), None).await?;
+
+        Ok(tokens)
+    }
+
     pub async fn deploy_currencies(
         &mut self,
         c: &PartialConfigPoolKey
     ) -> eyre::Result<(Address, Address)> {
-        let nonce = self
+        let mut nonce = self
             .provider
             .provider
             .get_transaction_count(self.provider.controller())
             .await?;
 
-        let (first_token_tx, first_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce, self.provider.controller())
-                .await?;
-        self.pending_state.add_pending_tx(first_token_tx);
-
-        let (second_token_tx, mut second_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce + 1, self.provider.controller())
-                .await?;
-        self.pending_state.add_pending_tx(second_token_tx);
-
-        // wait for them to be mined.
-        self.pending_state.finalize_pending_txs().await?;
-
-        // lets load the bytecode of the second token, then use the bytecode to override
-        // the weth address
-        self.provider
-            .override_address(&mut second_token, WETH_ADDRESS)
-            .await?;
-
-        let (currency0, currency1) = if first_token < second_token {
-            (first_token, second_token)
-        } else {
-            (second_token, first_token)
-        };
+        let (currency0, currency1) = self.deploy_tokens(&mut nonce).await?;
 
         let pool_key = PoolKey {
             currency0,
@@ -153,29 +155,13 @@ impl AnvilInitializer {
 
     /// deploys tokens, a uniV4 pool, angstrom pool
     pub async fn deploy_default_pool_full(&mut self) -> eyre::Result<()> {
-        let nonce = self
+        let mut nonce = self
             .provider
             .provider
             .get_transaction_count(self.provider.controller())
             .await?;
 
-        let (first_token_tx, first_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce, self.provider.controller())
-                .await?;
-        self.pending_state.add_pending_tx(first_token_tx);
-
-        let (second_token_tx, second_token) =
-            MintableMockERC20::deploy_builder(self.provider.provider_ref())
-                .deploy_pending_creation(nonce + 1, self.provider.controller())
-                .await?;
-        self.pending_state.add_pending_tx(second_token_tx);
-
-        let (currency0, currency1) = if first_token < second_token {
-            (first_token, second_token)
-        } else {
-            (second_token, first_token)
-        };
+        let (currency0, currency1) = self.deploy_tokens(&mut nonce).await?;
 
         let pool_key = PoolKey {
             currency0,

@@ -46,7 +46,11 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         let respend = order.respend_avoidance_strategy();
         match respend {
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Nonce(nonce) => {
-                if !self.fetch_utils.is_valid_nonce(user, nonce) {
+                if !self
+                    .fetch_utils
+                    .is_valid_nonce(user, nonce)
+                    .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?
+                {
                     return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
                 }
             }
@@ -80,12 +84,10 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
 
         // get the live state sorted up to the nonce, level, doesn't check orders above
         // that
-        let live_state = self.user_accounts.get_live_state_for_order(
-            user,
-            pool_info.token,
-            respend,
-            &self.fetch_utils
-        );
+        let live_state = self
+            .user_accounts
+            .get_live_state_for_order(user, pool_info.token, respend, &self.fetch_utils)
+            .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?;
 
         // ensure that the current live state is enough to satisfy the order
         let (is_cur_valid, mut invalid_orders) = live_state
