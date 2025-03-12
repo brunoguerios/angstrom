@@ -1,11 +1,11 @@
 use std::{
     collections::{HashMap, VecDeque},
-    sync::Arc
+    sync::Arc,
 };
 
 use alloy::{
     primitives::{Address, U256, address},
-    providers::Provider
+    providers::Provider,
 };
 use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray};
 use futures::StreamExt;
@@ -25,13 +25,13 @@ pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c75
 /// this allows for a simple lookup.
 #[derive(Debug, Default, Clone)]
 pub struct TokenPriceGenerator {
-    prev_prices:         HashMap<PoolId, VecDeque<PairsWithPrice>>,
-    pair_to_pool:        HashMap<(Address, Address), PoolId>,
+    prev_prices: HashMap<PoolId, VecDeque<PairsWithPrice>>,
+    pair_to_pool: HashMap<(Address, Address), PoolId>,
     /// the token that is the wrapped version of the gas token on the given
     /// chain
-    base_gas_token:      Address,
-    cur_block:           u64,
-    blocks_to_avg_price: u64
+    base_gas_token: Address,
+    cur_block: u64,
+    blocks_to_avg_price: u64,
 }
 
 impl TokenPriceGenerator {
@@ -42,7 +42,7 @@ impl TokenPriceGenerator {
         current_block: u64,
         uni: SyncedUniswapPools,
         base_gas_token: Address,
-        blocks_to_avg_price_override: Option<u64>
+        blocks_to_avg_price_override: Option<u64>,
     ) -> eyre::Result<Self> {
         let mut pair_to_pool = HashMap::default();
         for id in uni.iter() {
@@ -84,10 +84,10 @@ impl TokenPriceGenerator {
                         let price = pool_data.get_raw_price();
 
                         queue.push_back(PairsWithPrice {
-                            token0:         pool_data.tokenA,
-                            token1:         pool_data.tokenB,
-                            block_num:      block_number,
-                            price_1_over_0: price
+                            token0: pool_data.tokenA,
+                            token1: pool_data.tokenB,
+                            block_num: block_number,
+                            price_1_over_0: price,
                         });
                     }
 
@@ -106,7 +106,7 @@ impl TokenPriceGenerator {
             base_gas_token,
             cur_block: current_block,
             pair_to_pool,
-            blocks_to_avg_price
+            blocks_to_avg_price,
         })
     }
 
@@ -175,7 +175,7 @@ impl TokenPriceGenerator {
                         price.price_1_over_0.inv_ray()
                     })
                     .sum::<Ray>()
-                    / U256::from(size)
+                    / U256::from(size),
             );
         }
 
@@ -214,7 +214,7 @@ impl TokenPriceGenerator {
                         }
                     })
                     .sum::<Ray>()
-                    / U256::from(size)
+                    / U256::from(size),
             )
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
             // because we are going through token1 here and we want token zero, we need to
@@ -277,7 +277,7 @@ pub mod test {
 
     use alloy::{
         node_bindings::WEI_IN_ETHER,
-        primitives::{Address, FixedBytes, U256}
+        primitives::{Address, FixedBytes, U256},
     };
     use angstrom_types::{pair_with_price::PairsWithPrice, sol_bindings::Ray};
     use revm::primitives::address;
@@ -314,10 +314,10 @@ pub mod test {
         // assumes both 18 decimal
         let pair1_rate = U256::from(5) * WEI_IN_ETHER;
         let pair = PairsWithPrice {
-            token0:         TOKEN2,
-            token1:         TOKEN0,
-            block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair1_rate)
+            token0: TOKEN2,
+            token1: TOKEN0,
+            block_num: 0,
+            price_1_over_0: Ray::scale_to_ray(pair1_rate),
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(1), queue);
@@ -327,10 +327,10 @@ pub mod test {
         let pair2_rate = U256::from(200000);
 
         let pair = PairsWithPrice {
-            token0:         TOKEN0,
-            token1:         TOKEN1,
-            block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair2_rate)
+            token0: TOKEN0,
+            token1: TOKEN1,
+            block_num: 0,
+            price_1_over_0: Ray::scale_to_ray(pair2_rate),
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(2), queue);
@@ -339,10 +339,10 @@ pub mod test {
         let pair3_rate = U256::from(2) * WEI_IN_ETHER;
 
         let pair = PairsWithPrice {
-            token0:         TOKEN2,
-            token1:         TOKEN3,
-            block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair3_rate)
+            token0: TOKEN2,
+            token1: TOKEN3,
+            block_num: 0,
+            price_1_over_0: Ray::scale_to_ray(pair3_rate),
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(3), queue);
@@ -351,21 +351,21 @@ pub mod test {
         let pair4_rate = U256::from(1e18) / U256::from(8e6);
 
         let pair = PairsWithPrice {
-            token0:         TOKEN4,
-            token1:         TOKEN1,
-            block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair4_rate)
+            token0: TOKEN4,
+            token1: TOKEN1,
+            block_num: 0,
+            price_1_over_0: Ray::scale_to_ray(pair4_rate),
         };
 
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(4), queue);
 
         TokenPriceGenerator {
-            cur_block:           0,
-            prev_prices:         prices,
-            base_gas_token:      WETH_ADDRESS,
-            pair_to_pool:        pairs_to_key,
-            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE
+            cur_block: 0,
+            prev_prices: prices,
+            base_gas_token: WETH_ADDRESS,
+            pair_to_pool: pairs_to_key,
+            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
         }
     }
 
@@ -440,10 +440,10 @@ pub mod test {
         let mut updates = Vec::new();
         for i in 1..=5 {
             updates.push(PairsWithPrice {
-                token0:         TOKEN2,
-                token1:         TOKEN0,
-                block_num:      i,
-                price_1_over_0: Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER)
+                token0: TOKEN2,
+                token1: TOKEN0,
+                block_num: i,
+                price_1_over_0: Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER),
             });
         }
 
@@ -487,10 +487,10 @@ pub mod test {
 
         // Should panic on non-sequential block updates
         token_conversion.apply_update(vec![PairsWithPrice {
-            token0:         TOKEN2,
-            token1:         TOKEN0,
-            block_num:      5, // Non-sequential block
-            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
+            token0: TOKEN2,
+            token1: TOKEN0,
+            block_num: 5, // Non-sequential block
+            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER),
         }]);
     }
 
@@ -501,7 +501,7 @@ pub mod test {
         // Try to get price for non-existent pool
         let rate = token_conversion.get_eth_conversion_price(
             address!("1111111111111111111111111111111111111111"),
-            address!("2222222222222222222222222222222222222222")
+            address!("2222222222222222222222222222222222222222"),
         );
         assert!(rate.is_none(), "Should return None for missing pool");
     }
@@ -518,10 +518,10 @@ pub mod test {
 
         let mut queue = VecDeque::new();
         queue.push_back(PairsWithPrice {
-            token0:         TOKEN5,
-            token1:         WETH_ADDRESS,
-            block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
+            token0: TOKEN5,
+            token1: WETH_ADDRESS,
+            block_num: 0,
+            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER),
         });
         token_conversion.prev_prices.insert(pool_id, queue);
 
