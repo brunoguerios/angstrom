@@ -139,16 +139,16 @@ pub mod test {
         let provider = testnet.node_provider(Some(1)).rpc_provider();
 
         let executor = TokioTaskExecutor::default();
-        let task = executor.spawn_critical_blocking(
-            "testnet",
-            testnet.run_to_completion(executor.clone()).boxed()
-        );
+        let task =
+            executor.spawn_critical("testnet", testnet.run_to_completion(executor.clone()).boxed());
 
+        tracing::info!("waiting for valid block");
         assert!(
             timeout(Duration::from_secs(60 * 3), wait_for_valid_block(provider))
                 .await
                 .is_ok()
         );
+        task.abort();
     }
 
     async fn wait_for_valid_block(provider: WalletProviderRpc) {
