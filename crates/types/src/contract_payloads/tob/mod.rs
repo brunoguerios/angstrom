@@ -138,12 +138,8 @@ impl ToBOutcome {
                 amount: quantities.first().copied().unwrap_or_default()
             },
             _ => {
-                let reward_checksum = compute_reward_checksum(
-                    start_tick,
-                    start_liquidity,
-                    &quantities,
-                    snapshot.tick_spacing()
-                );
+                let reward_checksum =
+                    compute_reward_checksum(start_tick, start_liquidity, &snapshot, from_above);
                 RewardsUpdate::MultiTick {
                     start_tick: I24::try_from(start_tick).unwrap_or_default(),
                     start_liquidity,
@@ -255,25 +251,41 @@ mod test {
 fn compute_reward_checksum(
     start_tick: i32,
     start_liquidity: u128,
-    quantities: &[u128],
-    tick_spacing: i32
+    snapshot: &PoolSnapshot,
+    from_above: bool
 ) -> U160 {
     let mut reward_checksum = [0u8; 32];
     let mut liquidity = start_liquidity;
+    let tick_spacing = snapshot.tick_spacing();
+    let step = if from_above { -tick_spacing } else { tick_spacing };
     let mut tick = start_tick;
 
-    for &quantity in quantities {
-        let tick_bytes = &tick.to_be_bytes()[1..]; // extract last 3 bytes for i24
+    loop {
+        let net_liquidity = snapshot
+            .get_range_for_tick(tick)
+            .map(|r| r.liquidity())
+            .unwrap_or(0);
 
+        let tick_bytes = &tick.to_be_bytes()[1..];
         let hash_input =
             [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
 
         reward_checksum = *keccak256(&hash_input);
 
-        liquidity += quantity;
-        tick += tick_spacing;
+        liquidity = if from_above {
+            liquidity.wrapping_sub(net_liquidity)
+        } else {
+            liquidity.wrapping_add(net_liquidity)
+        };
+
+        tick += step;
+
+        if snapshot.get_range_for_tick(tick).is_none() {
+            break;
+        }
     }
 
+    // extract the highest 160 bits of the 256-bit hash
     U160::from(U256::from_be_bytes(reward_checksum) >> 96)
 }
 
@@ -281,10 +293,10 @@ fn compute_reward_checksum(
 fn test_compute_reward_checksum() {
     let start_tick = 100;
     let start_liquidity = 1_000_000;
-    let quantities = vec![500, 300, 200];
     let tick_spacing = 10;
 
-    let checksum = compute_reward_checksum(start_tick, start_liquidity, &quantities, tick_spacing);
+    let checksum =
+        compute_reward_checksum(start_tick, start_liquidity, &PoolSnapshot::default(), true);
     assert_eq!(
         checksum,
         "916716190280663127860804890900494458459603794619"
