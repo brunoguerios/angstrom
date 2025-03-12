@@ -198,12 +198,6 @@ impl Erc20ToDeploy {
         pending_state.add_pending_tx(pending_tx);
         *nonce += 1;
 
-        tracing::debug!(
-            "deployed token '{}' ('{}') at '{token_address:?}'",
-            self.name,
-            self.symbol
-        );
-
         Ok(())
     }
 
@@ -220,6 +214,12 @@ impl Erc20ToDeploy {
                 .override_address(token_address, overwrite_addr)
                 .await?;
         }
+
+        tracing::debug!(
+            "deployed token '{}' ('{}') at '{token_address:?}'",
+            self.name,
+            self.symbol
+        );
 
         if let Some(addresses) = addresses_with_hacked_balance {
             let token_instance = MintableMockERC20::new(*token_address, provider.rpc_provider());
