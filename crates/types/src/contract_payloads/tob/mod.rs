@@ -257,43 +257,54 @@ fn compute_reward_checksum(
     let mut reward_checksum = [0u8; 32];
     let mut liquidity = start_liquidity;
     let tick_spacing = snapshot.tick_spacing();
-    let step = if from_above { -tick_spacing } else { tick_spacing };
     let mut tick = start_tick;
+    let current_tick = snapshot.current_price().tick();
+
+    tracing::info!(
+        start_tick,
+        liquidity,
+        tick_spacing,
+        from_above,
+        "Starting checksum computation"
+    );
 
     loop {
-        let net_liquidity = snapshot
-            .get_range_for_tick(tick)
-            .map(|r| r.liquidity())
-            .unwrap_or(0);
+        let range = snapshot.get_range_for_tick(tick);
+        if let Some(r) = range {
+            let net_liquidity = r.liquidity();
 
-        let tick_bytes = &tick.to_be_bytes()[1..];
-        let hash_input =
-            [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
+            let tick_bytes = &tick.to_be_bytes()[1..];
+            let hash_input =
+                [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
+            reward_checksum = *keccak256(&hash_input);
 
-        reward_checksum = *keccak256(&hash_input);
+            // Adjust liquidity based on tick direction
+            liquidity = if from_above {
+                liquidity.wrapping_sub(net_liquidity)
+            } else {
+                liquidity.wrapping_add(net_liquidity)
+            };
+        }
 
-        liquidity = if from_above {
-            liquidity.wrapping_sub(net_liquidity)
-        } else {
-            liquidity.wrapping_add(net_liquidity)
-        };
+        // Move to next tick (ensuring only initialized ticks are traversed)
+        tick += if from_above { -tick_spacing } else { tick_spacing };
 
-        tick += step;
-
-        if snapshot.get_range_for_tick(tick).is_none() {
+        if tick == current_tick {
             break;
         }
     }
 
-    // extract the highest 160 bits of the 256-bit hash
-    U160::from(U256::from_be_bytes(reward_checksum) >> 96)
+    let final_checksum = U160::from(U256::from_be_bytes(reward_checksum) >> 96);
+
+    tracing::info!(checksum = format!("{:?}", final_checksum), "Final computed checksum");
+
+    final_checksum
 }
 
 #[test]
 fn test_compute_reward_checksum() {
     let start_tick = 100;
     let start_liquidity = 1_000_000;
-    let tick_spacing = 10;
 
     let checksum =
         compute_reward_checksum(start_tick, start_liquidity, &PoolSnapshot::default(), true);
