@@ -13,7 +13,7 @@ impl BinarySearchStrategy {
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>,
         fee: u128
     ) -> PoolSolution {
-        let mut matcher = DeltaMatcher::new(book, searcher.clone(), fee, false);
+        let mut matcher = DeltaMatcher::new(book, searcher.clone().into(), fee, false);
         matcher.solution(searcher)
     }
 }

@@ -3,7 +3,7 @@ use angstrom_types::{
     contract_payloads::tob::generate_current_price_adjusted_for_donation,
     matching::{
         SqrtPriceX96, get_quantities_at_price,
-        uniswap::{Direction, PoolPrice, PoolPriceVec}
+        uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity}
     },
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
@@ -13,9 +13,31 @@ use angstrom_types::{
     }
 };
 use base64::Engine;
+use serde::Serialize;
 use tracing::trace;
 
 use crate::OrderBook;
+
+/// Enum describing what kind of ToB order we want to use to set the initial AMM
+/// price for our DeltaMatcher
+#[derive(Debug, Serialize)]
+pub enum DeltaMatcherToB {
+    /// No ToB Order at all, no price movement
+    None,
+    /// Use a fixed shift in format (Quantity, is_bid), mostly for testing
+    FixedShift(Quantity, bool),
+    /// Extract the information from an actual order being fed to the matcher
+    Order(OrderWithStorageData<TopOfBlockOrder>)
+}
+
+impl From<Option<OrderWithStorageData<TopOfBlockOrder>>> for DeltaMatcherToB {
+    fn from(value: Option<OrderWithStorageData<TopOfBlockOrder>>) -> Self {
+        match value {
+            None => Self::None,
+            Some(o) => Self::Order(o)
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct DeltaMatcher<'a> {
@@ -28,28 +50,32 @@ pub struct DeltaMatcher<'a> {
 }
 
 impl<'a> DeltaMatcher<'a> {
-    pub fn new(
-        book: &'a OrderBook,
-        tob: Option<OrderWithStorageData<TopOfBlockOrder>>,
-        fee: u128,
-        solve_for_t0: bool
-    ) -> Self {
+    pub fn new(book: &'a OrderBook, tob: DeltaMatcherToB, fee: u128, solve_for_t0: bool) -> Self {
         // Dump the book
-        let json = serde_json::to_string(&book).unwrap();
+        let json = serde_json::to_string(&(book, &tob)).unwrap();
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw book data");
 
-        let amm_start_price = if let Some(tob) = tob {
-            if let Some(a) = book.amm() {
-                let end = generate_current_price_adjusted_for_donation(&tob, a)
-                    .expect("order structure should be valid here and never fail");
+        let amm_start_price = match tob {
+            // If we have an order, apply that to the AMM start price
+            DeltaMatcherToB::Order(o) => {
+                if let Some(a) = book.amm() {
+                    let end = generate_current_price_adjusted_for_donation(&o, a)
+                        .expect("order structure should be valid here and never fail");
 
-                Some(end)
-            } else {
-                None
+                    Some(end)
+                } else {
+                    None
+                }
             }
-        } else {
-            book.amm().map(|f| f.current_price())
+            // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
+            DeltaMatcherToB::FixedShift(q, is_bid) => book.amm().and_then(|f| {
+                PoolPriceVec::from_swap(f.current_price(), Direction::from_is_bid(is_bid), q)
+                    .ok()
+                    .map(|v| v.end_bound)
+            }),
+            // If we have no order or shift, we just use the AMM start price as-is
+            DeltaMatcherToB::None => book.amm().map(|f| f.current_price())
         };
 
         Self { book, amm_start_price, fee, solve_for_t0 }
@@ -324,12 +350,19 @@ impl<'a> DeltaMatcher<'a> {
                     // we need to flip this
                     let partial_amount = if self.solve_for_t0 {
                         // If we're solving for T0, our extra is T0, so we inverse this to T1
-                        // rounding up
-                        fetch.ucp.inverse_quantity(abs_partial_am, true)
+                        // rounding down?
+                        fetch.ucp.inverse_quantity(abs_partial_am, false)
                     } else {
                         // If we're solving for T1, this is all in T1 so no need to flip
                         abs_partial_am
                     };
+                    trace!(
+                        self.solve_for_t0,
+                        min_amount = bid.min_amount(),
+                        partial_amount,
+                        abs_partial_am,
+                        "Finding bid order partial amount"
+                    );
 
                     OrderFillState::PartialFill(bid.min_amount() + partial_amount)
                 } else if fetch.ucp <= bid.price().inv_ray_round(true) {
@@ -348,8 +381,17 @@ impl<'a> DeltaMatcher<'a> {
                         abs_partial_am
                     } else {
                         // If we're solving for T1, we need to flip our partial amount from T1 to T0
-                        fetch.ucp.inverse_quantity(abs_partial_am, true)
+                        // and round down to minimize output
+                        fetch.ucp.inverse_quantity(abs_partial_am, false)
                     };
+
+                    trace!(
+                        self.solve_for_t0,
+                        min_amount = ask.min_amount(),
+                        partial_amount,
+                        abs_partial_am,
+                        "Finding ask order partial amount"
+                    );
 
                     OrderFillState::PartialFill(ask.min_amount() + partial_amount)
                 } else if fetch.ucp >= ask.price() {

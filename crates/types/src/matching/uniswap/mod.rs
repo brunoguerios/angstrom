@@ -9,10 +9,11 @@ pub use liqrange::{LiqRange, LiqRangeRef};
 pub use poolprice::PoolPrice;
 pub use poolpricevec::PoolPriceVec;
 pub use poolsnapshot::PoolSnapshot;
+use serde::Serialize;
 
 pub type Tick = i32;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum Quantity {
     Token0(u128),
     Token1(u128)
