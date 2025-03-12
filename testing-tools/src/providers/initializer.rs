@@ -150,6 +150,8 @@ impl AnvilInitializer {
         }
         self.pending_state.finalize_pending_txs().await?;
 
+        tracing::warn!("tokens: {tokens:?}");
+
         let (token0, token1) = (tokens[0], tokens[1]);
         let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
 
