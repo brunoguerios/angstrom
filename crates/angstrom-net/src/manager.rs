@@ -2,14 +2,14 @@ use std::{
     future::Future,
     pin::Pin,
     sync::{Arc, atomic::AtomicUsize},
-    task::{Context, Poll}
+    task::{Context, Poll},
 };
 
 use alloy::primitives::{Address, BlockNumber};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
-    primitive::PeerId
+    primitive::PeerId,
 };
 use futures::StreamExt;
 use reth_eth_wire::DisconnectReason;
@@ -26,17 +26,17 @@ use crate::{StromNetworkConfig, StromNetworkHandle, StromSessionManager};
 pub struct StromNetworkManager<DB> {
     handle: StromNetworkHandle,
 
-    from_handle_rx:       UnboundedReceiverStream<StromNetworkHandleMsg>,
-    to_pool_manager:      Option<UnboundedMeteredSender<NetworkOrderEvent>>,
+    from_handle_rx: UnboundedReceiverStream<StromNetworkHandleMsg>,
+    to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
     to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
-    eth_handle:           UnboundedReceiver<EthEvent>,
+    eth_handle: UnboundedReceiver<EthEvent>,
 
-    event_listeners:  Vec<UnboundedSender<StromNetworkEvent>>,
-    swarm:            Swarm<DB>,
+    event_listeners: Vec<UnboundedSender<StromNetworkEvent>>,
+    swarm: Swarm<DB>,
     /// This is updated via internal events and shared via `Arc` with the
     /// [`NetworkHandle`] Updated by the `NetworkWorker` and loaded by the
     /// `NetworkService`.
-    num_active_peers: Arc<AtomicUsize>
+    num_active_peers: Arc<AtomicUsize>,
 }
 
 impl<DB: Unpin> StromNetworkManager<DB> {
@@ -44,7 +44,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
         swarm: Swarm<DB>,
         eth_handle: UnboundedReceiver<EthEvent>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
-        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
+        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
     ) -> Self {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -60,7 +60,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
             from_handle_rx: rx.into(),
             to_pool_manager,
             to_consensus_manager,
-            event_listeners: Vec::new()
+            event_listeners: Vec::new(),
         }
     }
 
@@ -74,7 +74,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
 
     pub fn swap_consensus_manager(
         &mut self,
-        tx: UnboundedMeteredSender<StromConsensusEvent>
+        tx: UnboundedMeteredSender<StromConsensusEvent>,
     ) -> Option<UnboundedMeteredSender<StromConsensusEvent>> {
         let mut other = Some(tx);
         std::mem::swap(&mut self.to_consensus_manager, &mut other);
@@ -91,7 +91,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
 
     pub fn swap_pool_manager(
         &mut self,
-        tx: UnboundedMeteredSender<NetworkOrderEvent>
+        tx: UnboundedMeteredSender<NetworkOrderEvent>,
     ) -> Option<UnboundedMeteredSender<NetworkOrderEvent>> {
         let mut other = Some(tx);
         std::mem::swap(&mut self.to_pool_manager, &mut other);
@@ -216,7 +216,7 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                                 self.to_pool_manager.as_ref().inspect(|tx| {
                                     let _ = tx.send(NetworkOrderEvent::IncomingOrders {
                                         peer_id,
-                                        orders: a
+                                        orders: a,
                                     });
                                 });
                             }
@@ -224,7 +224,7 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                                 self.to_pool_manager.as_ref().inspect(|tx| {
                                     let _ = tx.send(NetworkOrderEvent::CancelOrder {
                                         peer_id,
-                                        request: a
+                                        request: a,
                                     });
                                 });
                             }
@@ -234,7 +234,7 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                     SwarmEvent::Disconnected { peer_id } => {
                         self.notify_listeners(StromNetworkEvent::SessionClosed {
                             peer_id,
-                            reason: None
+                            reason: None,
                         })
                     }
                     SwarmEvent::SessionEstablished { peer_id } => {
@@ -262,25 +262,25 @@ pub enum StromNetworkEvent {
         /// The identifier of the peer to which a session was closed.
         peer_id: PeerId,
         /// Why the disconnect was triggered
-        reason:  Option<DisconnectReason>
+        reason: Option<DisconnectReason>,
     },
     /// Established a new session with the given peer.
     SessionEstablished {
         /// The identifier of the peer to which a session was established.
-        peer_id: PeerId /* #[cfg(feature = "testnet")]
-                         * initial_state: Option<angstrom_types::testnet::InitialTestnetState> */
+        peer_id: PeerId, /* #[cfg(feature = "testnet")]
+                          * initial_state: Option<angstrom_types::testnet::InitialTestnetState> */
     },
     /// Event emitted when a new peer is added
     PeerAdded(PeerId),
     /// Event emitted when a new peer is removed
-    PeerRemoved(PeerId)
+    PeerRemoved(PeerId),
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum StromConsensusEvent {
     PreProposal(Address, PreProposal),
     PreProposalAgg(Address, PreProposalAggregation),
-    Proposal(Address, Proposal)
+    Proposal(Address, Proposal),
 }
 
 impl StromConsensusEvent {
@@ -288,7 +288,7 @@ impl StromConsensusEvent {
         match self {
             StromConsensusEvent::PreProposal(..) => "PreProposal",
             StromConsensusEvent::PreProposalAgg(..) => "PreProposalAggregation",
-            StromConsensusEvent::Proposal(..) => "Proposal"
+            StromConsensusEvent::Proposal(..) => "Proposal",
         }
     }
 
@@ -296,7 +296,7 @@ impl StromConsensusEvent {
         match self {
             StromConsensusEvent::PreProposal(peer_id, _)
             | StromConsensusEvent::Proposal(peer_id, _)
-            | StromConsensusEvent::PreProposalAgg(peer_id, _) => *peer_id
+            | StromConsensusEvent::PreProposalAgg(peer_id, _) => *peer_id,
         }
     }
 
@@ -304,7 +304,7 @@ impl StromConsensusEvent {
         match self {
             StromConsensusEvent::PreProposal(_, pre_proposal) => pre_proposal.source,
             StromConsensusEvent::PreProposalAgg(_, pre_proposal) => pre_proposal.source,
-            StromConsensusEvent::Proposal(_, proposal) => proposal.source
+            StromConsensusEvent::Proposal(_, proposal) => proposal.source,
         }
     }
 
@@ -312,7 +312,7 @@ impl StromConsensusEvent {
         match self {
             StromConsensusEvent::PreProposal(_, PreProposal { block_height, .. }) => *block_height,
             StromConsensusEvent::PreProposalAgg(_, p) => p.block_height,
-            StromConsensusEvent::Proposal(_, Proposal { block_height, .. }) => *block_height
+            StromConsensusEvent::Proposal(_, Proposal { block_height, .. }) => *block_height,
         }
     }
 }
@@ -325,7 +325,7 @@ impl From<StromConsensusEvent> for StromMessage {
             }
             StromConsensusEvent::PreProposalAgg(_, agg) => StromMessage::PreProposeAgg(agg),
 
-            StromConsensusEvent::Proposal(_, proposal) => StromMessage::Propose(proposal)
+            StromConsensusEvent::Proposal(_, proposal) => StromMessage::Propose(proposal),
         }
     }
 }

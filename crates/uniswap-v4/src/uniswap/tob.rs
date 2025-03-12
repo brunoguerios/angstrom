@@ -1,13 +1,13 @@
 use angstrom_types::{
     contract_payloads::tob::ToBOutcome,
     matching::uniswap::PoolSnapshot,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 
 // Basically only tests in here now
 pub fn calculate_reward(
     tob: &OrderWithStorageData<TopOfBlockOrder>,
-    snapshot: &PoolSnapshot
+    snapshot: &PoolSnapshot,
 ) -> eyre::Result<ToBOutcome> {
     ToBOutcome::from_tob_and_snapshot(tob, snapshot)
 }

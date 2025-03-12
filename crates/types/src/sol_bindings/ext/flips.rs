@@ -3,7 +3,7 @@ use pade::PadeEncode;
 
 use super::{
     GenerateFlippedOrder,
-    grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants}
+    grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
 };
 use crate::{
     matching::Ray,
@@ -12,15 +12,15 @@ use crate::{
         RawPoolOrder,
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
-            PartialStandingOrder
-        }
-    }
+            PartialStandingOrder,
+        },
+    },
 };
 
 impl GenerateFlippedOrder for ExactStandingOrder {
     fn flip(&self) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         let new_signer = AngstromSigner::random();
 
@@ -37,8 +37,7 @@ impl GenerateFlippedOrder for ExactStandingOrder {
         let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
-        this.meta =
-            OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
+        this.meta = OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
         this
     }
 }
@@ -46,7 +45,7 @@ impl GenerateFlippedOrder for ExactStandingOrder {
 impl GenerateFlippedOrder for PartialFlashOrder {
     fn flip(&self) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         let new_signer = AngstromSigner::random();
         let price = Ray::from(self.min_price);
@@ -66,8 +65,7 @@ impl GenerateFlippedOrder for PartialFlashOrder {
         let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
-        this.meta =
-            OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
+        this.meta = OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
         this
     }
 }
@@ -75,7 +73,7 @@ impl GenerateFlippedOrder for PartialFlashOrder {
 impl GenerateFlippedOrder for ExactFlashOrder {
     fn flip(&self) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         let new_signer = AngstromSigner::random();
 
@@ -92,8 +90,7 @@ impl GenerateFlippedOrder for ExactFlashOrder {
         let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
-        this.meta =
-            OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
+        this.meta = OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
         this
     }
 }
@@ -101,7 +98,7 @@ impl GenerateFlippedOrder for ExactFlashOrder {
 impl GenerateFlippedOrder for PartialStandingOrder {
     fn flip(&self) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         let new_signer = AngstromSigner::random();
         let price = Ray::from(self.min_price);
@@ -121,8 +118,7 @@ impl GenerateFlippedOrder for PartialStandingOrder {
         let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
-        this.meta =
-            OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
+        this.meta = OrderMeta { isEcdsa: true, from: addr, signature: sig.pade_encode().into() };
         this
     }
 }
@@ -130,11 +126,11 @@ impl GenerateFlippedOrder for PartialStandingOrder {
 impl GenerateFlippedOrder for GroupedVanillaOrder {
     fn flip(&self) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         match self {
             GroupedVanillaOrder::Standing(s) => GroupedVanillaOrder::Standing(s.flip()),
-            GroupedVanillaOrder::KillOrFill(s) => GroupedVanillaOrder::KillOrFill(s.flip())
+            GroupedVanillaOrder::KillOrFill(s) => GroupedVanillaOrder::KillOrFill(s.flip()),
         }
     }
 }
@@ -142,11 +138,11 @@ impl GenerateFlippedOrder for GroupedVanillaOrder {
 impl GenerateFlippedOrder for StandingVariants {
     fn flip(&self) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         match self {
             StandingVariants::Partial(s) => StandingVariants::Partial(s.flip()),
-            StandingVariants::Exact(s) => StandingVariants::Exact(s.flip())
+            StandingVariants::Exact(s) => StandingVariants::Exact(s.flip()),
         }
     }
 }
@@ -154,11 +150,11 @@ impl GenerateFlippedOrder for StandingVariants {
 impl GenerateFlippedOrder for FlashVariants {
     fn flip(&self) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         match self {
             FlashVariants::Partial(s) => FlashVariants::Partial(s.flip()),
-            FlashVariants::Exact(s) => FlashVariants::Exact(s.flip())
+            FlashVariants::Exact(s) => FlashVariants::Exact(s.flip()),
         }
     }
 }

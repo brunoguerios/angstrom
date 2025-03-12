@@ -11,8 +11,8 @@ use super::Asset;
 /// contract transformation purposes
 #[derive(Debug)]
 pub struct AssetArray {
-    assets:     Vec<Asset>,
-    assets_idx: HashMap<Address, usize>
+    assets: Vec<Asset>,
+    assets_idx: HashMap<Address, usize>,
 }
 
 impl Default for AssetArray {

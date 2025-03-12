@@ -5,7 +5,7 @@ use alloy::{
     node_bindings::{Anvil, AnvilInstance},
     providers::{Provider, builder, ext::AnvilApi},
     rpc::types::{Block, anvil::MineOptions},
-    signers::local::PrivateKeySigner
+    signers::local::PrivateKeySigner,
 };
 use alloy_primitives::Bytes;
 use alloy_rpc_types::{BlockTransactionsKind, Header, Transaction};
@@ -17,16 +17,16 @@ use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
 
 #[derive(Debug)]
 pub struct AnvilProvider<P> {
-    provider:      AnvilStateProvider<P>,
-    pub _instance: Option<AnvilInstance>
+    provider: AnvilStateProvider<P>,
+    pub _instance: Option<AnvilInstance>,
 }
 impl<P> AnvilProvider<P>
 where
-    P: WithWalletProvider
+    P: WithWalletProvider,
 {
     pub async fn new<F>(fut: F, testnet: bool, block_sync: GlobalBlockSync) -> eyre::Result<Self>
     where
-        F: Future<Output = eyre::Result<(P, Option<AnvilInstance>)>>
+        F: Future<Output = eyre::Result<(P, Option<AnvilInstance>)>>,
     {
         let (provider, anvil) = fut.await?;
         let this =
@@ -41,8 +41,8 @@ where
 
     pub fn into_state_provider(&mut self) -> AnvilProvider<WalletProvider> {
         AnvilProvider {
-            provider:  self.provider.as_wallet_state_provider(),
-            _instance: self._instance.take()
+            provider: self.provider.as_wallet_state_provider(),
+            _instance: self._instance.take(),
         }
     }
 
@@ -75,7 +75,7 @@ where
                 .rpc_provider()
                 .anvil_dump_state()
                 .await?,
-            block
+            block,
         ))
     }
 
@@ -115,7 +115,7 @@ where
     }
 
     pub async fn subscribe_blocks(
-        &self
+        &self,
     ) -> eyre::Result<impl Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + use<P>> {
         let stream = self.rpc_provider().subscribe_blocks().await?.into_stream();
 
@@ -147,25 +147,25 @@ impl AnvilProvider<WalletProvider> {
         tracing::info!("connected to anvil");
 
         Ok(Self {
-            provider:  AnvilStateProvider::new(
+            provider: AnvilStateProvider::new(
                 WalletProvider::new_with_provider(rpc, sk),
-                block_sync
+                block_sync,
             ),
-            _instance: Some(anvil)
+            _instance: Some(anvil),
         })
     }
 }
 
 struct StreamBlockProvider {
-    provider:      WalletProviderRpc,
+    provider: WalletProviderRpc,
     header_stream: Pin<Box<dyn Stream<Item = Header> + Send>>,
-    futs:          FuturesOrdered<Pin<Box<dyn Future<Output = (u64, Vec<Transaction>)> + Send>>>
+    futs: FuturesOrdered<Pin<Box<dyn Future<Output = (u64, Vec<Transaction>)> + Send>>>,
 }
 
 impl StreamBlockProvider {
     fn new(
         provider: WalletProviderRpc,
-        header_stream: impl Stream<Item = Header> + Send + 'static
+        header_stream: impl Stream<Item = Header> + Send + 'static,
     ) -> Self {
         Self { provider, header_stream: Box::pin(header_stream), futs: FuturesOrdered::new() }
     }
@@ -191,7 +191,7 @@ impl Stream for StreamBlockProvider {
 
     fn poll_next(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         let this = self.get_mut();
 

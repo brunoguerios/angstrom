@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct GasEstimateUpdate {
-    timestamp:        u128,
-    pair:             FixedBytes<32>,
-    estimate_wei:     u64,
+    timestamp: u128,
+    pair: FixedBytes<32>,
+    estimate_wei: u64,
     old_estimate_erc: U256,
-    new_estimate_erc: U256
+    new_estimate_erc: U256,
 }
 
 #[derive(
@@ -19,5 +19,5 @@ pub enum GasEstimateFilter {
     /// will give updates for all pools
     #[default]
     None,
-    Pair(FixedBytes<32>)
+    Pair(FixedBytes<32>),
 }

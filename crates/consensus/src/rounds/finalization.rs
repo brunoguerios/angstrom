@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     pin::Pin,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
 };
 
 use alloy::providers::Provider;
@@ -21,18 +21,18 @@ use super::{ConsensusState, SharedRoundState};
 /// officially close.
 pub struct FinalizationState {
     verification_future: Pin<Box<dyn Future<Output = bool> + Send>>,
-    completed:           bool
+    completed: bool,
 }
 
 impl FinalizationState {
     pub fn new<P, Matching>(
         proposal: Proposal,
         handles: &mut SharedRoundState<P, Matching>,
-        waker: Waker
+        waker: Waker,
     ) -> Self
     where
         P: Provider + 'static,
-        Matching: MatchingEngineHandle
+        Matching: MatchingEngineHandle,
     {
         let preproposal = proposal
             .preproposals()
@@ -78,12 +78,12 @@ impl FinalizationState {
 impl<P, Matching> ConsensusState<P, Matching> for FinalizationState
 where
     P: Provider + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
 {
     fn on_consensus_message(
         &mut self,
         _: &mut SharedRoundState<P, Matching>,
-        _: StromConsensusEvent
+        _: StromConsensusEvent,
     ) {
         // no messages consensus related matter at this point. is just waiting
         // to be reset.
@@ -92,7 +92,7 @@ where
     fn poll_transition(
         &mut self,
         _: &mut SharedRoundState<P, Matching>,
-        cx: &mut Context<'_>
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if self.completed {
             return Poll::Ready(None);

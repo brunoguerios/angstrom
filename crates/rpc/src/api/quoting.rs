@@ -15,6 +15,6 @@ pub trait QuotingApi {
     )]
     async fn subscribe_gas_estimates(
         &self,
-        filters: HashSet<GasEstimateFilter>
+        filters: HashSet<GasEstimateFilter>,
     ) -> jsonrpsee::core::SubscriptionResult;
 }

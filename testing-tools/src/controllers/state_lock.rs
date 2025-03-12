@@ -3,9 +3,9 @@ use std::{
     pin::Pin,
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering}
+        atomic::{AtomicBool, Ordering},
     },
-    task::{Context, Poll}
+    task::{Context, Poll},
 };
 
 use alloy::providers::Provider;
@@ -23,14 +23,14 @@ use tracing::{Level, span};
 
 use crate::{
     providers::{AnvilStateProvider, WalletProvider},
-    validation::TestOrderValidator
+    validation::TestOrderValidator,
 };
 
 pub(crate) struct TestnetStateFutureLock<C, T> {
-    eth_peer:              StateLockInner<Peer<C>>,
+    eth_peer: StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C>>,
-    strom_consensus:       StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>,
-    validation:            StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>
+    strom_consensus: StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>,
+    validation: StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>,
 }
 
 impl<C, T> TestnetStateFutureLock<C, T>
@@ -41,61 +41,61 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + Unpin
         + 'static,
-    T: Provider + 'static
+    T: Provider + 'static,
 {
     pub(crate) fn new(
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C>,
         consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync>,
-        validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>
+        validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>,
     ) -> Self {
         Self {
-            eth_peer:              StateLockInner::new(node_id, eth_peer),
+            eth_peer: StateLockInner::new(node_id, eth_peer),
             strom_network_manager: StateLockInner::new(node_id, strom_network_manager),
-            strom_consensus:       StateLockInner::new(node_id, consensus),
-            validation:            StateLockInner::new(node_id, validation)
+            strom_consensus: StateLockInner::new(node_id, consensus),
+            validation: StateLockInner::new(node_id, validation),
         }
     }
 
     pub(crate) fn strom_network_manager<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&StromNetworkManager<C>) -> R
+        F: FnOnce(&StromNetworkManager<C>) -> R,
     {
         self.strom_network_manager.on_inner(f)
     }
 
     pub(crate) fn strom_network_manager_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut StromNetworkManager<C>) -> R
+        F: FnOnce(&mut StromNetworkManager<C>) -> R,
     {
         self.strom_network_manager.on_inner_mut(f)
     }
 
     pub(crate) fn eth_peer<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&Peer<C>) -> R
+        F: FnOnce(&Peer<C>) -> R,
     {
         self.eth_peer.on_inner(f)
     }
 
     pub(crate) fn eth_peer_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut Peer<C>) -> R
+        F: FnOnce(&mut Peer<C>) -> R,
     {
         self.eth_peer.on_inner_mut(f)
     }
 
     pub(crate) fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R,
     {
         self.strom_consensus.on_inner(f)
     }
 
     pub(crate) fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R,
     {
         self.strom_consensus.on_inner_mut(f)
     }
@@ -130,7 +130,7 @@ where
 
     pub(crate) fn poll_fut_to_initialize_network_connections(
         &mut self,
-        cx: &mut Context<'_>
+        cx: &mut Context<'_>,
     ) -> Poll<()> {
         if self.eth_peer.fut.poll_unpin(cx).map(|_| ()).is_ready()
             || self
@@ -154,7 +154,7 @@ where
         + Unpin
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
-        + 'static
+        + 'static,
 {
     type Output = ();
 
@@ -188,9 +188,9 @@ where
 
 struct StateLockInner<T> {
     node_id: u64,
-    inner:   Arc<Mutex<T>>,
-    lock:    Arc<AtomicBool>,
-    fut:     JoinHandle<()>
+    inner: Arc<Mutex<T>>,
+    lock: Arc<AtomicBool>,
+    fut: JoinHandle<()>,
 }
 
 impl<T: Unpin + Future + Send + 'static> StateLockInner<T> {
@@ -204,14 +204,14 @@ impl<T: Unpin + Future + Send + 'static> StateLockInner<T> {
 
     fn on_inner<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&T) -> R
+        F: FnOnce(&T) -> R,
     {
         f(&self.inner.lock())
     }
 
     fn on_inner_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut T) -> R
+        F: FnOnce(&mut T) -> R,
     {
         f(&mut self.inner.lock())
     }
@@ -225,8 +225,8 @@ impl<T> Drop for StateLockInner<T> {
 
 struct StateLockFut<T> {
     node_id: u64,
-    inner:   Arc<Mutex<T>>,
-    lock:    Arc<AtomicBool>
+    inner: Arc<Mutex<T>>,
+    lock: Arc<AtomicBool>,
 }
 
 impl<T> StateLockFut<T> {
@@ -237,7 +237,7 @@ impl<T> StateLockFut<T> {
 
 impl<T> Future for StateLockFut<T>
 where
-    T: Unpin + Future
+    T: Unpin + Future,
 {
     type Output = ();
 

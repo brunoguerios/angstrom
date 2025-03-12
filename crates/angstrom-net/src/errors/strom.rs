@@ -12,7 +12,7 @@ pub enum StromStreamError {
     MessageTooBig(usize),
     #[error("message id is invalid")]
     /// Flags an unrecognized message ID for a given protocol version.
-    InvalidMessageError
+    InvalidMessageError,
 }
 
 /// Error  that can occur during the `eth` sub-protocol handshake.
@@ -36,7 +36,7 @@ pub enum StromHandshakeError {
     #[error("Invalid signature on stake verification message")]
     /// The signature on the stake verification message is invalid / does not
     /// match the staking address' public key
-    InvalidStakeVerificationSignature
+    InvalidStakeVerificationSignature,
 }
 
 impl From<alloy::rlp::Error> for StromStreamError {

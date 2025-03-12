@@ -8,7 +8,7 @@ use reth_node_types::NodeTypesWithDBAdapter;
 use reth_provider::providers::{BlockchainProvider, ReadOnlyConfig};
 use tracing::Level;
 use tracing_subscriber::{
-    EnvFilter, Layer, Registry, layer::SubscriberExt, util::SubscriberInitExt
+    EnvFilter, Layer, Registry, layer::SubscriberExt, util::SubscriberInitExt,
 };
 
 use crate::agents::AgentConfig;
@@ -35,7 +35,7 @@ pub fn workspace_dir() -> std::path::PathBuf {
 
 pub fn noop_agent<'a>(
     _: &'a InitialTestnetState,
-    _: AgentConfig
+    _: AgentConfig,
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async { eyre::Ok(()) })
 }
@@ -46,7 +46,7 @@ pub fn init_tracing(verbosity: u8) {
         1 => Level::WARN,
         2 => Level::INFO,
         3 => Level::DEBUG,
-        _ => Level::TRACE
+        _ => Level::TRACE,
     };
 
     let layers = vec![

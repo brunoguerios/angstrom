@@ -19,9 +19,9 @@ pub struct StromProtocolHandler {
     /// the manager via the `Established` event.
     to_session_manager: MeteredPollSender<StromSessionMessage>,
     /// details for verifying status messages
-    sidecar:            VerificationSidecar,
+    sidecar: VerificationSidecar,
     // the set of current validators
-    validators:         Arc<RwLock<HashSet<Address>>>
+    validators: Arc<RwLock<HashSet<Address>>>,
 }
 
 impl ProtocolHandler for StromProtocolHandler {
@@ -34,7 +34,7 @@ impl ProtocolHandler for StromProtocolHandler {
             protocol_breach_request_timeout: Duration::from_secs(15),
             session_command_buffer: SESSION_COMMAND_BUFFER,
             socket_addr,
-            validator_set: self.validators.read().clone()
+            validator_set: self.validators.read().clone(),
         })
     }
 
@@ -43,7 +43,7 @@ impl ProtocolHandler for StromProtocolHandler {
     fn on_outgoing(
         &self,
         socket_addr: SocketAddr,
-        _peer_id: PeerId
+        _peer_id: PeerId,
     ) -> Option<Self::ConnectionHandler> {
         Some(StromConnectionHandler {
             to_session_manager: self.to_session_manager.clone(),
@@ -51,7 +51,7 @@ impl ProtocolHandler for StromProtocolHandler {
             session_command_buffer: SESSION_COMMAND_BUFFER,
             socket_addr,
             side_car: self.sidecar.clone(),
-            validator_set: self.validators.read().clone()
+            validator_set: self.validators.read().clone(),
         })
     }
 }
@@ -60,7 +60,7 @@ impl StromProtocolHandler {
     pub fn new(
         to_session_manager: MeteredPollSender<StromSessionMessage>,
         sidecar: VerificationSidecar,
-        validators: Arc<RwLock<HashSet<Address>>>
+        validators: Arc<RwLock<HashSet<Address>>>,
     ) -> Self {
         Self { to_session_manager, validators, sidecar }
     }

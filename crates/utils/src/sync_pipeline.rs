@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, VecDeque},
     marker::PhantomData,
     pin::Pin,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
 };
 
 use futures::{Future, FutureExt, StreamExt, stream::FuturesUnordered};
@@ -12,13 +12,13 @@ type OperationMap<OP, CX> = HashMap<u8, fn(OP, &mut CX) -> PipelineFut<OP>>;
 pub enum PipelineAction<T: PipelineOperation> {
     Next(T),
     Return(T::End),
-    Err
+    Err,
 }
 
 pub trait ThreadPool: Unpin {
     fn spawn<F>(
         &self,
-        item: F
+        item: F,
     ) -> Pin<Box<dyn Future<Output = F::Output> + Send + Sync + Unpin + 'static>>
     where
         F: Future + Send + Sync + 'static + Unpin,
@@ -28,11 +28,11 @@ pub trait ThreadPool: Unpin {
 impl ThreadPool for tokio::runtime::Handle {
     fn spawn<F>(
         &self,
-        item: F
+        item: F,
     ) -> Pin<Box<dyn Future<Output = F::Output> + Send + Sync + Unpin + 'static>>
     where
         F: Future + Send + 'static + Sync + Unpin,
-        F::Output: Send + 'static + Sync + Unpin
+        F::Output: Send + 'static + Sync + Unpin,
     {
         Box::pin(self.spawn(item).map(|res| res.unwrap()))
     }
@@ -48,16 +48,16 @@ pub type PipelineFut<OP> = Pin<Box<dyn Future<Output = PipelineAction<OP>> + Sen
 pub struct PipelineBuilder<OP, CX>
 where
     OP: PipelineOperation,
-    CX: Unpin
+    CX: Unpin,
 {
     operations: OperationMap<OP, CX>,
-    _p:         PhantomData<CX>
+    _p: PhantomData<CX>,
 }
 
 impl<OP, CX> Default for PipelineBuilder<OP, CX>
 where
     OP: PipelineOperation,
-    CX: Unpin + Send + Sync
+    CX: Unpin + Send + Sync,
 {
     fn default() -> Self {
         Self::new()
@@ -67,7 +67,7 @@ where
 impl<OP, CX> PipelineBuilder<OP, CX>
 where
     OP: PipelineOperation,
-    CX: Unpin + Send + Sync
+    CX: Unpin + Send + Sync,
 {
     pub fn new() -> Self {
         Self { operations: HashMap::new(), _p: PhantomData }
@@ -84,7 +84,7 @@ where
             needing_queue: VecDeque::new(),
             operations: self.operations,
             tasks: FuturesUnordered::new(),
-            waker: None
+            waker: None,
         }
     }
 }
@@ -94,14 +94,14 @@ where
 pub struct PipelineWithIntermediary<T, OP, CX>
 where
     OP: PipelineOperation,
-    CX: Unpin + Send + Sync
+    CX: Unpin + Send + Sync,
 {
     threadpool: T,
     operations: OperationMap<OP, CX>,
-    waker:      Option<Waker>,
+    waker: Option<Waker>,
 
     needing_queue: VecDeque<OP>,
-    tasks:         FuturesUnordered<PipelineFut<OP>>
+    tasks: FuturesUnordered<PipelineFut<OP>>,
 }
 
 impl<T, OP, CX> PipelineWithIntermediary<T, OP, CX>
@@ -109,7 +109,7 @@ where
     T: ThreadPool,
     OP: PipelineOperation + Send + Sync,
     CX: Unpin + Send + Sync,
-    <OP as PipelineOperation>::End: Send + Sync
+    <OP as PipelineOperation>::End: Send + Sync,
 {
     pub fn add(&mut self, item: OP) {
         self.needing_queue.push_back(item);
@@ -142,7 +142,7 @@ where
                     self.spawn_task(item, pipeline_cx);
                 }
                 PipelineAction::Return(r) => return Poll::Ready(Some(r)),
-                PipelineAction::Err => return Poll::Ready(None)
+                PipelineAction::Err => return Poll::Ready(None),
             }
         }
 

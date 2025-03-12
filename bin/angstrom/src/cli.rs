@@ -11,26 +11,26 @@ pub struct AngstromConfig {
     #[clap(long)]
     pub secret_key_location: PathBuf,
     #[clap(long)]
-    pub node_config:         PathBuf,
+    pub node_config: PathBuf,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
-    pub metrics_enabled:     bool,
+    pub metrics_enabled: bool,
     /// spawns the prometheus metrics exporter at the specified port
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
-    pub metrics_port:        u16,
+    pub metrics_port: u16,
     #[clap(short, long, default_value = "https://rpc.flashbots.net")]
-    pub mev_boost_endpoints: Vec<Url>
+    pub mev_boost_endpoints: Vec<Url>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct NodeConfig {
-    pub angstrom_address:     Address,
-    pub periphery_address:    Address,
+    pub angstrom_address: Address,
+    pub periphery_address: Address,
     pub pool_manager_address: Address,
-    pub gas_token_address:    Address,
+    pub gas_token_address: Address,
 
-    pub angstrom_deploy_block: u64
+    pub angstrom_deploy_block: u64,
 }
 
 impl NodeConfig {

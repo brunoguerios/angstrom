@@ -1,9 +1,9 @@
 use angstrom_network::{
-    NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkHandleMsg
+    NetworkOrderEvent, StromNetworkEvent, StromNetworkHandle, StromNetworkHandleMsg,
 };
 use angstrom_types::{primitive::PeerId, sol_bindings::grouped_orders::AllOrders};
 use reth_metrics::common::mpsc::{
-    UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel
+    UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel,
 };
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -12,16 +12,16 @@ pub struct MockNetworkHandle {
     /// recieves from the strom network handle
     pub from_handle_rx: UnboundedReceiver<StromNetworkHandleMsg>,
     /// sender for network event
-    pub network_event:  UnboundedSender<StromNetworkEvent>,
+    pub network_event: UnboundedSender<StromNetworkEvent>,
     /// sender for orders
-    pub order_sender:   UnboundedMeteredSender<NetworkOrderEvent>
+    pub order_sender: UnboundedMeteredSender<NetworkOrderEvent>,
 }
 impl MockNetworkHandle {
     pub fn new() -> (
         Self,
         StromNetworkHandle,
         UnboundedReceiverStream<StromNetworkEvent>,
-        UnboundedMeteredReceiver<NetworkOrderEvent>
+        UnboundedMeteredReceiver<NetworkOrderEvent>,
     ) {
         let (network_tx, network_rx) = unbounded_channel();
         let (order_tx, order_rx) = metered_unbounded_channel("orders");
@@ -29,18 +29,14 @@ impl MockNetworkHandle {
 
         let network = StromNetworkHandle::new(
             Default::default(),
-            UnboundedMeteredSender::new(handle_tx, "mock strom handle")
+            UnboundedMeteredSender::new(handle_tx, "mock strom handle"),
         );
 
         (
-            Self {
-                network_event:  network_tx,
-                order_sender:   order_tx,
-                from_handle_rx: handle_rx
-            },
+            Self { network_event: network_tx, order_sender: order_tx, from_handle_rx: handle_rx },
             network,
             network_rx.into(),
-            order_rx
+            order_rx,
         )
     }
 

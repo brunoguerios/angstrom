@@ -4,8 +4,8 @@ use testing_tools::{
     controllers::enviroments::AngstromTestnet,
     types::{
         actions::WithAction, checked_actions::WithCheckedAction, checks::WithCheck,
-        config::DevnetConfig
-    }
+        config::DevnetConfig,
+    },
 };
 use tracing::{debug, info};
 

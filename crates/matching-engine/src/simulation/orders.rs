@@ -4,8 +4,8 @@ use angstrom_types::{
     orders::{OrderId, OrderPriorityData},
     sol_bindings::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::ExactFlashOrder
-    }
+        rpc_orders::ExactFlashOrder,
+    },
 };
 use rand_distr::{Distribution, SkewNormal};
 
@@ -20,7 +20,7 @@ pub fn order_distribution(
     price_shape: f64,
     quantity_location: f64,
     quantity_scale: f64,
-    quantity_shape: f64
+    quantity_shape: f64,
 ) -> Result<Vec<BookOrder>, String> {
     let mut rng = rand::thread_rng();
     let mut rng2 = rand::thread_rng();
@@ -38,33 +38,33 @@ pub fn order_distribution(
                         amount: q.floor() as u128,
                         min_price: Ray::from(p).into(),
                         ..Default::default()
-                    }
-                )
+                    },
+                ),
             );
             OrderWithStorageData {
                 invalidates: vec![],
                 order,
                 priority_data: OrderPriorityData {
-                    price:     U256::from(p as u128),
-                    volume:    q as u128,
-                    gas:       U256::ZERO,
-                    gas_units: 0
+                    price: U256::from(p as u128),
+                    volume: q as u128,
+                    gas: U256::ZERO,
+                    gas_units: 0,
                 },
                 is_bid,
                 is_valid: true,
                 is_currently_valid: true,
                 order_id: OrderId {
-                    flash_block:     None,
+                    flash_block: None,
                     reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),
-                    hash:            Default::default(),
-                    address:         Default::default(),
-                    deadline:        None,
-                    pool_id:         FixedBytes::default(),
-                    location:        angstrom_types::orders::OrderLocation::Limit
+                    hash: Default::default(),
+                    address: Default::default(),
+                    deadline: None,
+                    pool_id: FixedBytes::default(),
+                    location: angstrom_types::orders::OrderLocation::Limit,
                 },
                 pool_id: FixedBytes::default(),
                 valid_block: 0,
-                tob_reward: U256::ZERO
+                tob_reward: U256::ZERO,
             }
         })
         .take(number)

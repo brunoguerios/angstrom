@@ -12,7 +12,7 @@ pub enum OrderFillState {
     /// The order has been partially filled (and how much)
     PartialFill(OrderVolume),
     /// We have dropped this order, it can not or should not be filled.
-    Killed
+    Killed,
 }
 
 impl OrderFillState {
@@ -23,7 +23,7 @@ impl OrderFillState {
     pub fn partial_q(&self) -> Option<OrderVolume> {
         match self {
             Self::PartialFill(v) => Some(*v),
-            _ => None
+            _ => None,
         }
     }
 
@@ -31,7 +31,7 @@ impl OrderFillState {
         match self {
             Self::Unfilled => Self::PartialFill(quantity),
             Self::PartialFill(f) => Self::PartialFill(f + quantity),
-            Self::CompleteFill | Self::Killed => *self
+            Self::CompleteFill | Self::Killed => *self,
         }
     }
 }

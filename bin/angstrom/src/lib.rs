@@ -17,7 +17,7 @@ use reth_node_ethereum::{EthereumNode, node::EthereumAddOns};
 use validation::validator::ValidationClient;
 
 use crate::components::{
-    init_network_builder, initialize_strom_components, initialize_strom_handles
+    init_network_builder, initialize_strom_components, initialize_strom_handles,
 };
 
 pub mod cli;
@@ -53,7 +53,7 @@ pub fn run() -> eyre::Result<()> {
             .with_components(
                 EthereumNode::default()
                     .components_builder()
-                    .network(AngstromNetworkBuilder::new(protocol_handle))
+                    .network(AngstromNetworkBuilder::new(protocol_handle)),
             )
             .with_add_ons::<EthereumAddOns<_>>(Default::default())
             .extend_rpc_modules(move |rpc_context| {
@@ -79,6 +79,6 @@ fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
             let contents = std::fs::read_to_string(sk_path)?;
             Ok(AngstromSigner::new(contents.trim().parse::<PrivateKeySigner>()?))
         }
-        _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
+        _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path)),
     }
 }

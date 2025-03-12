@@ -5,7 +5,7 @@ use alloy::{
     node_bindings::AnvilInstance,
     primitives::Address,
     providers::{Provider, ProviderBuilder, ext::AnvilApi},
-    signers::local::PrivateKeySigner
+    signers::local::PrivateKeySigner,
 };
 use futures::Future;
 use tracing::debug;
@@ -43,7 +43,7 @@ pub trait TestAnvilEnvironment: Clone {
     async fn override_address(
         &self,
         from_addr: &mut Address,
-        to_addr: Address
+        to_addr: Address,
     ) -> eyre::Result<()> {
         let provider = self.provider();
 
@@ -59,9 +59,9 @@ pub trait TestAnvilEnvironment: Clone {
 #[derive(Clone)]
 pub struct SpawnedAnvil {
     #[allow(dead_code)]
-    pub anvil:  Arc<AnvilInstance>,
-    provider:   WalletProviderRpc,
-    controller: Address
+    pub anvil: Arc<AnvilInstance>,
+    provider: WalletProviderRpc,
+    controller: Address,
 }
 
 impl SpawnedAnvil {
@@ -88,14 +88,14 @@ impl TestAnvilEnvironment for SpawnedAnvil {
 
 #[derive(Clone)]
 pub struct LocalAnvil {
-    _url:     String,
-    provider: LocalAnvilRpc
+    _url: String,
+    provider: LocalAnvilRpc,
 }
 
 impl LocalAnvil {
     pub async fn new(url: String) -> eyre::Result<Self> {
         let sk: PrivateKeySigner = PrivateKeySigner::from_str(
-            "4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356"
+            "4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356",
         )
         .unwrap();
         let wallet = EthereumWallet::new(sk);

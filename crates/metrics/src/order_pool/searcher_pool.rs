@@ -8,7 +8,7 @@ struct SearcherOrderPoolMetrics {
     // number of searcher orders
     total_orders: IntGauge,
     // number of orders per pool
-    all_orders:   IntGaugeVec
+    all_orders: IntGaugeVec,
 }
 
 impl Default for SearcherOrderPoolMetrics {
@@ -74,7 +74,7 @@ impl SearcherOrderPoolMetricsWrapper {
                 .get()
                 .copied()
                 .unwrap_or_default()
-                .then(SearcherOrderPoolMetrics::default)
+                .then(SearcherOrderPoolMetrics::default),
         )
     }
 

@@ -13,8 +13,8 @@ use testing_tools::{
     order_generator::{GeneratedPoolOrders, OrderGenerator},
     types::{
         actions::WithAction, checked_actions::WithCheckedAction, checks::WithCheck,
-        config::DevnetConfig
-    }
+        config::DevnetConfig,
+    },
 };
 use tracing::{Instrument, Level, debug, info, span};
 
@@ -38,7 +38,7 @@ pub async fn run_e2e_orders(executor: TaskExecutor, cli: End2EndOrdersCli) -> ey
 
 fn end_to_end_agent<'a>(
     _: &'a InitialTestnetState,
-    agent_config: AgentConfig
+    agent_config: AgentConfig,
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async move {
         tracing::info!("starting e2e agent");
@@ -46,7 +46,7 @@ fn end_to_end_agent<'a>(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
             5..10,
-            0.7..0.9
+            0.7..0.9,
         );
 
         let mut stream =
@@ -55,7 +55,7 @@ fn end_to_end_agent<'a>(
                 .canonical_state_stream()
                 .map(|node| match node {
                     reth_provider::CanonStateNotification::Commit { new }
-                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
+                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number(),
                 });
 
         tokio::spawn(
@@ -90,7 +90,7 @@ fn end_to_end_agent<'a>(
                     }
                 }
             }
-            .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))
+            .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id)),
         );
 
         Ok(())

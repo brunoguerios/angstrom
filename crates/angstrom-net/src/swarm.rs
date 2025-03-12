@@ -1,6 +1,6 @@
 use std::{
     pin::Pin,
-    task::{Context, Poll}
+    task::{Context, Poll},
 };
 
 use angstrom_types::primitive::PeerId;
@@ -10,7 +10,7 @@ use crate::{
     SessionEvent,
     session::StromSessionManager,
     state::{StateEvent, StromState},
-    types::message::StromMessage
+    types::message::StromMessage,
 };
 
 #[derive(Debug)]
@@ -18,7 +18,7 @@ use crate::{
 pub struct Swarm<DB> {
     /// All sessions.
     sessions: StromSessionManager,
-    state:    StromState<DB>
+    state: StromState<DB>,
 }
 
 impl<DB: Unpin> Swarm<DB> {
@@ -63,7 +63,7 @@ impl<DB: Unpin> Swarm<DB> {
             SessionEvent::SessionEstablished { peer_id, .. } => {
                 Some(SwarmEvent::SessionEstablished { peer_id })
             }
-            _ => None
+            _ => None,
         }
     }
 
@@ -96,5 +96,5 @@ impl<DB: Unpin> Stream for Swarm<DB> {
 pub enum SwarmEvent {
     SessionEstablished { peer_id: PeerId },
     ValidMessage { peer_id: PeerId, msg: StromMessage },
-    Disconnected { peer_id: PeerId }
+    Disconnected { peer_id: PeerId },
 }

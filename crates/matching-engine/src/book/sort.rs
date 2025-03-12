@@ -5,7 +5,7 @@ use super::BookOrder;
 
 pub enum SortStrategy {
     Unsorted,
-    ByPriceByVolume
+    ByPriceByVolume,
 }
 
 impl Default for SortStrategy {

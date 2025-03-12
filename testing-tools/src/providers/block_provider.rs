@@ -3,7 +3,7 @@ use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 
 pub struct TestnetBlockProvider {
-    tx: broadcast::Sender<(u64, Vec<Transaction>)>
+    tx: broadcast::Sender<(u64, Vec<Transaction>)>,
 }
 
 impl Default for TestnetBlockProvider {

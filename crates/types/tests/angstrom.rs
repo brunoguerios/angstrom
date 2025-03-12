@@ -5,7 +5,7 @@ mod solutionlib;
 use angstrom_types::{
     contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder},
     matching::uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity},
-    orders::PoolSolution
+    orders::PoolSolution,
 };
 use base64::Engine;
 use solutionlib::DIVIDE_BY_ZERO;
@@ -33,7 +33,7 @@ fn build_bundle() {
             _,
             _,
             _,
-            _
+            _,
         ) = serde_json::from_slice(&bytes).unwrap();
 
         let vec_one = (snapshot.current_price() + Quantity::Token0(663457929968124)).unwrap();
@@ -81,7 +81,7 @@ fn build_bundle() {
             t0,
             t1,
             store_index,
-            shared_gas
+            shared_gas,
         )
         .expect("Bundle processing failed");
 
@@ -90,7 +90,7 @@ fn build_bundle() {
             pairs,
             pool_updates,
             top_of_block_orders,
-            user_orders
+            user_orders,
         );
         let (direction, quantity) = if bundle.pool_updates[0].zero_for_one {
             (Direction::SellingT0, Quantity::Token0(bundle.pool_updates[0].swap_in_quantity))

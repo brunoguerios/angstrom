@@ -5,7 +5,7 @@ use alloy::rlp::{Buf, BufMut, Decodable, Encodable};
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
     orders::CancelOrderRequest,
-    sol_bindings::grouped_orders::AllOrders
+    sol_bindings::grouped_orders::AllOrders,
 };
 use reth_eth_wire::{Capability, protocol::Protocol};
 use reth_network_p2p::error::RequestError;
@@ -26,14 +26,14 @@ const STROM_PROTOCOL: Protocol = Protocol::new(STROM_CAPABILITY, 5);
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StromMessageID {
-    Status            = 0,
+    Status = 0,
     /// Consensus
-    PrePropose        = 1,
-    PreProposeAgg     = 2,
-    Propose           = 3,
+    PrePropose = 1,
+    PreProposeAgg = 2,
+    Propose = 3,
     /// Propagation messages that broadcast new orders to all peers
     PropagatePooledOrders = 4,
-    OrderCancellation = 5
+    OrderCancellation = 5,
 }
 
 impl Encodable for StromMessageID {
@@ -56,7 +56,7 @@ impl Decodable for StromMessageID {
             3 => StromMessageID::PrePropose,
             4 => StromMessageID::PropagatePooledOrders,
             5 => StromMessageID::OrderCancellation,
-            _ => return Err(alloy::rlp::Error::Custom("Invalid message ID"))
+            _ => return Err(alloy::rlp::Error::Custom("Invalid message ID")),
         };
         buf.advance(1);
         Ok(id)
@@ -67,7 +67,7 @@ impl Decodable for StromMessageID {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StromProtocolMessage {
     pub message_id: StromMessageID,
-    pub message:    StromMessage
+    pub message: StromMessage,
 }
 
 impl StromProtocolMessage {
@@ -99,7 +99,7 @@ impl StromProtocolMessage {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProtocolBroadcastMessage {
     pub message_id: StromMessageID,
-    pub message:    StromBroadcastMessage
+    pub message: StromBroadcastMessage,
 }
 
 impl From<StromBroadcastMessage> for ProtocolBroadcastMessage {
@@ -121,7 +121,7 @@ pub enum StromMessage {
 
     // Propagation messages that broadcast new orders to all peers
     PropagatePooledOrders(Vec<AllOrders>),
-    OrderCancellation(CancelOrderRequest)
+    OrderCancellation(CancelOrderRequest),
 }
 impl StromMessage {
     /// Returns the message's ID.
@@ -132,7 +132,7 @@ impl StromMessage {
             StromMessage::PreProposeAgg(_) => StromMessageID::PreProposeAgg,
             StromMessage::Propose(_) => StromMessageID::Propose,
             StromMessage::PropagatePooledOrders(_) => StromMessageID::PropagatePooledOrders,
-            StromMessage::OrderCancellation(_) => StromMessageID::OrderCancellation
+            StromMessage::OrderCancellation(_) => StromMessageID::OrderCancellation,
         }
     }
 }
@@ -153,7 +153,7 @@ pub enum StromBroadcastMessage {
     PreProposeAgg(Arc<PreProposalAggregation>),
     // Order Broadcast
     PropagatePooledOrders(Arc<Vec<AllOrders>>),
-    OrderCancellation(Arc<CancelOrderRequest>)
+    OrderCancellation(Arc<CancelOrderRequest>),
 }
 
 impl StromBroadcastMessage {
@@ -166,7 +166,7 @@ impl StromBroadcastMessage {
             StromBroadcastMessage::PropagatePooledOrders(_) => {
                 StromMessageID::PropagatePooledOrders
             }
-            StromBroadcastMessage::OrderCancellation(_) => StromMessageID::OrderCancellation
+            StromBroadcastMessage::OrderCancellation(_) => StromMessageID::OrderCancellation,
         }
     }
 }

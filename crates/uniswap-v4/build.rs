@@ -12,7 +12,7 @@ const WANTED_CONTRACTS: [&str; 4] = [
     "GetUniswapV3PoolData.sol",
     "GetUniswapV3TickData.sol",
     "GetUniswapV4PoolData.sol",
-    "GetUniswapV4TickData.sol"
+    "GetUniswapV4TickData.sol",
 ];
 
 // builds the contracts crate. then goes and generates bindings on this

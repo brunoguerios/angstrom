@@ -1,12 +1,12 @@
 use std::{
     fmt::{Debug, Display},
-    time::{SystemTime, UNIX_EPOCH}
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use alloy::{
     primitives::{FixedBytes, keccak256},
     rlp::{BufMut, BytesMut},
-    signers::Signature
+    signers::Signature,
 };
 use angstrom_types::primitive::{AngstromSigner, PeerId};
 use serde::{Deserialize, Serialize};
@@ -19,9 +19,9 @@ use crate::StatusBuilder;
 /// staker with sufficient balance to be a validator.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {
-    pub state:     StatusState,
+    pub state: StatusState,
     /// the signature over all state fields concatenated
-    pub signature: Signature
+    pub signature: Signature,
 }
 
 impl Status {
@@ -71,12 +71,12 @@ pub struct StatusState {
     /// The chain id, as introduced in
     /// [EIP155](https://eips.ethereum.org/EIPS/eip-155#list-of-chain-ids).
     /// PROBLEM BINCODE
-    pub chain:     u64,
+    pub chain: u64,
     /// The peer that a node is trying to establish a connection with
-    pub peer:      PeerId,
+    pub peer: PeerId,
     /// The current timestamp. Used to make sure that the status message will
     /// expire
-    pub timestamp: u128
+    pub timestamp: u128,
 }
 
 impl StatusState {

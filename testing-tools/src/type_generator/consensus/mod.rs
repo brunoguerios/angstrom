@@ -10,7 +10,7 @@ use super::orders::UserOrderBuilder;
 pub fn generate_limit_order_set(
     count: usize,
     is_bid: bool,
-    block: u64
+    block: u64,
 ) -> Vec<OrderWithStorageData<GroupedVanillaOrder>> {
     (0..count)
         .map(|_| {

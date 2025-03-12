@@ -2,7 +2,7 @@ use alloy::primitives::Uint;
 use angstrom_types::{
     matching::Ray,
     primitive::{AngstromSigner, PoolId},
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
 };
 use eyre::eyre;
 use rand_distr::{Distribution, SkewNormal, num_traits::ToPrimitive};
@@ -11,13 +11,13 @@ use super::{DistributionParameters, UserOrderBuilder};
 
 #[derive(Default)]
 pub struct OrderDistributionBuilder {
-    is_bid:       bool,
-    order_count:  Option<usize>,
-    priceparams:  Option<DistributionParameters>,
+    is_bid: bool,
+    order_count: Option<usize>,
+    priceparams: Option<DistributionParameters>,
     volumeparams: Option<DistributionParameters>,
-    pool_id:      Option<PoolId>,
-    valid_block:  Option<u64>,
-    signing_key:  Option<AngstromSigner>
+    pool_id: Option<PoolId>,
+    valid_block: Option<u64>,
+    signing_key: Option<AngstromSigner>,
 }
 
 impl OrderDistributionBuilder {
@@ -68,7 +68,7 @@ impl OrderDistributionBuilder {
         let DistributionParameters {
             location: price_location,
             scale: price_scale,
-            shape: price_shape
+            shape: price_shape,
         } = self.priceparams.unwrap_or_default();
         let DistributionParameters { location: v_location, scale: v_scale, shape: v_shape } =
             self.volumeparams.unwrap_or_default();

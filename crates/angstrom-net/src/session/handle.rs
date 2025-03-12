@@ -11,10 +11,10 @@ pub enum SessionCommand {
     /// Disconnect the connection
     Disconnect {
         /// The direction of the session, either `Inbound` or `Outgoing`
-        reason: Option<DisconnectReason>
+        reason: Option<DisconnectReason>,
     },
     /// Sends a message to the peer
-    Message(StromMessage)
+    Message(StromMessage),
 }
 
 /// An established session with a remote peer.
@@ -22,14 +22,14 @@ pub enum SessionCommand {
 #[allow(dead_code)]
 pub struct StromSessionHandle {
     /// The direction of the session
-    pub(crate) direction:           Direction,
+    pub(crate) direction: Direction,
     /// The identifier of the remote peer
-    pub(crate) remote_id:           PeerId,
+    pub(crate) remote_id: PeerId,
     /// The timestamp when the session has been established.
-    pub(crate) established:         Instant,
+    pub(crate) established: Instant,
     /// Sender half of the command channel used send commands _to_ the spawned
     /// session
-    pub(crate) commands_to_session: mpsc::Sender<SessionCommand>
+    pub(crate) commands_to_session: mpsc::Sender<SessionCommand>,
 }
 
 impl StromSessionHandle {

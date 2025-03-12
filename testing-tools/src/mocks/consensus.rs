@@ -6,15 +6,15 @@ use angstrom_types::consensus::{PreProposal, Proposal};
 use tokio::{
     sync::{
         Mutex,
-        mpsc::{UnboundedSender, unbounded_channel}
+        mpsc::{UnboundedSender, unbounded_channel},
     },
-    time::Interval
+    time::Interval,
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 pub struct MockConsensusEventHandle {
-    tx:       UnboundedSender<StromConsensusEvent>,
-    interval: Mutex<Interval>
+    tx: UnboundedSender<StromConsensusEvent>,
+    interval: Mutex<Interval>,
 }
 
 impl MockConsensusEventHandle {

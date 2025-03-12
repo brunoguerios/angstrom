@@ -1,13 +1,13 @@
 use std::sync::{Arc, atomic::AtomicUsize};
 
 use angstrom_types::{
-    orders::CancelOrderRequest, primitive::PeerId, sol_bindings::grouped_orders::AllOrders
+    orders::CancelOrderRequest, primitive::PeerId, sol_bindings::grouped_orders::AllOrders,
 };
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use reth_network::DisconnectReason;
 use tokio::sync::{
     mpsc::{UnboundedSender, unbounded_channel},
-    oneshot
+    oneshot,
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -20,13 +20,13 @@ use crate::{ReputationChangeKind, StromMessage, StromNetworkEvent};
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct StromNetworkHandle {
-    inner: Arc<StromNetworkInner>
+    inner: Arc<StromNetworkInner>,
 }
 
 impl StromNetworkHandle {
     pub fn new(
         num_active_peers: Arc<AtomicUsize>,
-        to_manager_tx: UnboundedMeteredSender<StromNetworkHandleMsg>
+        to_manager_tx: UnboundedMeteredSender<StromNetworkHandleMsg>,
     ) -> Self {
         Self { inner: Arc::new(StromNetworkInner { num_active_peers, to_manager_tx }) }
     }
@@ -85,14 +85,14 @@ impl StromNetworkHandle {
 struct StromNetworkInner {
     num_active_peers: Arc<AtomicUsize>,
 
-    to_manager_tx: UnboundedMeteredSender<StromNetworkHandleMsg>
+    to_manager_tx: UnboundedMeteredSender<StromNetworkHandleMsg>,
 }
 
 /// All events related to orders emitted by the network.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NetworkOrderEvent {
     IncomingOrders { peer_id: PeerId, orders: Vec<AllOrders> },
-    CancelOrder { peer_id: PeerId, request: CancelOrderRequest }
+    CancelOrder { peer_id: PeerId, request: CancelOrderRequest },
 }
 
 #[derive(Debug)]
@@ -106,16 +106,16 @@ pub enum StromNetworkHandleMsg {
     /// Sends the strom message to a single peer.
     SendStromMessage {
         peer_id: PeerId,
-        msg:     StromMessage
+        msg: StromMessage,
     },
 
     /// Broadcasts the storm message to all peers
     BroadcastStromMessage {
-        msg: StromMessage
+        msg: StromMessage,
     },
 
     /// Apply a reputation change to the given peer.
     ReputationChange(PeerId, ReputationChangeKind),
     /// Gracefully shutdown network
-    Shutdown(oneshot::Sender<()>)
+    Shutdown(oneshot::Sender<()>),
 }

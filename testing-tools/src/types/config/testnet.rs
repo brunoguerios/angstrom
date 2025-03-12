@@ -3,14 +3,14 @@ use crate::types::{GlobalTestingConfig, initial_state::InitialStateConfig};
 
 #[derive(Debug, Clone)]
 pub struct TestnetConfig {
-    pub node_count:           u64,
+    pub node_count: u64,
     /// only the leader can have this
-    pub eth_ws_url:           String,
-    pub mev_guard:            bool,
-    pub leader_eth_rpc_port:  u16,
+    pub eth_ws_url: String,
+    pub mev_guard: bool,
+    pub leader_eth_rpc_port: u16,
     pub initial_state_config: InitialStateConfig,
-    seed:                     u16,
-    angstrom_base_rpc_port:   u16
+    seed: u16,
+    angstrom_base_rpc_port: u16,
 }
 
 impl TestnetConfig {
@@ -20,7 +20,7 @@ impl TestnetConfig {
         mev_guard: bool,
         leader_eth_rpc_port: Option<u16>,
         angstrom_base_rpc_port: Option<u16>,
-        initial_state_config: InitialStateConfig
+        initial_state_config: InitialStateConfig,
     ) -> Self {
         Self {
             node_count,
@@ -29,7 +29,7 @@ impl TestnetConfig {
             seed: rand::random(),
             leader_eth_rpc_port: leader_eth_rpc_port.unwrap_or_else(rand::random),
             angstrom_base_rpc_port: angstrom_base_rpc_port.unwrap_or_else(rand::random),
-            initial_state_config
+            initial_state_config,
         }
     }
 }

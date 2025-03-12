@@ -3,9 +3,9 @@ use alloy::{
     primitives::{
         Address,
         aliases::{I24, U24},
-        keccak256
+        keccak256,
     },
-    providers::{Provider, ext::AnvilApi}
+    providers::{Provider, ext::AnvilApi},
 };
 use alloy_primitives::{FixedBytes, U256};
 use alloy_sol_types::SolValue;
@@ -13,10 +13,10 @@ use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::{AngstromInstance, PoolKey},
         controller_v_1::ControllerV1::ControllerV1Instance,
-        pool_gate::PoolGate::PoolGateInstance
+        pool_gate::PoolGate::PoolGateInstance,
     },
     matching::SqrtPriceX96,
-    testnet::InitialTestnetState
+    testnet::InitialTestnetState,
 };
 use rand::{Rng, thread_rng};
 
@@ -27,30 +27,30 @@ use crate::{
         environment::{
             TestAnvilEnvironment,
             angstrom::AngstromEnv,
-            uniswap::{TestUniswapEnv, UniswapEnv}
-        }
+            uniswap::{TestUniswapEnv, UniswapEnv},
+        },
     },
     types::{
         GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
-        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools}
-    }
+        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools},
+    },
 };
 
 pub struct AnvilInitializer {
-    provider:             WalletProvider,
-    angstrom_env:         AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1:        ControllerV1Instance<(), WalletProviderRpc>,
-    angstrom:             AngstromInstance<(), WalletProviderRpc>,
-    pool_gate:            PoolGateInstance<(), WalletProviderRpc>,
-    pending_state:        PendingDeployedPools,
-    initial_state_config: InitialStateConfig
+    provider: WalletProvider,
+    angstrom_env: AngstromEnv<UniswapEnv<WalletProvider>>,
+    controller_v1: ControllerV1Instance<(), WalletProviderRpc>,
+    angstrom: AngstromInstance<(), WalletProviderRpc>,
+    pool_gate: PoolGateInstance<(), WalletProviderRpc>,
+    pending_state: PendingDeployedPools,
+    initial_state_config: InitialStateConfig,
 }
 
 impl AnvilInitializer {
     pub async fn new<G: GlobalTestingConfig>(
         config: TestingNodeConfig<G>,
-        nodes: Vec<Address>
+        nodes: Vec<Address>,
     ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
         let (provider, anvil) = config.spawn_anvil_rpc().await?;
 
@@ -71,7 +71,7 @@ impl AnvilInitializer {
 
         let controller_v1 = ControllerV1Instance::new(
             angstrom_env.controller_v1(),
-            angstrom_env.provider().clone()
+            angstrom_env.provider().clone(),
         );
 
         let pending_state = PendingDeployedPools::new();
@@ -83,7 +83,7 @@ impl AnvilInitializer {
             angstrom,
             pending_state,
             pool_gate,
-            initial_state_config: config.global_config.initial_state_config()
+            initial_state_config: config.global_config.initial_state_config(),
         };
 
         Ok((this, anvil))
@@ -92,7 +92,7 @@ impl AnvilInitializer {
     /// deploys multiple pools (pool key, liquidity, sqrt price)
     pub async fn deploy_pool_fulls(
         &mut self,
-        pool_keys: Vec<PartialConfigPoolKey>
+        pool_keys: Vec<PartialConfigPoolKey>,
     ) -> eyre::Result<()> {
         for (i, key) in pool_keys.into_iter().enumerate() {
             let (cur0, cur1) = self.deploy_currencies(&key).await?;
@@ -100,7 +100,7 @@ impl AnvilInitializer {
                 key.make_pool_key(*self.angstrom.address(), cur0, cur1),
                 key.initial_liquidity(),
                 key.sqrt_price(),
-                U256::from(i)
+                U256::from(i),
             )
             .await?
         }
@@ -115,7 +115,7 @@ impl AnvilInitializer {
                 .deploy_token(
                     &self.provider,
                     nonce,
-                    Some(&self.initial_state_config.addresses_with_tokens)
+                    Some(&self.initial_state_config.addresses_with_tokens),
                 )
                 .await?;
             tokens.push(token);
@@ -131,7 +131,7 @@ impl AnvilInitializer {
 
     pub async fn deploy_currencies(
         &mut self,
-        c: &PartialConfigPoolKey
+        c: &PartialConfigPoolKey,
     ) -> eyre::Result<(Address, Address)> {
         let mut nonce = self
             .provider
@@ -146,7 +146,7 @@ impl AnvilInitializer {
             currency1,
             fee: U24::from(c.fee),
             tickSpacing: I24::unchecked_from(c.tick_spacing),
-            hooks: *self.angstrom.address()
+            hooks: *self.angstrom.address(),
         };
         self.pending_state.add_pool_key(pool_key.clone());
 
@@ -168,7 +168,7 @@ impl AnvilInitializer {
             currency1,
             fee: U24::ZERO,
             tickSpacing: I24::unchecked_from(60),
-            hooks: *self.angstrom.address()
+            hooks: *self.angstrom.address(),
         };
         self.pending_state.add_pool_key(pool_key.clone());
 
@@ -187,7 +187,7 @@ impl AnvilInitializer {
         pool_key: PoolKey,
         liquidity: u128,
         price: SqrtPriceX96,
-        store_index: U256
+        store_index: U256,
     ) -> eyre::Result<()> {
         tracing::info!(?pool_key, ?liquidity, ?price, ?store_index);
         let nonce = self
@@ -208,7 +208,7 @@ impl AnvilInitializer {
                 pool_key.currency1,
                 pool_key.tickSpacing.as_i32() as u16,
                 pool_key.fee,
-                pool_key.fee
+                pool_key.fee,
             )
             .from(self.provider.controller())
             .nonce(nonce)
@@ -255,7 +255,7 @@ impl AnvilInitializer {
                     lower,
                     upper,
                     liquidity,
-                    FixedBytes::<32>::default()
+                    FixedBytes::<32>::default(),
                 )
                 .from(self.provider.controller())
                 .nonce(nonce + 3 + (i as u64))
@@ -276,7 +276,7 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             Some(state_bytes),
-            pool_keys.clone()
+            pool_keys.clone(),
         );
 
         tracing::info!("initalized angstrom pool state");
@@ -304,7 +304,7 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             None,
-            pool_keys.clone()
+            pool_keys.clone(),
         );
         for key in pool_keys {
             let out = self
@@ -343,9 +343,9 @@ mod tests {
         controllers::enviroments::AngstromTestnet,
         types::{
             config::TestnetConfig,
-            initial_state::{Erc20ToDeploy, InitialStateConfig}
+            initial_state::{Erc20ToDeploy, InitialStateConfig},
         },
-        utils::{init_tracing, noop_agent}
+        utils::{init_tracing, noop_agent},
     };
 
     #[tokio::test(flavor = "multi_thread")]
@@ -354,17 +354,17 @@ mod tests {
 
         let my_address = address!("796fB50EAe1456A523F869f6135dd557eeaEE226");
         let initial_state_config = InitialStateConfig {
-            pool_keys:             vec![PartialConfigPoolKey {
-                fee:               0,
-                tick_spacing:      60,
+            pool_keys: vec![PartialConfigPoolKey {
+                fee: 0,
+                tick_spacing: 60,
                 initial_liquidity: 34028236692,
-                sqrt_price:        SqrtPriceX96::at_tick(100020).unwrap()
+                sqrt_price: SqrtPriceX96::at_tick(100020).unwrap(),
             }],
             addresses_with_tokens: vec![my_address],
-            tokens_to_deploy:      vec![
+            tokens_to_deploy: vec![
                 Erc20ToDeploy::new("Wrapped Bitcoin", "WBTC", None),
                 Erc20ToDeploy::new("Wrapped Ethereum", "WETH", None),
-            ]
+            ],
         };
         let config = TestnetConfig::new(
             3,
@@ -372,7 +372,7 @@ mod tests {
             false,
             Some(9445),
             Some(2624),
-            initial_state_config
+            initial_state_config,
         );
         let testnet =
             AngstromTestnet::spawn_testnet(NoopProvider::default(), config, vec![noop_agent])
@@ -383,14 +383,14 @@ mod tests {
 
         let erc20_instance0 = MockERC20Instance::new(
             address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
-            provider.rpc_provider()
+            provider.rpc_provider(),
         );
         let _my_balance = erc20_instance0.balanceOf(my_address).call().await.unwrap();
         // assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));
 
         let erc20_instance1 = MockERC20Instance::new(
             address!("2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
-            provider.rpc_provider()
+            provider.rpc_provider(),
         );
         let _my_balance = erc20_instance1.balanceOf(my_address).call().await.unwrap();
         // assert_eq!(my_balance.result, U256::from(HACKED_TOKEN_BALANCE));

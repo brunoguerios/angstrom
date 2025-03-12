@@ -8,15 +8,15 @@ pub enum AssetBuilderStage {
     Swap,
     Reward,
     TopOfBlock,
-    UserOrder
+    UserOrder,
 }
 
 pub struct AssetBuilder {
-    swaps:        StageTracker,
-    rewards:      StageTracker,
+    swaps: StageTracker,
+    rewards: StageTracker,
     top_of_block: StageTracker,
-    user_orders:  StageTracker,
-    assets:       AssetArray
+    user_orders: StageTracker,
+    assets: AssetArray,
 }
 
 impl AssetBuilder {
@@ -29,7 +29,7 @@ impl AssetBuilder {
             AssetBuilderStage::Swap => &mut self.swaps,
             AssetBuilderStage::Reward => &mut self.rewards,
             AssetBuilderStage::TopOfBlock => &mut self.top_of_block,
-            AssetBuilderStage::UserOrder => &mut self.user_orders
+            AssetBuilderStage::UserOrder => &mut self.user_orders,
         }
     }
 
@@ -40,7 +40,7 @@ impl AssetBuilder {
         asset_in: usize,
         asset_out: usize,
         quantity_in: u128,
-        quantity_out: u128
+        quantity_out: u128,
     ) {
         let asset_in_addr = self.assets.get_asset_addr(asset_in);
         let asset_out_addr = self.assets.get_asset_addr(asset_out);
@@ -49,7 +49,7 @@ impl AssetBuilder {
             asset_in_addr,
             asset_out_addr,
             quantity_in,
-            quantity_out
+            quantity_out,
         );
     }
 
@@ -61,7 +61,7 @@ impl AssetBuilder {
         asset_in: Address,
         asset_out: Address,
         quantity_in: u128,
-        quantity_out: u128
+        quantity_out: u128,
     ) {
         self.get_stage(stage)
             .uniswap_swap(asset_in, asset_out, quantity_in, quantity_out);
@@ -74,7 +74,7 @@ impl AssetBuilder {
         asset_in: Address,
         asset_out: Address,
         quantity_in: u128,
-        quantity_out: u128
+        quantity_out: u128,
     ) {
         self.get_stage(stage)
             .external_swap(asset_in, asset_out, quantity_in, quantity_out);
@@ -122,11 +122,11 @@ impl AssetBuilder {
 impl Default for AssetBuilder {
     fn default() -> Self {
         Self {
-            swaps:        StageTracker::new(),
-            rewards:      StageTracker::new(),
+            swaps: StageTracker::new(),
+            rewards: StageTracker::new(),
             top_of_block: StageTracker::new(),
-            user_orders:  StageTracker::new(),
-            assets:       AssetArray::new()
+            user_orders: StageTracker::new(),
+            assets: AssetArray::new(),
         }
     }
 }

@@ -10,27 +10,23 @@ const ONE_E3: u64 = 1000;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AngstromValidator {
-    pub peer_id:  Address,
+    pub peer_id: Address,
     voting_power: u64,
-    priority:     i64
+    priority: i64,
 }
 
 impl AngstromValidator {
     pub fn new(name: Address, voting_power: u64) -> Self {
-        AngstromValidator {
-            peer_id:      name,
-            voting_power: voting_power * ONE_E3,
-            priority:     0
-        }
+        AngstromValidator { peer_id: name, voting_power: voting_power * ONE_E3, priority: 0 }
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WeightedRoundRobin {
-    validators:                HashSet<AngstromValidator>,
+    validators: HashSet<AngstromValidator>,
     new_joiner_penalty_factor: u64,
-    block_number:              BlockNumber,
-    last_proposer:             Option<Address>
+    block_number: BlockNumber,
+    last_proposer: Option<Address>,
 }
 
 impl WeightedRoundRobin {
@@ -39,7 +35,7 @@ impl WeightedRoundRobin {
             validators: HashSet::from_iter(validators),
             new_joiner_penalty_factor: PENALTY_FACTOR,
             block_number,
-            last_proposer: None
+            last_proposer: None,
         }
     }
 
@@ -206,7 +202,7 @@ mod tests {
     fn test_validator_hash() {
         use std::{
             collections::hash_map::DefaultHasher,
-            hash::{Hash, Hasher}
+            hash::{Hash, Hasher},
         };
 
         let peer_id = Address::random();
@@ -251,14 +247,11 @@ mod tests {
         let peer1 = Address::random();
         let peer2 = Address::random();
 
-        let v1 =
-            AngstromValidator { peer_id: peer1, voting_power: 100 * ONE_E3, priority: 10 };
+        let v1 = AngstromValidator { peer_id: peer1, voting_power: 100 * ONE_E3, priority: 10 };
 
-        let v2 =
-            AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 10 };
+        let v2 = AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 10 };
 
-        let v3 =
-            AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 20 };
+        let v3 = AngstromValidator { peer_id: peer2, voting_power: 100 * ONE_E3, priority: 20 };
 
         // Test equal priorities
         assert_eq!(
@@ -304,7 +297,7 @@ mod tests {
         let peers = HashMap::from([
             ("Alice".to_string(), Address::random()),
             ("Bob".to_string(), Address::random()),
-            ("Charlie".to_string(), Address::random())
+            ("Charlie".to_string(), Address::random()),
         ]);
         let validators = vec![
             AngstromValidator::new(peers["Alice"], 100),
@@ -448,7 +441,7 @@ mod tests {
         let peers = HashMap::from([
             ("Alice".to_string(), Address::random()),
             ("Bob".to_string(), Address::random()),
-            ("Charlie".to_string(), Address::random())
+            ("Charlie".to_string(), Address::random()),
         ]);
         let validators = vec![
             AngstromValidator::new(peers["Alice"], 100),
@@ -459,7 +452,7 @@ mod tests {
 
         fn simulate_rounds(
             algo: &mut WeightedRoundRobin,
-            rounds: usize
+            rounds: usize,
         ) -> HashMap<Address, usize> {
             let mut stats = HashMap::new();
             for i in 1..=rounds {

@@ -3,7 +3,7 @@ use std::{
     default::Default,
     fmt::Debug,
     sync::{Arc, Mutex},
-    time::Instant
+    time::Instant,
 };
 
 use alloy::primitives::{B256, BlockNumber, FixedBytes};
@@ -13,27 +13,27 @@ use angstrom_types::{
     primitive::{NewInitializedPool, PoolId},
     sol_bindings::{
         grouped_orders::{AllOrders, GroupedUserOrder, GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder
-    }
+        rpc_orders::TopOfBlockOrder,
+    },
 };
 
 use crate::{
     PoolConfig,
     finalization_pool::FinalizationPool,
     limit::{LimitOrderPool, LimitPoolError},
-    searcher::{SearcherPool, SearcherPoolError}
+    searcher::{SearcherPool, SearcherPoolError},
 };
 
 /// The Storage of all verified orders.
 #[derive(Clone)]
 pub struct OrderStorage {
-    pub limit_orders:                Arc<Mutex<LimitOrderPool>>,
-    pub searcher_orders:             Arc<Mutex<SearcherPool>>,
+    pub limit_orders: Arc<Mutex<LimitOrderPool>>,
+    pub searcher_orders: Arc<Mutex<SearcherPool>>,
     pub pending_finalization_orders: Arc<Mutex<FinalizationPool>>,
     /// we store filled order hashes until they are expired time wise to ensure
     /// we don't waste processing power in the validator.
-    pub filled_orders:               Arc<Mutex<HashMap<B256, Instant>>>,
-    pub metrics:                     OrderStorageMetricsWrapper
+    pub filled_orders: Arc<Mutex<HashMap<B256, Instant>>>,
+    pub metrics: OrderStorageMetricsWrapper,
 }
 
 impl Debug for OrderStorage {
@@ -47,11 +47,11 @@ impl OrderStorage {
     pub fn new(config: &PoolConfig) -> Self {
         let limit_orders = Arc::new(Mutex::new(LimitOrderPool::new(
             &config.ids,
-            Some(config.lo_pending_limit.max_size)
+            Some(config.lo_pending_limit.max_size),
         )));
         let searcher_orders = Arc::new(Mutex::new(SearcherPool::new(
             &config.ids,
-            Some(config.s_pending_limit.max_size)
+            Some(config.s_pending_limit.max_size),
         )));
         let pending_finalization_orders = Arc::new(Mutex::new(FinalizationPool::new()));
         Self {
@@ -59,7 +59,7 @@ impl OrderStorage {
             limit_orders,
             searcher_orders,
             pending_finalization_orders,
-            metrics: OrderStorageMetricsWrapper::default()
+            metrics: OrderStorageMetricsWrapper::default(),
         }
     }
 
@@ -104,7 +104,7 @@ impl OrderStorage {
         let order_id = OrderId::from_all_orders(order, PoolId::default());
         match order_id.location {
             OrderLocation::Limit => self.metrics.incr_cancelled_vanilla_orders(),
-            OrderLocation::Searcher => self.metrics.incr_cancelled_searcher_orders()
+            OrderLocation::Searcher => self.metrics.incr_cancelled_searcher_orders(),
         }
     }
 
@@ -129,7 +129,9 @@ impl OrderStorage {
                         GroupedUserOrder::Composable(_) => {
                             self.metrics.incr_cancelled_composable_orders()
                         }
-                        GroupedUserOrder::Vanilla(_) => self.metrics.incr_cancelled_vanilla_orders()
+                        GroupedUserOrder::Vanilla(_) => {
+                            self.metrics.incr_cancelled_vanilla_orders()
+                        }
                     }
                     order.try_map_inner(|inner| Ok(inner.into())).ok()
                 }),
@@ -143,7 +145,7 @@ impl OrderStorage {
                     order
                         .try_map_inner(|inner| Ok(AllOrders::TOB(inner)))
                         .unwrap()
-                })
+                }),
         }
     }
 
@@ -184,7 +186,7 @@ impl OrderStorage {
 
     pub fn add_new_limit_order(
         &self,
-        order: OrderWithStorageData<GroupedUserOrder>
+        order: OrderWithStorageData<GroupedUserOrder>,
     ) -> Result<(), LimitPoolError> {
         if order.is_vanilla() {
             let mapped_order = order.try_map_inner(|this| {
@@ -219,7 +221,7 @@ impl OrderStorage {
 
     pub fn add_new_searcher_order(
         &self,
-        order: OrderWithStorageData<TopOfBlockOrder>
+        order: OrderWithStorageData<TopOfBlockOrder>,
     ) -> Result<(), SearcherPoolError> {
         self.searcher_orders
             .lock()
@@ -234,7 +236,7 @@ impl OrderStorage {
     pub fn add_filled_orders(
         &self,
         block_number: BlockNumber,
-        orders: Vec<OrderWithStorageData<AllOrders>>
+        orders: Vec<OrderWithStorageData<AllOrders>>,
     ) {
         let num_orders = orders.len();
         self.pending_finalization_orders

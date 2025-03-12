@@ -5,8 +5,8 @@ use malachite::{
     Natural, Rational,
     num::{
         arithmetic::traits::{CeilingRoot, DivRound, Pow, PowerOf2},
-        conversion::traits::RoundingInto
-    }
+        conversion::traits::RoundingInto,
+    },
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio};

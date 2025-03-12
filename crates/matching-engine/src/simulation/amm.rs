@@ -1,6 +1,6 @@
 use angstrom_types::matching::{
     SqrtPriceX96,
-    uniswap::{LiqRange, PoolSnapshot}
+    uniswap::{LiqRange, PoolSnapshot},
 };
 use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 

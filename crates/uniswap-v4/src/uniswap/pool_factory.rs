@@ -2,11 +2,11 @@ use std::{collections::HashMap, sync::Arc};
 
 use alloy::{
     primitives::{Address, aliases::U24},
-    providers::Provider
+    providers::Provider,
 };
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
-    primitive::{PoolId, UniswapPoolRegistry}
+    primitive::{PoolId, UniswapPoolRegistry},
 };
 use futures::future::join_all;
 
@@ -14,13 +14,13 @@ use super::{pool::EnhancedUniswapPool, pool_data_loader::PoolDataLoader};
 use crate::DataLoader;
 
 pub struct V4PoolFactory<P, const TICKS: u16 = 200> {
-    provider:     Arc<P>,
-    registry:     UniswapPoolRegistry,
-    pool_manager: Address
+    provider: Arc<P>,
+    registry: UniswapPoolRegistry,
+    pool_manager: Address,
 }
 impl<P: Provider + 'static, const TICKS: u16> V4PoolFactory<P, TICKS>
 where
-    DataLoader: PoolDataLoader
+    DataLoader: PoolDataLoader,
 {
     pub fn new(provider: Arc<P>, registry: UniswapPoolRegistry, pool_manager: Address) -> Self {
         Self { provider, registry, pool_manager }
@@ -33,7 +33,7 @@ where
 
             let mut pool = EnhancedUniswapPool::new(
                 DataLoader::new_with_registry(*internal, self.registry.clone(), self.pool_manager),
-                TICKS
+                TICKS,
             );
             pool.initialize(Some(block), self.provider.clone())
                 .await
@@ -56,10 +56,10 @@ where
     pub async fn create_new_angstrom_pool(
         &mut self,
         mut pool_key: PoolKey,
-        block: u64
+        block: u64,
     ) -> EnhancedUniswapPool<DataLoader>
     where
-        DataLoader: PoolDataLoader
+        DataLoader: PoolDataLoader,
     {
         // add to registry
         let pub_key = PoolId::from(pool_key.clone());
@@ -74,7 +74,7 @@ where
 
         let mut pool = EnhancedUniswapPool::new(
             DataLoader::new_with_registry(*internal, self.registry.clone(), self.pool_manager),
-            TICKS
+            TICKS,
         );
         pool.initialize(Some(block), self.provider.clone())
             .await

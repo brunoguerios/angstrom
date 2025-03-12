@@ -1,6 +1,6 @@
 use angstrom_types::matching::{
     SqrtPriceX96,
-    uniswap::{LiqRange, PoolSnapshot}
+    uniswap::{LiqRange, PoolSnapshot},
 };
 use eyre::{Context, Error, eyre};
 use rand_distr::{Distribution, SkewNormal};
@@ -14,7 +14,7 @@ pub struct AMMSnapshotBuilder {
     default_position_width: Option<i32>,
     default_position_liquidity: Option<u128>,
     liquidity_distribution: Option<LiquidityDistributionParameters>,
-    positions: Option<Vec<LiqRange>>
+    positions: Option<Vec<LiqRange>>,
 }
 
 impl AMMSnapshotBuilder {
@@ -43,7 +43,7 @@ impl AMMSnapshotBuilder {
 
     pub fn with_positions_from_distribution(
         self,
-        liquidity_distribution: LiquidityDistributionParameters
+        liquidity_distribution: LiquidityDistributionParameters,
     ) -> Self {
         Self { liquidity_distribution: Some(liquidity_distribution), ..self }
     }
@@ -78,7 +78,7 @@ pub fn generate_amm_with_liquidity(
     tick_low: i32,
     tick_high: i32,
     liquidity: u128,
-    price: SqrtPriceX96
+    price: SqrtPriceX96,
 ) -> PoolSnapshot {
     let ranges = vec![LiqRange::new(tick_low, tick_high, liquidity).unwrap()];
     PoolSnapshot::new(ranges, price).unwrap()
@@ -100,7 +100,7 @@ pub fn generate_amm_with_distributed_liquidity(
     tick_high: i32,
     tick_spacing: i32,
     liquidity_range: (u128, u128),
-    price: SqrtPriceX96
+    price: SqrtPriceX96,
 ) -> PoolSnapshot {
     use rand::Rng;
     let mut rng = rand::thread_rng();
@@ -146,14 +146,14 @@ pub fn generate_amm_market(target_tick: i32) -> PoolSnapshot {
 #[derive(Debug, Default)]
 pub struct LiquidityDistributionParameters {
     pub liquidity: u128,
-    pub scale:     f64,
-    pub shape:     f64
+    pub scale: f64,
+    pub shape: f64,
 }
 
 fn generate_pool_distribution(
     start_tick: i32,
     end_tick: i32,
-    liquidity: LiquidityDistributionParameters
+    liquidity: LiquidityDistributionParameters,
 ) -> Result<Vec<LiqRange>, Error> {
     if end_tick < start_tick {
         return Err(eyre!("End tick greater than start tick, invalid"));
@@ -162,7 +162,7 @@ fn generate_pool_distribution(
     let LiquidityDistributionParameters {
         liquidity: liq_location,
         scale: liq_scale,
-        shape: liq_shape
+        shape: liq_shape,
     } = liquidity;
     let liquidity_gen = SkewNormal::new(liq_location as f64, liq_scale, liq_shape)
         .wrap_err("Error creating liquidity distribution")?;

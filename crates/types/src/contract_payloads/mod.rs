@@ -1,6 +1,6 @@
 use alloy::{
     primitives::{Address, Bytes, FixedBytes, U256},
-    sol
+    sol,
 };
 use alloy_primitives::B256;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -35,7 +35,7 @@ sol! {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PadeEncode, PadeDecode, Serialize, Deserialize)]
 pub enum Signature {
     Contract { from: Address, signature: Bytes },
-    Ecdsa { v: u8, r: FixedBytes<32>, s: FixedBytes<32> }
+    Ecdsa { v: u8, r: FixedBytes<32>, s: FixedBytes<32> },
 }
 
 impl Signature {
@@ -46,7 +46,7 @@ impl Signature {
                 let sig = alloy::primitives::PrimitiveSignature::new(
                     U256::from_be_slice(&**r),
                     U256::from_be_slice(&**s),
-                    *v == 28
+                    *v == 28,
                 );
                 sig.recover_address_from_prehash(&hash).unwrap()
             }

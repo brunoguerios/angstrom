@@ -1,16 +1,16 @@
 use std::{
     cell::Cell,
-    cmp::{Ordering, max}
+    cmp::{Ordering, max},
 };
 
 use alloy::primitives::U256;
 use angstrom_types::{
     matching::{
         CompositeOrder, Debt, Ray,
-        uniswap::{Direction, PoolPrice, PoolPriceVec}
+        uniswap::{Direction, PoolPrice, PoolPriceVec},
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
 };
 use base64::Engine;
 use eyre::eyre;
@@ -28,22 +28,22 @@ pub enum VolumeFillMatchEndReason {
     ZeroQuantity,
     /// This SHOULDN'T happen but I'm using it to clean up problem spots in the
     /// code
-    ErrorEncountered
+    ErrorEncountered,
 }
 
 #[derive(Clone)]
 pub struct VolumeFillMatcher<'a> {
-    book:             &'a OrderBook,
-    bid_idx:          Cell<usize>,
+    book: &'a OrderBook,
+    bid_idx: Cell<usize>,
     pub bid_outcomes: Vec<OrderFillState>,
-    ask_idx:          Cell<usize>,
+    ask_idx: Cell<usize>,
     pub ask_outcomes: Vec<OrderFillState>,
-    debt:             Option<Debt>,
-    amm_price:        Option<PoolPrice<'a>>,
-    amm_outcome:      Option<NetAmmOrder>,
-    results:          Solution,
+    debt: Option<Debt>,
+    amm_price: Option<PoolPrice<'a>>,
+    amm_outcome: Option<NetAmmOrder>,
+    results: Solution,
     // A checkpoint should never have a checkpoint stored within itself, otherwise this gets gnarly
-    checkpoint:       Option<Box<Self>>
+    checkpoint: Option<Box<Self>>,
 }
 
 impl<'a> VolumeFillMatcher<'a> {
@@ -64,7 +64,7 @@ impl<'a> VolumeFillMatcher<'a> {
             amm_price,
             amm_outcome: None,
             results: Solution::default(),
-            checkpoint: None
+            checkpoint: None,
         };
         // We can checkpoint our initial state as valid
         new_element.save_checkpoint();
@@ -82,16 +82,16 @@ impl<'a> VolumeFillMatcher<'a> {
     /// Save our current solve state to an internal checkpoint
     fn save_checkpoint(&mut self) {
         let checkpoint = Self {
-            book:         self.book,
-            bid_idx:      self.bid_idx.clone(),
+            book: self.book,
+            bid_idx: self.bid_idx.clone(),
             bid_outcomes: self.bid_outcomes.clone(),
-            ask_idx:      self.ask_idx.clone(),
+            ask_idx: self.ask_idx.clone(),
             ask_outcomes: self.ask_outcomes.clone(),
-            debt:         self.debt,
-            amm_price:    self.amm_price.clone(),
-            amm_outcome:  self.amm_outcome.clone(),
-            results:      self.results.clone(),
-            checkpoint:   None
+            debt: self.debt,
+            amm_price: self.amm_price.clone(),
+            amm_outcome: self.amm_outcome.clone(),
+            results: self.results.clone(),
+            checkpoint: None,
         };
         self.checkpoint = Some(Box::new(checkpoint));
     }
@@ -122,7 +122,7 @@ impl<'a> VolumeFillMatcher<'a> {
         results: &mut Solution,
         amm_outcome: &mut Option<NetAmmOrder>,
         quantity: u128,
-        direction: Direction
+        direction: Direction,
     ) -> eyre::Result<()> {
         debug!(quantity, direction = ?direction, "Executing AMM fill");
         let new_amm = amm.d_t0(quantity, direction)?;
@@ -174,7 +174,7 @@ impl<'a> VolumeFillMatcher<'a> {
             &mut self.debt,
             self.amm_price.as_ref(),
             self.book.bids(),
-            &self.bid_outcomes
+            &self.bid_outcomes,
         ) else {
             return Some(VolumeFillMatchEndReason::NoMoreBids);
         };
@@ -185,7 +185,7 @@ impl<'a> VolumeFillMatcher<'a> {
             &mut self.debt,
             self.amm_price.as_ref(),
             self.book.asks(),
-            &self.ask_outcomes
+            &self.ask_outcomes,
         ) else {
             return Some(VolumeFillMatchEndReason::NoMoreAsks);
         };
@@ -225,7 +225,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 &mut None,
                 self.amm_price.as_ref(),
                 self.book.asks(),
-                &self.ask_outcomes
+                &self.ask_outcomes,
             ) else {
                 return Some(VolumeFillMatchEndReason::NoMoreAsks);
             };
@@ -246,7 +246,7 @@ impl<'a> VolumeFillMatcher<'a> {
                         &mut self.results,
                         &mut self.amm_outcome,
                         amm_q,
-                        Direction::BuyingT0
+                        Direction::BuyingT0,
                     )
                     .is_err()
                     {
@@ -324,7 +324,7 @@ impl<'a> VolumeFillMatcher<'a> {
                         &mut self.results,
                         &mut self.amm_outcome,
                         matched,
-                        Direction::BuyingT0
+                        Direction::BuyingT0,
                     )
                     .is_err()
                     {
@@ -447,7 +447,7 @@ impl<'a> VolumeFillMatcher<'a> {
                     &mut self.results,
                     &mut self.amm_outcome,
                     quantity,
-                    direction
+                    direction,
                 )
                 .is_err()
                 {
@@ -473,7 +473,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 (false, true) => ask
                     .max_t1_for_t0(matched, self.debt.as_ref())
                     .expect("Somehow no T1 available"),
-                _ => 0
+                _ => 0,
             }
         };
 
@@ -600,7 +600,7 @@ impl<'a> VolumeFillMatcher<'a> {
     fn get_match_quantities(
         bid: &OrderContainer,
         ask: &OrderContainer,
-        debt: Option<&Debt>
+        debt: Option<&Debt>,
     ) -> (u128, u128) {
         if bid.is_book() && ask.is_book() {
             // We have a pair of book orders
@@ -613,7 +613,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 // Mixed order returns quantity in T0 at debt or order price
                 (true, false) | (false, true) => (bid.quantity(ask, debt), ask.quantity(bid, debt)),
                 // Normal book order and normal book order just return T0 quantities
-                (false, false) => (bid.quantity(ask, debt), ask.quantity(bid, debt))
+                (false, false) => (bid.quantity(ask, debt), ask.quantity(bid, debt)),
             }
         } else {
             // We have either a book order and a Composite order or a pair of Composite
@@ -628,7 +628,7 @@ impl<'a> VolumeFillMatcher<'a> {
         debt: &mut Option<Debt>,
         amm: Option<&PoolPrice<'a>>,
         book: &'a [BookOrder],
-        fill_state: &[OrderFillState]
+        fill_state: &[OrderFillState],
     ) -> Option<OrderContainer<'a>> {
         debug!(is_bid = bid, debt = ?debt, "Getting next order");
         // If we have a fragment, that takes priority
@@ -691,7 +691,7 @@ impl<'a> VolumeFillMatcher<'a> {
                     return Some(OrderContainer::Composite(CompositeOrder::new(
                         *debt,
                         amm.cloned(),
-                        bound_price
+                        bound_price,
                     )));
                 }
                 // Debt more advantageous than AMM -> CompositeOrder(Debt), bound to the closer of
@@ -706,7 +706,7 @@ impl<'a> VolumeFillMatcher<'a> {
                     return Some(OrderContainer::Composite(CompositeOrder::new(
                         *debt,
                         None,
-                        bound_price
+                        bound_price,
                     )));
                 }
                 // Debt is more advantageous than book but less advantageous than the AMM, wherever
@@ -716,7 +716,7 @@ impl<'a> VolumeFillMatcher<'a> {
                      price: {:?}",
                     debt.map(|d| d.price()),
                     amm.map(|a| Ray::from(a.price()))
-                )
+                ),
             }
         }
 
@@ -751,7 +751,7 @@ impl<'a> VolumeFillMatcher<'a> {
 
     pub fn solution(
         &self,
-        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
+        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>,
     ) -> PoolSolution {
         let limit = self
             .bid_outcomes
@@ -762,7 +762,7 @@ impl<'a> VolumeFillMatcher<'a> {
                 self.ask_outcomes
                     .iter()
                     .enumerate()
-                    .map(|(idx, outcome)| (self.book.asks()[idx].order_id, outcome))
+                    .map(|(idx, outcome)| (self.book.asks()[idx].order_id, outcome)),
             )
             .map(|(id, outcome)| OrderOutcome { id, outcome: *outcome })
             .collect();
@@ -772,7 +772,7 @@ impl<'a> VolumeFillMatcher<'a> {
             ucp,
             amm_quantity: self.amm_outcome.clone(),
             searcher,
-            limit
+            limit,
         }
     }
 }
@@ -786,10 +786,10 @@ mod tests {
     use angstrom_types::{
         matching::{Debt, DebtType, Ray, SqrtPriceX96, uniswap::PoolSnapshot},
         orders::OrderFillState,
-        primitive::PoolId
+        primitive::PoolId,
     };
     use testing_tools::type_generator::{
-        amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder
+        amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder,
     };
 
     use super::VolumeFillMatcher;
@@ -881,7 +881,7 @@ mod tests {
         is_bid: bool,
         count: usize,
         target_price: Ray,
-        price_step: usize
+        price_step: usize,
     ) -> (Vec<BookOrder>, Vec<OrderFillState>) {
         let orders = (0..count)
             .map(|i| {
@@ -955,7 +955,7 @@ mod tests {
         let amm = Some(&amm_price);
         let mut debt = Some(Debt::new(
             DebtType::ExactIn(100000000),
-            Ray::from(SqrtPriceX96::at_tick(101001).unwrap())
+            Ray::from(SqrtPriceX96::at_tick(101001).unwrap()),
         ));
         let index = Cell::new(0);
         let (book, fill_state) =
@@ -986,7 +986,7 @@ mod tests {
         let amm = Some(&amm_price);
         let mut debt = Some(Debt::new(
             DebtType::ExactIn(100000000),
-            Ray::from(SqrtPriceX96::at_tick(10001).unwrap())
+            Ray::from(SqrtPriceX96::at_tick(10001).unwrap()),
         ));
         let index = Cell::new(0);
         let (book, fill_state) =
@@ -1012,7 +1012,7 @@ mod tests {
         let amm = Some(&amm_price);
         let mut debt = Some(Debt::new(
             DebtType::ExactIn(100000000),
-            Ray::from(SqrtPriceX96::at_tick(101001).unwrap())
+            Ray::from(SqrtPriceX96::at_tick(101001).unwrap()),
         ));
         let index = Cell::new(0);
         let (book, fill_state) =
@@ -1040,7 +1040,7 @@ mod tests {
     fn ask_side_debt_has_zero_quantity() {
         let mut debt = Some(Debt::new(
             DebtType::ExactOut(100000000),
-            Ray::from(SqrtPriceX96::at_tick(100000).unwrap())
+            Ray::from(SqrtPriceX96::at_tick(100000).unwrap()),
         ));
         let index = Cell::new(0);
         let (book, fill_state) =
@@ -1076,7 +1076,7 @@ mod tests {
             None,
             bid_book,
             ask_book,
-            Some(crate::book::sort::SortStrategy::ByPriceByVolume)
+            Some(crate::book::sort::SortStrategy::ByPriceByVolume),
         );
         let mut matcher = VolumeFillMatcher::new(&ob);
         matcher.debt = debt;
@@ -1135,7 +1135,7 @@ mod tests {
             Some(market),
             bid_book,
             ask_book,
-            Some(crate::book::sort::SortStrategy::ByPriceByVolume)
+            Some(crate::book::sort::SortStrategy::ByPriceByVolume),
         );
         let mut matcher = VolumeFillMatcher::new(&ob);
         matcher.debt = debt;

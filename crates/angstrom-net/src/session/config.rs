@@ -4,9 +4,9 @@
 use std::{
     sync::{
         Arc,
-        atomic::{AtomicU32, Ordering}
+        atomic::{AtomicU32, Ordering},
     },
-    time::Duration
+    time::Duration,
 };
 
 use reth_network::Direction;
@@ -35,14 +35,14 @@ pub struct SessionsConfig {
     pub session_event_buffer: usize,
     /// Limits to enforce.
     pub limits: SessionLimits,
-    pub protocol_breach_request_timeout: Duration
+    pub protocol_breach_request_timeout: Duration,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionLimits {
     /// Limits to enforce.
-    max_inbound:  u32,
-    max_outbound: u32
+    max_inbound: u32,
+    max_outbound: u32,
 }
 
 impl Default for SessionLimits {
@@ -67,7 +67,7 @@ impl Default for SessionsConfig {
             session_event_buffer: ((MAX_STROM_INBOUND_PEERS + MAX_STROM_OUTBOUND_PEERS) * 2)
                 as usize,
             limits: SessionLimits::default(),
-            protocol_breach_request_timeout: PROTOCOL_BREACH_REQUEST_TIMEOUT
+            protocol_breach_request_timeout: PROTOCOL_BREACH_REQUEST_TIMEOUT,
         }
     }
 }
@@ -89,9 +89,9 @@ impl SessionsConfig {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionCounter {
     /// Number of active inbound sessions.
-    active_inbound:  Arc<AtomicU32>,
+    active_inbound: Arc<AtomicU32>,
     /// Number of active outbound sessions.
-    active_outbound: Arc<AtomicU32>
+    active_outbound: Arc<AtomicU32>,
 }
 
 /// The error thrown when the max configured limit has been reached and no more
@@ -106,8 +106,8 @@ impl SessionCounter {
     #[allow(dead_code)]
     pub(crate) fn new(_limits: SessionLimits) -> Self {
         Self {
-            active_inbound:  Arc::new(AtomicU32::new(0)),
-            active_outbound: Arc::new(AtomicU32::new(0))
+            active_inbound: Arc::new(AtomicU32::new(0)),
+            active_outbound: Arc::new(AtomicU32::new(0)),
         }
     }
 

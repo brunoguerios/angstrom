@@ -19,31 +19,31 @@ pub const SEARCHER_SUBPOOL_MAX_SIZE_MB_DEFAULT: usize = 5;
 #[derive(Debug, Clone)]
 pub struct PoolConfig {
     /// pool ids
-    pub ids:               Vec<PoolId>,
+    pub ids: Vec<PoolId>,
     /// Max number of transaction in the pending sub-pool
-    pub lo_pending_limit:  LimitSubPoolLimit,
+    pub lo_pending_limit: LimitSubPoolLimit,
     /// Max number of transaction in the queued sub-pool
-    pub lo_queued_limit:   LimitSubPoolLimit,
+    pub lo_queued_limit: LimitSubPoolLimit,
     /// Max number of transaction in the parked sub-pool
-    pub lo_parked_limit:   LimitSubPoolLimit,
+    pub lo_parked_limit: LimitSubPoolLimit,
     /// Max number of transaction in the composable limit sub-pool
-    pub cl_pending_limit:  LimitSubPoolLimit,
+    pub cl_pending_limit: LimitSubPoolLimit,
     /// Max number of transaction in the searcher & composable searcher sub-pool
-    pub s_pending_limit:   SearcherSubPoolLimit,
+    pub s_pending_limit: SearcherSubPoolLimit,
     /// Max number of executable transaction slots guaranteed per account
-    pub max_account_slots: usize
+    pub max_account_slots: usize,
 }
 
 impl Default for PoolConfig {
     fn default() -> Self {
         Self {
-            ids:               vec![],
-            lo_pending_limit:  Default::default(),
-            lo_queued_limit:   Default::default(),
-            lo_parked_limit:   Default::default(),
-            cl_pending_limit:  Default::default(),
-            s_pending_limit:   Default::default(),
-            max_account_slots: ORDER_POOL_MAX_ACCOUNT_SLOTS_PER_SENDER
+            ids: vec![],
+            lo_pending_limit: Default::default(),
+            lo_queued_limit: Default::default(),
+            lo_parked_limit: Default::default(),
+            cl_pending_limit: Default::default(),
+            s_pending_limit: Default::default(),
+            max_account_slots: ORDER_POOL_MAX_ACCOUNT_SLOTS_PER_SENDER,
         }
     }
 }
@@ -54,7 +54,7 @@ pub struct LimitSubPoolLimit {
     /// Maximum amount of orders in the pool.
     pub max_orders: usize,
     /// Maximum combined size (in bytes) of transactions in the pool.
-    pub max_size:   usize
+    pub max_size: usize,
 }
 
 impl LimitSubPoolLimit {
@@ -70,7 +70,7 @@ impl Default for LimitSubPoolLimit {
         // either 10k transactions or 20MB
         Self {
             max_orders: LIMIT_SUBPOOL_MAX_ORDERS_DEFAULT,
-            max_size:   LIMIT_SUBPOOL_MAX_SIZE_MB_DEFAULT * 1024 * 1024
+            max_size: LIMIT_SUBPOOL_MAX_SIZE_MB_DEFAULT * 1024 * 1024,
         }
     }
 }
@@ -80,7 +80,7 @@ pub struct SearcherSubPoolLimit {
     /// Maximum amount of searcher orders in the pool.
     pub max_orders: usize,
     /// Maximum combined size (in bytes) of transactions in the pool.
-    pub max_size:   usize
+    pub max_size: usize,
 }
 
 impl SearcherSubPoolLimit {
@@ -96,7 +96,7 @@ impl Default for SearcherSubPoolLimit {
         // either 10k transactions or 20MB
         Self {
             max_orders: SEARCHER_SUBPOOL_MAX_ORDERS_DEFAULT,
-            max_size:   SEARCHER_SUBPOOL_MAX_SIZE_MB_DEFAULT * 1024 * 1024
+            max_size: SEARCHER_SUBPOOL_MAX_SIZE_MB_DEFAULT * 1024 * 1024,
         }
     }
 }

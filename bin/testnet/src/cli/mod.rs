@@ -12,19 +12,19 @@ use testing_tools::types::config::{DevnetConfig, TestnetConfig};
 use testnet::TestnetCli;
 use tracing::Level;
 use tracing_subscriber::{
-    EnvFilter, Layer, Registry, filter, layer::SubscriberExt, util::SubscriberInitExt
+    EnvFilter, Layer, Registry, filter, layer::SubscriberExt, util::SubscriberInitExt,
 };
 
 use crate::{
     run_devnet, run_testnet,
-    simulations::{e2e_orders::run_e2e_orders, matching_comp::compare_matching_engines}
+    simulations::{e2e_orders::run_e2e_orders, matching_comp::compare_matching_engines},
 };
 
 #[derive(Parser)]
 pub struct AngstromTestnetCli {
     /// testnet or devnet commands
     #[clap(subcommand)]
-    pub command:      TestnetSubcommmand,
+    pub command: TestnetSubcommmand,
     /// Set the minimum log level.
     ///
     /// -v      Errors
@@ -33,14 +33,14 @@ pub struct AngstromTestnetCli {
     /// -vvvv   Debug
     /// -vvvvv  Traces
     #[clap(short = 'v', long, action = ArgAction::Count, default_value_t = 3, help_heading = "Display", global = true)]
-    pub verbosity:    u8,
+    pub verbosity: u8,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
-    pub metrics:      bool,
+    pub metrics: bool,
     /// spawns the prometheus metrics exporter at the specified port
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
-    pub metrics_port: u16
+    pub metrics_port: u16,
 }
 
 impl AngstromTestnetCli {
@@ -77,7 +77,7 @@ pub enum TestnetSubcommmand {
     #[command(name = "e2e")]
     End2EndOrders(End2EndOrdersCli),
     #[command(name = "engine-sim")]
-    Compare(CompareEnginesCli)
+    Compare(CompareEnginesCli),
 }
 
 impl TestnetSubcommmand {
@@ -86,7 +86,7 @@ impl TestnetSubcommmand {
             TestnetSubcommmand::Testnet(testnet_cli) => run_testnet(executor, testnet_cli).await,
             TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await,
             TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await,
-            TestnetSubcommmand::Compare(cli) => compare_matching_engines(executor, cli).await
+            TestnetSubcommmand::Compare(cli) => compare_matching_engines(executor, cli).await,
         }
     }
 }
@@ -97,7 +97,7 @@ pub fn init_tracing(verbosity: u8) {
         1 => Level::WARN,
         2 => Level::INFO,
         3 => Level::DEBUG,
-        _ => Level::TRACE
+        _ => Level::TRACE,
     };
 
     let envfilter = filter::EnvFilter::builder().try_from_env().ok();

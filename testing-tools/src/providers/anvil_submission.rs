@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use alloy::{
     eips::eip2718::Encodable2718, network::TransactionBuilder, primitives::TxHash,
-    providers::Provider
+    providers::Provider,
 };
 use alloy_rpc_types::TransactionRequest;
 use angstrom_types::{mev_boost::SubmitTx, primitive::AngstromSigner};
@@ -11,14 +11,14 @@ use futures::{Future, FutureExt};
 use crate::contracts::anvil::WalletProviderRpc;
 
 pub struct AnvilSubmissionProvider {
-    pub provider: WalletProviderRpc
+    pub provider: WalletProviderRpc,
 }
 
 impl SubmitTx for AnvilSubmissionProvider {
     fn submit_transaction<'a>(
         &'a self,
         signer: &'a AngstromSigner,
-        tx: TransactionRequest
+        tx: TransactionRequest,
     ) -> Pin<Box<dyn Future<Output = (TxHash, bool)> + Send + 'a>> {
         async move {
             tracing::debug!(?tx);
@@ -31,7 +31,7 @@ impl SubmitTx for AnvilSubmissionProvider {
                 use alloy_sol_types::SolCall;
                 use angstrom_types::{
                     contract_bindings::angstrom::Angstrom,
-                    contract_payloads::angstrom::AngstromBundle
+                    contract_payloads::angstrom::AngstromBundle,
                 };
                 use futures::StreamExt;
                 use pade::PadeDecode;
@@ -52,7 +52,7 @@ impl SubmitTx for AnvilSubmissionProvider {
                 let angstrom_address = *tx.to.as_ref().unwrap().to().unwrap();
 
                 let _ = futures::stream::iter(
-                    order_overrides.into_slots_with_overrides(angstrom_address)
+                    order_overrides.into_slots_with_overrides(angstrom_address),
                 )
                 .then(|(token, slot, value)| async move {
                     self.provider

@@ -3,7 +3,7 @@ use std::{
     fmt::Debug,
     ops::Deref,
     pin::Pin,
-    time::{SystemTime, UNIX_EPOCH}
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use alloy::rlp::{BytesMut, Encodable};
@@ -11,7 +11,7 @@ use angstrom_types::primitive::{AngstromSigner, PeerId};
 use angstrom_utils::{GenericExt, PollFlatten};
 use futures::{
     Stream, StreamExt,
-    task::{Context, Poll}
+    task::{Context, Poll},
 };
 use reth_eth_wire::multiplex::ProtocolConnection;
 use reth_metrics::common::mpsc::MeteredPollSender;
@@ -24,8 +24,8 @@ use crate::{
     StatusBuilder, StromMessage, StromSessionHandle, StromSessionMessage,
     types::{
         message::StromProtocolMessage,
-        status::{Status, StatusState}
-    }
+        status::{Status, StatusState},
+    },
 };
 
 const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;
@@ -33,10 +33,10 @@ const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;
 /// holds the state we need to verify the new peer
 #[derive(Clone)]
 pub struct VerificationSidecar {
-    pub secret_key:   AngstromSigner,
-    pub status:       StatusState,
-    pub has_sent:     bool,
-    pub has_received: bool
+    pub secret_key: AngstromSigner,
+    pub status: StatusState,
+    pub has_sent: bool,
+    pub has_received: bool,
 }
 
 impl VerificationSidecar {
@@ -62,11 +62,11 @@ impl Debug for VerificationSidecar {
 #[allow(dead_code)]
 pub struct StromSession {
     /// The underlying connection.
-    pub(crate) conn:               ProtocolConnection,
+    pub(crate) conn: ProtocolConnection,
     /// Identifier of the node we're connected to.
-    pub(crate) remote_peer_id:     PeerId,
+    pub(crate) remote_peer_id: PeerId,
     /// Incoming commands from the manager
-    pub(crate) commands_rx:        ReceiverStream<SessionCommand>,
+    pub(crate) commands_rx: ReceiverStream<SessionCommand>,
     /// Sink to send messages to the [`SessionManager`](super::SessionManager).
     pub(crate) to_session_manager: MeteredPollSender<StromSessionMessage>,
 
@@ -82,7 +82,7 @@ pub struct StromSession {
     /// has sent the handle to the receiver
     pending_handle: Option<StromSessionHandle>,
     /// buffer for pending messages
-    outbound_buffer: VecDeque<StromSessionMessage>
+    outbound_buffer: VecDeque<StromSessionMessage>,
 }
 
 impl StromSession {
@@ -93,7 +93,7 @@ impl StromSession {
         to_session_manager: MeteredPollSender<StromSessionMessage>,
         protocol_breach_request_timeout: Duration,
         verification_sidecar: VerificationSidecar,
-        handle: StromSessionHandle
+        handle: StromSessionHandle,
     ) -> Self {
         Self {
             verification_sidecar,
@@ -104,7 +104,7 @@ impl StromSession {
             protocol_breach_request_timeout,
             terminate_message: None,
             pending_handle: Some(handle),
-            outbound_buffer: VecDeque::default()
+            outbound_buffer: VecDeque::default(),
         }
     }
 
@@ -132,7 +132,7 @@ impl StromSession {
             Poll::Ready(Err(_)) => {
                 // channel closed
             }
-            Poll::Pending => return Some(Poll::Pending)
+            Poll::Pending => return Some(Poll::Pending),
         }
         Some(Poll::Pending)
     }
@@ -167,16 +167,14 @@ impl StromSession {
                     |msg| match msg {
                         SessionCommand::Disconnect { .. } => self.emit_disconnect(cx),
                         SessionCommand::Message(msg) => {
-                            let msg = StromProtocolMessage {
-                                message_id: msg.message_id(),
-                                message:    msg
-                            };
+                            let msg =
+                                StromProtocolMessage { message_id: msg.message_id(), message: msg };
                             let mut buf = BytesMut::new();
 
                             msg.encode(&mut buf);
                             Poll::Ready(Some(buf))
                         }
-                    }
+                    },
                 )
             })
             .flatten()
@@ -192,7 +190,7 @@ impl StromSession {
                 let msg = msg
                     .map(|m| StromSessionMessage::ValidMessage {
                         peer_id: self.remote_peer_id,
-                        message: m
+                        message: m,
                     })
                     .unwrap_or(StromSessionMessage::BadMessage { peer_id: self.remote_peer_id });
                 self.outbound_buffer.push_back(msg);
@@ -214,7 +212,7 @@ impl StromSession {
         if !self.verification_sidecar.has_sent {
             let msg = StromMessage::Status(
                 self.verification_sidecar
-                    .make_status_message(self.remote_peer_id)
+                    .make_status_message(self.remote_peer_id),
             );
             // mark our status as sent.
             self.verification_sidecar.has_sent = true;

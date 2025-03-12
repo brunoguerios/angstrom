@@ -4,7 +4,7 @@ use std::{
     hash::Hash,
     pin::Pin,
     sync::Arc,
-    task::{Poll, Waker}
+    task::{Poll, Waker},
 };
 
 use angstrom_metrics::validation::ValidationMetrics;
@@ -15,12 +15,12 @@ use tokio::sync::Semaphore;
 type PendingFut<F> = Pin<Box<dyn Future<Output = <F as Future>::Output> + Send + Sync>>;
 
 pub struct KeySplitThreadpool<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> {
-    tp:              TP,
+    tp: TP,
     pending_results: FuturesUnordered<PendingFut<F>>,
-    permit_size:     usize,
-    pending:         HashMap<K, Arc<Semaphore>>,
-    waker:           Option<Waker>,
-    metrics:         ValidationMetrics
+    permit_size: usize,
+    pending: HashMap<K, Arc<Semaphore>>,
+    waker: Option<Waker>,
+    metrics: ValidationMetrics,
 }
 
 impl<K: PartialEq + Eq + Hash + Clone, F: Future, TP: ThreadPool> KeySplitThreadpool<K, F, TP>
@@ -28,7 +28,7 @@ where
     K: Send + Unpin + 'static,
     F: Send + Sync + 'static + Unpin,
     TP: Clone + Send + Sync + 'static + Unpin,
-    <F as Future>::Output: Send + Sync + 'static + Unpin
+    <F as Future>::Output: Send + Sync + 'static + Unpin,
 {
     pub fn new(theadpool: TP, permit_size: usize) -> Self {
         Self {
@@ -37,7 +37,7 @@ where
             pending: HashMap::default(),
             pending_results: FuturesUnordered::default(),
             metrics: ValidationMetrics::new(),
-            waker: None
+            waker: None,
         }
     }
 
@@ -92,13 +92,13 @@ where
     K: Send + Unpin + 'static,
     F: Send + Sync + 'static + Unpin,
     TP: Clone,
-    <F as Future>::Output: Send + Sync + 'static + Unpin
+    <F as Future>::Output: Send + Sync + 'static + Unpin,
 {
     type Item = F::Output;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+        cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         self.pending_results
             .poll_next_unpin(cx)

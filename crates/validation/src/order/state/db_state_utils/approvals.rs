@@ -11,7 +11,7 @@ use crate::order::state::config::TokenApprovalSlot;
 #[derive(Clone)]
 pub struct Approvals {
     angstrom_address: Address,
-    slots:            DashMap<Address, TokenApprovalSlot>
+    slots: DashMap<Address, TokenApprovalSlot>,
 }
 
 impl Approvals {
@@ -24,10 +24,10 @@ impl Approvals {
         user: Address,
         token: Address,
         db: Arc<DB>,
-        overrides: &HashMap<Address, HashMap<U256, U256>>
+        overrides: &HashMap<Address, HashMap<U256, U256>>,
     ) -> eyre::Result<Option<U256>>
     where
-        <DB as revm::DatabaseRef>::Error: Debug
+        <DB as revm::DatabaseRef>::Error: Debug,
     {
         let out = self
             .slots
@@ -56,10 +56,10 @@ impl Approvals {
         &self,
         user: Address,
         token: Address,
-        db: &DB
+        db: &DB,
     ) -> eyre::Result<Option<U256>>
     where
-        <DB as DatabaseRef>::Error: Debug + Sync + Send + 'static
+        <DB as DatabaseRef>::Error: Debug + Sync + Send + 'static,
     {
         let out = self
             .slots

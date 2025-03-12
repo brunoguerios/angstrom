@@ -7,7 +7,7 @@ use reth_provider::{Chain, ExecutionOutcome};
 
 #[derive(Clone, Debug)]
 pub struct AnvilConsensusCanonStateNotification {
-    chain: Arc<RwLock<Chain>>
+    chain: Arc<RwLock<Chain>>,
 }
 impl Default for AnvilConsensusCanonStateNotification {
     fn default() -> Self {

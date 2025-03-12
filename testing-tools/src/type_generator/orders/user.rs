@@ -1,6 +1,6 @@
 use alloy::{
     primitives::{Address, U256},
-    signers::SignerSync
+    signers::SignerSync,
 };
 use alloy_primitives::aliases::U40;
 use angstrom_types::{
@@ -10,9 +10,9 @@ use angstrom_types::{
         grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
-            PartialStandingOrder
-        }
-    }
+            PartialStandingOrder,
+        },
+    },
 };
 use pade::PadeEncode;
 
@@ -23,17 +23,17 @@ pub struct UserOrderBuilder {
     /// If the order is not a Standing order, it is KillOrFill
     is_standing: bool,
     /// If the order is not an Exact order, it is Partial
-    is_exact:    bool,
-    exact_in:    bool,
-    block:       u64,
-    nonce:       u64,
-    recipient:   Address,
-    asset_in:    Address,
-    asset_out:   Address,
-    amount:      u128,
-    min_price:   Ray,
-    deadline:    U256,
-    signing_key: Option<AngstromSigner>
+    is_exact: bool,
+    exact_in: bool,
+    block: u64,
+    nonce: u64,
+    recipient: Address,
+    asset_in: Address,
+    asset_out: Address,
+    amount: u128,
+    min_price: Ray,
+    deadline: U256,
+    signing_key: Option<AngstromSigner>,
 }
 
 impl UserOrderBuilder {
@@ -185,9 +185,9 @@ impl UserOrderBuilder {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
-                        isEcdsa:   true,
-                        from:      signer.address(),
-                        signature: sig.pade_encode().into()
+                        isEcdsa: true,
+                        from: signer.address(),
+                        signature: sig.pade_encode().into(),
                     };
                 }
                 GroupedVanillaOrder::Standing(StandingVariants::Exact(order))
@@ -209,9 +209,9 @@ impl UserOrderBuilder {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
-                        isEcdsa:   true,
-                        from:      signer.address(),
-                        signature: sig.pade_encode().into()
+                        isEcdsa: true,
+                        from: signer.address(),
+                        signature: sig.pade_encode().into(),
                     };
                 }
                 GroupedVanillaOrder::Standing(StandingVariants::Partial(order))
@@ -233,9 +233,9 @@ impl UserOrderBuilder {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
-                        isEcdsa:   true,
-                        from:      signer.address(),
-                        signature: sig.pade_encode().into()
+                        isEcdsa: true,
+                        from: signer.address(),
+                        signature: sig.pade_encode().into(),
                     };
                 }
                 GroupedVanillaOrder::KillOrFill(FlashVariants::Exact(order))
@@ -256,9 +256,9 @@ impl UserOrderBuilder {
                     let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
-                        isEcdsa:   true,
-                        from:      signer.address(),
-                        signature: sig.pade_encode().into()
+                        isEcdsa: true,
+                        from: signer.address(),
+                        signature: sig.pade_encode().into(),
                     };
                 }
                 GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(order))

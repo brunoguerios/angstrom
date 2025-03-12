@@ -27,10 +27,10 @@ impl Nonces {
         &self,
         user: Address,
         nonce: u64,
-        db: Arc<DB>
+        db: Arc<DB>,
     ) -> bool
     where
-        <DB as DatabaseRef>::Error: Sync + Send + 'static + Debug
+        <DB as DatabaseRef>::Error: Sync + Send + 'static + Debug,
     {
         let slot = self.get_nonce_word_slot(user, nonce);
 

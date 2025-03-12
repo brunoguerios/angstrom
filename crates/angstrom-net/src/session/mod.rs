@@ -18,7 +18,7 @@ use std::{
     fmt::Debug,
     net::SocketAddr,
     pin::Pin,
-    sync::{Arc, atomic::AtomicU64}
+    sync::{Arc, atomic::AtomicU64},
 };
 
 use angstrom_types::primitive::PeerId;
@@ -38,7 +38,7 @@ pub struct StromSessionManager {
     /// Channel to receive the session handle upon initialization from the
     /// connection handler This channel is also used to receive messages
     /// from the session
-    from_sessions: mpsc::Receiver<StromSessionMessage>
+    from_sessions: mpsc::Receiver<StromSessionMessage>,
 }
 
 impl StromSessionManager {
@@ -100,9 +100,9 @@ impl StromSessionManager {
                     }
 
                     let event = SessionEvent::SessionEstablished {
-                        peer_id:   handle.remote_id,
+                        peer_id: handle.remote_id,
                         direction: handle.direction,
-                        timeout:   Arc::new(AtomicU64::new(40))
+                        timeout: Arc::new(AtomicU64::new(40)),
                     };
                     self.active_sessions.insert(handle.remote_id, handle);
 
@@ -141,38 +141,38 @@ pub enum SessionEvent {
     /// This session is now able to exchange data.
     SessionEstablished {
         /// The remote node's public key
-        peer_id:   PeerId,
+        peer_id: PeerId,
         /// The direction of the session, either `Inbound` or `Outgoing`
         direction: Direction,
         /// The maximum time that the session waits for a response from the peer
         /// before timing out the connection
-        timeout:   Arc<AtomicU64>
+        timeout: Arc<AtomicU64>,
     },
     /// The peer was already connected with another session.
     AlreadyConnected {
         /// The remote node's public key
-        peer_id:     PeerId,
+        peer_id: PeerId,
         /// The remote node's socket address
         remote_addr: SocketAddr,
         /// The direction of the session, either `Inbound` or `Outgoing`
-        direction:   Direction
+        direction: Direction,
     },
     /// A session received a valid message via RLPx.
     ValidMessage {
         /// The remote node's public key
         peer_id: PeerId,
         /// Message received from the peer.
-        message: StromProtocolMessage
+        message: StromProtocolMessage,
     },
     /// Received a bad message from the peer.
     BadMessage {
         /// Identifier of the remote peer.
-        peer_id: PeerId
+        peer_id: PeerId,
     },
     /// Remote peer is considered in protocol violation
     ProtocolBreach {
         /// Identifier of the remote peer.
-        peer_id: PeerId
+        peer_id: PeerId,
     },
 
     /// Failed to establish a tcp stream
@@ -180,20 +180,20 @@ pub enum SessionEvent {
         /// The remote node's public key
         peer_id: PeerId,
         /// The error that caused the outgoing connection to fail
-        error:   StromStreamError
+        error: StromStreamError,
     },
     /// Session was closed due to an error
     SessionClosedOnConnectionError {
         /// The id of the remote peer.
-        peer_id:     PeerId,
+        peer_id: PeerId,
         /// The socket we were connected to.
         remote_addr: SocketAddr,
         /// The error that caused the session to close
-        error:       StromStreamError
+        error: StromStreamError,
     },
     /// Active session was gracefully disconnected.
     Disconnected {
         /// The remote node's public key
-        peer_id: PeerId
-    }
+        peer_id: PeerId,
+    },
 }

@@ -3,29 +3,29 @@ use std::net::SocketAddr;
 use angstrom_types::primitive::PeerId;
 use reth_network::{
     NetworkHandle, NetworkInfo, Peers,
-    test_utils::{Peer, PeerHandle}
+    test_utils::{Peer, PeerHandle},
 };
 use reth_provider::{BlockReader, HeaderProvider};
 use reth_transaction_pool::{
     CoinbaseTipOrdering, Pool, blobstore::InMemoryBlobStore, noop::MockTransactionValidator,
-    test_utils::MockTransaction
+    test_utils::MockTransaction,
 };
 
 pub type EthPeerPool = Pool<
     MockTransactionValidator<MockTransaction>,
     CoinbaseTipOrdering<MockTransaction>,
-    InMemoryBlobStore
+    InMemoryBlobStore,
 >;
 
 pub struct EthNetworkPeer {
-    peer_handle:    PeerHandle<EthPeerPool>,
-    network_handle: NetworkHandle
+    peer_handle: PeerHandle<EthPeerPool>,
+    network_handle: NetworkHandle,
 }
 
 impl EthNetworkPeer {
     pub fn new<C>(peer: &Peer<C>) -> Self
     where
-        C: BlockReader + HeaderProvider + Clone + 'static
+        C: BlockReader + HeaderProvider + Clone + 'static,
     {
         Self { peer_handle: peer.peer_handle(), network_handle: peer.handle() }
     }

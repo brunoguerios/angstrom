@@ -16,7 +16,7 @@ pub struct LiqRange {
     /// Upper tick for this range
     pub(super) upper_tick: Tick,
     /// Total liquidity within this range
-    pub(super) liquidity:  u128
+    pub(super) liquidity: u128,
 }
 
 impl LiqRange {
@@ -54,8 +54,8 @@ impl LiqRange {
 #[derive(Copy, Clone)]
 pub struct LiqRangeRef<'a> {
     pub(super) pool_snap: &'a PoolSnapshot,
-    pub(super) range:     &'a LiqRange,
-    pub(super) range_idx: usize
+    pub(super) range: &'a LiqRange,
+    pub(super) range_idx: usize,
 }
 
 impl Deref for LiqRangeRef<'_> {
@@ -93,7 +93,7 @@ impl<'a> LiqRangeRef<'a> {
     pub fn start_tick(&self, direction: Direction) -> Tick {
         match direction {
             Direction::BuyingT0 => self.lower_tick,
-            Direction::SellingT0 => self.upper_tick
+            Direction::SellingT0 => self.upper_tick,
         }
     }
 
@@ -102,7 +102,7 @@ impl<'a> LiqRangeRef<'a> {
     pub fn end_tick(&self, direction: Direction) -> Tick {
         match direction {
             Direction::BuyingT0 => self.upper_tick,
-            Direction::SellingT0 => self.lower_tick
+            Direction::SellingT0 => self.lower_tick,
         }
     }
 
@@ -127,7 +127,7 @@ impl<'a> LiqRangeRef<'a> {
     pub fn next(&self, direction: Direction) -> Option<Self> {
         match direction {
             Direction::BuyingT0 => self.pool_snap.get_range_for_tick(self.range.upper_tick),
-            Direction::SellingT0 => self.pool_snap.get_range_for_tick(self.range.lower_tick - 1)
+            Direction::SellingT0 => self.pool_snap.get_range_for_tick(self.range.lower_tick - 1),
         }
     }
 }
