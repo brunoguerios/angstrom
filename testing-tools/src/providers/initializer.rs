@@ -111,14 +111,9 @@ impl AnvilInitializer {
     async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
         // deploys the tokens
         let mut tokens_with_meta = Vec::new();
-        tracing::warn!("tokens to deploy: {:?}", self.initial_state_config.tokens_to_deploy);
         for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
             let token_addr = token_to_deploy
-                .deploy_token(
-                    &self.provider,
-                    nonce,
-                    &mut self.pending_state, //
-                )
+                .deploy_token(&self.provider, nonce, &mut self.pending_state)
                 .await?;
             tokens_with_meta.push((token_addr, token_to_deploy.clone()));
         }
@@ -130,8 +125,6 @@ impl AnvilInitializer {
             token_meta
                 .set_token_meta(&self.provider, *token_addr, nonce, &mut self.pending_state)
                 .await?;
-
-            tokens.push(*token_addr);
         }
         self.pending_state.finalize_pending_txs().await?;
 
@@ -150,8 +143,6 @@ impl AnvilInitializer {
             tokens.push(*token_addr);
         }
         self.pending_state.finalize_pending_txs().await?;
-
-        tracing::warn!("tokens: {tokens:?}");
 
         let (token0, token1) = (tokens[0], tokens[1]);
         let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
