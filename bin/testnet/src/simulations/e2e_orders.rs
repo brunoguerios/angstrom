@@ -121,7 +121,6 @@ pub mod test {
         init_tracing(4);
         let config = TestnetCli {
             eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
-            nodes_in_network: 4,
             ..Default::default()
         };
 
