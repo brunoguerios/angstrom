@@ -142,8 +142,7 @@ impl ToBOutcome {
                     start_tick,
                     start_liquidity,
                     &quantities,
-                    snapshot.tick_spacing(),
-                    from_above
+                    snapshot.tick_spacing()
                 );
                 RewardsUpdate::MultiTick {
                     start_tick: I24::try_from(start_tick).unwrap_or_default(),
@@ -257,8 +256,7 @@ fn compute_reward_checksum(
     start_tick: i32,
     start_liquidity: u128,
     quantities: &[u128],
-    tick_spacing: i32,
-    from_above: bool
+    tick_spacing: i32
 ) -> U160 {
     let mut reward_checksum = [0u8; 32];
     let mut liquidity = start_liquidity;
@@ -270,24 +268,13 @@ fn compute_reward_checksum(
         let hash_input =
             [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
 
-        reward_checksum = *keccak256(&hash_input); // update checksum
+        reward_checksum = *keccak256(&hash_input);
 
-        // adjust liquidity based on direction
-        liquidity = if from_above {
-            liquidity.wrapping_sub(quantity)
-        } else {
-            liquidity.wrapping_add(quantity)
-        };
-
-        // adjust tick based on direction
-        tick += if from_above { -tick_spacing } else { tick_spacing };
+        liquidity += quantity;
+        tick += tick_spacing;
     }
 
-    // Convert Keccak-256 hash to U160 by keeping the highest 160 bits
-    let hash_as_u256 = U256::from_be_bytes(reward_checksum);
-
-    // truncate to top 160 bits
-    U160::from(hash_as_u256 >> 96)
+    U160::from(U256::from_be_bytes(reward_checksum) >> 96)
 }
 
 #[test]
@@ -297,15 +284,11 @@ fn test_compute_reward_checksum() {
     let quantities = vec![500, 300, 200];
     let tick_spacing = 10;
 
-    let checksum_1 =
-        compute_reward_checksum(start_tick, start_liquidity, &quantities, tick_spacing, false);
-    let checksum_2 =
-        compute_reward_checksum(start_tick, start_liquidity, &quantities, tick_spacing, true);
+    let checksum = compute_reward_checksum(start_tick, start_liquidity, &quantities, tick_spacing);
     assert_eq!(
-        checksum_1,
+        checksum,
         "916716190280663127860804890900494458459603794619"
             .parse()
             .unwrap()
     );
-    assert_ne!(checksum_1, checksum_2);
 }
