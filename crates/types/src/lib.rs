@@ -19,8 +19,8 @@ pub mod testnet;
 #[cfg(all(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
 pub const CHAIN_ID: u64 = 1;
 
-#[cfg(feature = "testnet")]
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
 pub const CHAIN_ID: u64 = 34456;
 
-#[cfg(feature = "testnet-sepolia")]
+#[cfg(all(feature = "testnet-sepolia", not(feature = "testnet")))]
 pub const CHAIN_ID: u64 = 11155111;
