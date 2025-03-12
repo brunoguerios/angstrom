@@ -2,7 +2,7 @@ use std::{fmt::Debug, pin::Pin, sync::Arc};
 
 use alloy::{
     primitives::{Address, U256},
-    sol_types::SolCall
+    sol_types::SolCall,
 };
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
@@ -12,30 +12,30 @@ use pade::PadeEncode;
 use revm::{
     db::CacheDB,
     inspector_handle_register,
-    primitives::{EnvWithHandlerCfg, TxKind}
+    primitives::{EnvWithHandlerCfg, TxKind},
 };
 use tokio::runtime::Handle;
 
 use crate::{
     common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
-    order::sim::console_log::CallDataInspector
+    order::sim::console_log::CallDataInspector,
 };
 
 pub mod validator;
 pub use validator::*;
 
 pub struct BundleValidator<DB> {
-    db:               CacheDB<Arc<DB>>,
+    db: CacheDB<Arc<DB>>,
     angstrom_address: Address,
     /// the address associated with this node.
     /// this will ensure the  node has access and the simulation can pass
-    node_address:     Address
+    node_address: Address,
 }
 
 impl<DB> BundleValidator<DB>
 where
     DB: Unpin + Clone + 'static + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
 {
     pub fn new(db: Arc<DB>, angstrom_address: Address, node_address: Address) -> Self {
         Self { db: CacheDB::new(db), angstrom_address, node_address }
@@ -47,10 +47,10 @@ where
         token: Address,
         quantity: U256,
         uniswap: Address,
-        angstrom: Address
+        angstrom: Address,
     ) -> eyre::Result<()>
     where
-        <DB as revm::DatabaseRef>::Error: Debug
+        <DB as revm::DatabaseRef>::Error: Debug,
     {
         use alloy::sol_types::SolValue;
         use revm::primitives::keccak256;
@@ -84,10 +84,10 @@ where
         thread_pool: &mut KeySplitThreadpool<
             Address,
             Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
-            Handle
+            Handle,
         >,
         metrics: ValidationMetrics,
-        number: u64
+        number: u64,
     ) {
         let node_address = self.node_address;
         let angstrom_address = self.angstrom_address;
@@ -114,7 +114,7 @@ where
                         U256::from(asset.take),
                         TESTNET_POOL_MANAGER_ADDRESS,
                         angstrom_address
-                    );
+                    ).unwrap();
                 }
             }
 
