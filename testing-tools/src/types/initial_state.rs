@@ -1,22 +1,22 @@
 use alloy::providers::PendingTransaction;
 use alloy_primitives::{
     Address, TxHash, U256,
-    aliases::{I24, U24},
+    aliases::{I24, U24}
 };
 use angstrom_types::{
     contract_bindings::{angstrom::Angstrom::PoolKey, mintable_mock_erc_20::MintableMockERC20},
-    matching::SqrtPriceX96,
+    matching::SqrtPriceX96
 };
 
 use crate::{
     contracts::{anvil::SafeDeployPending, environment::TestAnvilEnvironment},
     providers::WalletProvider,
-    types::{HACKED_TOKEN_BALANCE, traits::WithWalletProvider},
+    types::{HACKED_TOKEN_BALANCE, traits::WithWalletProvider}
 };
 
 pub struct PendingDeployedPools {
     pending_txs: Vec<PendingTransaction>,
-    pool_keys: Vec<PoolKey>,
+    pool_keys:   Vec<PoolKey>
 }
 
 impl Default for PendingDeployedPools {
@@ -58,10 +58,10 @@ impl PendingDeployedPools {
 pub struct PartialConfigPoolKey {
     // currency0:         Address,
     // currency1:         Address,
-    pub fee: u64,
-    pub tick_spacing: i32,
+    pub fee:               u64,
+    pub tick_spacing:      i32,
     pub initial_liquidity: u128,
-    pub sqrt_price: SqrtPriceX96,
+    pub sqrt_price:        SqrtPriceX96
 }
 
 impl PartialConfigPoolKey {
@@ -71,7 +71,7 @@ impl PartialConfigPoolKey {
         fee: u64,
         tick_spacing: i32,
         initial_liquidity: u128,
-        sqrt_price: SqrtPriceX96,
+        sqrt_price: SqrtPriceX96
     ) -> Self {
         Self { fee, tick_spacing, initial_liquidity, sqrt_price }
     }
@@ -80,14 +80,14 @@ impl PartialConfigPoolKey {
         &self,
         angstrom_address_hook: Address,
         cur0: Address,
-        cur1: Address,
+        cur1: Address
     ) -> PoolKey {
         PoolKey {
-            currency0: cur0,
-            currency1: cur1,
-            fee: U24::from(self.fee),
+            currency0:   cur0,
+            currency1:   cur1,
+            fee:         U24::from(self.fee),
             tickSpacing: I24::unchecked_from(self.tick_spacing),
-            hooks: angstrom_address_hook,
+            hooks:       angstrom_address_hook
         }
     }
 
@@ -102,9 +102,9 @@ impl PartialConfigPoolKey {
 
 #[derive(Debug, Clone)]
 pub struct Erc20ToDeploy {
-    pub name: String,
-    pub symbol: String,
-    pub overwrite_token: Option<Address>,
+    pub name:            String,
+    pub symbol:          String,
+    pub overwrite_token: Option<Address>
 }
 
 impl Erc20ToDeploy {
@@ -126,8 +126,8 @@ impl Erc20ToDeploy {
     //     pending_tx.await?;
     //     *nonce += 1;
 
-    //     let token_instance = MintableMockERC20::new(token_address, provider.rpc_provider());
-    //     token_instance
+    //     let token_instance = MintableMockERC20::new(token_address,
+    // provider.rpc_provider());     token_instance
     //         .setMeta(self.name.clone(), self.symbol.clone())
     //         .nonce(*nonce)
     //         .deploy_pending()
@@ -168,7 +168,7 @@ impl Erc20ToDeploy {
         &self,
         provider: &WalletProvider,
         nonce: &mut u64,
-        pending_state: &mut PendingDeployedPools,
+        pending_state: &mut PendingDeployedPools
     ) -> eyre::Result<Address> {
         let (pending_tx, token_address) =
             MintableMockERC20::deploy_builder(provider.provider_ref())
@@ -186,7 +186,7 @@ impl Erc20ToDeploy {
         provider: &WalletProvider,
         token_address: Address,
         nonce: &mut u64,
-        pending_state: &mut PendingDeployedPools,
+        pending_state: &mut PendingDeployedPools
     ) -> eyre::Result<()> {
         let token_instance = MintableMockERC20::new(token_address, provider.rpc_provider());
         let pending_tx = token_instance
@@ -207,7 +207,7 @@ impl Erc20ToDeploy {
         token_address: &mut Address,
         nonce: &mut u64,
         pending_state: &mut PendingDeployedPools,
-        addresses_with_hacked_balance: Option<&[Address]>,
+        addresses_with_hacked_balance: Option<&[Address]>
     ) -> eyre::Result<()> {
         if let Some(overwrite_addr) = self.overwrite_token {
             provider
@@ -242,6 +242,6 @@ impl Erc20ToDeploy {
 #[derive(Default, Debug, Clone)]
 pub struct InitialStateConfig {
     pub addresses_with_tokens: Vec<Address>,
-    pub tokens_to_deploy: Vec<Erc20ToDeploy>,
-    pub pool_keys: Vec<PartialConfigPoolKey>,
+    pub tokens_to_deploy:      Vec<Erc20ToDeploy>,
+    pub pool_keys:             Vec<PartialConfigPoolKey>
 }
