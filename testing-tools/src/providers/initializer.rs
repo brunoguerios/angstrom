@@ -111,6 +111,7 @@ impl AnvilInitializer {
     async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
         // deploys the tokens
         let mut tokens_with_meta = Vec::new();
+        tracing::warn!("tokens to deploy: {:?}", self.initial_state_config.tokens_to_deploy);
         for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
             let token_addr = token_to_deploy
                 .deploy_token(
