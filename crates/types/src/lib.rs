@@ -16,7 +16,7 @@ pub mod sol_bindings;
 #[cfg(feature = "testnet")]
 pub mod testnet;
 
-#[cfg(and(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
+#[cfg(both(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
 pub const CHAIN_ID: u64 = 1;
 
 #[cfg(feature = "testnet")]
