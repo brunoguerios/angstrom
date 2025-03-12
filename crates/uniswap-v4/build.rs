@@ -8,12 +8,7 @@ const OUT_DIRECTORY: &str = "contracts/out/";
 const SRC_DIRECTORY: &str = "contracts/src";
 const BINDINGS_PATH: &str = "/src/uniswap/loaders/mod.rs";
 
-const WANTED_CONTRACTS: [&str; 4] = [
-    "GetUniswapV3PoolData.sol",
-    "GetUniswapV3TickData.sol",
-    "GetUniswapV4PoolData.sol",
-    "GetUniswapV4TickData.sol"
-];
+const WANTED_CONTRACTS: [&str; 2] = ["GetUniswapV4PoolData.sol", "GetUniswapV4TickData.sol"];
 
 // builds the contracts crate. then goes and generates bindings on this
 fn main() {
