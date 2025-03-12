@@ -109,17 +109,40 @@ impl AnvilInitializer {
     }
 
     async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<(Address, Address)> {
-        let mut tokens = Vec::new();
+        // deploys the tokens
+        let mut tokens_with_meta = Vec::new();
         for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
-            let token = token_to_deploy
-                .deploy_token(
+            let token_addr = token_to_deploy
+                .deploy_token(&self.provider, nonce, &mut self.pending_state)
+                .await?;
+            tokens_with_meta.push((token_addr, token_to_deploy.clone()));
+        }
+        self.pending_state.finalize_pending_txs().await?;
+
+        // sets the token metas
+        let mut tokens = Vec::new();
+        for (token_addr, token_meta) in &tokens_with_meta {
+            token_meta
+                .set_token_meta(&self.provider, *token_addr, nonce, &mut self.pending_state)
+                .await?;
+        }
+        self.pending_state.finalize_pending_txs().await?;
+
+        // overrides address and sets user amounts
+        for (token_addr, token_meta) in &mut tokens_with_meta {
+            token_meta
+                .set_address_overrides(
                     &self.provider,
+                    token_addr,
                     nonce,
+                    &mut self.pending_state,
                     Some(&self.initial_state_config.addresses_with_tokens)
                 )
                 .await?;
-            tokens.push(token);
+
+            tokens.push(*token_addr);
         }
+        self.pending_state.finalize_pending_txs().await?;
 
         let (token0, token1) = (tokens[0], tokens[1]);
         let tokens = if token0 < token1 { (token0, token1) } else { (token1, token0) };
