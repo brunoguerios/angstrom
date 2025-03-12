@@ -11,7 +11,7 @@ use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
-    primitive::{NewInitializedPool, OrderPoolNewOrderResult, PeerId, PoolId},
+    primitive::{NewInitializedPool, OrderValidationError, PeerId, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::{Future, FutureExt, StreamExt};
@@ -65,10 +65,22 @@ impl OrderPoolHandle for PoolHandle {
         &self,
         origin: OrderOrigin,
         order: AllOrders
-    ) -> impl Future<Output = OrderPoolNewOrderResult> + Send {
+    ) -> impl Future<Output = Result<(), OrderValidationError>> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let _ = self.send(OrderCommand::NewOrder(origin, order, tx));
-        rx.map(Into::into)
+        rx.map(|res| {
+            let Ok(result) = res else {
+                return Err(OrderValidationError::Unknown(
+                    "a channel failed on the backend".to_string()
+                ));
+            };
+            match result {
+                OrderValidationResults::TransitionedToBlock | OrderValidationResults::Valid(_) => {
+                    Ok(())
+                }
+                OrderValidationResults::Invalid { error, .. } => Err(error)
+            }
+        })
     }
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {
@@ -170,7 +182,8 @@ where
         tx: UnboundedSender<OrderCommand>,
         rx: UnboundedReceiver<OrderCommand>,
         pool_storage: AngstromPoolsTracker,
-        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
+        pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
+        block_number: u64
     ) -> PoolHandle {
         let rx = UnboundedReceiverStream::new(rx);
         let order_storage = self
@@ -181,7 +194,7 @@ where
         let inner = OrderIndexer::new(
             self.validator.clone(),
             order_storage.clone(),
-            0,
+            block_number,
             pool_manager_tx.clone(),
             pool_storage
         );

@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
-use angstrom_eth::handle::Eth;
+use angstrom_eth::{handle::Eth, manager::EthEvent};
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
 use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::{
@@ -17,14 +17,16 @@ use angstrom_types::{
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::{Future, Stream, StreamExt, TryStreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::{MatchingManager, configure_uniswap_manager, manager::MatcherHandle};
+use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TokioTaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::{Instrument, span};
+use uniswap_v4::configure_uniswap_manager;
 use validation::{
-    common::TokenPriceGenerator, order::state::pools::AngstromPoolsTracker,
+    common::{TokenPriceGenerator, WETH_ADDRESS},
+    order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
 };
 
@@ -131,6 +133,9 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             .map_err(|e| eyre::eyre!("{e}"))?
         );
 
+        let network_stream = Box::pin(eth_handle.subscribe_network())
+            as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
+
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
             state_provider
@@ -139,7 +144,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             uniswap_registry.clone(),
             block_number,
             block_sync.clone(),
-            inital_angstrom_state.pool_manager_addr
+            inital_angstrom_state.pool_manager_addr,
+            network_stream
         )
         .await;
 
@@ -154,6 +160,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             Arc::new(state_provider.rpc_provider()),
             block_number,
             uniswap_pools.clone(),
+            WETH_ADDRESS,
             Some(1)
         )
         .await
@@ -204,7 +211,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
             pool_storage,
-            strom_handles.pool_manager_tx
+            strom_handles.pool_manager_tx,
+            block_number
         );
 
         let rpc_port = node_config.strom_rpc_port();

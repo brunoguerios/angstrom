@@ -30,7 +30,7 @@ pub fn run() -> eyre::Result<()> {
     Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, args| async move {
         let executor = builder.task_executor().clone();
 
-        if args.metrics {
+        if args.metrics_enabled {
             executor.spawn_critical("metrics", crate::cli::init_metrics(args.metrics_port));
             METRICS_ENABLED.set(true).unwrap();
         } else {
@@ -77,7 +77,7 @@ fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
     match exists {
         Ok(true) => {
             let contents = std::fs::read_to_string(sk_path)?;
-            Ok(AngstromSigner::new(contents.as_str().parse::<PrivateKeySigner>()?))
+            Ok(AngstromSigner::new(contents.trim().parse::<PrivateKeySigner>()?))
         }
         _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
     }

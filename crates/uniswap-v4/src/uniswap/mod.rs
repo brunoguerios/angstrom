@@ -8,6 +8,7 @@ use thiserror::Error;
 pub mod loaders;
 pub mod pool;
 pub mod pool_data_loader;
+pub mod pool_factory;
 pub mod pool_manager;
 pub mod pool_providers;
 pub mod tob;

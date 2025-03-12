@@ -3,8 +3,11 @@ use std::sync::Arc;
 use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::sol_bindings::{
-    Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
+use angstrom_types::{
+    primitive::OrderValidationError,
+    sol_bindings::{
+        Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder,
+    },
 };
 use db_state_utils::StateFetchUtils;
 use parking_lot::RwLock;
@@ -28,17 +31,17 @@ pub struct StateValidation<Pools, Fetch> {
     /// tracks everything user related.
     user_account_tracker: Arc<UserAccountProcessor<Fetch>>,
     /// tracks all info about the current angstrom pool state.
-    pool_tacker:          Arc<RwLock<Pools>>,
+    pool_tacker: Arc<RwLock<Pools>>,
     /// keeps up-to-date with the on-chain pool
-    uniswap_pools:        SyncedUniswapPools
+    uniswap_pools: SyncedUniswapPools,
 }
 
 impl<Pools, Fetch> Clone for StateValidation<Pools, Fetch> {
     fn clone(&self) -> Self {
         Self {
             user_account_tracker: Arc::clone(&self.user_account_tracker),
-            pool_tacker:          Arc::clone(&self.pool_tacker),
-            uniswap_pools:        self.uniswap_pools.clone()
+            pool_tacker: Arc::clone(&self.pool_tacker),
+            uniswap_pools: self.uniswap_pools.clone(),
         }
     }
 }
@@ -47,12 +50,12 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     pub fn new(
         user_account_tracker: UserAccountProcessor<Fetch>,
         pools: Pools,
-        uniswap_pools: SyncedUniswapPools
+        uniswap_pools: SyncedUniswapPools,
     ) -> Self {
         Self {
             pool_tacker: Arc::new(RwLock::new(pools)),
             user_account_tracker: Arc::new(user_account_tracker),
-            uniswap_pools
+            uniswap_pools,
         }
     }
 
@@ -87,35 +90,47 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         &self,
         order: O,
         block: u64,
-        metrics: ValidationMetrics
+        metrics: ValidationMetrics,
     ) -> OrderValidationResults {
         metrics.applying_state_transitions(|| {
             let order_hash = order.order_hash();
             if !order.is_valid_signature() {
                 tracing::debug!("order had invalid hash");
-                return OrderValidationResults::Invalid(order_hash);
+                return OrderValidationResults::Invalid {
+                    hash: order_hash,
+                    error: OrderValidationError::InvalidSignature,
+                };
             }
 
             if !self.correctly_built(&order) {
                 tracing::info!(?order, "invalidly built order");
-                return OrderValidationResults::Invalid(order_hash);
+                return OrderValidationResults::Invalid {
+                    hash: order_hash,
+                    error: OrderValidationError::InvalidPartialOrder,
+                };
             }
 
             let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {
                 tracing::debug!("order requested a invalid pool");
-                return OrderValidationResults::Invalid(order_hash);
+                return OrderValidationResults::Invalid {
+                    hash: order_hash,
+                    error: OrderValidationError::InvalidPool,
+                };
             };
 
             self.user_account_tracker
                 .verify_order::<O>(order, pool_info, block)
                 .map(|o: _| {
                     OrderValidationResults::Valid(
-                        o.try_map_inner(|inner| Ok(inner.into())).unwrap()
+                        o.try_map_inner(|inner| Ok(inner.into())).unwrap(),
                     )
                 })
                 .unwrap_or_else(|e| {
                     tracing::debug!(%e,"user account tracker failed to validate order");
-                    OrderValidationResults::Invalid(order_hash)
+                    OrderValidationResults::Invalid {
+                        hash: order_hash,
+                        error: OrderValidationError::StateError(e),
+                    }
                 })
         })
     }
@@ -124,33 +139,37 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         &self,
         order: TopOfBlockOrder,
         block: u64,
-        metrics: ValidationMetrics
+        metrics: ValidationMetrics,
     ) -> OrderValidationResults {
+        let order_hash = order.order_hash();
         let mut results = self.handle_regular_order(order, block, metrics);
         let mut invalidate = false;
 
-        if let OrderValidationResults::Valid(ref mut order_with_storage) = results {
-            let tob_order = order_with_storage
+        if let OrderValidationResults::Valid(ref mut tob_order) = results {
+            let tob_orders = tob_order
                 .clone()
                 .try_map_inner(|inner| {
                     let AllOrders::TOB(order) = inner else { eyre::bail!("unreachable") };
                     Ok(order)
                 })
                 .expect("should be unreachable");
-            let pool_address = order_with_storage.pool_id;
+            let pool_address = tob_orders.pool_id;
             if let Ok(rewards) = self
                 .uniswap_pools
-                .calculate_rewards(pool_address, &tob_order)
+                .calculate_rewards(pool_address, &tob_orders)
                 .await
             {
-                order_with_storage.tob_reward = U256::from(rewards.total_reward);
+                tob_order.tob_reward = U256::from(rewards.total_reward);
             } else {
                 invalidate = true;
             }
         }
 
         if invalidate {
-            tracing::info!("bad swap for order");
+            return OrderValidationResults::Invalid {
+                hash: order_hash,
+                error: OrderValidationError::InvalidToBSwap,
+            };
         }
 
         results

@@ -41,6 +41,10 @@ impl SubmitTx for RootProvider {
     }
 }
 
+/// On sepolia, there is a low frequency of mev-boost. This is
+/// so that hopefully we can have bundles land frequently
+const SEND_NORMAL: bool = cfg!(feature = "testnet-sepolia");
+
 pub struct MevBoostProvider<P> {
     mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>,
     node_provider:       Arc<P>
@@ -98,6 +102,15 @@ where
         let mut phash = None;
         for provider in self.mev_boost_providers.clone() {
             let (hash, sent) = provider.submit_transaction(&signer, tx.clone()).await;
+            phash = Some(hash);
+            submitted &= sent;
+        }
+        if SEND_NORMAL {
+            let (hash, sent) = self
+                .node_provider
+                .root()
+                .submit_transaction(&signer, tx)
+                .await;
             phash = Some(hash);
             submitted &= sent;
         }

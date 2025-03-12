@@ -24,6 +24,8 @@ use super::{
     rewards::PoolUpdate,
     tob::ToBOutcome
 };
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
@@ -38,8 +40,7 @@ use crate::{
         RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
-    },
-    testnet::TestnetStateOverrides
+    }
 };
 
 mod order;
@@ -61,7 +62,7 @@ impl AngstromBundle {
         &self.pairs
     }
 
-    #[cfg(feature = "testnet")]
+    #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
@@ -905,6 +906,10 @@ impl TryFrom<&[u8]> for AngstromPoolConfigStore {
     type Error = String;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            return Ok(Self::default());
+        }
+
         if value.first() != Some(&0) {
             return Err("Invalid encoded entries: must start with a safety byte of 0".to_string());
         }

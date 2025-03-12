@@ -1,6 +1,6 @@
 //! CLI definition and entrypoint to executable
 
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, pin::Pin, sync::Arc, time::Duration};
 
 use alloy::{
     self,
@@ -23,26 +23,31 @@ use angstrom_types::{
     contract_bindings::controller_v_1::ControllerV1,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     mev_boost::MevBoostProvider,
-    primitive::{AngstromSigner, PeerId, UniswapPoolRegistry},
+    primitive::{AngstromSigner, UniswapPoolRegistry},
+    reth_db_provider::RethDbLayer,
     reth_db_wrapper::RethDbWrapper
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use matching_engine::{MatchingManager, configure_uniswap_manager, manager::MatcherCommand};
+use futures::Stream;
+use matching_engine::{MatchingManager, manager::MatcherCommand};
 use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
 use reth::{
     api::NodeAddOns,
     builder::FullNodeComponents,
     chainspec::ChainSpec,
     primitives::EthPrimitives,
-    providers::{BlockNumReader, CanonStateSubscriptions},
+    providers::{BlockNumReader, CanonStateNotification, CanonStateSubscriptions},
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
 use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAddOns};
-use reth_provider::BlockReader;
+use reth_provider::{
+    BlockReader, DatabaseProviderFactory, ReceiptProvider, TryIntoHistoricalStateProvider
+};
 use tokio::sync::mpsc::{
     Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel
 };
+use uniswap_v4::{configure_uniswap_manager, fetch_angstrom_pools};
 use validation::{
     common::TokenPriceGenerator,
     init_validation,
@@ -154,20 +159,25 @@ pub async fn initialize_strom_components<Node, AddOns>(
             Block = reth::primitives::Block,
             Receipt = reth::primitives::Receipt,
             Header = reth::primitives::Header
-        >,
-    AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>
+        > + DatabaseProviderFactory,
+    AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
+    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider:
+        TryIntoHistoricalStateProvider + ReceiptProvider,
+    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader
 {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
+
     let node_address = signer.address();
 
     // NOTE:
     // no key is installed and this is strictly for internal usage. Realsically, we
     // should build a alloy provider impl that just uses the raw underlying db
     // so it will be quicker than rpc + won't be bounded by the rpc threadpool.
-
     let querying_provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
         .with_recommended_fillers()
-        .on_builtin(node.rpc_server_handle().http_url().unwrap().as_str())
+        .layer(RethDbLayer::new(node.provider().clone()))
+        // backup
+        .on_builtin(node.rpc_server_handle().ws_url().unwrap().as_str())
         .await
         .unwrap()
         .into();
@@ -179,18 +189,15 @@ pub async fn initialize_strom_components<Node, AddOns>(
         this is done to ensure all modules start on the same state and we don't hit the rare  \
         condition of a block while starting modules");
 
-    let _ = node
-        .provider
-        .subscribe_to_canonical_state()
-        .recv()
-        .await
-        .expect("startup sequence failed");
+    // wait for the next block so that we have a full 12 seconds on startup.
+    let mut sub = node.provider.subscribe_to_canonical_state();
+    handle_init_block_spam(&mut sub).await;
+    let _ = sub.recv().await.expect("next block");
 
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
     let block_id = querying_provider.get_block_number().await.unwrap();
-
-    let global_block_sync = GlobalBlockSync::new(block_id);
+    tracing::info!(?block_id, "starting up with block");
 
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
@@ -202,11 +209,30 @@ pub async fn initialize_strom_components<Node, AddOns>(
         .unwrap()
     );
 
-    let uniswap_registry: UniswapPoolRegistry = node_config.pools.into();
+    // load the angstrom pools;
+    tracing::info!("starting search for pools");
+    let pools = fetch_angstrom_pools(
+        node_config.angstrom_deploy_block as usize,
+        block_id as usize,
+        node_config.angstrom_address,
+        &node.provider
+    )
+    .await;
+    tracing::info!("found pools");
+
+    // re-fetch given the fetch pools takes awhile. given this, we do techincally
+    // have a gap in which a pool is deployed durning startup. This isn't
+    // critical but we will want to fix this down the road.
+    let block_id = querying_provider.get_block_number().await.unwrap();
+    let eth_data_sub = node.provider.subscribe_to_canonical_state();
+    let global_block_sync = GlobalBlockSync::new(block_id);
+
+    // this right here problem
+    let uniswap_registry: UniswapPoolRegistry = pools.into();
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
-    let periphery_c = ControllerV1::new(node_config.periphery_addr, querying_provider.clone());
+    let periphery_c = ControllerV1::new(node_config.periphery_address, querying_provider.clone());
     let node_set = periphery_c
         .nodes()
         .call()
@@ -220,18 +246,20 @@ pub async fn initialize_strom_components<Node, AddOns>(
     // created
     let eth_handle = EthDataCleanser::spawn(
         node_config.angstrom_address,
-        node_config.periphery_addr,
-        node.provider.subscribe_to_canonical_state(),
+        node_config.periphery_address,
+        eth_data_sub,
         executor.clone(),
         handles.eth_tx,
         handles.eth_rx,
         HashSet::new(),
         pool_config_store.clone(),
         global_block_sync.clone(),
-        node_set,
+        node_set.clone(),
         vec![handles.eth_handle_tx.take().unwrap()]
     )
     .unwrap();
+    let network_stream = Box::pin(eth_handle.subscribe_network())
+        as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
     let uniswap_pool_manager = configure_uniswap_manager(
         querying_provider.clone(),
@@ -239,16 +267,22 @@ pub async fn initialize_strom_components<Node, AddOns>(
         uniswap_registry,
         block_id,
         global_block_sync.clone(),
-        node_config.pool_manager_address
+        node_config.pool_manager_address,
+        network_stream
     )
     .await;
 
     let uniswap_pools = uniswap_pool_manager.pools();
-    executor.spawn(Box::pin(uniswap_pool_manager));
-    let price_generator =
-        TokenPriceGenerator::new(querying_provider.clone(), block_id, uniswap_pools.clone(), None)
-            .await
-            .expect("failed to start token price generator");
+    executor.spawn_critical("uniswap pool manager", Box::pin(uniswap_pool_manager));
+    let price_generator = TokenPriceGenerator::new(
+        querying_provider.clone(),
+        block_id,
+        uniswap_pools.clone(),
+        node_config.gas_token_address,
+        None
+    )
+    .await
+    .expect("failed to start token price generator");
 
     let block_height = node.provider.best_block_number().unwrap();
 
@@ -292,15 +326,14 @@ pub async fn initialize_strom_components<Node, AddOns>(
         handles.orderpool_tx,
         handles.orderpool_rx,
         angstrom_pool_tracker,
-        handles.pool_manager_tx
+        handles.pool_manager_tx,
+        block_id
     );
-
-    // TODO load the stakes from Eigen using node.provider
-    let validators = vec![
-        AngstromValidator::new(PeerId::default(), 100),
-        AngstromValidator::new(PeerId::default(), 200),
-        AngstromValidator::new(PeerId::default(), 300),
-    ];
+    let validators = node_set
+        .into_iter()
+        // use same weight for all validators
+        .map(|addr| AngstromValidator::new(addr, 100))
+        .collect::<Vec<_>>();
 
     // spinup matching engine
     let matching_handle = MatchingManager::spawn(executor.clone(), validation_handle.clone());
@@ -323,7 +356,32 @@ pub async fn initialize_strom_components<Node, AddOns>(
         global_block_sync.clone()
     );
 
-    let _consensus_handle = executor.spawn_critical("consensus", Box::pin(manager));
-    // ensure no more modules can be added to block sync.
+    executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
+        manager.run_till_shutdown(grace)
+    });
+
     global_block_sync.finalize_modules();
+    tracing::info!("started angstrom");
+}
+
+async fn handle_init_block_spam(
+    canon: &mut tokio::sync::broadcast::Receiver<CanonStateNotification>
+) {
+    // wait for the first notification
+    let _ = canon.recv().await.expect("first block");
+    tracing::info!("got first block");
+
+    loop {
+        tokio::select! {
+            // if we can go 9s without a update, we know that all of the pending cannon
+            // state notifications have been processed and we are at the tip.
+            _ = tokio::time::sleep(Duration::from_secs(9)) => {
+                break;
+            }
+            Ok(_) = canon.recv() => {
+
+            }
+        }
+    }
+    tracing::info!("finished handling block-spam");
 }

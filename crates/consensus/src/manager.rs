@@ -22,6 +22,7 @@ use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_provider::{CanonStateNotification, CanonStateNotifications};
+use reth_tasks::shutdown::GracefulShutdown;
 use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
@@ -142,6 +143,30 @@ where
                 .broadcast_message(StromMessage::PreProposeAgg(p))
         }
     }
+
+    pub async fn run_till_shutdown(mut self, sig: GracefulShutdown) {
+        let mut g = None;
+        tokio::select! {
+            _ = &mut self => {
+            }
+            cancel = sig => {
+                g = Some(cancel);
+            }
+        }
+
+        // ensure we shutdown properly.
+        if g.is_some() {
+            self.cleanup().await;
+        }
+
+        drop(g);
+    }
+
+    /// Currently this doesn't do much. However,
+    /// once we start adding slashing. this will be critical in storing
+    /// all of our evidence.
+    #[allow(unused)]
+    async fn cleanup(mut self) {}
 }
 
 impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>

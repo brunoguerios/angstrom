@@ -7,6 +7,7 @@ edition.workspace = true
 futures.workspace = true
 base64.workspace = true
 bitmaps.workspace = true
+reth.workspace =true
 reth-network-peers = { workspace = true, features = ["secp256k1"] }
 reth-provider.workspace = true
 reth-trie.workspace = true
@@ -37,7 +38,7 @@ alloy-rlp.workspace = true
 derive_more = "0"
 eyre.workspace = true
 bincode = { workspace = true }
-serde = { workspace = true, optional = true, default-features = false, features = [
+serde = { workspace = true,  default-features = false, features = [
   "derive",
 ] }
 uniswap_v3_math.workspace = true
@@ -58,8 +59,7 @@ testing-tools.workspace = true
 angstrom-types.workspace = true
 
 [features]
-default = ["serde", "testnet"]
+default = [ "testnet"]
 testnet = ["dep:rand"]
-# serde = ["dep:serde", "alloy-primitives/serde"]
-serde = ["dep:serde"]
+testnet-sepolia = ["dep:rand"]
 anvil = []

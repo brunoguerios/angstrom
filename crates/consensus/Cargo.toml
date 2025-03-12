@@ -48,6 +48,7 @@ eyre.workspace = true
 pade.workspace = true
 
 [dev-dependencies]
+dashmap.workspace=true
 testing-tools.workspace = true
 tracing.workspace = true
 tracing-appender.workspace = true

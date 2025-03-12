@@ -1,11 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
 use alloy::primitives::{Address, B256, U256};
-use angstrom_types::sol_bindings::{RespendAvoidanceMethod, ext::RawPoolOrder};
-use angstrom_utils::FnResultOption;
+use angstrom_types::{
+    primitive::UserOrderPoolInfo,
+    sol_bindings::{RespendAvoidanceMethod, ext::RawPoolOrder}
+};
 use dashmap::DashMap;
 
-use crate::order::state::{db_state_utils::StateFetchUtils, pools::UserOrderPoolInfo};
+use crate::order::state::db_state_utils::StateFetchUtils;
 
 pub type UserAddress = Address;
 pub type TokenAddress = Address;

@@ -1,6 +1,4 @@
-use std::{
-    cmp::Ordering, collections::HashMap, fmt::Debug, marker::PhantomData, ops::Rem, sync::Arc
-};
+use std::{cmp::Ordering, collections::HashMap, fmt::Debug, ops::Rem, sync::Arc};
 
 use alloy::{
     hex,
@@ -9,7 +7,10 @@ use alloy::{
     transports::Transport
 };
 use alloy_primitives::Log;
-use angstrom_types::matching::uniswap::{LiqRange, PoolSnapshot};
+use angstrom_types::{
+    matching::uniswap::{LiqRange, PoolSnapshot},
+    primitive::PoolId
+};
 use itertools::Itertools;
 use malachite::num::conversion::traits::SaturatingInto;
 use thiserror::Error;
@@ -46,7 +47,7 @@ pub struct TickInfo {
 pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
 #[derive(Debug, Clone, Default)]
-pub struct EnhancedUniswapPool<Loader: PoolDataLoader<A> = DataLoader<Address>, A = Address> {
+pub struct EnhancedUniswapPool<Loader: PoolDataLoader = DataLoader> {
     sync_swap_with_sim:     bool,
     initial_ticks_per_side: u16,
     pub data_loader:        Loader,
@@ -61,14 +62,12 @@ pub struct EnhancedUniswapPool<Loader: PoolDataLoader<A> = DataLoader<Address>, 
     pub tick:               i32,
     pub tick_spacing:       i32,
     pub tick_bitmap:        HashMap<i16, U256>,
-    pub ticks:              HashMap<i32, TickInfo>,
-    pub _phantom:           PhantomData<A>
+    pub ticks:              HashMap<i32, TickInfo>
 }
 
-impl<Loader, A> EnhancedUniswapPool<Loader, A>
+impl<Loader> EnhancedUniswapPool<Loader>
 where
-    Loader: PoolDataLoader<A> + Default,
-    A: Debug + Copy + Default
+    Loader: PoolDataLoader + Default
 {
     pub fn new(data_loader: Loader, initial_ticks_per_side: u16) -> Self {
         Self {
@@ -215,7 +214,7 @@ where
         self.sync_swap_with_sim = sync_swap_with_sim;
     }
 
-    pub fn address(&self) -> A {
+    pub fn address(&self) -> PoolId {
         self.data_loader.address()
     }
 
@@ -263,7 +262,7 @@ where
 
     pub async fn load_more_ticks<P: Provider>(
         &self,
-        tick_data: TickRangeToLoad<A>,
+        tick_data: TickRangeToLoad,
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<Vec<TickData>, PoolError> {
@@ -678,10 +677,6 @@ where
         !(self.token0.is_zero() || self.token1.is_zero())
     }
 
-    pub(crate) fn event_signatures(&self) -> Vec<B256> {
-        Loader::event_signatures()
-    }
-
     pub(crate) fn update_position(
         &mut self,
         tick_lower: i32,
@@ -845,7 +840,7 @@ mod tests {
     #[derive(Debug, Clone, Default)]
     struct MockLoader;
 
-    impl<A> PoolDataLoader<A> for MockLoader {
+    impl PoolDataLoader for MockLoader {
         async fn load_tick_data<P: Provider>(
             &self,
             _: I24,
@@ -866,11 +861,11 @@ mod tests {
             unimplemented!()
         }
 
-        fn address(&self) -> A {
+        fn address(&self) -> PoolId {
             unimplemented!()
         }
 
-        fn group_logs(_: Vec<Log>) -> HashMap<A, Vec<Log>> {
+        fn group_logs(_: Vec<Log>) -> HashMap<PoolId, Vec<Log>> {
             unimplemented!()
         }
 

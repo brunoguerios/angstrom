@@ -84,4 +84,9 @@ uniswap_v3_math.workspace = true
 create3 = { git = "https://github.com/AmanRaj1608/create3" }
 
 [features]
-reth-db-dep-tests = []
+default = ["testnet"]
+testnet = ["angstrom-types/testnet", "validation/testnet"]
+testnet-sepolia = ["angstrom-types/testnet-sepolia", "validation/testnet-sepolia"]
+reth-db-dep-tests = ["testnet"]
+
+

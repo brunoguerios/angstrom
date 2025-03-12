@@ -1,27 +1,17 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc
-};
+use std::collections::{HashMap, HashSet};
 
-use alloy::providers::Provider;
-use alloy_primitives::{Address, BlockNumber};
+use alloy_primitives::Address;
 use angstrom_types::{
-    block_sync::BlockSyncConsumer,
     contract_payloads::angstrom::BundleGasDetails,
     matching::uniswap::PoolSnapshot,
     orders::PoolSolution,
-    primitive::{PoolId, UniswapPoolRegistry},
+    primitive::PoolId,
     sol_bindings::{
         RawPoolOrder, grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder
     }
 };
 use book::{BookOrder, OrderBook};
 use futures_util::future::BoxFuture;
-use reth_provider::CanonStateNotifications;
-use uniswap_v4::uniswap::{
-    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
-    pool_providers::canonical_state_adapter::CanonicalStateAdapter
-};
 
 pub mod book;
 pub mod manager;
@@ -49,53 +39,4 @@ pub fn build_book(id: PoolId, amm: Option<PoolSnapshot>, orders: HashSet<BookOrd
     asks.sort_by_key(|a| a.limit_price());
 
     OrderBook::new(id, amm, bids, asks, Some(book::sort::SortStrategy::ByPriceByVolume))
-}
-
-pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
-    provider: Arc<impl Provider + 'static>,
-    state_notification: CanonStateNotifications,
-    uniswap_pool_registry: UniswapPoolRegistry,
-    current_block: BlockNumber,
-    block_sync: BlockSync,
-    pool_manager_address: Address
-) -> UniswapPoolManager<
-    CanonicalStateAdapter<impl Provider + 'static>,
-    BlockSync,
-    DataLoader<PoolId>,
-    PoolId
-> {
-    let mut uniswap_pools: Vec<_> = uniswap_pool_registry
-        .pools()
-        .keys()
-        .map(|pool_id| {
-            let internal = uniswap_pool_registry.conversion_map.get(pool_id).unwrap();
-
-            let initial_ticks_per_side = 200;
-            EnhancedUniswapPool::new(
-                DataLoader::new_with_registry(
-                    *internal,
-                    uniswap_pool_registry.clone(),
-                    pool_manager_address
-                ),
-                initial_ticks_per_side
-            )
-        })
-        .collect();
-
-    for pool in uniswap_pools.iter_mut() {
-        pool.initialize(Some(current_block), provider.clone())
-            .await
-            .unwrap();
-    }
-
-    let notifier =
-        Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
-
-    UniswapPoolManager::new(
-        uniswap_pools,
-        uniswap_pool_registry.conversion_map,
-        current_block,
-        notifier,
-        block_sync
-    )
 }

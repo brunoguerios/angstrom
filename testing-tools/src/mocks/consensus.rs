@@ -1,10 +1,8 @@
 use std::time::Duration;
 
+use alloy::primitives::Address;
 use angstrom_network::manager::StromConsensusEvent;
-use angstrom_types::{
-    consensus::{PreProposal, Proposal},
-    primitive::PeerId
-};
+use angstrom_types::consensus::{PreProposal, Proposal};
 use tokio::{
     sync::{
         Mutex,
@@ -32,19 +30,19 @@ impl MockConsensusEventHandle {
         (Self { tx, interval: Mutex::new(interval) }, UnboundedReceiverStream::new(rx))
     }
 
-    pub fn prepropose(&self, peer: PeerId, proposal: PreProposal) {
+    pub fn prepropose(&self, peer: Address, proposal: PreProposal) {
         self.tx
             .send(StromConsensusEvent::PreProposal(peer, proposal))
             .expect("Failed to send proposal");
     }
 
-    pub fn propose(&self, peer: PeerId, proposal: Proposal) {
+    pub fn propose(&self, peer: Address, proposal: Proposal) {
         self.tx
             .send(StromConsensusEvent::Proposal(peer, proposal))
             .expect("Failed to send proposal");
     }
 
-    pub async fn propose_on_next_tick(&self, peer: PeerId, proposal: Proposal) {
+    pub async fn propose_on_next_tick(&self, peer: Address, proposal: Proposal) {
         let mut i = self.interval.lock().await;
         i.tick().await;
         self.propose(peer, proposal);
