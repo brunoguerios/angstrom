@@ -136,7 +136,7 @@ pub mod test {
             .expect("failed to start angstrom testnet");
 
         // grab provider so we can query from the chain later.
-        let provider = testnet.node_provider(None).rpc_provider();
+        let provider = testnet.node_provider(Some(1)).rpc_provider();
 
         let executor = TokioTaskExecutor::default();
         let task = executor.spawn_critical_blocking(
