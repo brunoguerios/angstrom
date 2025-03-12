@@ -7,8 +7,8 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{
         Ray,
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-    },
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    }
 };
 use serde::{Deserialize, Serialize};
 
@@ -21,10 +21,10 @@ pub mod sort;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct OrderBook {
-    id: PoolId,
-    amm: Option<PoolSnapshot>,
+    id:   PoolId,
+    amm:  Option<PoolSnapshot>,
     bids: Vec<BookOrder>,
-    asks: Vec<BookOrder>,
+    asks: Vec<BookOrder>
 }
 
 impl OrderBook {
@@ -33,7 +33,7 @@ impl OrderBook {
         amm: Option<PoolSnapshot>,
         mut bids: Vec<BookOrder>,
         mut asks: Vec<BookOrder>,
-        sort: Option<SortStrategy>,
+        sort: Option<SortStrategy>
     ) -> Self {
         // Use our sorting strategy to sort our bids and asks
         let strategy = sort.unwrap_or_default();
@@ -115,7 +115,7 @@ mod test {
         let asks = vec![];
         let amm = PoolSnapshot::new(
             vec![LiqRange::new(90000, 110000, 10).unwrap()],
-            SqrtPriceX96::at_tick(100000).unwrap(),
+            SqrtPriceX96::at_tick(100000).unwrap()
         )
         .unwrap();
         OrderBook::new(FixedBytes::<32>::random(), Some(amm), bids, asks, None);

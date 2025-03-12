@@ -2,19 +2,19 @@ use std::collections::HashMap;
 
 // Allows us to impl revm::DatabaseRef on the default provider type.
 use alloy::primitives::{
-    Address, B256, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, U256,
+    Address, B256, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, U256
 };
 use alloy_primitives::map::FbBuildHasher;
 use reth_chainspec::ChainInfo;
 use reth_primitives::Bytecode;
 use reth_provider::{
     AccountReader, BlockHashReader, BlockIdReader, BlockNumReader, HashedPostStateProvider,
-    ProviderResult, StateProofProvider, StateProvider, StateProviderFactory,
+    ProviderResult, StateProofProvider, StateProvider, StateProviderFactory
 };
 use reth_storage_api::{StateRootProvider, StorageRootProvider};
 use reth_trie::{
     AccountProof, HashedPostState, HashedStorage, MultiProof, StorageMultiProof, TrieInput,
-    updates::TrieUpdates,
+    updates::TrieUpdates
 };
 use revm::db::BundleState;
 
@@ -24,7 +24,7 @@ pub struct RethDbWrapper<DB: StateProviderFactory + Unpin + Clone + 'static>(DB)
 
 impl<DB> RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     pub fn new(db: DB) -> Self {
         Self(db)
@@ -33,7 +33,7 @@ where
 
 impl<DB> revm::DatabaseRef for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     type Error = eyre::Error;
 
@@ -43,7 +43,7 @@ where
     /// `None` if it doesn't, or an error if encountered.
     fn basic_ref(
         &self,
-        address: Address,
+        address: Address
     ) -> Result<Option<revm::primitives::AccountInfo>, Self::Error> {
         Ok(self.basic_account(&address)?.map(Into::into))
     }
@@ -78,7 +78,7 @@ where
 
 impl<DB> BlockNumReader for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn chain_info(&self) -> reth_provider::ProviderResult<ChainInfo> {
         self.0.chain_info()
@@ -90,7 +90,7 @@ where
 
     fn convert_number(
         &self,
-        id: alloy::eips::BlockHashOrNumber,
+        id: alloy::eips::BlockHashOrNumber
     ) -> reth_provider::ProviderResult<Option<B256>> {
         self.0.convert_number(id)
     }
@@ -105,7 +105,7 @@ where
 
     fn convert_hash_or_number(
         &self,
-        id: alloy::eips::BlockHashOrNumber,
+        id: alloy::eips::BlockHashOrNumber
     ) -> reth_provider::ProviderResult<Option<BlockNumber>> {
         self.0.convert_hash_or_number(id)
     }
@@ -113,7 +113,7 @@ where
 
 impl<DB> BlockIdReader for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn pending_block_num_hash(&self) -> ProviderResult<Option<alloy::eips::BlockNumHash>> {
         self.0.pending_block_num_hash()
@@ -130,7 +130,7 @@ where
 
 impl<DB> StateProviderFactory for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn latest(&self) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
         self.0.latest()
@@ -142,42 +142,42 @@ where
 
     fn state_by_block_id(
         &self,
-        block_id: alloy::eips::BlockId,
+        block_id: alloy::eips::BlockId
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
         self.0.state_by_block_id(block_id)
     }
 
     fn state_by_block_hash(
         &self,
-        block: BlockHash,
+        block: BlockHash
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
         self.0.state_by_block_hash(block)
     }
 
     fn history_by_block_hash(
         &self,
-        block: BlockHash,
+        block: BlockHash
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
         self.0.history_by_block_hash(block)
     }
 
     fn pending_state_by_hash(
         &self,
-        block_hash: B256,
+        block_hash: B256
     ) -> reth_provider::ProviderResult<Option<reth_provider::StateProviderBox>> {
         self.0.pending_state_by_hash(block_hash)
     }
 
     fn state_by_block_number_or_tag(
         &self,
-        number_or_tag: alloy::eips::BlockNumberOrTag,
+        number_or_tag: alloy::eips::BlockNumberOrTag
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
         self.0.state_by_block_number_or_tag(number_or_tag)
     }
 
     fn history_by_block_number(
         &self,
-        block: BlockNumber,
+        block: BlockNumber
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
         self.0.history_by_block_number(block)
     }
@@ -185,12 +185,12 @@ where
 
 impl<DB> StateProvider for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn storage(
         &self,
         account: Address,
-        storage_key: StorageKey,
+        storage_key: StorageKey
     ) -> reth_provider::ProviderResult<Option<StorageValue>> {
         self.0.latest()?.storage(account, storage_key)
     }
@@ -209,7 +209,7 @@ where
 
     fn bytecode_by_hash(
         &self,
-        code_hash: &B256,
+        code_hash: &B256
     ) -> reth_provider::ProviderResult<Option<Bytecode>> {
         self.0.latest()?.bytecode_by_hash(code_hash)
     }
@@ -217,11 +217,11 @@ where
 
 impl<DB> AccountReader for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn basic_account(
         &self,
-        address: &Address,
+        address: &Address
     ) -> reth_provider::ProviderResult<Option<reth_primitives::Account>> {
         self.0.latest()?.basic_account(address)
     }
@@ -229,7 +229,7 @@ where
 
 impl<DB> BlockHashReader for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn block_hash(&self, number: BlockNumber) -> reth_provider::ProviderResult<Option<B256>> {
         self.0.latest()?.block_hash(number)
@@ -237,7 +237,7 @@ where
 
     fn convert_block_hash(
         &self,
-        hash_or_number: alloy::eips::BlockHashOrNumber,
+        hash_or_number: alloy::eips::BlockHashOrNumber
     ) -> reth_provider::ProviderResult<Option<B256>> {
         self.0.latest()?.convert_block_hash(hash_or_number)
     }
@@ -245,7 +245,7 @@ where
     fn canonical_hashes_range(
         &self,
         start: BlockNumber,
-        end: BlockNumber,
+        end: BlockNumber
     ) -> reth_provider::ProviderResult<Vec<B256>> {
         self.0.latest()?.canonical_hashes_range(start, end)
     }
@@ -253,7 +253,7 @@ where
 
 impl<DB> HashedPostStateProvider for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn hashed_post_state(&self, bundle_state: &BundleState) -> HashedPostState {
         self.0.latest().unwrap().hashed_post_state(bundle_state)
@@ -262,7 +262,7 @@ where
 
 impl<DB> StateRootProvider for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn state_root(&self, hashed_state: HashedPostState) -> reth_provider::ProviderResult<B256> {
         self.0.latest()?.state_root(hashed_state)
@@ -274,14 +274,14 @@ where
 
     fn state_root_with_updates(
         &self,
-        hashed_state: HashedPostState,
+        hashed_state: HashedPostState
     ) -> reth_provider::ProviderResult<(B256, TrieUpdates)> {
         self.0.latest()?.state_root_with_updates(hashed_state)
     }
 
     fn state_root_from_nodes_with_updates(
         &self,
-        input: TrieInput,
+        input: TrieInput
     ) -> reth_provider::ProviderResult<(B256, TrieUpdates)> {
         self.0.latest()?.state_root_from_nodes_with_updates(input)
     }
@@ -289,13 +289,13 @@ where
 
 impl<DB> StorageRootProvider for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn storage_proof(
         &self,
         address: Address,
         slot: B256,
-        hashed_storage: HashedStorage,
+        hashed_storage: HashedStorage
     ) -> ProviderResult<reth_trie::StorageProof> {
         self.0
             .latest()?
@@ -305,7 +305,7 @@ where
     fn storage_root(
         &self,
         address: Address,
-        hashed_storage: HashedStorage,
+        hashed_storage: HashedStorage
     ) -> ProviderResult<B256> {
         self.0.latest()?.storage_root(address, hashed_storage)
     }
@@ -314,7 +314,7 @@ where
         &self,
         address: Address,
         slots: &[B256],
-        hashed_storage: HashedStorage,
+        hashed_storage: HashedStorage
     ) -> ProviderResult<StorageMultiProof> {
         self.0
             .latest()?
@@ -324,13 +324,13 @@ where
 
 impl<DB> StateProofProvider for RethDbWrapper<DB>
 where
-    DB: StateProviderFactory + Unpin + Clone + 'static,
+    DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn proof(
         &self,
         input: TrieInput,
         address: Address,
-        slots: &[B256],
+        slots: &[B256]
     ) -> reth_provider::ProviderResult<AccountProof> {
         self.0.latest()?.proof(input, address, slots)
     }
@@ -338,7 +338,7 @@ where
     fn witness(
         &self,
         input: TrieInput,
-        target: HashedPostState,
+        target: HashedPostState
     ) -> ProviderResult<HashMap<B256, Bytes, FbBuildHasher<32>>> {
         self.0
             .latest()?
@@ -349,7 +349,7 @@ where
     fn multiproof(
         &self,
         input: TrieInput,
-        targets: reth_trie::MultiProofTargets,
+        targets: reth_trie::MultiProofTargets
     ) -> ProviderResult<MultiProof> {
         self.0.latest()?.multiproof(input, targets)
     }

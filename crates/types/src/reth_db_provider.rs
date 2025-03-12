@@ -3,24 +3,24 @@ use alloy::{
     primitives::{Address, Bytes, FixedBytes, StorageValue, U64, U256},
     providers::{Provider, ProviderCall, ProviderLayer, RootProvider, RpcWithBlock},
     rpc::client::NoParams,
-    transports::TransportErrorKind,
+    transports::TransportErrorKind
 };
 use eyre::Result;
 use reth_provider::{
     BlockNumReader, DatabaseProviderFactory, ProviderError, StateProvider,
-    TryIntoHistoricalStateProvider,
+    TryIntoHistoricalStateProvider
 };
 
 pub struct RethDbLayer<DB>
 where
-    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone,
+    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone
 {
-    db: DB,
+    db: DB
 }
 
 impl<DB> RethDbLayer<DB>
 where
-    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone,
+    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone
 {
     pub const fn new(db: DB) -> Self {
         Self { db }
@@ -36,7 +36,7 @@ where
     P: Provider,
     DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader>
         + Clone
-        + 'static,
+        + 'static
 {
     type Provider = RethDbProvider<P, DB>;
 
@@ -54,21 +54,21 @@ where
 pub struct RethDbProvider<P, DB>
 where
     P: Provider,
-    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone,
+    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone
 {
-    inner: P,
-    provider_factory: DbAccessor<DB>,
+    inner:            P,
+    provider_factory: DbAccessor<DB>
 }
 
 impl<P, DB> RethDbProvider<P, DB>
 where
     P: Provider,
-    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone,
+    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone
 {
     /// Create a new `RethDbProvider` instance.
     pub fn new(inner: P, db: DB) -> Self
     where
-        DB: DatabaseProviderFactory,
+        DB: DatabaseProviderFactory
     {
         let db_accessor: DbAccessor<DB> = DbAccessor::new(db);
         Self { inner, provider_factory: db_accessor }
@@ -87,7 +87,7 @@ where
     P: Provider,
     DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader>
         + Clone
-        + 'static,
+        + 'static
 {
     fn root(&self) -> &RootProvider {
         self.inner.root()
@@ -135,7 +135,7 @@ where
     fn get_storage_at(
         &self,
         address: Address,
-        key: U256,
+        key: U256
     ) -> RpcWithBlock<(Address, U256), StorageValue> {
         let this = self.factory().clone();
 
@@ -149,7 +149,7 @@ where
                 provider
                     .storage(address, FixedBytes::from(key))
                     .map(|v| v.unwrap_or_default())
-                    .map_err(TransportErrorKind::custom),
+                    .map_err(TransportErrorKind::custom)
             )
         })
     }
@@ -167,7 +167,7 @@ where
                 provider
                     .account_code(&address)
                     .map(|f| f.unwrap_or_default().bytecode().clone())
-                    .map_err(TransportErrorKind::custom),
+                    .map_err(TransportErrorKind::custom)
             )
         })
     }
@@ -179,14 +179,14 @@ where
 #[derive(Clone)]
 struct DbAccessor<DB>
 where
-    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone,
+    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone
 {
-    inner: DB,
+    inner: DB
 }
 
 impl<DB> DbAccessor<DB>
 where
-    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone,
+    DB: DatabaseProviderFactory<Provider: TryIntoHistoricalStateProvider + BlockNumReader> + Clone
 {
     const fn new(inner: DB) -> Self {
         Self { inner }
@@ -208,7 +208,7 @@ where
                 }
             }
             BlockId::Number(BlockNumberOrTag::Number(num)) => num,
-            _ => provider.best_block_number()?,
+            _ => provider.best_block_number()?
         };
 
         provider.try_into_history_at_block(block_number)

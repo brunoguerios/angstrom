@@ -1,6 +1,6 @@
 use alloy::{
     primitives::{BlockNumber, U256},
-    signers::{Signature, SignerSync},
+    signers::{Signature, SignerSync}
 };
 use alloy_primitives::keccak256;
 use bytes::Bytes;
@@ -10,31 +10,31 @@ use serde::{Deserialize, Serialize};
 use super::{PreProposal, PreProposalAggregation};
 use crate::{
     orders::PoolSolution,
-    primitive::{AngstromSigner, PeerId},
+    primitive::{AngstromSigner, PeerId}
 };
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proposal {
     // Might not be necessary as this is encoded in all the proposals anyways
     pub block_height: BlockNumber,
-    pub source: PeerId,
+    pub source:       PeerId,
     /// PreProposals sorted by source
     pub preproposals: Vec<PreProposalAggregation>,
     /// PoolSolutions sorted by PoolId
-    pub solutions: Vec<PoolSolution>,
+    pub solutions:    Vec<PoolSolution>,
     /// This signature is over (etheruem_block | hash(vanilla_bundle) |
     /// hash(order_buffer) | hash(lower_bound))
-    pub signature: Signature,
+    pub signature:    Signature
 }
 
 impl Default for Proposal {
     fn default() -> Self {
         Self {
             block_height: Default::default(),
-            source: Default::default(),
+            source:       Default::default(),
             preproposals: Default::default(),
-            solutions: Default::default(),
-            signature: Signature::new(U256::ZERO, U256::ZERO, false),
+            solutions:    Default::default(),
+            signature:    Signature::new(U256::ZERO, U256::ZERO, false)
         }
     }
 }
@@ -44,7 +44,7 @@ impl Proposal {
         ethereum_height: BlockNumber,
         sk: &AngstromSigner,
         preproposals: Vec<PreProposalAggregation>,
-        mut solutions: Vec<PoolSolution>,
+        mut solutions: Vec<PoolSolution>
     ) -> Self {
         // Sort our solutions
         solutions.sort_by_key(|sol| sol.id);
@@ -63,7 +63,7 @@ impl Proposal {
             source: sk.id(),
             preproposals,
             solutions,
-            signature: sig,
+            signature: sig
         }
     }
 

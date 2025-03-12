@@ -12,5 +12,5 @@ pub enum OrderOrigin {
     /// This type of Order should not be propagated to the network. It's
     /// meant for private usage within the local node, or other composable
     /// mev-angstroms.
-    Private,
+    Private
 }

@@ -74,7 +74,7 @@ pub trait GenerateFlippedOrder: Send + Sync + Clone + Unpin + 'static {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Copy)]
 pub enum RespendAvoidanceMethod {
     Nonce(u64),
-    Block(u64),
+    Block(u64)
 }
 
 impl Default for RespendAvoidanceMethod {

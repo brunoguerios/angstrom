@@ -4,14 +4,14 @@ use super::{
     Ray,
     debt::Debt,
     math::amm_debt_same_move_solve,
-    uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity},
+    uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity}
 };
 
 #[derive(Clone, Debug, Default)]
 pub struct CompositeOrder<'a> {
-    debt: Option<Debt>,
-    amm: Option<PoolPrice<'a>>,
-    bound_price: Option<Ray>,
+    debt:        Option<Debt>,
+    amm:         Option<PoolPrice<'a>>,
+    bound_price: Option<Ray>
 }
 
 impl<'a> CompositeOrder<'a> {
@@ -147,7 +147,7 @@ impl<'a> CompositeOrder<'a> {
     pub fn t0_quantities(
         &self,
         t0_input: u128,
-        direction: Direction,
+        direction: Direction
     ) -> (Option<u128>, Option<u128>) {
         match (self.amm.as_ref(), self.debt.as_ref()) {
             (None, None) => (None, None),
@@ -159,7 +159,7 @@ impl<'a> CompositeOrder<'a> {
                     d.current_t0(),
                     d.magnitude(),
                     t0_input,
-                    direction,
+                    direction
                 );
                 // Maybe build in some safety here around partial quantities
                 let debt_portion = t0_input.saturating_sub(amm_portion);
@@ -213,7 +213,7 @@ mod tests {
     use super::*;
     use crate::matching::{
         DebtType, SqrtPriceX96,
-        uniswap::{LiqRange, PoolSnapshot},
+        uniswap::{LiqRange, PoolSnapshot}
     };
 
     // Have to define this locally because testing_tools requires this crate and

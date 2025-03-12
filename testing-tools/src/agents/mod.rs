@@ -8,9 +8,9 @@ use crate::providers::{AnvilStateProvider, WalletProvider};
 
 #[derive(Clone)]
 pub struct AgentConfig {
-    pub uniswap_pools: SyncedUniswapPools,
-    pub rpc_address: SocketAddr,
-    pub agent_id: u64,
-    pub current_block: u64,
-    pub state_provider: AnvilStateProvider<WalletProvider>,
+    pub uniswap_pools:  SyncedUniswapPools,
+    pub rpc_address:    SocketAddr,
+    pub agent_id:       u64,
+    pub current_block:  u64,
+    pub state_provider: AnvilStateProvider<WalletProvider>
 }

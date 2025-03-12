@@ -13,10 +13,10 @@ use alloy::primitives::Address;
 /// orders) but will not move the Uniswap price to where we want it to be.
 #[derive(Default, Debug, Clone)]
 pub struct BorrowStateTracker {
-    pub take: u128,
+    pub take:            u128,
     pub contract_liquid: u128,
-    pub settle: u128,
-    pub save: u128,
+    pub settle:          u128,
+    pub save:            u128
 }
 
 impl BorrowStateTracker {
@@ -88,17 +88,17 @@ impl BorrowStateTracker {
         let amount_save = self.save + other.save;
 
         Self {
-            take: borrow_needed,
+            take:            borrow_needed,
             contract_liquid: amount_onhand,
-            settle: amount_owed,
-            save: amount_save,
+            settle:          amount_owed,
+            save:            amount_save
         }
     }
 }
 
 #[derive(Debug, Default)]
 pub struct StageTracker {
-    map: HashMap<Address, BorrowStateTracker>,
+    map: HashMap<Address, BorrowStateTracker>
 }
 
 impl StageTracker {
@@ -125,7 +125,7 @@ impl StageTracker {
         asset_in: Address,
         asset_out: Address,
         quantity_in: u128,
-        quantity_out: u128,
+        quantity_out: u128
     ) {
         self.get_state(asset_in).owe(quantity_in);
         self.get_state(asset_out).take(quantity_out);
@@ -138,7 +138,7 @@ impl StageTracker {
         asset_in: Address,
         asset_out: Address,
         quantity_in: u128,
-        quantity_out: u128,
+        quantity_out: u128
     ) {
         self.get_state(asset_in).recieve(quantity_in);
         self.get_state(asset_out).allocate(quantity_out);
@@ -175,10 +175,10 @@ impl StageTracker {
                 // our contract.  This should usually just be scraps and rounding errors
                 let extra_liquidity = state.contract_liquid.saturating_sub(state.settle);
                 let new_state = BorrowStateTracker {
-                    take: state.take,
+                    take:            state.take,
                     contract_liquid: 0,
-                    save: state.save + extra_liquidity,
-                    settle: state.settle,
+                    save:            state.save + extra_liquidity,
+                    settle:          state.settle
                 };
                 (*addr, new_state)
             })

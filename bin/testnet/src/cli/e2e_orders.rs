@@ -16,5 +16,5 @@ pub struct End2EndOrdersCli {
     // #[clap(short, long)]
     // pub partial_pct_range:  Range<f64>,
     #[clap(flatten)]
-    pub testnet_config: TestnetCli,
+    pub testnet_config: TestnetCli
 }

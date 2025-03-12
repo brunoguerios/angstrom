@@ -3,12 +3,12 @@ use std::{
     hash::Hash,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
+    task::{Context, Poll}
 };
 
 use alloy::{
     primitives::{Address, BlockNumber, FixedBytes},
-    providers::Provider,
+    providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::manager::StromConsensusEvent;
@@ -19,7 +19,7 @@ use angstrom_types::{
     mev_boost::MevBoostProvider,
     orders::PoolSolution,
     primitive::AngstromSigner,
-    sol_bindings::grouped_orders::OrderWithStorageData,
+    sol_bindings::grouped_orders::OrderWithStorageData
 };
 use bid_aggregation::BidAggregationState;
 use futures::{FutureExt, Stream, future::BoxFuture};
@@ -43,12 +43,12 @@ type PollTransition<P, Matching> = Poll<Option<Box<dyn ConsensusState<P, Matchin
 pub trait ConsensusState<P, Matching>: Send
 where
     P: Provider,
-    Matching: MatchingEngineHandle,
+    Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
         handles: &mut SharedRoundState<P, Matching>,
-        message: StromConsensusEvent,
+        message: StromConsensusEvent
     );
 
     /// just like streams. Once this returns Poll::Ready(None). This consensus
@@ -56,7 +56,7 @@ where
     fn poll_transition(
         &mut self,
         handles: &mut SharedRoundState<P, Matching>,
-        cx: &mut Context<'_>,
+        cx: &mut Context<'_>
     ) -> PollTransition<P, Matching>;
 
     fn last_round_info(&mut self) -> Option<LastRoundInfo> {
@@ -66,17 +66,17 @@ where
 
 /// Holds and progresses the consensus state machine
 pub struct RoundStateMachine<P, Matching> {
-    current_state: Box<dyn ConsensusState<P, Matching>>,
+    current_state:           Box<dyn ConsensusState<P, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: PreProposalWaitTrigger,
-    shared_state: SharedRoundState<P, Matching>,
+    shared_state:            SharedRoundState<P, Matching>
 }
 
 impl<P, Matching> RoundStateMachine<P, Matching>
 where
     P: Provider + 'static,
-    Matching: MatchingEngineHandle,
+    Matching: MatchingEngineHandle
 {
     pub fn new(shared_state: SharedRoundState<P, Matching>) -> Self {
         let mut consensus_wait_duration =
@@ -84,10 +84,10 @@ where
 
         Self {
             current_state: Box::new(BidAggregationState::new(
-                consensus_wait_duration.update_for_new_round(None),
+                consensus_wait_duration.update_for_new_round(None)
             )),
             consensus_wait_duration,
-            shared_state,
+            shared_state
         }
     }
 
@@ -106,7 +106,7 @@ where
         self.shared_state.round_leader = new_leader;
 
         self.current_state = Box::new(BidAggregationState::new(
-            self.consensus_wait_duration.update_for_new_round(info),
+            self.consensus_wait_duration.update_for_new_round(info)
         ));
     }
 
@@ -119,7 +119,7 @@ where
 impl<P, Matching> Stream for RoundStateMachine<P, Matching>
 where
     P: Provider + 'static,
-    Matching: MatchingEngineHandle,
+    Matching: MatchingEngineHandle
 {
     type Item = ConsensusMessage;
 
@@ -143,25 +143,25 @@ where
 }
 
 pub struct SharedRoundState<P, Matching> {
-    block_height: BlockNumber,
+    block_height:     BlockNumber,
     angstrom_address: Address,
-    matching_engine: Matching,
-    signer: AngstromSigner,
-    round_leader: Address,
-    validators: Vec<AngstromValidator>,
-    order_storage: Arc<OrderStorage>,
-    _metrics: ConsensusMetricsWrapper,
-    pool_registry: UniswapAngstromRegistry,
-    uniswap_pools: SyncedUniswapPools,
-    provider: Arc<MevBoostProvider<P>>,
-    messages: VecDeque<ConsensusMessage>,
+    matching_engine:  Matching,
+    signer:           AngstromSigner,
+    round_leader:     Address,
+    validators:       Vec<AngstromValidator>,
+    order_storage:    Arc<OrderStorage>,
+    _metrics:         ConsensusMetricsWrapper,
+    pool_registry:    UniswapAngstromRegistry,
+    uniswap_pools:    SyncedUniswapPools,
+    provider:         Arc<MevBoostProvider<P>>,
+    messages:         VecDeque<ConsensusMessage>
 }
 
 // contains shared impls
 impl<P, Matching> SharedRoundState<P, Matching>
 where
     P: Provider + 'static,
-    Matching: MatchingEngineHandle,
+    Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -175,7 +175,7 @@ where
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
         provider: MevBoostProvider<P>,
-        matching_engine: Matching,
+        matching_engine: Matching
     ) -> Self {
         Self {
             block_height,
@@ -189,7 +189,7 @@ where
             _metrics: metrics,
             matching_engine,
             messages: VecDeque::new(),
-            provider: Arc::new(provider),
+            provider: Arc::new(provider)
         }
     }
 
@@ -206,7 +206,7 @@ where
     }
 
     fn fetch_pool_snapshot(
-        &self,
+        &self
     ) -> HashMap<FixedBytes<32>, (Address, Address, PoolSnapshot, u16)> {
         self.uniswap_pools
             .iter()
@@ -225,7 +225,7 @@ where
 
     fn matching_engine_output(
         &self,
-        pre_proposal_aggregation: HashSet<PreProposalAggregation>,
+        pre_proposal_aggregation: HashSet<PreProposalAggregation>
     ) -> BoxFuture<'static, eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>> {
         // fetch
         let mut limit = Vec::new();
@@ -249,7 +249,7 @@ where
 
     fn filter_quorum_orders<O: Hash + Eq + Clone>(
         &self,
-        input: Vec<OrderWithStorageData<O>>,
+        input: Vec<OrderWithStorageData<O>>
     ) -> Vec<OrderWithStorageData<O>> {
         let two_thirds = self.two_thirds_of_validation_set();
         input
@@ -268,13 +268,13 @@ where
         &mut self,
         peer_id: Address,
         pre_proposal_agg: PreProposalAggregation,
-        pre_proposal_agg_set: &mut HashSet<PreProposalAggregation>,
+        pre_proposal_agg_set: &mut HashSet<PreProposalAggregation>
     ) {
         self.handle_proposal_verification(
             peer_id,
             pre_proposal_agg,
             pre_proposal_agg_set,
-            |proposal, block| proposal.is_valid(block),
+            |proposal, block| proposal.is_valid(block)
         )
     }
 
@@ -296,13 +296,13 @@ where
         &mut self,
         peer_id: Address,
         pre_proposal: PreProposal,
-        pre_proposal_set: &mut HashSet<PreProposal>,
+        pre_proposal_set: &mut HashSet<PreProposal>
     ) {
         self.handle_proposal_verification(
             peer_id,
             pre_proposal,
             pre_proposal_set,
-            |proposal, block| proposal.is_valid(block),
+            |proposal, block| proposal.is_valid(block)
         )
     }
 
@@ -311,9 +311,9 @@ where
         peer_id: Address,
         proposal: Pro,
         proposal_set: &mut HashSet<Pro>,
-        valid: impl FnOnce(&Pro, &BlockNumber) -> bool,
+        valid: impl FnOnce(&Pro, &BlockNumber) -> bool
     ) where
-        Pro: Into<ConsensusMessage> + Eq + Hash + Clone,
+        Pro: Into<ConsensusMessage> + Eq + Hash + Clone
     {
         if !self.validators.iter().map(|v| v.peer_id).contains(&peer_id) {
             tracing::warn!(peer=?peer_id,"got a consensus message from a invalid peer");
@@ -342,7 +342,7 @@ where
 pub enum ConsensusMessage {
     PropagatePreProposal(PreProposal),
     PropagatePreProposalAgg(PreProposalAggregation),
-    PropagateProposal(Proposal),
+    PropagateProposal(Proposal)
 }
 
 impl From<PreProposal> for ConsensusMessage {
@@ -363,19 +363,19 @@ pub mod tests {
         collections::HashSet,
         sync::Arc,
         task::{Context, Poll},
-        time::{Duration, Instant},
+        time::{Duration, Instant}
     };
 
     use alloy::{
         primitives::Address,
-        providers::{ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *},
+        providers::{ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *}
     };
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_network::manager::StromConsensusEvent;
     use angstrom_types::{
         contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
         mev_boost::MevBoostProvider,
-        primitive::{AngstromSigner, UniswapPoolRegistry},
+        primitive::{AngstromSigner, UniswapPoolRegistry}
     };
     use dashmap::DashMap;
     use futures::{Stream, pin_mut};
@@ -383,24 +383,24 @@ pub mod tests {
     use testing_tools::{
         mocks::matching_engine::MockMatchingEngine,
         type_generator::consensus::{
-            pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder,
-        },
+            pre_proposal_agg::PreProposalAggregationBuilder, preproposal::PreproposalBuilder
+        }
     };
     use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
     use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
     use super::{
-        ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState,
+        ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState
     };
     use crate::{
         AngstromValidator,
-        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState},
+        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine> {
         fn set_state_machine_at(
             &mut self,
-            state: Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>,
+            state: Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>
         ) {
             self.current_state = state;
         }
@@ -409,10 +409,10 @@ pub mod tests {
     type ProviderDef = FillProvider<
         JoinFill<
             Identity,
-            JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
+            JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>
         >,
         RootProvider,
-        Ethereum,
+        Ethereum
     >;
 
     fn init_tracing() {
@@ -456,7 +456,7 @@ pub mod tests {
             pool_registry,
             uniswap_pools,
             provider,
-            MockMatchingEngine {},
+            MockMatchingEngine {}
         );
         RoundStateMachine::new(shared_state)
     }
@@ -502,7 +502,7 @@ pub mod tests {
             HashSet::default(),
             handles,
             Instant::now(),
-            futures::task::noop_waker_ref().to_owned(),
+            futures::task::noop_waker_ref().to_owned()
         )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
         handles.messages.clear();
 
@@ -545,7 +545,7 @@ pub mod tests {
             HashSet::default(),
             handles,
             Instant::now(),
-            futures::task::noop_waker_ref().to_owned(),
+            futures::task::noop_waker_ref().to_owned()
         )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
 
         handles.messages.clear();
@@ -564,7 +564,7 @@ pub mod tests {
         let signer_id = state_machine.shared_state.signer.address();
         state_machine.handle_message(StromConsensusEvent::PreProposalAgg(
             signer_id,
-            pre_proposal_agg.clone(),
+            pre_proposal_agg.clone()
         ));
 
         // Should transition to Proposal state
@@ -575,7 +575,7 @@ pub mod tests {
             Poll::Ready(Some(ConsensusMessage::PropagatePreProposalAgg(a))) => {
                 assert_eq!(a, pre_proposal_agg);
             }
-            _ => panic!(),
+            _ => panic!()
         }
     }
 
@@ -643,7 +643,7 @@ pub mod tests {
             HashSet::default(),
             handles,
             Instant::now(),
-            futures::task::noop_waker_ref().to_owned(),
+            futures::task::noop_waker_ref().to_owned()
         )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
 
         handles.messages.clear();
@@ -667,7 +667,7 @@ pub mod tests {
 
         state_machine.handle_message(StromConsensusEvent::PreProposalAgg(
             invalid_peer,
-            invalid_pre_proposal_agg,
+            invalid_pre_proposal_agg
         ));
 
         // Should not transition state or emit messages

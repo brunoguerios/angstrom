@@ -5,12 +5,12 @@ pub mod validator;
 
 use std::{
     fmt::Debug,
-    sync::{Arc, atomic::AtomicU64},
+    sync::{Arc, atomic::AtomicU64}
 };
 
 use alloy::primitives::Address;
 use angstrom_types::{
-    contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice,
+    contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice
 };
 use bundle::BundleValidator;
 use common::SharedTools;
@@ -24,16 +24,16 @@ use crate::{
     order::{
         order_validator::OrderValidator,
         sim::SimValidation,
-        state::{db_state_utils::FetchUtils, pools::AngstromPoolsTracker},
+        state::{db_state_utils::FetchUtils, pools::AngstromPoolsTracker}
     },
-    validator::{ValidationClient, ValidationRequest},
+    validator::{ValidationClient, ValidationRequest}
 };
 
 const MAX_VALIDATION_PER_ADDR: usize = 2;
 
 #[allow(clippy::too_many_arguments)]
 pub fn init_validation<
-    DB: Unpin + Clone + 'static + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync,
+    DB: Unpin + Clone + 'static + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync
 >(
     db: DB,
     current_block: u64,
@@ -43,9 +43,9 @@ pub fn init_validation<
     uniswap_pools: SyncedUniswapPools,
     price_generator: TokenPriceGenerator,
     pool_store: Arc<AngstromPoolConfigStore>,
-    validator_rx: UnboundedReceiver<ValidationRequest>,
+    validator_rx: UnboundedReceiver<ValidationRequest>
 ) where
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     let current_block = Arc::new(AtomicU64::new(current_block));
     let revm_lru = Arc::new(db);

@@ -6,15 +6,15 @@ use crate::METRICS_ENABLED;
 #[derive(Clone)]
 struct VanillaLimitOrderPoolMetrics {
     // number of vanilla limit orders
-    total_orders: IntGauge,
+    total_orders:         IntGauge,
     // number of pending vanilla limit orders
     total_pending_orders: IntGauge,
     // number of parked vanilla limit orders
-    total_parked_orders: IntGauge,
+    total_parked_orders:  IntGauge,
     // number of pending orders per pool
-    pending_orders: IntGaugeVec,
+    pending_orders:       IntGaugeVec,
     // number of parked orders per pool
-    parked_orders: IntGaugeVec,
+    parked_orders:        IntGaugeVec
 }
 
 impl Default for VanillaLimitOrderPoolMetrics {
@@ -56,7 +56,7 @@ impl Default for VanillaLimitOrderPoolMetrics {
             parked_orders,
             pending_orders,
             total_parked_orders,
-            total_pending_orders,
+            total_pending_orders
         }
     }
 }
@@ -139,7 +139,7 @@ impl VanillaLimitOrderPoolMetricsWrapper {
                 .get()
                 .copied()
                 .unwrap_or_default()
-                .then(VanillaLimitOrderPoolMetrics::default),
+                .then(VanillaLimitOrderPoolMetrics::default)
         )
     }
 
@@ -173,7 +173,7 @@ struct ComposableLimitOrderPoolMetrics {
     // number of composable limit orders
     total_orders: IntGauge,
     // number of orders per pool
-    all_orders: IntGaugeVec,
+    all_orders:   IntGaugeVec
 }
 
 impl Default for ComposableLimitOrderPoolMetrics {
@@ -239,7 +239,7 @@ impl ComposableLimitOrderPoolMetricsWrapper {
                 .get()
                 .copied()
                 .unwrap_or_default()
-                .then(ComposableLimitOrderPoolMetrics::default),
+                .then(ComposableLimitOrderPoolMetrics::default)
         )
     }
 

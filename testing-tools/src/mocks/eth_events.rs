@@ -5,7 +5,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 
 #[derive(Debug, Clone)]
 pub struct MockEthEventHandle {
-    pub tx: UnboundedSender<EthEvent>,
+    pub tx: UnboundedSender<EthEvent>
 }
 
 impl MockEthEventHandle {
@@ -24,7 +24,7 @@ impl MockEthEventHandle {
         &self,
         block_number: u64,
         filled_orders: Vec<B256>,
-        address_changeset: Vec<Address>,
+        address_changeset: Vec<Address>
     ) {
         self.tx
             .send(EthEvent::NewBlockTransitions { block_number, filled_orders, address_changeset })
@@ -46,7 +46,7 @@ impl MockEthEventHandle {
 
 #[derive(Default, Clone)]
 pub struct MockEthSubscription {
-    subscribers: Vec<UnboundedSender<EthEvent>>,
+    subscribers: Vec<UnboundedSender<EthEvent>>
 }
 
 impl MockEthSubscription {

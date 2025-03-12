@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use alloy::{
     hex::FromHex,
     primitives::{Address, FixedBytes, U256},
-    sol_types::Eip712Domain,
+    sol_types::Eip712Domain
 };
 use angstrom_types::{
     orders::{OrderId, OrderPriorityData},
@@ -11,8 +11,8 @@ use angstrom_types::{
     sol_bindings::{
         ext::RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
-    },
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use enr::k256::ecdsa::SigningKey;
 use rand::{Rng, rngs::ThreadRng};
@@ -37,18 +37,18 @@ pub fn default_high_addr() -> &'static Address {
 }
 #[derive(Clone, Debug)]
 pub struct SigningInfo {
-    pub domain: Eip712Domain,
+    pub domain:  Eip712Domain,
     pub address: Address,
-    pub key: SigningKey,
+    pub key:     SigningKey
 }
 
 #[derive(Clone, Debug)]
 pub struct StoredOrderBuilder {
-    order: GroupedVanillaOrder,
-    is_bid: bool,
-    pool_id: Option<FixedBytes<32>>,
+    order:       GroupedVanillaOrder,
+    is_bid:      bool,
+    pool_id:     Option<FixedBytes<32>>,
     valid_block: Option<u64>,
-    tob_reward: Option<U256>,
+    tob_reward:  Option<U256>
 }
 
 impl StoredOrderBuilder {
@@ -98,10 +98,10 @@ impl StoredOrderBuilder {
             .or(self.order.flash_block())
             .unwrap_or_default();
         let priority_data = OrderPriorityData {
-            price: self.order.price_for_book_side(is_bid).into(),
-            volume: self.order.max_q(),
-            gas: U256::ZERO,
-            gas_units: 0,
+            price:     self.order.price_for_book_side(is_bid).into(),
+            volume:    self.order.max_q(),
+            gas:       U256::ZERO,
+            gas_units: 0
         };
         let tob_reward = self.tob_reward.unwrap_or_default();
         OrderWithStorageData {
@@ -114,16 +114,16 @@ impl StoredOrderBuilder {
             order_id,
             pool_id,
             valid_block,
-            tob_reward,
+            tob_reward
         }
     }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct OrderIdBuilder {
-    address: Option<Address>,
-    pool_id: Option<PoolId>,
-    order_hash: Option<FixedBytes<32>>,
+    address:    Option<Address>,
+    pool_id:    Option<PoolId>,
+    order_hash: Option<FixedBytes<32>>
 }
 
 impl OrderIdBuilder {
@@ -154,7 +154,7 @@ impl OrderIdBuilder {
             flash_block: None,
             location: Default::default(),
             deadline: None,
-            reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),
+            reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0)
         }
     }
 }
@@ -165,7 +165,7 @@ pub fn generate_top_of_block_order(
     pool_id: Option<PoolId>,
     valid_block: Option<u64>,
     quantity_in: Option<u128>,
-    quantity_out: Option<u128>,
+    quantity_out: Option<u128>
 ) -> OrderWithStorageData<TopOfBlockOrder> {
     let pool_id = pool_id.unwrap_or_default();
     let valid_block = valid_block.unwrap_or_default();
@@ -197,15 +197,15 @@ pub fn generate_top_of_block_order(
         order_id,
         pool_id,
         valid_block,
-        tob_reward: U256::ZERO,
+        tob_reward: U256::ZERO
     }
 }
 
 #[derive(Debug, Default)]
 pub struct DistributionParameters {
     pub location: f64,
-    pub scale: f64,
-    pub shape: f64,
+    pub scale:    f64,
+    pub shape:    f64
 }
 
 impl DistributionParameters {

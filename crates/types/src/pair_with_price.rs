@@ -9,10 +9,10 @@ use crate::{contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray};
 /// represents the price settled on angstrom between two tokens
 #[derive(Debug, Clone, Copy)]
 pub struct PairsWithPrice {
-    pub token0: Address,
-    pub token1: Address,
+    pub token0:         Address,
+    pub token1:         Address,
     pub price_1_over_0: Ray,
-    pub block_num: u64,
+    pub block_num:      u64
 }
 
 impl PairsWithPrice {
@@ -27,19 +27,19 @@ impl PairsWithPrice {
                 token0: bundle.assets[pair.index0 as usize].addr,
                 token1: bundle.assets[pair.index1 as usize].addr,
                 price_1_over_0: Ray::from(pair.price_1over0),
-                block_num,
+                block_num
             })
             .collect::<Vec<_>>()
     }
 
     pub fn into_price_update_stream(
         angstrom_address: Address,
-        stream: CanonStateNotificationStream,
+        stream: CanonStateNotificationStream
     ) -> impl Stream<Item = Vec<Self>> + Send + Sync {
         stream.map(move |notification| {
             let new_cannon_chain = match notification {
                 reth_provider::CanonStateNotification::Reorg { new, .. } => new,
-                reth_provider::CanonStateNotification::Commit { new } => new,
+                reth_provider::CanonStateNotification::Commit { new } => new
             };
             let block_num = new_cannon_chain.tip().number;
             new_cannon_chain

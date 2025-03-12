@@ -8,7 +8,7 @@ use angstrom_utils::map::OwnedMap;
 pub struct FinalizationPool {
     id_to_orders: HashMap<FixedBytes<32>, OrderWithStorageData<AllOrders>>,
     block_to_ids: HashMap<u64, Vec<FixedBytes<32>>>,
-    metrics: FinalizationOrderPoolMetricsWrapper,
+    metrics:      FinalizationOrderPoolMetricsWrapper
 }
 
 impl Default for FinalizationPool {
@@ -22,7 +22,7 @@ impl FinalizationPool {
         Self {
             block_to_ids: HashMap::default(),
             id_to_orders: HashMap::default(),
-            metrics: FinalizationOrderPoolMetricsWrapper::new(),
+            metrics:      FinalizationOrderPoolMetricsWrapper::new()
         }
     }
 
@@ -50,7 +50,7 @@ impl FinalizationPool {
 
     pub fn reorg(
         &mut self,
-        orders: Vec<FixedBytes<32>>,
+        orders: Vec<FixedBytes<32>>
     ) -> impl Iterator<Item = OrderWithStorageData<AllOrders>> + '_ {
         orders.into_iter().filter_map(|id| {
             self.id_to_orders

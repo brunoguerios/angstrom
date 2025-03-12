@@ -26,7 +26,7 @@ impl<T> PollFlatten<T> for Poll<Poll<T>> {
     fn flatten(self) -> Poll<T> {
         match self {
             Poll::Ready(inner) => inner,
-            Poll::Pending => Poll::Pending,
+            Poll::Pending => Poll::Pending
         }
     }
 }

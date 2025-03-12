@@ -6,7 +6,7 @@ use reth_provider::test_utils::NoopProvider;
 use reth_tasks::TaskExecutor;
 use testing_tools::{
     agents::AgentConfig, controllers::enviroments::AngstromTestnet, types::config::TestnetConfig,
-    utils::noop_agent,
+    utils::noop_agent
 };
 
 use crate::cli::{init_tracing, testnet::TestnetCli};
@@ -36,7 +36,7 @@ mod tests {
         let testnet = AngstromTestnet::spawn_testnet(
             NoopProvider::default(),
             cli.make_config().unwrap(),
-            vec![noop_agent],
+            vec![noop_agent]
         )
         .await;
         assert!(testnet.is_ok());

@@ -18,24 +18,24 @@ pub use token_pricing::*;
 /// Tools that are shared between both order and bundle validation. Also keeps
 /// it so all async future state is polled and up-kept in a single spot
 pub struct SharedTools {
-    pub token_pricing: TokenPriceGenerator,
+    pub token_pricing:   TokenPriceGenerator,
     token_price_updater: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>,
     pub thread_pool:
         KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send + Sync>>, Handle>,
-    pub metrics: ValidationMetrics,
+    pub metrics:         ValidationMetrics
 }
 
 impl SharedTools {
     pub fn new(
         token_pricing: TokenPriceGenerator,
         token_price_updater: Pin<
-            Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>,
+            Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>
         >,
         thread_pool: KeySplitThreadpool<
             Address,
             Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
-            Handle,
-        >,
+            Handle
+        >
     ) -> Self {
         Self { token_price_updater, token_pricing, thread_pool, metrics: ValidationMetrics::new() }
     }
@@ -45,7 +45,7 @@ impl SharedTools {
     }
 
     pub fn thread_pool_mut(
-        &mut self,
+        &mut self
     ) -> &mut KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send + Sync>>, Handle>
     {
         &mut self.thread_pool
@@ -61,7 +61,7 @@ impl Future for SharedTools {
 
     fn poll(
         mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
         self.thread_pool.try_register_waker(|| cx.waker().clone());
         while let Poll::Ready(Some(_)) = self.thread_pool.poll_next_unpin(cx) {}

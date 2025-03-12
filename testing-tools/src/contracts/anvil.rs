@@ -8,10 +8,10 @@ use alloy::{
         Identity, PendingTransaction, Provider, RootProvider, builder,
         fillers::{
             BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller,
-            WalletFiller,
-        },
+            WalletFiller
+        }
     },
-    signers::local::PrivateKeySigner,
+    signers::local::PrivateKeySigner
 };
 use alloy_primitives::Address;
 use alloy_sol_types::SolCall;
@@ -21,12 +21,12 @@ pub type WalletProviderRpc = FillProvider<
     JoinFill<
         JoinFill<
             Identity,
-            JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
+            JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>
         >,
-        WalletFiller<EthereumWallet>,
+        WalletFiller<EthereumWallet>
     >,
     RootProvider,
-    Ethereum,
+    Ethereum
 >;
 
 pub type LocalAnvilRpc = alloy::providers::fillers::FillProvider<
@@ -39,15 +39,15 @@ pub type LocalAnvilRpc = alloy::providers::fillers::FillProvider<
                     alloy::providers::fillers::BlobGasFiller,
                     alloy::providers::fillers::JoinFill<
                         alloy::providers::fillers::NonceFiller,
-                        alloy::providers::fillers::ChainIdFiller,
-                    >,
-                >,
-            >,
+                        alloy::providers::fillers::ChainIdFiller
+                    >
+                >
+            >
         >,
-        alloy::providers::fillers::WalletFiller<EthereumWallet>,
+        alloy::providers::fillers::WalletFiller<EthereumWallet>
     >,
     RootProvider,
-    Ethereum,
+    Ethereum
 >;
 
 pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, WalletProviderRpc)> {
@@ -81,14 +81,14 @@ pub(crate) trait SafeDeployPending {
     fn deploy_pending_creation(
         self,
         nonce: u64,
-        from: Address,
+        from: Address
     ) -> impl Future<Output = eyre::Result<(PendingTransaction, Address)>> + Send;
 }
 
 impl<P, N> SafeDeployPending for RawCallBuilder<(), P, N>
 where
     P: Provider<N>,
-    N: Network,
+    N: Network
 {
     async fn deploy_pending(self) -> eyre::Result<PendingTransaction> {
         Ok(self.gas(50e6 as u64).send().await?.register().await?)
@@ -97,7 +97,7 @@ where
     async fn deploy_pending_creation(
         mut self,
         nonce: u64,
-        from: Address,
+        from: Address
     ) -> eyre::Result<(PendingTransaction, Address)> {
         self = self.nonce(nonce).from(from);
         let address = self
@@ -114,7 +114,7 @@ impl<P, C, N> SafeDeployPending for SolCallBuilder<(), P, C, N>
 where
     P: Provider<N> + Clone,
     C: SolCall + Send + Sync + Clone,
-    N: Network,
+    N: Network
 {
     async fn deploy_pending(self) -> eyre::Result<PendingTransaction> {
         Ok(self.gas(50e6 as u64).send().await?.register().await?)
@@ -123,7 +123,7 @@ where
     async fn deploy_pending_creation(
         mut self,
         nonce: u64,
-        from: Address,
+        from: Address
     ) -> eyre::Result<(PendingTransaction, Address)> {
         self = self.nonce(nonce).from(from);
         let address = self

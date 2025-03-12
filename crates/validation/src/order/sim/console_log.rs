@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::LazyLock};
 
 use alloy::{
     primitives::{Address, Selector},
-    sol_types::SolInterface,
+    sol_types::SolInterface
 };
 use revm::{Database, Inspector, primitives::address};
 
@@ -28,7 +28,7 @@ impl<DB: Database> Inspector<DB> for CallDataInspector {
     fn call(
         &mut self,
         _context: &mut revm::EvmContext<DB>,
-        inputs: &mut revm::interpreter::CallInputs,
+        inputs: &mut revm::interpreter::CallInputs
     ) -> Option<revm::interpreter::CallOutcome> {
         if inputs.target_address == CONSOLE_LOG_ADDR {
             let mut input = inputs.input.to_vec();

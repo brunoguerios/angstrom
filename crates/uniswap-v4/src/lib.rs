@@ -1,7 +1,7 @@
 use std::{collections::HashSet, pin::Pin, sync::Arc};
 
 use alloy::{
-    consensus::TxReceipt, primitives::aliases::I24, providers::Provider, sol_types::SolEvent,
+    consensus::TxReceipt, primitives::aliases::I24, providers::Provider, sol_types::SolEvent
 };
 use alloy_primitives::{Address, BlockNumber, FixedBytes};
 use angstrom_eth::manager::EthEvent;
@@ -9,21 +9,21 @@ use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_bindings::{
         angstrom::Angstrom::PoolKey,
-        controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved},
+        controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
     },
-    primitive::UniswapPoolRegistry,
+    primitive::UniswapPoolRegistry
 };
 use futures::Stream;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use reth_provider::{
     CanonStateNotifications, DatabaseProviderFactory, ReceiptProvider, StateProvider,
-    TryIntoHistoricalStateProvider,
+    TryIntoHistoricalStateProvider
 };
 use uniswap::pool_factory::V4PoolFactory;
 
 use crate::uniswap::{
     pool_data_loader::DataLoader, pool_manager::UniswapPoolManager,
-    pool_providers::canonical_state_adapter::CanonicalStateAdapter,
+    pool_providers::canonical_state_adapter::CanonicalStateAdapter
 };
 
 /// This module should have information on all the Constant Function Market
@@ -45,11 +45,11 @@ pub async fn fetch_angstrom_pools<DB>(
     deploy_block: usize,
     end_block: usize,
     angstrom_address: Address,
-    db: &DB,
+    db: &DB
 ) -> Vec<PoolKey>
 where
     DB: DatabaseProviderFactory + ReceiptProvider,
-    <DB as DatabaseProviderFactory>::Provider: TryIntoHistoricalStateProvider,
+    <DB as DatabaseProviderFactory>::Provider: TryIntoHistoricalStateProvider
 {
     let logs = (deploy_block..=end_block)
         .into_par_iter()
@@ -65,7 +65,7 @@ where
                     .storage(angstrom_address, CONTROLLER_ADDRESS_SLOT)
                     .unwrap()
                     .unwrap()
-                    .to_be_bytes::<32>(),
+                    .to_be_bytes::<32>()
             ));
 
             db.receipts_by_block((block as u64).into())
@@ -82,9 +82,9 @@ where
         .fold(HashSet::new(), |mut set, log| {
             if let Ok(pool) = PoolConfigured::decode_log(&log, true) {
                 let pool_key = PoolKey {
-                    currency0: pool.asset0,
-                    currency1: pool.asset1,
-                    fee: pool.bundleFee,
+                    currency0:   pool.asset0,
+                    currency1:   pool.asset1,
+                    fee:         pool.bundleFee,
                     tickSpacing: I24::try_from_be_slice(&{
                         let bytes = pool.tickSpacing.to_be_bytes();
                         let mut a = [0u8; 3];
@@ -92,7 +92,7 @@ where
                         a
                     })
                     .unwrap(),
-                    hooks: angstrom_address,
+                    hooks:       angstrom_address
                 };
 
                 set.insert(pool_key);
@@ -101,11 +101,11 @@ where
 
             if let Ok(pool) = PoolRemoved::decode_log(&log, true) {
                 let pool_key = PoolKey {
-                    currency0: pool.asset0,
-                    currency1: pool.asset1,
-                    fee: pool.feeInE6,
+                    currency0:   pool.asset0,
+                    currency1:   pool.asset1,
+                    fee:         pool.feeInE6,
                     tickSpacing: pool.tickSpacing,
-                    hooks: angstrom_address,
+                    hooks:       angstrom_address
                 };
 
                 set.remove(&pool_key);
@@ -124,11 +124,11 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
     current_block: BlockNumber,
     block_sync: BlockSync,
     pool_manager_address: Address,
-    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>,
+    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
 ) -> UniswapPoolManager<
     CanonicalStateAdapter<impl Provider + 'static>,
     impl Provider + 'static,
-    BlockSync,
+    BlockSync
 > {
     let factory = V4PoolFactory::new(provider.clone(), uniswap_pool_registry, pool_manager_address);
 

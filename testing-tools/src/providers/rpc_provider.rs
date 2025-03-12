@@ -3,7 +3,7 @@ use std::future::IntoFuture;
 use alloy::{
     primitives::{Address, BlockNumber, StorageKey, StorageValue, keccak256},
     providers::Provider,
-    transports::TransportResult,
+    transports::TransportResult
 };
 use alloy_rpc_types::{BlockNumberOrTag, BlockTransactionsKind};
 use eyre::bail;
@@ -17,8 +17,8 @@ use crate::contracts::anvil::WalletProviderRpc;
 
 #[derive(Clone, Debug)]
 pub struct RpcStateProvider {
-    block: u64,
-    provider: WalletProviderRpc,
+    block:    u64,
+    provider: WalletProviderRpc
 }
 
 impl RpcStateProvider {
@@ -44,19 +44,19 @@ impl BlockStateProvider for RpcStateProvider {
     fn get_storage(
         &self,
         address: Address,
-        key: StorageKey,
+        key: StorageKey
     ) -> ProviderResult<Option<StorageValue>> {
         async_to_sync(
             self.provider
                 .get_storage_at(address, key.into())
-                .into_future(),
+                .into_future()
         )
         .map(Some)
         // TODO: Better error.
         .map_err(|_| ProviderError::StorageChangesetNotFound {
             block_number: self.block,
             address,
-            storage_key: Box::new(key),
+            storage_key: Box::new(key)
         })
     }
 
@@ -65,14 +65,14 @@ impl BlockStateProvider for RpcStateProvider {
             .map(Some)
             .map_err(|_| ProviderError::AccountChangesetNotFound {
                 block_number: self.block,
-                address,
+                address
             })
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct RpcStateProviderFactory {
-    pub provider: WalletProviderRpc,
+    pub provider: WalletProviderRpc
 }
 
 impl RpcStateProviderFactory {
@@ -86,7 +86,7 @@ impl reth_revm::DatabaseRef for RpcStateProviderFactory {
 
     fn basic_ref(
         &self,
-        address: Address,
+        address: Address
     ) -> Result<Option<reth_revm::primitives::AccountInfo>, Self::Error> {
         let acc = async_to_sync(self.provider.get_account(address).latest().into_future())?;
         let code = async_to_sync(self.provider.get_code_at(address).latest().into_future())?;
@@ -96,14 +96,14 @@ impl reth_revm::DatabaseRef for RpcStateProviderFactory {
             code_hash: acc.code_hash,
             balance: acc.balance,
             nonce: acc.nonce,
-            code,
+            code
         }))
     }
 
     fn storage_ref(
         &self,
         address: Address,
-        index: alloy::primitives::U256,
+        index: alloy::primitives::U256
     ) -> Result<alloy::primitives::U256, Self::Error> {
         let acc = async_to_sync(self.provider.get_storage_at(address, index).into_future())?;
         Ok(acc)
@@ -114,9 +114,9 @@ impl reth_revm::DatabaseRef for RpcStateProviderFactory {
             self.provider
                 .get_block_by_number(
                     BlockNumberOrTag::Number(number),
-                    BlockTransactionsKind::Hashes,
+                    BlockTransactionsKind::Hashes
                 )
-                .into_future(),
+                .into_future()
         )?;
 
         let Some(block) = acc else { bail!("failed to load block") };
@@ -125,7 +125,7 @@ impl reth_revm::DatabaseRef for RpcStateProviderFactory {
 
     fn code_by_hash_ref(
         &self,
-        _: alloy::primitives::B256,
+        _: alloy::primitives::B256
     ) -> Result<reth_revm::primitives::Bytecode, Self::Error> {
         panic!("This should not be called, as the code is already loaded");
     }

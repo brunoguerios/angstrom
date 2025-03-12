@@ -15,7 +15,7 @@ pub trait GenericExt<T> {
 impl<T> GenericExt<T> for T {
     fn some_if<F>(self, predicate: F) -> Option<T>
     where
-        F: FnOnce(&T) -> bool,
+        F: FnOnce(&T) -> bool
     {
         predicate(&self).then_some(self)
     }
@@ -34,14 +34,14 @@ pub trait FnResultOption<T> {
 impl<T> FnResultOption<T> for Option<T> {
     fn invert_or_else<F, E>(self, predicate: F) -> Result<Option<T>, E>
     where
-        F: FnOnce() -> Result<Option<T>, E>,
+        F: FnOnce() -> Result<Option<T>, E>
     {
         self.map(Ok).or_else(|| predicate().transpose()).transpose()
     }
 
     fn invert_map_or_else<F, E>(self, predicate: F) -> Result<T, E>
     where
-        F: FnOnce() -> Result<T, E>,
+        F: FnOnce() -> Result<T, E>
     {
         self.map_or_else(predicate, |v| Ok(v))
     }

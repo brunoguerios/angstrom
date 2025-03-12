@@ -1,7 +1,7 @@
 use base64::Engine;
 use matching_engine::{
     book::OrderBook,
-    matcher::{VolumeFillMatcher, delta::DeltaMatcher},
+    matcher::{VolumeFillMatcher, delta::DeltaMatcher}
 };
 
 mod booklib;

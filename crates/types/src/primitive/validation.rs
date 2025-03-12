@@ -23,7 +23,7 @@ pub enum OrderValidationError {
     #[error("Not Valid At Block")]
     InvalidOrderAtBlock,
     #[error("unknown")]
-    Unknown(String),
+    Unknown(String)
 }
 
 #[derive(Debug, Error, Clone, Serialize, Deserialize)]
@@ -38,12 +38,14 @@ pub enum UserAccountVerificationError {
     BadBlock(u64, u64),
     #[error("currently hooks are not supported. this field should be empty bytes")]
     NonEmptyHook,
+    #[error("could not fetch nonce '{1}' for user '{0}'")]
+    CouldNotFetch(Address, u64)
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UserOrderPoolInfo {
     // token in for pool
-    pub token: Address,
-    pub is_bid: bool,
-    pub pool_id: PoolId,
+    pub token:   Address,
+    pub is_bid:  bool,
+    pub pool_id: PoolId
 }

@@ -4,22 +4,22 @@ use angstrom_types::{
     orders::OrderPriorityData,
     primitive::AngstromSigner,
     sol_bindings::{
-        RawPoolOrder, grouped_orders::OrderWithStorageData, testnet::random::Randomizer,
-    },
+        RawPoolOrder, grouped_orders::OrderWithStorageData, testnet::random::Randomizer
+    }
 };
 use rand::{Rng, thread_rng};
 
 use super::pool::{Pool, PoolBuilder};
 use crate::type_generator::orders::{
-    DistributionParameters, OrderDistributionBuilder, OrderIdBuilder, ToBOrderBuilder,
+    DistributionParameters, OrderDistributionBuilder, OrderIdBuilder, ToBOrderBuilder
 };
 
 #[derive(Debug, Default)]
 pub struct PreproposalBuilder {
     order_count: Option<usize>,
-    block: Option<u64>,
-    pools: Option<Vec<Pool>>,
-    sk: Option<AngstromSigner>,
+    block:       Option<u64>,
+    pools:       Option<Vec<Pool>>,
+    sk:          Option<AngstromSigner>
 }
 
 impl PreproposalBuilder {
@@ -111,10 +111,10 @@ impl PreproposalBuilder {
                     .build();
                 let price: u128 = Rng::r#gen(&mut rng);
                 let priority_data = OrderPriorityData {
-                    price: U256::from(price),
-                    volume: 1,
-                    gas: Randomizer::generate(&mut rng),
-                    gas_units: Randomizer::generate(&mut rng),
+                    price:     U256::from(price),
+                    volume:    1,
+                    gas:       Randomizer::generate(&mut rng),
+                    gas_units: Randomizer::generate(&mut rng)
                 };
                 OrderWithStorageData {
                     invalidates: vec![],
@@ -126,7 +126,7 @@ impl PreproposalBuilder {
                     order_id,
                     pool_id: pool_id.id(),
                     valid_block: block,
-                    tob_reward: U256::ZERO,
+                    tob_reward: U256::ZERO
                 }
             })
             .collect();

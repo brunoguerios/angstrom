@@ -6,14 +6,14 @@ use crate::{controllers::enviroments::AngstromTestnet, providers::WalletProvider
 pub enum StateMachineHook<'a, C> {
     Action(StateMachineActionHookFn<'a, C>),
     Check(StateMachineCheckHookFn<C>),
-    CheckedAction(StateMachineCheckedActionHookFn<'a, C>),
+    CheckedAction(StateMachineCheckedActionHookFn<'a, C>)
 }
 
 /// execute an action on the testnet
 pub type StateMachineActionHookFn<'a, C> = Box<
     dyn FnOnce(
-        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>,
-    ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
+        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
 >;
 
 /// check something on the testnet
@@ -23,8 +23,8 @@ pub type StateMachineCheckHookFn<C> =
 /// execute an action and check something on the testnet
 pub type StateMachineCheckedActionHookFn<'a, C> = Box<
     dyn FnOnce(
-        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>,
-    ) -> Pin<Box<dyn Future<Output = eyre::Result<bool>> + Send + Sync + 'a>>,
+        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<bool>> + Send + Sync + 'a>>
 >;
 
 pub(crate) trait HookResult: Sized {

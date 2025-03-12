@@ -7,7 +7,7 @@ use super::Ray;
 #[derive(Copy, Clone)]
 pub enum TokenQuantity {
     Token0(u128),
-    Token1(u128),
+    Token1(u128)
 }
 
 impl Deref for TokenQuantity {
@@ -15,7 +15,7 @@ impl Deref for TokenQuantity {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Token0(q) | Self::Token1(q) => q,
+            Self::Token0(q) | Self::Token1(q) => q
         }
     }
 }
@@ -26,7 +26,7 @@ impl Add<u128> for TokenQuantity {
     fn add(self, rhs: u128) -> Self::Output {
         match self {
             Self::Token0(q) => Self::Token0(q.add(rhs)),
-            Self::Token1(q) => Self::Token1(q.add(rhs)),
+            Self::Token1(q) => Self::Token1(q.add(rhs))
         }
     }
 }
@@ -37,7 +37,7 @@ impl Sub<u128> for TokenQuantity {
     fn sub(self, rhs: u128) -> Self::Output {
         match self {
             Self::Token0(q) => Self::Token0(q.sub(rhs)),
-            Self::Token1(q) => Self::Token1(q.sub(rhs)),
+            Self::Token1(q) => Self::Token1(q.sub(rhs))
         }
     }
 }
@@ -66,33 +66,33 @@ impl TokenQuantity {
     pub fn swap_at_price(&self, price: Ray) -> Self {
         match self {
             Self::Token0(q) => Self::Token1(price.mul_quantity(U256::from(*q)).to()),
-            Self::Token1(q) => Self::Token0(price.inverse_quantity(*q, true)),
+            Self::Token1(q) => Self::Token0(price.inverse_quantity(*q, true))
         }
     }
 
     pub fn as_t0(&self, swap_price: Ray) -> Self {
         match self {
             Self::Token0(_) => *self,
-            Self::Token1(_) => self.swap_at_price(swap_price),
+            Self::Token1(_) => self.swap_at_price(swap_price)
         }
     }
 
     pub fn as_t1(&self, swap_price: Ray) -> Self {
         match self {
             Self::Token0(_) => self.swap_at_price(swap_price),
-            Self::Token1(_) => *self,
+            Self::Token1(_) => *self
         }
     }
 
     pub fn quantity(&self) -> u128 {
         match self {
-            Self::Token0(q) | Self::Token1(q) => *q,
+            Self::Token0(q) | Self::Token1(q) => *q
         }
     }
 
     pub fn as_u256(&self) -> U256 {
         match self {
-            Self::Token0(q) | Self::Token1(q) => U256::from(*q),
+            Self::Token0(q) | Self::Token1(q) => U256::from(*q)
         }
     }
 }

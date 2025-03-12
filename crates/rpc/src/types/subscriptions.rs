@@ -14,7 +14,7 @@ pub enum ConsensusSubscriptionKind {
     /// current best
     NewBestPreProposal,
     /// Sends the proposal upon receiving it from the proposer
-    Proposal,
+    Proposal
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,7 +23,7 @@ pub enum ConsensusSubscriptionKind {
 pub enum ConsensusSubscriptionResult {
     /// Preprosal
     PreProposal(Arc<PreProposal>),
-    Proposal(Arc<Proposal>),
+    Proposal(Arc<Proposal>)
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -37,7 +37,7 @@ pub enum OrderSubscriptionKind {
     /// Any new reorged orders
     UnfilleOrders,
     /// Any new cancelled orders
-    CancelledOrders,
+    CancelledOrders
 }
 
 #[derive(
@@ -52,7 +52,7 @@ pub enum OrderSubscriptionFilter {
     ByAddress(Address),
     /// returns all subscription updates
     #[default]
-    None,
+    None
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -62,5 +62,5 @@ pub enum OrderSubscriptionResult {
     NewOrder(AllOrders),
     FilledOrder(u64, AllOrders),
     UnfilledOrder(AllOrders),
-    CancelledOrder(B256),
+    CancelledOrder(B256)
 }
