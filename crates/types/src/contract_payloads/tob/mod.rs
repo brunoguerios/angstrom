@@ -248,6 +248,9 @@ mod test {
 /// Computes the reward checksum for a given range of ticks
 ///
 /// `from_above`: true = high to low, false = low to high
+/// Computes the reward checksum for a given range of ticks
+///
+/// `from_above`: true = high to low, false = low to high
 fn compute_reward_checksum(
     start_tick: i32,
     start_liquidity: u128,
@@ -265,12 +268,14 @@ fn compute_reward_checksum(
         liquidity,
         tick_spacing,
         from_above,
+        current_tick,
         "Starting checksum computation"
     );
 
     loop {
-        let range = snapshot.get_range_for_tick(tick);
-        if let Some(r) = range {
+        tracing::info!(tick, liquidity, "Processing tick before update");
+
+        if let Some(r) = snapshot.get_range_for_tick(tick) {
             let net_liquidity = r.liquidity();
 
             let tick_bytes = &tick.to_be_bytes()[1..];
@@ -278,20 +283,43 @@ fn compute_reward_checksum(
                 [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
             reward_checksum = *keccak256(&hash_input);
 
+            tracing::info!(
+                tick,
+                net_liquidity,
+                updated_liquidity = if from_above {
+                    liquidity.wrapping_sub(net_liquidity)
+                } else {
+                    liquidity.wrapping_add(net_liquidity)
+                },
+                "Updated liquidity after processing tick"
+            );
+
             // Adjust liquidity based on tick direction
             liquidity = if from_above {
                 liquidity.wrapping_sub(net_liquidity)
             } else {
                 liquidity.wrapping_add(net_liquidity)
             };
+        } else {
+            tracing::warn!(tick, "Skipping tick: No matching liquidity range");
         }
 
-        // Move to next tick (ensuring only initialized ticks are traversed)
-        tick += if from_above { -tick_spacing } else { tick_spacing };
+        // Move to next tick safely
+        let next_tick = if from_above {
+            tick.saturating_sub(tick_spacing)
+        } else {
+            tick.saturating_add(tick_spacing)
+        };
 
-        if tick == current_tick {
+        tracing::info!(tick, next_tick, "Moving to next tick");
+
+        // **Stop condition: Ensure we do not overstep**
+        if (from_above && next_tick < current_tick) || (!from_above && next_tick > current_tick) {
+            tracing::info!(tick, next_tick, "Stopping tick traversal to prevent overstepping");
             break;
         }
+
+        tick = next_tick;
     }
 
     let final_checksum = U160::from(U256::from_be_bytes(reward_checksum) >> 96);
