@@ -106,7 +106,7 @@ impl<'a> DeltaMatcher<'a> {
             .bids()
             .iter()
             .filter(|bid| {
-                price <= bid.pre_fee_price(self.fee).inv_ray_round(true) && !bid.is_partial()
+                price <= bid.pre_fee_price(self.fee).inv_ray_round(false) && !bid.is_partial()
             })
             .for_each(|bid| {
                 let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), self.fee, price);
@@ -168,7 +168,7 @@ impl<'a> DeltaMatcher<'a> {
             .bids()
             .iter()
             .filter(|bid| {
-                price <= bid.pre_fee_price(self.fee).inv_ray_round(true) && bid.is_partial()
+                price <= bid.pre_fee_price(self.fee).inv_ray_round(false) && bid.is_partial()
             })
             .for_each(|bid| {
                 // favour filling asks for now. will come back and fix later
@@ -250,14 +250,22 @@ impl<'a> DeltaMatcher<'a> {
 
         // means we have extra demand we can add.
         if *excess_liquidity > I256::ZERO && partial_drains_liquidity {
-            tracing::info!("partial drains liquidity and excess_liquidity > 0");
+            tracing::info!(
+                ?excess_liquidity,
+                available_partial_q,
+                "partial drains liquidity and excess_liquidity > 0"
+            );
             // If we have positive excess liquidity, we need to drain it so we check to see
             // if our partial order can drain the entire amount we need to take care of
             if I256::try_from(*available_partial_q).unwrap() >= *excess_liquidity {
                 return SupplyDemandResult::PartialFillEq { extra_fill_t0: *excess_liquidity, id };
             }
         } else if *excess_liquidity < I256::ZERO && !partial_drains_liquidity {
-            tracing::info!("partial provides liquidity and excess_liquidity < 0");
+            tracing::info!(
+                ?excess_liquidity,
+                available_partial_q,
+                "partial provides liquidity and excess_liquidity < 0"
+            );
             // If we have negative excess liquidity, we need to fill it so we check to see
             // if our partial order can fill the entire amount we need to take care of
             if I256::try_from(*available_partial_q).unwrap() >= *excess_liquidity {
@@ -427,10 +435,14 @@ impl<'a> DeltaMatcher<'a> {
             let res = self.check_ucp(p_mid);
 
             match (res, self.solve_for_t0) {
-                // If there's too much supply of T0 or too much demand of T1, we want to look at a lower price
-                (SupplyDemandResult::MoreSupply, true) | (SupplyDemandResult::MoreDemand, false) => p_max = p_mid,
-                // If there's too much supply of T1 or too much demand for T0, we want to look at a higher price
-                (SupplyDemandResult::MoreSupply, false) | (SupplyDemandResult::MoreDemand, true) => p_min = p_mid,
+                // If there's too much supply of T0 or too much demand of T1, we want to look at a
+                // lower price
+                (SupplyDemandResult::MoreSupply, true)
+                | (SupplyDemandResult::MoreDemand, false) => p_max = p_mid,
+                // If there's too much supply of T1 or too much demand for T0, we want to look at a
+                // higher price
+                (SupplyDemandResult::MoreSupply, false)
+                | (SupplyDemandResult::MoreDemand, true) => p_min = p_mid,
                 (SupplyDemandResult::NaturallyEqual, _) => {
                     println!("solved based on sup, demand no partials");
 
