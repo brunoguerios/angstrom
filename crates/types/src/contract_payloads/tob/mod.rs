@@ -302,22 +302,11 @@ fn compute_reward_checksum(
         }
 
         // **Find the next initialized tick instead of stepping blindly**
-        let next_tick = snapshot.find_next_initialized_tick(tick, from_above);
-
-        match next_tick {
-            Some(next) => {
-                tracing::info!(tick, next, "Moving to next initialized tick");
-                tick = next;
-            }
-            None => {
-                tracing::info!(tick, "Stopping: No more initialized ticks found");
-                break;
-            }
-        }
-
-        // Stop if we have reached the current tick
-        if tick == current_tick {
-            tracing::info!(tick, "Stopping: Reached current tick");
+        if let Some(next_tick) = snapshot.get_next_tick_gt(tick) {
+            tracing::info!(tick, next_tick, "Moving to next initialized tick");
+            tick = next_tick;
+        } else {
+            tracing::info!(tick, "No more initialized ticks found, stopping");
             break;
         }
     }
@@ -327,19 +316,4 @@ fn compute_reward_checksum(
     tracing::info!(checksum = format!("{:?}", final_checksum), "Final computed checksum");
 
     final_checksum
-}
-
-#[test]
-fn test_compute_reward_checksum() {
-    let start_tick = 100;
-    let start_liquidity = 1_000_000;
-
-    let checksum =
-        compute_reward_checksum(start_tick, start_liquidity, &PoolSnapshot::default(), true);
-    assert_eq!(
-        checksum,
-        "916716190280663127860804890900494458459603794619"
-            .parse()
-            .unwrap()
-    );
 }

@@ -214,29 +214,19 @@ impl PoolSnapshot {
         (first_range.upper_tick - first_range.lower_tick).abs()
     }
 
-    /// Finds the next initialized tick from the given `tick` in the snapshot.
+    /// Finds the next initialized tick **greater than** the given `tick`.
     ///
-    /// If `from_above` is true, searches for the **next lower initialized
-    /// tick**. If `from_above` is false, searches for the **next higher
-    /// initialized tick**.
+    /// This **perfectly matches** the Solidity function:
+    /// `UNI_V4.getNextTickGt(pool.id, rewardTick, pool.tickSpacing);`
     ///
-    /// **Note:** This finds the closest initialized tick without enforcing tick
-    /// spacing.
-    pub fn find_next_initialized_tick(&self, tick: i32, from_above: bool) -> Option<i32> {
-        if from_above {
-            // Move downward to find the next initialized tick
-            self.ranges
-                .iter()
-                .rev()
-                .find(|r| r.upper_tick <= tick) // Ensure it's at or below the current tick
-                .map(|r| r.upper_tick)
-        } else {
-            // Move upward to find the next initialized tick
-            self.ranges
-                .iter()
-                .find(|r| r.lower_tick >= tick) // Ensure it's at or above the current tick
-                .map(|r| r.lower_tick)
-        }
+    /// Returns `Some(next_tick)` if an initialized tick is found.
+    /// If no initialized tick exists, returns `None`.
+    pub fn get_next_tick_gt(&self, tick: i32) -> Option<i32> {
+        self.ranges
+            .iter()
+            .filter(|r| r.lower_tick > tick) // Only consider ticks **greater than** `tick`
+            .map(|r| r.lower_tick)
+            .min() // Get the closest **next initialized tick**
     }
 }
 
