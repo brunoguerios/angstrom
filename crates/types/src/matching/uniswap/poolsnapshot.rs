@@ -214,18 +214,22 @@ impl PoolSnapshot {
         (first_range.upper_tick - first_range.lower_tick).abs()
     }
 
-    /// Finds the next initialized tick **greater than** the given `tick`.
+    /// Finds the next initialized tick **greater than** the given `tick` while
+    /// enforcing tick spacing.
     ///
     /// This **perfectly matches** the Solidity function:
-    /// `UNI_V4.getNextTickGt(pool.id, rewardTick, pool.tickSpacing);`
+    /// `(initialized, rewardTick) = UNI_V4.getNextTickGt(pool.id, rewardTick,
+    /// pool.tickSpacing);`
     ///
-    /// Returns `Some(next_tick)` if an initialized tick is found.
-    /// If no initialized tick exists, returns `None`.
-    pub fn get_next_tick_gt(&self, tick: i32) -> Option<i32> {
+    /// - If an initialized tick exists that is greater than `tick` and aligned
+    ///   to `tick_spacing`, it is returned.
+    /// - If no valid tick exists, returns `None`.
+    pub fn get_next_tick_gt(&self, tick: i32, tick_spacing: i32) -> Option<i32> {
+        // Find the next initialized tick that is a multiple of tick_spacing
         self.ranges
             .iter()
-            .filter(|r| r.lower_tick > tick) // Only consider ticks **greater than** `tick`
             .map(|r| r.lower_tick)
+            .filter(|&t| t > tick && t % tick_spacing == 0) // Only ticks aligned with spacing
             .min() // Get the closest **next initialized tick**
     }
 }

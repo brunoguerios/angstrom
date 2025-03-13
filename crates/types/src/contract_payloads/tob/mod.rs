@@ -301,8 +301,7 @@ fn compute_reward_checksum(
             tracing::warn!(tick, "Skipping tick: No matching liquidity range");
         }
 
-        // **Find the next initialized tick instead of stepping blindly**
-        if let Some(next_tick) = snapshot.get_next_tick_gt(tick) {
+        if let Some(next_tick) = snapshot.get_next_tick_gt(tick, tick_spacing) {
             tracing::info!(tick, next_tick, "Moving to next initialized tick");
             tick = next_tick;
         } else {
