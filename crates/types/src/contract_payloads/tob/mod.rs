@@ -279,6 +279,7 @@ fn compute_reward_checksum(
         let tick_bytes = &tick.to_be_bytes()[1..];
         let hash_input =
             [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
+        tracing::info!("Hash input: {:?}", hash_input);
         reward_checksum = *keccak256(&hash_input);
 
         tracing::info!(tick, liquidity, "Updated liquidity in checksum");

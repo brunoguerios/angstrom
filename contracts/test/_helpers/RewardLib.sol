@@ -166,6 +166,8 @@ library RewardLib {
         }
     }
 
+    event ChecksumUpdate(bytes32 reward_checksum, uint128 liquidity, int24 tick);
+
     function _createRewardUpdateBelow(
         IPoolManager uni,
         PoolId id,
@@ -241,6 +243,8 @@ library RewardLib {
                 int24 tick = int24(int256(initializedTicks.get(i)));
                 (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
                 liquidity = MixedSignLib.add(liquidity, netLiquidity);
+                emit ChecksumUpdate(rewardChecksum, liquidity, tick);
+                console.log("Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick);
                 rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
             }
             update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);
@@ -323,6 +327,8 @@ library RewardLib {
                 int24 tick = int24(int256(initializedTicks.get(i)));
                 (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
                 liquidity = MixedSignLib.sub(liquidity, netLiquidity);
+                emit ChecksumUpdate(rewardChecksum, liquidity, tick);
+                console.log("Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick);
                 rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
             }
             update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);
