@@ -213,6 +213,31 @@ impl PoolSnapshot {
         };
         (first_range.upper_tick - first_range.lower_tick).abs()
     }
+
+    /// Finds the next initialized tick from the given `tick` in the snapshot.
+    ///
+    /// If `from_above` is true, searches for the **next lower initialized
+    /// tick**. If `from_above` is false, searches for the **next higher
+    /// initialized tick**.
+    ///
+    /// **Note:** This finds the closest initialized tick without enforcing tick
+    /// spacing.
+    pub fn find_next_initialized_tick(&self, tick: i32, from_above: bool) -> Option<i32> {
+        if from_above {
+            // Find the closest initialized tick below `tick`
+            self.ranges
+                .iter()
+                .rev() // Search in reverse order
+                .find(|r| r.upper_tick < tick) // First match below `tick`
+                .map(|r| r.upper_tick)
+        } else {
+            // Find the closest initialized tick above `tick`
+            self.ranges
+                .iter()
+                .find(|r| r.lower_tick > tick) // First match above `tick`
+                .map(|r| r.lower_tick)
+        }
+    }
 }
 
 #[cfg(test)]

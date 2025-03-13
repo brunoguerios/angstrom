@@ -248,9 +248,6 @@ mod test {
 /// Computes the reward checksum for a given range of ticks
 ///
 /// `from_above`: true = high to low, false = low to high
-/// Computes the reward checksum for a given range of ticks
-///
-/// `from_above`: true = high to low, false = low to high
 fn compute_reward_checksum(
     start_tick: i32,
     start_liquidity: u128,
@@ -304,22 +301,25 @@ fn compute_reward_checksum(
             tracing::warn!(tick, "Skipping tick: No matching liquidity range");
         }
 
-        // Move to next tick safely
-        let next_tick = if from_above {
-            tick.saturating_sub(tick_spacing)
-        } else {
-            tick.saturating_add(tick_spacing)
-        };
+        // **Find the next initialized tick instead of stepping blindly**
+        let next_tick = snapshot.find_next_initialized_tick(tick, from_above);
 
-        tracing::info!(tick, next_tick, "Moving to next tick");
-
-        // **Stop condition: Ensure we do not overstep**
-        if (from_above && next_tick < current_tick) || (!from_above && next_tick > current_tick) {
-            tracing::info!(tick, next_tick, "Stopping tick traversal to prevent overstepping");
-            break;
+        match next_tick {
+            Some(next) => {
+                tracing::info!(tick, next, "Moving to next initialized tick");
+                tick = next;
+            }
+            None => {
+                tracing::info!(tick, "Stopping: No more initialized ticks found");
+                break;
+            }
         }
 
-        tick = next_tick;
+        // Stop if we have reached the current tick
+        if tick == current_tick {
+            tracing::info!(tick, "Stopping: Reached current tick");
+            break;
+        }
     }
 
     let final_checksum = U160::from(U256::from_be_bytes(reward_checksum) >> 96);
