@@ -245,9 +245,9 @@ mod test {
     }
 }
 
-/// Computes the reward checksum for a given range of ticks
+/// Computes the reward checksum for a given range of ticks.
 ///
-/// `from_above`: true = high to low, false = low to high
+/// `from_above`: `true` = high to low, `false` = low to high.
 fn compute_reward_checksum(
     start_tick: i32,
     start_liquidity: u128,
@@ -255,55 +255,41 @@ fn compute_reward_checksum(
     from_above: bool
 ) -> U160 {
     let mut reward_checksum = [0u8; 32];
-    let mut liquidity = start_liquidity;
-    let tick_spacing = snapshot.tick_spacing();
     let mut tick = start_tick;
+    let tick_spacing = snapshot.tick_spacing();
     let current_tick = snapshot.current_price().tick();
 
     tracing::info!(
         start_tick,
-        liquidity,
+        start_liquidity,
         tick_spacing,
         from_above,
         current_tick,
         "Starting checksum computation"
     );
 
+    // Get initial liquidity directly from snapshot
+    let mut liquidity = snapshot
+        .liquidity_at_tick(start_tick)
+        .unwrap_or(start_liquidity);
+
     loop {
         tracing::info!(tick, liquidity, "Processing tick before update");
 
-        if let Some(r) = snapshot.get_range_for_tick(tick) {
-            let net_liquidity = r.liquidity();
+        let tick_bytes = &tick.to_be_bytes()[1..];
+        let hash_input =
+            [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
+        reward_checksum = *keccak256(&hash_input);
 
-            let tick_bytes = &tick.to_be_bytes()[1..];
-            let hash_input =
-                [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
-            reward_checksum = *keccak256(&hash_input);
+        tracing::info!(tick, liquidity, "Updated liquidity in checksum");
 
-            tracing::info!(
-                tick,
-                net_liquidity,
-                updated_liquidity = if from_above {
-                    liquidity.wrapping_sub(net_liquidity)
-                } else {
-                    liquidity.wrapping_add(net_liquidity)
-                },
-                "Updated liquidity after processing tick"
-            );
-
-            // Adjust liquidity based on tick direction
-            liquidity = if from_above {
-                liquidity.wrapping_sub(net_liquidity)
-            } else {
-                liquidity.wrapping_add(net_liquidity)
-            };
-        } else {
-            tracing::warn!(tick, "Skipping tick: No matching liquidity range");
-        }
-
+        // Move to the next initialized tick while enforcing tick spacing
         if let Some(next_tick) = snapshot.get_next_tick_gt(tick, tick_spacing) {
             tracing::info!(tick, next_tick, "Moving to next initialized tick");
             tick = next_tick;
+
+            // Update liquidity for the new tick
+            liquidity = snapshot.liquidity_at_tick(tick).unwrap_or(0);
         } else {
             tracing::info!(tick, "No more initialized ticks found, stopping");
             break;
