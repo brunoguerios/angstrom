@@ -1,9 +1,8 @@
 use std::{fmt::Debug, pin::Pin, sync::Arc};
 
-use alloy::{
-    primitives::{Address, U256},
-    sol_types::SolCall
-};
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+use alloy::primitives::U256;
+use alloy::{primitives::Address, sol_types::SolCall};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
 use eyre::eyre;
