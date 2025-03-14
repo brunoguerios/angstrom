@@ -163,6 +163,8 @@ impl OrderValidationResults {
             .unwrap();
 
         let (gas_units, gas_used) = (calculate_function)(sim, &order, token_price, block)?;
+        // ensure that gas used is less than the max gas specified
+
         order.priority_data.gas += gas_used;
         order.priority_data.gas_units = gas_units;
 

@@ -10,9 +10,15 @@ use alloy::{
 use angstrom_types::contract_bindings::mintable_mock_erc_20::MintableMockERC20::{
     allowanceCall, balanceOfCall
 };
+// use revm::{
+//     db::CacheDB,
+//     primitives::{EnvWithHandlerCfg, TxKind}
+// };
 use revm::{
-    db::CacheDB,
-    primitives::{EnvWithHandlerCfg, TxKind}
+    Context, ExecuteEvm, Journal, MainBuilder,
+    context::{BlockEnv, CfgEnv, TxEnv},
+    database::CacheDB,
+    primitives::{TxKind, hardfork::SpecId}
 };
 
 /// panics if we cannot find the slot for the given token
@@ -26,7 +32,6 @@ where
     let probe_address = Address::random();
 
     let mut db = CacheDB::new(db);
-    let evm_handler = EnvWithHandlerCfg::default();
 
     // check the first 100 offsets
     for offset in 0..100 {
@@ -35,23 +40,29 @@ where
         db.insert_account_storage(token_address, balance_slot.into(), U256::from(123456789))
             .map_err(|e| eyre::eyre!("{e:?}"))?;
         // execute revm to see if we hit the slot
-        let mut evm = revm::Evm::builder()
-            .with_ref_db(db.clone())
-            .with_env_with_handler_cfg(evm_handler.clone())
-            .modify_env(|env| {
-                env.cfg.disable_balance_check = true;
-            })
-            .modify_tx_env(|tx| {
-                tx.caller = probe_address;
-                tx.transact_to = TxKind::Call(token_address);
-                tx.data = balanceOfCall::new((probe_address,)).abi_encode().into();
-                tx.value = U256::from(0);
-                tx.nonce = None;
-            })
-            .build();
+
+        let mut evm = Context {
+            tx:              TxEnv::default(),
+            block:           BlockEnv::default(),
+            cfg:             CfgEnv::<SpecId>::default(),
+            journaled_state: Journal::<CacheDB<&DB>>::new(SpecId::LATEST, db.clone()),
+            chain:           (),
+            error:           Ok(())
+        }
+        .with_ref_db(db.clone())
+        .modify_cfg_chained(|cfg| {
+            cfg.disable_balance_check = true;
+        })
+        .modify_tx_chained(|tx| {
+            tx.caller = probe_address;
+            tx.kind = TxKind::Call(token_address);
+            tx.data = balanceOfCall::new((probe_address,)).abi_encode().into();
+            tx.value = U256::from(0);
+        })
+        .build_mainnet();
 
         let output = evm
-            .transact()
+            .replay()
             .map_err(|e| eyre::eyre!("{e:?}"))?
             .result
             .output()
@@ -78,7 +89,6 @@ where
     let probe_contract_address = Address::random();
 
     let mut db = CacheDB::new(db);
-    let evm_handler = EnvWithHandlerCfg::default();
 
     // check the first 100 offsets
     for offset in 0..100 {
@@ -90,26 +100,32 @@ where
 
         db.insert_account_storage(token_address, approval_slot.into(), U256::from(123456789))
             .unwrap();
-        // execute revm to see if we hit the slot
-        let mut evm = revm::Evm::builder()
-            .with_ref_db(db.clone())
-            .with_env_with_handler_cfg(evm_handler.clone())
-            .modify_env(|env| {
-                env.cfg.disable_balance_check = true;
-            })
-            .modify_tx_env(|tx| {
-                tx.caller = probe_user_address;
-                tx.transact_to = TxKind::Call(token_address);
-                tx.data = allowanceCall::new((probe_user_address, probe_contract_address))
-                    .abi_encode()
-                    .into();
-                tx.value = U256::from(0);
-                tx.nonce = None;
-            })
-            .build();
+
+        let mut evm = Context {
+            tx:              TxEnv::default(),
+            block:           BlockEnv::default(),
+            cfg:             CfgEnv::<SpecId>::default(),
+            journaled_state: Journal::<CacheDB<&DB>>::new(SpecId::LATEST, db.clone()),
+            chain:           (),
+            error:           Ok(())
+        }
+        .with_ref_db(db.clone())
+        .modify_cfg_chained(|cfg| {
+            cfg.disable_balance_check = true;
+        })
+        .modify_tx_chained(|tx| {
+            tx.caller = probe_user_address;
+            tx.kind = TxKind::Call(token_address);
+
+            tx.data = allowanceCall::new((probe_user_address, probe_contract_address))
+                .abi_encode()
+                .into();
+            tx.value = U256::from(0);
+        })
+        .build_mainnet();
 
         let output = evm
-            .transact()
+            .replay()
             .map_err(|e| eyre::eyre!("{e:?}"))?
             .result
             .output()

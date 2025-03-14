@@ -101,7 +101,7 @@ impl LocalAnvil {
         let wallet = EthereumWallet::new(sk);
         let provider = ProviderBuilder::new()
             .wallet(wallet)
-            .on_builtin(&url)
+            .connect(&url)
             .await
             .unwrap();
 

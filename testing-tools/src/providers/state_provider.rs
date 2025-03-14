@@ -2,16 +2,18 @@ use std::{future::IntoFuture, time::Duration};
 
 use alloy::{providers::Provider, rpc::types::Block};
 use alloy_primitives::{Address, B256, BlockNumber, U256};
-use alloy_rpc_types::{BlockId, BlockTransactionsKind};
-use angstrom_types::block_sync::{BlockSyncProducer, GlobalBlockSync};
-use eyre::bail;
+use alloy_rpc_types::BlockId;
+use angstrom_types::{
+    block_sync::{BlockSyncProducer, GlobalBlockSync},
+    reth_db_wrapper::DBError
+};
 use futures::stream::StreamExt;
 use reth_primitives::EthPrimitives;
 use reth_provider::{
     BlockHashReader, BlockNumReader, CanonStateNotification, CanonStateNotifications,
     CanonStateSubscriptions, NodePrimitivesProvider, ProviderError, ProviderResult
 };
-use reth_revm::primitives::Bytecode;
+use revm::{bytecode::Bytecode, state::AccountInfo};
 use tokio::sync::broadcast;
 use validation::common::db::BlockStateProviderFactory;
 
@@ -86,13 +88,10 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
                 let block = self
                     .provider()
                     .rpc_provider()
-                    .get_block(
-                        BlockId::Hash(alloy_rpc_types::RpcBlockHash {
-                            block_hash:        *block_hash,
-                            require_canonical: None
-                        }),
-                        alloy_rpc_types::BlockTransactionsKind::Full
-                    )
+                    .get_block(BlockId::Hash(alloy_rpc_types::RpcBlockHash {
+                        block_hash:        *block_hash,
+                        require_canonical: None
+                    }))
                     .await
                     .unwrap()
                     .unwrap();
@@ -107,12 +106,9 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
 }
 
 impl<P: WithWalletProvider> reth_revm::DatabaseRef for AnvilStateProvider<P> {
-    type Error = eyre::Error;
+    type Error = DBError;
 
-    fn basic_ref(
-        &self,
-        address: Address
-    ) -> Result<Option<reth_revm::primitives::AccountInfo>, Self::Error> {
+    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         let acc = async_to_sync(
             self.provider
                 .rpc_provider()
@@ -129,7 +125,7 @@ impl<P: WithWalletProvider> reth_revm::DatabaseRef for AnvilStateProvider<P> {
         )?;
         let code = Some(Bytecode::new_raw(code));
 
-        Ok(Some(reth_revm::primitives::AccountInfo {
+        Ok(Some(AccountInfo {
             code_hash: acc.code_hash,
             balance: acc.balance,
             nonce: acc.nonce,
@@ -151,18 +147,15 @@ impl<P: WithWalletProvider> reth_revm::DatabaseRef for AnvilStateProvider<P> {
         let acc = async_to_sync(
             self.provider
                 .rpc_provider()
-                .get_block_by_number(
-                    alloy_rpc_types::BlockNumberOrTag::Number(number),
-                    BlockTransactionsKind::Hashes
-                )
+                .get_block_by_number(alloy_rpc_types::BlockNumberOrTag::Number(number))
                 .into_future()
         )?;
 
-        let Some(block) = acc else { bail!("failed to load block") };
+        let Some(block) = acc else { return Err(DBError::String("no block".to_string())) };
         Ok(block.header.hash)
     }
 
-    fn code_by_hash_ref(&self, _: B256) -> Result<reth_revm::primitives::Bytecode, Self::Error> {
+    fn code_by_hash_ref(&self, _: B256) -> Result<Bytecode, Self::Error> {
         panic!("This should not be called, as the code is already loaded");
     }
 }

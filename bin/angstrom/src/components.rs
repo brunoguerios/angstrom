@@ -177,7 +177,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         .with_recommended_fillers()
         .layer(RethDbLayer::new(node.provider().clone()))
         // backup
-        .on_builtin(node.rpc_server_handle().ws_url().unwrap().as_str())
+        .connect(node.rpc_server_handle().ws_url().unwrap().as_str())
         .await
         .unwrap()
         .into();
