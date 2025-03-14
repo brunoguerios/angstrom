@@ -244,7 +244,9 @@ library RewardLib {
                 (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
                 liquidity = MixedSignLib.add(liquidity, netLiquidity);
                 emit ChecksumUpdate(rewardChecksum, liquidity, tick);
-                console.log("Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick);
+                console.log(
+                    "Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick
+                );
                 rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
             }
             update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);
@@ -328,7 +330,9 @@ library RewardLib {
                 (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
                 liquidity = MixedSignLib.sub(liquidity, netLiquidity);
                 emit ChecksumUpdate(rewardChecksum, liquidity, tick);
-                console.log("Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick);
+                console.log(
+                    "Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick
+                );
                 rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
             }
             update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);

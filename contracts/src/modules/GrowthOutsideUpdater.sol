@@ -42,7 +42,9 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
             uint128 expectedLiquidity;
             (reader, expectedLiquidity) = reader.readU128();
             uint128 pooLiquidity = UNI_V4.getPoolLiquidity(id);
-            if (expectedLiquidity != pooLiquidity) revert JustInTimeLiquidityChange();
+            if (expectedLiquidity != pooLiquidity) {
+                revert JustInTimeLiquidityChange();
+            }
             unchecked {
                 poolRewards_.globalGrowth += X128MathLib.flatDivX128(amount, pooLiquidity);
             }
