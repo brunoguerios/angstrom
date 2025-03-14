@@ -199,6 +199,61 @@ impl PoolSnapshot {
         }
         Some((d_0, d_1))
     }
+
+    /// Gets the tick spacing for this [`PoolSnapshot`].
+    ///
+    /// This is the difference between the upper and lower ticks of the first
+    /// range in the snapshot, but should be the same for all ranges in the
+    /// snapshot.
+    ///
+    /// Panics if there are no ranges, but this should never happen
+    pub fn tick_spacing(&self) -> i32 {
+        let Some(first_range) = self.ranges.first() else {
+            unreachable!("at least one range must be defined");
+        };
+        (first_range.upper_tick - first_range.lower_tick).abs()
+    }
+
+    /// Finds the next initialized tick **greater than** the given `tick` while
+    /// enforcing tick spacing.
+    ///
+    /// This **perfectly matches** the Solidity function:
+    /// `(initialized, rewardTick) = UNI_V4.getNextTickGt(pool.id, rewardTick,
+    /// pool.tickSpacing);`
+    ///
+    /// - If an initialized tick exists that is greater than `tick` and aligned
+    ///   to `tick_spacing`, it is returned.
+    /// - If no valid tick exists, returns `None`.
+    pub fn get_next_tick_gt(&self, tick: i32) -> Option<i32> {
+        // Find the next initialized tick that is a multiple of tick_spacing
+        let tick_spacing = self.tick_spacing();
+        self.ranges
+            .iter()
+            .map(|r| r.lower_tick)
+            .filter(|&t| t > tick && t % tick_spacing == 0) // Only ticks aligned with spacing
+            .min() // Get the closest **next initialized tick**
+    }
+
+    /// Finds the next initialized tick **less than** the given `tick` while
+    /// enforcing tick spacing.
+    ///
+    /// This **perfectly matches** the Solidity function:
+    /// `(initialized, rewardTick) = UNI_V4.getNextTickLt(pool.id, rewardTick,
+    /// pool.tickSpacing);`
+    ///
+    /// - If an initialized tick exists that is less than `tick` and aligned to
+    ///   `tick_spacing`, it is returned.
+    /// - If no valid tick exists, returns `None`.
+    pub fn get_next_tick_lt(&self, tick: i32) -> Option<i32> {
+        let tick_spacing = self.tick_spacing();
+        // Find the next initialized tick that is a multiple of tick_spacing
+        self.ranges
+            .iter()
+            .rev()
+            .map(|r| r.upper_tick)
+            .filter(|&t| t < tick && t % tick_spacing == 0) // Only ticks aligned with spacing
+            .max() // Get the closest **next initialized tick**
+    }
 }
 
 #[cfg(test)]
