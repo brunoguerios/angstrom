@@ -13,19 +13,20 @@ pub enum RewardsUpdate {
         reward_checksum: U160
     },
     CurrentOnly {
-        amount: u128
+        amount:             u128,
+        expected_liquidity: u128
     }
 }
 
 impl RewardsUpdate {
     pub fn empty() -> Self {
-        Self::CurrentOnly { amount: 0 }
+        Self::CurrentOnly { amount: 0, expected_liquidity: 0 }
     }
 
     pub fn quantities(&self) -> Vec<u128> {
         match self {
             Self::MultiTick { quantities, .. } => quantities.clone(),
-            Self::CurrentOnly { amount } => vec![*amount]
+            Self::CurrentOnly { amount, .. } => vec![*amount]
         }
     }
 }

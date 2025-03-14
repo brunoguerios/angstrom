@@ -116,7 +116,6 @@ where
             }
 
             metrics.simulate_bundle(|| {
-
                 let bundle = bundle.pade_encode();
                 let mut console_log_inspector = CallDataInspector {};
 

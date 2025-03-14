@@ -135,16 +135,12 @@ impl ToBOutcome {
 
         match quantities.len() {
             0 | 1 => RewardsUpdate::CurrentOnly {
-                amount: quantities.first().copied().unwrap_or_default()
+                amount:             quantities.first().copied().unwrap_or_default(),
+                expected_liquidity: start_liquidity
             },
             len => {
-                let reward_checksum = compute_reward_checksum(
-                    start_tick,
-                    start_liquidity,
-                    &snapshot,
-                    from_above,
-                    len
-                );
+                let reward_checksum =
+                    compute_reward_checksum(start_tick, start_liquidity, snapshot, from_above, len);
                 RewardsUpdate::MultiTick {
                     start_tick: I24::try_from(start_tick).unwrap_or_default(),
                     start_liquidity,
@@ -291,7 +287,6 @@ fn compute_reward_checksum(
         let tick_bytes: [u8; 3] = I24::try_from(tick).unwrap().to_be_bytes();
         let hash_input =
             [reward_checksum.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
-        tracing::info!("Hash input: {:?}", hash_input);
         reward_checksum = *keccak256(&hash_input);
 
         tracing::info!(tick, liquidity, "Updated liquidity in checksum");
@@ -303,7 +298,7 @@ fn compute_reward_checksum(
                 tick = next_tick;
 
                 // Update liquidity for the new tick
-                liquidity = snapshot.liquidity_at_tick(tick).unwrap_or(0);
+                liquidity = snapshot.liquidity_at_tick(tick).expect("unreachable");
             } else {
                 tracing::info!(tick, "No more initialized ticks found, stopping");
                 break;
@@ -315,7 +310,7 @@ fn compute_reward_checksum(
                 tick = next_tick;
 
                 // Update liquidity for the new tick
-                liquidity = snapshot.liquidity_at_tick(tick).unwrap_or(0);
+                liquidity = snapshot.liquidity_at_tick(tick).expect("unreachable");
             } else {
                 tracing::info!(tick, "No more initialized ticks found, stopping");
                 break;
