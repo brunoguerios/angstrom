@@ -1,22 +1,20 @@
-use std::collections::HashMap;
-
 // Allows us to impl revm::DatabaseRef on the default provider type.
 use alloy::primitives::{
     Address, B256, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, U256
 };
-use alloy_primitives::map::FbBuildHasher;
 use reth_chainspec::ChainInfo;
-use reth_primitives::Bytecode;
 use reth_provider::{
     AccountReader, BlockHashReader, BlockIdReader, BlockNumReader, HashedPostStateProvider,
-    ProviderResult, StateProofProvider, StateProvider, StateProviderFactory
+    ProviderError, ProviderResult, StateProofProvider, StateProvider, StateProviderFactory
 };
 use reth_storage_api::{StateRootProvider, StorageRootProvider};
 use reth_trie::{
     AccountProof, HashedPostState, HashedStorage, MultiProof, StorageMultiProof, TrieInput,
     updates::TrieUpdates
 };
-use revm::db::BundleState;
+use revm::state::AccountInfo;
+use revm_bytecode::Bytecode;
+use revm_database::{BundleState, DBErrorMarker};
 
 #[derive(Clone)]
 #[repr(transparent)]
@@ -31,20 +29,25 @@ where
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum DBError {
+    #[error(transparent)]
+    Regular(#[from] ProviderError)
+}
+
+impl DBErrorMarker for DBError {}
+
 impl<DB> revm::DatabaseRef for RethDbWrapper<DB>
 where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
-    type Error = eyre::Error;
+    type Error = DBError;
 
     /// Retrieves basic account information for a given address.
     ///
     /// Returns `Ok` with `Some(AccountInfo)` if the account exists,
     /// `None` if it doesn't, or an error if encountered.
-    fn basic_ref(
-        &self,
-        address: Address
-    ) -> Result<Option<revm::primitives::AccountInfo>, Self::Error> {
+    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         Ok(self.basic_account(&address)?.map(Into::into))
     }
 
@@ -52,7 +55,7 @@ where
     ///
     /// Returns `Ok` with the bytecode if found, or the default bytecode
     /// otherwise.
-    fn code_by_hash_ref(&self, code_hash: B256) -> Result<revm::primitives::Bytecode, Self::Error> {
+    fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
         Ok(self.bytecode_by_hash(&code_hash)?.unwrap_or_default().0)
     }
 
@@ -195,7 +198,10 @@ where
         self.0.latest()?.storage(account, storage_key)
     }
 
-    fn account_code(&self, addr: &Address) -> reth_provider::ProviderResult<Option<Bytecode>> {
+    fn account_code(
+        &self,
+        addr: &Address
+    ) -> reth_provider::ProviderResult<Option<reth_primitives::Bytecode>> {
         self.0.latest()?.account_code(addr)
     }
 
@@ -210,7 +216,7 @@ where
     fn bytecode_by_hash(
         &self,
         code_hash: &B256
-    ) -> reth_provider::ProviderResult<Option<Bytecode>> {
+    ) -> reth_provider::ProviderResult<Option<reth_primitives::Bytecode>> {
         self.0.latest()?.bytecode_by_hash(code_hash)
     }
 }
@@ -335,15 +341,8 @@ where
         self.0.latest()?.proof(input, address, slots)
     }
 
-    fn witness(
-        &self,
-        input: TrieInput,
-        target: HashedPostState
-    ) -> ProviderResult<HashMap<B256, Bytes, FbBuildHasher<32>>> {
-        self.0
-            .latest()?
-            .witness(input, target)
-            .map(|v| v.into_iter().collect())
+    fn witness(&self, input: TrieInput, target: HashedPostState) -> ProviderResult<Vec<Bytes>> {
+        self.0.latest()?.witness(input, target)
     }
 
     fn multiproof(

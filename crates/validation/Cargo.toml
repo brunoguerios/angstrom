@@ -89,6 +89,11 @@ reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 
 
+revm-bytecode.workspace= true
+revm-database.workspace = true
+revm-state.workspace = true
+revm-primitives.workspace = true
+
 rand.workspace = true
 secp256k1.workspace = true
 futures.workspace = true

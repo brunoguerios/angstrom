@@ -9,11 +9,7 @@ use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetai
 use eyre::eyre;
 use futures::Future;
 use pade::PadeEncode;
-use revm::{
-    db::CacheDB,
-    inspector_handle_register,
-    primitives::{EnvWithHandlerCfg, TxKind}
-};
+use revm::{Context, MainBuilder, database::CacheDB, primitives::TxKind};
 use tokio::runtime::Handle;
 
 use crate::{
@@ -122,6 +118,20 @@ where
 
                 let bundle = bundle.pade_encode();
                 let mut console_log_inspector = CallDataInspector {};
+
+    let env = Env::mainnet();
+ let mut evm = Context {
+        tx: env.tx,
+        block: env.block,
+        cfg: env.cfg,
+        journaled_state: backend,
+        chain: (),
+        error: Ok(()),
+    }
+
+                .with_db(db.clone())
+                    .modify_tx_chained(|tx| {
+                    }).build_mainnet_with_inspector(console_log_inspector);
 
                 let mut evm = revm::Evm::builder()
                     .with_ref_db(db.clone())

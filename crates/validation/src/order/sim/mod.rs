@@ -5,33 +5,34 @@ use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
     RawPoolOrder,
     grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-    rpc_orders::TopOfBlockOrder
+    rpc_orders::TopOfBlockOrder,
 };
 use gas::OrderGasCalculations;
 use revm::primitives::ruint::aliases::U256;
 use tracing::error_span;
 
-use crate::{common::TokenPriceGenerator, order::sim::gas_inspector::GasUsed};
+use crate::common::TokenPriceGenerator;
 
 pub mod console_log;
 mod gas;
 
+pub type GasUsed = u64;
 // needed for future use
 #[allow(unused)]
-mod gas_inspector;
+// mod gas_inspector;
 
 pub type GasInToken0 = U256;
 /// validation relating to simulations.
 #[derive(Clone)]
 pub struct SimValidation<DB> {
     gas_calculator: OrderGasCalculations<DB>,
-    metrics:        ValidationMetrics
+    metrics: ValidationMetrics,
 }
 
 impl<DB> SimValidation<DB>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Send + Sync,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
 {
     pub fn new(db: Arc<DB>, angstrom_address: Address, node_address: Address) -> Self {
         let gas_calculator =
@@ -44,7 +45,7 @@ where
         &self,
         order: &OrderWithStorageData<TopOfBlockOrder>,
         conversion: &TokenPriceGenerator,
-        block: u64
+        block: u64,
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
         let hash = order.order_hash();
         let user = order.from();
@@ -72,7 +73,7 @@ where
         &self,
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         conversion: &TokenPriceGenerator,
-        block: u64
+        block: u64,
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
         let hash = order.order_hash();
         let user = order.from();
