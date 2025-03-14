@@ -48,6 +48,11 @@ rand = { workspace = true, optional = true }
 dashmap.workspace = true
 auto_impl.workspace = true
 
+revm-bytecode.workspace= true
+revm-database.workspace = true
+revm-state.workspace = true
+revm-primitives.workspace = true
+
 [build-dependencies]
 convert_case.workspace = true
 itertools.workspace = true

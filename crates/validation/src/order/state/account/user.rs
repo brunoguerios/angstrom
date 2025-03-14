@@ -5,6 +5,7 @@ use angstrom_types::{
     primitive::UserOrderPoolInfo,
     sol_bindings::{RespendAvoidanceMethod, ext::RawPoolOrder}
 };
+use angstrom_utils::FnResultOption;
 use dashmap::DashMap;
 
 use crate::order::state::db_state_utils::StateFetchUtils;
@@ -157,16 +158,19 @@ impl UserAccounts {
         token: TokenAddress,
         respend: RespendAvoidanceMethod,
         utils: &S
-    ) -> LiveState {
-        self.try_fetch_live_pending_state(user, token, respend)
-            .unwrap_or_else(|| {
-                self.load_state_for(user, token, utils);
+    ) -> eyre::Result<LiveState> {
+        let out = self
+            .try_fetch_live_pending_state(user, token, respend)
+            .invert_map_or_else(|| {
+                self.load_state_for(user, token, utils)?;
                 self.try_fetch_live_pending_state(user, token, respend)
-                    .expect(
+                    .ok_or(eyre::eyre!(
                         "after loading state for a address, the state wasn't found. this should \
                          be impossible"
-                    )
-            })
+                    ))
+            })?;
+
+        Ok(out)
     }
 
     fn load_state_for<S: StateFetchUtils>(
@@ -174,17 +178,19 @@ impl UserAccounts {
         user: UserAddress,
         token: TokenAddress,
         utils: &S
-    ) {
+    ) -> eyre::Result<()> {
         let approvals = utils
-            .fetch_approval_balance_for_token(user, token)
+            .fetch_approval_balance_for_token(user, token)?
             .unwrap_or_default();
-        let balances = utils.fetch_balance_for_token(user, token);
+        let balances = utils.fetch_balance_for_token(user, token)?;
 
         let mut entry = self.last_known_state.entry(user).or_default();
         // override as fresh query
         entry.token_balance.insert(token, balances);
         entry.token_approval.insert(token, approvals);
         entry.angstrom_balance.insert(token, balances);
+
+        Ok(())
     }
 
     /// inserts the user action and returns all pending user action hashes that

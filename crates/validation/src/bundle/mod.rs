@@ -1,18 +1,18 @@
 use std::{fmt::Debug, pin::Pin, sync::Arc};
 
-use alloy::{
-    primitives::{Address, U256},
-    sol_types::SolCall
-};
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+use alloy::primitives::U256;
+use alloy::{primitives::Address, sol_types::SolCall};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
 use eyre::eyre;
 use futures::Future;
 use pade::PadeEncode;
 use revm::{
-    db::CacheDB,
-    inspector_handle_register,
-    primitives::{EnvWithHandlerCfg, TxKind}
+    Context, ExecuteEvm, Journal, MainBuilder,
+    context::{BlockEnv, CfgEnv, TxEnv},
+    database::CacheDB,
+    primitives::{TxKind, hardfork::SpecId}
 };
 use tokio::runtime::Handle;
 
@@ -48,7 +48,8 @@ where
         quantity: U256,
         uniswap: Address,
         angstrom: Address
-    ) where
+    ) -> eyre::Result<()>
+    where
         <DB as revm::DatabaseRef>::Error: Debug
     {
         use alloy::sol_types::SolValue;
@@ -56,8 +57,8 @@ where
 
         use crate::order::state::db_state_utils::finders::*;
         // Find the slot for balance and approval for us to take from Uniswap
-        let balance_slot = find_slot_offset_for_balance(&db, token);
-        let approval_slot = find_slot_offset_for_approval(&db, token);
+        let balance_slot = find_slot_offset_for_balance(&db, token)?;
+        let approval_slot = find_slot_offset_for_approval(&db, token)?;
 
         // first thing we will do is setup Uniswap's token balance.
         let uniswap_balance_slot = keccak256((uniswap, balance_slot).abi_encode());
@@ -66,10 +67,12 @@ where
 
         // set Uniswap's balance on the token_in
         db.insert_account_storage(token, uniswap_balance_slot.into(), U256::from(2) * quantity)
-            .unwrap();
+            .map_err(|e| eyre::eyre!("{e:?}"))?;
         // give angstrom approval
         db.insert_account_storage(token, uniswap_approval_slot.into(), U256::from(2) * quantity)
-            .unwrap();
+            .map_err(|e| eyre::eyre!("{e:?}"))?;
+
+        Ok(())
     }
 
     #[allow(unused_mut)]
@@ -111,7 +114,7 @@ where
                         U256::from(asset.take),
                         TESTNET_POOL_MANAGER_ADDRESS,
                         angstrom_address
-                    );
+                    ).unwrap();
                 }
             }
 
@@ -119,31 +122,34 @@ where
                 let bundle = bundle.pade_encode();
                 let mut console_log_inspector = CallDataInspector {};
 
-                let mut evm = revm::Evm::builder()
-                    .with_ref_db(db.clone())
-                    .with_external_context(&mut console_log_inspector)
-                    .with_env_with_handler_cfg(EnvWithHandlerCfg::default())
-                    .append_handler_register(inspector_handle_register)
-                    .modify_env(|env| {
-                        env.cfg.disable_balance_check = true;
-                    })
-                    .modify_block_env(|env| {
-                        env.number = U256::from(number + 1);
-                    })
-                    .modify_tx_env(|tx| {
+ let mut evm = Context {
+        tx: TxEnv::default(),
+        block: BlockEnv::default(),
+        cfg: CfgEnv::<SpecId>::default(), journaled_state: Journal::<CacheDB<Arc<DB>>>::new(SpecId::LATEST, db.clone()),
+        chain: (),
+        error: Ok(()),
+    }
+                .modify_cfg_chained(|cfg| {
+                        cfg.disable_balance_check = true;
+
+                })
+.modify_block_chained(|block| {
+                        block.number = number + 1;
+})
+                    .modify_tx_chained(|tx| {
+
                         tx.caller = node_address;
-                        tx.transact_to = TxKind::Call(angstrom_address);
+                        tx.kind= TxKind::Call(angstrom_address);
                         tx.data =
                         angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::new((
                             bundle.into(),
                         ))
                         .abi_encode()
                         .into();
-                    })
-                    .build();
+                    }).build_mainnet_with_inspector(console_log_inspector);
 
-                let result = match evm
-                    .transact()
+
+                let result = match evm.replay()
                     .map_err(|e| eyre!("failed to transact with revm - {e:?}"))
                 {
                     Ok(r) => r,

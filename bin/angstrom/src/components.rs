@@ -1,6 +1,6 @@
 //! CLI definition and entrypoint to executable
 
-use std::{collections::HashSet, pin::Pin, sync::Arc};
+use std::{collections::HashSet, pin::Pin, sync::Arc, time::Duration};
 
 use alloy::{
     self,
@@ -36,7 +36,7 @@ use reth::{
     builder::FullNodeComponents,
     chainspec::ChainSpec,
     primitives::EthPrimitives,
-    providers::{BlockNumReader, CanonStateSubscriptions},
+    providers::{BlockNumReader, CanonStateNotification, CanonStateSubscriptions},
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
@@ -177,7 +177,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         .with_recommended_fillers()
         .layer(RethDbLayer::new(node.provider().clone()))
         // backup
-        .on_builtin(node.rpc_server_handle().ws_url().unwrap().as_str())
+        .connect(node.rpc_server_handle().ws_url().unwrap().as_str())
         .await
         .unwrap()
         .into();
@@ -190,18 +190,14 @@ pub async fn initialize_strom_components<Node, AddOns>(
         condition of a block while starting modules");
 
     // wait for the next block so that we have a full 12 seconds on startup.
-    let _ = node
-        .provider
-        .subscribe_to_canonical_state()
-        .recv()
-        .await
-        .expect("startup sequence failed");
+    let mut sub = node.provider.subscribe_to_canonical_state();
+    handle_init_block_spam(&mut sub).await;
+    let _ = sub.recv().await.expect("next block");
 
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
     let block_id = querying_provider.get_block_number().await.unwrap();
-
-    let global_block_sync = GlobalBlockSync::new(block_id);
+    tracing::info!(?block_id, "starting up with block");
 
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
@@ -213,11 +209,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
         .unwrap()
     );
 
-    // we take the subscription before we load the pools as this is a slow process
-    // and we want to make sure that any pool changes from now till when the pools
-    // are loaded isn't missed.
-    let eth_data_sub = node.provider.subscribe_to_canonical_state();
     // load the angstrom pools;
+    tracing::info!("starting search for pools");
     let pools = fetch_angstrom_pools(
         node_config.angstrom_deploy_block as usize,
         block_id as usize,
@@ -225,13 +218,21 @@ pub async fn initialize_strom_components<Node, AddOns>(
         &node.provider
     )
     .await;
+    tracing::info!("found pools");
+
+    // re-fetch given the fetch pools takes awhile. given this, we do techincally
+    // have a gap in which a pool is deployed durning startup. This isn't
+    // critical but we will want to fix this down the road.
+    let block_id = querying_provider.get_block_number().await.unwrap();
+    let eth_data_sub = node.provider.subscribe_to_canonical_state();
+    let global_block_sync = GlobalBlockSync::new(block_id);
 
     // this right here problem
     let uniswap_registry: UniswapPoolRegistry = pools.into();
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
-    let periphery_c = ControllerV1::new(node_config.periphery_addr, querying_provider.clone());
+    let periphery_c = ControllerV1::new(node_config.periphery_address, querying_provider.clone());
     let node_set = periphery_c
         .nodes()
         .call()
@@ -245,7 +246,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     // created
     let eth_handle = EthDataCleanser::spawn(
         node_config.angstrom_address,
-        node_config.periphery_addr,
+        node_config.periphery_address,
         eth_data_sub,
         executor.clone(),
         handles.eth_tx,
@@ -360,4 +361,27 @@ pub async fn initialize_strom_components<Node, AddOns>(
     });
 
     global_block_sync.finalize_modules();
+    tracing::info!("started angstrom");
+}
+
+async fn handle_init_block_spam(
+    canon: &mut tokio::sync::broadcast::Receiver<CanonStateNotification>
+) {
+    // wait for the first notification
+    let _ = canon.recv().await.expect("first block");
+    tracing::info!("got first block");
+
+    loop {
+        tokio::select! {
+            // if we can go 9s without a update, we know that all of the pending cannon
+            // state notifications have been processed and we are at the tip.
+            _ = tokio::time::sleep(Duration::from_secs(9)) => {
+                break;
+            }
+            Ok(_) = canon.recv() => {
+
+            }
+        }
+    }
+    tracing::info!("finished handling block-spam");
 }
