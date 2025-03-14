@@ -24,10 +24,13 @@ const CONSOLE_LOG_ADDR: Address = address!("000000000000000000636F6e736F6c652e6c
 /// Inspector that monitors and prints calldata for specific address calls
 pub struct CallDataInspector;
 
-impl<DB: Database> Inspector<DB> for CallDataInspector {
+impl<DB, CTX> Inspector<CTX, DB> for CallDataInspector
+where
+    DB: Database + revm::interpreter::InterpreterTypes
+{
     fn call(
         &mut self,
-        _context: &mut revm::EvmContext<DB>,
+        _context: &mut CTX,
         inputs: &mut revm::interpreter::CallInputs
     ) -> Option<revm::interpreter::CallOutcome> {
         if inputs.target_address == CONSOLE_LOG_ADDR {

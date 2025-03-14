@@ -5,11 +5,11 @@ use alloy::{
     providers::Provider,
     transports::TransportResult
 };
-use alloy_rpc_types::{BlockNumberOrTag, BlockTransactionsKind};
-use eyre::bail;
+use alloy_rpc_types::BlockNumberOrTag;
+use angstrom_types::reth_db_wrapper::DBError;
 use reth_primitives::Account;
 use reth_provider::{ProviderError, ProviderResult};
-use reth_revm::primitives::Bytecode;
+use revm::bytecode::Bytecode;
 use validation::common::db::{BlockStateProvider, BlockStateProviderFactory};
 
 use super::utils::async_to_sync;
@@ -82,17 +82,14 @@ impl RpcStateProviderFactory {
 }
 
 impl reth_revm::DatabaseRef for RpcStateProviderFactory {
-    type Error = eyre::Error;
+    type Error = DBError;
 
-    fn basic_ref(
-        &self,
-        address: Address
-    ) -> Result<Option<reth_revm::primitives::AccountInfo>, Self::Error> {
+    fn basic_ref(&self, address: Address) -> Result<Option<revm::state::AccountInfo>, Self::Error> {
         let acc = async_to_sync(self.provider.get_account(address).latest().into_future())?;
         let code = async_to_sync(self.provider.get_code_at(address).latest().into_future())?;
         let code = Some(Bytecode::new_raw(code));
 
-        Ok(Some(reth_revm::primitives::AccountInfo {
+        Ok(Some(revm::state::AccountInfo {
             code_hash: acc.code_hash,
             balance: acc.balance,
             nonce: acc.nonce,
@@ -112,21 +109,15 @@ impl reth_revm::DatabaseRef for RpcStateProviderFactory {
     fn block_hash_ref(&self, number: u64) -> Result<alloy::primitives::B256, Self::Error> {
         let acc = async_to_sync(
             self.provider
-                .get_block_by_number(
-                    BlockNumberOrTag::Number(number),
-                    BlockTransactionsKind::Hashes
-                )
+                .get_block_by_number(BlockNumberOrTag::Number(number))
                 .into_future()
         )?;
 
-        let Some(block) = acc else { bail!("failed to load block") };
+        let Some(block) = acc else { return Err(DBError::String("no block".to_string())) };
         Ok(block.header.hash)
     }
 
-    fn code_by_hash_ref(
-        &self,
-        _: alloy::primitives::B256
-    ) -> Result<reth_revm::primitives::Bytecode, Self::Error> {
+    fn code_by_hash_ref(&self, _: alloy::primitives::B256) -> Result<Bytecode, Self::Error> {
         panic!("This should not be called, as the code is already loaded");
     }
 }

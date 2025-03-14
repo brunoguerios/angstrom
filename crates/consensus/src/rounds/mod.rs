@@ -438,7 +438,7 @@ pub mod tests {
 
         let querying_provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
             .with_recommended_fillers()
-            .on_builtin("https://eth.llamarpc.com")
+            .connect("https://eth.llamarpc.com")
             .await
             .unwrap()
             .into();

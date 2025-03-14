@@ -146,7 +146,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_builtin(&endpoint)
+            .connect(&endpoint)
             .await?;
 
         tracing::info!("connected to anvil");
@@ -178,7 +178,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_builtin(&endpoint)
+            .connect(&endpoint)
             .await?;
 
         tracing::info!("connected to anvil");

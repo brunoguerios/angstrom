@@ -48,7 +48,7 @@ parking_lot = "0.12.1"
 
 # misc
 eyre = "0.6.8"
-secp256k1 = { version = "0.27.0", default-features = false, features = [
+secp256k1 = { version = "0", default-features = false, features = [
   "global-context",
   "rand-std",
   "recovery",
@@ -88,6 +88,11 @@ reth-provider = { workspace = true, features = ["test-utils"] }
 reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 
+
+revm-bytecode.workspace= true
+revm-database.workspace = true
+revm-state.workspace = true
+revm-primitives.workspace = true
 
 rand.workspace = true
 secp256k1.workspace = true

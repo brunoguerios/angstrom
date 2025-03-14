@@ -11,14 +11,14 @@ use gas::OrderGasCalculations;
 use revm::primitives::ruint::aliases::U256;
 use tracing::error_span;
 
-use crate::{common::TokenPriceGenerator, order::sim::gas_inspector::GasUsed};
+use crate::common::TokenPriceGenerator;
 
 pub mod console_log;
 mod gas;
 
+pub type GasUsed = u64;
 // needed for future use
-#[allow(unused)]
-mod gas_inspector;
+// mod gas_inspector;
 
 pub type GasInToken0 = U256;
 /// validation relating to simulations.
