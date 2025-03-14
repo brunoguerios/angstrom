@@ -199,7 +199,7 @@ as the loop progresses to ensure consistency of reward distribution.
 
 **Reward Update Internals**ß
 
-To gain a better intuition over how parameters need to be set it's good to understandßßßßßß how the reward
+To gain a better intuition over how parameters need to be set it's good to understand how the reward
 update loop operates. The main purpose of the loop is to update the _internal_
 `reward_growth_outside` value of the ticks it passes. The "growth outside" values represent
 cumulative rewards in such a way where the total rewards accrued by a liquidity range can be
