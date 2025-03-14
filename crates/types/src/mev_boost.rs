@@ -6,7 +6,7 @@ use alloy::{
     primitives::{Address, TxHash},
     providers::{Provider, ProviderBuilder, RootProvider},
     rpc::types::TransactionRequest,
-    transports::http::reqwest::Url
+    transports::http::reqwest::Url,
 };
 use futures::{Future, FutureExt};
 
@@ -18,7 +18,7 @@ pub trait SubmitTx: Send + Sync {
     fn submit_transaction<'a>(
         &'a self,
         signer: &'a AngstromSigner,
-        tx: TransactionRequest
+        tx: TransactionRequest,
     ) -> Pin<Box<dyn Future<Output = (TxHash, bool)> + Send + 'a>>;
 }
 
@@ -27,7 +27,7 @@ impl SubmitTx for RootProvider {
     fn submit_transaction<'a>(
         &'a self,
         signer: &'a AngstromSigner,
-        tx: TransactionRequest
+        tx: TransactionRequest,
     ) -> Pin<Box<dyn Future<Output = (TxHash, bool)> + Send + 'a>> {
         async move {
             let tx = tx.build(&signer).await.unwrap();
@@ -47,16 +47,16 @@ const SEND_NORMAL: bool = cfg!(feature = "testnet-sepolia");
 
 pub struct MevBoostProvider<P> {
     mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>,
-    node_provider:       Arc<P>
+    node_provider: Arc<P>,
 }
 
 impl<P> MevBoostProvider<P>
 where
-    P: Provider + 'static
+    P: Provider + 'static,
 {
     pub fn new_from_raw(
         node_provider: Arc<P>,
-        mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>
+        mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>,
     ) -> Self {
         Self { node_provider, mev_boost_providers }
     }
@@ -85,14 +85,13 @@ where
         let fees = self.node_provider.estimate_eip1559_fees().await.unwrap();
         tx.set_max_fee_per_gas(fees.max_fee_per_gas);
         tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
-        tx.set_chain_id(CHAIN_ID);
     }
 
     // has as consumption here due to weird to general error
     pub async fn sign_and_send(
         &self,
         signer: AngstromSigner,
-        tx: TransactionRequest
+        tx: TransactionRequest,
     ) -> (TxHash, bool) {
         let mut submitted = true;
         let mut phash = None;
