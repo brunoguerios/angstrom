@@ -124,11 +124,11 @@ where
         tx: env.tx,
         block: env.block,
         cfg: env.cfg,
-        journaled_state: backend,
+        journaled_state:Journal<DB>,
         chain: (),
         error: Ok(()),
-    }
-
+    };
+let evm = evm
                 .with_db(db.clone())
                     .modify_tx_chained(|tx| {
                     }).build_mainnet_with_inspector(console_log_inspector);

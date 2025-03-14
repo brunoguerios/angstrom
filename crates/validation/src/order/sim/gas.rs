@@ -1,28 +1,15 @@
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
-use alloy::{
-    primitives::{Address, B256, Bytes, TxKind, U160, U256, address, keccak256},
-    sol_types::{SolCall, SolValue},
+use alloy::primitives::{Address, address};
+use angstrom_types::sol_bindings::{
+    grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+    rpc_orders::TopOfBlockOrder,
 };
-use angstrom_types::{
-    CHAIN_ID,
-    contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall},
-    matching::uniswap::UniswapFlags,
-    sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder,
-    },
-};
-use eyre::eyre;
 use reth_provider::BlockNumReader;
-use revm::DatabaseRef;
 use revm::database::CacheDB;
-use tracing::trace;
 
-use super::gas_inspector::{GasSimulationInspector, GasUsed};
-use crate::order::state::db_state_utils::finders::{
-    find_slot_offset_for_approval, find_slot_offset_for_balance,
-};
+// use super::gas_inspector::{GasSimulationInspector, GasUsed};
+use super::GasUsed;
 
 /// A address we can use to deploy contracts
 const DEFAULT_FROM: Address = address!("aa250d5630b4cf539739df2c5dacb4c659f2488d");
@@ -42,7 +29,7 @@ const DEFAULT_CREATE2_FACTORY: Address = address!("4e59b44847b379578588920cA78Fb
 #[derive(Clone)]
 pub struct OrderGasCalculations<DB> {
     db: CacheDB<Arc<DB>>,
-    // the deployed addresses in cache_db
+    // the dkeployed addresses in cache_db
     angstrom_address: Address,
     /// the address(pubkey) of this node.
     #[allow(unused)]
@@ -168,8 +155,8 @@ where
         Ok(40_000)
     }
 
-    // fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) -> eyre::Result<(ResultAndState, D)>
-    // where
+    // fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) ->
+    // eyre::Result<(ResultAndState, D)> where
     //     F: FnOnce(&mut TxEnv),
     //     <D as revm::DatabaseRef>::Error: Send + Sync + Debug,
     // {
@@ -194,15 +181,17 @@ where
     //
     // /// deploys angstrom + univ4 and then sets DEFAULT_FROM address as a node in
     // /// the network.
-    // fn setup_revm_cache_database_for_simulation(db: Arc<DB>) -> eyre::Result<ConfiguredRevm<DB>> {
-    //     let cache_db = CacheDB::new(db.clone());
+    // fn setup_revm_cache_database_for_simulation(db: Arc<DB>) ->
+    // eyre::Result<ConfiguredRevm<DB>> {     let cache_db =
+    // CacheDB::new(db.clone());
     //
     //     let (out, cache_db) = Self::execute_with_db(cache_db, |tx| {
     //         tx.transact_to = TxKind::Create;
     //         tx.caller = DEFAULT_FROM;
     //         tx.data =
-    //             angstrom_types::contract_bindings::pool_manager::PoolManager::BYTECODE.clone();
-    //         tx.value = U256::from(0);
+    //
+    // angstrom_types::contract_bindings::pool_manager::PoolManager::BYTECODE.
+    // clone();         tx.value = U256::from(0);
     //         tx.nonce = Some(0);
     //     })?;
     //
@@ -211,16 +200,19 @@ where
     //         eyre::bail!("failed to deploy uniswap v4 pool manager");
     //     }
     //
-    //     let v4_address = Address::from_slice(&keccak256((DEFAULT_FROM, 0).abi_encode())[12..]);
+    //     let v4_address = Address::from_slice(&keccak256((DEFAULT_FROM,
+    // 0).abi_encode())[12..]);
     //
     //     // deploy angstrom.
     //     let angstrom_raw_bytecode =
-    //         angstrom_types::contract_bindings::angstrom::Angstrom::BYTECODE.clone();
+    //         angstrom_types::contract_bindings::angstrom::Angstrom::BYTECODE.
+    // clone();
     //
-    //     // in solidity when deploying. constructor args are appended to the end of the
-    //     // bytecode.
-    //     let constructor_args = (v4_address, DEFAULT_FROM, DEFAULT_FROM).abi_encode().into();
-    //     let data: Bytes = [angstrom_raw_bytecode, constructor_args].concat().into();
+    //     // in solidity when deploying. constructor args are appended to the end
+    // of the     // bytecode.
+    //     let constructor_args = (v4_address, DEFAULT_FROM,
+    // DEFAULT_FROM).abi_encode().into();     let data: Bytes =
+    // [angstrom_raw_bytecode, constructor_args].concat().into();
     //
     //     // angstrom deploy is sicko mode.
     //     let flags = UniswapFlags::BeforeSwap
@@ -229,7 +221,8 @@ where
     //         | UniswapFlags::BeforeRemoveLiquidity;
     //
     //     let (angstrom_address, salt) =
-    //         mine_address_with_factory(DEFAULT_CREATE2_FACTORY, flags, UniswapFlags::mask(), &data);
+    //         mine_address_with_factory(DEFAULT_CREATE2_FACTORY, flags,
+    // UniswapFlags::mask(), &data);
     //
     //     let final_mock_initcode = [salt.abi_encode(), data.to_vec()].concat();
     //
@@ -248,7 +241,8 @@ where
     //     let (out, cache_db) = Self::execute_with_db(cache_db, |tx| {
     //         tx.transact_to = TxKind::Call(angstrom_address);
     //         tx.caller = DEFAULT_FROM;
-    //         tx.data = angstrom_types::contract_bindings::angstrom::Angstrom::toggleNodesCall::new(
+    //         tx.data =
+    // angstrom_types::contract_bindings::angstrom::Angstrom::toggleNodesCall::new(
     //             (vec![DEFAULT_FROM],),
     //         )
     //         .abi_encode()
@@ -258,8 +252,8 @@ where
     //     })?;
     //
     //     if !out.result.is_success() {
-    //         eyre::bail!("failed to set default from address as node on angstrom");
-    //     }
+    //         eyre::bail!("failed to set default from address as node on
+    // angstrom");     }
     //
     //     Ok(ConfiguredRevm { db: cache_db, angstrom: angstrom_address })
     // }
@@ -280,8 +274,8 @@ where
 //     let mut salt = U256::ZERO;
 //     let mut counter: u128 = 0;
 //     loop {
-//         let target_address: Address = factory.create2(B256::from(salt), init_code_hash);
-//         let u_address: U160 = target_address.into();
+//         let target_address: Address = factory.create2(B256::from(salt),
+// init_code_hash);         let u_address: U160 = target_address.into();
 //         if (u_address & mask) == flags {
 //             break;
 //         }
