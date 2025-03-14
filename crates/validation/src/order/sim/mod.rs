@@ -40,6 +40,8 @@ where
         Self { gas_calculator, metrics: ValidationMetrics::new() }
     }
 
+    /// returns an error if we fail to convert prices or if the amount of token
+    /// zero for gas is greater than the max amount specified.
     pub fn calculate_tob_gas(
         &self,
         order: &OrderWithStorageData<TopOfBlockOrder>,
@@ -53,21 +55,29 @@ where
             self.metrics.fetch_gas_for_user(true, || {
                 let gas_in_wei = self.gas_calculator.gas_of_tob_order(order, block)?;
                 // grab order tokens;
-                let (token0, token1) = if order.asset_in < order.asset_out {
-                    (order.asset_in, order.asset_out)
+                let (token0, token1, max_gas) = if order.asset_in < order.asset_out {
+                    (order.asset_in, order.asset_out, order.max_gas_token_0())
                 } else {
-                    (order.asset_out, order.asset_in)
+                    (order.asset_out, order.asset_in, order.max_gas_token_0())
                 };
 
                 // grab price conversion
                 let conversion_factor =
                     conversion.get_eth_conversion_price(token0, token1).unwrap();
+                let gas_token_0 = conversion_factor * U256::from(gas_in_wei);
 
-                Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
+                // convert to u256 for overflow cases.
+                if *gas_token_0 > U256::from(max_gas) {
+                    eyre::bail!("gas_needed_token0 > max_gas");
+                }
+
+                Ok((gas_in_wei, *gas_token_0))
             })
         })
     }
 
+    /// returns an error if we fail to convert prices or if the amount of token
+    /// zero for gas is greater than the max amount specified.
     pub fn calculate_user_gas(
         &self,
         order: &OrderWithStorageData<GroupedVanillaOrder>,
@@ -81,17 +91,23 @@ where
             self.metrics.fetch_gas_for_user(false, || {
                 let gas_in_wei = self.gas_calculator.gas_of_book_order(order, block)?;
                 // grab order tokens;
-                let (token0, token1) = if order.token_in() < order.token_out() {
-                    (order.token_in(), order.token_out())
+                let (token0, token1, max_gas) = if order.token_in() < order.token_out() {
+                    (order.token_in(), order.token_out(), order.max_gas_token_0())
                 } else {
-                    (order.token_out(), order.token_in())
+                    (order.token_out(), order.token_in(), order.max_gas_token_0())
                 };
 
                 // grab price conversion
                 let conversion_factor =
                     conversion.get_eth_conversion_price(token0, token1).unwrap();
+                let gas_token_0 = conversion_factor * U256::from(gas_in_wei);
 
-                Ok((gas_in_wei, (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray()))
+                // convert to u256 for overflow cases.
+                if *gas_token_0 > U256::from(max_gas) {
+                    eyre::bail!("gas_needed_token0 > max_gas");
+                }
+
+                Ok((gas_in_wei, *gas_token_0))
             })
         })
     }
