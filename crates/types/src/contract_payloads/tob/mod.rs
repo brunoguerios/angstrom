@@ -137,9 +137,14 @@ impl ToBOutcome {
             0 | 1 => RewardsUpdate::CurrentOnly {
                 amount: quantities.first().copied().unwrap_or_default()
             },
-            _ => {
-                let reward_checksum =
-                    compute_reward_checksum(start_tick, start_liquidity, &snapshot, from_above);
+            len => {
+                let reward_checksum = compute_reward_checksum(
+                    start_tick,
+                    start_liquidity,
+                    &snapshot,
+                    from_above,
+                    len
+                );
                 RewardsUpdate::MultiTick {
                     start_tick: I24::try_from(start_tick).unwrap_or_default(),
                     start_liquidity,
@@ -248,11 +253,13 @@ mod test {
 /// Computes the reward checksum for a given range of ticks.
 ///
 /// `from_above`: `true` = high to low, `false` = low to high.
+/// total ticks should be the length of the reward vec
 fn compute_reward_checksum(
     start_tick: i32,
     start_liquidity: u128,
     snapshot: &PoolSnapshot,
-    from_above: bool
+    from_above: bool,
+    mut total_ticks: usize
 ) -> U160 {
     let mut reward_checksum = [0u8; 32];
     let mut tick = start_tick;
@@ -274,26 +281,45 @@ fn compute_reward_checksum(
         .unwrap_or(start_liquidity);
 
     loop {
+        // we only checksum the ticks that w are rewarding.
+        total_ticks -= 1;
+        if total_ticks == 0 {
+            break;
+        }
         tracing::info!(tick, liquidity, "Processing tick before update");
 
-        let tick_bytes = &tick.to_be_bytes()[1..];
+        let tick_bytes: [u8; 3] = I24::try_from(tick).unwrap().to_be_bytes();
         let hash_input =
-            [reward_checksum.as_slice(), &liquidity.to_be_bytes(), tick_bytes].concat();
+            [reward_checksum.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
         tracing::info!("Hash input: {:?}", hash_input);
         reward_checksum = *keccak256(&hash_input);
 
         tracing::info!(tick, liquidity, "Updated liquidity in checksum");
 
-        // Move to the next initialized tick while enforcing tick spacing
-        if let Some(next_tick) = snapshot.get_next_tick_gt(tick, tick_spacing) {
-            tracing::info!(tick, next_tick, "Moving to next initialized tick");
-            tick = next_tick;
+        if from_above {
+            // Move to the next initialized tick while enforcing tick spacing
+            if let Some(next_tick) = snapshot.get_next_tick_lt(tick) {
+                tracing::info!(tick, next_tick, "Moving to next initialized tick");
+                tick = next_tick;
 
-            // Update liquidity for the new tick
-            liquidity = snapshot.liquidity_at_tick(tick).unwrap_or(0);
+                // Update liquidity for the new tick
+                liquidity = snapshot.liquidity_at_tick(tick).unwrap_or(0);
+            } else {
+                tracing::info!(tick, "No more initialized ticks found, stopping");
+                break;
+            }
         } else {
-            tracing::info!(tick, "No more initialized ticks found, stopping");
-            break;
+            // Move to the next initialized tick while enforcing tick spacing
+            if let Some(next_tick) = snapshot.get_next_tick_gt(tick) {
+                tracing::info!(tick, next_tick, "Moving to next initialized tick");
+                tick = next_tick;
+
+                // Update liquidity for the new tick
+                liquidity = snapshot.liquidity_at_tick(tick).unwrap_or(0);
+            } else {
+                tracing::info!(tick, "No more initialized ticks found, stopping");
+                break;
+            }
         }
     }
 

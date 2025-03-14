@@ -36,7 +36,9 @@ library RewardLib {
     function sort(TickReward[] memory rewards) internal pure {
         for (uint256 i = 0; i < rewards.length; i++) {
             for (uint256 j = i + 1; j < rewards.length; j++) {
-                if (rewards[i].gt(rewards[j])) (rewards[i], rewards[j]) = (rewards[j], rewards[i]);
+                if (rewards[i].gt(rewards[j])) {
+                    (rewards[i], rewards[j]) = (rewards[j], rewards[i]);
+                }
             }
         }
     }
@@ -166,8 +168,6 @@ library RewardLib {
         }
     }
 
-    event ChecksumUpdate(bytes32 reward_checksum, uint128 liquidity, int24 tick);
-
     function _createRewardUpdateBelow(
         IPoolManager uni,
         PoolId id,
@@ -179,7 +179,7 @@ library RewardLib {
 
         // Create list of initialized ticks, including start (checked before) and the tick of the
         // current range.
-        UintVec memory initializedTicks = VecLib.uint_with_cap(rewards.length * 3 / 2);
+        UintVec memory initializedTicks = VecLib.uint_with_cap((rewards.length * 3) / 2);
         {
             int24 tick = rewards[0].tick;
             bool initialized = true;
@@ -243,10 +243,6 @@ library RewardLib {
                 int24 tick = int24(int256(initializedTicks.get(i)));
                 (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
                 liquidity = MixedSignLib.add(liquidity, netLiquidity);
-                emit ChecksumUpdate(rewardChecksum, liquidity, tick);
-                console.log(
-                    "Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick
-                );
                 rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
             }
             update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);
@@ -264,7 +260,7 @@ library RewardLib {
 
         // Create list of initialized ticks, including start (checked before) and the tick of the
         // current range.
-        UintVec memory initializedTicks = VecLib.uint_with_cap(rewards.length * 3 / 2);
+        UintVec memory initializedTicks = VecLib.uint_with_cap((rewards.length * 3) / 2);
         int24 startTick = rewards[rewards.length - 1].tick;
         {
             bool initialized = true;
@@ -329,10 +325,6 @@ library RewardLib {
                 int24 tick = int24(int256(initializedTicks.get(i)));
                 (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
                 liquidity = MixedSignLib.sub(liquidity, netLiquidity);
-                emit ChecksumUpdate(rewardChecksum, liquidity, tick);
-                console.log(
-                    "Checksum: %s, Liquidity: %s, Tick: %d", rewardChecksum, liquidity, tick
-                );
                 rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
             }
             update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);
