@@ -18,7 +18,6 @@ mod gas;
 
 pub type GasUsed = u64;
 // needed for future use
-#[allow(unused)]
 // mod gas_inspector;
 
 pub type GasInToken0 = U256;

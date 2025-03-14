@@ -67,7 +67,7 @@ pub async fn spawn_anvil(anvil_key: usize) -> eyre::Result<(AnvilInstance, Walle
     let rpc = builder::<Ethereum>()
         .with_recommended_fillers()
         .wallet(wallet)
-        .on_builtin(endpoint)
+        .connect(endpoint)
         .await?;
 
     tracing::info!("connected to anvil");

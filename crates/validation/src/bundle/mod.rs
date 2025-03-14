@@ -9,7 +9,12 @@ use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetai
 use eyre::eyre;
 use futures::Future;
 use pade::PadeEncode;
-use revm::{Context, MainBuilder, database::CacheDB, primitives::TxKind};
+use revm::{
+    Context, ExecuteEvm, Journal, MainBuilder,
+    context::{BlockEnv, CfgEnv, TxEnv},
+    database::CacheDB,
+    primitives::{TxKind, hardfork::SpecId}
+};
 use tokio::runtime::Handle;
 
 use crate::{
@@ -119,45 +124,34 @@ where
                 let bundle = bundle.pade_encode();
                 let mut console_log_inspector = CallDataInspector {};
 
-    let env = Env::mainnet();
  let mut evm = Context {
-        tx: env.tx,
-        block: env.block,
-        cfg: env.cfg,
-        journaled_state:Journal<DB>,
+        tx: TxEnv::default(),
+        block: BlockEnv::default(),
+        cfg: CfgEnv::<SpecId>::default(), journaled_state: Journal::<CacheDB<Arc<DB>>>::new(SpecId::LATEST, db.clone()),
         chain: (),
         error: Ok(()),
-    };
-let evm = evm
-                .with_db(db.clone())
-                    .modify_tx_chained(|tx| {
-                    }).build_mainnet_with_inspector(console_log_inspector);
+    }
+                .modify_cfg_chained(|cfg| {
+                        cfg.disable_balance_check = true;
 
-                let mut evm = revm::Evm::builder()
-                    .with_ref_db(db.clone())
-                    .with_external_context(&mut console_log_inspector)
-                    .with_env_with_handler_cfg(EnvWithHandlerCfg::default())
-                    .append_handler_register(inspector_handle_register)
-                    .modify_env(|env| {
-                        env.cfg.disable_balance_check = true;
-                    })
-                    .modify_block_env(|env| {
-                        env.number = U256::from(number + 1);
-                    })
-                    .modify_tx_env(|tx| {
+                })
+.modify_block_chained(|block| {
+                        block.number = number + 1;
+})
+                    .modify_tx_chained(|tx| {
+
                         tx.caller = node_address;
-                        tx.transact_to = TxKind::Call(angstrom_address);
+                        tx.kind= TxKind::Call(angstrom_address);
                         tx.data =
                         angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::new((
                             bundle.into(),
                         ))
                         .abi_encode()
                         .into();
-                    })
-                    .build();
+                    }).build_mainnet_with_inspector(console_log_inspector);
 
-                let result = match evm
-                    .transact()
+
+                let result = match evm.replay()
                     .map_err(|e| eyre!("failed to transact with revm - {e:?}"))
                 {
                     Ok(r) => r,

@@ -8,7 +8,7 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::Bytes;
-use alloy_rpc_types::{BlockTransactionsKind, Header, Transaction};
+use alloy_rpc_types::{Header, Transaction};
 use angstrom_types::{CHAIN_ID, block_sync::GlobalBlockSync};
 use futures::{Stream, StreamExt, stream::FuturesOrdered};
 
@@ -141,7 +141,7 @@ impl AnvilProvider<WalletProvider> {
         let rpc = builder::<Ethereum>()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_builtin(ipc)
+            .connect(ipc)
             .await?;
 
         tracing::info!("connected to anvil");
@@ -177,7 +177,7 @@ impl StreamBlockProvider {
 
     async fn make_block(provider: WalletProviderRpc, number: u64) -> (u64, Vec<Transaction>) {
         let block = provider
-            .get_block(number.into(), BlockTransactionsKind::Full)
+            .get_block(number.into())
             .await
             .unwrap_or_else(|_| panic!("could not get block number {number}"))
             .unwrap_or_else(|| panic!("no block found - number {number}"));

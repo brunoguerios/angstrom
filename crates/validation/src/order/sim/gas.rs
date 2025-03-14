@@ -1,9 +1,9 @@
 use std::{fmt::Debug, sync::Arc};
 
-use alloy::primitives::{Address, address};
+use alloy::primitives::Address;
 use angstrom_types::sol_bindings::{
     grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-    rpc_orders::TopOfBlockOrder,
+    rpc_orders::TopOfBlockOrder
 };
 use reth_provider::BlockNumReader;
 use revm::database::CacheDB;
@@ -11,11 +11,12 @@ use revm::database::CacheDB;
 // use super::gas_inspector::{GasSimulationInspector, GasUsed};
 use super::GasUsed;
 
-/// A address we can use to deploy contracts
-const DEFAULT_FROM: Address = address!("aa250d5630b4cf539739df2c5dacb4c659f2488d");
-const DEFAULT_CREATE2_FACTORY: Address = address!("4e59b44847b379578588920cA78FbF26c0B4956C");
-// const SETUP_BYTECODE: FixedBytes<32> =
-//     fixed_bytes!("
+// A address we can use to deploy contracts
+// const DEFAULT_FROM: Address =
+// address!("aa250d5630b4cf539739df2c5dacb4c659f2488d");
+// const DEFAULT_CREATE2_FACTORY: Address =
+// address!("4e59b44847b379578588920cA78FbF26c0B4956C"); const SETUP_BYTECODE:
+// FixedBytes<32> =     fixed_bytes!("
 // 907ea7ad6d1fbded0236f040aea693e2c9711b62b065fc95c4262972aca03996");
 
 /// deals with the calculation of gas for a given type of order.
@@ -28,23 +29,23 @@ const DEFAULT_CREATE2_FACTORY: Address = address!("4e59b44847b379578588920cA78Fb
 /// (Bundle execution cost - Sum(Orders Gas payed)) / len(Orders)
 #[derive(Clone)]
 pub struct OrderGasCalculations<DB> {
-    db: CacheDB<Arc<DB>>,
+    _db:               CacheDB<Arc<DB>>,
     // the dkeployed addresses in cache_db
-    angstrom_address: Address,
+    _angstrom_address: Address,
     /// the address(pubkey) of this node.
     #[allow(unused)]
-    node_address: Option<Address>,
+    node_address:      Option<Address>
 }
 
 impl<DB> OrderGasCalculations<DB>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + BlockNumReader,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     pub fn new(
         db: Arc<DB>,
         angstrom_address: Option<Address>,
-        node_address: Address,
+        node_address: Address
     ) -> eyre::Result<Self> {
         // let bytecode = keccak256(&Angstrom::BYTECODE);
         // assert!(
@@ -54,12 +55,16 @@ where
         // );
 
         if let Some(angstrom_address) = angstrom_address {
-            Ok(Self { db: CacheDB::new(db), angstrom_address, node_address: Some(node_address) })
+            Ok(Self {
+                _db:               CacheDB::new(db),
+                _angstrom_address: angstrom_address,
+                node_address:      Some(node_address)
+            })
         } else {
             Ok(Self {
-                db: CacheDB::new(db),
-                angstrom_address: angstrom_address.unwrap_or_default(),
-                node_address: None,
+                _db:               CacheDB::new(db),
+                _angstrom_address: angstrom_address.unwrap_or_default(),
+                node_address:      None
             })
         }
     }
@@ -67,7 +72,7 @@ where
     pub fn gas_of_tob_order(
         &self,
         _tob: &OrderWithStorageData<TopOfBlockOrder>,
-        _block: u64,
+        _block: u64
     ) -> eyre::Result<GasUsed> {
         // need to grab the order hash
         // self.execute_on_revm(
@@ -105,7 +110,7 @@ where
     pub fn gas_of_book_order(
         &self,
         _order: &OrderWithStorageData<GroupedVanillaOrder>,
-        _block: u64,
+        _block: u64
     ) -> eyre::Result<GasUsed> {
         // let exact_in = order.exact_in();
         // let bundle = AngstromBundle::build_dummy_for_user_gas(order).unwrap();
@@ -295,20 +300,20 @@ pub mod test {
     // test to see proper gas_calculations
     use std::{
         path::Path,
-        time::{Duration, SystemTime, UNIX_EPOCH},
+        time::{Duration, SystemTime, UNIX_EPOCH}
     };
 
     use alloy::{
         node_bindings::WEI_IN_ETHER,
         primitives::{U256, Uint, hex},
-        signers::{SignerSync, local::LocalSigner},
+        signers::{SignerSync, local::LocalSigner}
     };
     use angstrom_types::{
         reth_db_wrapper::RethDbWrapper,
         sol_bindings::{
             grouped_orders::StandingVariants,
-            rpc_orders::{ExactStandingOrder, OmitOrderMeta},
-        },
+            rpc_orders::{ExactStandingOrder, OmitOrderMeta}
+        }
     };
     use eyre::eyre;
     use pade::PadeEncode;
@@ -371,25 +376,25 @@ pub mod test {
         let address = user.address();
 
         let mut default = angstrom_types::sol_bindings::rpc_orders::ExactStandingOrder {
-            ref_id: 0,
+            ref_id:               0,
             max_extra_fee_asset0: 0,
-            exact_in: true,
-            amount: WEI_IN_ETHER.to(),
-            min_price: U256::from(1u128),
-            use_internal: false,
-            asset_in: WETH_ADDRESS,
-            asset_out: WETH_ADDRESS,
-            recipient: USER_WITH_FUNDS,
-            hook_data: alloy::primitives::Bytes::new(),
-            nonce: 0,
-            deadline: Uint::<40, 1>::from_be_slice(
+            exact_in:             true,
+            amount:               WEI_IN_ETHER.to(),
+            min_price:            U256::from(1u128),
+            use_internal:         false,
+            asset_in:             WETH_ADDRESS,
+            asset_out:            WETH_ADDRESS,
+            recipient:            USER_WITH_FUNDS,
+            hook_data:            alloy::primitives::Bytes::new(),
+            nonce:                0,
+            deadline:             Uint::<40, 1>::from_be_slice(
                 &(SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
                     + Duration::from_secs(1000))
                 .as_secs()
-                .to_be_bytes()[3..],
+                .to_be_bytes()[3..]
             ),
 
-            meta: Default::default(),
+            meta: Default::default()
         };
         let hash = default.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
         let sig = user.sign_hash_sync(&hash).unwrap();
@@ -422,7 +427,7 @@ pub mod test {
             gas_calculations.angstrom_address,
             swapper,
             WETH_ADDRESS,
-            WEI_IN_ETHER,
+            WEI_IN_ETHER
         );
 
         let tob_order = OrderWithStorageData {
@@ -461,7 +466,7 @@ pub mod test {
             gas_calculations.angstrom_address,
             swapper,
             WETH_ADDRESS,
-            WEI_IN_ETHER,
+            WEI_IN_ETHER
         );
 
         let user_order = OrderWithStorageData {
@@ -508,7 +513,7 @@ pub mod test {
             DEFAULT_FROM,
             user_with_funds,
             weth_contract,
-            amount,
+            amount
         );
 
         let mut offsets = std::collections::HashMap::default();
@@ -569,12 +574,12 @@ pub mod test {
         let db = Arc::new(RethDbWrapper::new(load_reth_db(db_path)));
         let mut cache_db = CacheDB::new(db);
         let a = AccountInfo {
-            balance: U256::ZERO,
-            code: Some(Bytecode::new_raw(alloy::primitives::Bytes::from_static(&hex!(
+            balance:   U256::ZERO,
+            code:      Some(Bytecode::new_raw(alloy::primitives::Bytes::from_static(&hex!(
                 "6042604260425860005260206000F3"
             )))),
-            nonce: 0,
-            code_hash: keccak256(hex!("604260005260206000F3")),
+            nonce:     0,
+            code_hash: keccak256(hex!("604260005260206000F3"))
         };
 
         cache_db.insert_account_info(rand, a);
@@ -638,7 +643,7 @@ pub mod test {
         calle_address: Address,
         user_address: Address,
         token: Address,
-        amount: U256,
+        amount: U256
     ) {
         for i in 0..10 {
             let balance_amount_out_slot = keccak256((user_address, i).abi_encode());

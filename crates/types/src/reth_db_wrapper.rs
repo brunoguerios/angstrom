@@ -1,6 +1,7 @@
 // Allows us to impl revm::DatabaseRef on the default provider type.
-use alloy::primitives::{
-    Address, B256, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, U256
+use alloy::{
+    primitives::{Address, B256, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, U256},
+    transports::{RpcError, TransportErrorKind}
 };
 use reth_chainspec::ChainInfo;
 use reth_provider::{
@@ -32,7 +33,13 @@ where
 #[derive(Debug, thiserror::Error)]
 pub enum DBError {
     #[error(transparent)]
-    Regular(#[from] ProviderError)
+    Regular(#[from] ProviderError),
+    #[error(transparent)]
+    Eyre(#[from] eyre::Error),
+    #[error("{0:?}")]
+    String(String),
+    #[error(transparent)]
+    Rpc(#[from] RpcError<TransportErrorKind>)
 }
 
 impl DBErrorMarker for DBError {}
