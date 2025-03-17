@@ -114,8 +114,8 @@ impl ProposalState {
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
 
         let mut tx = TransactionRequest::default()
-            .with_to(handles.angstrom_address)
             .with_from(handles.signer.address())
+            .with_kind(alloy::primitives::TxKind::Call(handles.angstrom_address))
             .with_input(encoded);
 
         let provider = handles.provider.clone();
@@ -128,10 +128,11 @@ impl ProposalState {
                 .await;
 
             let (hash, success) = provider.sign_and_send(signer, tx).await;
-            tracing::info!("submitted bundle");
             if !success {
+                tracing::info!("submission failed");
                 return false;
             }
+            tracing::info!("submitted bundle");
 
             // wait for next block. then see if transaction landed
             provider

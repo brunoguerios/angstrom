@@ -1,8 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use alloy::primitives::aliases::I24;
+use alloy_primitives::{U160, U256, keccak256};
 use eyre::eyre;
 use itertools::Itertools;
+use thiserror::Error;
 
 use super::rewards::RewardsUpdate;
 use crate::{
@@ -99,7 +101,7 @@ impl ToBOutcome {
         current_tick: Tick,
         range_tick: Tick,
         snapshot: &PoolSnapshot
-    ) -> RewardsUpdate {
+    ) -> Result<RewardsUpdate, MissingTickLiquidityError> {
         let from_above = range_tick > current_tick;
         let (low, high) =
             if from_above { (&current_tick, &range_tick) } else { (&range_tick, &current_tick) };
@@ -132,16 +134,27 @@ impl ToBOutcome {
             "Rewards update range dump"
         );
 
-        match quantities.len() {
+        Ok(match quantities.len() {
             0 | 1 => RewardsUpdate::CurrentOnly {
-                amount: quantities.first().copied().unwrap_or_default()
+                amount:             quantities.first().copied().unwrap_or_default(),
+                expected_liquidity: start_liquidity
             },
-            _ => RewardsUpdate::MultiTick {
-                start_tick: I24::try_from(start_tick).unwrap_or_default(),
-                start_liquidity,
-                quantities
+            len => {
+                let reward_checksum = compute_reward_checksum(
+                    start_tick,
+                    start_liquidity,
+                    snapshot,
+                    from_above,
+                    len
+                )?;
+                RewardsUpdate::MultiTick {
+                    start_tick: I24::try_from(start_tick).unwrap_or_default(),
+                    start_liquidity,
+                    quantities,
+                    reward_checksum
+                }
             }
-        }
+        })
     }
 }
 
@@ -210,7 +223,8 @@ mod test {
             ..Default::default()
         }
         .rewards_update_range(120, 100, &snapshot);
-        let RewardsUpdate::MultiTick { start_tick: upwards_start_tick, .. } = upwards_update else {
+        let Ok(RewardsUpdate::MultiTick { start_tick: upwards_start_tick, .. }) = upwards_update
+        else {
             panic!("Upwards update was single-tick");
         };
         assert_eq!(
@@ -227,7 +241,8 @@ mod test {
             ..Default::default()
         }
         .rewards_update_range(100, 120, &snapshot);
-        let RewardsUpdate::MultiTick { start_tick: downwards_start_tick, .. } = downwards_update
+        let Ok(RewardsUpdate::MultiTick { start_tick: downwards_start_tick, .. }) =
+            downwards_update
         else {
             panic!("Downwards update was single-tick");
         };
@@ -237,4 +252,74 @@ mod test {
             "Downwards update did not start at highest tick"
         );
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Error)]
+pub struct MissingTickLiquidityError;
+
+impl Display for MissingTickLiquidityError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "liquidity_at_tick was undefined for the given tick")
+    }
+}
+
+/// Computes the reward checksum for a given range of ticks.
+///
+/// `from_above`: `true` = high to low, `false` = low to high.
+/// total ticks should be the length of the reward vec
+fn compute_reward_checksum(
+    start_tick: i32,
+    start_liquidity: u128,
+    snapshot: &PoolSnapshot,
+    from_above: bool,
+    mut total_ticks: usize
+) -> Result<U160, MissingTickLiquidityError> {
+    let mut reward_checksum = [0u8; 32];
+    let mut tick = start_tick;
+
+    // Get initial liquidity directly from snapshot
+    let mut liquidity = snapshot
+        .liquidity_at_tick(start_tick)
+        .unwrap_or(start_liquidity);
+
+    loop {
+        // we only checksum the ticks that w are rewarding.
+        total_ticks -= 1;
+        if total_ticks == 0 {
+            break;
+        }
+
+        let tick_bytes: [u8; 3] = I24::try_from(tick).unwrap().to_be_bytes();
+        let hash_input =
+            [reward_checksum.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
+        reward_checksum = *keccak256(&hash_input);
+
+        if from_above {
+            // Move to the next initialized tick while enforcing tick spacing
+            if let Some(next_tick) = snapshot.get_next_tick_lt(tick) {
+                tick = next_tick;
+
+                // Update liquidity for the new tick
+                liquidity = snapshot
+                    .liquidity_at_tick(tick)
+                    .ok_or(MissingTickLiquidityError)?;
+            } else {
+                break;
+            }
+        } else {
+            // Move to the next initialized tick while enforcing tick spacing
+            if let Some(next_tick) = snapshot.get_next_tick_gt(tick) {
+                tick = next_tick;
+
+                // Update liquidity for the new tick
+                liquidity = snapshot
+                    .liquidity_at_tick(tick)
+                    .ok_or(MissingTickLiquidityError)?;
+            } else {
+                break;
+            }
+        }
+    }
+
+    Ok(U160::from(U256::from_be_bytes(reward_checksum) >> 96))
 }

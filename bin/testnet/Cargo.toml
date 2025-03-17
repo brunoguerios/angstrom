@@ -83,6 +83,9 @@ local-ip-address = "0"
 [target.'cfg(unix)'.dependencies]
 tikv-jemallocator = { version = "0", optional = true }
 
+[[bin]]
+name = "testnet"
+path = "src/main.rs"
 
 [features]
 default = ["jemalloc", "ipc"]
@@ -94,6 +97,3 @@ jemalloc = ["dep:tikv-jemallocator"]
 jemalloc-prof = ["jemalloc", "tikv-jemallocator?/profiling"]
 
 
-[[bin]]
-name = "testnet"
-path = "src/main.rs"

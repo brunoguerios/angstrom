@@ -178,6 +178,7 @@ impl StreamBlockProvider {
     async fn make_block(provider: WalletProviderRpc, number: u64) -> (u64, Vec<Transaction>) {
         let block = provider
             .get_block(number.into())
+            .full()
             .await
             .unwrap_or_else(|_| panic!("could not get block number {number}"))
             .unwrap_or_else(|| panic!("no block found - number {number}"));
