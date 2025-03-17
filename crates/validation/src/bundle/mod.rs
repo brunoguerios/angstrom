@@ -122,22 +122,21 @@ where
                 let bundle = bundle.pade_encode();
                 let mut console_log_inspector = CallDataInspector {};
 
- let mut evm = Context {
-        tx: TxEnv::default(),
-        block: BlockEnv::default(),
-        cfg: CfgEnv::<SpecId>::default(), journaled_state: Journal::<CacheDB<Arc<DB>>>::new(SpecId::LATEST, db.clone()),
-        chain: (),
-        error: Ok(()),
-    }
-                .modify_cfg_chained(|cfg| {
+                 let mut evm = Context {
+                        tx: TxEnv::default(),
+                        block: BlockEnv::default(),
+                        cfg: CfgEnv::<SpecId>::default(), journaled_state: Journal::<CacheDB<Arc<DB>>>::new(SpecId::LATEST, db.clone()),
+                        chain: (),
+                        error: Ok(()),
+                    }
+                    .modify_cfg_chained(|cfg| {
                         cfg.disable_balance_check = true;
-
-                })
-.modify_block_chained(|block| {
+                        cfg.disable_nonce_check = true;
+                    })
+                    .modify_block_chained(|block| {
                         block.number = number + 1;
-})
+                    })
                     .modify_tx_chained(|tx| {
-
                         tx.caller = node_address;
                         tx.kind= TxKind::Call(angstrom_address);
                         tx.data =
