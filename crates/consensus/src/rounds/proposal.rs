@@ -114,8 +114,8 @@ impl ProposalState {
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
 
         let mut tx = TransactionRequest::default()
-            .with_to(handles.angstrom_address)
             .with_from(handles.signer.address())
+            .with_kind(alloy::primitives::TxKind::Call(handles.angstrom_address))
             .with_input(encoded);
 
         let provider = handles.provider.clone();
