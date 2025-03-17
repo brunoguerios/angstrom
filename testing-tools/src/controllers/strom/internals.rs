@@ -43,7 +43,7 @@ use crate::{
     validation::TestOrderValidator
 };
 
-pub struct AngstromDevnetNodeInternals<P> {
+pub struct AngstromNodeInternals<P> {
     pub rpc_port:         u64,
     pub state_provider:   AnvilProvider<P>,
     pub order_storage:    Arc<OrderStorage>,
@@ -52,7 +52,7 @@ pub struct AngstromDevnetNodeInternals<P> {
     pub testnet_hub:      StromContractInstance
 }
 
-impl<P: WithWalletProvider> AngstromDevnetNodeInternals<P> {
+impl<P: WithWalletProvider> AngstromNodeInternals<P> {
     pub async fn new<G: GlobalTestingConfig, F>(
         node_config: TestingNodeConfig<G>,
         state_provider: AnvilProvider<P>,

@@ -52,7 +52,7 @@ serde.workspace = true
 secp256k1 = { workspace = true, features = ["serde"] }
 clap = "4.4.8"
 eyre = "0.6.9"
-revm-inspectors = "=0.5.5"
+revm-interpreter = { version = "16.0.0-alpha.5", default-features = false }
 toml = "0.8.19"
 tracing.workspace = true
 url.workspace =true

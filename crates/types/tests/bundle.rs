@@ -62,7 +62,10 @@ fn raw_bundle(t0: Address, t1: Address) -> AngstromBundle {
             pair_index:       0,
             swap_in_quantity: 810801367317061974604581,
             rewards_update:
-                angstrom_types::contract_payloads::rewards::RewardsUpdate::CurrentOnly { amount: 0 }
+                angstrom_types::contract_payloads::rewards::RewardsUpdate::CurrentOnly {
+                    amount:             0,
+                    expected_liquidity: 0
+                }
         }],
         top_of_block_orders: vec![TopOfBlockOrder {
             use_internal:     false,

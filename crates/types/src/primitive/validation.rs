@@ -37,7 +37,9 @@ pub enum UserAccountVerificationError {
     #[error("block for flash order is not for next block. next_block: {0}, requested_block: {1}.")]
     BadBlock(u64, u64),
     #[error("currently hooks are not supported. this field should be empty bytes")]
-    NonEmptyHook
+    NonEmptyHook,
+    #[error("could not fetch, error - {0}")]
+    CouldNotFetch(String)
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

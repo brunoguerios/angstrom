@@ -69,7 +69,13 @@ impl SubmitTx for AnvilSubmissionProvider {
             let hash = *tx.tx_hash();
             let encoded = tx.encoded_2718();
 
-            let submitted = self.provider.send_raw_transaction(&encoded).await.is_ok();
+            let submitted = self.provider.send_raw_transaction(&encoded).await;
+            let submitted = submitted
+                .inspect_err(|e| {
+                    tracing::info!(?e, "failed to submit transaction");
+                })
+                .is_ok();
+
             (hash, submitted)
         }
         .boxed()

@@ -3,19 +3,17 @@ use std::collections::HashMap;
 use alloy::primitives::Address;
 use revm::{Database, Inspector};
 
-pub type GasUsed = u64;
-
 /// the Gas Simulation Inspector allows us to define mutually exclusive ranges
 /// based on the EVM program counter and will store the gas used for execution
 /// in these ranges.
 pub struct GasSimulationInspector<'a> {
-    results:             HashMap<(usize, usize), GasUsed>,
+    results: HashMap<(usize, usize), GasUsed>,
     /// A map from start pc to end pc.
-    measurement_ranges:  &'a HashMap<usize, usize>,
+    measurement_ranges: &'a HashMap<usize, usize>,
     // the current start of the pc we are measuring
-    in_flight:           Option<usize>,
+    in_flight: Option<usize>,
     in_flight_start_gas: Option<u64>,
-    angstrom_address:    Address
+    angstrom_address: Address,
 }
 
 impl<'a> GasSimulationInspector<'a> {
@@ -27,7 +25,7 @@ impl<'a> GasSimulationInspector<'a> {
             measurement_ranges,
             angstrom_address,
             in_flight: None,
-            in_flight_start_gas: None
+            in_flight_start_gas: None,
         }
     }
 
@@ -56,7 +54,7 @@ impl<DB: Database> Inspector<DB> for GasSimulationInspector<'_> {
     fn step_end(
         &mut self,
         interp: &mut revm::interpreter::Interpreter,
-        _: &mut revm::EvmContext<DB>
+        _: &mut revm::EvmContext<DB>,
     ) {
         let addr = interp.contract().bytecode_address.unwrap();
         if self.in_flight.is_none() || addr != self.angstrom_address {

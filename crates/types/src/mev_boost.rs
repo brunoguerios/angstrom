@@ -82,14 +82,12 @@ where
 
         tx.set_nonce(next_nonce);
         tx.set_gas_limit(30_000_000);
-        let fees = self
-            .node_provider
-            .estimate_eip1559_fees(None)
-            .await
-            .unwrap();
+        let fees = self.node_provider.estimate_eip1559_fees().await.unwrap();
         tx.set_max_fee_per_gas(fees.max_fee_per_gas);
         tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
-        tx.set_chain_id(1);
+
+        let chain_id = self.node_provider.get_chain_id().await.unwrap();
+        tx.set_chain_id(chain_id);
     }
 
     // has as consumption here due to weird to general error

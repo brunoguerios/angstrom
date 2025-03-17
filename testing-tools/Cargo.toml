@@ -68,7 +68,7 @@ reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 reth-db.workspace = true
 
 
-enr = { workspace = true, features = ["serde", "rust-secp256k1"] }
+enr = { workspace = true, features = ["serde", "k256"] }
 rand.workspace = true
 rand_distr.workspace = true
 secp256k1.workspace = true
