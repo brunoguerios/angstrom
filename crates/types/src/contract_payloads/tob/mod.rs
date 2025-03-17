@@ -302,7 +302,7 @@ fn compute_reward_checksum(
                 // Update liquidity for the new tick
                 liquidity = snapshot
                     .liquidity_at_tick(tick)
-                    .map_or(Err(MissingTickLiquidityError), Ok)?;
+                    .ok_or(MissingTickLiquidityError)?;
             } else {
                 break;
             }
@@ -314,7 +314,7 @@ fn compute_reward_checksum(
                 // Update liquidity for the new tick
                 liquidity = snapshot
                     .liquidity_at_tick(tick)
-                    .map_or(Err(MissingTickLiquidityError), Ok)?;
+                    .ok_or(MissingTickLiquidityError)?;
             } else {
                 break;
             }

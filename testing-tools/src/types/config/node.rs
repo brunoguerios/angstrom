@@ -5,7 +5,7 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, U256};
-use angstrom_types::primitive::AngstromSigner;
+use angstrom_types::{CHAIN_ID, primitive::AngstromSigner};
 use consensus::AngstromValidator;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
@@ -86,7 +86,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         }
 
         Anvil::new()
-            .chain_id(344567)
+            .chain_id(CHAIN_ID)
             .arg("--host")
             .arg("0.0.0.0")
             .port(self.global_config.leader_eth_rpc_port())

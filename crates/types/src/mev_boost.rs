@@ -10,7 +10,7 @@ use alloy::{
 };
 use futures::{Future, FutureExt};
 
-use crate::{CHAIN_ID, primitive::AngstromSigner};
+use crate::primitive::AngstromSigner;
 
 /// Allows for us to have a look at the angstrom payload to ensure that we can
 /// set balances properly for when the transaction is submitted
@@ -85,7 +85,9 @@ where
         let fees = self.node_provider.estimate_eip1559_fees().await.unwrap();
         tx.set_max_fee_per_gas(fees.max_fee_per_gas);
         tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
-        tx.set_chain_id(CHAIN_ID);
+
+        let chain_id = self.node_provider.get_chain_id().await.unwrap();
+        tx.set_chain_id(chain_id);
     }
 
     // has as consumption here due to weird to general error
