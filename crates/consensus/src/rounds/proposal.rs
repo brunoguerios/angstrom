@@ -128,10 +128,11 @@ impl ProposalState {
                 .await;
 
             let (hash, success) = provider.sign_and_send(signer, tx).await;
-            tracing::info!("submitted bundle");
             if !success {
+                tracing::info!("submission failed");
                 return false;
             }
+            tracing::info!("submitted bundle");
 
             // wait for next block. then see if transaction landed
             provider
