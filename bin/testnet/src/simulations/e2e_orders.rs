@@ -102,7 +102,7 @@ pub mod test {
 
     use std::time::Duration;
 
-    use alloy::{consensus::BlockHeader, providers::Provider};
+    use alloy::{consensus::BlockHeader, providers::Provider, sol_types::SolCall};
     use alloy_rpc_types::{BlockTransactionsKind, TransactionTrait};
     use angstrom_types::{
         contract_payloads::angstrom::AngstromBundle, primitive::TESTNET_ANGSTROM_ADDRESS
@@ -233,6 +233,9 @@ pub mod test {
                 .filter_map(|tx| {
                     let calldata = tx.input().to_vec();
                     let mut slice = calldata.as_slice();
+                    let bytes = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::abi_decode(slice,true).unwrap().encoded.to_vec();
+
+                    let mut slice = bytes.as_slice();
                     let data = &mut slice;
                     let bundle: AngstromBundle = PadeDecode::pade_decode(data, None).unwrap();
                     (!(bundle.top_of_block_orders.is_empty() || bundle.user_orders.is_empty()))
