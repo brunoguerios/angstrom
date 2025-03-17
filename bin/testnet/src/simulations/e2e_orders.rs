@@ -116,6 +116,66 @@ pub mod test {
     use super::*;
     use crate::cli::{init_tracing, testnet::TestnetCli};
 
+    fn testing_end_to_end_agent<'a>(
+        _: &'a InitialTestnetState,
+        agent_config: AgentConfig
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            tracing::info!("starting e2e agent");
+            let mut generator = OrderGenerator::new(
+                agent_config.uniswap_pools.clone(),
+                agent_config.current_block,
+                10..20,
+                0.8..0.9
+            );
+
+            let mut stream = agent_config
+                .state_provider
+                .canonical_state_stream()
+                .map(|node| match node {
+                    reth_provider::CanonStateNotification::Commit { new }
+                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
+                });
+
+            tokio::spawn(
+                async move {
+                    let rpc_address = format!("http://{}", agent_config.rpc_address);
+                    let client = HttpClient::builder().build(rpc_address).unwrap();
+                    tracing::info!("waiting for new block");
+                    let mut pending_orders = FuturesUnordered::new();
+
+                    loop {
+                        tokio::select! {
+                            Some(block_number) = stream.next() => {
+                                generator.new_block(block_number);
+                                let new_orders = generator.generate_orders();
+                                tracing::info!("generated new orders. submitting to rpc");
+
+                                for orders in new_orders {
+                                    let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                                    let all_orders = book
+                                        .into_iter()
+                                        .map(Into::into)
+                                        .chain(vec![tob.into()])
+                                        .collect::<Vec<AllOrders>>();
+
+                                     pending_orders.push(client.send_orders(all_orders));
+                                }
+                            }
+                            Some(resolved_order) = pending_orders.next() => {
+                                tracing::info!("orders resolved");
+                            }
+
+                        }
+                    }
+                }
+                .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))
+            );
+
+            Ok(())
+        }) as Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn testnet_lands_block() {
         init_tracing(4);
@@ -126,7 +186,7 @@ pub mod test {
 
         let config = config.make_config().unwrap();
 
-        let agents = vec![end_to_end_agent];
+        let agents = vec![testing_end_to_end_agent];
         tracing::info!("spinning up e2e nodes for angstrom");
 
         // spawn testnet
