@@ -32,8 +32,11 @@ exclude = [".github/"]
 [profile.dev.package]
 angstrom-network.opt-level = 3
 consensus.opt-level = 3
+matching-engine.opt-level = 3
 validation.opt-level = 3
 testing-tools.opt-level = 3
+angstrom-types.opt-level = 3
+tokio.opt-level = 3
 
 [profile.release]
 lto = "fat"
