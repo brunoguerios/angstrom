@@ -160,7 +160,8 @@ pub mod test {
         while let Ok(next) = sub.recv().await {
             let bn = next.number();
             let block = provider
-                .get_block(alloy_rpc_types::BlockId::Number(bn.into()), BlockTransactionsKind::Full)
+                .get_block(alloy_rpc_types::BlockId::Number(bn.into()))
+                .full()
                 .await
                 .unwrap()
                 .unwrap();
