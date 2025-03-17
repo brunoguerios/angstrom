@@ -36,7 +36,9 @@ library RewardLib {
     function sort(TickReward[] memory rewards) internal pure {
         for (uint256 i = 0; i < rewards.length; i++) {
             for (uint256 j = i + 1; j < rewards.length; j++) {
-                if (rewards[i].gt(rewards[j])) (rewards[i], rewards[j]) = (rewards[j], rewards[i]);
+                if (rewards[i].gt(rewards[j])) {
+                    (rewards[i], rewards[j]) = (rewards[j], rewards[i]);
+                }
             }
         }
     }
@@ -49,9 +51,14 @@ library RewardLib {
         return rewards.length;
     }
 
-    function CurrentOnly(uint128 amount) internal pure returns (RewardsUpdate memory update) {
+    function CurrentOnly(IPoolManager uni, PoolId id, uint128 amount)
+        internal
+        view
+        returns (RewardsUpdate memory update)
+    {
         update.onlyCurrent = true;
         update.onlyCurrentQuantity = amount;
+        update.startLiquidity = uni.getPoolLiquidity(id);
     }
 
     function toUpdates(TickReward[] memory rewards, IPoolManager uni, PoolId id, int24 tickSpacing)
@@ -172,7 +179,7 @@ library RewardLib {
 
         // Create list of initialized ticks, including start (checked before) and the tick of the
         // current range.
-        UintVec memory initializedTicks = VecLib.uint_with_cap(rewards.length * 3 / 2);
+        UintVec memory initializedTicks = VecLib.uint_with_cap((rewards.length * 3) / 2);
         {
             int24 tick = rewards[0].tick;
             bool initialized = true;
@@ -192,7 +199,7 @@ library RewardLib {
 
         if (initializedTicks.length == 0) {
             require(rewards.length == 1, "expected rewards length 1");
-            return CurrentOnly(rewards[0].amount);
+            return CurrentOnly(uni, id, rewards[0].amount);
         }
 
         update.quantities = new uint128[](initializedTicks.length + 1);
@@ -226,6 +233,20 @@ library RewardLib {
         update.startTick = int24(uint24(initializedTicks.get(0)));
         uint128 poolLiq = getLiquidityAtTick(uni, id, currentTick, tickSpacing);
         update.startLiquidity = MixedSignLib.sub(poolLiq, cumulativeNetLiquidity);
+
+        {
+            PoolId id2 = id;
+            IPoolManager uni2 = uni;
+            bytes32 rewardChecksum;
+            uint128 liquidity = update.startLiquidity;
+            for (uint256 i = 0; i < initializedTicks.length; i++) {
+                int24 tick = int24(int256(initializedTicks.get(i)));
+                (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
+                liquidity = MixedSignLib.add(liquidity, netLiquidity);
+                rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
+            }
+            update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);
+        }
     }
 
     function _createRewardUpdateAbove(
@@ -239,7 +260,7 @@ library RewardLib {
 
         // Create list of initialized ticks, including start (checked before) and the tick of the
         // current range.
-        UintVec memory initializedTicks = VecLib.uint_with_cap(rewards.length * 3 / 2);
+        UintVec memory initializedTicks = VecLib.uint_with_cap((rewards.length * 3) / 2);
         int24 startTick = rewards[rewards.length - 1].tick;
         {
             bool initialized = true;
@@ -260,7 +281,7 @@ library RewardLib {
         if (initializedTicks.length == 0) {
             console.log("WARNING\nWARNING: Above somehow called with donate to current only???");
             require(rewards.length == 1, "Expected exact one reward");
-            return CurrentOnly(rewards[0].amount);
+            return CurrentOnly(uni, id, rewards[0].amount);
         }
 
         update.startTick = startTick;
@@ -294,6 +315,20 @@ library RewardLib {
 
         uint128 poolLiq = getLiquidityAtTick(uni, id, currentTick, tickSpacing);
         update.startLiquidity = MixedSignLib.add(poolLiq, cumulativeNetLiquidity);
+
+        {
+            PoolId id2 = id;
+            IPoolManager uni2 = uni;
+            bytes32 rewardChecksum;
+            uint128 liquidity = update.startLiquidity;
+            for (uint256 i = 0; i < initializedTicks.length; i++) {
+                int24 tick = int24(int256(initializedTicks.get(i)));
+                (, int128 netLiquidity) = uni2.getTickLiquidity(id2, tick);
+                liquidity = MixedSignLib.sub(liquidity, netLiquidity);
+                rewardChecksum = keccak256(abi.encodePacked(rewardChecksum, liquidity, tick));
+            }
+            update.rewardChecksum = uint160(uint256(rewardChecksum) >> 96);
+        }
     }
 
     function getLiquidityAtTick(IPoolManager uni, PoolId id, int24 futureTick, int24 tickSpacing)
