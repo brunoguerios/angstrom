@@ -1,5 +1,6 @@
 use std::{
     future::Future,
+    path::PathBuf,
     pin::Pin,
     sync::{Arc, atomic::AtomicUsize},
     task::{Context, Poll}
@@ -12,6 +13,7 @@ use angstrom_types::{
     primitive::PeerId
 };
 use futures::StreamExt;
+use once_cell::unsync::Lazy;
 use reth_eth_wire::DisconnectReason;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -21,6 +23,21 @@ use tracing::error;
 use crate::{NetworkOrderEvent, StromMessage, StromNetworkHandleMsg, Swarm, SwarmEvent};
 #[allow(unused_imports)]
 use crate::{StromNetworkConfig, StromNetworkHandle, StromSessionManager};
+
+// use a thread local lazy to avoid synchronization overhead since path is
+// always the same
+thread_local! {
+    static CACHED_PEERS_TOML_PATH: Lazy<PathBuf> = Lazy::new(|| {
+        let mut path = PathBuf::new();
+        path.push(
+            homedir::my_home()
+                .unwrap()
+                .expect("Failed to get home directory. Please set the HOME environment variable.")
+        );
+        path.push(".angstrom_cached_peers.toml");
+        path
+    });
+}
 
 #[allow(dead_code)]
 pub struct StromNetworkManager<DB> {
@@ -62,6 +79,21 @@ impl<DB: Unpin> StromNetworkManager<DB> {
             to_consensus_manager,
             event_listeners: Vec::new()
         }
+    }
+
+    pub fn load_known_peers() -> Vec<Address> {
+        CACHED_PEERS_TOML_PATH.with(|toml_path| {
+            match std::fs::read_to_string(toml_path.as_path()) {
+                Ok(data) => toml::from_str(&data).unwrap_or_default(),
+                Err(_) => {
+                    tracing::warn!(
+                        "Known peers file not found at {}, creating peers list from scratch",
+                        toml_path.display()
+                    );
+                    Vec::new()
+                }
+            }
+        })
     }
 
     pub fn install_consensus_manager(&mut self, tx: UnboundedMeteredSender<StromConsensusEvent>) {
@@ -180,11 +212,9 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                 match eth_event {
                     EthEvent::AddedNode(addr) => {
                         self.swarm().state().add_validator(addr);
-                        // TODO: store node in cache
                     }
                     EthEvent::RemovedNode(addr) => {
                         self.swarm_mut().state_mut().remove_validator(addr);
-                        // TODO: remove node from cache
                     }
                     _ => {}
                 }
