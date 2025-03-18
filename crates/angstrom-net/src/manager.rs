@@ -58,12 +58,18 @@ pub struct StromNetworkManager<DB> {
 
 impl<DB: Unpin> StromNetworkManager<DB> {
     pub fn new(
-        swarm: Swarm<DB>,
+        mut swarm: Swarm<DB>,
         eth_handle: UnboundedReceiver<EthEvent>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
         to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
     ) -> Self {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // Load cached peers
+        let cached_peers = Self::load_known_peers();
+        for peer in cached_peers {
+            swarm.state_mut().add_validator(peer);
+        }
 
         let peers = Arc::new(AtomicUsize::default());
         let handle =
@@ -94,6 +100,23 @@ impl<DB: Unpin> StromNetworkManager<DB> {
                 }
             }
         })
+    }
+
+    pub fn save_known_peers(peers: &[Address]) {
+        CACHED_PEERS_TOML_PATH.with(|toml_path| match toml::to_string(peers) {
+            Ok(serialized) => {
+                if let Err(err) = std::fs::write(toml_path.as_path(), serialized) {
+                    tracing::error!(
+                        "Failed to save known peers to {}: {}",
+                        toml_path.display(),
+                        err
+                    );
+                }
+            }
+            Err(err) => {
+                tracing::error!("Failed to serialize known peers to TOML: {}", err);
+            }
+        });
     }
 
     pub fn install_consensus_manager(&mut self, tx: UnboundedMeteredSender<StromConsensusEvent>) {
@@ -151,6 +174,16 @@ impl<DB: Unpin> StromNetworkManager<DB> {
                 self.swarm.sessions_mut().send_message(&peer_id, msg)
             }
             StromNetworkHandleMsg::Shutdown(tx) => {
+                let peers = self
+                    .swarm()
+                    .state()
+                    .validators()
+                    .read()
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>();
+                Self::save_known_peers(&peers);
+
                 // Disconnect all active connections
                 self.swarm
                     .sessions_mut()
