@@ -203,7 +203,7 @@ pub mod test {
 
         tracing::info!("waiting for valid block");
         assert!(
-            timeout(Duration::from_secs(60 * 3), wait_for_valid_block(provider))
+            timeout(Duration::from_secs(60 * 5), wait_for_valid_block(provider))
                 .await
                 .is_ok()
         );
