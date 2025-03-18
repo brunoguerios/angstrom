@@ -180,9 +180,11 @@ impl<DB: Unpin> Future for StromNetworkManager<DB> {
                 match eth_event {
                     EthEvent::AddedNode(addr) => {
                         self.swarm().state().add_validator(addr);
+                        // TODO: store node in cache
                     }
                     EthEvent::RemovedNode(addr) => {
                         self.swarm_mut().state_mut().remove_validator(addr);
+                        // TODO: remove node from cache
                     }
                     _ => {}
                 }
