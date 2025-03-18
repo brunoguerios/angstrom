@@ -81,6 +81,7 @@ impl ConnectionHandler for StromConnectionHandler {
         peer_id: PeerId,
         conn: ProtocolConnection
     ) -> Self::Connection {
+        let remote_addr = self.socket_addr;
         let hash = keccak256(peer_id);
         let validator_address = Address::from_slice(&hash[12..]);
         if !self.validator_set.contains(&validator_address) {
@@ -99,6 +100,8 @@ impl ConnectionHandler for StromConnectionHandler {
         PossibleStromSession::Session(StromSession::new(
             conn,
             peer_id,
+            remote_addr,
+            None, // TODO: get enr somehow?
             ReceiverStream::new(rx),
             self.to_session_manager,
             self.protocol_breach_request_timeout,

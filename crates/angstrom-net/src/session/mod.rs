@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 pub mod handle;
@@ -29,6 +30,14 @@ use reth_network::Direction;
 use tracing::warn;
 
 use crate::{StromMessage, StromProtocolMessage, errors::StromStreamError};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+struct CachedPeer {
+    peer_id: PeerId,
+    ip:      String,
+    port:    u16,
+    enr:     Option<String>
+}
 
 #[derive(Debug)]
 pub struct StromSessionManager {
