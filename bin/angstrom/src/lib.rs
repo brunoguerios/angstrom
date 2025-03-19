@@ -2,7 +2,7 @@
 //!
 //! ## Feature Flags
 
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use alloy::signers::local::PrivateKeySigner;
 use angstrom_metrics::METRICS_ENABLED;
@@ -67,11 +67,9 @@ pub fn run() -> eyre::Result<()> {
         node.network
             .add_rlpx_sub_protocol(protocol_handle.into_rlpx_sub_protocol());
 
-        join!(
-            initialize_strom_components(args, secret_key, channels, network, node, &executor),
-            node_exit_future,
-        )
-        .1
+        initialize_strom_components(args, secret_key, channels, network, node, &executor).await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        node_exit_future.await
     })
 }
 
