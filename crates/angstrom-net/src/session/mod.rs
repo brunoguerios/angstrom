@@ -55,12 +55,12 @@ impl CachedPeer {
 #[derive(Debug)]
 pub struct StromSessionManager {
     // All active sessions that are ready to exchange messages.
-    active_sessions: HashMap<PeerId, StromSessionHandle>,
+    pub(crate) active_sessions: HashMap<PeerId, StromSessionHandle>,
 
     /// Channel to receive the session handle upon initialization from the
     /// connection handler This channel is also used to receive messages
     /// from the session
-    from_sessions: mpsc::Receiver<StromSessionMessage>
+    pub(crate) from_sessions: mpsc::Receiver<StromSessionMessage>
 }
 
 impl StromSessionManager {
@@ -119,10 +119,11 @@ impl StromSessionManager {
                         return None;
                     }
 
-                    let peer_data =
+                    /*let peer_data =
                         CachedPeer { peer_id: handle.remote_id, addr: handle.socket_addr };
 
-                    self.save_peer_connection_info(peer_data);
+                    self.save_peer_connection_info(peer_data);*/
+                    // TODO: maybe save peer connection info here?
 
                     let event = SessionEvent::SessionEstablished {
                         peer_id:   handle.remote_id,

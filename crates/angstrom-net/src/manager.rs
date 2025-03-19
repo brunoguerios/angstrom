@@ -1,6 +1,5 @@
 use std::{
     future::Future,
-    net::SocketAddr,
     path::PathBuf,
     pin::Pin,
     sync::{Arc, atomic::AtomicUsize},
@@ -67,8 +66,6 @@ impl<DB: Unpin> StromNetworkManager<DB> {
         to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
     ) -> Self {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-
-        // Load cached peers
 
         // Load cached peers
         let cached_peers = Self::load_known_peers();
@@ -186,19 +183,18 @@ impl<DB: Unpin> StromNetworkManager<DB> {
             }
             StromNetworkHandleMsg::Shutdown(tx) => {
                 let peers = self
-                    .swarm()
-                    .state()
-                    .sessions()
+                    .swarm
+                    .sessions_mut()
+                    .active_sessions
                     .iter()
                     .map(|(_, session)| CachedPeer {
-                        peer_id: session.remote_peer_id,
-                        addr:    session.remote_addr
+                        peer_id: session.remote_id,
+                        addr:    session.socket_addr
                     })
                     .collect::<Vec<_>>();
 
                 Self::save_known_peers(&peers);
 
-                // Disconnect all active connections
                 self.swarm
                     .sessions_mut()
                     .disconnect_all(Some(DisconnectReason::ClientQuitting));
