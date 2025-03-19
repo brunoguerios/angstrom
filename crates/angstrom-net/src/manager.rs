@@ -70,7 +70,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
         // Load cached peers
         let cached_peers = Self::load_known_peers();
         for peer in cached_peers {
-            tracing::info!("Reconnecting to cached peer {} at {}", peer.peer_id, peer.addr);
+            tracing::info!("Reconnecting to cached peer {}", peer.enr());
 
             // Attempt reconnection
             /*swarm
