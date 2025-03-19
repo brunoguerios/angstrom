@@ -1,5 +1,6 @@
 use std::{
     future::Future,
+    net::SocketAddr,
     path::PathBuf,
     pin::Pin,
     sync::{Arc, atomic::AtomicUsize},
@@ -20,7 +21,9 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::error;
 
-use crate::{NetworkOrderEvent, StromMessage, StromNetworkHandleMsg, Swarm, SwarmEvent};
+use crate::{
+    CachedPeer, NetworkOrderEvent, StromMessage, StromNetworkHandleMsg, Swarm, SwarmEvent
+};
 #[allow(unused_imports)]
 use crate::{StromNetworkConfig, StromNetworkHandle, StromSessionManager};
 
@@ -66,9 +69,17 @@ impl<DB: Unpin> StromNetworkManager<DB> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
         // Load cached peers
+
+        // Load cached peers
         let cached_peers = Self::load_known_peers();
         for peer in cached_peers {
-            swarm.state_mut().add_validator(peer);
+            tracing::info!("Reconnecting to cached peer {} at {}", peer.peer_id, peer.addr);
+
+            // Attempt reconnection
+            /*swarm
+            .state_mut()
+            .connect_to_peer(peer.peer_id, peer.addr, peer.enr);*/
+            // TODO: connect to peer somehow here
         }
 
         let peers = Arc::new(AtomicUsize::default());
@@ -87,7 +98,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
         }
     }
 
-    pub fn load_known_peers() -> Vec<Address> {
+    pub fn load_known_peers() -> Vec<CachedPeer> {
         CACHED_PEERS_TOML_PATH.with(|toml_path| {
             match std::fs::read_to_string(toml_path.as_path()) {
                 Ok(data) => toml::from_str(&data).unwrap_or_default(),
@@ -102,7 +113,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
         })
     }
 
-    pub fn save_known_peers(peers: &[Address]) {
+    pub fn save_known_peers(peers: &[CachedPeer]) {
         CACHED_PEERS_TOML_PATH.with(|toml_path| match toml::to_string(peers) {
             Ok(serialized) => {
                 if let Err(err) = std::fs::write(toml_path.as_path(), serialized) {
@@ -174,16 +185,6 @@ impl<DB: Unpin> StromNetworkManager<DB> {
                 self.swarm.sessions_mut().send_message(&peer_id, msg)
             }
             StromNetworkHandleMsg::Shutdown(tx) => {
-                let peers = self
-                    .swarm()
-                    .state()
-                    .validators()
-                    .read()
-                    .iter()
-                    .cloned()
-                    .collect::<Vec<_>>();
-                Self::save_known_peers(&peers);
-
                 // Disconnect all active connections
                 self.swarm
                     .sessions_mut()

@@ -21,6 +21,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::ReceiverStream;
 
+use super::CachedPeer;
 use crate::{
     StromSession, VerificationSidecar,
     errors::StromStreamError,
@@ -98,16 +99,13 @@ impl ConnectionHandler for StromConnectionHandler {
             socket_addr: self.socket_addr
         };
 
+        let cached_peer = CachedPeer { peer_id, addr: remote_addr };
+
         PossibleStromSession::Session(StromSession::new(
             conn,
             peer_id,
             remote_addr,
-            Some(format!(
-                "enode://{:?}@{}:{}?discport=30303", // TODO: get discport?
-                peer_id,
-                remote_addr.ip(),
-                remote_addr.port()
-            )),
+            Some(cached_peer.enr()),
             ReceiverStream::new(rx),
             self.to_session_manager,
             self.protocol_breach_request_timeout,

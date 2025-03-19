@@ -32,11 +32,24 @@ use tracing::warn;
 use crate::{StromMessage, StromProtocolMessage, errors::StromStreamError};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-struct CachedPeer {
-    peer_id: PeerId,
-    ip:      String,
-    port:    u16,
-    enr:     Option<String>
+pub struct CachedPeer {
+    pub peer_id: PeerId,
+    pub addr:    SocketAddr
+}
+
+impl CachedPeer {
+    pub const fn new(peer_id: PeerId, addr: SocketAddr) -> Self {
+        Self { peer_id, addr }
+    }
+
+    pub fn enr(&self) -> String {
+        format!(
+            "enode://{:?}@{}:{}?discport=30303", // TODO: get discport?
+            self.peer_id,
+            self.addr.ip(),
+            self.addr.port()
+        )
+    }
 }
 
 #[derive(Debug)]
@@ -102,19 +115,22 @@ impl StromSessionManager {
                 StromSessionMessage::Established { handle } => {
                     if self.active_sessions.contains_key(&handle.remote_id) {
                         warn!(peer_id=?handle.remote_id, "got duplicate connection");
-                        // disconnect
                         handle.disconnect(None);
-
                         return None;
                     }
+
+                    let peer_data =
+                        CachedPeer { peer_id: handle.remote_id, addr: handle.socket_addr };
+
+                    self.save_peer_connection_info(peer_data);
 
                     let event = SessionEvent::SessionEstablished {
                         peer_id:   handle.remote_id,
                         direction: handle.direction,
                         timeout:   Arc::new(AtomicU64::new(40))
                     };
-                    self.active_sessions.insert(handle.remote_id, handle);
 
+                    self.active_sessions.insert(handle.remote_id, handle);
                     Some(event)
                 }
                 StromSessionMessage::ClosedOnConnectionError { peer_id, error } => {
