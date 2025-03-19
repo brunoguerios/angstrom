@@ -10,6 +10,7 @@ use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::primitive::AngstromSigner;
 use clap::Parser;
 use cli::AngstromConfig;
+use futures::join;
 use reth::{
     chainspec::EthereumChainSpecParser,
     cli::Cli,
@@ -66,9 +67,11 @@ pub fn run() -> eyre::Result<()> {
         node.network
             .add_rlpx_sub_protocol(protocol_handle.into_rlpx_sub_protocol());
 
-        initialize_strom_components(args, secret_key, channels, network, node, &executor).await;
-
-        node_exit_future.await
+        join!(
+            initialize_strom_components(args, secret_key, channels, network, node, &executor),
+            node_exit_future,
+        )
+        .1
     })
 }
 
