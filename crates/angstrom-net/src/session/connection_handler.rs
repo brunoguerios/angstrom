@@ -94,7 +94,8 @@ impl ConnectionHandler for StromConnectionHandler {
             direction,
             remote_id: peer_id,
             established: Instant::now(),
-            commands_to_session: tx
+            commands_to_session: tx,
+            socket_addr: self.socket_addr
         };
 
         PossibleStromSession::Session(StromSession::new(
