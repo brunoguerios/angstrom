@@ -367,7 +367,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
         manager.run_till_shutdown(grace)
     });
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
     tracing::info!("consensus start");
 
     global_block_sync.finalize_modules();
