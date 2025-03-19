@@ -373,6 +373,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     global_block_sync.finalize_modules();
     tokio::time::sleep(Duration::from_secs(3)).await;
     tracing::info!("started angstrom");
+    tokio::time::sleep(Duration::from_secs(10)).await;
 }
 
 async fn handle_init_block_spam(
