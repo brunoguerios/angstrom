@@ -67,11 +67,11 @@ pub fn run() -> eyre::Result<()> {
         node.network
             .add_rlpx_sub_protocol(protocol_handle.into_rlpx_sub_protocol());
 
-        // join!(
-        // initialize_strom_components(args, secret_key, channels, network, node, &executor),
-        node_exit_future.await
-        // )
-        // .1
+        join!(
+            initialize_strom_components(args, secret_key, channels, network, node, &executor),
+            node_exit_future,
+        )
+        .1
     })
 }
 
