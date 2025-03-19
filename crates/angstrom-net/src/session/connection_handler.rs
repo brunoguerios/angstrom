@@ -102,7 +102,12 @@ impl ConnectionHandler for StromConnectionHandler {
             conn,
             peer_id,
             remote_addr,
-            None, // TODO: get enr somehow?
+            Some(format!(
+                "enode://{:?}@{}:{}?discport=30303", // TODO: get discport?
+                peer_id,
+                remote_addr.ip(),
+                remote_addr.port()
+            )),
             ReceiverStream::new(rx),
             self.to_session_manager,
             self.protocol_breach_request_timeout,
