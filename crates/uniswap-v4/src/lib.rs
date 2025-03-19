@@ -52,7 +52,7 @@ where
     <DB as DatabaseProviderFactory>::Provider: TryIntoHistoricalStateProvider,
 {
     let logs = (deploy_block..=end_block)
-        .into_iter()
+        .into_par_iter()
         .flat_map(|block| {
             let storage_provider = db
                 .database_provider_ro()
