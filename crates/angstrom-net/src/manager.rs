@@ -185,13 +185,23 @@ impl<DB: Unpin> StromNetworkManager<DB> {
                 self.swarm.sessions_mut().send_message(&peer_id, msg)
             }
             StromNetworkHandleMsg::Shutdown(tx) => {
+                let peers = self
+                    .swarm()
+                    .state()
+                    .sessions()
+                    .iter()
+                    .map(|(_, session)| CachedPeer {
+                        peer_id: session.remote_peer_id,
+                        addr:    session.remote_addr
+                    })
+                    .collect::<Vec<_>>();
+
+                Self::save_known_peers(&peers);
+
                 // Disconnect all active connections
                 self.swarm
                     .sessions_mut()
                     .disconnect_all(Some(DisconnectReason::ClientQuitting));
-
-                // drop pending connections
-
                 let _ = tx.send(());
             }
             StromNetworkHandleMsg::RemovePeer(peer_id) => {
