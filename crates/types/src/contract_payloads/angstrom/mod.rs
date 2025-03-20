@@ -907,6 +907,7 @@ impl TryFrom<&[u8]> for AngstromPoolConfigStore {
         if value.first() != Some(&0) {
             return Err("Invalid encoded entries: must start with a safety byte of 0".to_string());
         }
+        tracing::info!(bytecode_len=?value.len());
         let adjusted_entries = &value[1..];
         if adjusted_entries.len() % POOL_CONFIG_STORE_ENTRY_SIZE != 0 {
             tracing::info!(bytecode_len=?adjusted_entries.len(), ?POOL_CONFIG_STORE_ENTRY_SIZE);
