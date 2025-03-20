@@ -2,7 +2,7 @@
 //!
 //! ## Feature Flags
 
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 
 use alloy::signers::local::PrivateKeySigner;
 use angstrom_metrics::METRICS_ENABLED;
@@ -10,7 +10,6 @@ use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::primitive::AngstromSigner;
 use clap::Parser;
 use cli::AngstromConfig;
-use futures::join;
 use reth::{
     chainspec::EthereumChainSpecParser,
     cli::Cli,
