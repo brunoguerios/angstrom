@@ -858,7 +858,7 @@ impl AngstromPoolConfigStore {
             .await
             .map_err(|e| format!("Error getting code: {}", e))?;
 
-        tracing::info!("bytecode: {:x}", code);
+        tracing::info!(len=?code.len(), "bytecode: {:x}", code);
 
         AngstromPoolConfigStore::try_from(code.as_ref())
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
