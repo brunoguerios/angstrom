@@ -840,21 +840,16 @@ impl AngstromPoolConfigStore {
         N: Network,
         P: Provider<N>,
     {
-        // | _lastBlockUpdated     | uint64                       | 3    | 0      | 8     | src/modules/TopLevelAuth.sol:TopLevelAuth |
-        // |-----------------------+------------------------------+------+--------+-------+-------------------------------------------|
-        // | _configStore          | PoolConfigStore              | 3    | 8      | 20    | src/modules/TopLevelAuth.sol:TopLevelAuth |
-        let mut value = provider
+        // offset of 6 bytes
+        let value = provider
             .get_storage_at(angstrom_contract, U256::from(CONFIG_STORE_SLOT))
             .await
             .map_err(|e| format!("Error getting storage: {}", e))?;
 
-        tracing::info!(?value);
-        // offset of 8 bytes.
-        value >>= 64;
-
         let value_bytes: [u8; 32] = value.to_be_bytes();
         tracing::debug!("storage slot of poolkey storage {:?}", value_bytes);
-        let config_store_address = Address::from_word(value.to_be_bytes().into());
+        let config_store_address =
+            Address::from(<[u8; 20]>::try_from(&value_bytes[4..24]).unwrap());
         tracing::info!(?config_store_address);
 
         let code = provider
