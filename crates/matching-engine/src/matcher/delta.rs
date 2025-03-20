@@ -13,18 +13,23 @@ use angstrom_types::{
     }
 };
 use base64::Engine;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::trace;
 
 use crate::OrderBook;
 
 /// Enum describing what kind of ToB order we want to use to set the initial AMM
 /// price for our DeltaMatcher
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum DeltaMatcherToB {
     /// No ToB Order at all, no price movement
     None,
-    /// Use a fixed shift in format (Quantity, is_bid), mostly for testing
+    /// Use a fixed shift in format (Quantity, is_bid), mostly for testing.  In
+    /// this case is_bid == !zero_for_one in the ToB order, we then flip it
+    /// around again when we resolve it because Direction::from_is_bid wants to
+    /// undersand how the POOL is behaving.  This is complicated and should be
+    /// cleaned up, but since it's only used for debugging right now it'll be
+    /// OK.
     FixedShift(Quantity, bool),
     /// Extract the information from an actual order being fed to the matcher
     Order(OrderWithStorageData<TopOfBlockOrder>)
@@ -70,7 +75,7 @@ impl<'a> DeltaMatcher<'a> {
             }
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(q, is_bid) => book.amm().and_then(|f| {
-                PoolPriceVec::from_swap(f.current_price(), Direction::from_is_bid(is_bid), q)
+                PoolPriceVec::from_swap(f.current_price(), Direction::from_is_bid(!is_bid), q)
                     .ok()
                     .map(|v| v.end_bound)
             }),

@@ -1,7 +1,14 @@
+use angstrom_types::{
+    matching::uniswap::Quantity,
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+};
 use base64::Engine;
 use matching_engine::{
     book::OrderBook,
-    matcher::{VolumeFillMatcher, delta::DeltaMatcher}
+    matcher::{
+        VolumeFillMatcher,
+        delta::{DeltaMatcher, DeltaMatcherToB}
+    }
 };
 
 mod booklib;
@@ -69,7 +76,13 @@ fn delta_matcher_test() {
             .decode(DELTA_BOOK_TEST)
             .unwrap();
         let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
-        let mut matcher = DeltaMatcher::new(&book, None.into(), 0, false);
+        let mut matcher = DeltaMatcher::new(
+            &book,
+            DeltaMatcherToB::FixedShift(Quantity::Token1(2107223380280159855), true),
+            0,
+            false
+        );
         let solution = matcher.solution(None);
+        println!("{:#?}", solution);
     })
 }
