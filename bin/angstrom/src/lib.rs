@@ -71,7 +71,7 @@ pub fn run() -> eyre::Result<()> {
             secret_key,
             channels,
             network,
-            node,
+            &node,
             executor,
             node_exit_future
         )

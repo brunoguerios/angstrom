@@ -151,7 +151,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     signer: AngstromSigner,
     mut handles: StromHandles,
     network_builder: StromNetworkBuilder,
-    node: FullNode<Node, AddOns>,
+    node: &FullNode<Node, AddOns>,
     executor: TaskExecutor,
     exit: NodeExitFuture
 ) -> eyre::Result<()>
