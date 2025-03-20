@@ -14,14 +14,14 @@ use futures::join;
 use reth::{
     chainspec::EthereumChainSpecParser,
     cli::Cli,
-    network::{NetworkProtocols, protocol::IntoRlpxSubProtocol},
+    network::{NetworkProtocols, protocol::IntoRlpxSubProtocol}
 };
 use reth_node_builder::NodeHandle;
 use reth_node_ethereum::EthereumNode;
 use validation::validator::ValidationClient;
 
 use crate::components::{
-    init_network_builder, initialize_strom_components, initialize_strom_handles,
+    init_network_builder, initialize_strom_components, initialize_strom_handles
 };
 
 pub mod cli;
@@ -67,9 +67,16 @@ pub fn run() -> eyre::Result<()> {
         node.network
             .add_rlpx_sub_protocol(protocol_handle.into_rlpx_sub_protocol());
 
-        initialize_strom_components(args, secret_key, channels, network, node, executor).await;
-        tokio::time::sleep(Duration::from_secs(10)).await;
-        node_exit_future.await
+        initialize_strom_components(
+            args,
+            secret_key,
+            channels,
+            network,
+            node,
+            executor,
+            node_exit_future
+        )
+        .await
     })
 }
 
@@ -81,6 +88,6 @@ fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
             let contents = std::fs::read_to_string(sk_path)?;
             Ok(AngstromSigner::new(contents.trim().parse::<PrivateKeySigner>()?))
         }
-        _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path)),
+        _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
     }
 }
