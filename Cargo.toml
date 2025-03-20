@@ -38,10 +38,17 @@ testing-tools.opt-level = 3
 angstrom-types.opt-level = 3
 tokio.opt-level = 3
 
+[profile.debug-fast]
+inherits = "dev"
+lto = "thin"
+opt-level = 3
+codegen-units = 15
+
 [profile.release]
 lto = "fat"
 opt-level = 3
 codegen-units = 15
+
 
 [profile.maxperf]
 inherits = "release"
