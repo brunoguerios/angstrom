@@ -147,7 +147,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
     mut handles: StromHandles,
     network_builder: StromNetworkBuilder,
     node: FullNode<Node, AddOns>,
-    executor: &TaskExecutor,
+    executor: TaskExecutor,
 ) where
     Node: FullNodeComponents
         + FullNodeTypes<Types: NodeTypes<ChainSpec = ChainSpec, Primitives = EthPrimitives>>,
