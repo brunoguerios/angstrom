@@ -848,8 +848,8 @@ impl AngstromPoolConfigStore {
 
         let value_bytes: [u8; 32] = value.to_be_bytes();
         tracing::debug!("storage slot of poolkey storage {:?}", value_bytes);
-        let config_store_address =
-            Address::from(<[u8; 20]>::try_from(&value_bytes[4..24]).unwrap());
+        let config_store_address = Address::from_word(value.to_be_bytes().into());
+        tracing::info!(?config_store_address);
 
         let code = provider
             .get_code_at(config_store_address)
