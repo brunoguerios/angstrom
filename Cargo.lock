@@ -5613,7 +5613,6 @@ dependencies = [
  "base64-serde",
  "clap",
  "criterion",
- "divan",
  "eyre",
  "futures",
  "futures-util",

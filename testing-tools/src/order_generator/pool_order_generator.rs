@@ -10,11 +10,11 @@ use super::{GeneratedPoolOrders, PriceDistribution, order_builder::OrderBuilder}
 /// We will then generate orders around this sample point and stream
 /// them out of the order generator.
 pub struct PoolOrderGenerator {
-    block_number:       u64,
-    cur_price:          f64,
+    block_number: u64,
+    cur_price: f64,
     price_distribution: PriceDistribution,
-    builder:            OrderBuilder,
-    pool_id:            PoolId
+    builder: OrderBuilder,
+    pool_id: PoolId,
 }
 
 impl PoolOrderGenerator {
@@ -24,6 +24,22 @@ impl PoolOrderGenerator {
         // bounds of 50% from start with a std of 2%
         let mut price_distribution =
             PriceDistribution::new(price, f64::INFINITY, f64::NEG_INFINITY, 0.1);
+        let cur_price = price_distribution.generate_price();
+        let builder = OrderBuilder::new(pool_data);
+
+        Self { block_number, price_distribution, cur_price, builder, pool_id }
+    }
+    pub fn new_with_cfg_distro(
+        pool_id: PoolId,
+        pool_data: SyncedUniswapPool,
+        block_number: u64,
+        sd_pct: f64,
+    ) -> Self {
+        let price = pool_data.read().unwrap().calculate_price();
+
+        // bounds of 50% from start with a std of 2%
+        let mut price_distribution =
+            PriceDistribution::new(price, f64::INFINITY, f64::NEG_INFINITY, sd_pct);
         let cur_price = price_distribution.generate_price();
         let builder = OrderBuilder::new(pool_data);
 
@@ -49,7 +65,7 @@ impl PoolOrderGenerator {
         for price in price_samples.into_iter().take(amount) {
             book.push(
                 self.builder
-                    .build_user_order(price, self.block_number + 1, partial_pct)
+                    .build_user_order(price, self.block_number + 1, partial_pct),
             );
         }
 

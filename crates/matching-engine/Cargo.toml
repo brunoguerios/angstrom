@@ -9,7 +9,7 @@ repository.workspace = true
 exclude.workspace = true
 
 [[bench]]
-name = "volume_solver"
+name = "delta_tps"
 harness = false
 
 [dependencies]
@@ -54,4 +54,4 @@ clap.workspace = true
 pade.workspace = true
 pade-macro.workspace = true
 testing-tools.workspace = true
-divan.workspace = true
+criterion = "0.5.1"
