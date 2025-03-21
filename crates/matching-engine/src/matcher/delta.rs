@@ -1,3 +1,5 @@
+use std::cmp::{Ordering, min};
+
 use alloy_primitives::{I256, U256};
 use angstrom_types::{
     contract_payloads::tob::generate_current_price_adjusted_for_donation,
@@ -5,7 +7,7 @@ use angstrom_types::{
         SqrtPriceX96, get_quantities_at_price,
         uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity}
     },
-    orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
+    orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{
         RawPoolOrder, Ray,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
@@ -128,6 +130,7 @@ impl<'a> DeltaMatcher<'a> {
             .filter(|ask| price >= ask.pre_fee_price(self.fee) && !ask.is_partial())
             .for_each(|ask| {
                 let (q_in, q_out) = Self::get_amount_in_out(ask, ask.amount(), self.fee, price);
+                trace!(q_in, q_out, "Nonpartial ask - full fill");
                 // given its a ask, q_in is always t0
                 t0_delta += I256::try_from(q_in).unwrap();
                 t1_delta -= I256::try_from(q_out).unwrap();
@@ -141,6 +144,7 @@ impl<'a> DeltaMatcher<'a> {
             })
             .for_each(|bid| {
                 let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), self.fee, price);
+                trace!(q_in, q_out, "Nonpartial bid - full fill");
                 // given its a bid, q_in is always t1
                 t0_delta -= I256::try_from(q_out).unwrap();
                 t1_delta += I256::try_from(q_in).unwrap();
@@ -155,14 +159,28 @@ impl<'a> DeltaMatcher<'a> {
     fn fetch_amount_in_amount_out_partials(
         &self,
         price: Ray
-    ) -> (I256, I256, Option<bool>, Option<u128>, Option<u128>, Option<OrderId>) {
+    ) -> (I256, I256, u128, u128, u128, u128) {
         let mut t0_delta = I256::ZERO;
         let mut t1_delta = I256::ZERO;
 
-        let mut extra_t0 = None;
-        let mut extra_t1 = None;
-        let mut side = None;
-        let mut id = None;
+        let mut ask_optional_t0: u128 = 0;
+        let mut ask_optional_t1: u128 = 0;
+        let mut bid_optional_t0: u128 = 0;
+        let mut bid_optional_t1: u128 = 0;
+
+        // I can make this all cleaner but not yet
+        // self.book
+        //     .all_orders_iter()
+        //     // Filter for only valid partial orders
+        //     .filter(|o| {
+        //         o.is_partial()
+        //             && if o.is_bid {
+        //                 price <= o.pre_fee_price(self.fee).inv_ray_round(false)
+        //             } else {
+        //                 price >= o.pre_fee_price(self.fee)
+        //             }
+        //     })
+        //     .for_each(|o| {});
 
         self.book
             .asks()
@@ -173,6 +191,7 @@ impl<'a> DeltaMatcher<'a> {
                     // min prices
                     let (q_in_min, q_out_min) =
                         Self::get_amount_in_out(ask, ask.min_amount(), self.fee, price);
+                    trace!(q_in_min, q_out_min, "Partial ask - min fill");
                     t0_delta += I256::try_from(q_in_min).unwrap();
                     t1_delta -= I256::try_from(q_out_min).unwrap();
 
@@ -180,16 +199,15 @@ impl<'a> DeltaMatcher<'a> {
                     let (q_in_max, q_out_max) =
                         Self::get_amount_in_out(ask, ask.amount(), self.fee, price);
                     // if we are asks then
-                    extra_t0 = Some(q_in_max - q_in_min);
-                    extra_t1 = Some(q_out_max - q_out_min);
-                    side = Some(true);
-                    id = Some(ask.order_id);
+                    ask_optional_t0 += q_in_max - q_in_min;
+                    ask_optional_t1 += q_out_max - q_out_min;
 
                     return;
                 }
 
                 // max amount
                 let (q_in, q_out) = Self::get_amount_in_out(ask, ask.amount(), self.fee, price);
+                trace!(q_in, q_out, "Partial ask - full fill");
                 // given its a ask, q_in is always t0
                 t0_delta += I256::try_from(q_in).unwrap();
                 t1_delta -= I256::try_from(q_out).unwrap();
@@ -203,37 +221,42 @@ impl<'a> DeltaMatcher<'a> {
             })
             .for_each(|bid| {
                 // favour filling asks for now. will come back and fix later
-                if price == bid.price().inv_ray_round(true) && extra_t0.is_none() {
+                if price == bid.price().inv_ray_round(true) {
                     let (q_in_min, q_out_min) =
                         Self::get_amount_in_out(bid, bid.min_amount(), self.fee, price);
+                    trace!(q_in_min, q_out_min, "Partial bid - min fill");
 
                     t0_delta -= I256::try_from(q_out_min).unwrap();
                     t1_delta += I256::try_from(q_in_min).unwrap();
 
                     let (q_in_max, q_out_max) =
                         Self::get_amount_in_out(bid, bid.amount(), self.fee, price);
-                    extra_t1 = Some(q_in_max - q_in_min);
-                    extra_t0 = Some(q_out_max - q_out_min);
-                    side = Some(false);
-
-                    id = Some(bid.order_id);
+                    bid_optional_t0 += q_out_max - q_out_min;
+                    bid_optional_t1 += q_in_max - q_in_min;
                     return;
                 }
 
                 let (q_in, q_out) = Self::get_amount_in_out(bid, bid.amount(), self.fee, price);
+                trace!(q_in, q_out, "Partial bid - full fill");
                 // given its a bid, q_in is always t1
                 t0_delta -= I256::try_from(q_out).unwrap();
                 t1_delta += I256::try_from(q_in).unwrap();
             });
 
-        (t0_delta, t1_delta, side, extra_t0, extra_t1, id)
+        (t0_delta, t1_delta, ask_optional_t0, ask_optional_t1, bid_optional_t0, bid_optional_t1)
     }
 
     fn check_ucp(&self, price: Ray) -> SupplyDemandResult {
         let (book_t0, book_t1) = self.fetch_concentrated_liquidity(price);
         let (normal_t0, normal_t1) = self.fetch_amount_out_amount_in_non_partials(price);
-        let (partial_t0, partial_t1, extra_is_ask, extra_t0, extra_t1, id) =
-            self.fetch_amount_in_amount_out_partials(price);
+        let (
+            partial_t0,
+            partial_t1,
+            ask_optional_t0,
+            ask_optional_t1,
+            bid_optional_t0,
+            bid_optional_t1
+        ) = self.fetch_amount_in_amount_out_partials(price);
 
         let t0_sum = book_t0 + normal_t0 + partial_t0;
         let t1_sum = book_t1 + normal_t1 + partial_t1;
@@ -247,9 +270,6 @@ impl<'a> DeltaMatcher<'a> {
             ?normal_t1,
             ?partial_t0,
             ?partial_t1,
-            ?extra_is_ask,
-            ?extra_t0,
-            ?extra_t1,
             ?t0_sum,
             ?t1_sum,
             "Testing price"
@@ -263,56 +283,50 @@ impl<'a> DeltaMatcher<'a> {
         // liquidity
         let excess_liquidity = if self.solve_for_t0 { &t0_sum } else { &t1_sum };
 
-        let (Some(is_ask), Some(extra_t0), Some(extra_t1), Some(id)) =
-            (extra_is_ask, extra_t0, extra_t1, id)
-        else {
-            return if *excess_liquidity < I256::ZERO {
-                SupplyDemandResult::MoreDemand
-            } else {
-                SupplyDemandResult::MoreSupply
-            };
+        // See if we have any partial amount available that actually drains liquidity
+        let (available_drain, available_add) = if self.solve_for_t0 {
+            (bid_optional_t0, ask_optional_t0)
+        } else {
+            (bid_optional_t1, ask_optional_t1)
         };
 
-        // If we're solving for t0, `bid` orders drain liquidity.  If we're solving for
-        // T1, `ask` orders drain liquidity
-        let partial_drains_liquidity = if self.solve_for_t0 { !is_ask } else { is_ask };
-        // Use the appropriate extra amount depending on if we're solving for T0 or T1
-        let available_partial_q = if self.solve_for_t0 { &extra_t0 } else { &extra_t1 };
-
-        // means we have extra demand we can add.
-        if *excess_liquidity > I256::ZERO && partial_drains_liquidity {
-            tracing::info!(
-                ?excess_liquidity,
-                available_partial_q,
-                "partial drains liquidity and excess_liquidity > 0"
-            );
-            // If we have positive excess liquidity, we need to drain it so we check to see
-            // if our partial order can drain the entire amount we need to take care of
-            if I256::try_from(*available_partial_q).unwrap() >= *excess_liquidity {
-                return SupplyDemandResult::PartialFillEq { extra_fill_t0: *excess_liquidity, id };
+        // We need our absolute excess in all cases here
+        let abs_excess = excess_liquidity.unsigned_abs().to::<u128>();
+        // Option<(bid_partial_fill, ask_partial_fill)
+        let (bid_fill_q, ask_fill_q) = if excess_liquidity.is_negative() {
+            // If our available fill is not enough to resolve our excess liquidity, we can
+            // end here
+            let Some(remaining_add) = available_add.checked_sub(abs_excess) else {
+                return SupplyDemandResult::MoreDemand
+            };
+            // Otherwise let's see if we can fill any extra after this
+            let additional_fillable = min(remaining_add, available_drain);
+            if self.solve_for_t0 {
+                (price.quantity(additional_fillable, false), abs_excess + additional_fillable)
+            } else {
+                (
+                    abs_excess + additional_fillable,
+                    price.inverse_quantity(additional_fillable, false)
+                )
             }
-        } else if *excess_liquidity < I256::ZERO && !partial_drains_liquidity {
-            tracing::info!(
-                ?excess_liquidity,
-                available_partial_q,
-                "partial provides liquidity and excess_liquidity < 0"
-            );
-            // If we have negative excess liquidity, we need to fill it so we check to see
-            // if our partial order can fill the entire amount we need to take care of
-            if I256::try_from(*available_partial_q).unwrap() >= *excess_liquidity {
-                return SupplyDemandResult::PartialFillEq {
-                    extra_fill_t0: excess_liquidity.saturating_neg(),
-                    id
-                };
-            }
-        }
-
-        tracing::info!(?t0_sum, ?t1_sum, ?price, self.solve_for_t0);
-        if *excess_liquidity < I256::ZERO {
-            SupplyDemandResult::MoreDemand
         } else {
-            SupplyDemandResult::MoreSupply
-        }
+            let Some(remaining_drain) = available_drain.checked_sub(abs_excess) else {
+                return SupplyDemandResult::MoreSupply
+            };
+            let additional_drainable = min(remaining_drain, available_add);
+            if self.solve_for_t0 {
+                // If I'm solving for T0 and I have extra T0, I've drained it through bids
+                (price.quantity(abs_excess + additional_drainable, false), additional_drainable)
+            } else {
+                // If I'm solving for T1 and I have extra T1, I've drained it through bids
+                (
+                    abs_excess + additional_drainable,
+                    price.inverse_quantity(additional_drainable, false)
+                )
+            }
+        };
+
+        SupplyDemandResult::PartialFillEq { bid_fill_q, ask_fill_q }
     }
 
     /// calculates given the supply, demand, optional supply and optional demand
@@ -339,72 +353,58 @@ impl<'a> DeltaMatcher<'a> {
 
     /// helper functions for grabbing all orders that we filled at ucp
     fn fetch_orders_at_ucp(&self, fetch: &UcpSolution) -> Vec<OrderOutcome> {
-        // we can only have partial fills when ucp is exactly on.
-        let (order_id, amount) = fetch.get_partial_unfill().unzip();
-        let abs_partial_am = amount
-            .map(|a| a.unsigned_abs().to::<u128>())
-            .unwrap_or_default();
+        let (mut bid_partial, mut ask_partial) = fetch.partial_fills.unwrap_or_default();
 
         self.book
-            .bids()
-            .iter()
-            .map(|bid| OrderOutcome {
-                id:      bid.order_id,
-                outcome: if order_id == Some(bid.order_id) {
-                    // Partial bids are always exact in so our bid partial is in T1.  Let's check if
-                    // we need to flip this
-                    let partial_amount = if self.solve_for_t0 {
-                        // If we're solving for T0, our extra is T0, so we inverse this to T1
-                        // rounding down?
-                        fetch.ucp.inverse_quantity(abs_partial_am, false)
-                    } else {
-                        // If we're solving for T1, this is all in T1 so no need to flip
-                        abs_partial_am
-                    };
-                    trace!(
-                        self.solve_for_t0,
-                        min_amount = bid.min_amount(),
-                        partial_amount,
-                        abs_partial_am,
-                        "Finding bid order partial amount"
-                    );
-
-                    OrderFillState::PartialFill(bid.min_amount() + partial_amount)
-                } else if fetch.ucp <= bid.price().inv_ray_round(true) {
-                    OrderFillState::CompleteFill
-                } else {
-                    OrderFillState::Unfilled
-                }
+            .all_orders_iter()
+            .map(|o| {
+                let outcome = match (o.price_t1_over_t0().cmp(&fetch.ucp), o.is_bid) {
+                    // A bid with a higher price than UCP or an ask with a lower price than UCP is
+                    // filled
+                    (Ordering::Greater, true) | (Ordering::Less, false) => {
+                        trace!("Order completely filled due to price position");
+                        OrderFillState::CompleteFill
+                    }
+                    // A bid with a lower price than UCP or an ask with a higher price than UCP is
+                    // unfilled
+                    (Ordering::Greater, false) | (Ordering::Less, true) => {
+                        trace!("Order unfilled due to price position");
+                        OrderFillState::Unfilled
+                    }
+                    // At the precise price, exact orders are all filled and partial orders MIGHT be
+                    // filled more than the minimum
+                    (Ordering::Equal, _) => {
+                        if o.is_partial() {
+                            let partial_q =
+                                if o.is_bid { &mut bid_partial } else { &mut ask_partial };
+                            if *partial_q > 0 {
+                                let max_partial = o.max_q() - o.min_amount();
+                                let res = if *partial_q > max_partial {
+                                    trace!(
+                                        partial_q,
+                                        max_partial, "Partial order completely filled at UCP"
+                                    );
+                                    OrderFillState::CompleteFill
+                                } else {
+                                    trace!(partial_q, "Partial order partially filled at UCP");
+                                    OrderFillState::PartialFill(o.min_amount() + *partial_q)
+                                };
+                                *partial_q = partial_q.saturating_sub(max_partial);
+                                res
+                            } else {
+                                // If we have no partial, it's filled for the minimum
+                                trace!("Partial order minimally filled at UCP due to no partial_q");
+                                OrderFillState::PartialFill(o.min_amount())
+                            }
+                        } else {
+                            // Non-partial orders at the target price were completely filled
+                            trace!("Non-partial order completely filled at UCP");
+                            OrderFillState::CompleteFill
+                        }
+                    }
+                };
+                OrderOutcome { id: o.order_id, outcome }
             })
-            .chain(self.book.asks().iter().map(|ask| OrderOutcome {
-                id:      ask.order_id,
-                outcome: if order_id == Some(ask.order_id) {
-                    // Partial asks are always exact in so our ask partial is in T0.  Let's check if
-                    // we need to flip this
-                    let partial_amount = if self.solve_for_t0 {
-                        // If we're solving for T0, this is all in T0 so no need to flip
-                        abs_partial_am
-                    } else {
-                        // If we're solving for T1, we need to flip our partial amount from T1 to T0
-                        // and round down to minimize output
-                        fetch.ucp.inverse_quantity(abs_partial_am, false)
-                    };
-
-                    trace!(
-                        self.solve_for_t0,
-                        min_amount = ask.min_amount(),
-                        partial_amount,
-                        abs_partial_am,
-                        "Finding ask order partial amount"
-                    );
-
-                    OrderFillState::PartialFill(ask.min_amount() + partial_amount)
-                } else if fetch.ucp >= ask.price() {
-                    OrderFillState::CompleteFill
-                } else {
-                    OrderFillState::Unfilled
-                }
-            }))
             .collect::<Vec<_>>()
     }
 
@@ -439,16 +439,11 @@ impl<'a> DeltaMatcher<'a> {
                 searcher,
                 limit: self
                     .book
-                    .bids()
-                    .iter()
+                    .all_orders_iter()
                     .map(|o| OrderOutcome {
                         id:      o.order_id,
                         outcome: OrderFillState::Unfilled
                     })
-                    .chain(self.book.asks().iter().map(|o| OrderOutcome {
-                        id:      o.order_id,
-                        outcome: OrderFillState::Unfilled
-                    }))
                     .collect(),
                 ..Default::default()
             };
@@ -493,19 +488,14 @@ impl<'a> DeltaMatcher<'a> {
                 (SupplyDemandResult::NaturallyEqual, _) => {
                     println!("solved based on sup, demand no partials");
 
-                    return Some(UcpSolution {
-                        ucp:           p_mid,
-                        extra_t0_fill: None,
-                        partial_id:    None
-                    });
+                    return Some(UcpSolution { ucp: p_mid, partial_fills: None });
                 }
-                (SupplyDemandResult::PartialFillEq { extra_fill_t0, id }, _) => {
+                (SupplyDemandResult::PartialFillEq { bid_fill_q, ask_fill_q }, _) => {
                     println!("solved based on sup, demand with partial order");
                     return Some(UcpSolution {
                         ucp:           p_mid,
-                        extra_t0_fill: Some(extra_fill_t0),
-                        partial_id:    Some(id)
-                    });
+                        partial_fills: Some((bid_fill_q, ask_fill_q))
+                    })
                 }
             }
         }
@@ -516,16 +506,10 @@ impl<'a> DeltaMatcher<'a> {
 
 #[derive(Debug)]
 struct UcpSolution {
+    /// Solved uniform clearing price in T1/T0 format
     ucp:           Ray,
-    // true means supply
-    extra_t0_fill: Option<I256>,
-    partial_id:    Option<OrderId>
-}
-
-impl UcpSolution {
-    pub fn get_partial_unfill(&self) -> Option<(OrderId, I256)> {
-        Some((self.partial_id?, self.extra_t0_fill?))
-    }
+    /// Partial fill quantities in format `Option<(bid_partial, ask_partial)>`
+    partial_fills: Option<(u128, u128)>
 }
 
 #[derive(Debug)]
@@ -533,5 +517,5 @@ pub enum SupplyDemandResult {
     MoreSupply,
     MoreDemand,
     NaturallyEqual,
-    PartialFillEq { extra_fill_t0: I256, id: OrderId }
+    PartialFillEq { bid_fill_q: u128, ask_fill_q: u128 }
 }
