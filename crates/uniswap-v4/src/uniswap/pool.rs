@@ -46,6 +46,8 @@ pub struct TickInfo {
 
 pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
+const TICKS_PER_BATCH: usize = 25;
+
 #[derive(Debug, Clone, Default)]
 pub struct EnhancedUniswapPool<Loader: PoolDataLoader = DataLoader> {
     sync_swap_with_sim:     bool,
@@ -304,16 +306,42 @@ where
         let end_tick = start_tick + (self.tick_spacing as u16 * total_ticks_to_fetch) as i32;
         tracing::info!(?start_tick, ?end_tick);
 
-        let mut fetched_ticks = self
-            .get_tick_data_batch_request(
-                i32_to_i24(start_tick)?,
-                false,
-                total_ticks_to_fetch,
-                block_number,
-                provider.clone()
-            )
-            .await?
-            .0;
+        // Fetch ticks in batches of TICKS_PER_BATCH
+        let mut fetched_ticks = Vec::new();
+        let mut current_tick = start_tick;
+        let remaining_ticks = total_ticks_to_fetch;
+
+        for batch_idx in 0..(remaining_ticks.div_ceil(TICKS_PER_BATCH as u16)) {
+            let batch_size = std::cmp::min(
+                TICKS_PER_BATCH as u16,
+                remaining_ticks - (batch_idx * TICKS_PER_BATCH as u16)
+            );
+
+            if batch_size == 0 {
+                break;
+            }
+
+            tracing::debug!(?current_tick, ?batch_size, batch_idx, "Fetching tick batch");
+
+            let batch_ticks = self
+                .get_tick_data_batch_request(
+                    i32_to_i24(current_tick)?,
+                    false,
+                    batch_size,
+                    block_number,
+                    provider.clone()
+                )
+                .await?
+                .0;
+
+            // Update current_tick for the next batch
+            if !batch_ticks.is_empty() {
+                // Move to the next tick after the last one in this batch
+                current_tick += (self.tick_spacing as u16 * batch_size) as i32;
+            }
+
+            fetched_ticks.extend(batch_ticks);
+        }
 
         fetched_ticks.sort_by_key(|k| k.tick);
 
