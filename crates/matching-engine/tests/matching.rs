@@ -1,16 +1,30 @@
 use alloy::primitives::U256;
-use alloy_primitives::FixedBytes;
+use alloy_primitives::{FixedBytes, I256};
 use angstrom_types::{
-    matching::{Ray, uniswap::PoolSnapshot},
+    matching::{Ray, get_quantities_at_price, uniswap::PoolSnapshot},
+    orders::{OrderFillState, OrderOutcome},
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use matching_engine::{
     book::{BookOrder, OrderBook},
-    matcher::VolumeFillMatcher
+    matcher::{
+        VolumeFillMatcher,
+        delta::{DeltaMatcher, DeltaMatcherToB}
+    }
 };
 use testing_tools::type_generator::{
     amm::generate_single_position_amm_at_tick, orders::UserOrderBuilder
 };
+use tracing::Level;
+
+pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(Level::TRACE)
+        .with_line_number(true)
+        .with_file(true)
+        .finish();
+    tracing::subscriber::with_default(subscriber, f)
+}
 
 struct TestOrder {
     q: u128,
@@ -22,11 +36,19 @@ impl TestOrder {
         Self { q, p }.to_order(true)
     }
 
+    fn partial_bid(q: u128, p: Ray) -> BookOrder {
+        Self { q, p }.to_partial_order(true)
+    }
+
     fn _exact_ask(q: u128, p: Ray) -> BookOrder {
         Self { q, p }.to_order(false)
     }
 
-    fn _exact_inverse_bid(q: u128, p: Ray) -> BookOrder {
+    fn partial_ask(q: u128, p: Ray) -> BookOrder {
+        Self { q, p }.to_partial_order(false)
+    }
+
+    fn exact_inverse_bid(q: u128, p: Ray) -> BookOrder {
         Self { q, p }.to_inverse_order(true)
     }
 
@@ -43,6 +65,18 @@ impl TestOrder {
             .min_price(min_price)
             .exact()
             .exact_in(!is_bid)
+            .is_bid(is_bid)
+            .with_storage()
+            .is_bid(is_bid)
+            .build()
+    }
+
+    pub fn to_partial_order(&self, is_bid: bool) -> BookOrder {
+        let min_price = if is_bid { self.p.inv_ray_round(true) } else { self.p };
+        UserOrderBuilder::new()
+            .amount(self.q)
+            .min_price(min_price)
+            .partial()
             .is_bid(is_bid)
             .with_storage()
             .is_bid(is_bid)
@@ -216,4 +250,65 @@ fn debt_price_is_final_price() {
         .expect("No checkpointed solution")
         .solution(None);
     assert!(solution.ucp == book.asks()[0].price(), "Price is not stuck at debt price");
+}
+
+#[test]
+fn delta_matcher_test() {
+    with_tracing(|| {
+        let orders = [
+            TestOrder::exact_bid(5000, raw_price(20000000000000000000000000000000_u128)),
+            TestOrder::partial_bid(50000, raw_price(20000000000000000000000000000000_u128)),
+            TestOrder::partial_ask(1000, raw_price(10000000000000000000000000000000_u128)),
+            TestOrder::partial_ask(10000, raw_price(10000000000000000000000000000000_u128))
+        ];
+        let book = OrderBook::new(
+            FixedBytes::random(),
+            None,
+            vec![orders[0].clone(), orders[1].clone()],
+            vec![orders[2].clone(), orders[3].clone()],
+            Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
+        );
+        println!("{:#?}", book);
+        let mut matcher = DeltaMatcher::new(&book, DeltaMatcherToB::None, 0, true);
+        let solution = matcher.solution(None);
+        println!("{:?}", solution);
+        // Because it's a partial fill, our price should end at our ask price
+        assert_eq!(solution.ucp, book.asks()[0].price(), "Price is not at partial fill Ask price");
+        // And our total T0 state should sum to zero
+        let mut total_t0 = I256::ZERO;
+        for (order, outcome) in orders.iter().zip(solution.limit.iter()) {
+            if outcome.id != order.order_id {
+                panic!("Mismatched iteration, fix this test");
+            }
+            match outcome.outcome {
+                OrderFillState::Unfilled | OrderFillState::Killed => continue,
+                OrderFillState::CompleteFill => {
+                    let (_, t0_net, _) = get_quantities_at_price(
+                        order.is_bid,
+                        order.exact_in(),
+                        order.max_q(),
+                        0,
+                        0,
+                        solution.ucp
+                    );
+                    let signed_t0 = if order.is_bid {
+                        I256::unchecked_from(t0_net).saturating_neg()
+                    } else {
+                        I256::unchecked_from(t0_net)
+                    };
+                    total_t0 += signed_t0;
+                }
+                OrderFillState::PartialFill(q) => {
+                    let signed_t0_filled = if order.is_bid {
+                        I256::unchecked_from(solution.ucp.inverse_quantity(q, false))
+                            .saturating_neg()
+                    } else {
+                        I256::unchecked_from(q)
+                    };
+                    total_t0 += signed_t0_filled
+                }
+            }
+        }
+        assert_eq!(total_t0, I256::ZERO, "T0 exchanged did not sum to zero");
+    });
 }

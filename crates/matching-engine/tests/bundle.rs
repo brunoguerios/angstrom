@@ -1,5 +1,5 @@
 use angstrom_types::{
-    matching::uniswap::Quantity,
+    matching::uniswap::{PoolPriceVec, Quantity},
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use base64::Engine;
@@ -75,14 +75,25 @@ fn delta_matcher_test() {
         let bytes = base64::prelude::BASE64_STANDARD
             .decode(DELTA_BOOK_TEST)
             .unwrap();
-        let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
-        let mut matcher = DeltaMatcher::new(
-            &book,
-            DeltaMatcherToB::FixedShift(Quantity::Token1(2107223380280159855), true),
-            0,
-            false
+        let (book, tob): (OrderBook, DeltaMatcherToB) = serde_json::from_slice(&bytes).unwrap();
+        println!("TOB: {tob:#?}");
+        let amm = book.amm().unwrap();
+        let post_tob = (amm.current_price() + Quantity::Token1(2595367055652127901)).unwrap();
+        let post_tob_price = post_tob.end_bound.as_ray();
+        println!("Post-TOB: {post_tob_price:?}");
+        let post_match = (post_tob.end_bound - Quantity::Token1(4265126092132152183)).unwrap();
+        println!(
+            "Post-match: {} {} {:?}",
+            post_match.d_t0,
+            post_match.d_t1,
+            post_match.end_bound.as_ray()
         );
+
+        let mut matcher = DeltaMatcher::new(&book, tob, 0, false);
         let solution = matcher.solution(None);
-        println!("{:#?}", solution);
+        let end_price = amm.at_price(solution.ucp.into()).unwrap();
+        let mid_map = PoolPriceVec::from_price_range(amm.current_price(), end_price).unwrap();
+        println!("Mid-map: {} {} {:?}", mid_map.d_t0, mid_map.d_t1, mid_map.end_bound.as_ray());
+        // println!("{:#?}", solution);
     })
 }
