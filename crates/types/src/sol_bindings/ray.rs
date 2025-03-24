@@ -1,7 +1,7 @@
 use std::{
     iter::Sum,
     ops::{Add, AddAssign, Deref, Sub, SubAssign},
-    sync::OnceLock
+    sync::OnceLock,
 };
 
 use alloy::primitives::{U256, U512, Uint, aliases::U320};
@@ -9,16 +9,16 @@ use alloy_primitives::U160;
 use malachite::{
     Natural, Rational,
     num::{
-        arithmetic::traits::{DivRound, Mod, Pow},
-        conversion::traits::{RoundingInto, SaturatingFrom}
+        arithmetic::traits::{DivRound, Mod, Pow, SaturatingSub},
+        conversion::traits::{RoundingInto, SaturatingFrom},
     },
-    rounding_modes::RoundingMode
+    rounding_modes::RoundingMode,
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
 use crate::matching::{
-    MatchingPrice, SqrtPriceX96, const_1e27, const_1e54, const_2_192, uniswap::PoolPrice
+    MatchingPrice, SqrtPriceX96, const_1e6, const_1e27, const_1e54, const_2_192, uniswap::PoolPrice,
 };
 
 fn max_tick_ray() -> &'static Ray {
@@ -207,7 +207,7 @@ impl From<PoolPrice<'_>> for Ray {
 impl Serialize for Ray {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer
+        S: serde::Serializer,
     {
         self.0.serialize(serializer)
     }
@@ -216,7 +216,7 @@ impl Serialize for Ray {
 impl<'de> Deserialize<'de> for Ray {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>
+        D: serde::Deserializer<'de>,
     {
         let inner = U256::deserialize(deserializer)?;
         Ok(Self(inner))
@@ -242,6 +242,29 @@ impl Ray {
             price.rounding_into(malachite::rounding_modes::RoundingMode::Floor);
 
         Uint::from_limbs_slice(&res.into_limbs_asc())
+    }
+
+    /// Produce a price that, post fee scaling, will equal this price
+    pub fn unscale_to_fee(&self, fee: u128) -> Ray {
+        if fee == 0 {
+            return *self;
+        }
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs()) * const_1e6();
+        let one_minus_fee = const_1e6().saturating_sub(Natural::from(fee));
+        let res = numerator.div_round(one_minus_fee, RoundingMode::Floor).0;
+        Self(Uint::from_limbs_slice(&res.into_limbs_asc()))
+    }
+
+    /// Scale this price to a given fee
+    pub fn scale_to_fee(&self, fee: u128) -> Ray {
+        // Short circuit if we have a zero fee, no need to do math
+        if fee == 0 {
+            return *self;
+        }
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs())
+            * const_1e6().saturating_sub(Natural::from(fee));
+        let res = numerator.div_round(const_1e6(), RoundingMode::Floor).0;
+        Self(Uint::from_limbs_slice(&res.into_limbs_asc()))
     }
 
     /// self * other / ray

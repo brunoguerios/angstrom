@@ -267,7 +267,7 @@ impl Display for MissingTickLiquidityError {
 ///
 /// `from_above`: `true` = high to low, `false` = low to high.
 /// total ticks should be the length of the reward vec
-fn compute_reward_checksum(
+pub fn compute_reward_checksum(
     start_tick: i32,
     start_liquidity: u128,
     snapshot: &PoolSnapshot,

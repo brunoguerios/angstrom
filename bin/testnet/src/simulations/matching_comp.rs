@@ -192,7 +192,8 @@ fn cmp_agent<'a>(
                             .solution(Some(tob.clone()));
 
                         let bisection =
-                            DeltaMatcher::new(&book, Some(tob.clone())).solution(Some(tob.clone()));
+                            DeltaMatcher::new(&book, Some(tob.clone()).into(), 0, false)
+                                .solution(Some(tob.clone()));
 
                         if bisection != debt_engine {
                             println!(

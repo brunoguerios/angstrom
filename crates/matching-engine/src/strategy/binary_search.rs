@@ -10,9 +10,10 @@ pub struct BinarySearchStrategy {}
 impl BinarySearchStrategy {
     pub fn run(
         book: &OrderBook,
-        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
+        searcher: Option<OrderWithStorageData<TopOfBlockOrder>>,
+        fee: u128
     ) -> PoolSolution {
-        let mut matcher = DeltaMatcher::new(book, searcher.clone());
+        let mut matcher = DeltaMatcher::new(book, searcher.clone().into(), fee, false);
         matcher.solution(searcher)
     }
 }
