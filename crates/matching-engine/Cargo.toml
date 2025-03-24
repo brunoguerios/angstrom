@@ -54,4 +54,4 @@ clap.workspace = true
 pade.workspace = true
 pade-macro.workspace = true
 testing-tools.workspace = true
-criterion = "0.5.1"
+criterion = { version = "0.5.1", features = ['csv', 'csv_output'] }

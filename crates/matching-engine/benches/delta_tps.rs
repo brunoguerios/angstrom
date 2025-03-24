@@ -13,7 +13,9 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{
+    BenchmarkId, Criterion, PlotConfiguration, black_box, criterion_group, criterion_main
+};
 use matching_engine::{
     book::{BookOrder, OrderBook, sort::SortStrategy},
     strategy::BinarySearchStrategy
@@ -242,6 +244,7 @@ pub fn tps(c: &mut Criterion) {
             bench.iter(|| black_box(BinarySearchStrategy::run(&book, Some(tob.clone()))));
         });
     }
+    group.finish();
 }
 
 criterion_group!(benches, tps);
