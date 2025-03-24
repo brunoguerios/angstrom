@@ -18,6 +18,7 @@ use parking_lot::Mutex;
 use reth_chainspec::Hardforks;
 use reth_network::test_utils::Peer;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
+use reth_tasks::TaskExecutor;
 use tokio::task::JoinHandle;
 use tracing::{Level, span};
 
@@ -48,13 +49,14 @@ where
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C>,
         consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync>,
-        validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>
+        validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>,
+        ex: TaskExecutor
     ) -> Self {
         Self {
-            eth_peer:              StateLockInner::new(node_id, eth_peer),
-            strom_network_manager: StateLockInner::new(node_id, strom_network_manager),
-            strom_consensus:       StateLockInner::new(node_id, consensus),
-            validation:            StateLockInner::new(node_id, validation)
+            eth_peer:              StateLockInner::new(node_id, eth_peer, ex.clone()),
+            strom_network_manager: StateLockInner::new(node_id, strom_network_manager, ex.clone()),
+            strom_consensus:       StateLockInner::new(node_id, consensus, ex.clone()),
+            validation:            StateLockInner::new(node_id, validation, ex.clone())
         }
     }
 
@@ -194,12 +196,12 @@ struct StateLockInner<T> {
 }
 
 impl<T: Unpin + Future + Send + 'static> StateLockInner<T> {
-    fn new(node_id: u64, inner_unarced: T) -> Self {
+    fn new(node_id: u64, inner_unarced: T, ex: TaskExecutor) -> Self {
         let lock = Arc::new(AtomicBool::new(false));
         let inner = Arc::new(Mutex::new(inner_unarced));
         let inner_fut = StateLockFut::new(node_id, inner.clone(), lock.clone());
 
-        Self { node_id, inner, lock, fut: tokio::spawn(inner_fut) }
+        Self { node_id, inner, lock, fut: ex.spawn(inner_fut) }
     }
 
     fn on_inner<F, R>(&self, f: F) -> R

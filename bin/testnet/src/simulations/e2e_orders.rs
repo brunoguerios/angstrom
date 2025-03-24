@@ -27,7 +27,9 @@ pub async fn run_e2e_orders(executor: TaskExecutor, cli: End2EndOrdersCli) -> ey
     tracing::info!("spinning up e2e nodes for angstrom");
 
     // spawn testnet
-    let testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config, agents).await?;
+    let testnet =
+        AngstromTestnet::spawn_testnet(NoopProvider::default(), config, agents, executor.clone())
+            .await?;
     tracing::info!("e2e testnet is alive");
 
     executor
@@ -37,7 +39,7 @@ pub async fn run_e2e_orders(executor: TaskExecutor, cli: End2EndOrdersCli) -> ey
 }
 
 fn end_to_end_agent<'a>(
-    _: &'a InitialTestnetState,
+    t: &'a InitialTestnetState,
     agent_config: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async move {
@@ -58,7 +60,7 @@ fn end_to_end_agent<'a>(
                     | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
                 });
 
-        tokio::spawn(
+        t.ex.spawn(
             async move {
                 let rpc_address = format!("http://{}", agent_config.rpc_address);
                 let client = HttpClient::builder().build(rpc_address).unwrap();
@@ -176,38 +178,49 @@ pub mod test {
         }) as Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn testnet_lands_block() {
+    #[test]
+    fn testnet_lands_block() {
         init_tracing(4);
-        let config = TestnetCli {
-            eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
-            ..Default::default()
-        };
+        let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-        let config = config.make_config().unwrap();
+        runner.run_command_until_exit(|ctx| async move {
+            let config = TestnetCli {
+                eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
+                ..Default::default()
+            };
 
-        let agents = vec![testing_end_to_end_agent];
-        tracing::info!("spinning up e2e nodes for angstrom");
+            let config = config.make_config().unwrap();
 
-        // spawn testnet
-        let testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config, agents)
+            let agents = vec![testing_end_to_end_agent];
+            tracing::info!("spinning up e2e nodes for angstrom");
+
+            // spawn testnet
+            let testnet = AngstromTestnet::spawn_testnet(
+                NoopProvider::default(),
+                config,
+                agents,
+                ctx.task_executor.clone()
+            )
             .await
             .expect("failed to start angstrom testnet");
 
-        // grab provider so we can query from the chain later.
-        let provider = testnet.node_provider(Some(1)).rpc_provider();
+            // grab provider so we can query from the chain later.
+            let provider = testnet.node_provider(Some(1)).rpc_provider();
 
-        let executor = TokioTaskExecutor::default();
-        let task =
-            executor.spawn_critical("testnet", testnet.run_to_completion(executor.clone()).boxed());
+            let task = ctx.task_executor.spawn_critical(
+                "testnet",
+                testnet.run_to_completion(ctx.task_executor.clone()).boxed()
+            );
 
-        tracing::info!("waiting for valid block");
-        assert!(
-            timeout(Duration::from_secs(60 * 5), wait_for_valid_block(provider))
-                .await
-                .is_ok()
-        );
-        task.abort();
+            tracing::info!("waiting for valid block");
+            assert!(
+                timeout(Duration::from_secs(60 * 5), wait_for_valid_block(provider))
+                    .await
+                    .is_ok()
+            );
+            task.abort();
+            eyre::Ok(())
+        });
     }
 
     async fn wait_for_valid_block(provider: WalletProviderRpc) {
