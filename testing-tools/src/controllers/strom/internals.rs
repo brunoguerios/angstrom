@@ -20,7 +20,7 @@ use jsonrpsee::server::ServerBuilder;
 use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
-use reth_tasks::{TaskSpawner, TokioTaskExecutor};
+use reth_tasks::TaskExecutor;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
@@ -62,7 +62,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState,
         agents: Vec<F>,
-        block_sync: GlobalBlockSync
+        block_sync: GlobalBlockSync,
+        executor: TaskExecutor
     ) -> eyre::Result<(
         Self,
         ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>,
@@ -76,7 +77,6 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         F: Clone
     {
         let pool = strom_handles.get_pool_handle();
-        let executor: TokioTaskExecutor = Default::default();
         let tx_strom_handles = (&strom_handles).into();
 
         let validation_client = ValidationClient(strom_handles.validator_tx);

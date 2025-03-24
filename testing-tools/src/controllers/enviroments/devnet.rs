@@ -110,7 +110,8 @@ where
                 initial_angstrom_state.clone().unwrap(),
                 self.block_provider.subscribe_to_new_blocks(),
                 vec![a],
-                block_sync
+                block_sync,
+                ex.clone()
             )
             .await?;
             tracing::info!(node_id, "made angstrom node");

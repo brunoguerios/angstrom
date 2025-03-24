@@ -28,6 +28,7 @@ use reth_network::{
     test_utils::{Peer, PeerHandle}
 };
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
+use reth_tasks::TaskExecutor;
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use tracing::instrument;
 
@@ -69,7 +70,8 @@ where
         inital_angstrom_state: InitialTestnetState,
         block_provider: BroadcastStream<(u64, Vec<alloy_rpc_types::Transaction>)>,
         agents: Vec<F>,
-        block_sync: GlobalBlockSync
+        block_sync: GlobalBlockSync,
+        ex: TaskExecutor
     ) -> eyre::Result<Self>
     where
         F: for<'a> Fn(
@@ -98,7 +100,8 @@ where
             block_provider,
             inital_angstrom_state,
             agents,
-            block_sync
+            block_sync,
+            ex.clone()
         )
         .await?;
 
@@ -109,7 +112,8 @@ where
             eth_peer,
             strom_network_manager,
             consensus,
-            validation
+            validation,
+            ex.clone()
         );
 
         Ok(Self { testnet_node_id: node_config.node_id, network: strom_network, strom, state_lock })

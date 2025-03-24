@@ -113,7 +113,7 @@ where
                 front,
                 &mut initial_angstrom_state,
                 node_addresses,
-                ex
+                ex.clone()
             )
             .await?
         ));
@@ -128,6 +128,7 @@ where
                 let initial_angstrom_state = initial_angstrom_state.clone().unwrap();
                 let agents = agents.clone();
                 let leader_provider = leader_provider.clone();
+                let ex = ex.clone();
 
                 async move {
                     let node_id = node_config.node_id;
@@ -165,7 +166,8 @@ where
                         initial_angstrom_state,
                         block_st,
                         agents.clone(),
-                        block_sync
+                        block_sync,
+                        ex.clone()
                     )
                     .await?;
                     tracing::info!(?node_pk, "node pk!!!!!!!!!!!");
