@@ -306,8 +306,12 @@ impl<'a> DeltaMatcher<'a> {
             // Otherwise let's see if we can fill any extra after this
             let additional_fillable = min(remaining_add, available_drain);
             if self.solve_for_t0 {
+                // If I'm solving for T0, asks are providing me the extra T0 I need and bids are
+                // matched with my additional_fillable
                 (price.quantity(additional_fillable, false), abs_excess + additional_fillable)
             } else {
+                // If I'm solving for T1, bids are providing me the extra T1 I need and asks are
+                // matched with my additional_fillable
                 (
                     abs_excess + additional_fillable,
                     price.inverse_quantity(additional_fillable, false)
@@ -319,13 +323,15 @@ impl<'a> DeltaMatcher<'a> {
             };
             let additional_drainable = min(remaining_drain, available_add);
             if self.solve_for_t0 {
-                // If I'm solving for T0 and I have extra T0, I've drained it through bids
+                // If I'm solving for T0, asks are draining my extra T0 and bids are matched
+                // with my additional_fillable
                 (price.quantity(abs_excess + additional_drainable, false), additional_drainable)
             } else {
-                // If I'm solving for T1 and I have extra T1, I've drained it through bids
+                // If I'm solving for T1, bids are draining my extra T1 and asks are matched
+                // with my additional_fillable
                 (
-                    abs_excess + additional_drainable,
-                    price.inverse_quantity(additional_drainable, false)
+                    additional_drainable,
+                    price.inverse_quantity(abs_excess + additional_drainable, false)
                 )
             }
         };
@@ -385,12 +391,17 @@ impl<'a> DeltaMatcher<'a> {
                                 let max_partial = o.max_q() - o.min_amount();
                                 let res = if *partial_q > max_partial {
                                     trace!(
+                                        o.is_bid,
                                         partial_q,
-                                        max_partial, "Partial order completely filled at UCP"
+                                        max_partial,
+                                        "Partial order completely filled at UCP"
                                     );
                                     OrderFillState::CompleteFill
                                 } else {
-                                    trace!(partial_q, "Partial order partially filled at UCP");
+                                    trace!(
+                                        o.is_bid,
+                                        partial_q, "Partial order partially filled at UCP"
+                                    );
                                     OrderFillState::PartialFill(o.min_amount() + *partial_q)
                                 };
                                 *partial_q = partial_q.saturating_sub(max_partial);
