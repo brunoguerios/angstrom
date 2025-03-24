@@ -174,6 +174,7 @@ impl PoolDataLoader for DataLoader {
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<PoolData, PoolError> {
+        println!("REGISTRY: {:?}", self.pool_registry);
         let id = self
             .pool_registry
             .as_ref()

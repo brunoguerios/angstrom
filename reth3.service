@@ -1,0 +1,17 @@
+[Unit]
+Description=reth
+
+[Service]
+Environment="RUST_LOG=info"
+ExecStart=/root/bin/reth node --authrpc.jwtsecret /home/shared/.secrets/jwt.hex --authrpc.port 8551 --http --http.addr 0.0.0.0 --http.port 8489 --http.api "eth,debug,txpool,web3,trace,admin" --ws.api all --datadir /home/shared/reth/ --metrics 127.0.0.1:9111 --rpc-max-response-size 10000 --rpc-max-connections 20000 --ws --ws.addr 0.0.0.0 -vvvvv --chain sepolia --trusted-peers enode://79bbd5bdc7d4a5b3f0a62f3a4e1dbe1f8630ff32eedc4311278b3de780822409209ece55139526698b9281254937a2e350463e732c372c6b104bb4e99016b287@35.199.60.155:30303?discport=30304 --trusted-only
+ExecStartPost=/bin/sh -c 'sleep 3 && chmod a+rwX /tmp/reth.ipc'
+
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+enode://79bbd5bdc7d4a5b3f0a62f3a4e1dbe1f8630ff32eedc4311278b3de780822409209ece55139526698b9281254937a2e350463e732c372c6b104bb4e99016b287@35.199.60.155:30303?discport=30304
