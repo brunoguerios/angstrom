@@ -495,7 +495,6 @@ where
             while let Poll::Ready(Some(orders)) = this.order_indexer.poll_next_unpin(cx) {
                 this.on_pool_events(orders, || cx.waker().clone());
             }
-            tracing::info!("pool manager poll");
 
             // halt dealing with these till we have synced
             if this.global_sync.can_operate() {
