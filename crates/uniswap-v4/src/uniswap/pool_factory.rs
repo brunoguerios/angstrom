@@ -13,6 +13,7 @@ use futures::future::join_all;
 use super::{pool::EnhancedUniswapPool, pool_data_loader::PoolDataLoader};
 use crate::DataLoader;
 
+#[derive(Clone)]
 pub struct V4PoolFactory<P, const TICKS: u16 = 200> {
     provider:     Arc<P>,
     registry:     UniswapPoolRegistry,
