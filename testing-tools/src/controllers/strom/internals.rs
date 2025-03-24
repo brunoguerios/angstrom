@@ -20,7 +20,7 @@ use jsonrpsee::server::ServerBuilder;
 use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
-use reth_tasks::TokioTaskExecutor;
+use reth_tasks::{TaskSpawner, TokioTaskExecutor};
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
@@ -150,11 +150,14 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         .await;
 
         let uniswap_pools = uniswap_pool_manager.pools();
-        tokio::spawn(uniswap_pool_manager.instrument(span!(
-            tracing::Level::ERROR,
-            "pool manager",
-            node_config.node_id
-        )));
+        executor.spawn_critical(
+            "uniswap",
+            Box::pin(uniswap_pool_manager.instrument(span!(
+                tracing::Level::ERROR,
+                "pool manager",
+                node_config.node_id
+            )))
+        );
 
         let token_conversion = TokenPriceGenerator::new(
             Arc::new(state_provider.rpc_provider()),
@@ -222,11 +225,14 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let addr = server.local_addr()?;
 
-        tokio::spawn(async move {
-            let server_handle = server.start(order_api.into_rpc());
-            tracing::info!("rpc server started on: {}", addr);
-            let _ = server_handle.stopped().await;
-        });
+        executor.spawn_critical(
+            "rpc",
+            Box::pin(async move {
+                let server_handle = server.start(order_api.into_rpc());
+                tracing::info!("rpc server started on: {}", addr);
+                let _ = server_handle.stopped().await;
+            })
+        );
 
         let testnet_hub =
             TestnetHub::new(inital_angstrom_state.angstrom_addr, state_provider.rpc_provider());

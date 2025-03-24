@@ -5,6 +5,7 @@ use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::Future;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
+use reth_tasks::TaskExecutor;
 
 use super::AngstromTestnet;
 use crate::{
@@ -27,7 +28,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    pub async fn spawn_devnet(c: C, config: DevnetConfig) -> eyre::Result<Self> {
+    pub async fn spawn_devnet(c: C, config: DevnetConfig, ex: TaskExecutor) -> eyre::Result<Self> {
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
             peers: Default::default(),
@@ -40,7 +41,7 @@ where
         };
 
         tracing::info!("initializing devnet with {} nodes", config.node_count());
-        this.spawn_new_devnet_nodes(c).await?;
+        this.spawn_new_devnet_nodes(c, ex).await?;
         tracing::info!("initialization devnet with {} nodes", config.node_count());
 
         Ok(this)
@@ -50,7 +51,7 @@ where
         DevnetStateMachine::new(self)
     }
 
-    async fn spawn_new_devnet_nodes(&mut self, c: C) -> eyre::Result<()> {
+    async fn spawn_new_devnet_nodes(&mut self, c: C, ex: TaskExecutor) -> eyre::Result<()> {
         let mut initial_angstrom_state = None;
 
         let configs = (0..self.config.node_count())
@@ -81,7 +82,7 @@ where
                 )
                 .await?;
                 let provider = initializer.provider_mut().provider_mut();
-                let initial_state = provider.initialize_state().await?;
+                let initial_state = provider.initialize_state(ex.clone()).await?;
                 initial_angstrom_state = Some(initial_state);
 
                 initializer.rpc_provider().anvil_mine(Some(5), None).await?;

@@ -17,6 +17,8 @@ target/
 
 *.env
 
+.DS_Store
+
 # compiler ice errors
 rustc-ice-*.txt
 cache/
