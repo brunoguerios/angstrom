@@ -72,6 +72,7 @@ where
         >,
         metrics: ValidationMetrics
     ) {
+        tracing::info!("validating order");
         let block_number = self.block_number.load(std::sync::atomic::Ordering::SeqCst);
         let order_validation: OrderValidation = order.into();
         let user = order_validation.user();
@@ -96,6 +97,7 @@ where
                                     true,
                                     block_number
                                 );
+                                tracing::info!("sending back order");
 
                                 let _ = tx.send(results);
                             })

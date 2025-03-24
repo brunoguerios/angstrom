@@ -318,6 +318,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 .or_default()
                 .push(peer);
         }
+        tracing::info!("starting to validate order");
 
         self.validator.validate_order(origin, order);
     }
@@ -594,6 +595,7 @@ where
                     self.finish_new_block_processing(block, orders, addresses);
                 }
                 OrderValidatorRes::ValidatedOrder(next) => {
+                    tracing::info!("got validated order");
                     if let Ok(prop) = self.handle_validated_order(next) {
                         validated.push(prop);
                     }
