@@ -272,6 +272,10 @@ impl<'a> DeltaMatcher<'a> {
             ?partial_t1,
             ?t0_sum,
             ?t1_sum,
+            ask_optional_t0,
+            ask_optional_t1,
+            bid_optional_t0,
+            bid_optional_t1,
             "Testing price"
         );
 
@@ -287,7 +291,7 @@ impl<'a> DeltaMatcher<'a> {
         let (available_drain, available_add) = if self.solve_for_t0 {
             (bid_optional_t0, ask_optional_t0)
         } else {
-            (bid_optional_t1, ask_optional_t1)
+            (ask_optional_t1, bid_optional_t1)
         };
 
         // We need our absolute excess in all cases here
