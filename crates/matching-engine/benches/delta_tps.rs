@@ -1,4 +1,10 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock}
+};
+
 use alloy::primitives::U256;
+use alloy_primitives::Address;
 use angstrom_types::{
     orders::{OrderId, OrderPriorityData},
     primitive::PoolId,
@@ -13,15 +19,113 @@ use matching_engine::{
     strategy::BinarySearchStrategy
 };
 use testing_tools::order_generator::{GeneratedPoolOrders, PoolOrderGenerator};
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
+use uniswap_v3_math::{tick_bitmap::flip_tick, tick_math::get_sqrt_ratio_at_tick};
+use uniswap_v4::uniswap::{
+    pool::{EnhancedUniswapPool, TickInfo},
+    pool_data_loader::DataLoader,
+    pool_manager::SyncedUniswapPool
+};
 
-const TPS_BUCKETS: [u64; 6] = [20, 40, 100, 200, 500, 1000];
-pub async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
-    todo!()
+const TPS_BUCKETS: [u64; 9] = [20, 40, 100, 200, 500, 1000, 5000, 25_000, 100_000];
+
+async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
+    let mut token_0 = Address::random();
+    let mut token_1 = Address::random();
+    if token_0 > token_1 {
+        std::mem::swap(&mut token_0, &mut token_1);
+    }
+
+    let tick_map = vec![
+        (
+            99_700,
+            TickInfo {
+                liquidity_net:   100_000_000,
+                liquidity_gross: 300_000_000,
+                initialized:     true
+            }
+        ),
+        (
+            99_800,
+            TickInfo {
+                liquidity_net:   100_000_000,
+                liquidity_gross: 400_000_000,
+                initialized:     true
+            }
+        ),
+        (
+            99_900,
+            TickInfo {
+                liquidity_net:   100_000_000,
+                liquidity_gross: 500_000_000,
+                initialized:     true
+            }
+        ),
+        (
+            100_000,
+            TickInfo {
+                liquidity_net:   100_000_000,
+                liquidity_gross: 600_000_000,
+                initialized:     true
+            }
+        ),
+        (
+            100_100,
+            TickInfo {
+                liquidity_net:   100_000_000,
+                liquidity_gross: 700_000_000,
+                initialized:     true
+            }
+        ),
+        (
+            100_200,
+            TickInfo {
+                liquidity_net:   100_000_000,
+                liquidity_gross: 800_000_000,
+                initialized:     true
+            }
+        ),
+        (
+            100_300,
+            TickInfo {
+                liquidity_net:   100_000_000,
+                liquidity_gross: 900_000_000,
+                initialized:     true
+            }
+        ),
+    ]
+    .into_iter()
+    .collect::<HashMap<_, _>>();
+
+    let tick_spacing = 100;
+
+    let mut bitmap = HashMap::new();
+    for tick in [99700, 99800, 99900, 100000, 100100, 100200, 100300] {
+        flip_tick(&mut bitmap, tick, tick_spacing).unwrap();
+    }
+
+    let current_tick = 100_000;
+    let sqrt_price = get_sqrt_ratio_at_tick(current_tick).unwrap();
+    let liquidity = 600_000_000;
+
+    let mut pool = EnhancedUniswapPool::new(DataLoader::default(), 0);
+
+    // tokens
+    pool.token0 = token_0;
+    pool.token0_decimals = 18;
+    pool.token1 = token_1;
+    pool.token1_decimals = 18;
+    pool.liquidity = liquidity;
+    pool.sqrt_price = sqrt_price;
+    pool.tick = current_tick;
+    pool.tick_spacing = tick_spacing;
+    pool.ticks = tick_map;
+    pool.tick_bitmap = bitmap;
+
+    Arc::new(RwLock::new(pool))
 }
 
 // messy
-pub fn setup_inputs(
+fn setup_inputs(
     pools: GeneratedPoolOrders,
     amm: &SyncedUniswapPool
 ) -> (OrderBook, OrderWithStorageData<TopOfBlockOrder>) {

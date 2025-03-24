@@ -54,7 +54,8 @@ impl OrderBuilder {
             std::mem::swap(&mut amount_in, &mut amount_out);
         }
 
-        amount_in += rng.gen_range(100..amount_in / 100);
+        let range = (amount_in / 100).max(101);
+        amount_in += rng.gen_range(100..range);
 
         ToBOrderBuilder::new()
             .signing_key(self.keys.get(rng.gen_range(0..10)).cloned())
@@ -106,7 +107,7 @@ impl OrderBuilder {
         let amount_out = u128::try_from(amount_out.abs()).unwrap();
 
         let exact_in = rng.gen_bool(0.5);
-        let modifier = rng.gen_range(0.099..=1.001);
+        let modifier = rng.gen_range(0.099..=1.010);
 
         let amount = if exact_in { amount_in } else { amount_out };
 

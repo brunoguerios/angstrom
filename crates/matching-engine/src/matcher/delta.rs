@@ -193,7 +193,6 @@ impl<'a> DeltaMatcher<'a> {
 
         // means we have extra demand we can add.
         if t0_sum > I256::ZERO && !is_ask {
-            tracing::info!("is bid is partial and t0_sum > 0");
             // if we are a bid, then we are adding t1 and subtracing t0.
             // if we are able to flip the exquality, this means we can possibly solve here
             let delta = t0_sum - I256::try_from(extra_t0).unwrap();
@@ -205,7 +204,6 @@ impl<'a> DeltaMatcher<'a> {
         // means we have extra supply we can add
         // we are getting errors here.
         } else if t0_sum < I256::ZERO && is_ask {
-            tracing::info!("is ask is partial and t0_sum < 0");
             // if we are a ask, then we are adding t0 and subtracing t1
             let delta = t0_sum + I256::try_from(extra_t0).unwrap();
 
@@ -217,7 +215,6 @@ impl<'a> DeltaMatcher<'a> {
             }
         }
 
-        tracing::info!(?t0_sum, ?t1_sum, ?price);
         if t0_sum < I256::ZERO {
             SupplyDemandResult::MoreDemand
         } else {
@@ -330,7 +327,6 @@ impl<'a> DeltaMatcher<'a> {
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let Some(price_and_partial_solution) = self.solve_clearing_price() else {
-            tracing::info!("no solve");
             return PoolSolution {
                 id: self.book.id(),
                 searcher,
@@ -368,7 +364,6 @@ impl<'a> DeltaMatcher<'a> {
         let ep = Ray::from(U256::from(1));
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
         let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
-        println!("min: {p_min:?} max: {p_max:?}");
 
         let two = U256::from(2);
         while (p_max - p_min) > ep {
@@ -384,8 +379,6 @@ impl<'a> DeltaMatcher<'a> {
                 }
                 SupplyDemandResult::MoreDemand => p_min = p_mid,
                 SupplyDemandResult::NaturallyEqual => {
-                    println!("solved based on sup, demand no partials");
-
                     return Some(UcpSolution {
                         ucp:           p_mid,
                         extra_t0_fill: None,
@@ -393,7 +386,6 @@ impl<'a> DeltaMatcher<'a> {
                     });
                 }
                 SupplyDemandResult::PartialFillEq { extra_fill_t0, id } => {
-                    println!("solved based on sup, demand with partial order");
                     return Some(UcpSolution {
                         ucp:           p_mid,
                         extra_t0_fill: Some(extra_fill_t0),
