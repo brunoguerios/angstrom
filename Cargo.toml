@@ -227,6 +227,7 @@ toml = "0"
 k256 = { version = "0", default-features = false }
 clap = "4"
 homedir = "0"
+ctrlc = "3"
 
 ### proc-macros
 proc-macro2 = "1"
