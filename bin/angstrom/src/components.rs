@@ -221,6 +221,8 @@ where
     .await;
     tracing::info!("found pools");
 
+    let _ = sub.recv().await.expect("first block");
+
     // re-fetch given the fetch pools takes awhile. given this, we do techincally
     // have a gap in which a pool is deployed durning startup. This isn't
     // critical but we will want to fix this down the road.
