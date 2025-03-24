@@ -9,7 +9,7 @@ use angstrom_types::primitive::{AngstromSigner, PeerId};
 use futures::FutureExt;
 use parking_lot::RwLock;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
-use reth_tasks::TaskSpawner;
+use reth_tasks::{TaskSpawner, TaskSpawnerExt};
 use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use tokio_util::sync::PollSender;
 
@@ -74,7 +74,10 @@ impl NetworkBuilder {
     /// builds the network spawning it on its own thread, returning the
     /// communication channel along with returning the protocol it
     /// represents.
-    pub fn build_handle<TP: TaskSpawner, DB: Send + Unpin + 'static>(
+    pub fn build_handle<
+        TP: TaskSpawner + TaskSpawnerExt + Clone + 'static,
+        DB: Send + Unpin + 'static
+    >(
         mut self,
         tp: TP,
         db: DB
@@ -91,7 +94,27 @@ impl NetworkBuilder {
         );
 
         let handle = network.get_handle();
-        tp.spawn_critical("strom network", network.boxed());
+
+        // Attach the shutdown handler *inside* the spawned critical task
+        let tp2 = tp.clone();
+        tp.spawn_critical(
+            "strom network",
+            async move {
+                // Register graceful shutdown handler for this task
+                tp2.spawn_critical_with_graceful_shutdown_signal(
+                    "strom network shutdown",
+                    |shutdown| async move {
+                        let guard = shutdown.await;
+                        tracing::info!("Strom network is shutting down gracefully.");
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                        drop(guard);
+                    }
+                );
+
+                network.await;
+            }
+            .boxed()
+        );
 
         handle
     }

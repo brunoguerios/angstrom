@@ -41,6 +41,19 @@ thread_local! {
     });
 }
 
+use std::sync::OnceLock;
+
+static GLOBAL_CALLBACK: OnceLock<Box<dyn Fn(i32) + Send + Sync>> = OnceLock::new();
+
+pub fn set_callback<F>(callback: F) -> Result<(), &'static str>
+where
+    F: Fn(i32) + Send + Sync + 'static
+{
+    GLOBAL_CALLBACK
+        .set(Box::new(callback))
+        .map_err(|_| "Callback already set")
+}
+
 #[allow(dead_code)]
 pub struct StromNetworkManager<DB> {
     handle: StromNetworkHandle,
