@@ -38,7 +38,6 @@ where
     Validator: OrderValidatorHandle
 {
     async fn send_order(&self, order: AllOrders) -> RpcResult<Result<(), OrderValidationError>> {
-        tracing::info!("Recieved new order: {order:?}");
         Ok(self.pool.new_order(OrderOrigin::External, order).await)
     }
 
