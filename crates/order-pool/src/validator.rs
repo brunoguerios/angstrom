@@ -70,18 +70,13 @@ where
         );
         let Self::RegularProcessing { validator, remaining_futures } = self else { unreachable!() };
 
-        let rem_futures = remaining_futures.into_iter().map(|fut| unsafe {
-            std::mem::transmute::<_, ValidationFuture>(Box::pin(fut)
-                as Pin<
-                    Box<dyn futures_util::Future<Output = OrderValidationResults> + Send + Sync>
-                >)
-        });
+        let rem_futures = std::mem::take(remaining_futures);
 
         tracing::info!("clearing for block");
         *self = Self::ClearingForNewBlock {
             validator: validator.clone(),
             waiting_for_new_block: VecDeque::default(),
-            remaining_futures: FuturesUnordered::from_iter(rem_futures),
+            remaining_futures: rem_futures,
             completed_orders,
             revalidation_addresses,
             block_number

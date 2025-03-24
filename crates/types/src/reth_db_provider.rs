@@ -166,7 +166,7 @@ where
             ProviderCall::ready(
                 provider
                     .account_code(&address)
-                    .map(|f| f.unwrap_or_default().bytecode().clone())
+                    .map(|f| f.unwrap_or_default().original_bytes())
                     .map_err(TransportErrorKind::custom)
             )
         })

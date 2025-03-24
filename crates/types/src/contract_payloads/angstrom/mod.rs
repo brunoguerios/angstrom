@@ -856,6 +856,7 @@ impl AngstromPoolConfigStore {
         tracing::debug!("storage slot of poolkey storage {:?}", value_bytes);
         let config_store_address =
             Address::from(<[u8; 20]>::try_from(&value_bytes[4..24]).unwrap());
+        tracing::info!(?config_store_address);
 
         let code = provider
             .get_code_at(config_store_address)
@@ -863,7 +864,7 @@ impl AngstromPoolConfigStore {
             .await
             .map_err(|e| format!("Error getting code: {}", e))?;
 
-        tracing::debug!("bytecode: {:x}", code);
+        tracing::info!(len=?code.len(), "bytecode: {:x}", code);
 
         AngstromPoolConfigStore::try_from(code.as_ref())
             .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
@@ -913,8 +914,10 @@ impl TryFrom<&[u8]> for AngstromPoolConfigStore {
         if value.first() != Some(&0) {
             return Err("Invalid encoded entries: must start with a safety byte of 0".to_string());
         }
+        tracing::info!(bytecode_len=?value.len());
         let adjusted_entries = &value[1..];
         if adjusted_entries.len() % POOL_CONFIG_STORE_ENTRY_SIZE != 0 {
+            tracing::info!(bytecode_len=?adjusted_entries.len(), ?POOL_CONFIG_STORE_ENTRY_SIZE);
             return Err(
                 "Invalid encoded entries: incorrect length after removing safety byte".to_string()
             );

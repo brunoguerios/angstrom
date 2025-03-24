@@ -35,6 +35,7 @@ use reth::{
     api::NodeAddOns,
     builder::FullNodeComponents,
     chainspec::ChainSpec,
+    core::exit::NodeExitFuture,
     primitives::EthPrimitives,
     providers::{BlockNumReader, CanonStateNotification, CanonStateSubscriptions},
     tasks::TaskExecutor
@@ -150,9 +151,11 @@ pub async fn initialize_strom_components<Node, AddOns>(
     signer: AngstromSigner,
     mut handles: StromHandles,
     network_builder: StromNetworkBuilder,
-    node: FullNode<Node, AddOns>,
-    executor: &TaskExecutor
-) where
+    node: &FullNode<Node, AddOns>,
+    executor: TaskExecutor,
+    exit: NodeExitFuture
+) -> eyre::Result<()>
+where
     Node: FullNodeComponents
         + FullNodeTypes<Types: NodeTypes<ChainSpec = ChainSpec, Primitives = EthPrimitives>>,
     Node::Provider: BlockReader<
@@ -173,11 +176,13 @@ pub async fn initialize_strom_components<Node, AddOns>(
     // no key is installed and this is strictly for internal usage. Realsically, we
     // should build a alloy provider impl that just uses the raw underlying db
     // so it will be quicker than rpc + won't be bounded by the rpc threadpool.
+    let url = node.rpc_server_handle().ipc_endpoint().unwrap();
+    tracing::info!(?url, ?config.mev_boost_endpoints, "backup to database is");
     let querying_provider: Arc<_> = ProviderBuilder::<_, _, Ethereum>::default()
         .with_recommended_fillers()
         .layer(RethDbLayer::new(node.provider().clone()))
         // backup
-        .connect(node.rpc_server_handle().ws_url().unwrap().as_str())
+        .connect(&url)
         .await
         .unwrap()
         .into();
@@ -241,6 +246,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
         ._0
         .into_iter()
         .collect::<HashSet<_>>();
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    tracing::info!(?node_set, "got node set");
 
     // Build our PoolManager using the PoolConfig and OrderStorage we've already
     // created
@@ -258,6 +265,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
         vec![handles.eth_handle_tx.take().unwrap()]
     )
     .unwrap();
+
     let network_stream = Box::pin(eth_handle.subscribe_network())
         as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
@@ -271,6 +279,9 @@ pub async fn initialize_strom_components<Node, AddOns>(
         network_stream
     )
     .await;
+
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    tracing::info!("uniswap manager start");
 
     let uniswap_pools = uniswap_pool_manager.pools();
     executor.spawn_critical("uniswap pool manager", Box::pin(uniswap_pool_manager));
@@ -301,6 +312,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
     );
 
     let validation_handle = ValidationClient(handles.validator_tx.clone());
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    tracing::info!("validation manager start");
 
     let network_handle = network_builder
         .with_pool_manager(handles.pool_tx)
@@ -334,6 +347,8 @@ pub async fn initialize_strom_components<Node, AddOns>(
         // use same weight for all validators
         .map(|addr| AngstromValidator::new(addr, 100))
         .collect::<Vec<_>>();
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    tracing::info!("pool manager start");
 
     // spinup matching engine
     let matching_handle = MatchingManager::spawn(executor.clone(), validation_handle.clone());
@@ -362,6 +377,7 @@ pub async fn initialize_strom_components<Node, AddOns>(
 
     global_block_sync.finalize_modules();
     tracing::info!("started angstrom");
+    exit.await
 }
 
 async fn handle_init_block_spam(
