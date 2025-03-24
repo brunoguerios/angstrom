@@ -19,6 +19,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use rand::{Rng, thread_rng};
+use reth_tasks::TaskExecutor;
 
 use super::WalletProvider;
 use crate::{
@@ -291,7 +292,10 @@ impl AnvilInitializer {
         Ok(())
     }
 
-    pub async fn initialize_state(&mut self) -> eyre::Result<InitialTestnetState> {
+    pub async fn initialize_state(
+        &mut self,
+        ex: TaskExecutor
+    ) -> eyre::Result<InitialTestnetState> {
         let (pool_keys, _) = self.pending_state.finalize_pending_txs().await?;
 
         let state_bytes = self.provider.provider_ref().anvil_dump_state().await?;
@@ -299,7 +303,8 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             Some(state_bytes),
-            pool_keys.clone()
+            pool_keys.clone(),
+            ex
         );
 
         tracing::info!("initalized angstrom pool state");
@@ -307,7 +312,10 @@ impl AnvilInitializer {
         Ok(state)
     }
 
-    pub async fn initialize_state_no_bytes(&mut self) -> eyre::Result<InitialTestnetState> {
+    pub async fn initialize_state_no_bytes(
+        &mut self,
+        ex: TaskExecutor
+    ) -> eyre::Result<InitialTestnetState> {
         let (pool_keys, tx_hash) = self.pending_state.finalize_pending_txs().await?;
         for hash in tx_hash {
             let transaction = self
@@ -327,7 +335,8 @@ impl AnvilInitializer {
             self.angstrom_env.angstrom(),
             self.angstrom_env.pool_manager(),
             None,
-            pool_keys.clone()
+            pool_keys.clone(),
+            ex
         );
         for key in pool_keys {
             let out = self
