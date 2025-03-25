@@ -217,45 +217,6 @@ impl PoolSnapshot {
 
         start_price < end_price
     }
-
-    /// Finds the next initialized tick **greater than** the given `tick` while
-    /// enforcing tick spacing.
-    ///
-    /// This **perfectly matches** the Solidity function:
-    /// `(initialized, rewardTick) = UNI_V4.getNextTickGt(pool.id, rewardTick,
-    /// pool.tickSpacing);`
-    ///
-    /// - If an initialized tick exists that is greater than `tick` and aligned
-    ///   to `tick_spacing`, it is returned.
-    /// - If no valid tick exists, returns `None`.
-    pub fn get_next_tick_gt(&self, tick: i32) -> Option<i32> {
-        // Find the next initialized tick that is a multiple of tick_spacing
-        self.ranges
-            .iter()
-            .map(|r| r.lower_tick)
-            .filter(|&t| t > tick && t % self.tick_spacing == 0) // Only ticks aligned with spacing
-            .min() // Get the closest **next initialized tick**
-    }
-
-    /// Finds the next initialized tick **less than** the given `tick` while
-    /// enforcing tick spacing.
-    ///
-    /// This **perfectly matches** the Solidity function:
-    /// `(initialized, rewardTick) = UNI_V4.getNextTickLt(pool.id, rewardTick,
-    /// pool.tickSpacing);`
-    ///
-    /// - If an initialized tick exists that is less than `tick` and aligned to
-    ///   `tick_spacing`, it is returned.
-    /// - If no valid tick exists, returns `None`.
-    pub fn get_next_tick_lt(&self, tick: i32) -> Option<i32> {
-        // Find the next initialized tick that is a multiple of tick_spacing
-        self.ranges
-            .iter()
-            .rev()
-            .map(|r| r.upper_tick)
-            .filter(|&t| t < tick && t % self.tick_spacing == 0) // Only ticks aligned with spacing
-            .max() // Get the closest **next initialized tick**
-    }
 }
 
 #[cfg(test)]
@@ -263,7 +224,6 @@ mod tests {
     use uniswap_v3_math::sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta};
 
     use super::*;
-    use crate::contract_payloads::tob::compute_reward_checksum;
 
     impl PoolSnapshot {
         fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
@@ -442,26 +402,5 @@ mod tests {
         let low_liq_delta = low_liq_pool.get_deltas(start_price, end_price).unwrap();
 
         assert!(high_liq_delta > low_liq_delta, "Higher liquidity should result in larger delta");
-    }
-
-    #[test]
-    fn liquidity_checksum() {
-        let ranges = (0..100)
-            .map(|i| {
-                let lower_tick = 10 * i;
-                let upper_tick = 10 * (i + 1);
-                let liquidity = 12345_u128;
-                LiqRange { lower_tick, upper_tick, liquidity }
-            })
-            .collect::<Vec<_>>();
-        let sqrt_price_x96 = SqrtPriceX96::at_tick(505).unwrap();
-        let pool = PoolSnapshot::new(10, ranges, sqrt_price_x96).unwrap();
-        let new_checksum = pool.checksum_from(200).unwrap();
-        let old_checksum = compute_reward_checksum(210, 12345, &pool, false, 31).unwrap();
-        assert_eq!(new_checksum, old_checksum, "Checksums not equal!");
-
-        let new_checksum_above = pool.checksum_from(600).unwrap();
-        let old_checksum_above = compute_reward_checksum(600, 12345, &pool, true, 11).unwrap();
-        assert_eq!(new_checksum_above, old_checksum_above, "Checksums not equal!");
     }
 }

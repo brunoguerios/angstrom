@@ -2,7 +2,7 @@ use std::cmp::{Ordering, min};
 
 use alloy_primitives::{I256, U256};
 use angstrom_types::{
-    contract_payloads::tob::generate_current_price_adjusted_for_donation,
+    contract_payloads::angstrom::TopOfBlockOrder as ContractTopOfBlockOrder,
     matching::{
         SqrtPriceX96, get_quantities_at_price,
         uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity}
@@ -65,16 +65,12 @@ impl<'a> DeltaMatcher<'a> {
 
         let amm_start_price = match tob {
             // If we have an order, apply that to the AMM start price
-            DeltaMatcherToB::Order(o) => {
-                if let Some(a) = book.amm() {
-                    let end = generate_current_price_adjusted_for_donation(&o, a)
-                        .expect("order structure should be valid here and never fail");
-
-                    Some(end)
-                } else {
-                    None
-                }
-            }
+            DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
+                ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot)
+                    .expect("Order structure should be valid and never fail")
+                    .0
+                    .end_bound
+            }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(q, is_bid) => book.amm().and_then(|f| {
                 PoolPriceVec::from_swap(f.current_price(), Direction::from_is_bid(!is_bid), q)

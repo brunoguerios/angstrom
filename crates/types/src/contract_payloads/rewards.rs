@@ -4,10 +4,7 @@ use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
 
 use super::{Asset, Pair};
-use crate::{
-    contract_payloads::tob::compute_reward_checksum,
-    matching::uniswap::{DonationResult, PoolPriceVec, PoolSnapshot}
-};
+use crate::matching::uniswap::{DonationResult, PoolPriceVec, PoolSnapshot};
 
 #[derive(Debug, PadeEncode, PadeDecode)]
 pub enum RewardsUpdate {
@@ -57,21 +54,12 @@ impl RewardsUpdate {
                 amount:             quantities.first().copied().unwrap_or_default(),
                 expected_liquidity: start_liquidity
             }),
-            len => {
-                let reward_checksum = compute_reward_checksum(
-                    start_tick,
-                    start_liquidity,
-                    snapshot,
-                    from_above,
-                    len
-                )?;
-                Ok(Self::MultiTick {
-                    start_tick: I24::try_from(start_tick).unwrap_or_default(),
-                    start_liquidity,
-                    quantities,
-                    reward_checksum
-                })
-            }
+            _ => Ok(Self::MultiTick {
+                start_tick: I24::try_from(start_tick).unwrap_or_default(),
+                start_liquidity,
+                quantities,
+                reward_checksum: snapshot.checksum_from_ticks(bound_tick, current_tick)?
+            })
         }
     }
 
