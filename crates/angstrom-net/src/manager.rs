@@ -73,7 +73,7 @@ pub struct StromNetworkManager<DB> {
 
 impl<DB: Unpin> StromNetworkManager<DB> {
     pub fn new(
-        mut swarm: Swarm<DB>,
+        swarm: Swarm<DB>,
         eth_handle: UnboundedReceiver<EthEvent>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
         to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
@@ -123,8 +123,22 @@ impl<DB: Unpin> StromNetworkManager<DB> {
         })
     }
 
-    pub fn save_known_peers(peers: &[CachedPeer]) {
-        CACHED_PEERS_TOML_PATH.with(|toml_path| match toml::to_string(peers) {
+    /// saves known peers at this point to the [`CACHED_PEERS_TOML_PATH`] file.
+    ///
+    /// This is only mutable because there is immutable version of
+    /// `swarm.sessions_mut`.
+    pub fn save_known_peers(&mut self) {
+        let peers = self
+            .swarm
+            .sessions_mut()
+            .active_sessions
+            .iter()
+            .map(|(_, session)| CachedPeer {
+                peer_id: session.remote_id,
+                addr:    session.socket_addr
+            })
+            .collect::<Vec<_>>();
+        CACHED_PEERS_TOML_PATH.with(|toml_path| match toml::to_string(&peers) {
             Ok(serialized) => {
                 if let Err(err) = std::fs::write(toml_path.as_path(), serialized) {
                     tracing::error!(
@@ -195,18 +209,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
                 self.swarm.sessions_mut().send_message(&peer_id, msg)
             }
             StromNetworkHandleMsg::Shutdown(tx) => {
-                let peers = self
-                    .swarm
-                    .sessions_mut()
-                    .active_sessions
-                    .iter()
-                    .map(|(_, session)| CachedPeer {
-                        peer_id: session.remote_id,
-                        addr:    session.socket_addr
-                    })
-                    .collect::<Vec<_>>();
-
-                Self::save_known_peers(&peers);
+                self.save_known_peers();
 
                 self.swarm
                     .sessions_mut()

@@ -83,7 +83,7 @@ impl NetworkBuilder {
         let sessions = StromSessionManager::new(self.session_manager_rx.take().unwrap());
         let swarm = Swarm::new(sessions, state);
 
-        let network = StromNetworkManager::new(
+        let mut network = StromNetworkManager::new(
             swarm,
             self.eth_handle,
             self.to_pool_manager,
@@ -94,11 +94,10 @@ impl NetworkBuilder {
 
         // Attach the shutdown handler *inside* the spawned critical task
         tp.spawn_critical_with_graceful_shutdown_signal("strom network", |shutdown| async move {
-            panic!("yo");
             network.await;
+            network.save_known_peers();
             let guard = shutdown.await;
             tracing::info!("Strom network is shutting down gracefully.");
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             drop(guard);
         });
 
