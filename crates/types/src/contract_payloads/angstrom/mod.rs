@@ -644,8 +644,7 @@ impl AngstromBundle {
                 quantity_in,
                 quantity_out
             );
-            // Account for the gas used by the order
-            asset_builder.add_gas_fee(AssetBuilderStage::UserOrder, t0, gas);
+
             let user_order = if let Some(g) = shared_gas {
                 UserOrder::from_internal_order(order, outcome, g, pair_idx as u16)?
             } else {
