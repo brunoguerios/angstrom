@@ -1,7 +1,7 @@
 use alloy::primitives::U256;
 use alloy_primitives::{FixedBytes, I256};
 use angstrom_types::{
-    matching::{Ray, get_quantities_at_price, uniswap::PoolSnapshot},
+    matching::{Ray, SqrtPriceX96, get_quantities_at_price, uniswap::PoolSnapshot},
     orders::{OrderFillState, OrderOutcome},
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
@@ -194,7 +194,11 @@ fn multiple_orders_fill() {
 #[test]
 fn fill_from_amm() {
     let amm = generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
-    let book = make_books(vec![], vec![TestOrder { q: 100, p: raw_price(100) }], Some(amm));
+    let book = make_books(
+        vec![],
+        vec![TestOrder { q: 100, p: Ray::from(SqrtPriceX96::at_tick(100010).unwrap()) }],
+        Some(amm)
+    );
     let mut matcher = VolumeFillMatcher::new(&book);
     let _ = matcher.run_match();
     let _solution = matcher.solution(None);
