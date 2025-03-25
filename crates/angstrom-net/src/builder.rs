@@ -95,7 +95,6 @@ impl NetworkBuilder {
         // Attach the shutdown handler *inside* the spawned critical task
         tp.spawn_critical_with_graceful_shutdown_signal("strom network", |shutdown| async move {
             network.await;
-            network.save_known_peers();
             let guard = shutdown.await;
             tracing::info!("Strom network is shutting down gracefully.");
             drop(guard);
