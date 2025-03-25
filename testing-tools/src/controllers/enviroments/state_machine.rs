@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use reth_chainspec::Hardforks;
+use reth_network::Peers;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
 
 use super::AngstromTestnet;
@@ -9,12 +10,12 @@ use crate::{
     types::{HookResult, StateMachineHook, config::DevnetConfig}
 };
 
-pub struct DevnetStateMachine<'a, C> {
-    pub(crate) testnet: AngstromTestnet<C, DevnetConfig, WalletProvider>,
-    pub(crate) hooks:   Vec<(&'static str, StateMachineHook<'a, C>)>
+pub struct DevnetStateMachine<'a, C, P: Peers + Unpin + 'static> {
+    pub(crate) testnet: AngstromTestnet<C, DevnetConfig, WalletProvider, P>,
+    pub(crate) hooks:   Vec<(&'static str, StateMachineHook<'a, C, P>)>
 }
 
-impl<'a, C> DevnetStateMachine<'a, C>
+impl<'a, C, P: Peers + Unpin + 'static> DevnetStateMachine<'a, C, P>
 where
     C: BlockReader
         + HeaderProvider
@@ -24,7 +25,7 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    pub(crate) fn new(testnet: AngstromTestnet<C, DevnetConfig, WalletProvider>) -> Self {
+    pub(crate) fn new(testnet: AngstromTestnet<C, DevnetConfig, WalletProvider, P>) -> Self {
         Self { testnet, hooks: Vec::new() }
     }
 
@@ -35,8 +36,8 @@ where
             Self::run_hook(
                 unsafe {
                     std::mem::transmute::<
-                        &mut AngstromTestnet<C, DevnetConfig, WalletProvider>,
-                        &mut AngstromTestnet<C, DevnetConfig, WalletProvider>
+                        &mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>,
+                        &mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>
                     >(&mut self.testnet)
                 },
                 i,
@@ -48,10 +49,10 @@ where
     }
 
     async fn run_hook(
-        testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>,
+        testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>,
         i: usize,
         name: &'static str,
-        hook: StateMachineHook<'a, C>
+        hook: StateMachineHook<'a, C, P>
     ) {
         match hook {
             StateMachineHook::Action(action) => action(testnet).await.fmt_result(i, name),
@@ -64,7 +65,7 @@ where
 
     pub(crate) fn add_check<F>(&mut self, check_name: &'static str, check: F)
     where
-        F: Fn(&mut AngstromTestnet<C, DevnetConfig, WalletProvider>) -> eyre::Result<bool>
+        F: Fn(&mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>) -> eyre::Result<bool>
             + 'static
     {
         self.hooks
@@ -74,7 +75,7 @@ where
     pub(crate) fn add_action<F>(&mut self, action_name: &'static str, action: F)
     where
         F: FnOnce(
-                &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
+                &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>
             ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
             + 'static
     {
@@ -88,7 +89,7 @@ where
         checked_action: F
     ) where
         F: FnOnce(
-                &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
+                &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>
             )
                 -> Pin<Box<dyn Future<Output = eyre::Result<bool>> + Send + Sync + 'a>>
             + 'static

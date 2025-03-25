@@ -12,7 +12,10 @@ pub use eth_peer::*;
 use parking_lot::RwLock;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
-use reth_network::test_utils::{Peer, PeerConfig};
+use reth_network::{
+    Peers,
+    test_utils::{Peer, PeerConfig}
+};
 use reth_network_api::PeerId;
 use reth_network_peers::pk2id;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider};
@@ -37,12 +40,12 @@ pub struct TestnetNodeNetwork {
 }
 
 impl TestnetNodeNetwork {
-    pub async fn new<C, G>(
+    pub async fn new<C, G, P: Peers + Unpin + 'static>(
         c: C,
         node_config: &TestingNodeConfig<G>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
         to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
-    ) -> (Self, Peer<C>, StromNetworkManager<C>)
+    ) -> (Self, Peer<C>, StromNetworkManager<C, P>)
     where
         C: BlockReader
             + HeaderProvider

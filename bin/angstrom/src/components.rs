@@ -59,7 +59,7 @@ use validation::{
 
 use crate::{AngstromConfig, cli::NodeConfig};
 
-pub fn init_network_builder<P: Peers>(
+pub fn init_network_builder<P: Peers + Unpin + 'static>(
     secret_key: AngstromSigner,
     eth_handle: UnboundedReceiver<EthEvent>,
     reth_handle: P
@@ -148,7 +148,7 @@ pub fn initialize_strom_handles() -> StromHandles {
     }
 }
 
-pub async fn initialize_strom_components<Node, AddOns, P: Peers>(
+pub async fn initialize_strom_components<Node, AddOns, P: Peers + Unpin + 'static>(
     config: AngstromConfig,
     signer: AngstromSigner,
     mut handles: StromHandles,

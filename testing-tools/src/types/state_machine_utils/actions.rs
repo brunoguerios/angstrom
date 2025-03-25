@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use reth_chainspec::Hardforks;
+use reth_network::Peers;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 
 use crate::{
@@ -24,7 +25,7 @@ where
     fn advance_block(&mut self);
 }
 
-impl<'a, C> WithAction<'a, C> for DevnetStateMachine<'a, C>
+impl<'a, C, P: Peers + Unpin + 'static> WithAction<'a, C> for DevnetStateMachine<'a, C, P>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>
@@ -34,10 +35,10 @@ where
         + Clone
         + 'static
 {
-    type FunctionOutput = StateMachineActionHookFn<'a, C>;
+    type FunctionOutput = StateMachineActionHookFn<'a, C, P>;
 
     fn advance_block(&mut self) {
-        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>| {
             pin_action(testnet.all_peers_update_state(0))
         };
         self.add_action("advance block", f);

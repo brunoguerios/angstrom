@@ -1,29 +1,31 @@
 use std::{future::Future, pin::Pin};
 
+use reth_network::Peers;
+
 use super::config::DevnetConfig;
 use crate::{controllers::enviroments::AngstromTestnet, providers::WalletProvider};
 
-pub enum StateMachineHook<'a, C> {
-    Action(StateMachineActionHookFn<'a, C>),
-    Check(StateMachineCheckHookFn<C>),
-    CheckedAction(StateMachineCheckedActionHookFn<'a, C>)
+pub enum StateMachineHook<'a, C, P: Peers + Unpin + 'static> {
+    Action(StateMachineActionHookFn<'a, C, P>),
+    Check(StateMachineCheckHookFn<C, P>),
+    CheckedAction(StateMachineCheckedActionHookFn<'a, C, P>)
 }
 
 /// execute an action on the testnet
-pub type StateMachineActionHookFn<'a, C> = Box<
+pub type StateMachineActionHookFn<'a, C, P: Peers + Unpin + 'static> = Box<
     dyn FnOnce(
-        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
+        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>
     ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
 >;
 
 /// check something on the testnet
-pub type StateMachineCheckHookFn<C> =
-    Box<dyn FnOnce(&mut AngstromTestnet<C, DevnetConfig, WalletProvider>) -> eyre::Result<bool>>;
+pub type StateMachineCheckHookFn<C, P: Peers + Unpin + 'static> =
+    Box<dyn FnOnce(&mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>) -> eyre::Result<bool>>;
 
 /// execute an action and check something on the testnet
-pub type StateMachineCheckedActionHookFn<'a, C> = Box<
+pub type StateMachineCheckedActionHookFn<'a, C, P: Peers + Unpin + 'static> = Box<
     dyn FnOnce(
-        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>
+        &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>
     ) -> Pin<Box<dyn Future<Output = eyre::Result<bool>> + Send + Sync + 'a>>
 >;
 

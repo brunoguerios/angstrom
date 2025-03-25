@@ -16,7 +16,7 @@ use futures::FutureExt;
 use matching_engine::manager::MatcherHandle;
 use parking_lot::Mutex;
 use reth_chainspec::Hardforks;
-use reth_network::test_utils::Peer;
+use reth_network::{Peers, test_utils::Peer};
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use tokio::task::JoinHandle;
 use tracing::{Level, span};
@@ -26,14 +26,14 @@ use crate::{
     validation::TestOrderValidator
 };
 
-pub(crate) struct TestnetStateFutureLock<C, T> {
+pub(crate) struct TestnetStateFutureLock<C, T, P: Peers + Unpin + 'static> {
     eth_peer:              StateLockInner<Peer<C>>,
-    strom_network_manager: StateLockInner<StromNetworkManager<C>>,
+    strom_network_manager: StateLockInner<StromNetworkManager<C, P>>,
     strom_consensus:       StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>,
     validation:            StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>
 }
 
-impl<C, T> TestnetStateFutureLock<C, T>
+impl<C, T, P> TestnetStateFutureLock<C, T, P>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>
@@ -41,12 +41,13 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + Unpin
         + 'static,
-    T: Provider + 'static
+    T: Provider + 'static,
+    P: Peers + Unpin + 'static
 {
     pub(crate) fn new(
         node_id: u64,
         eth_peer: Peer<C>,
-        strom_network_manager: StromNetworkManager<C>,
+        strom_network_manager: StromNetworkManager<C, P>,
         consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync>,
         validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>
     ) -> Self {
@@ -60,14 +61,14 @@ where
 
     pub(crate) fn strom_network_manager<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&StromNetworkManager<C>) -> R
+        F: FnOnce(&StromNetworkManager<C, P>) -> R
     {
         self.strom_network_manager.on_inner(f)
     }
 
     pub(crate) fn strom_network_manager_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut StromNetworkManager<C>) -> R
+        F: FnOnce(&mut StromNetworkManager<C, P>) -> R
     {
         self.strom_network_manager.on_inner_mut(f)
     }
@@ -147,7 +148,7 @@ where
     }
 }
 
-impl<C, T> Future for TestnetStateFutureLock<C, T>
+impl<C, T, P: Peers + Unpin + 'static> Future for TestnetStateFutureLock<C, T, P>
 where
     C: BlockReader
         + HeaderProvider

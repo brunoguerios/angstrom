@@ -31,7 +31,7 @@ pub struct NetworkBuilder<P: Peers + Unpin> {
     verification:  VerificationSidecar
 }
 
-impl<P: Peers + Unpin> NetworkBuilder<P> {
+impl<P: Peers + Unpin + 'static> NetworkBuilder<P> {
     pub fn new(
         verification: VerificationSidecar,
         eth_handle: UnboundedReceiver<EthEvent>,

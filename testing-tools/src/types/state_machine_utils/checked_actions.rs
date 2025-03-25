@@ -8,6 +8,7 @@ use angstrom_types::{
     sol_bindings::grouped_orders::AllOrders
 };
 use reth_chainspec::Hardforks;
+use reth_network::Peers;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 
 use crate::{
@@ -35,7 +36,7 @@ where
     fn send_prepropose(&mut self, preproposal: PreProposal);
 }
 
-impl<'a, C> WithCheckedAction<'a, C> for DevnetStateMachine<'a, C>
+impl<'a, C, P: Peers + Unpin + 'static> WithCheckedAction<'a, C> for DevnetStateMachine<'a, C, P>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>
@@ -45,10 +46,10 @@ where
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static
 {
-    type FunctionOutput = StateMachineCheckedActionHookFn<'a, C>;
+    type FunctionOutput = StateMachineCheckedActionHookFn<'a, C, P>;
 
     fn send_pooled_orders(&mut self, orders: Vec<AllOrders>) {
-        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>| {
             pin_action(testnet.broadcast_orders_message(
                 None,
                 StromMessage::PropagatePooledOrders(orders.clone()),
@@ -59,7 +60,7 @@ where
     }
 
     fn send_propose(&mut self, proposal: Proposal) {
-        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>| {
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::Propose(proposal.clone()),
@@ -73,7 +74,7 @@ where
     }
 
     fn send_prepropose(&mut self, preproposal: PreProposal) {
-        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+        let f = |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>| {
             pin_action(testnet.broadcast_consensus_message(
                 Some(0),
                 StromMessage::PrePropose(preproposal.clone()),
