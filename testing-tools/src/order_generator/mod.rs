@@ -10,7 +10,7 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 mod order_builder;
 mod pool_order_generator;
-use pool_order_generator::PoolOrderGenerator;
+pub use pool_order_generator::PoolOrderGenerator;
 
 pub struct OrderGenerator {
     pools:             Vec<PoolOrderGenerator>,
