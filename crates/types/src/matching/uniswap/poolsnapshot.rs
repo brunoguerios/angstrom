@@ -1,5 +1,6 @@
 use std::{fmt::Debug, slice::Iter};
 
+use alloy_primitives::{U160, U256, aliases::I24, utils::keccak256};
 use eyre::{Context, OptionExt, eyre};
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
@@ -112,14 +113,16 @@ impl PoolSnapshot {
     }
 
     /// Returns a list of references to all liquidity ranges including and
-    /// between the given Ticks.  These ranges will be continuous in order.
+    /// between the given Ticks.  These ranges will be continuous in order, and
+    /// in the order specified from the range for start_tick to the range for
+    /// end_tick
     pub fn ranges_for_ticks(
         &self,
         start_tick: Tick,
         end_tick: Tick
     ) -> eyre::Result<Vec<LiqRangeRef>> {
         let (low, high) = low_to_high(&start_tick, &end_tick);
-        let output = self
+        let mut output = self
             .ranges
             .iter()
             .enumerate()
@@ -130,8 +133,48 @@ impl PoolSnapshot {
                     None
                 }
             })
-            .collect();
+            .collect::<Vec<_>>();
+
+        // If we're going high to low, reverse our solution
+        if start_tick > end_tick {
+            output.reverse();
+        }
+
         Ok(output)
+    }
+
+    /// Returns a vec of LiqRangeRef describing the liquidity ranges from the
+    /// given start tick to the snapshot's current tick.  The ranges returned
+    /// will be ordered so that they start at the range associated with the
+    /// start tick and end at the range of the snapshot's current tick
+    pub fn ranges_from_tick(&self, start_tick: i32) -> eyre::Result<Vec<LiqRangeRef>> {
+        self.ranges_for_ticks(start_tick, self.current_tick)
+    }
+
+    pub fn checksum_from_ticks(&self, start_tick: Tick, end_tick: Tick) -> eyre::Result<U160> {
+        let from_above = start_tick > end_tick;
+        let ticks = self
+            .ranges_for_ticks(start_tick, end_tick)?
+            .iter()
+            .map(|r| {
+                let target_tick = if from_above { r.lower_tick } else { r.upper_tick };
+                (target_tick, r.liquidity)
+            })
+            .collect::<Vec<_>>();
+        let checksum_bytes = ticks
+            .iter()
+            // The last element of `ticks` is our current liq range, which should be excluded
+            .take(ticks.len() - 1)
+            .fold([0u8; 32], |acc, (tick, liquidity)| {
+                let tick_bytes: [u8; 3] = I24::unchecked_from(*tick).to_be_bytes();
+                let hash_input = [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
+                *keccak256(&hash_input)
+            });
+        Ok(U160::from(U256::from_be_bytes(checksum_bytes) >> 96))
+    }
+
+    pub fn checksum_from(&self, bound_tick: Tick) -> eyre::Result<U160> {
+        self.checksum_from_ticks(bound_tick, self.current_tick)
     }
 
     /// Return a read-only iterator over the liquidity ranges in this snapshot
@@ -220,6 +263,7 @@ mod tests {
     use uniswap_v3_math::sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta};
 
     use super::*;
+    use crate::contract_payloads::tob::compute_reward_checksum;
 
     impl PoolSnapshot {
         fn get_deltas(&self, start_price: SqrtPriceX96, end_price: SqrtPriceX96) -> Option<u128> {
@@ -398,5 +442,26 @@ mod tests {
         let low_liq_delta = low_liq_pool.get_deltas(start_price, end_price).unwrap();
 
         assert!(high_liq_delta > low_liq_delta, "Higher liquidity should result in larger delta");
+    }
+
+    #[test]
+    fn liquidity_checksum() {
+        let ranges = (0..100)
+            .map(|i| {
+                let lower_tick = 10 * i;
+                let upper_tick = 10 * (i + 1);
+                let liquidity = 12345_u128;
+                LiqRange { lower_tick, upper_tick, liquidity }
+            })
+            .collect::<Vec<_>>();
+        let sqrt_price_x96 = SqrtPriceX96::at_tick(505).unwrap();
+        let pool = PoolSnapshot::new(10, ranges, sqrt_price_x96).unwrap();
+        let new_checksum = pool.checksum_from(200).unwrap();
+        let old_checksum = compute_reward_checksum(210, 12345, &pool, false, 31).unwrap();
+        assert_eq!(new_checksum, old_checksum, "Checksums not equal!");
+
+        let new_checksum_above = pool.checksum_from(600).unwrap();
+        let old_checksum_above = compute_reward_checksum(600, 12345, &pool, true, 11).unwrap();
+        assert_eq!(new_checksum_above, old_checksum_above, "Checksums not equal!");
     }
 }
