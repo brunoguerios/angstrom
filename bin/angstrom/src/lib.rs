@@ -63,7 +63,7 @@ pub fn run() -> eyre::Result<()> {
         let mut network = init_network_builder(
             secret_key.clone(),
             channels.eth_handle_rx.take().unwrap(),
-            node.network
+            node.network.clone()
         )?;
 
         let protocol_handle = network.build_protocol_handler();

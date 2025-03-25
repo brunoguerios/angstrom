@@ -148,7 +148,7 @@ pub fn initialize_strom_handles() -> StromHandles {
     }
 }
 
-pub async fn initialize_strom_components<Node, AddOns, P: Peers + Default>(
+pub async fn initialize_strom_components<Node, AddOns, P: Peers>(
     config: AngstromConfig,
     signer: AngstromSigner,
     mut handles: StromHandles,
