@@ -59,9 +59,10 @@ use validation::{
 
 use crate::{AngstromConfig, cli::NodeConfig};
 
-pub fn init_network_builder<P: Default + Peers>(
+pub fn init_network_builder<P: Peers>(
     secret_key: AngstromSigner,
-    eth_handle: UnboundedReceiver<EthEvent>
+    eth_handle: UnboundedReceiver<EthEvent>,
+    reth_handle: P
 ) -> eyre::Result<StromNetworkBuilder<P>> {
     let public_key = secret_key.id();
 
@@ -75,7 +76,7 @@ pub fn init_network_builder<P: Default + Peers>(
     let verification =
         VerificationSidecar { status: state, has_sent: false, has_received: false, secret_key };
 
-    Ok(StromNetworkBuilder::<P>::new(verification, eth_handle))
+    Ok(StromNetworkBuilder::new(verification, eth_handle, reth_handle))
 }
 
 pub type DefaultPoolHandle = PoolHandle;

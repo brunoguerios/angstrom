@@ -43,8 +43,11 @@ pub fn run() -> eyre::Result<()> {
         let secret_key = get_secret_key(&args.secret_key_location)?;
 
         let mut channels = initialize_strom_handles();
-        let mut network =
-            init_network_builder(secret_key.clone(), channels.eth_handle_rx.take().unwrap())?;
+        let mut network = init_network_builder(
+            secret_key.clone(),
+            channels.eth_handle_rx.take().unwrap(),
+            todo!()
+        )?;
         let protocol_handle = network.build_protocol_handler();
 
         // for rpc
