@@ -1,4 +1,3 @@
-
 // Basically only tests in here now
 
 // pub fn calculate_reward(
