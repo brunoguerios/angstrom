@@ -89,7 +89,7 @@ reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 
 
-revm-bytecode.workspace= true
+revm-bytecode.workspace = true
 revm-database.workspace = true
 revm-state.workspace = true
 revm-primitives.workspace = true
@@ -106,7 +106,7 @@ tracing-subscriber.workspace = true
 
 # features
 [features]
-default = ["testnet"]
+default = []
 reth-db-dep-tests = []
 testnet = ["angstrom-types/testnet"]
 testnet-sepolia = ["angstrom-types/testnet-sepolia"]

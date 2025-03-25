@@ -10,10 +10,10 @@ exclude.workspace = true
 
 
 [dependencies]
-serde.workspace =true
-dashmap.workspace =true
+serde.workspace = true
+dashmap.workspace = true
 angstrom-types.workspace = true
-angstrom-eth.workspace=true
+angstrom-eth.workspace = true
 angstrom-utils.workspace = true
 alloy.workspace = true
 alloy-primitives.workspace = true
@@ -53,3 +53,7 @@ tokio-stream.workspace = true
 [build-dependencies]
 convert_case.workspace = true
 itertools.workspace = true
+
+[features]
+default = []
+testnet-sepolia = ["angstrom-types/testnet-sepolia"]

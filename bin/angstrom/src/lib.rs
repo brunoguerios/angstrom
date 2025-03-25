@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use alloy::signers::local::PrivateKeySigner;
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_rpc::{OrderApi, api::OrderApiServer};
-use angstrom_types::primitive::AngstromSigner;
+use angstrom_types::primitive::{ANGSTROM_DOMAIN, AngstromSigner};
 use clap::Parser;
 use cli::AngstromConfig;
 use reth::{
@@ -39,6 +39,8 @@ pub fn run() -> eyre::Result<()> {
         } else {
             METRICS_ENABLED.set(false).unwrap();
         }
+
+        tracing::info!(domain=?ANGSTROM_DOMAIN);
 
         let secret_key = get_secret_key(&args.secret_key_location)?;
 

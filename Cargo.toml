@@ -59,7 +59,7 @@ incremental = false
 
 [workspace.dependencies]
 consensus = { path = "./crates/consensus/" }
-angstrom-types = { path = "./crates/types/" }
+angstrom-types = { path = "./crates/types/", default-features = false }
 uniswap-v4 = { path = "./crates/uniswap-v4/" }
 angstrom-utils = { path = "./crates/utils/" }
 validation = { path = "./crates/validation/" }
