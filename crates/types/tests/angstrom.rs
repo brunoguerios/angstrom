@@ -81,8 +81,7 @@ fn build_bundle() {
             t0,
             t1,
             store_index,
-            shared_gas,
-            Some(solution.reward_t0)
+            shared_gas
         )
         .expect("Bundle processing failed");
 
