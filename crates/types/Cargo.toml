@@ -62,7 +62,7 @@ testing-tools.workspace = true
 angstrom-types.workspace = true
 
 [features]
-default = ["testnet"]
+default = []
 testnet = ["dep:rand"]
 testnet-sepolia = ["dep:rand"]
 anvil = []
