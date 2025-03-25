@@ -13,9 +13,7 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use criterion::{
-    BenchmarkId, Criterion, PlotConfiguration, black_box, criterion_group, criterion_main
-};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use matching_engine::{
     book::{BookOrder, OrderBook, sort::SortStrategy},
     strategy::BinarySearchStrategy
