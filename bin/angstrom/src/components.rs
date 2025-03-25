@@ -41,6 +41,7 @@ use reth::{
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
+use reth_network::Peers;
 use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAddOns};
 use reth_provider::{
     BlockReader, DatabaseProviderFactory, ReceiptProvider, TryIntoHistoricalStateProvider
@@ -61,7 +62,7 @@ use crate::{AngstromConfig, cli::NodeConfig};
 pub fn init_network_builder(
     secret_key: AngstromSigner,
     eth_handle: UnboundedReceiver<EthEvent>
-) -> eyre::Result<StromNetworkBuilder> {
+) -> eyre::Result<StromNetworkBuilder<impl Peers + Default>> {
     let public_key = secret_key.id();
 
     let state = StatusState {
@@ -146,11 +147,11 @@ pub fn initialize_strom_handles() -> StromHandles {
     }
 }
 
-pub async fn initialize_strom_components<Node, AddOns>(
+pub async fn initialize_strom_components<Node, AddOns, P: Peers + Default>(
     config: AngstromConfig,
     signer: AngstromSigner,
     mut handles: StromHandles,
-    network_builder: StromNetworkBuilder,
+    network_builder: StromNetworkBuilder<P>,
     node: &FullNode<Node, AddOns>,
     executor: TaskExecutor,
     exit: NodeExitFuture
