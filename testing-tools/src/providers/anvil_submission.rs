@@ -25,7 +25,7 @@ impl SubmitTx for AnvilSubmissionProvider {
             // decoded encoded payload, then apply all mock approvals + balances for the
             // given token
 
-            #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+            #[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
             {
                 use alloy::providers::ext::AnvilApi;
                 use alloy_sol_types::SolCall;

@@ -50,3 +50,4 @@ rand = "0"
 [features]
 default = ["client"]
 client = []
+testnet_sepolia = ["angstrom-types/testnet_sepolia"]

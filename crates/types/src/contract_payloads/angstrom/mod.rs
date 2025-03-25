@@ -24,7 +24,7 @@ use super::{
     rewards::PoolUpdate,
     tob::ToBOutcome
 };
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+#[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
 use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
@@ -62,7 +62,7 @@ impl AngstromBundle {
         &self.pairs
     }
 
-    #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+    #[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();

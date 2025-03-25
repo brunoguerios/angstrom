@@ -35,7 +35,7 @@ reth-provider.workspace = true
 
 # Angstrom components
 angstrom-rpc.workspace = true
-angstrom-types = { workspace = true }
+angstrom-types.workspace = true
 angstrom-eth.workspace = true
 angstrom-metrics.workspace = true
 order-pool.workspace = true
@@ -68,9 +68,16 @@ tikv-jemallocator = { version = "0.6.0", optional = true }
 default = ["jemalloc"]
 jemalloc = ["dep:tikv-jemallocator"]
 jemalloc-prof = ["jemalloc", "tikv-jemallocator?/profiling"]
-testnet-sepolia = ["angstrom-types/testnet-sepolia"]
+testnet_sepolia = [
+  "angstrom-types/testnet_sepolia",
+  "angstrom-rpc/testnet_sepolia",
+  "angstrom-eth/testnet_sepolia",
+  "validation/testnet_sepolia",
+  "consensus/testnet_sepolia",
+  "uniswap-v4/testnet_sepolia",
+]
 
 
-[[bin]]
-name = "angstrom"
-path = "src/main.rs"
+# [[bin]]
+# name = "angstrom"
+# path = "src/main.rs"

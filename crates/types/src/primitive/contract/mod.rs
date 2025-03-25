@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{aliases::U24, Address},
+    primitives::{Address, aliases::U24},
     sol,
     sol_types::eip712_domain
 };
@@ -19,15 +19,15 @@ pub use ERC20::*;
 use crate::primitive::PoolId;
 
 // internal anvil testnet
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+#[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
 pub const TESTNET_ANGSTROM_ADDRESS: Address =
     alloy::primitives::address!("293954613283cC7B82BfE9676D3cc0fb0A58fAa0");
 
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+#[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
 pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
     alloy::primitives::address!("48bC5A530873DcF0b890aD50120e7ee5283E0112");
 
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+#[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
     version: "v1",
@@ -36,15 +36,15 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
 );
 
 // sepolia testnet
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
+#[cfg(all(not(feature = "testnet"), feature = "testnet_sepolia"))]
 pub const TESTNET_ANGSTROM_ADDRESS: Address =
     alloy::primitives::address!("9D0ce8B3DF426008c4a4E74E7845B1bffF346a90");
 
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
+#[cfg(all(not(feature = "testnet"), feature = "testnet_sepolia"))]
 pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
     alloy::primitives::address!("E03A1074c86CFeDd5C142C4F04F1a1536e203543");
 
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
+#[cfg(all(not(feature = "testnet"), feature = "testnet_sepolia"))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
     version: "v1",
@@ -53,17 +53,17 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
 );
 
 // odd cases that we need to handle but should be unreachable.
-#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
+#[cfg(all(feature = "testnet", feature = "testnet_sepolia"))]
 pub const TESTNET_ANGSTROM_ADDRESS: Address =
     alloy::primitives::address!("293954613283cC7B82BfE9676D3cc0fb0A58fAa0");
 
-#[cfg(all(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
+#[cfg(all(not(feature = "testnet"), not(feature = "testnet_sepolia")))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
     version: "v1",
     chain_id: 1,
 );
-#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
+#[cfg(all(feature = "testnet", feature = "testnet_sepolia"))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
     version: "v1",
@@ -71,7 +71,7 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     verifying_contract: TESTNET_ANGSTROM_ADDRESS,
 
 );
-#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
+#[cfg(all(feature = "testnet", feature = "testnet_sepolia"))]
 pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
     alloy::primitives::address!("48bC5A530873DcF0b890aD50120e7ee5283E0112");
 
