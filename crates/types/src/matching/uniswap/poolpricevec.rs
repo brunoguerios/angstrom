@@ -212,6 +212,24 @@ impl<'a> PoolPriceVec<'a> {
         if self.zero_for_one() { self.d_t1 } else { self.d_t0 }
     }
 
+    /// Returns the amount of T0 exchanged over this swap with a sign attached,
+    /// negative if performing this swap consumes T0 (T0 is the input quantity
+    /// for the described swap) and positive if performing this swap provides T0
+    /// (T0 is the output quantity for the described swap)
+    pub fn t0_signed(&self) -> I256 {
+        let val = I256::unchecked_from(self.d_t0);
+        if self.zero_for_one() { val.neg() } else { val }
+    }
+
+    /// Returns the amount of T1 exchanged over this swap with a sign attached,
+    /// negative if performing this swap consumes T1 (T1 is the input quantity
+    /// for the described swap) and positive if performing this swap provides T1
+    /// (T1 is the output quantity for the described swap)
+    pub fn t1_signed(&self) -> I256 {
+        let val = I256::unchecked_from(self.d_t1);
+        if self.zero_for_one() { val } else { val.neg() }
+    }
+
     /// Returns a boolean indicating whether this PoolPriceVec is
     /// `zero_for_one`.  This will be true if the AMM is buying T0 and the AMM
     /// price is decreasing, false if the AMM is selling T0 and the AMM price is
