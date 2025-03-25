@@ -64,5 +64,5 @@ angstrom-types.workspace = true
 [features]
 default = []
 testnet = ["dep:rand"]
-testnet_sepolia = ["dep:rand"]
+testnet-sepolia = ["dep:rand"]
 anvil = []

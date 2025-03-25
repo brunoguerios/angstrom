@@ -42,4 +42,4 @@ rand.workspace = true
 
 
 [features]
-testnet_sepolia = ["angstrom-types/testnet_sepolia"]
+testnet-sepolia = ["angstrom-types/testnet-sepolia"]

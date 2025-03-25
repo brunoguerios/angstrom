@@ -86,8 +86,8 @@ create3 = { git = "https://github.com/AmanRaj1608/create3" }
 [features]
 default = []
 testnet = ["angstrom-types/testnet", "validation/testnet"]
-testnet_sepolia = [
-    "angstrom-types/testnet_sepolia",
-    "validation/testnet_sepolia",
+testnet-sepolia = [
+    "angstrom-types/testnet-sepolia",
+    "validation/testnet-sepolia",
 ]
 reth-db-dep-tests = ["testnet"]

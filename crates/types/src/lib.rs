@@ -18,13 +18,13 @@ pub mod testnet;
 
 // the 2nd cfg condition is for the GH CI
 #[cfg(any(
-    all(not(feature = "testnet"), not(feature = "testnet_sepolia")),
-    all(feature = "testnet", feature = "testnet_sepolia")
+    all(not(feature = "testnet"), not(feature = "testnet-sepolia")),
+    all(feature = "testnet", feature = "testnet-sepolia")
 ))]
 pub const CHAIN_ID: u64 = 1;
 
-#[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
 pub const CHAIN_ID: u64 = 31337;
 
-#[cfg(all(feature = "testnet_sepolia", not(feature = "testnet")))]
+#[cfg(all(feature = "testnet-sepolia", not(feature = "testnet")))]
 pub const CHAIN_ID: u64 = 11155111;

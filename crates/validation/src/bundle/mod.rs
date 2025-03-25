@@ -1,6 +1,6 @@
 use std::{fmt::Debug, pin::Pin, sync::Arc};
 
-#[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
+#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
 use alloy::primitives::U256;
 use alloy::{primitives::Address, sol_types::SolCall};
 use angstrom_metrics::validation::ValidationMetrics;
@@ -41,7 +41,7 @@ where
         Self { db: CacheDB::new(db), angstrom_address, node_address }
     }
 
-    #[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
+    #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
     fn apply_slot_overrides_for_token(
         db: &mut CacheDB<Arc<DB>>,
         token: Address,
@@ -97,7 +97,7 @@ where
 
         thread_pool.spawn_raw(Box::pin(async move {
 
-            #[cfg(all(feature = "testnet", not(feature = "testnet_sepolia")))]
+            #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
             {
                 use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
 

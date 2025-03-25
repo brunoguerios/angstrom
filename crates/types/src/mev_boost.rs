@@ -43,7 +43,7 @@ impl SubmitTx for RootProvider {
 
 /// On sepolia, there is a low frequency of mev-boost. This is
 /// so that hopefully we can have bundles land frequently
-const SEND_NORMAL: bool = cfg!(feature = "testnet_sepolia");
+const SEND_NORMAL: bool = cfg!(feature = "testnet-sepolia");
 
 pub struct MevBoostProvider<P> {
     mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>,
