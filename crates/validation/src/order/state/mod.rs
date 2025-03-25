@@ -154,12 +154,12 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 })
                 .expect("should be unreachable");
             let pool_address = tob_orders.pool_id;
-            if let Ok(rewards) = self
+            if let Ok(total_reward) = self
                 .uniswap_pools
                 .calculate_rewards(pool_address, &tob_orders)
                 .await
             {
-                tob_order.tob_reward = U256::from(rewards.total_reward);
+                tob_order.tob_reward = U256::from(total_reward);
             } else {
                 invalidate = true;
             }
