@@ -63,7 +63,7 @@ pub fn init_network_builder<P: Peers>(
     secret_key: AngstromSigner,
     eth_handle: UnboundedReceiver<EthEvent>,
     reth_handle: P
-) -> eyre::Result<StromNetworkBuilder> {
+) -> eyre::Result<StromNetworkBuilder<P>> {
     let public_key = secret_key.id();
 
     let state = StatusState {
@@ -168,8 +168,7 @@ where
     AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
     <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider:
         TryIntoHistoricalStateProvider + ReceiptProvider,
-    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader,
-    <Node as FullNodeTypes>::Network: Peers
+    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader
 {
     let node_config = NodeConfig::load_from_config(Some(config.node_config)).unwrap();
 

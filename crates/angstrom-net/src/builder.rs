@@ -20,7 +20,7 @@ use crate::{
     manager::StromConsensusEvent, state::StromState, types::status::StatusState
 };
 
-pub struct NetworkBuilder<P: Peers + Default> {
+pub struct NetworkBuilder<P: Peers> {
     to_pool_manager:      Option<UnboundedMeteredSender<NetworkOrderEvent>>,
     to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
     session_manager_rx:   Option<Receiver<StromSessionMessage>>,
@@ -31,7 +31,7 @@ pub struct NetworkBuilder<P: Peers + Default> {
     verification:  VerificationSidecar
 }
 
-impl NetworkBuilder {
+impl<P: Peers> NetworkBuilder<P> {
     pub fn new(
         verification: VerificationSidecar,
         eth_handle: UnboundedReceiver<EthEvent>,
@@ -44,8 +44,7 @@ impl NetworkBuilder {
             to_consensus_manager: None,
             session_manager_rx: None,
             eth_handle,
-            validator_set: Default::default(),
-            reth_handle: Default::default()
+            validator_set: Default::default()
         }
     }
 
