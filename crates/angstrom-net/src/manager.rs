@@ -127,10 +127,10 @@ impl<DB: Unpin> StromNetworkManager<DB> {
     ///
     /// This is only mutable because there is immutable version of
     /// `swarm.sessions_mut`.
-    pub fn save_known_peers(&mut self) {
+    pub fn save_known_peers(&self) {
         let peers = self
             .swarm
-            .sessions_mut()
+            .sessions()
             .active_sessions
             .iter()
             .map(|(_, session)| CachedPeer {

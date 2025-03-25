@@ -83,7 +83,7 @@ impl NetworkBuilder {
         let sessions = StromSessionManager::new(self.session_manager_rx.take().unwrap());
         let swarm = Swarm::new(sessions, state);
 
-        let mut network = StromNetworkManager::new(
+        let network = StromNetworkManager::new(
             swarm,
             self.eth_handle,
             self.to_pool_manager,
