@@ -2,10 +2,7 @@ use std::{fmt::Debug, slice::Iter};
 
 use eyre::{Context, OptionExt, eyre};
 use serde::{Deserialize, Serialize};
-use uniswap_v3_math::{
-    sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta},
-    tick_math::get_tick_at_sqrt_ratio
-};
+use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 
 use super::{
     Tick,
@@ -199,6 +196,8 @@ impl PoolSnapshot {
 
 #[cfg(test)]
 mod tests {
+    use uniswap_v3_math::sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta};
+
     use super::*;
 
     impl PoolSnapshot {

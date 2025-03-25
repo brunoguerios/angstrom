@@ -48,7 +48,7 @@ impl TestOrder {
         Self { q, p }.to_partial_order(false)
     }
 
-    fn exact_inverse_bid(q: u128, p: Ray) -> BookOrder {
+    fn _exact_inverse_bid(q: u128, p: Ray) -> BookOrder {
         Self { q, p }.to_inverse_order(true)
     }
 

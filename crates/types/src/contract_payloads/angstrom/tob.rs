@@ -184,7 +184,7 @@ mod test {
     };
     use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 
-    fn generate_amm_market(target_tick: i32) -> PoolSnapshot {
+    fn _generate_amm_market(target_tick: i32) -> PoolSnapshot {
         let range =
             LiqRange::new(target_tick - 1000, target_tick + 1000, 100_000_000_000_000).unwrap();
         let ranges = vec![range];
