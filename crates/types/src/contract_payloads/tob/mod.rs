@@ -9,8 +9,6 @@ use crate::{
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
-pub mod checksum;
-
 /// grabs the final price vec location, adjusted for the donation amount that
 /// was specified
 pub fn generate_current_price_adjusted_for_donation<'a>(
