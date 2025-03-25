@@ -20,7 +20,7 @@ use crate::{
     manager::StromConsensusEvent, state::StromState, types::status::StatusState
 };
 
-pub struct NetworkBuilder<P: Peers> {
+pub struct NetworkBuilder<P: Peers + Unpin> {
     to_pool_manager:      Option<UnboundedMeteredSender<NetworkOrderEvent>>,
     to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
     session_manager_rx:   Option<Receiver<StromSessionMessage>>,
@@ -31,7 +31,7 @@ pub struct NetworkBuilder<P: Peers> {
     verification:  VerificationSidecar
 }
 
-impl<P: Peers> NetworkBuilder<P> {
+impl<P: Peers + Unpin> NetworkBuilder<P> {
     pub fn new(
         verification: VerificationSidecar,
         eth_handle: UnboundedReceiver<EthEvent>,
@@ -99,18 +99,13 @@ impl<P: Peers> NetworkBuilder<P> {
             swarm,
             self.eth_handle,
             self.to_pool_manager,
-            self.to_consensus_manager
+            self.to_consensus_manager,
+            self.reth_handle
         );
 
         let handle = network.get_handle();
 
-        // Attach the shutdown handler *inside* the spawned critical task
-        tp.spawn_critical_with_graceful_shutdown_signal("strom network", |shutdown| async move {
-            network.await;
-            let guard = shutdown.await;
-            tracing::info!("Strom network is shutting down gracefully.");
-            drop(guard);
-        });
+        tp.spawn_critical("network", Box::pin(network));
 
         handle
     }

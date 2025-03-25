@@ -16,6 +16,7 @@ use futures::StreamExt;
 use once_cell::unsync::Lazy;
 use reth_eth_wire::DisconnectReason;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
+use reth_network::Peers;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::error;
@@ -42,7 +43,7 @@ thread_local! {
 }
 
 #[allow(dead_code)]
-pub struct StromNetworkManager<DB> {
+pub struct StromNetworkManager<DB, P: Peers> {
     handle: StromNetworkHandle,
 
     from_handle_rx:       UnboundedReceiverStream<StromNetworkHandleMsg>,
@@ -55,15 +56,17 @@ pub struct StromNetworkManager<DB> {
     /// This is updated via internal events and shared via `Arc` with the
     /// [`NetworkHandle`] Updated by the `NetworkWorker` and loaded by the
     /// `NetworkService`.
-    num_active_peers: Arc<AtomicUsize>
+    num_active_peers: Arc<AtomicUsize>,
+    reth_network:     P
 }
 
-impl<DB: Unpin> StromNetworkManager<DB> {
+impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
     pub fn new(
         swarm: Swarm<DB>,
         eth_handle: UnboundedReceiver<EthEvent>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
-        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
+        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
+        reth_network: P
     ) -> Self {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -91,7 +94,8 @@ impl<DB: Unpin> StromNetworkManager<DB> {
             from_handle_rx: rx.into(),
             to_pool_manager,
             to_consensus_manager,
-            event_listeners: Vec::new()
+            event_listeners: Vec::new(),
+            reth_network
         }
     }
 
@@ -226,7 +230,7 @@ impl<DB: Unpin> StromNetworkManager<DB> {
     }
 }
 
-impl<DB: Unpin> Future for StromNetworkManager<DB> {
+impl<DB: Unpin, P: Peers + Unpin> Future for StromNetworkManager<DB, P> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
