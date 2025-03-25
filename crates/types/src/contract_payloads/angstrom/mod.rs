@@ -382,7 +382,8 @@ impl AngstromBundle {
                 *t0,
                 *t1,
                 *store_index,
-                None
+                None,
+                Some(solution.reward_t0)
             )?;
         }
         Ok(Self::new(
@@ -461,7 +462,8 @@ impl AngstromBundle {
         t0: Address,
         t1: Address,
         store_index: u16,
-        shared_gas: Option<U256>
+        shared_gas: Option<U256>,
+        additional_rewards: Option<u128>
     ) -> eyre::Result<()> {
         // Dump the solution
         let json = serde_json::to_string(&(
@@ -656,8 +658,11 @@ impl AngstromBundle {
         // Now if we have a TOB swap and/or reward, we can put together our rewards
         // outcome
         if let Some((v, tob_reward)) = tob_reward_data {
+            // If we have any extra rewards from the matching solution, otherwise this
+            // defaults to zero
+            let matching_rewards = additional_rewards.unwrap_or_default();
             // We might want to split this in some way in the future
-            let total_reward = tob_reward + total_user_fees;
+            let total_reward = tob_reward + matching_rewards + total_user_fees;
             let tribute = 0_u128;
 
             // Allocate the reward quantity
@@ -759,7 +764,8 @@ impl AngstromBundle {
                 *t0,
                 *t1,
                 *store_index,
-                shared_gas
+                shared_gas,
+                Some(solution.reward_t0)
             )?;
         }
         Ok(Self::new(
