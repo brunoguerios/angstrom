@@ -1,7 +1,4 @@
-use angstrom_types::{
-    matching::uniswap::{PoolPriceVec, Quantity},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
-};
+use angstrom_types::matching::uniswap::{PoolPriceVec, Quantity};
 use base64::Engine;
 use matching_engine::{
     book::OrderBook,

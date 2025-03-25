@@ -182,11 +182,11 @@ mod test {
         SqrtPriceX96,
         uniswap::{LiqRange, PoolSnapshot}
     };
-    use rand::thread_rng;
-    use testing_tools::type_generator::orders::generate_top_of_block_order;
+    
+    
     use uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick;
 
-    use super::TopOfBlockOrder;
+    
 
     fn generate_amm_market(target_tick: i32) -> PoolSnapshot {
         let range =

@@ -2,7 +2,7 @@ use alloy::primitives::U256;
 use alloy_primitives::{FixedBytes, I256};
 use angstrom_types::{
     matching::{Ray, SqrtPriceX96, get_quantities_at_price, uniswap::PoolSnapshot},
-    orders::{OrderFillState, OrderOutcome},
+    orders::OrderFillState,
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use matching_engine::{
