@@ -133,7 +133,7 @@ pub fn generate_single_position_amm_at_tick(mid: i32, width: i32, liquidity: u12
     let lower_tick = mid - width;
     let upper_tick = mid + width;
     let ranges = vec![LiqRange::new(lower_tick, upper_tick, liquidity).unwrap()];
-    PoolSnapshot::new(width, ranges, amm_price).unwrap()
+    PoolSnapshot::new(1, ranges, amm_price).unwrap()
 }
 
 pub fn generate_amm_market(target_tick: i32) -> PoolSnapshot {
