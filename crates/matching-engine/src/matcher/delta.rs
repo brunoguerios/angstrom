@@ -91,7 +91,7 @@ impl<'a> DeltaMatcher<'a> {
     fn fetch_concentrated_liquidity(&self, price: Ray) -> (I256, I256) {
         let Some(start_price) = self.amm_start_price.clone() else { return Default::default() };
         let Ok(end_price) = start_price.snapshot().at_price(SqrtPriceX96::from(price)) else {
-            return Default::default()
+            return Default::default();
         };
         let start_sqrt = start_price.as_sqrtpricex96();
         let end_sqrt = SqrtPriceX96::from(price);
@@ -301,7 +301,7 @@ impl<'a> DeltaMatcher<'a> {
             // If our available fill is not enough to resolve our excess liquidity, we can
             // end here
             let Some(remaining_add) = available_add.checked_sub(abs_excess) else {
-                return SupplyDemandResult::MoreDemand
+                return SupplyDemandResult::MoreDemand;
             };
             // Otherwise let's see if we can fill any extra after this
             let additional_fillable = min(remaining_add, available_drain);
@@ -319,7 +319,7 @@ impl<'a> DeltaMatcher<'a> {
             }
         } else {
             let Some(remaining_drain) = available_drain.checked_sub(abs_excess) else {
-                return SupplyDemandResult::MoreSupply
+                return SupplyDemandResult::MoreSupply;
             };
             let additional_drainable = min(remaining_drain, available_add);
             if self.solve_for_t0 {
@@ -510,7 +510,7 @@ impl<'a> DeltaMatcher<'a> {
                     return Some(UcpSolution {
                         ucp:           p_mid,
                         partial_fills: Some((bid_fill_q, ask_fill_q))
-                    })
+                    });
                 }
             }
         }
