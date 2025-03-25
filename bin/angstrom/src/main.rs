@@ -42,6 +42,9 @@ mod test {
         println!("{ANGSTROM_DOMAIN:#?}");
         let order_hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
         let sig = angstrom_signer.sign_hash_sync(&order_hash).unwrap();
+        let b: Bytes = sig.as_bytes().into();
+        assert_eq!(b, order.meta.signature);
+
         let cur_decode = order.order_signature().unwrap();
         assert_eq!(sig, cur_decode, "signed {:#?}\n\n decoded {:#?}", sig, cur_decode);
 
