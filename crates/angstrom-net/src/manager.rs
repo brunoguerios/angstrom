@@ -23,7 +23,8 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::error;
 
 use crate::{
-    CachedPeer, NetworkOrderEvent, StromMessage, StromNetworkHandleMsg, Swarm, SwarmEvent
+    CachedPeer, CachedPeers, NetworkOrderEvent, StromMessage, StromNetworkHandleMsg, Swarm,
+    SwarmEvent
 };
 #[allow(unused_imports)]
 use crate::{StromNetworkConfig, StromNetworkHandle, StromSessionManager};
@@ -95,7 +96,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
         tracing::info!("Currently connected to {} peers", reth_network.num_connected_peers());
         let cached_peers = Self::load_known_peers(&node_pubkey);
         tracing::info!("Connecting to {} cached peers...", cached_peers.len());
-        for peer in cached_peers {
+        for peer in cached_peers.0 {
             tracing::info!("Reconnecting to cached peer {}", peer.enr());
             reth_network.connect_peer(peer.peer_id, peer.addr);
         }
@@ -124,7 +125,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
             .to_path_buf()
     }
 
-    pub fn load_known_peers(node_pubkey: &PublicKey) -> Vec<CachedPeer> {
+    pub fn load_known_peers(node_pubkey: &PublicKey) -> CachedPeers {
         let toml_path = Self::known_peers_toml_path(node_pubkey);
         tracing::info!("Loading known peers from {}", toml_path.display());
         let res = match std::fs::read_to_string(toml_path.as_path()) {
@@ -134,7 +135,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
                     "Known peers file not found at {}, creating peers list from scratch",
                     toml_path.display()
                 );
-                Vec::new()
+                CachedPeers::new()
             }
         };
         tracing::info!("Loaded {} known peers from {}", res.len(), toml_path.display());
@@ -153,6 +154,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
             .values()
             .map(|session| CachedPeer { peer_id: session.remote_id, addr: session.socket_addr })
             .collect::<Vec<_>>();
+        let peers: CachedPeers = peers.into();
         let toml_path = Self::known_peers_toml_path(&self.node_pubkey());
         tracing::info!("Saving {} known peers to {}", peers.len(), toml_path.display());
         match toml::to_string(&peers) {

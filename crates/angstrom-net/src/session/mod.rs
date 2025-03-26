@@ -18,6 +18,7 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     net::SocketAddr,
+    ops::Deref,
     pin::Pin,
     sync::{Arc, atomic::AtomicU64}
 };
@@ -49,6 +50,29 @@ impl CachedPeer {
             self.addr.ip(),
             self.addr.port()
         )
+    }
+}
+
+#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct CachedPeers(pub Vec<CachedPeer>);
+
+impl From<Vec<CachedPeer>> for CachedPeers {
+    fn from(peers: Vec<CachedPeer>) -> Self {
+        Self(peers)
+    }
+}
+
+impl CachedPeers {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+}
+
+impl Deref for CachedPeers {
+    type Target = Vec<CachedPeer>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
