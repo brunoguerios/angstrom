@@ -97,7 +97,8 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
         tracing::info!("Connecting to {} cached peers...", cached_peers.len());
         for peer in cached_peers.peers {
             tracing::info!("Reconnecting to cached peer {}", peer.enr());
-            // reth_network.connect_peer(peer.peer_id, peer.addr);
+            //reth_network.connect_peer(peer.peer_id, peer.addr);
+            reth_network.add_peer(peer.peer_id, peer.addr);
         }
         tracing::info!("Now connected to {} peers", reth_network.num_connected_peers());
 
@@ -146,7 +147,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
     /// This is only mutable because there is immutable version of
     /// `swarm.sessions_mut`.
     pub fn save_known_peers(&self) {
-        tracing::info!("SAVING KNOWN PEERS");
+        tracing::info!("saving known peers for node_id={}", self.node_pubkey());
         let peers = self
             .swarm
             .sessions()
