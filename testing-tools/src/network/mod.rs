@@ -44,7 +44,8 @@ impl TestnetNodeNetwork {
         c: C,
         node_config: &TestingNodeConfig<G>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
-        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
+        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
+        reth_handle: P
     ) -> (Self, Peer<C>, StromNetworkManager<C, P>)
     where
         C: BlockReader
@@ -88,8 +89,13 @@ impl TestnetNodeNetwork {
 
         let (eth_tx, eth_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        let strom_network =
-            StromNetworkManager::new(swarm, eth_rx, to_pool_manager, to_consensus_manager);
+        let strom_network = StromNetworkManager::new(
+            swarm,
+            eth_rx,
+            to_pool_manager,
+            to_consensus_manager,
+            reth_handle
+        );
 
         let mut eth_peer = peer.launch().await.unwrap();
         eth_peer.network_mut().add_rlpx_sub_protocol(protocol);
