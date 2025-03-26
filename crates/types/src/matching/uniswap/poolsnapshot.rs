@@ -2,10 +2,7 @@ use std::{fmt::Debug, slice::Iter};
 
 use eyre::{Context, OptionExt, eyre};
 use serde::{Deserialize, Serialize};
-use uniswap_v3_math::{
-    sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta},
-    tick_math::get_tick_at_sqrt_ratio
-};
+use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;
 
 use super::{
     Tick,
@@ -141,65 +138,6 @@ impl PoolSnapshot {
         start_price < end_price
     }
 
-    pub fn get_amm_swap(&self, price: Ray) -> Option<(u128, u128)> {
-        self.get_amm_swap_with_start(price, self.sqrt_price_x96)
-    }
-
-    pub fn get_amm_swap_with_start(
-        &self,
-        price: Ray,
-        start_price: SqrtPriceX96
-    ) -> Option<(u128, u128)> {
-        let end_price = SqrtPriceX96::from(price);
-        let is_bid = start_price < end_price;
-        // fetch ticks for ranges
-        let start_tick = get_tick_at_sqrt_ratio(start_price.into()).ok()?;
-        let end_tick = get_tick_at_sqrt_ratio(end_price.into()).ok()?;
-
-        // Get all affected liquidity ranges
-        let liq_range = self.ranges_for_ticks(start_tick, end_tick).ok()?;
-
-        let mut d_0 = 0u128;
-        let mut d_1 = 0u128;
-
-        for range in &liq_range {
-            let (range_start_price, range_end_price) = if is_bid {
-                let start = start_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
-                let end = end_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
-                (start, end)
-            } else {
-                let start = start_price.min(SqrtPriceX96::at_tick(range.upper_tick).ok()?);
-                let end = end_price.max(SqrtPriceX96::at_tick(range.lower_tick).ok()?);
-                (start, end)
-            };
-
-            // Skip if the range is not relevant
-            if (is_bid && range_start_price >= range_end_price)
-                || (!is_bid && range_start_price <= range_end_price)
-            {
-                continue;
-            }
-
-            d_0 += _get_amount_0_delta(
-                range_start_price.into(),
-                range_end_price.into(),
-                range.liquidity,
-                true
-            )
-            .ok()?
-            .to::<u128>();
-            d_1 += _get_amount_1_delta(
-                range_start_price.into(),
-                range_end_price.into(),
-                range.liquidity,
-                true
-            )
-            .ok()?
-            .to::<u128>();
-        }
-        Some((d_0, d_1))
-    }
-
     /// Gets the tick spacing for this [`PoolSnapshot`].
     ///
     /// This is the difference between the upper and lower ticks of the first
@@ -258,6 +196,8 @@ impl PoolSnapshot {
 
 #[cfg(test)]
 mod tests {
+    use uniswap_v3_math::sqrt_price_math::{_get_amount_0_delta, _get_amount_1_delta};
+
     use super::*;
 
     impl PoolSnapshot {

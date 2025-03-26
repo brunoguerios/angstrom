@@ -13,7 +13,9 @@ use uniswap_v3_math::{
     tick_math::{get_sqrt_ratio_at_tick, get_tick_at_sqrt_ratio}
 };
 
-use super::{Direction, Quantity, Tick, liqrange::LiqRangeRef, poolpricevec::PoolPriceVec};
+use super::{
+    Direction, PoolSnapshot, Quantity, Tick, liqrange::LiqRangeRef, poolpricevec::PoolPriceVec
+};
 use crate::matching::{
     Ray, SqrtPriceX96,
     debt::Debt,
@@ -80,6 +82,10 @@ impl<'a> PoolPrice<'a> {
 
     pub fn liquidity(&self) -> u128 {
         self.liq_range.liquidity
+    }
+
+    pub fn snapshot(&self) -> &'a PoolSnapshot {
+        self.liq_range.pool_snap
     }
 
     /// Presuming a transaction in T0, return a new PoolPrice.  We error
@@ -179,7 +185,15 @@ impl<'a> PoolPrice<'a> {
     /// Create a PoolPriceVec from the current price to the upper bound of the
     /// liquidity range that the current price is in
     pub fn to_liq_range_upper(&self) -> eyre::Result<PoolPriceVec<'a>> {
-        PoolPriceVec::to_upper(self.clone())
+        let end = if let Some(range) = self
+            .snapshot()
+            .get_range_for_tick(self.liq_range.upper_tick)
+        {
+            range.start_price(Direction::BuyingT0)
+        } else {
+            self.liq_range.end_price(Direction::BuyingT0)
+        };
+        PoolPriceVec::from_price_range(self.clone(), end)
     }
 
     /// Create a PoolPriceVec from the current price to the lower bound of the

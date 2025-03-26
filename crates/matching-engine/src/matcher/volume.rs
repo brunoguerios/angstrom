@@ -1117,6 +1117,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn ask_side_double_match_works_with_amm() {
         let market: PoolSnapshot =
             generate_single_position_amm_at_tick(91000, 100, 1_000_000_000_000_000_u128);

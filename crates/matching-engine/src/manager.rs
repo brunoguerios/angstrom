@@ -173,7 +173,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
             // not a problem while I'm testing, but leaving this note here as it may be
             // important for future efficiency gains
             solution_set.spawn_blocking(move || {
-                Some(BinarySearchStrategy::run(&b, searcher))
+                Some(BinarySearchStrategy::run(&b, searcher, 0))
                 // SimpleCheckpointStrategy::run(&b).map(|s|
                 // s.solution(searcher))
             });

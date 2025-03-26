@@ -678,6 +678,9 @@ impl GroupedVanillaOrder {
 
     /// Get the appropriate price when passed a bool telling us if we're looking
     /// for a bid-side price or not
+    ///
+    /// TODO:  Deprecate this and replace with `price_t1_over_t0()` since that
+    /// performs this function more elegantly
     pub fn price_for_book_side(&self, is_bid: bool) -> Ray {
         if is_bid { self.bid_price() } else { self.price() }
     }
@@ -689,6 +692,25 @@ impl GroupedVanillaOrder {
             Self::Standing(o) => o.limit_price().into(),
             Self::KillOrFill(o) => o.limit_price().into()
         }
+    }
+
+    /// Provides the price in T1/T0 format.  For "ask" orders this means just
+    /// providing the literal price.  For "Bid" orders this means inverting the
+    /// price to be in T1/T0 format since we store those prices as T0/T1
+    pub fn price_t1_over_t0(&self) -> Ray {
+        if self.is_bid() { self.price().inv_ray_round(true) } else { self.price() }
+    }
+
+    /// Provides a price that, post fee scaling, will be equal to this price.
+    /// Used for matching.
+    pub fn pre_fee_price(&self, fee: u128) -> Ray {
+        self.price().unscale_to_fee(fee)
+    }
+
+    /// Provides the fee-adjusted price to be used for accounting.  Note that
+    /// for bids this can be inverse
+    pub fn fee_adj_price(&self, fee: u128) -> Ray {
+        self.price().scale_to_fee(fee)
     }
 
     pub fn exact_in(&self) -> bool {

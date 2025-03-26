@@ -1,16 +1,23 @@
+use angstrom_types::matching::uniswap::{PoolPriceVec, Quantity};
 use base64::Engine;
 use matching_engine::{
     book::OrderBook,
-    matcher::{VolumeFillMatcher, delta::DeltaMatcher}
+    matcher::{
+        VolumeFillMatcher,
+        delta::{DeltaMatcher, DeltaMatcherToB}
+    }
 };
 
 mod booklib;
-use booklib::{AMM_SIDE_BOOK, DEBT_WRONG_SIDE, GOOD_BOOK, MATH_ZERO, WEIRD_BOOK, ZERO_ASK_BOOK};
+use booklib::{
+    AMM_SIDE_BOOK, DEBT_WRONG_SIDE, DELTA_BOOK_TEST, GOOD_BOOK, MATH_ZERO, WEIRD_BOOK,
+    ZERO_ASK_BOOK
+};
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
     let subscriber = tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::TRACE)
         .with_line_number(true)
         .with_file(true)
         .finish();
@@ -63,12 +70,27 @@ fn build_and_ship_random_bundle() {
 fn delta_matcher_test() {
     with_tracing(|| {
         let bytes = base64::prelude::BASE64_STANDARD
-            .decode(AMM_SIDE_BOOK)
+            .decode(DELTA_BOOK_TEST)
             .unwrap();
-        let book: OrderBook = serde_json::from_slice(&bytes).unwrap();
-        // println!("Book: {:#?}", book);
-        let mut matcher = DeltaMatcher::new(&book, None);
+        let (book, tob): (OrderBook, DeltaMatcherToB) = serde_json::from_slice(&bytes).unwrap();
+        println!("TOB: {tob:#?}");
+        let amm = book.amm().unwrap();
+        let post_tob = (amm.current_price() + Quantity::Token1(2595367055652127901)).unwrap();
+        let post_tob_price = post_tob.end_bound.as_ray();
+        println!("Post-TOB: {post_tob_price:?}");
+        let post_match = (post_tob.end_bound - Quantity::Token1(4265126092132152183)).unwrap();
+        println!(
+            "Post-match: {} {} {:?}",
+            post_match.d_t0,
+            post_match.d_t1,
+            post_match.end_bound.as_ray()
+        );
+
+        let mut matcher = DeltaMatcher::new(&book, tob, 0, false);
         let solution = matcher.solution(None);
-        println!("Solution: {:#?}", solution);
+        let end_price = amm.at_price(solution.ucp.into()).unwrap();
+        let mid_map = PoolPriceVec::from_price_range(amm.current_price(), end_price).unwrap();
+        println!("Mid-map: {} {} {:?}", mid_map.d_t0, mid_map.d_t1, mid_map.end_bound.as_ray());
+        // println!("{:#?}", solution);
     })
 }

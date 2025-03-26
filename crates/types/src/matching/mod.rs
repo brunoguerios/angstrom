@@ -11,7 +11,7 @@ pub mod debt;
 pub use debt::{Debt, DebtType};
 pub mod match_estimate_response;
 mod math;
-pub use math::max_t1_for_t0;
+pub use math::{add_t0_bid_fee, get_quantities_at_price, max_t1_for_t0, sub_t0_ask_fee};
 mod sqrtprice;
 mod tokens;
 pub mod uniswap;
@@ -27,6 +27,11 @@ pub use super::sol_bindings::Ray;
 pub fn const_1e27() -> &'static Natural {
     static TWENTYSEVEN: OnceLock<Natural> = OnceLock::new();
     TWENTYSEVEN.get_or_init(|| Natural::from_sci_string("1e27").unwrap())
+}
+
+pub fn const_1e6() -> &'static Natural {
+    static SIX: OnceLock<Natural> = OnceLock::new();
+    SIX.get_or_init(|| Natural::from_sci_string("1e6").unwrap())
 }
 
 pub fn const_1e54() -> &'static Natural {

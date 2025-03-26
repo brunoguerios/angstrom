@@ -17,7 +17,7 @@ use alloy::{
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
-    contract_payloads::tob::ToBOutcome,
+    contract_payloads::angstrom::TopOfBlockOrder as PayloadTopOfBlockOrder,
     matching::uniswap::PoolSnapshot,
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
@@ -96,7 +96,7 @@ where
         &self,
         pool_id: PoolId,
         tob: &OrderWithStorageData<TopOfBlockOrder>
-    ) -> eyre::Result<ToBOutcome> {
+    ) -> eyre::Result<u128> {
         tracing::info!("calculate_rewards function");
 
         let mut cnt = ATTEMPTS;
@@ -107,7 +107,8 @@ where
                 pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
             };
 
-            let outcome = ToBOutcome::from_tob_and_snapshot(tob, &market_snapshot);
+            let outcome =
+                PayloadTopOfBlockOrder::calc_vec_and_reward(tob, &market_snapshot).map(|(_, r)| r);
 
             if outcome.is_err() {
                 let zfo = !tob.is_bid;
