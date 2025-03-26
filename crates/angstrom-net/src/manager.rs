@@ -97,7 +97,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
         tracing::info!("Connecting to {} cached peers...", cached_peers.len());
         for peer in cached_peers.peers {
             tracing::info!("Reconnecting to cached peer {}", peer.enr());
-            reth_network.connect_peer(peer.peer_id, peer.addr);
+            // reth_network.connect_peer(peer.peer_id, peer.addr);
         }
         tracing::info!("Now connected to {} peers", reth_network.num_connected_peers());
 
