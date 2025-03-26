@@ -29,7 +29,7 @@ pub type ValidationsFuture<'a> =
     Pin<Box<dyn Future<Output = Vec<OrderValidationResults>> + Send + Sync + 'a>>;
 
 pub type GasEstimationFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<(u64, U256), String>> + Send + Sync + 'a>>;
+    Pin<Box<dyn Future<Output = Result<U256, String>> + Send + Sync + 'a>>;
 
 pub type NonceFuture<'a> = Pin<Box<dyn Future<Output = u64> + Send + Sync + 'a>>;
 
@@ -216,7 +216,12 @@ pub trait OrderValidatorHandle: Send + Sync + Clone + Debug + Unpin + 'static {
     ) -> ValidationFuture;
 
     /// estimates gas usage for order
-    fn estimate_gas(&self, order: AllOrders) -> GasEstimationFuture;
+    fn estimate_gas(
+        &self,
+        is_book: bool,
+        token_0: Address,
+        token_1: Address
+    ) -> GasEstimationFuture;
 
     fn valid_nonce_for_user(&self, address: Address) -> NonceFuture;
 }
@@ -258,19 +263,19 @@ impl OrderValidatorHandle for ValidationClient {
         })
     }
 
-    fn estimate_gas(&self, order: AllOrders) -> GasEstimationFuture {
+    fn estimate_gas(
+        &self,
+        is_book: bool,
+        token_0: Address,
+        token_1: Address
+    ) -> GasEstimationFuture {
         Box::pin(async move {
-            match self.validate_order(OrderOrigin::External, order).await {
-                OrderValidationResults::Valid(o) => {
-                    Ok((o.priority_data.gas_units, o.priority_data.gas))
-                }
-                OrderValidationResults::Invalid { error, .. } => {
-                    Err(format!("Invalid order: {}", error))
-                }
-                OrderValidationResults::TransitionedToBlock => {
-                    Err("Order transitioned to block".to_string())
-                }
-            }
+            let (sender, rx) = channel();
+            let _ =
+                self.0
+                    .send(ValidationRequest::GasEstimation { sender, is_book, token_0, token_1 });
+
+            rx.await.unwrap().map_err(|e| e.to_string())
         })
     }
 
