@@ -62,6 +62,10 @@ where
         Ok(self.pool.fetch_order_status(order_hash).await)
     }
 
+    async fn valid_nonce(&self, user: Address) -> RpcResult<u64> {
+        Ok(self.validator.valid_nonce_for_user(user).await)
+    }
+
     async fn orders_by_pool_id(
         &self,
         pool_id: PoolId,
@@ -354,6 +358,10 @@ mod tests {
 
         fn estimate_gas(&self, _order: AllOrders) -> GasEstimationFuture {
             Box::pin(future::ready(Ok((21_000u64, U256::from(250_000u64)))))
+        }
+
+        fn valid_nonce_for_user(&self, _address: Address) -> validation::order::NonceFuture {
+            Box::pin(async move { 50 })
         }
     }
 }

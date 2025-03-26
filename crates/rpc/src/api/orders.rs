@@ -41,6 +41,9 @@ pub trait OrderApi {
     #[method(name = "orderStatus")]
     async fn order_status(&self, order_hash: B256) -> RpcResult<Option<OrderStatus>>;
 
+    #[method(name = "validNonce")]
+    async fn valid_nonce(&self, user: Address) -> RpcResult<u64>;
+
     #[method(name = "ordersByPair")]
     async fn orders_by_pool_id(
         &self,

@@ -29,11 +29,11 @@ pub mod pools;
 /// 4) deals with possible pending state
 pub struct StateValidation<Pools, Fetch> {
     /// tracks everything user related.
-    user_account_tracker: Arc<UserAccountProcessor<Fetch>>,
+    pub(crate) user_account_tracker: Arc<UserAccountProcessor<Fetch>>,
     /// tracks all info about the current angstrom pool state.
-    pool_tacker:          Arc<RwLock<Pools>>,
+    pool_tacker:                     Arc<RwLock<Pools>>,
     /// keeps up-to-date with the on-chain pool
-    uniswap_pools:        SyncedUniswapPools
+    uniswap_pools:                   SyncedUniswapPools
 }
 
 impl<Pools, Fetch> Clone for StateValidation<Pools, Fetch> {

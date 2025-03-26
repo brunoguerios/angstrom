@@ -54,6 +54,7 @@ secp256k1 = { version = "0", default-features = false, features = [
   "recovery",
 ] }
 
+rand.workspace = true
 byteorder = "1.4.3"
 
 # error
