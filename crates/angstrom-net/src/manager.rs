@@ -62,8 +62,10 @@ pub struct StromNetworkManager<DB: Unpin, P: Peers + Unpin> {
 
 impl<DB: Unpin, P: Peers + Unpin> Drop for StromNetworkManager<DB, P> {
     fn drop(&mut self) {
-        println!("DROPPING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        let self_id = self.reth_network.local_node_record().id;
+        tracing::info!("StromNetworkManager {} shutting down...", self_id);
         self.save_known_peers();
+        tracing::info!("Saved {} known peers", self.swarm().sessions().active_sessions.len());
     }
 }
 
