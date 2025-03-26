@@ -474,7 +474,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             }
             this @ OrderValidationResults::Invalid { hash, .. } => {
                 self.notify_validation_subscribers(&hash, this);
-                self.seen_invalid_orders.insert(hash);
+                // self.seen_invalid_orders.insert(hash);
                 let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
