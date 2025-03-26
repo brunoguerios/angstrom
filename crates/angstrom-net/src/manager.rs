@@ -146,6 +146,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
     /// This is only mutable because there is immutable version of
     /// `swarm.sessions_mut`.
     pub fn save_known_peers(&self) {
+        tracing::info!("SAVING KNOWN PEERS");
         let peers = self
             .swarm
             .sessions()
