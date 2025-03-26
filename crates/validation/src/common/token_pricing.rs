@@ -155,10 +155,7 @@ impl TokenPriceGenerator {
         // conversion factor will be 1-1
         if token_1 == self.base_gas_token {
             // if so, just pull the price
-            let pool_key = self
-                .pair_to_pool
-                .get(&(token_0, token_1))
-                .expect("got pool update that we don't have stored");
+            let pool_key = self.pair_to_pool.get(&(token_0, token_1))?;
 
             let prices = self.prev_prices.get(pool_key)?;
             let size = prices.len() as u64;
@@ -530,5 +527,39 @@ pub mod test {
             .unwrap();
 
         assert_eq!(rate, Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER).inv_ray());
+    }
+
+    #[test]
+    fn test_empty_pool_gas_price() {
+        // Create a TokenPriceGenerator with no pools
+        let token_conversion = TokenPriceGenerator {
+            cur_block:           0,
+            prev_prices:         HashMap::default(),
+            base_gas_token:      WETH_ADDRESS,
+            pair_to_pool:        HashMap::default(),
+            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE
+        };
+
+        // Test direct WETH case (should still work)
+        let rate = token_conversion.get_eth_conversion_price(WETH_ADDRESS, TOKEN1);
+        assert_eq!(
+            rate,
+            Some(Ray::scale_to_ray(U256::from(1))),
+            "WETH as token0 should return 1 even with no pools"
+        );
+
+        // Test non-WETH tokens (should return None)
+        let random_token1 = address!("1111111111111111111111111111111111111111");
+        let random_token2 = address!("2222222222222222222222222222222222222222");
+
+        let rate = token_conversion.get_eth_conversion_price(random_token1, random_token2);
+        assert!(rate.is_none(), "Should return None when no pools exist");
+
+        let rate = token_conversion.get_eth_conversion_price(random_token1, WETH_ADDRESS);
+        assert!(rate.is_none(), "Should return None for direct WETH pair when no pools exist");
+
+        // Test generate_lookup_map with no pools
+        let lookup_map = token_conversion.generate_lookup_map();
+        assert!(lookup_map.is_empty(), "Lookup map should be empty when no pools exist");
     }
 }

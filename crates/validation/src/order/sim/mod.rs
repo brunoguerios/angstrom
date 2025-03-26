@@ -63,8 +63,9 @@ where
                 };
 
                 // grab price conversion
-                let conversion_factor =
-                    conversion.get_eth_conversion_price(token0, token1).unwrap();
+                let conversion_factor = conversion
+                    .get_eth_conversion_price(token0, token1)
+                    .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
                 let gas_token_0 = (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray();
 
                 // convert to u256 for overflow cases.
@@ -99,8 +100,9 @@ where
                 };
 
                 // grab price conversion
-                let conversion_factor =
-                    conversion.get_eth_conversion_price(token0, token1).unwrap();
+                let conversion_factor = conversion
+                    .get_eth_conversion_price(token0, token1)
+                    .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
                 let gas_token_0 = (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray();
 
                 // convert to u256 for overflow cases.
