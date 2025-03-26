@@ -67,7 +67,6 @@ impl<DB: Unpin, P: Peers + Unpin> Drop for StromNetworkManager<DB, P> {
         let node_pubkey = self.node_pubkey();
         tracing::info!("StromNetworkManager for node_id={} shutting down...", node_pubkey);
         self.save_known_peers();
-        tracing::info!("Saved {} known peers", self.swarm().sessions().active_sessions.len());
     }
 }
 
@@ -156,7 +155,6 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
             .collect::<Vec<_>>();
         let peers: CachedPeers = peers.into();
         let toml_path = Self::known_peers_toml_path(&self.node_pubkey());
-        tracing::info!("Saving {} known peers to {}", peers.len(), toml_path.display());
         match toml::to_string(&peers) {
             Ok(serialized) => {
                 if let Err(err) = std::fs::write(toml_path.as_path(), serialized) {
@@ -165,6 +163,8 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
                         toml_path.display(),
                         err
                     );
+                } else {
+                    tracing::info!("Saving {} known peers to {}", peers.len(), toml_path.display());
                 }
             }
             Err(err) => {
