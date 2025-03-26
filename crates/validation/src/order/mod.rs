@@ -31,6 +31,8 @@ pub type ValidationsFuture<'a> =
 pub type GasEstimationFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(u64, U256), String>> + Send + Sync + 'a>>;
 
+pub type NonceFuture<'a> = Pin<Box<dyn Future<Output = u64> + Send + Sync + 'a>>;
+
 pub enum OrderValidationRequest {
     ValidateOrder(Sender<OrderValidationResults>, AllOrders, OrderOrigin)
 }
@@ -215,6 +217,8 @@ pub trait OrderValidatorHandle: Send + Sync + Clone + Debug + Unpin + 'static {
 
     /// estimates gas usage for order
     fn estimate_gas(&self, order: AllOrders) -> GasEstimationFuture;
+
+    fn valid_nonce_for_user(&self, address: Address) -> NonceFuture;
 }
 
 impl OrderValidatorHandle for ValidationClient {
@@ -267,6 +271,17 @@ impl OrderValidatorHandle for ValidationClient {
                     Err("Order transitioned to block".to_string())
                 }
             }
+        })
+    }
+
+    fn valid_nonce_for_user(&self, address: Address) -> NonceFuture {
+        Box::pin(async move {
+            let (tx, rx) = channel();
+            let _ = self
+                .0
+                .send(ValidationRequest::Nonce { sender: tx, user_address: address });
+
+            rx.await.unwrap()
         })
     }
 }

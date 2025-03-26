@@ -16,10 +16,10 @@ pub mod user;
 /// wether or not this order is valid.
 pub struct UserAccountProcessor<S> {
     /// keeps track of all user accounts
-    user_accounts: UserAccounts,
+    user_accounts:          UserAccounts,
     /// utils for fetching the required data to verify
     /// a order.
-    fetch_utils:   S
+    pub(crate) fetch_utils: S
 }
 
 impl<S: StateFetchUtils> UserAccountProcessor<S> {

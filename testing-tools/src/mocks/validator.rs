@@ -80,6 +80,10 @@ impl OrderValidatorHandle for MockValidator {
             }
         })
     }
+
+    fn valid_nonce_for_user(&self, _: Address) -> validation::order::NonceFuture {
+        Box::pin(async move { 10 })
+    }
 }
 
 impl BundleValidatorHandle for MockValidator {

@@ -8,6 +8,7 @@ use alloy::primitives::{Address, B256, BlockNumber};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::grouped_orders::AllOrders;
 use futures::Future;
+use rand::random;
 use tokio::runtime::Handle;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
@@ -47,6 +48,24 @@ where
         let state = StateValidation::new(UserAccountProcessor::new(fetch), pools, uniswap_pools);
 
         Self { state, sim, block_number }
+    }
+
+    pub fn fetch_nonce(&self, addr: Address) -> u64 {
+        loop {
+            let nonce = random();
+            let Ok(is_valid) = self
+                .state
+                .user_account_tracker
+                .fetch_utils
+                .is_valid_nonce(addr, nonce)
+            else {
+                panic!("db failure");
+            };
+
+            if is_valid {
+                return nonce;
+            }
+        }
     }
 
     pub fn on_new_block(

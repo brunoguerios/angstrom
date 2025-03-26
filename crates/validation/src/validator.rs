@@ -29,6 +29,10 @@ pub enum ValidationRequest {
         block_number: u64,
         orders:       Vec<B256>,
         addresses:    Vec<Address>
+    },
+    Nonce {
+        sender:       tokio::sync::oneshot::Sender<u64>,
+        user_address: Address
     }
 }
 
@@ -90,6 +94,10 @@ where
                 sender
                     .send(OrderValidationResults::TransitionedToBlock)
                     .unwrap();
+            }
+            ValidationRequest::Nonce { sender, user_address } => {
+                let nonce = self.order_validator.fetch_nonce(user_address);
+                sender.send(nonce).unwrap();
             }
         }
     }
