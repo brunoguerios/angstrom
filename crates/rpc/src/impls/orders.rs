@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::{OrderValidationError, PoolId},
@@ -13,8 +13,7 @@ use reth_tasks::TaskSpawner;
 use validation::order::OrderValidatorHandle;
 
 use crate::{
-    OrderApiError::GasEstimationError,
-    api::{GasEstimateResponse, OrderApiServer},
+    api::OrderApiServer,
     types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult}
 };
 
@@ -49,13 +48,14 @@ where
         Ok(self.pool.cancel_order(request).await)
     }
 
-    async fn estimate_gas(&self, order: AllOrders) -> RpcResult<GasEstimateResponse> {
-        let (gas_limit, gas) = self
-            .validator
-            .estimate_gas(order)
-            .await
-            .map_err(GasEstimationError)?;
-        Ok(GasEstimateResponse { gas, gas_units: gas_limit })
+    async fn estimate_gas(
+        &self,
+        is_book: bool,
+        token_0: Address,
+        token_1: Address
+    ) -> RpcResult<Result<U256, String>> {
+        let res = self.validator.estimate_gas(is_book, token_0, token_1).await;
+        Ok(res)
     }
 
     async fn order_status(&self, order_hash: B256) -> RpcResult<Option<OrderStatus>> {
@@ -356,8 +356,13 @@ mod tests {
             unimplemented!("no new block")
         }
 
-        fn estimate_gas(&self, _order: AllOrders) -> GasEstimationFuture {
-            Box::pin(future::ready(Ok((21_000u64, U256::from(250_000u64)))))
+        fn estimate_gas(
+            &self,
+            _is_book: bool,
+            _token_0: Address,
+            _token_1: Address
+        ) -> GasEstimationFuture {
+            Box::pin(future::ready(Ok(U256::from(250_000u64))))
         }
 
         fn valid_nonce_for_user(&self, _address: Address) -> validation::order::NonceFuture {

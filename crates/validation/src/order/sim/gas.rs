@@ -19,6 +19,8 @@ use super::GasUsed;
 // FixedBytes<32> =     fixed_bytes!("
 // 907ea7ad6d1fbded0236f040aea693e2c9711b62b065fc95c4262972aca03996");
 
+pub const BOOK_GAS: u64 = 40_000;
+pub const TOB_GAS: u64 = 100_000;
 /// deals with the calculation of gas for a given type of order.
 /// user orders and tob orders take different paths and are different size and
 /// as such, pay different amount of gas in order to execute.
@@ -104,7 +106,7 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("tob order err={} {:?}", e, tob.order_hash()))
-        Ok(100_000)
+        Ok(BOOK_GAS)
     }
 
     pub fn gas_of_book_order(
@@ -157,7 +159,7 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("user order err={} {:?}", e, order.from()))
-        Ok(40_000)
+        Ok(BOOK_GAS)
     }
 
     // fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) ->
