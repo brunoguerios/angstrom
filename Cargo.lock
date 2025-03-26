@@ -1413,7 +1413,6 @@ dependencies = [
  "async-trait",
  "auto_impl",
  "bincode",
- "ctrlc",
  "enr",
  "eyre",
  "futures",
@@ -3084,16 +3083,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0369ee1ad671834580515889b80f2ea915f23b8be8d0daa4bbaf2ac5c7590835"
 dependencies = [
  "cipher",
-]
-
-[[package]]
-name = "ctrlc"
-version = "3.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90eeab0aa92f3f9b4e87f258c72b139c207d251f9cbc1080a0086b86a8870dd3"
-dependencies = [
- "nix 0.29.0",
- "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -11279,7 +11268,6 @@ dependencies = [
  "angstrom-utils",
  "clap",
  "consensus",
- "ctrlc",
  "enr",
  "eyre",
  "futures",
