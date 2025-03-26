@@ -54,17 +54,19 @@ impl CachedPeer {
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct CachedPeers(pub Vec<CachedPeer>);
+pub struct CachedPeers {
+    pub peers: Vec<CachedPeer>
+}
 
 impl From<Vec<CachedPeer>> for CachedPeers {
     fn from(peers: Vec<CachedPeer>) -> Self {
-        Self(peers)
+        Self { peers }
     }
 }
 
 impl CachedPeers {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Default::default()
     }
 }
 
@@ -72,7 +74,7 @@ impl Deref for CachedPeers {
     type Target = Vec<CachedPeer>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.peers
     }
 }
 
