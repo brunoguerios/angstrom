@@ -100,7 +100,6 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
             //reth_network.connect_peer(peer.peer_id, peer.addr);
             reth_network.add_peer(peer.peer_id, peer.addr);
         }
-        tracing::info!("Now connected to {} peers", reth_network.num_connected_peers());
 
         let peers = Arc::new(AtomicUsize::default());
         let handle =
