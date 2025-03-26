@@ -465,6 +465,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let to_propagate = valid.order.clone();
                 self.update_order_tracking(&hash, valid.from(), valid.order_id);
                 self.park_transactions(&valid.invalidates);
+                tracing::info!("inserting valid order");
                 if let Err(e) = self.insert_order(valid) {
                     tracing::error!(%e, "failed to insert valid order");
                 }
