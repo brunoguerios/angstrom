@@ -41,14 +41,14 @@ use crate::{
     types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig}
 };
 
-pub struct TestnetNode<C, P, N: Peers + Unpin + 'static> {
+pub struct TestnetNode<C, P> {
     testnet_node_id: u64,
     network:         TestnetNodeNetwork,
     strom:           AngstromNodeInternals<P>,
-    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc, N>
+    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc, NetworkHandle>
 }
 
-impl<C, P, N: Peers + Unpin + 'static> TestnetNode<C, P, N>
+impl<C, P> TestnetNode<C, P>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + HeaderProvider<Header = reth_primitives::Header>
@@ -186,14 +186,14 @@ where
     /// -------------------------------------
     pub fn strom_network_manager<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&StromNetworkManager<C, N>) -> R
+        F: FnOnce(&StromNetworkManager<C, NetworkHandle>) -> R
     {
         self.state_lock.strom_network_manager(f)
     }
 
     pub fn strom_network_manager_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut StromNetworkManager<C, N>) -> R
+        F: FnOnce(&mut StromNetworkManager<C, NetworkHandle>) -> R
     {
         self.state_lock.strom_network_manager_mut(f)
     }
@@ -281,7 +281,7 @@ where
 
     pub async fn connect_to_all_peers(
         &mut self,
-        other_peers: &mut HashMap<u64, TestnetNode<C, P, N>>
+        other_peers: &mut HashMap<u64, TestnetNode<C, P>>
     ) {
         self.start_network();
         other_peers.iter().for_each(|(_, peer)| {
@@ -298,7 +298,7 @@ where
     pub fn pre_post_network_event_channel_swap<E>(
         &mut self,
         is_pre_event: bool,
-        f: impl FnOnce(&mut StromNetworkManager<C, N>) -> Option<UnboundedMeteredSender<E>>
+        f: impl FnOnce(&mut StromNetworkManager<C, NetworkHandle>) -> Option<UnboundedMeteredSender<E>>
     ) -> UnboundedMeteredSender<E> {
         if is_pre_event {
             self.stop_network();

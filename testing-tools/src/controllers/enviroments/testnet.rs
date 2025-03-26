@@ -7,7 +7,6 @@ use alloy::{
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, StreamExt};
 use reth_chainspec::Hardforks;
-use reth_network::Peers;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::TaskSpawner;
 
@@ -22,7 +21,7 @@ use crate::{
     }
 };
 
-impl<C, P: Peers + Unpin + 'static> AngstromTestnet<C, TestnetConfig, WalletProvider, P>
+impl<C> AngstromTestnet<C, TestnetConfig, WalletProvider>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>

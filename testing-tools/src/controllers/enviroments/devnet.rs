@@ -4,7 +4,6 @@ use alloy::providers::ext::AnvilApi;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::Future;
 use reth_chainspec::Hardforks;
-use reth_network::Peers;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 
 use super::AngstromTestnet;
@@ -18,7 +17,7 @@ use crate::{
     }
 };
 
-impl<C, P: Peers + Unpin + 'static> AngstromTestnet<C, DevnetConfig, WalletProvider, P>
+impl<C> AngstromTestnet<C, DevnetConfig, WalletProvider>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>
@@ -47,7 +46,7 @@ where
         Ok(this)
     }
 
-    pub fn as_state_machine<'a>(self) -> DevnetStateMachine<'a, C, P> {
+    pub fn as_state_machine<'a>(self) -> DevnetStateMachine<'a, C> {
         DevnetStateMachine::new(self)
     }
 

@@ -13,7 +13,7 @@ use parking_lot::RwLock;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
 use reth_network::{
-    Peers,
+    NetworkHandle,
     test_utils::{Peer, PeerConfig}
 };
 use reth_network_api::PeerId;
@@ -40,13 +40,12 @@ pub struct TestnetNodeNetwork {
 }
 
 impl TestnetNodeNetwork {
-    pub async fn new<C, G, P: Peers + Unpin + 'static>(
+    pub async fn new<C, G>(
         c: C,
         node_config: &TestingNodeConfig<G>,
         to_pool_manager: Option<UnboundedMeteredSender<NetworkOrderEvent>>,
-        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
-        reth_handle: P
-    ) -> (Self, Peer<C>, StromNetworkManager<C, P>)
+        to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>
+    ) -> (Self, Peer<C>, StromNetworkManager<C, NetworkHandle>)
     where
         C: BlockReader
             + HeaderProvider
@@ -89,6 +88,11 @@ impl TestnetNodeNetwork {
 
         let (eth_tx, eth_rx) = tokio::sync::mpsc::unbounded_channel();
 
+        let mut eth_peer = peer.launch().await.unwrap();
+
+        let eth_handle = EthNetworkPeer::new(&eth_peer);
+        let reth_handle = eth_handle.network_handle().clone();
+
         let strom_network = StromNetworkManager::new(
             swarm,
             eth_rx,
@@ -96,13 +100,9 @@ impl TestnetNodeNetwork {
             to_consensus_manager,
             reth_handle
         );
-
-        let mut eth_peer = peer.launch().await.unwrap();
-        eth_peer.network_mut().add_rlpx_sub_protocol(protocol);
-
         let strom_handle = StromNetworkPeer::new(&strom_network);
 
-        let eth_handle = EthNetworkPeer::new(&eth_peer);
+        eth_peer.network_mut().add_rlpx_sub_protocol(protocol);
 
         (
             Self { strom_handle, secret_key: sk, pubkey: peer_id, eth_handle, eth_tx },

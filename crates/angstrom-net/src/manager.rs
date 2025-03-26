@@ -123,11 +123,8 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
             .swarm
             .sessions()
             .active_sessions
-            .iter()
-            .map(|(_, session)| CachedPeer {
-                peer_id: session.remote_id,
-                addr:    session.socket_addr
-            })
+            .values()
+            .map(|session| CachedPeer { peer_id: session.remote_id, addr: session.socket_addr })
             .collect::<Vec<_>>();
         CACHED_PEERS_TOML_PATH.with(|toml_path| match toml::to_string(&peers) {
             Ok(serialized) => {

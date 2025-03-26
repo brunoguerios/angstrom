@@ -17,7 +17,7 @@ use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
     UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel
 };
-use reth_network::Peers;
+use reth_network::NetworkHandle;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 pub use state_machine::*;
 use tokio_stream::StreamExt;
@@ -29,17 +29,17 @@ use crate::{
     types::{GlobalTestingConfig, WithWalletProvider}
 };
 
-pub struct AngstromTestnet<C, G, P, N: Peers + Unpin + 'static> {
+pub struct AngstromTestnet<C, G, P> {
     block_provider:      TestnetBlockProvider,
     _anvil_instance:     Option<AnvilInstance>,
-    peers:               HashMap<u64, TestnetNode<C, P, N>>,
+    peers:               HashMap<u64, TestnetNode<C, P>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
     current_max_peer_id: u64,
     config:              G
 }
 
-impl<C, G, P, N: Peers + Unpin + 'static> AngstromTestnet<C, G, P, N>
+impl<C, G, P> AngstromTestnet<C, G, P>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>
@@ -58,7 +58,7 @@ where
             .state_provider()
     }
 
-    pub fn random_peer(&self) -> &TestnetNode<C, P, N> {
+    pub fn random_peer(&self) -> &TestnetNode<C, P> {
         let mut rng = rand::thread_rng();
         let peer = rng.gen_range(0..self.current_max_peer_id);
         self.get_peer(peer)
@@ -77,19 +77,19 @@ where
         ids[id_idx]
     }
 
-    pub fn get_peer(&self, id: u64) -> &TestnetNode<C, P, N> {
+    pub fn get_peer(&self, id: u64) -> &TestnetNode<C, P> {
         self.peers
             .get(&id)
             .unwrap_or_else(|| panic!("peer {id} not found"))
     }
 
-    fn get_peer_mut(&mut self, id: u64) -> &mut TestnetNode<C, P, N> {
+    fn get_peer_mut(&mut self, id: u64) -> &mut TestnetNode<C, P> {
         self.peers
             .get_mut(&id)
             .unwrap_or_else(|| panic!("peer {id} not found"))
     }
 
-    pub fn get_random_peer(&self, not_allowed_ids: Vec<u64>) -> &TestnetNode<C, P, N> {
+    pub fn get_random_peer(&self, not_allowed_ids: Vec<u64>) -> &TestnetNode<C, P> {
         assert!(!self.peers.is_empty());
 
         let peer_ids = self
@@ -227,7 +227,7 @@ where
     /// if id is None, then a random id is used
     async fn run_event<'a, F, O>(&'a self, id: Option<u64>, f: F) -> O::Output
     where
-        F: FnOnce(&'a TestnetNode<C, P, N>) -> O,
+        F: FnOnce(&'a TestnetNode<C, P>) -> O,
         O: Future + Send + Sync
     {
         let id = if let Some(i) = id {
@@ -257,12 +257,12 @@ where
         network_f: F,
         expected_f: K,
         channel_swap_f: impl Fn(
-            &mut StromNetworkManager<C, N>,
+            &mut StromNetworkManager<C, NetworkHandle>,
             UnboundedMeteredSender<E>
         ) -> Option<UnboundedMeteredSender<E>>
     ) -> R::Output
     where
-        F: FnOnce(&TestnetNode<C, P, N>) -> O,
+        F: FnOnce(&TestnetNode<C, P>) -> O,
         K: FnOnce(Vec<UnboundedMeteredReceiver<E>>, O::Output) -> R,
         O: Future + Send + Sync,
         R: Future + Send + Sync

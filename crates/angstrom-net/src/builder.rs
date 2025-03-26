@@ -6,7 +6,6 @@ use alloy::{primitives::Address, signers::SignerSync};
 use alloy_chains::Chain;
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::primitive::{AngstromSigner, PeerId};
-use futures::FutureExt;
 use parking_lot::RwLock;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
 use reth_network::Peers;

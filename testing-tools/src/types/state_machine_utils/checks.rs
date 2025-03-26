@@ -1,5 +1,4 @@
 use reth_chainspec::Hardforks;
-use reth_network::Peers;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 
 use crate::{
@@ -23,7 +22,7 @@ where
     fn check_block(&mut self, block_number: u64);
 }
 
-impl<C, P: Peers + Unpin + 'static> WithCheck<C> for DevnetStateMachine<'_, C, P>
+impl<C> WithCheck<C> for DevnetStateMachine<'_, C>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + ReceiptProvider<Receipt = reth_primitives::Receipt>
@@ -33,10 +32,10 @@ where
         + Clone
         + 'static
 {
-    type FunctionOutput = StateMachineCheckHookFn<C, P>;
+    type FunctionOutput = StateMachineCheckHookFn<C>;
 
     fn check_block(&mut self, block_number: u64) {
-        let f = move |testnet: &mut AngstromTestnet<C, DevnetConfig, WalletProvider, P>| {
+        let f = move |testnet: &mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
             testnet.check_block_numbers(block_number)
         };
         self.add_check("check block", f);
