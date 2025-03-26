@@ -5,7 +5,7 @@ use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
     RawPoolOrder,
     grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-    rpc_orders::TopOfBlockOrder
+    rpc_orders::TopOfBlockOrder,
 };
 use gas::OrderGasCalculations;
 use revm::primitives::ruint::aliases::U256;
@@ -26,13 +26,13 @@ pub type GasInToken0 = U256;
 #[derive(Clone)]
 pub struct SimValidation<DB> {
     gas_calculator: OrderGasCalculations<DB>,
-    metrics:        ValidationMetrics
+    metrics: ValidationMetrics,
 }
 
 impl<DB> SimValidation<DB>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Send + Sync,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
 {
     pub fn new(db: Arc<DB>, angstrom_address: Address, node_address: Address) -> Self {
         let gas_calculator =
@@ -47,7 +47,7 @@ where
         &self,
         order: &OrderWithStorageData<TopOfBlockOrder>,
         conversion: &TokenPriceGenerator,
-        block: u64
+        block: u64,
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
         let hash = order.order_hash();
         let user = order.from();
@@ -63,8 +63,9 @@ where
                 };
 
                 // grab price conversion
-                let conversion_factor =
-                    conversion.get_eth_conversion_price(token0, token1).unwrap();
+                let conversion_factor = conversion
+                    .get_eth_conversion_price(token0, token1)
+                    .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
                 let gas_token_0 = (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray();
 
                 // convert to u256 for overflow cases.
@@ -83,7 +84,7 @@ where
         &self,
         order: &OrderWithStorageData<GroupedVanillaOrder>,
         conversion: &TokenPriceGenerator,
-        block: u64
+        block: u64,
     ) -> eyre::Result<(GasUsed, GasInToken0)> {
         let hash = order.order_hash();
         let user = order.from();
@@ -99,8 +100,9 @@ where
                 };
 
                 // grab price conversion
-                let conversion_factor =
-                    conversion.get_eth_conversion_price(token0, token1).unwrap();
+                let conversion_factor = conversion
+                    .get_eth_conversion_price(token0, token1)
+                    .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
                 let gas_token_0 = (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray();
 
                 // convert to u256 for overflow cases.
