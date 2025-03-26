@@ -31,14 +31,14 @@ use crate::{StromNetworkConfig, StromNetworkHandle, StromSessionManager};
 // use a thread local lazy to avoid synchronization overhead since path is
 // always the same
 thread_local! {
-    static CACHED_PEERS_TOML_PATH: Lazy<PathBuf> = Lazy::new(|| {
+    static CACHED_PEERS_TOML_PATH_PREFIX: Lazy<PathBuf> = Lazy::new(|| {
         let mut path = PathBuf::new();
         path.push(
             homedir::my_home()
                 .unwrap()
                 .expect("Failed to get home directory. Please set the HOME environment variable.")
         );
-        path.push(".angstrom_cached_peers.toml");
+        path.push(".angstrom_cached_peers-");
         path
     });
 }
@@ -93,7 +93,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
 
         // Load cached peers
         tracing::info!("Currently connected to {} peers", reth_network.num_connected_peers());
-        let cached_peers = Self::load_known_peers();
+        let cached_peers = Self::load_known_peers(&node_pubkey);
         tracing::info!("Connecting to {} cached peers...", cached_peers.len());
         for peer in cached_peers {
             tracing::info!("Reconnecting to cached peer {}", peer.enr());
@@ -118,19 +118,27 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
         }
     }
 
-    pub fn load_known_peers() -> Vec<CachedPeer> {
-        CACHED_PEERS_TOML_PATH.with(|toml_path| {
-            match std::fs::read_to_string(toml_path.as_path()) {
-                Ok(data) => toml::from_str(&data).unwrap_or_default(),
-                Err(_) => {
-                    tracing::warn!(
-                        "Known peers file not found at {}, creating peers list from scratch",
-                        toml_path.display()
-                    );
-                    Vec::new()
-                }
+    pub fn known_peers_toml_path(node_pubkey: &PublicKey) -> PathBuf {
+        CACHED_PEERS_TOML_PATH_PREFIX
+            .with(|toml_path| PathBuf::from(format!("{}{}.toml", toml_path.display(), node_pubkey)))
+            .to_path_buf()
+    }
+
+    pub fn load_known_peers(node_pubkey: &PublicKey) -> Vec<CachedPeer> {
+        let toml_path = Self::known_peers_toml_path(node_pubkey);
+        tracing::info!("Loading known peers from {}", toml_path.display());
+        let res = match std::fs::read_to_string(toml_path.as_path()) {
+            Ok(data) => toml::from_str(&data).unwrap_or_default(),
+            Err(_) => {
+                tracing::warn!(
+                    "Known peers file not found at {}, creating peers list from scratch",
+                    toml_path.display()
+                );
+                Vec::new()
             }
-        })
+        };
+        tracing::info!("Loaded {} known peers from {}", res.len(), toml_path.display());
+        res
     }
 
     /// saves known peers at this point to the [`CACHED_PEERS_TOML_PATH`] file.
@@ -145,7 +153,9 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
             .values()
             .map(|session| CachedPeer { peer_id: session.remote_id, addr: session.socket_addr })
             .collect::<Vec<_>>();
-        CACHED_PEERS_TOML_PATH.with(|toml_path| match toml::to_string(&peers) {
+        let toml_path = Self::known_peers_toml_path(&self.node_pubkey());
+        tracing::info!("Saving {} known peers to {}", peers.len(), toml_path.display());
+        match toml::to_string(&peers) {
             Ok(serialized) => {
                 if let Err(err) = std::fs::write(toml_path.as_path(), serialized) {
                     tracing::error!(
@@ -158,7 +168,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
             Err(err) => {
                 tracing::error!("Failed to serialize known peers to TOML: {}", err);
             }
-        });
+        }
     }
 
     pub fn install_consensus_manager(&mut self, tx: UnboundedMeteredSender<StromConsensusEvent>) {
