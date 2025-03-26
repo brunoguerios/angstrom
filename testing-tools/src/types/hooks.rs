@@ -3,7 +3,7 @@ use std::{future::Future, pin::Pin};
 use super::config::DevnetConfig;
 use crate::{controllers::enviroments::AngstromTestnet, providers::WalletProvider};
 
-pub enum StateMachineHook<'a, C> {
+pub enum StateMachineHook<'a, C: Unpin> {
     Action(StateMachineActionHookFn<'a, C>),
     Check(StateMachineCheckHookFn<C>),
     CheckedAction(StateMachineCheckedActionHookFn<'a, C>)

@@ -26,7 +26,7 @@ use crate::{
     validation::TestOrderValidator
 };
 
-pub(crate) struct TestnetStateFutureLock<C, T, P: Peers + Unpin + 'static> {
+pub(crate) struct TestnetStateFutureLock<C: Unpin, T, P: Peers + Unpin + 'static> {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C, P>>,
     strom_consensus:       StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>,

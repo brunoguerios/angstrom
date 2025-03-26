@@ -43,7 +43,7 @@ thread_local! {
 }
 
 #[allow(dead_code)]
-pub struct StromNetworkManager<DB, P: Peers> {
+pub struct StromNetworkManager<DB: Unpin, P: Peers + Unpin> {
     handle: StromNetworkHandle,
 
     from_handle_rx:       UnboundedReceiverStream<StromNetworkHandleMsg>,
@@ -58,6 +58,13 @@ pub struct StromNetworkManager<DB, P: Peers> {
     /// `NetworkService`.
     num_active_peers: Arc<AtomicUsize>,
     reth_network:     P
+}
+
+impl<DB: Unpin, P: Peers + Unpin> Drop for StromNetworkManager<DB, P> {
+    fn drop(&mut self) {
+        println!("DROPPING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        self.save_known_peers();
+    }
 }
 
 impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {

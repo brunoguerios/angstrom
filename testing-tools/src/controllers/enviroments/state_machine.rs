@@ -9,7 +9,7 @@ use crate::{
     types::{HookResult, StateMachineHook, config::DevnetConfig}
 };
 
-pub struct DevnetStateMachine<'a, C> {
+pub struct DevnetStateMachine<'a, C: Unpin> {
     pub(crate) testnet: AngstromTestnet<C, DevnetConfig, WalletProvider>,
     pub(crate) hooks:   Vec<(&'static str, StateMachineHook<'a, C>)>
 }

@@ -29,7 +29,7 @@ use crate::{
     types::{GlobalTestingConfig, WithWalletProvider}
 };
 
-pub struct AngstromTestnet<C, G, P> {
+pub struct AngstromTestnet<C: Unpin, G, P> {
     block_provider:      TestnetBlockProvider,
     _anvil_instance:     Option<AnvilInstance>,
     peers:               HashMap<u64, TestnetNode<C, P>>,

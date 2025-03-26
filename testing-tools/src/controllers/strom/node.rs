@@ -41,7 +41,7 @@ use crate::{
     types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig}
 };
 
-pub struct TestnetNode<C, P> {
+pub struct TestnetNode<C: Unpin, P> {
     testnet_node_id: u64,
     network:         TestnetNodeNetwork,
     strom:           AngstromNodeInternals<P>,
