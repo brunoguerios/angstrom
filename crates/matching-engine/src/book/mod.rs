@@ -1,5 +1,5 @@
 //! basic book impl so we can benchmark
-use std::{io::Write, time::UNIX_EPOCH};
+use std::{io::Write, iter::Chain, slice::Iter, time::UNIX_EPOCH};
 
 use alloy_primitives::U256;
 use angstrom_types::{
@@ -52,6 +52,17 @@ impl OrderBook {
 
     pub fn asks(&self) -> &[BookOrder] {
         &self.asks
+    }
+
+    /// Returns a chained iterator that will go over all orders in this book.
+    /// Bids first, then asks.
+    pub fn all_orders_iter(
+        &self
+    ) -> Chain<
+        Iter<OrderWithStorageData<GroupedVanillaOrder>>,
+        Iter<OrderWithStorageData<GroupedVanillaOrder>>
+    > {
+        self.bids.iter().chain(self.asks.iter())
     }
 
     pub fn amm(&self) -> Option<&PoolSnapshot> {

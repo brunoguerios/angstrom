@@ -14,8 +14,13 @@ use crate::cli::{init_tracing, testnet::TestnetCli};
 pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre::Result<()> {
     let config = cli.make_config()?;
 
-    let testnet =
-        AngstromTestnet::spawn_testnet(NoopProvider::default(), config, vec![noop_agent]).await?;
+    let testnet = AngstromTestnet::spawn_testnet(
+        NoopProvider::default(),
+        config,
+        vec![noop_agent],
+        executor.clone()
+    )
+    .await?;
 
     testnet.run_to_completion(executor).await;
     Ok(())
@@ -25,20 +30,25 @@ pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre
 mod tests {
     use super::*;
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn testnet_deploy() {
+    #[test]
+    fn testnet_deploy() {
         init_tracing(4);
-        let cli = TestnetCli {
-            eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
-            ..Default::default()
-        };
+        let runner = reth::CliRunner::try_default_runtime().unwrap();
+        runner.run_command_until_exit(|ctx| async move {
+            let cli = TestnetCli {
+                eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
+                ..Default::default()
+            };
 
-        let testnet = AngstromTestnet::spawn_testnet(
-            NoopProvider::default(),
-            cli.make_config().unwrap(),
-            vec![noop_agent]
-        )
-        .await;
-        assert!(testnet.is_ok());
+            let testnet = AngstromTestnet::spawn_testnet(
+                NoopProvider::default(),
+                cli.make_config().unwrap(),
+                vec![noop_agent],
+                ctx.task_executor
+            )
+            .await;
+            assert!(testnet.is_ok());
+            eyre::Ok(())
+        });
     }
 }

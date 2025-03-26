@@ -45,7 +45,9 @@ pub async fn compare_matching_engines(
     tracing::info!("spinning up e2e nodes for angstrom");
 
     // spawn testnet
-    let testnet = AngstromTestnet::spawn_testnet(NoopProvider::default(), config, agents).await?;
+    let testnet =
+        AngstromTestnet::spawn_testnet(NoopProvider::default(), config, agents, executor.clone())
+            .await?;
     tracing::info!("e2e testnet is alive");
 
     executor
@@ -55,7 +57,7 @@ pub async fn compare_matching_engines(
 }
 
 fn cmp_agent<'a>(
-    _: &'a InitialTestnetState,
+    t: &'a InitialTestnetState,
     agent_config: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async move {
@@ -75,7 +77,7 @@ fn cmp_agent<'a>(
                     | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
                 });
 
-        tokio::spawn(
+        t.ex.spawn(
             async move {
                 tracing::info!("waiting for new block");
                 let use_amm = USE_AMM.load(std::sync::atomic::Ordering::SeqCst);
@@ -190,7 +192,8 @@ fn cmp_agent<'a>(
                             .solution(Some(tob.clone()));
 
                         let bisection =
-                            DeltaMatcher::new(&book, Some(tob.clone())).solution(Some(tob.clone()));
+                            DeltaMatcher::new(&book, Some(tob.clone()).into(), 0, false)
+                                .solution(Some(tob.clone()));
 
                         if bisection != debt_engine {
                             println!(

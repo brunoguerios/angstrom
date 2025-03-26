@@ -1,13 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy_primitives::{Address, FixedBytes, keccak256};
+use alloy_primitives::{Address, FixedBytes, U256, keccak256};
 use angstrom_types::{
     self,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    orders::OrderOrigin,
     sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders}
 };
 use eyre::OptionExt;
+use futures::future;
 use pade::PadeEncode;
 use parking_lot::Mutex;
 use validation::{
@@ -65,20 +65,17 @@ impl OrderValidatorHandle for MockValidator {
         Box::pin(async move { res })
     }
 
-    fn estimate_gas(&self, order: AllOrders) -> GasEstimationFuture {
-        Box::pin(async move {
-            match self.validate_order(OrderOrigin::External, order).await {
-                OrderValidationResults::Valid(o) => {
-                    Ok((o.priority_data.gas_units, o.priority_data.gas))
-                }
-                OrderValidationResults::Invalid { error, .. } => {
-                    Err(format!("Invalid order: {}", error))
-                }
-                OrderValidationResults::TransitionedToBlock => {
-                    Err("Order transitioned to block".to_string())
-                }
-            }
-        })
+    fn estimate_gas(
+        &self,
+        _is_book: bool,
+        _token_0: Address,
+        _token_1: Address
+    ) -> GasEstimationFuture {
+        Box::pin(future::ready(Ok(U256::from(250_000u64))))
+    }
+
+    fn valid_nonce_for_user(&self, _: Address) -> validation::order::NonceFuture {
+        Box::pin(async move { 10 })
     }
 }
 

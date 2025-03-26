@@ -8,7 +8,7 @@ use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, StreamExt};
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
-use reth_tasks::TaskSpawner;
+use reth_tasks::{TaskExecutor, TaskSpawner};
 
 use super::AngstromTestnet;
 use crate::{
@@ -31,7 +31,12 @@ where
         + Clone
         + 'static
 {
-    pub async fn spawn_testnet<F>(c: C, config: TestnetConfig, agents: Vec<F>) -> eyre::Result<Self>
+    pub async fn spawn_testnet<F>(
+        c: C,
+        config: TestnetConfig,
+        agents: Vec<F>,
+        ex: TaskExecutor
+    ) -> eyre::Result<Self>
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
@@ -51,7 +56,7 @@ where
         };
 
         tracing::info!("initializing testnet with {} nodes", config.node_count());
-        this.spawn_new_testnet_nodes(c, agents).await?;
+        this.spawn_new_testnet_nodes(c, agents, ex).await?;
         tracing::info!("initialized testnet with {} nodes", config.node_count());
 
         Ok(this)
@@ -68,7 +73,12 @@ where
         let _ = futures::future::select_all(all_peers).await;
     }
 
-    async fn spawn_new_testnet_nodes<F>(&mut self, c: C, agents: Vec<F>) -> eyre::Result<()>
+    async fn spawn_new_testnet_nodes<F>(
+        &mut self,
+        c: C,
+        agents: Vec<F>,
+        ex: TaskExecutor
+    ) -> eyre::Result<()>
     where
         F: for<'a> Fn(
             &'a InitialTestnetState,
@@ -102,7 +112,8 @@ where
                 l_block_sync.clone(),
                 front,
                 &mut initial_angstrom_state,
-                node_addresses
+                node_addresses,
+                ex.clone()
             )
             .await?
         ));
@@ -117,6 +128,7 @@ where
                 let initial_angstrom_state = initial_angstrom_state.clone().unwrap();
                 let agents = agents.clone();
                 let leader_provider = leader_provider.clone();
+                let ex = ex.clone();
 
                 async move {
                     let node_id = node_config.node_id;
@@ -154,7 +166,8 @@ where
                         initial_angstrom_state,
                         block_st,
                         agents.clone(),
-                        block_sync
+                        block_sync,
+                        ex.clone()
                     )
                     .await?;
                     tracing::info!(?node_pk, "node pk!!!!!!!!!!!");
@@ -182,10 +195,11 @@ where
         block_sync: GlobalBlockSync,
         node_config: TestingNodeConfig<TestnetConfig>,
         initial_angstrom_state: &mut Option<InitialTestnetState>,
-        node_addresses: Vec<Address>
+        node_addresses: Vec<Address>,
+        ex: TaskExecutor
     ) -> eyre::Result<AnvilProvider<WalletProvider>> {
         let (p, initial_state) = self
-            .leader_initialization(node_config.clone(), block_sync.clone(), node_addresses)
+            .leader_initialization(node_config.clone(), block_sync.clone(), node_addresses, ex)
             .await?;
         *initial_angstrom_state = Some(initial_state);
         Ok(p)
@@ -195,7 +209,8 @@ where
         &mut self,
         config: TestingNodeConfig<TestnetConfig>,
         block_sync: GlobalBlockSync,
-        node_addresses: Vec<Address>
+        node_addresses: Vec<Address>,
+        ex: TaskExecutor
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
         let mut provider = AnvilProvider::new(
             AnvilInitializer::new(config.clone(), node_addresses),
@@ -210,7 +225,7 @@ where
         let initializer = provider.provider_mut().provider_mut();
         initializer.deploy_pool_fulls(config.pool_keys()).await?;
 
-        let initial_state = initializer.initialize_state_no_bytes().await?;
+        let initial_state = initializer.initialize_state_no_bytes(ex).await?;
         initializer
             .rpc_provider()
             .anvil_mine(Some(10), None)

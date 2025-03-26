@@ -36,10 +36,18 @@ pub trait OrderApi {
     async fn cancel_order(&self, request: CancelOrderRequest) -> RpcResult<bool>;
 
     #[method(name = "estimateGas")]
-    async fn estimate_gas(&self, order: AllOrders) -> RpcResult<GasEstimateResponse>;
+    async fn estimate_gas(
+        &self,
+        is_book: bool,
+        token_0: Address,
+        token_1: Address
+    ) -> RpcResult<Result<U256, String>>;
 
     #[method(name = "orderStatus")]
     async fn order_status(&self, order_hash: B256) -> RpcResult<Option<OrderStatus>>;
+
+    #[method(name = "validNonce")]
+    async fn valid_nonce(&self, user: Address) -> RpcResult<u64>;
 
     #[method(name = "ordersByPair")]
     async fn orders_by_pool_id(
@@ -102,10 +110,12 @@ pub trait OrderApi {
     #[method(name = "estimateGasOfOrders")]
     async fn estimate_gas_of_orders(
         &self,
-        orders: Vec<AllOrders>
-    ) -> RpcResult<Vec<GasEstimateResponse>> {
+        orders: Vec<(bool, Address, Address)>
+    ) -> RpcResult<Vec<Result<U256, String>>> {
         futures::stream::iter(orders.into_iter())
-            .map(|order| async { self.estimate_gas(order).await })
+            .map(|(is_book, token_0, token_1)| async move {
+                self.estimate_gas(is_book, token_0, token_1).await
+            })
             .buffered(3)
             .collect::<Vec<_>>()
             .await
