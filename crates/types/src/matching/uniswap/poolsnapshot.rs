@@ -28,20 +28,57 @@ pub struct PoolSnapshot {
     pub(crate) current_tick:   Tick,
     /// Index into the 'ranges' vector for the PoolRange that includes the tick
     /// our current price lives at/in
-    pub(crate) cur_tick_idx:   usize
+    pub(crate) cur_tick_idx:   usize,
+    /// Tick spacing of our pool
+    pub(crate) tick_spacing:   i32
 }
 
 impl PoolSnapshot {
-    pub fn new(mut ranges: Vec<LiqRange>, sqrt_price_x96: SqrtPriceX96) -> eyre::Result<Self> {
+    pub fn new(
+        tick_spacing: i32,
+        mut ranges: Vec<LiqRange>,
+        sqrt_price_x96: SqrtPriceX96
+    ) -> eyre::Result<Self> {
         // Sort our ranges
         ranges.sort_by(|a, b| a.lower_tick.cmp(&b.lower_tick));
 
-        // Ensure the ranges are contiguous
-        if !ranges
-            .windows(2)
-            .all(|w| w[0].upper_tick == w[1].lower_tick)
-        {
-            return Err(eyre!("Tick windows not contiguous, cannot create snapshot"));
+        // Tick spacing must be a positive integer
+        if tick_spacing <= 0 {
+            return Err(eyre!("Invalid tick spacing: {tick_spacing}"))
+        }
+
+        // Ensure the ranges are contiguous and all ticks are aligned on spacing
+        for items in ranges.windows(2) {
+            // These are always valid because we know `windows()` works this way
+            let left = items[0];
+            let right = items[1];
+
+            if left.upper_tick != right.lower_tick {
+                return Err(eyre!(
+                    "Ranges not aligned - upper tick {} != lower tick {}",
+                    left.upper_tick,
+                    right.lower_tick
+                ));
+            }
+            for t in [left.lower_tick, left.upper_tick, right.upper_tick] {
+                if t % tick_spacing != 0 {
+                    return Err(eyre!(
+                        "Provided tick '{t}' not aligned with tick spacing {tick_spacing}"
+                    ))
+                }
+            }
+        }
+
+        // If we had only a single range, then `windows` wouldn't have iterated at all
+        // so let's check that quick
+        if ranges.len() == 1 {
+            for t in [ranges[0].lower_tick, ranges[0].upper_tick] {
+                if t % tick_spacing != 0 {
+                    return Err(eyre!(
+                        "Provided tick '{t}' not aligned with tick spacing {tick_spacing}"
+                    ))
+                }
+            }
         }
 
         // Get our current tick from our current price
@@ -61,7 +98,7 @@ impl PoolSnapshot {
             ));
         };
 
-        Ok(Self { ranges, sqrt_price_x96, current_tick, cur_tick_idx })
+        Ok(Self { ranges, sqrt_price_x96, current_tick, cur_tick_idx, tick_spacing })
     }
 
     /// Find the PoolRange in this market snapshot that the provided tick lies
@@ -138,20 +175,6 @@ impl PoolSnapshot {
         start_price < end_price
     }
 
-    /// Gets the tick spacing for this [`PoolSnapshot`].
-    ///
-    /// This is the difference between the upper and lower ticks of the first
-    /// range in the snapshot, but should be the same for all ranges in the
-    /// snapshot.
-    ///
-    /// Panics if there are no ranges, but this should never happen
-    pub fn tick_spacing(&self) -> i32 {
-        let Some(first_range) = self.ranges.first() else {
-            unreachable!("at least one range must be defined");
-        };
-        (first_range.upper_tick - first_range.lower_tick).abs()
-    }
-
     /// Finds the next initialized tick **greater than** the given `tick` while
     /// enforcing tick spacing.
     ///
@@ -164,11 +187,10 @@ impl PoolSnapshot {
     /// - If no valid tick exists, returns `None`.
     pub fn get_next_tick_gt(&self, tick: i32) -> Option<i32> {
         // Find the next initialized tick that is a multiple of tick_spacing
-        let tick_spacing = self.tick_spacing();
         self.ranges
             .iter()
             .map(|r| r.lower_tick)
-            .filter(|&t| t > tick && t % tick_spacing == 0) // Only ticks aligned with spacing
+            .filter(|&t| t > tick && t % self.tick_spacing == 0) // Only ticks aligned with spacing
             .min() // Get the closest **next initialized tick**
     }
 
@@ -183,13 +205,12 @@ impl PoolSnapshot {
     ///   `tick_spacing`, it is returned.
     /// - If no valid tick exists, returns `None`.
     pub fn get_next_tick_lt(&self, tick: i32) -> Option<i32> {
-        let tick_spacing = self.tick_spacing();
         // Find the next initialized tick that is a multiple of tick_spacing
         self.ranges
             .iter()
             .rev()
             .map(|r| r.upper_tick)
-            .filter(|&t| t < tick && t % tick_spacing == 0) // Only ticks aligned with spacing
+            .filter(|&t| t < tick && t % self.tick_spacing == 0) // Only ticks aligned with spacing
             .max() // Get the closest **next initialized tick**
     }
 }
@@ -271,7 +292,7 @@ mod tests {
 
         // Start price in the middle range (tick 150)
         let sqrt_price_x96 = SqrtPriceX96::at_tick(150).unwrap();
-        PoolSnapshot::new(ranges, sqrt_price_x96).unwrap()
+        PoolSnapshot::new(10, ranges, sqrt_price_x96).unwrap()
     }
 
     #[test]
@@ -367,8 +388,8 @@ mod tests {
         ];
 
         let sqrt_price_x96 = SqrtPriceX96::at_tick(50).unwrap();
-        let high_liq_pool = PoolSnapshot::new(high_liq_ranges, sqrt_price_x96).unwrap();
-        let low_liq_pool = PoolSnapshot::new(low_liq_ranges, sqrt_price_x96).unwrap();
+        let high_liq_pool = PoolSnapshot::new(10, high_liq_ranges, sqrt_price_x96).unwrap();
+        let low_liq_pool = PoolSnapshot::new(10, low_liq_ranges, sqrt_price_x96).unwrap();
 
         let start_price = SqrtPriceX96::at_tick(50).unwrap();
         let end_price = SqrtPriceX96::at_tick(150).unwrap();

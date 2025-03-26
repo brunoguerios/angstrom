@@ -189,7 +189,7 @@ mod test {
             LiqRange::new(target_tick - 1000, target_tick + 1000, 100_000_000_000_000).unwrap();
         let ranges = vec![range];
         let sqrt_price_x96 = SqrtPriceX96::from(get_sqrt_ratio_at_tick(target_tick).unwrap());
-        PoolSnapshot::new(ranges, sqrt_price_x96).unwrap()
+        PoolSnapshot::new(10, ranges, sqrt_price_x96).unwrap()
     }
 
     // #[test]

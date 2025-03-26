@@ -510,6 +510,7 @@ mod tests {
     fn can_construct_pricevec() {
         let liquidity = 1_000_000_000_000_000_u128;
         let pool = PoolSnapshot::new(
+            10,
             vec![LiqRange { liquidity, lower_tick: 100000, upper_tick: 100100 }],
             SqrtPriceX96::at_tick(100050).unwrap()
         )
@@ -525,7 +526,7 @@ mod tests {
         let segment_2 = LiqRange { liquidity: seg_2_liq, lower_tick: 100050, upper_tick: 100100 };
         let cur_price = SqrtPriceX96::at_tick(100025).unwrap();
         let end_price = SqrtPriceX96::at_tick(100075).unwrap();
-        let pool = PoolSnapshot::new(vec![segment_1, segment_2], cur_price).unwrap();
+        let pool = PoolSnapshot::new(10, vec![segment_1, segment_2], cur_price).unwrap();
         let start_bound = pool.current_price();
         let end_bound = pool.at_price(end_price).unwrap();
         let pricevec = PoolPriceVec::from_price_range(start_bound, end_bound).unwrap();
@@ -592,7 +593,8 @@ mod tests {
         let cur_price = SqrtPriceX96::at_tick(100150).unwrap();
         let end_price = SqrtPriceX96::at_tick(100050).unwrap();
         let pool =
-            PoolSnapshot::new(vec![segment_1, segment_2, segment_3, segment_4], cur_price).unwrap();
+            PoolSnapshot::new(10, vec![segment_1, segment_2, segment_3, segment_4], cur_price)
+                .unwrap();
         let low_start = pool.at_price(end_price).unwrap();
         let high_start = pool.current_price();
 
@@ -628,7 +630,8 @@ mod tests {
         let cur_price = SqrtPriceX96::at_tick(100150).unwrap();
         let end_price = SqrtPriceX96::at_tick(100050).unwrap();
         let pool =
-            PoolSnapshot::new(vec![segment_1, segment_2, segment_3, segment_4], cur_price).unwrap();
+            PoolSnapshot::new(10, vec![segment_1, segment_2, segment_3, segment_4], cur_price)
+                .unwrap();
         let start_bound = pool.current_price();
         let end_bound = pool.at_price(end_price).unwrap();
         let pricevec = PoolPriceVec::from_price_range(start_bound.clone(), end_bound).unwrap();
@@ -661,6 +664,7 @@ mod tests {
         let cur_price = SqrtPriceX96::at_tick(100150).unwrap();
         let end_price = SqrtPriceX96::at_tick(100050).unwrap();
         let pool = PoolSnapshot::new(
+            10,
             vec![segment_1, segment_2, segment_3, segment_4, segment_5],
             cur_price
         )
@@ -704,6 +708,7 @@ mod tests {
         let cur_price = SqrtPriceX96::at_tick(100150).unwrap();
         let end_price = SqrtPriceX96::at_tick(100050).unwrap();
         let pool = PoolSnapshot::new(
+            10,
             vec![segment_1, segment_2, segment_3, segment_4, segment_5],
             cur_price
         )
