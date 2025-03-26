@@ -441,6 +441,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
                 // what about the deadline?
                 if valid.valid_block != self.block_number {
+                    tracing::info!("valid block != block_number");
                     self.notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Invalid {
@@ -464,7 +465,9 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let to_propagate = valid.order.clone();
                 self.update_order_tracking(&hash, valid.from(), valid.order_id);
                 self.park_transactions(&valid.invalidates);
-                self.insert_order(valid)?;
+                if let Err(e) = self.insert_order(valid) {
+                    tracing::error!(%e, "failed to insert valid order");
+                }
 
                 Ok(PoolInnerEvent::Propagation(to_propagate))
             }
