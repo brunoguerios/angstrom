@@ -6,10 +6,7 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::{
-    hex,
-    primitives::{Address, BlockNumber, FixedBytes}
-};
+use alloy::primitives::{Address, BlockNumber, FixedBytes};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
@@ -66,13 +63,7 @@ pub struct StromNetworkManager<DB: Unpin, P: Peers + Unpin> {
 
 impl<DB: Unpin, P: Peers + Unpin> Drop for StromNetworkManager<DB, P> {
     fn drop(&mut self) {
-        let node_pubkey = self
-            .reth_network
-            .local_node_record()
-            .id
-            .to_pubkey()
-            .unwrap();
-
+        let node_pubkey = self.node_pubkey();
         tracing::info!("StromNetworkManager for node_id={} shutting down...", node_pubkey);
         self.save_known_peers();
         tracing::info!("Saved {} known peers", self.swarm().sessions().active_sessions.len());
@@ -80,6 +71,14 @@ impl<DB: Unpin, P: Peers + Unpin> Drop for StromNetworkManager<DB, P> {
 }
 
 impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
+    pub fn node_pubkey(&self) -> PublicKey {
+        self.reth_network
+            .local_node_record()
+            .id
+            .to_pubkey()
+            .unwrap()
+    }
+
     pub fn new(
         swarm: Swarm<DB>,
         eth_handle: UnboundedReceiver<EthEvent>,
