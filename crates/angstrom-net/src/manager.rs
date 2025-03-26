@@ -141,7 +141,7 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
         res
     }
 
-    /// saves known peers at this point to the [`CACHED_PEERS_TOML_PATH`] file.
+    /// Saves known peers at this point to the [`CACHED_PEERS_TOML_PATH`] file.
     ///
     /// This is only mutable because there is immutable version of
     /// `swarm.sessions_mut`.

@@ -145,12 +145,6 @@ impl StromSessionManager {
                         return None;
                     }
 
-                    /*let peer_data =
-                        CachedPeer { peer_id: handle.remote_id, addr: handle.socket_addr };
-
-                    self.save_peer_connection_info(peer_data);*/
-                    // TODO: maybe save peer connection info here?
-
                     let event = SessionEvent::SessionEstablished {
                         peer_id:   handle.remote_id,
                         direction: handle.direction,
