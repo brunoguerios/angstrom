@@ -6,7 +6,10 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::primitives::{Address, BlockNumber};
+use alloy::{
+    hex,
+    primitives::{Address, BlockNumber, FixedBytes}
+};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
@@ -17,6 +20,7 @@ use once_cell::unsync::Lazy;
 use reth_eth_wire::DisconnectReason;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use reth_network::Peers;
+use secp256k1::PublicKey;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::error;
@@ -62,8 +66,14 @@ pub struct StromNetworkManager<DB: Unpin, P: Peers + Unpin> {
 
 impl<DB: Unpin, P: Peers + Unpin> Drop for StromNetworkManager<DB, P> {
     fn drop(&mut self) {
-        let self_id = self.reth_network.local_node_record().id;
-        tracing::info!("StromNetworkManager {} shutting down...", self_id);
+        let node_pubkey = self
+            .reth_network
+            .local_node_record()
+            .id
+            .to_pubkey()
+            .unwrap();
+
+        tracing::info!("StromNetworkManager for node_id={} shutting down...", node_pubkey);
         self.save_known_peers();
         tracing::info!("Saved {} known peers", self.swarm().sessions().active_sessions.len());
     }
@@ -78,6 +88,9 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
         reth_network: P
     ) -> Self {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let node_pubkey = reth_network.local_node_record().id.to_pubkey().unwrap();
+        tracing::info!("StromNetworkManager for node_id={} starting...", node_pubkey);
 
         // Load cached peers
         tracing::info!("Currently connected to {} peers", reth_network.num_connected_peers());
@@ -410,5 +423,15 @@ impl From<StromConsensusEvent> for StromMessage {
 
             StromConsensusEvent::Proposal(_, proposal) => StromMessage::Propose(proposal)
         }
+    }
+}
+
+pub trait ToPubkey {
+    fn to_pubkey(&self) -> Result<PublicKey, secp256k1::Error>;
+}
+
+impl ToPubkey for FixedBytes<64> {
+    fn to_pubkey(&self) -> Result<PublicKey, secp256k1::Error> {
+        PublicKey::from_slice(&[0x04].into_iter().chain(self.0).collect::<Vec<_>>())
     }
 }
