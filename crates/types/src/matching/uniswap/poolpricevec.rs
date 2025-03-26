@@ -7,7 +7,9 @@ use uniswap_v3_math::{
     swap_math::compute_swap_step
 };
 
-use super::{Direction, LiqRangeRef, PoolSnapshot, Quantity, Tick, poolprice::PoolPrice};
+use super::{
+    Direction, DonationResult, LiqRangeRef, PoolSnapshot, Quantity, Tick, poolprice::PoolPrice
+};
 use crate::matching::{Ray, SqrtPriceX96, math::low_to_high};
 
 #[derive(Clone, Debug)]
@@ -173,18 +175,6 @@ impl<'a> SwapStep<'a> {
     pub fn empty(&self) -> bool {
         self.d_t0 == 0 || self.d_t1 == 0
     }
-}
-
-#[derive(Debug)]
-pub struct DonationResult {
-    /// HashMap from liquidity range bounds `(lower_tick, upper_tick)` to
-    /// donation quantity in T0
-    pub tick_donations: HashMap<(Tick, Tick), u128>,
-    pub final_price:    SqrtPriceX96,
-    /// Total amount of donation in T0
-    pub total_donated:  u128,
-    /// Total amount of "tribute" taken by Angstrom in T0
-    pub tribute:        u128
 }
 
 #[derive(Clone, Debug)]
@@ -379,13 +369,15 @@ impl<'a> PoolPriceVec<'a> {
         Ok(Self { start_bound: start, end_bound, d_t0, d_t1, steps: Some(steps) })
     }
 
-    /// Builds a DonationResult based on the goal of making sure that the net
-    /// price for all sections of this swap is as close to the final price as
-    /// possible.  All donations are T0.
-    pub fn t0_donation_to_end_price(&self, total_donation: u128) -> DonationResult {
+    /// Builds a DonationResult based on the goal of first donating to liquidity
+    /// ranges along this PriceVec until all liquidity ranges have effectively
+    /// been swapped at the most beneficial price in the PriceVec, then
+    /// distributing any remaining donation equally across all ranges in the
+    /// PriceVec
+    pub fn t0_donation(&self, total_donation: u128) -> DonationResult {
         tracing::trace!(total_donation, "Performing donation to end price");
         // If we have no steps we can just short-circuit this whole thing and take the
-        // whole donation as tribute
+        // whole donation as tribute.  This will likely never happen.
         let Some(steps) = self.steps.as_ref() else {
             return DonationResult {
                 tick_donations: HashMap::new(),
@@ -491,8 +483,8 @@ impl<'a> PoolPriceVec<'a> {
                 };
                 remaining_donation -= reward;
                 total_donated += reward;
-                // We always donate to the lower tick of our liquidity range as that is the
-                // appropriate initialized tick to target
+                // We associate a reward with a specific liquidity range and we will extract the
+                // lower or upper tick depending on the direction of our rewards
                 ((step.liq_range.lower_tick(), step.liq_range.upper_tick()), reward)
             })
             .collect();
@@ -500,7 +492,9 @@ impl<'a> PoolPriceVec<'a> {
 
         DonationResult {
             tick_donations,
-            final_price: self.end_bound.as_sqrtpricex96(),
+            final_price: filled_price
+                .map(|p| p.into())
+                .unwrap_or_else(|| self.end_bound.as_sqrtpricex96()),
             total_donated,
             tribute
         }
