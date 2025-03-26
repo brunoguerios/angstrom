@@ -30,6 +30,23 @@ impl PoolOrderGenerator {
         Self { block_number, price_distribution, cur_price, builder, pool_id }
     }
 
+    pub fn new_with_cfg_distro(
+        pool_id: PoolId,
+        pool_data: SyncedUniswapPool,
+        block_number: u64,
+        sd_pct: f64
+    ) -> Self {
+        let price = pool_data.read().unwrap().calculate_price();
+
+        // bounds of 50% from start with a std of 2%
+        let mut price_distribution =
+            PriceDistribution::new(price, f64::INFINITY, f64::NEG_INFINITY, sd_pct);
+        let cur_price = price_distribution.generate_price();
+        let builder = OrderBuilder::new(pool_data);
+
+        Self { block_number, price_distribution, cur_price, builder, pool_id }
+    }
+
     /// updates the block number and samples a new true price.
     pub fn new_block(&mut self, block: u64) {
         self.block_number = block;

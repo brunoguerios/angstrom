@@ -448,7 +448,6 @@ impl<'a> DeltaMatcher<'a> {
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> PoolSolution {
         let Some(price_and_partial_solution) = self.solve_clearing_price() else {
-            tracing::info!("no solve");
             return PoolSolution {
                 id: self.book.id(),
                 searcher,
@@ -481,7 +480,6 @@ impl<'a> DeltaMatcher<'a> {
         let ep = Ray::from(U256::from(1));
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
         let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
-        println!("min: {p_min:?} max: {p_max:?}");
 
         let two = U256::from(2);
         while (p_max - p_min) > ep {
