@@ -1,3 +1,5 @@
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use alloy::primitives::{I256, U256};
 use angstrom_types::{
     matching::{Ray, SqrtPriceX96},
@@ -118,12 +120,18 @@ impl OrderBuilder {
             unshifted_price.inv_ray_assign_round(true);
         }
 
+        let deadline = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
+            + Duration::from_secs(600))
+        .as_secs();
+
         UserOrderBuilder::new()
             .signing_key(self.keys.get(rng.gen_range(0..10)).cloned())
             .is_exact(!is_partial)
             .asset_in(if zfo { token0 } else { token1 })
             .asset_out(if !zfo { token0 } else { token1 })
-            .is_standing(false)
+            .is_standing(rng.gen_bool(0.5))
+            .deadline(U256::from(deadline))
+            .nonce(rng.r#gen())
             .exact_in(exact_in)
             .min_price(unshifted_price)
             .block(block_number)
