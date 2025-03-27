@@ -64,25 +64,9 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             .prepare_for_new_block(address_changes, completed_orders)
     }
 
-    fn fetch_min_qty_in_t0<O: RawPoolOrder>(&self, order: &O) -> u128 {
-        if !order.is_bid() {
-            if order.exact_in() {
-                order.min_amount()
-            } else {
-                Ray::from(order.limit_price()).inverse_quantity(order.min_amount(), true)
-            }
-        } else if order.exact_in() {
-            Ray::from(order.limit_price())
-                .mul_quantity(U256::from(order.min_amount()))
-                .to::<u128>()
-        } else {
-            order.min_amount()
-        }
-    }
-
     pub fn correctly_built<O: RawPoolOrder>(&self, order: &O) -> bool {
         // ensure max gas is less than the min amount they can be filled
-        let min_qty = self.fetch_min_qty_in_t0(order);
+        let min_qty = fetch_min_qty_in_t0(order);
         min_qty >= order.max_gas_token_0()
             && ORDER_VALIDATORS
                 .iter()
@@ -179,6 +163,22 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     }
 }
 
+pub fn fetch_min_qty_in_t0<O: RawPoolOrder>(order: &O) -> u128 {
+    if !order.is_bid() {
+        if order.exact_in() {
+            order.min_amount()
+        } else {
+            Ray::from(order.limit_price()).inverse_quantity(order.min_amount(), true)
+        }
+    } else if order.exact_in() {
+        Ray::from(order.limit_price())
+            .mul_quantity(U256::from(order.min_amount()))
+            .to::<u128>()
+    } else {
+        order.min_amount()
+    }
+}
+
 pub const ORDER_VALIDATORS: [OrderValidator; 1] =
     [OrderValidator::CheckNoAmountSet(CheckNoAmountSet)];
 
@@ -204,6 +204,11 @@ pub struct CheckNoAmountSet;
 
 impl OrderValidation for CheckNoAmountSet {
     fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
-        todo!()
+        let min_qty = fetch_min_qty_in_t0(order);
+        if min_qty < order.max_gas_token_0() {
+            Err(OrderValidationError::InvalidPartialOrder)
+        } else {
+            Ok(())
+        }
     }
 }
