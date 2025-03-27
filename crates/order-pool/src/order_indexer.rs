@@ -3,7 +3,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
 use alloy::primitives::{Address, B256, BlockNumber, FixedBytes, U256};
@@ -13,21 +13,21 @@ use angstrom_types::{
     sol_bindings::{
         RawPoolOrder,
         grouped_orders::{AllOrders, OrderWithStorageData, *},
-        rpc_orders::TopOfBlockOrder,
-    },
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use futures_util::{Stream, StreamExt};
 use tokio::sync::oneshot::Sender;
 use tracing::{error, trace};
 use validation::order::{
     OrderValidationResults, OrderValidatorHandle,
-    state::{account::user::UserAddress, pools::AngstromPoolsTracker},
+    state::{account::user::UserAddress, pools::AngstromPoolsTracker}
 };
 
 use crate::{
     PoolManagerUpdate,
     order_storage::OrderStorage,
-    validator::{OrderValidator, OrderValidatorRes},
+    validator::{OrderValidator, OrderValidatorRes}
 };
 
 /// This is used to remove validated orders. During validation
@@ -41,34 +41,34 @@ const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 
 struct CancelOrderRequest {
     /// The address of the entity requesting the cancellation.
-    pub from: Address,
+    pub from:        Address,
     // The time until the cancellation request is valid.
-    pub valid_until: u64,
+    pub valid_until: u64
 }
 
 pub struct OrderIndexer<V: OrderValidatorHandle> {
     /// order storage
-    order_storage: Arc<OrderStorage>,
+    order_storage:          Arc<OrderStorage>,
     /// Address to order id, used for eoa invalidation
-    address_to_orders: HashMap<Address, Vec<OrderId>>,
+    address_to_orders:      HashMap<Address, Vec<OrderId>>,
     /// current block_number
-    block_number: u64,
+    block_number:           u64,
     /// Order hash to order id, used for order inclusion lookups
     order_hash_to_order_id: HashMap<B256, OrderId>,
     /// Used to get trigger reputation side-effects on network order submission
-    order_hash_to_peer_id: HashMap<B256, Vec<PeerId>>,
+    order_hash_to_peer_id:  HashMap<B256, Vec<PeerId>>,
     /// Used to avoid unnecessary computation on order spam
-    seen_invalid_orders: HashSet<B256>,
+    seen_invalid_orders:    HashSet<B256>,
     /// Used to protect against late order propagation
-    cancelled_orders: HashMap<B256, CancelOrderRequest>,
+    cancelled_orders:       HashMap<B256, CancelOrderRequest>,
     /// Order Validator
-    validator: OrderValidator<V>,
+    validator:              OrderValidator<V>,
     /// a mapping of tokens to pool_id
-    pool_id_map: AngstromPoolsTracker,
+    pool_id_map:            AngstromPoolsTracker,
     /// List of subscribers for order validation result
-    order_validation_subs: HashMap<B256, Vec<Sender<OrderValidationResults>>>,
+    order_validation_subs:  HashMap<B256, Vec<Sender<OrderValidationResults>>>,
     /// List of subscribers for order state change notifications
-    orders_subscriber_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
+    orders_subscriber_tx:   tokio::sync::broadcast::Sender<PoolManagerUpdate>
 }
 
 impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
@@ -77,7 +77,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         order_storage: Arc<OrderStorage>,
         block_number: BlockNumber,
         orders_subscriber_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
-        angstrom_pools: AngstromPoolsTracker,
+        angstrom_pools: AngstromPoolsTracker
     ) -> Self {
         Self {
             order_storage,
@@ -90,13 +90,13 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             cancelled_orders: HashMap::new(),
             order_validation_subs: HashMap::new(),
             validator: OrderValidator::new(validator),
-            orders_subscriber_tx,
+            orders_subscriber_tx
         }
     }
 
     pub fn pending_orders_for_address(
         &self,
-        address: Address,
+        address: Address
     ) -> Vec<OrderWithStorageData<AllOrders>> {
         let orders = self.order_storage.get_all_orders();
         tracing::info!("{:#?}", orders);
@@ -120,7 +120,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                         .get_order(order_id.pool_id, order_id.hash)
                         .and_then(|order| {
                             order.try_map_inner(|inner| Ok(AllOrders::TOB(inner))).ok()
-                        }),
+                        })
                 };
 
                 if let Some(order) = order {
@@ -134,7 +134,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
     pub fn orders_by_pool(
         &self,
         pool_id: FixedBytes<32>,
-        order_location: OrderLocation,
+        order_location: OrderLocation
     ) -> Vec<AllOrders> {
         match order_location {
             OrderLocation::Limit => self
@@ -148,7 +148,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 .searcher_orders
                 .lock()
                 .expect("poisoned")
-                .get_all_orders_from_pool(pool_id),
+                .get_all_orders_from_pool(pool_id)
         }
     }
 
@@ -186,7 +186,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         &mut self,
         origin: OrderOrigin,
         order: AllOrders,
-        validation_tx: tokio::sync::oneshot::Sender<OrderValidationResults>,
+        validation_tx: tokio::sync::oneshot::Sender<OrderValidationResults>
     ) {
         self.new_order(None, origin, order, Some(validation_tx))
     }
@@ -217,7 +217,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             self.insert_cancel_request_with_deadline(
                 request.user_address,
                 &request.order_id,
-                Some(U256::from(deadline)),
+                Some(U256::from(deadline))
             );
 
             return true;
@@ -229,13 +229,13 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             self.insert_cancel_request_with_deadline(
                 request.user_address,
                 &request.order_id,
-                order.deadline(),
+                order.deadline()
             );
 
             self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
                 order_hash: order.order_hash(),
-                user: order.from(),
-                pool_id: order.pool_id,
+                user:       order.from(),
+                pool_id:    order.pool_id
             });
             return true;
         }
@@ -247,7 +247,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         &mut self,
         from: Address,
         order_hash: &B256,
-        deadline: Option<U256>,
+        deadline: Option<U256>
     ) {
         let valid_until = deadline.map_or_else(
             || {
@@ -262,7 +262,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let bytes: [u8; U256::BYTES] = deadline.to_le_bytes();
                 // should be safe
                 u64::from_le_bytes(bytes[..8].try_into().unwrap())
-            },
+            }
         );
         self.cancelled_orders
             .insert(*order_hash, CancelOrderRequest { from, valid_until });
@@ -273,7 +273,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         peer_id: Option<PeerId>,
         origin: OrderOrigin,
         order: AllOrders,
-        validation_res_sub: Option<Sender<OrderValidationResults>>,
+        validation_res_sub: Option<Sender<OrderValidationResults>>
     ) {
         let hash = order.order_hash();
         if let Some(validation_tx) = validation_res_sub {
@@ -298,7 +298,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
                         order_hash: order.order_hash(),
                         pool_id,
-                        user: order.from(),
+                        user: order.from()
                     });
                 }
                 self.order_storage.log_cancel_order(&order);
@@ -307,8 +307,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     &hash,
                     OrderValidationResults::Invalid {
                         hash,
-                        error: angstrom_types::primitive::OrderValidationError::DuplicateOrder,
-                    },
+                        error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
+                    }
                 );
                 return;
             }
@@ -356,7 +356,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             // remove from all underlying pools
             .filter_map(|id| match id.location {
                 OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id),
-                OrderLocation::Limit => self.order_storage.remove_limit_order(&id),
+                OrderLocation::Limit => self.order_storage.remove_limit_order(&id)
             })
             .collect::<Vec<_>>();
 
@@ -370,7 +370,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 order_ids.into_iter().for_each(|id| {
                     let Some(order) = (match id.location {
                         OrderLocation::Limit => self.order_storage.remove_limit_order(&id),
-                        OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id),
+                        OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id)
                     }) else {
                         return;
                     };
@@ -407,14 +407,14 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .filter_map(|hash| self.order_hash_to_order_id.remove(hash))
             .filter_map(|order_id| match order_id.location {
                 OrderLocation::Limit => self.order_storage.remove_limit_order(&order_id),
-                OrderLocation::Searcher => self.order_storage.remove_searcher_order(&order_id),
+                OrderLocation::Searcher => self.order_storage.remove_searcher_order(&order_id)
             })
             .collect::<Vec<OrderWithStorageData<AllOrders>>>();
 
         filled_orders.iter().for_each(|order| {
             self.notify_order_subscribers(PoolManagerUpdate::FilledOrder(
                 block_number,
-                order.clone(),
+                order.clone()
             ));
         });
         self.order_storage
@@ -433,7 +433,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
     fn handle_validated_order(
         &mut self,
-        res: OrderValidationResults,
+        res: OrderValidationResults
     ) -> eyre::Result<PoolInnerEvent> {
         match res {
             OrderValidationResults::Valid(valid) => {
@@ -459,7 +459,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 self.notify_order_subscribers(PoolManagerUpdate::NewOrder(valid.clone()));
                 self.notify_validation_subscribers(
                     &hash,
-                    OrderValidationResults::Valid(valid.clone()),
+                    OrderValidationResults::Valid(valid.clone())
                 );
 
                 let to_propagate = valid.order.clone();
@@ -478,7 +478,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
-            OrderValidationResults::TransitionedToBlock => Ok(PoolInnerEvent::None),
+            OrderValidationResults::TransitionedToBlock => Ok(PoolInnerEvent::None)
         }
     }
 
@@ -505,7 +505,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                         let AllOrders::TOB(order) = inner else { eyre::bail!("unreachable") };
                         Ok(order)
                     })
-                    .expect("should be unreachable"),
+                    .expect("should be unreachable")
                 )
                 .map_err(|e| eyre::anyhow!("{:?}", e)),
             angstrom_types::orders::OrderLocation::Limit => self
@@ -519,12 +519,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                             AllOrders::Flash(kof) => {
                                 GroupedUserOrder::Vanilla(GroupedVanillaOrder::KillOrFill(kof))
                             }
-                            _ => eyre::bail!("unreachable"),
+                            _ => eyre::bail!("unreachable")
                         })
                     })
-                    .expect("should be unreachable"),
+                    .expect("should be unreachable")
                 )
-                .map_err(|e| eyre::anyhow!("{:?}", e)),
+                .map_err(|e| eyre::anyhow!("{:?}", e))
         }
     }
 
@@ -548,7 +548,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         &mut self,
         block_number: BlockNumber,
         completed_orders: Vec<B256>,
-        address_changes: Vec<Address>,
+        address_changes: Vec<Address>
     ) {
         tracing::info!(%block_number, "starting transition to new block processing");
         self.validator
@@ -559,7 +559,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         &mut self,
         block_number: BlockNumber,
         mut completed_orders: Vec<B256>,
-        address_changes: Vec<Address>,
+        address_changes: Vec<Address>
     ) {
         // deal with changed orders
         self.eoa_state_change(&address_changes);
@@ -578,14 +578,14 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.validator.notify_validation_on_changes(
             block_number,
             completed_orders,
-            address_changes,
+            address_changes
         );
     }
 }
 
 impl<V> Stream for OrderIndexer<V>
 where
-    V: OrderValidatorHandle<Order = AllOrders>,
+    V: OrderValidatorHandle<Order = AllOrders>
 {
     type Item = Vec<PoolInnerEvent>;
 
@@ -619,7 +619,7 @@ pub enum PoolInnerEvent {
     Propagation(AllOrders),
     BadOrderMessages(Vec<PeerId>),
     HasTransitionedToNewBlock(u64),
-    None,
+    None
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -632,7 +632,7 @@ pub enum PoolError {
     #[error("Already have a ordered with {0:?}")]
     DuplicateNonce(OrderId),
     #[error("Duplicate order")]
-    DuplicateOrder,
+    DuplicateOrder
 }
 
 #[cfg(test)]
@@ -645,11 +645,11 @@ mod tests {
         contract_payloads::angstrom::AngstromPoolConfigStore,
         orders::OrderId,
         primitive::AngstromSigner,
-        sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder},
+        sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
     };
     use revm::primitives::keccak256;
     use testing_tools::{
-        mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder,
+        mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
     };
     use tokio::sync::broadcast;
     use tracing_subscriber::{EnvFilter, fmt};
@@ -673,7 +673,7 @@ mod tests {
             .with_env_filter(
                 EnvFilter::from_default_env()
                     .add_directive("order_pool=debug".parse().unwrap())
-                    .add_directive("info".parse().unwrap()),
+                    .add_directive("info".parse().unwrap())
             )
             .with_test_writer()
             .try_init();
@@ -683,14 +683,14 @@ mod tests {
     struct OrderValidity {
         valid_until: Option<U256>,
         flash_block: Option<u64>,
-        is_standing: bool,
+        is_standing: bool
     }
 
     fn create_test_order(
         from: Address,
         pool_id: PoolKey,
         validity: Option<OrderValidity>,
-        signer: Option<AngstromSigner>,
+        signer: Option<AngstromSigner>
     ) -> AllOrders {
         let validity = validity.unwrap_or_default();
 
@@ -715,7 +715,7 @@ mod tests {
 
         match order {
             GroupedVanillaOrder::Standing(o) => AllOrders::Standing(o),
-            GroupedVanillaOrder::KillOrFill(o) => AllOrders::Flash(o),
+            GroupedVanillaOrder::KillOrFill(o) => AllOrders::Flash(o)
         }
     }
 
@@ -737,15 +737,15 @@ mod tests {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
-                    + 1,
+                    + 1
             )),
             flash_block: None,
-            is_standing: true,
+            is_standing: true
         };
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
-            currency_in: pool_key.currency1,
-            id: pool_id,
+            currency_in:  pool_key.currency1,
+            id:           pool_id
         });
         let order = create_test_order(from, pool_key, Some(validity), None);
 
@@ -768,9 +768,9 @@ mod tests {
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
                             .as_secs()
-                            + 1,
+                            + 1
                     )),
-                    flash_block: None,
+                    flash_block: None
                 },
                 valid_block: 1,
                 pool_id,
@@ -779,7 +779,7 @@ mod tests {
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
-                tob_reward: U256::ZERO,
+                tob_reward: U256::ZERO
             }))
             .unwrap();
 
@@ -813,15 +813,15 @@ mod tests {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
-                    + 3600, // Valid for 1 hour
+                    + 3600 // Valid for 1 hour
             )),
             flash_block: None,
-            is_standing: true,
+            is_standing: true
         };
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
-            currency_in: pool_key.currency1,
-            id: pool_id,
+            currency_in:  pool_key.currency1,
+            id:           pool_id
         });
 
         let order = create_test_order(from, pool_key.clone(), Some(validity), None);
@@ -841,7 +841,7 @@ mod tests {
                     pool_id,
                     location: OrderLocation::Limit,
                     deadline: None,
-                    flash_block: None,
+                    flash_block: None
                 },
                 valid_block: 1,
                 pool_id,
@@ -850,7 +850,7 @@ mod tests {
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
-                tob_reward: U256::ZERO,
+                tob_reward: U256::ZERO
             }))
             .unwrap();
 
@@ -881,16 +881,16 @@ mod tests {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
-                    + 3600,
+                    + 3600
             )),
             flash_block: None,
-            is_standing: true,
+            is_standing: true
         };
         let order = create_test_order(from, pool_key.clone(), Some(validity), None);
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
-            currency_in: pool_key.currency1,
-            id: pool_id,
+            currency_in:  pool_key.currency1,
+            id:           pool_id
         });
 
         let peer_id = PeerId::random();
@@ -914,7 +914,7 @@ mod tests {
                     pool_id,
                     location: OrderLocation::Limit,
                     deadline: None,
-                    flash_block: None,
+                    flash_block: None
                 },
                 valid_block: 1,
                 pool_id,
@@ -923,7 +923,7 @@ mod tests {
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
-                tob_reward: U256::ZERO,
+                tob_reward: U256::ZERO
             }))
             .unwrap();
 
@@ -944,8 +944,8 @@ mod tests {
         let order_hash = order.order_hash();
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
-            currency_in: pool_key.currency1,
-            id: PoolId::from(pool_key.clone()),
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
         });
 
         // Submit order and mark as invalid
@@ -954,8 +954,8 @@ mod tests {
 
         indexer
             .handle_validated_order(OrderValidationResults::Invalid {
-                hash: order_hash,
-                error: angstrom_types::primitive::OrderValidationError::InvalidPool,
+                hash:  order_hash,
+                error: angstrom_types::primitive::OrderValidationError::InvalidPool
             })
             .unwrap();
 
@@ -965,7 +965,7 @@ mod tests {
         // Verify validation result
         match rx.await {
             Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
-            _ => panic!("Expected invalid order result"),
+            _ => panic!("Expected invalid order result")
         }
     }
 
@@ -982,9 +982,9 @@ mod tests {
 
         // Create a new pool
         let new_pool = NewInitializedPool {
-            id: pool_id,
-            currency_in: pool_key.currency0,
-            currency_out: pool_key.currency1,
+            id:           pool_id,
+            currency_in:  pool_key.currency0,
+            currency_out: pool_key.currency1
         };
 
         indexer.new_pool(new_pool);
@@ -1007,7 +1007,7 @@ mod tests {
                     pool_id,
                     location: OrderLocation::Limit,
                     deadline: None,
-                    flash_block: None,
+                    flash_block: None
                 },
                 valid_block: 1,
                 pool_id,
@@ -1016,7 +1016,7 @@ mod tests {
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
-                tob_reward: U256::ZERO,
+                tob_reward: U256::ZERO
             }))
             .unwrap();
 
@@ -1046,8 +1046,8 @@ mod tests {
         let pool_id = PoolId::from(pool_key.clone());
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
-            currency_in: pool_key.currency1,
-            id: PoolId::from(pool_key.clone()),
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
         });
         let validity = OrderValidity {
             valid_until: Some(U256::from(
@@ -1055,10 +1055,10 @@ mod tests {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
-                    + 3600,
+                    + 3600
             )),
             flash_block: None,
-            is_standing: true,
+            is_standing: true
         };
         let order = create_test_order(from, pool_key, Some(validity), Some(s));
         let order_hash = order.order_hash();
@@ -1080,7 +1080,7 @@ mod tests {
                     pool_id,
                     location: OrderLocation::Limit,
                     deadline: None,
-                    flash_block: None,
+                    flash_block: None
                 },
                 valid_block: 1,
                 pool_id,
@@ -1089,7 +1089,7 @@ mod tests {
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
-                tob_reward: U256::ZERO,
+                tob_reward: U256::ZERO
             }))
             .unwrap();
 
@@ -1110,8 +1110,8 @@ mod tests {
         let pool_id = PoolId::from(pool_key.clone());
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
-            currency_in: pool_key.currency1,
-            id: PoolId::from(pool_key.clone()),
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
         });
         let signer = AngstromSigner::random();
         let from = signer.address();
@@ -1133,7 +1133,7 @@ mod tests {
                     pool_id,
                     location: OrderLocation::Limit,
                     deadline: None,
-                    flash_block: None,
+                    flash_block: None
                 },
                 valid_block: 1,
                 pool_id,
@@ -1142,7 +1142,7 @@ mod tests {
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
-                tob_reward: U256::ZERO,
+                tob_reward: U256::ZERO
             }))
             .unwrap();
 
@@ -1151,9 +1151,9 @@ mod tests {
 
         // Cancel the order
         let cancel_request = angstrom_types::orders::CancelOrderRequest {
-            order_id: order_hash,
+            order_id:     order_hash,
             user_address: from,
-            signature: sig,
+            signature:    sig
         };
 
         let result = indexer.cancel_order(&cancel_request);
@@ -1175,8 +1175,8 @@ mod tests {
         let pool_id = PoolId::from(pool_key.clone());
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
-            currency_in: pool_key.currency1,
-            id: PoolId::from(pool_key.clone()),
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
         });
         let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
@@ -1196,7 +1196,7 @@ mod tests {
                     pool_id,
                     location: OrderLocation::Limit,
                     deadline: None,
-                    flash_block: None,
+                    flash_block: None
                 },
                 valid_block: 1,
                 pool_id,
@@ -1205,7 +1205,7 @@ mod tests {
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
-                tob_reward: U256::ZERO,
+                tob_reward: U256::ZERO
             }))
             .unwrap();
 
@@ -1216,7 +1216,7 @@ mod tests {
         // The duplicate order should be rejected
         match rx2.await {
             Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
-            _ => panic!("Expected invalid order result"),
+            _ => panic!("Expected invalid order result")
         }
     }
 }
