@@ -82,6 +82,7 @@ reth-metrics.workspace = true
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
+pade.workspace = true
 
 
 rand.workspace = true
