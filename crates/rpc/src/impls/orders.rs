@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{Address, B256, FixedBytes, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::{OrderValidationError, PoolId},
@@ -38,7 +38,10 @@ where
     Spawner: TaskSpawner + 'static,
     Validator: OrderValidatorHandle
 {
-    async fn send_order(&self, order: AllOrders) -> RpcResult<Result<(), OrderValidationError>> {
+    async fn send_order(
+        &self,
+        order: AllOrders
+    ) -> RpcResult<Result<FixedBytes<32>, OrderValidationError>> {
         Ok(self.pool.new_order(OrderOrigin::External, order).await)
     }
 
@@ -312,13 +315,13 @@ mod tests {
             &self,
             origin: OrderOrigin,
             order: AllOrders
-        ) -> impl Future<Output = Result<(), OrderValidationError>> + Send {
+        ) -> impl Future<Output = Result<FixedBytes<32>, OrderValidationError>> + Send {
             let (tx, _) = tokio::sync::oneshot::channel();
             let _ = self
                 .sender
                 .send(OrderCommand::NewOrder(origin, order, tx))
                 .is_ok();
-            future::ready(Ok(()))
+            future::ready(Ok(FixedBytes::<32>::default()))
         }
 
         fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate> {

@@ -65,10 +65,11 @@ impl OrderPoolHandle for PoolHandle {
         &self,
         origin: OrderOrigin,
         order: AllOrders
-    ) -> impl Future<Output = Result<(), OrderValidationError>> + Send {
+    ) -> impl Future<Output = Result<FixedBytes<32>, OrderValidationError>> + Send {
         let (tx, rx) = tokio::sync::oneshot::channel();
+        let order_hash = order.order_hash();
         let _ = self.send(OrderCommand::NewOrder(origin, order, tx));
-        rx.map(|res| {
+        rx.map(move |res| {
             let Ok(result) = res else {
                 return Err(OrderValidationError::Unknown(
                     "a channel failed on the backend".to_string()
@@ -76,7 +77,7 @@ impl OrderPoolHandle for PoolHandle {
             };
             match result {
                 OrderValidationResults::TransitionedToBlock | OrderValidationResults::Valid(_) => {
-                    Ok(())
+                    Ok(order_hash)
                 }
                 OrderValidationResults::Invalid { error, .. } => Err(error)
             }

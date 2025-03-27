@@ -37,7 +37,7 @@ pub trait OrderPoolHandle: Send + Sync + Clone + Unpin + 'static {
         &self,
         origin: OrderOrigin,
         order: AllOrders
-    ) -> impl Future<Output = Result<(), OrderValidationError>> + Send;
+    ) -> impl Future<Output = Result<FixedBytes<32>, OrderValidationError>> + Send;
 
     fn subscribe_orders(&self) -> BroadcastStream<PoolManagerUpdate>;
 
