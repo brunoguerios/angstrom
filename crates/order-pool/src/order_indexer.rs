@@ -643,6 +643,7 @@ mod tests {
         sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
     };
     use pade::PadeEncode;
+    use revm::primitives::keccak256;
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
     };
@@ -1182,7 +1183,7 @@ mod tests {
             }))
             .unwrap();
 
-        let hash = revm::primitives::keccak256((from, order_hash).abi_encode());
+        let hash = keccak256((from, order_hash).abi_encode());
         let sig = signer.sign_message_sync(hash.as_slice()).unwrap();
 
         // Cancel the order
