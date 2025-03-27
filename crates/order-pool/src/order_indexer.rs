@@ -554,6 +554,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         mut completed_orders: Vec<B256>,
         address_changes: Vec<Address>
     ) {
+        // clear the invalid orders as they could of become valid.
+        self.seen_invalid_orders.clear();
         // deal with changed orders
         self.eoa_state_change(&address_changes);
         // deal with filled orders
@@ -960,6 +962,47 @@ mod tests {
             Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
             _ => panic!("Expected invalid order result")
         }
+    }
+
+    #[tokio::test]
+    async fn test_invalid_orders_clear() {
+        let mut indexer = setup_test_indexer();
+        let from = Address::random();
+        let pool_key = PoolKey {
+            currency0: Address::random(),
+            currency1: Address::random(),
+            ..Default::default()
+        };
+        let order = create_test_order(from, pool_key.clone(), None, None);
+        let order_hash = order.order_hash();
+        indexer.new_pool(NewInitializedPool {
+            currency_out: pool_key.currency0,
+            currency_in:  pool_key.currency1,
+            id:           PoolId::from(pool_key.clone())
+        });
+
+        // Submit order and mark as invalid
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        indexer.new_rpc_order(OrderOrigin::Local, order.clone(), tx);
+
+        indexer
+            .handle_validated_order(OrderValidationResults::Invalid {
+                hash:  order_hash,
+                error: angstrom_types::primitive::OrderValidationError::InvalidPool
+            })
+            .unwrap();
+
+        // Verify order was marked as invalid
+        assert!(indexer.seen_invalid_orders.contains(&order_hash));
+
+        // Verify validation result
+        match rx.await {
+            Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
+            _ => panic!("Expected invalid order result")
+        }
+
+        indexer.finish_new_block_processing(1, vec![], vec![]);
+        assert!(!indexer.seen_invalid_orders.contains(&order_hash));
     }
 
     #[tokio::test]
