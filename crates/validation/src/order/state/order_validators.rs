@@ -6,15 +6,18 @@ use angstrom_types::{
 };
 use gas_set::EnsureGasSet;
 use max_gas_lt_min::EnsureMaxGasLessThanMinAmount;
+use price_set::EnsurePriceSet;
 
 pub mod amount_set;
 pub mod gas_set;
 pub mod max_gas_lt_min;
+pub mod price_set;
 
-pub const ORDER_VALIDATORS: [OrderValidator; 3] = [
+pub const ORDER_VALIDATORS: [OrderValidator; 4] = [
     OrderValidator::EnsureAmountSet(EnsureAmountSet),
     OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
-    OrderValidator::EnsureGasSet(EnsureGasSet)
+    OrderValidator::EnsureGasSet(EnsureGasSet),
+    OrderValidator::EnsurePriceSet(EnsurePriceSet)
 ];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -67,7 +70,8 @@ pub trait OrderValidation {
 pub enum OrderValidator {
     EnsureAmountSet(EnsureAmountSet),
     EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
-    EnsureGasSet(EnsureGasSet)
+    EnsureGasSet(EnsureGasSet),
+    EnsurePriceSet(EnsurePriceSet)
 }
 
 impl OrderValidation for OrderValidator {
@@ -80,7 +84,8 @@ impl OrderValidation for OrderValidator {
             OrderValidator::EnsureMaxGasLessThanMinAmount(validator) => {
                 validator.validate_order(state)
             }
-            OrderValidator::EnsureGasSet(validator) => validator.validate_order(state)
+            OrderValidator::EnsureGasSet(validator) => validator.validate_order(state),
+            OrderValidator::EnsurePriceSet(validator) => validator.validate_order(state)
         }
     }
 }
