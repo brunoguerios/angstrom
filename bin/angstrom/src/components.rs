@@ -286,6 +286,8 @@ where
     tracing::info!("uniswap manager start");
 
     let uniswap_pools = uniswap_pool_manager.pools();
+    let pool_ids = uniswap_pool_manager.pool_addresses().collect::<Vec<_>>();
+
     executor.spawn_critical("uniswap pool manager", Box::pin(uniswap_pool_manager));
     let price_generator = TokenPriceGenerator::new(
         querying_provider.clone(),
@@ -322,7 +324,9 @@ where
         .with_consensus_manager(handles.consensus_tx_op)
         .build_handle(executor.clone(), node.provider.clone());
 
-    let pool_config = PoolConfig::default();
+    // fetch pool ids
+
+    let pool_config = PoolConfig::with_pool_ids(pool_ids);
     let order_storage = Arc::new(OrderStorage::new(&pool_config));
     let angstrom_pool_tracker =
         AngstromPoolsTracker::new(node_config.angstrom_address, pool_config_store.clone());

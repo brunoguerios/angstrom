@@ -1,7 +1,7 @@
 use angstrom_types::primitive::PoolId;
 
 /// Guarantees max orders per sender
-pub const ORDER_POOL_MAX_ACCOUNT_SLOTS_PER_SENDER: usize = 16;
+pub const ORDER_POOL_MAX_ACCOUNT_SLOTS_PER_SENDER: usize = 200;
 
 /// The default maximum allowed number of orders in the given subpool;
 pub const LIMIT_SUBPOOL_MAX_ORDERS_DEFAULT: usize = 1_000;
@@ -32,6 +32,12 @@ pub struct PoolConfig {
     pub s_pending_limit:   SearcherSubPoolLimit,
     /// Max number of executable transaction slots guaranteed per account
     pub max_account_slots: usize
+}
+
+impl PoolConfig {
+    pub fn with_pool_ids(ids: Vec<PoolId>) -> Self {
+        Self { ids, ..Default::default() }
+    }
 }
 
 impl Default for PoolConfig {
