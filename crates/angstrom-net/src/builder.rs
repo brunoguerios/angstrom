@@ -6,10 +6,10 @@ use alloy::{primitives::Address, signers::SignerSync};
 use alloy_chains::Chain;
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::primitive::{AngstromSigner, PeerId};
-use futures::FutureExt;
 use parking_lot::RwLock;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
-use reth_tasks::TaskSpawner;
+use reth_network::Peers;
+use reth_tasks::{TaskSpawner, TaskSpawnerExt};
 use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use tokio_util::sync::PollSender;
 
@@ -19,19 +19,25 @@ use crate::{
     manager::StromConsensusEvent, state::StromState, types::status::StatusState
 };
 
-pub struct NetworkBuilder {
+pub struct NetworkBuilder<P: Peers + Unpin> {
     to_pool_manager:      Option<UnboundedMeteredSender<NetworkOrderEvent>>,
     to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
     session_manager_rx:   Option<Receiver<StromSessionMessage>>,
     eth_handle:           UnboundedReceiver<EthEvent>,
+    reth_handle:          P,
 
     validator_set: Arc<RwLock<HashSet<Address>>>,
     verification:  VerificationSidecar
 }
 
-impl NetworkBuilder {
-    pub fn new(verification: VerificationSidecar, eth_handle: UnboundedReceiver<EthEvent>) -> Self {
+impl<P: Peers + Unpin + 'static> NetworkBuilder<P> {
+    pub fn new(
+        verification: VerificationSidecar,
+        eth_handle: UnboundedReceiver<EthEvent>,
+        reth_handle: P
+    ) -> Self {
         Self {
+            reth_handle,
             verification,
             to_pool_manager: None,
             to_consensus_manager: None,
@@ -39,6 +45,11 @@ impl NetworkBuilder {
             eth_handle,
             validator_set: Default::default()
         }
+    }
+
+    pub fn with_reth(mut self, reth_handle: P) -> Self {
+        self.reth_handle = reth_handle;
+        self
     }
 
     pub fn with_consensus_manager(
@@ -74,7 +85,7 @@ impl NetworkBuilder {
     /// builds the network spawning it on its own thread, returning the
     /// communication channel along with returning the protocol it
     /// represents.
-    pub fn build_handle<TP: TaskSpawner, DB: Send + Unpin + 'static>(
+    pub fn build_handle<TP: TaskSpawner + TaskSpawnerExt, DB: Send + Unpin + 'static>(
         mut self,
         tp: TP,
         db: DB
@@ -87,11 +98,13 @@ impl NetworkBuilder {
             swarm,
             self.eth_handle,
             self.to_pool_manager,
-            self.to_consensus_manager
+            self.to_consensus_manager,
+            self.reth_handle
         );
 
         let handle = network.get_handle();
-        tp.spawn_critical("strom network", network.boxed());
+
+        tp.spawn_critical("network", Box::pin(network));
 
         handle
     }

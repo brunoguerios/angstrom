@@ -42,11 +42,11 @@ use crate::{
     types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig}
 };
 
-pub struct TestnetNode<C, P> {
+pub struct TestnetNode<C: Unpin, P> {
     testnet_node_id: u64,
     network:         TestnetNodeNetwork,
     strom:           AngstromNodeInternals<P>,
-    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc>
+    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc, NetworkHandle>
 }
 
 impl<C, P> TestnetNode<C, P>
@@ -190,14 +190,14 @@ where
     /// -------------------------------------
     pub fn strom_network_manager<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&StromNetworkManager<C>) -> R
+        F: FnOnce(&StromNetworkManager<C, NetworkHandle>) -> R
     {
         self.state_lock.strom_network_manager(f)
     }
 
     pub fn strom_network_manager_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut StromNetworkManager<C>) -> R
+        F: FnOnce(&mut StromNetworkManager<C, NetworkHandle>) -> R
     {
         self.state_lock.strom_network_manager_mut(f)
     }
@@ -302,7 +302,7 @@ where
     pub fn pre_post_network_event_channel_swap<E>(
         &mut self,
         is_pre_event: bool,
-        f: impl FnOnce(&mut StromNetworkManager<C>) -> Option<UnboundedMeteredSender<E>>
+        f: impl FnOnce(&mut StromNetworkManager<C, NetworkHandle>) -> Option<UnboundedMeteredSender<E>>
     ) -> UnboundedMeteredSender<E> {
         if is_pre_event {
             self.stop_network();

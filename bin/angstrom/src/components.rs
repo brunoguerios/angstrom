@@ -41,6 +41,7 @@ use reth::{
     tasks::TaskExecutor
 };
 use reth_metrics::common::mpsc::{UnboundedMeteredReceiver, UnboundedMeteredSender};
+use reth_network::Peers;
 use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAddOns};
 use reth_provider::{
     BlockReader, DatabaseProviderFactory, ReceiptProvider, TryIntoHistoricalStateProvider
@@ -58,10 +59,11 @@ use validation::{
 
 use crate::{AngstromConfig, cli::NodeConfig};
 
-pub fn init_network_builder(
+pub fn init_network_builder<P: Peers + Unpin + 'static>(
     secret_key: AngstromSigner,
-    eth_handle: UnboundedReceiver<EthEvent>
-) -> eyre::Result<StromNetworkBuilder> {
+    eth_handle: UnboundedReceiver<EthEvent>,
+    reth_handle: P
+) -> eyre::Result<StromNetworkBuilder<P>> {
     let public_key = secret_key.id();
 
     let state = StatusState {
@@ -74,7 +76,7 @@ pub fn init_network_builder(
     let verification =
         VerificationSidecar { status: state, has_sent: false, has_received: false, secret_key };
 
-    Ok(StromNetworkBuilder::new(verification, eth_handle))
+    Ok(StromNetworkBuilder::new(verification, eth_handle, reth_handle))
 }
 
 pub type DefaultPoolHandle = PoolHandle;
@@ -146,11 +148,11 @@ pub fn initialize_strom_handles() -> StromHandles {
     }
 }
 
-pub async fn initialize_strom_components<Node, AddOns>(
+pub async fn initialize_strom_components<Node, AddOns, P: Peers + Unpin + 'static>(
     config: AngstromConfig,
     signer: AngstromSigner,
     mut handles: StromHandles,
-    network_builder: StromNetworkBuilder,
+    network_builder: StromNetworkBuilder<P>,
     node: &FullNode<Node, AddOns>,
     executor: TaskExecutor,
     exit: NodeExitFuture

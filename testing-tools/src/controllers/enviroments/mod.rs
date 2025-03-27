@@ -17,6 +17,7 @@ use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
     UnboundedMeteredReceiver, UnboundedMeteredSender, metered_unbounded_channel
 };
+use reth_network::NetworkHandle;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 pub use state_machine::*;
 use tokio_stream::StreamExt;
@@ -28,7 +29,7 @@ use crate::{
     types::{GlobalTestingConfig, WithWalletProvider}
 };
 
-pub struct AngstromTestnet<C, G, P> {
+pub struct AngstromTestnet<C: Unpin, G, P> {
     block_provider:      TestnetBlockProvider,
     _anvil_instance:     Option<AnvilInstance>,
     peers:               HashMap<u64, TestnetNode<C, P>>,
@@ -256,7 +257,7 @@ where
         network_f: F,
         expected_f: K,
         channel_swap_f: impl Fn(
-            &mut StromNetworkManager<C>,
+            &mut StromNetworkManager<C, NetworkHandle>,
             UnboundedMeteredSender<E>
         ) -> Option<UnboundedMeteredSender<E>>
     ) -> R::Output

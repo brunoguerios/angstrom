@@ -4,6 +4,7 @@ use alloy_primitives::Address;
 use angstrom_network::{StromNetworkEvent, StromNetworkHandle, StromNetworkManager};
 use angstrom_types::primitive::PeerId;
 use parking_lot::RwLock;
+use reth_network::Peers;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 #[derive(Clone)]
@@ -13,7 +14,9 @@ pub struct StromNetworkPeer {
 }
 
 impl StromNetworkPeer {
-    pub fn new<C: Unpin>(strom_network: &StromNetworkManager<C>) -> Self {
+    pub fn new<C: Unpin, P: Peers + Unpin + 'static>(
+        strom_network: &StromNetworkManager<C, P>
+    ) -> Self {
         Self {
             network_handle: strom_network.get_handle(),
             validator_set:  strom_network.swarm().state().validators().clone()

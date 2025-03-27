@@ -39,6 +39,10 @@ impl<DB: Unpin> Swarm<DB> {
         &mut self.sessions
     }
 
+    pub fn sessions(&self) -> &StromSessionManager {
+        &self.sessions
+    }
+
     // pub(crate) fn remove_peer(&mut self, peer_id: PeerId, kind: PeerKind) {
     //     match kind {
     //         PeerKind::Basic => self.state.peers_mut().remove_peer(peer_id),
