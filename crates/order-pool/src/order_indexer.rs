@@ -554,6 +554,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         mut completed_orders: Vec<B256>,
         address_changes: Vec<Address>
     ) {
+        // clear the invalid orders as they could of become valid.
+        self.seen_invalid_orders.clear();
         // deal with changed orders
         self.eoa_state_change(&address_changes);
         // deal with filled orders
