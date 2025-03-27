@@ -10,7 +10,7 @@ impl OrderValidation for EnsureAmountSet {
         &self,
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
-        if state.min_qty_in_t0() == 0 {
+        if state.order().min_amount() == 0 {
             Err(OrderValidationError::NoAmountSpecified)
         } else {
             Ok(())
