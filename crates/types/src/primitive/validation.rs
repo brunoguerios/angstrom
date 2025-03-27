@@ -26,6 +26,8 @@ pub enum OrderValidationError {
     NoAmountSpecified,
     #[error("max gas for this order is greater than min amount")]
     MaxGasGreaterThanMinAmount,
+    #[error("no gas was specified for this order")]
+    NoGasSpecified,
     #[error("unknown")]
     Unknown(String)
 }

@@ -643,7 +643,6 @@ mod tests {
         sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
     };
     use pade::PadeEncode;
-    use revm::primitives::keccak256;
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
     };
