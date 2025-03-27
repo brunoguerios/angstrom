@@ -238,7 +238,7 @@ impl OrderValidation for EnsureAmountSet {
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
         if state.min_qty_in_t0() == 0 {
-            Err(OrderValidationError::InvalidPartialOrder)
+            Err(OrderValidationError::NoAmountSpecified)
         } else {
             Ok(())
         }

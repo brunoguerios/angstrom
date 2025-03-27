@@ -22,6 +22,8 @@ pub enum OrderValidationError {
     DuplicateOrder,
     #[error("Not Valid At Block")]
     InvalidOrderAtBlock,
+    #[error("No Amount Specified")]
+    NoAmountSpecified,
     #[error("unknown")]
     Unknown(String)
 }
