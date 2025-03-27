@@ -1,7 +1,7 @@
 mod fillstate;
 mod origin;
 use alloy::{
-    primitives::{Address, B256, FixedBytes, PrimitiveSignature, keccak256},
+    primitives::{Address, B256, PrimitiveSignature},
     sol_types::SolValue
 };
 pub mod orderpool;
@@ -179,8 +179,8 @@ pub struct CancelOrderRequest {
 }
 
 impl CancelOrderRequest {
-    fn signing_payload(&self) -> FixedBytes<32> {
-        keccak256((self.user_address, self.order_id).abi_encode())
+    fn signing_payload(&self) -> Vec<u8> {
+        (self.user_address, self.order_id).abi_encode_packed()
     }
 
     pub fn is_valid(&self) -> bool {
