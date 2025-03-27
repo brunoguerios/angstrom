@@ -20,10 +20,12 @@ pub enum OrderValidationError {
     NotEnoughGas,
     #[error("duplicate order")]
     DuplicateOrder,
-    #[error("Not Valid At Block")]
+    #[error("not valid at block")]
     InvalidOrderAtBlock,
-    #[error("No Amount Specified")]
+    #[error("no amount specified")]
     NoAmountSpecified,
+    #[error("max gas for this order is greater than min amount")]
+    MaxGasGreaterThanMinAmount,
     #[error("unknown")]
     Unknown(String)
 }

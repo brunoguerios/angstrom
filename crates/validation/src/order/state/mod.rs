@@ -254,7 +254,7 @@ impl OrderValidation for EnsureMaxGasLessThanMinAmount {
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
         if state.min_qty_in_t0() < state.order.max_gas_token_0() {
-            Err(OrderValidationError::InvalidPartialOrder)
+            Err(OrderValidationError::MaxGasGreaterThanMinAmount)
         } else {
             Ok(())
         }
