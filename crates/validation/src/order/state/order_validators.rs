@@ -4,14 +4,17 @@ use angstrom_types::{
     primitive::OrderValidationError,
     sol_bindings::{RawPoolOrder, Ray}
 };
+use gas_set::EnsureGasSet;
 use max_gas_lt_min::EnsureMaxGasLessThanMinAmount;
 
 pub mod amount_set;
+pub mod gas_set;
 pub mod max_gas_lt_min;
 
-pub const ORDER_VALIDATORS: [OrderValidator; 2] = [
+pub const ORDER_VALIDATORS: [OrderValidator; 3] = [
     OrderValidator::EnsureAmountSet(EnsureAmountSet),
-    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
+    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
+    OrderValidator::EnsureGasSet(EnsureGasSet)
 ];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -23,6 +26,10 @@ pub struct OrderValidationState<'a, O: RawPoolOrder> {
 impl<'a, O: RawPoolOrder> OrderValidationState<'a, O> {
     pub const fn new(order: &'a O) -> Self {
         Self { order, min_qty: None }
+    }
+
+    pub const fn order(&self) -> &'a O {
+        self.order
     }
 
     pub fn min_qty_in_t0(&mut self) -> u128 {
@@ -59,7 +66,8 @@ pub trait OrderValidation {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OrderValidator {
     EnsureAmountSet(EnsureAmountSet),
-    EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
+    EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
+    EnsureGasSet(EnsureGasSet)
 }
 
 impl OrderValidation for OrderValidator {
@@ -72,6 +80,7 @@ impl OrderValidation for OrderValidator {
             OrderValidator::EnsureMaxGasLessThanMinAmount(validator) => {
                 validator.validate_order(state)
             }
+            OrderValidator::EnsureGasSet(validator) => validator.validate_order(state)
         }
     }
 }
