@@ -642,6 +642,7 @@ mod tests {
         primitive::AngstromSigner,
         sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
     };
+    use pade::PadeEncode;
     use revm::primitives::keccak256;
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
@@ -1189,7 +1190,7 @@ mod tests {
         let cancel_request = angstrom_types::orders::CancelOrderRequest {
             order_id:     order_hash,
             user_address: from,
-            signature:    sig
+            signature:    sig.pade_encode().into()
         };
 
         let result = indexer.cancel_order(&cancel_request);

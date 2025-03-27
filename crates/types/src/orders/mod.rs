@@ -6,10 +6,11 @@ use alloy::{
 };
 pub mod orderpool;
 
-use alloy_primitives::I256;
+use alloy_primitives::{Bytes, I256};
 pub use fillstate::*;
 pub use orderpool::*;
 pub use origin::*;
+use pade::PadeDecode;
 use serde::{Deserialize, Serialize};
 
 pub type BookID = u128;
@@ -169,7 +170,8 @@ impl Ord for PoolSolution {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CancelOrderRequest {
-    pub signature:    PrimitiveSignature,
+    /// the signature encoded v,r,s in bytes.
+    pub signature:    Bytes,
     // if there's no salt to make this a unique signing hash. One can just
     // copy the signature of the order and id and it will verify
     pub user_address: Address,
@@ -183,7 +185,11 @@ impl CancelOrderRequest {
 
     pub fn is_valid(&self) -> bool {
         let hash = self.signing_payload();
-        let Ok(sender) = self.signature.recover_address_from_prehash(&hash) else { return false };
+        let signature = self.signature.to_vec();
+        let slice = &mut signature.as_slice();
+        let signature = PrimitiveSignature::pade_decode(slice, None).unwrap();
+
+        let Ok(sender) = signature.recover_address_from_prehash(&hash) else { return false };
 
         sender == self.user_address
     }
