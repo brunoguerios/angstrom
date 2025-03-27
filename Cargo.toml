@@ -40,7 +40,7 @@ tokio.opt-level = 3
 
 [profile.debug-fast]
 inherits = "dev"
-lto = "thin"
+lto = false
 opt-level = 3
 codegen-units = 15
 

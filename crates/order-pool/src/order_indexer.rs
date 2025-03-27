@@ -339,23 +339,21 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .map(|(k, _)| *k)
             .collect::<Vec<_>>();
 
-        // TODO: notify rpc of dead orders
-        let _expired_orders = hashes
+        hashes
             .iter()
             // remove hash from id
             .map(|hash| self.order_hash_to_order_id.remove(hash).unwrap())
-            .inspect(|order_id| {
+            // remove from all underlying pools
+            .for_each(|id| {
                 self.address_to_orders
                     .values_mut()
                     // remove from address to orders
-                    .for_each(|v| v.retain(|o| o != order_id));
-            })
-            // remove from all underlying pools
-            .filter_map(|id| match id.location {
-                OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id),
-                OrderLocation::Limit => self.order_storage.remove_limit_order(&id)
-            })
-            .collect::<Vec<_>>();
+                    .for_each(|v| v.retain(|o| o != &id));
+                match id.location {
+                    OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id),
+                    OrderLocation::Limit => self.order_storage.remove_limit_order(&id)
+                };
+            });
 
         hashes
     }
@@ -461,7 +459,9 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let to_propagate = valid.order.clone();
                 self.update_order_tracking(&hash, valid.from(), valid.order_id);
                 self.park_transactions(&valid.invalidates);
-                self.insert_order(valid)?;
+                if let Err(e) = self.insert_order(valid) {
+                    tracing::error!(%e, "failed to insert valid order");
+                }
 
                 Ok(PoolInnerEvent::Propagation(to_propagate))
             }
