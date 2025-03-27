@@ -180,7 +180,7 @@ pub fn fetch_min_qty_in_t0<O: RawPoolOrder>(order: &O) -> u128 {
 }
 
 pub const ORDER_VALIDATORS: [OrderValidator; 1] =
-    [OrderValidator::CheckNoAmountSet(CheckNoAmountSet)];
+    [OrderValidator::EnsureAmountSet(EnsureAmountSet)];
 
 pub trait OrderValidation {
     fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError>;
@@ -188,27 +188,23 @@ pub trait OrderValidation {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OrderValidator {
-    CheckNoAmountSet(CheckNoAmountSet)
+    EnsureAmountSet(EnsureAmountSet)
 }
 
 impl OrderValidation for OrderValidator {
     fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
         match self {
-            OrderValidator::CheckNoAmountSet(validator) => validator.validate_order(order)
+            OrderValidator::EnsureAmountSet(validator) => validator.validate_order(order)
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
-pub struct CheckNoAmountSet;
+pub struct EnsureAmountSet;
 
-impl OrderValidation for CheckNoAmountSet {
+impl OrderValidation for EnsureAmountSet {
     fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
         let min_qty = fetch_min_qty_in_t0(order);
-        if min_qty < order.max_gas_token_0() {
-            Err(OrderValidationError::InvalidPartialOrder)
-        } else {
-            Ok(())
-        }
+        if min_qty == 0 { Err(OrderValidationError::InvalidPartialOrder) } else { Ok(()) }
     }
 }
