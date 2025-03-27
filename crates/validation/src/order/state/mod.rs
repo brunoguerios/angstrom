@@ -65,13 +65,11 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     }
 
     pub fn correctly_built<O: RawPoolOrder>(&self, order: &O) -> bool {
-        // ensure max gas is less than the min amount they can be filled
-        let min_qty = fetch_min_qty_in_t0(order);
         let mut state = OrderValidationState::new(order);
-        min_qty >= order.max_gas_token_0()
-            && ORDER_VALIDATORS
-                .iter()
-                .all(|validator| validator.validate_order(&mut state).is_ok())
+
+        ORDER_VALIDATORS
+            .iter()
+            .all(|validator| validator.validate_order(&mut state).is_ok())
     }
 
     pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
@@ -164,8 +162,10 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     }
 }
 
-pub const ORDER_VALIDATORS: [OrderValidator; 1] =
-    [OrderValidator::EnsureAmountSet(EnsureAmountSet)];
+pub const ORDER_VALIDATORS: [OrderValidator; 2] = [
+    OrderValidator::EnsureAmountSet(EnsureAmountSet),
+    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
+];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct OrderValidationState<'a, O: RawPoolOrder> {
@@ -211,7 +211,8 @@ pub trait OrderValidation {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OrderValidator {
-    EnsureAmountSet(EnsureAmountSet)
+    EnsureAmountSet(EnsureAmountSet),
+    EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
 }
 
 impl OrderValidation for OrderValidator {
@@ -220,7 +221,10 @@ impl OrderValidation for OrderValidator {
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
         match self {
-            OrderValidator::EnsureAmountSet(validator) => validator.validate_order(state)
+            OrderValidator::EnsureAmountSet(validator) => validator.validate_order(state),
+            OrderValidator::EnsureMaxGasLessThanMinAmount(validator) => {
+                validator.validate_order(state)
+            }
         }
     }
 }
@@ -234,6 +238,22 @@ impl OrderValidation for EnsureAmountSet {
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
         if state.min_qty_in_t0() == 0 {
+            Err(OrderValidationError::InvalidPartialOrder)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct EnsureMaxGasLessThanMinAmount;
+
+impl OrderValidation for EnsureMaxGasLessThanMinAmount {
+    fn validate_order<O: RawPoolOrder>(
+        &self,
+        state: &mut OrderValidationState<O>
+    ) -> Result<(), OrderValidationError> {
+        if state.min_qty_in_t0() < state.order.max_gas_token_0() {
             Err(OrderValidationError::InvalidPartialOrder)
         } else {
             Ok(())
