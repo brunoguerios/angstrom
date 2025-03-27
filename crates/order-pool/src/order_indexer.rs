@@ -1184,7 +1184,7 @@ mod tests {
             .unwrap();
 
         let hash = keccak256((from, order_hash).abi_encode());
-        let sig = signer.sign_hash_sync(&hash).unwrap();
+        let sig = signer.sign_message_sync(hash.as_slice()).unwrap();
 
         // Cancel the order
         let cancel_request = angstrom_types::orders::CancelOrderRequest {
