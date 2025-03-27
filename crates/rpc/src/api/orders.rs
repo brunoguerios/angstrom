@@ -13,7 +13,7 @@ use jsonrpsee::{
 };
 use serde::Deserialize;
 
-use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind};
+use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind, PendingOrder};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GasEstimateResponse {
@@ -30,7 +30,7 @@ pub trait OrderApi {
     async fn send_order(&self, order: AllOrders) -> RpcResult<Result<(), OrderValidationError>>;
 
     #[method(name = "pendingOrder")]
-    async fn pending_order(&self, from: Address) -> RpcResult<Vec<AllOrders>>;
+    async fn pending_order(&self, from: Address) -> RpcResult<Vec<PendingOrder>>;
 
     #[method(name = "cancelOrder")]
     async fn cancel_order(&self, request: CancelOrderRequest) -> RpcResult<bool>;
@@ -83,7 +83,7 @@ pub trait OrderApi {
     }
 
     #[method(name = "pendingOrders")]
-    async fn pending_orders(&self, from: Vec<Address>) -> RpcResult<Vec<AllOrders>> {
+    async fn pending_orders(&self, from: Vec<Address>) -> RpcResult<Vec<PendingOrder>> {
         Ok(futures::stream::iter(from.into_iter())
             .map(|order| async move { self.pending_order(order).await })
             .buffered(3)
