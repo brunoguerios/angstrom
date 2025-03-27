@@ -98,11 +98,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         &self,
         address: Address
     ) -> Vec<OrderWithStorageData<AllOrders>> {
-        let orders = self.order_storage.get_all_orders();
-        tracing::info!("{:#?}", orders);
         let mut orders = Vec::new();
         if let Some(order_ids) = self.address_to_orders.get(&address) {
-            tracing::info!("got order id for pending order request");
             for order_id in order_ids {
                 let order = match order_id.location {
                     angstrom_types::orders::OrderLocation::Limit => self
@@ -341,21 +338,17 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             })
             .map(|(k, _)| *k)
             .collect::<Vec<_>>();
-        tracing::info!("\n\n\n removing order hashes {:#?}", hashes);
 
-        // TODO: notify rpc of dead orders
         hashes
             .iter()
             // remove hash from id
             .map(|hash| self.order_hash_to_order_id.remove(hash).unwrap())
-            .inspect(|order_id| {
+            // remove from all underlying pools
+            .for_each(|id| {
                 self.address_to_orders
                     .values_mut()
                     // remove from address to orders
-                    .for_each(|v| v.retain(|o| o != order_id));
-            })
-            // remove from all underlying pools
-            .for_each(|id| {
+                    .for_each(|v| v.retain(|o| o != &id));
                 match id.location {
                     OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id),
                     OrderLocation::Limit => self.order_storage.remove_limit_order(&id)
@@ -443,7 +436,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
                 // what about the deadline?
                 if valid.valid_block != self.block_number {
-                    tracing::info!("valid block != block_number");
                     self.notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Invalid {
@@ -467,7 +459,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let to_propagate = valid.order.clone();
                 self.update_order_tracking(&hash, valid.from(), valid.order_id);
                 self.park_transactions(&valid.invalidates);
-                tracing::info!("inserting valid order {:#?}", valid);
                 if let Err(e) = self.insert_order(valid) {
                     tracing::error!(%e, "failed to insert valid order");
                 }
