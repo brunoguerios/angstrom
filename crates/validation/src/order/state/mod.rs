@@ -84,6 +84,9 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         // ensure max gas is less than the min amount they can be filled
         let min_qty = self.fetch_min_qty_in_t0(order);
         min_qty >= order.max_gas_token_0()
+            && ORDER_VALIDATORS
+                .iter()
+                .all(|validator| validator.validate_order(order).is_ok())
     }
 
     pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
@@ -173,5 +176,34 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         }
 
         results
+    }
+}
+
+pub const ORDER_VALIDATORS: [OrderValidator; 1] =
+    [OrderValidator::CheckNoAmountSet(CheckNoAmountSet)];
+
+pub trait OrderValidation {
+    fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError>;
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum OrderValidator {
+    CheckNoAmountSet(CheckNoAmountSet)
+}
+
+impl OrderValidation for OrderValidator {
+    fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
+        match self {
+            OrderValidator::CheckNoAmountSet(validator) => validator.validate_order(order)
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct CheckNoAmountSet;
+
+impl OrderValidation for CheckNoAmountSet {
+    fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
+        todo!()
     }
 }
