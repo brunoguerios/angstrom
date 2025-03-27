@@ -14,7 +14,9 @@ use validation::order::OrderValidatorHandle;
 
 use crate::{
     api::OrderApiServer,
-    types::{OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult}
+    types::{
+        OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult, PendingOrder
+    }
 };
 
 pub struct OrderApi<OrderPool, Spawner, Validator> {
@@ -40,8 +42,14 @@ where
         Ok(self.pool.new_order(OrderOrigin::External, order).await)
     }
 
-    async fn pending_order(&self, from: Address) -> RpcResult<Vec<AllOrders>> {
-        Ok(self.pool.pending_orders(from).await)
+    async fn pending_order(&self, from: Address) -> RpcResult<Vec<PendingOrder>> {
+        Ok(self
+            .pool
+            .pending_orders(from)
+            .await
+            .into_iter()
+            .map(|order| PendingOrder { order_id: order.order_hash(), order })
+            .collect())
     }
 
     async fn cancel_order(&self, request: CancelOrderRequest) -> RpcResult<bool> {
