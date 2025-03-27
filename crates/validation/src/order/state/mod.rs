@@ -67,10 +67,11 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     pub fn correctly_built<O: RawPoolOrder>(&self, order: &O) -> bool {
         // ensure max gas is less than the min amount they can be filled
         let min_qty = fetch_min_qty_in_t0(order);
+        let mut state = OrderValidationState::new(order);
         min_qty >= order.max_gas_token_0()
             && ORDER_VALIDATORS
                 .iter()
-                .all(|validator| validator.validate_order(order).is_ok())
+                .all(|validator| validator.validate_order(&mut state).is_ok())
     }
 
     pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
@@ -163,27 +164,49 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     }
 }
 
-pub fn fetch_min_qty_in_t0<O: RawPoolOrder>(order: &O) -> u128 {
-    if !order.is_bid() {
-        if order.exact_in() {
-            order.min_amount()
-        } else {
-            Ray::from(order.limit_price()).inverse_quantity(order.min_amount(), true)
-        }
-    } else if order.exact_in() {
-        Ray::from(order.limit_price())
-            .mul_quantity(U256::from(order.min_amount()))
-            .to::<u128>()
-    } else {
-        order.min_amount()
-    }
-}
-
 pub const ORDER_VALIDATORS: [OrderValidator; 1] =
     [OrderValidator::EnsureAmountSet(EnsureAmountSet)];
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct OrderValidationState<'a, O: RawPoolOrder> {
+    order:   &'a O,
+    min_qty: Option<u128>
+}
+
+impl<'a, O: RawPoolOrder> OrderValidationState<'a, O> {
+    pub const fn new(order: &'a O) -> Self {
+        Self { order, min_qty: None }
+    }
+
+    pub fn min_qty_in_t0(&mut self) -> u128 {
+        if let Some(min_qty) = self.min_qty {
+            min_qty
+        } else {
+            let order = self.order;
+            let min_qty = if !order.is_bid() {
+                if order.exact_in() {
+                    order.min_amount()
+                } else {
+                    Ray::from(order.limit_price()).inverse_quantity(order.min_amount(), true)
+                }
+            } else if order.exact_in() {
+                Ray::from(order.limit_price())
+                    .mul_quantity(U256::from(order.min_amount()))
+                    .to::<u128>()
+            } else {
+                order.min_amount()
+            };
+            self.min_qty = Some(min_qty);
+            min_qty
+        }
+    }
+}
+
 pub trait OrderValidation {
-    fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError>;
+    fn validate_order<O: RawPoolOrder>(
+        &self,
+        state: &mut OrderValidationState<O>
+    ) -> Result<(), OrderValidationError>;
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -192,9 +215,12 @@ pub enum OrderValidator {
 }
 
 impl OrderValidation for OrderValidator {
-    fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
+    fn validate_order<O: RawPoolOrder>(
+        &self,
+        state: &mut OrderValidationState<O>
+    ) -> Result<(), OrderValidationError> {
         match self {
-            OrderValidator::EnsureAmountSet(validator) => validator.validate_order(order)
+            OrderValidator::EnsureAmountSet(validator) => validator.validate_order(state)
         }
     }
 }
@@ -203,8 +229,14 @@ impl OrderValidation for OrderValidator {
 pub struct EnsureAmountSet;
 
 impl OrderValidation for EnsureAmountSet {
-    fn validate_order<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
-        let min_qty = fetch_min_qty_in_t0(order);
-        if min_qty == 0 { Err(OrderValidationError::InvalidPartialOrder) } else { Ok(()) }
+    fn validate_order<O: RawPoolOrder>(
+        &self,
+        state: &mut OrderValidationState<O>
+    ) -> Result<(), OrderValidationError> {
+        if state.min_qty_in_t0() == 0 {
+            Err(OrderValidationError::InvalidPartialOrder)
+        } else {
+            Ok(())
+        }
     }
 }
