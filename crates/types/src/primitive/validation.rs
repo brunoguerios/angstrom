@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::primitive::PoolId;
 
-#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize)]
+#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OrderValidationError {
     #[error(transparent)]
     StateError(#[from] UserAccountVerificationError),
@@ -28,6 +28,8 @@ pub enum OrderValidationError {
     MaxGasGreaterThanMinAmount,
     #[error("no gas was specified for this order")]
     NoGasSpecified,
+    #[error("no price was specified for this order")]
+    NoPriceSpecified,
     #[error("unknown")]
     Unknown(String)
 }
