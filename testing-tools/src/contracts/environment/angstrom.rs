@@ -259,7 +259,7 @@ mod tests {
 
         let user_order = OrderWithStorageData {
             order: GroupedVanillaOrder::Standing(StandingVariants::Exact(default)),
-            is_currently_valid: true,
+            is_currently_valid: None,
             is_bid: true,
             ..Default::default()
         };
