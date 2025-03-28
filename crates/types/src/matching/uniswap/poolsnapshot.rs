@@ -153,19 +153,23 @@ impl PoolSnapshot {
 
     pub fn checksum_from_ticks(&self, start_tick: Tick, end_tick: Tick) -> eyre::Result<U160> {
         let from_above = start_tick > end_tick;
-        let ticks = self
+        let (ticks, liquidity): (Vec<_>, Vec<_>) = self
             .ranges_for_ticks(start_tick, end_tick)?
             .iter()
             .map(|r| {
+                println!("Processing range: {}-{} | {}", r.lower_tick, r.upper_tick, r.liquidity);
                 let target_tick = if from_above { r.lower_tick } else { r.upper_tick };
                 (target_tick, r.liquidity)
             })
-            .collect::<Vec<_>>();
+            .unzip();
+        // We want to skip the last tick (representing the current range) but skip the
+        // first liquidity (representing start_liquidity)
         let checksum_bytes = ticks
             .iter()
-            // The last element of `ticks` is our current liq range, which should be excluded
             .take(ticks.len() - 1)
+            .zip(liquidity.iter().skip(1))
             .fold([0u8; 32], |acc, (tick, liquidity)| {
+                println!("Processing tick {} : {}", tick, liquidity);
                 let tick_bytes: [u8; 3] = I24::unchecked_from(*tick).to_be_bytes();
                 let hash_input = [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
                 *keccak256(&hash_input)
