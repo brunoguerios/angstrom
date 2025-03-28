@@ -138,10 +138,16 @@ impl UserOrderBuilder {
             if self.exact_in {
                 self.amount / 5
             } else {
+                if self.min_price.is_zero() {
+                    return 1;
+                }
                 // if zero for 1, t1 / t0
                 self.min_price.inverse_quantity(self.amount, true) / 5
             }
         } else if self.exact_in {
+            if self.min_price.is_zero() {
+                return 1;
+            }
             self.min_price
                 .mul_quantity(U256::from(self.amount))
                 .to::<u128>()
