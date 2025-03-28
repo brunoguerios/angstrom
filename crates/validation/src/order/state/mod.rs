@@ -64,12 +64,14 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             .prepare_for_new_block(address_changes, completed_orders)
     }
 
-    pub fn correctly_built<O: RawPoolOrder>(&self, order: &O) -> bool {
+    pub fn validate<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
         let mut state = OrderValidationState::new(order);
 
-        ORDER_VALIDATORS
-            .iter()
-            .all(|validator| validator.validate_order(&mut state).is_ok())
+        for validator in ORDER_VALIDATORS {
+            validator.validate_order(&mut state)?;
+        }
+
+        Ok(())
     }
 
     pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
@@ -88,13 +90,10 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 };
             }
 
-            if !self.correctly_built(&order) {
-                tracing::info!(?order, "invalidly built order");
-                return OrderValidationResults::Invalid {
-                    hash:  order_hash,
-                    error: OrderValidationError::InvalidPartialOrder
-                };
-            }
+            if let Err(e) = self.validate(&order) {
+                tracing::warn!(?order, "invalid order");
+                return OrderValidationResults::Invalid { hash: order_hash, error: e };
+            };
 
             let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {
                 tracing::debug!("order requested a invalid pool");
