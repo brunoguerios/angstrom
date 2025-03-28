@@ -30,7 +30,7 @@ fn test_no_gas_specified_error() {
     };
 
     let mut order = make_base_order();
-    if let GroupedVanillaOrder::Standing(StandingVariants::Exact(ref mut o)) = order {
+    if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
         o.max_extra_fee_asset0 = 0;
     }
 

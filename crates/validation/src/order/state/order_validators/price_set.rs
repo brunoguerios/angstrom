@@ -23,6 +23,7 @@ fn test_no_price_specified_error() {
     use angstrom_types::{
         primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
     };
+    use revm_primitives::U256;
 
     use crate::order::{
         GroupedVanillaOrder,
@@ -30,8 +31,8 @@ fn test_no_price_specified_error() {
     };
 
     let mut order = make_base_order();
-    if let GroupedVanillaOrder::Standing(StandingVariants::Exact(ref mut o)) = order {
-        o.min_price = Default::default();
+    if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
+        o.min_price = U256::from(0);
     }
 
     let validator = EnsurePriceSet;

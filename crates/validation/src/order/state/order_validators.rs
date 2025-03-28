@@ -92,14 +92,38 @@ impl OrderValidation for OrderValidator {
 
 #[cfg(test)]
 pub fn make_base_order() -> angstrom_types::sol_bindings::grouped_orders::GroupedVanillaOrder {
-    testing_tools::type_generator::orders::UserOrderBuilder::new()
+    use angstrom_types::sol_bindings::grouped_orders::{GroupedVanillaOrder, StandingVariants};
+    use testing_tools::type_generator::orders::UserOrderBuilder;
+
+    let mut order = match UserOrderBuilder::new()
         .standing()
-        .exact()
-        .amount(1)
+        .partial()
+        .amount(1000)
         .bid_min_price(Ray(U256::from(1)))
         .block(100)
         .deadline(U256::from(999_999))
         .nonce(0)
         .recipient(Default::default())
         .build()
+    {
+        GroupedVanillaOrder::Standing(StandingVariants::Partial(o)) => o,
+        _ => unreachable!("builder must produce partial standing order")
+    };
+
+    // Explicitly ensure max_gas < min_qty
+    order.max_extra_fee_asset0 = 100;
+    order.min_amount_in = 200;
+
+    GroupedVanillaOrder::Standing(StandingVariants::Partial(order))
+}
+
+#[test]
+fn test_valid_order_passes_all_validators() {
+    let order = make_base_order();
+
+    for validator in ORDER_VALIDATORS {
+        let mut state = OrderValidationState::new(&order);
+        let result = validator.validate_order(&mut state);
+        assert_eq!(result, Ok(()), "Validator {:?} unexpectedly failed", validator);
+    }
 }

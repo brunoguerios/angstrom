@@ -20,13 +20,18 @@ impl OrderValidation for EnsureAmountSet {
 
 #[test]
 fn test_no_amount_specified_error() {
-    use angstrom_types::sol_bindings::grouped_orders::StandingVariants;
+    use angstrom_types::{
+        primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
+    };
 
-    use crate::order::{GroupedVanillaOrder, state::order_validators::make_base_order};
+    use crate::order::{
+        GroupedVanillaOrder,
+        state::order_validators::{EnsureAmountSet, OrderValidationState, make_base_order}
+    };
 
     let mut order = make_base_order();
-    if let GroupedVanillaOrder::Standing(StandingVariants::Exact(ref mut o)) = order {
-        o.amount = 0;
+    if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
+        o.max_amount_in = 0;
     }
 
     let validator = EnsureAmountSet;

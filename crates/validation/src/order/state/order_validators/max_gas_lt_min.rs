@@ -32,8 +32,8 @@ fn test_max_gas_greater_than_min_error() {
     };
 
     let mut order = make_base_order();
-    if let GroupedVanillaOrder::Standing(StandingVariants::Exact(ref mut o)) = order {
-        o.max_extra_fee_asset0 = o.amount + 1;
+    if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
+        o.max_extra_fee_asset0 = o.min_amount_in + 1;
     }
 
     let validator = EnsureMaxGasLessThanMinAmount;
