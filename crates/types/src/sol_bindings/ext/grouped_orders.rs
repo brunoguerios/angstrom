@@ -245,6 +245,10 @@ pub struct OrderWithStorageData<Order> {
 }
 
 impl<O: RawPoolOrder> OrderWithStorageData<O> {
+    pub fn is_currently_valid(&self) -> bool {
+        self.is_currently_valid.is_none()
+    }
+
     pub fn fetch_supply_or_demand_contribution_with_fee(&self, price: Ray, _pool_fee: u32) -> Ray {
         // priceOutVsIn * oneMinusFee / ONE_E6;
 

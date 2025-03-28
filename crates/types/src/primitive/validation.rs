@@ -54,7 +54,9 @@ pub enum UserAccountVerificationError {
         "insufficient balance and approval amounts. token {0} needs {1} more balance and {2} more \
          approvals"
     )]
-    InsufficientBoth(Address, u128, u128)
+    InsufficientBoth(Address, u128, u128),
+    #[error("{0}")]
+    Unknown(String)
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]

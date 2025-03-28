@@ -4,7 +4,7 @@ use alloy::primitives::B256;
 use angstrom_metrics::VanillaLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
-    primitive::{NewInitializedPool, PoolId},
+    primitive::{NewInitializedPool, PoolId, UserAccountVerificationError},
     sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
 };
 use angstrom_utils::map::OwnedMap;
@@ -72,7 +72,7 @@ impl LimitPool {
         let pool_id = order.pool_id;
         let err = || LimitPoolError::NoPool(pool_id);
 
-        if order.is_currently_valid {
+        if order.is_currently_valid() {
             self.pending_orders
                 .get_mut(&pool_id)
                 .ok_or_else(err)?
@@ -117,7 +117,8 @@ impl LimitPool {
 
     pub fn park_order(&mut self, order_id: &OrderId) {
         let Some(mut order) = self.remove_order(order_id.pool_id, order_id.hash) else { return };
-        order.is_currently_valid = false;
+        order.is_currently_valid =
+            Some(UserAccountVerificationError::Unknown("parked by other transaction".into()));
         self.add_order(order).unwrap();
     }
 

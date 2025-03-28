@@ -459,7 +459,7 @@ pub mod tests {
             .expect("verification should complete");
 
         assert!(
-            !result.is_currently_valid,
+            !result.is_currently_valid(),
             "Order should be marked as invalid due to insufficient balance {:?}",
             result
         );
@@ -503,7 +503,7 @@ pub mod tests {
             .expect("verification should complete");
 
         assert!(
-            !result.is_currently_valid,
+            !result.is_currently_valid(),
             "Order should be marked as invalid due to insufficient approval"
         );
     }
@@ -605,7 +605,7 @@ pub mod tests {
             .verify_order(order, pool_info, 420)
             .expect("order should be valid after state clear");
 
-        assert!(result.is_currently_valid, "Order should be valid after state clear");
+        assert!(result.is_currently_valid(), "Order should be valid after state clear");
     }
 
     #[test]
@@ -731,10 +731,10 @@ pub mod tests {
             .verify_order(order2, pool_info, 420)
             .expect("second order should complete verification");
 
-        assert!(result1.is_currently_valid, "First order should be valid");
+        assert!(result1.is_currently_valid(), "First order should be valid");
 
         assert!(
-            !result2.is_currently_valid,
+            !result2.is_currently_valid(),
             "Second order should be invalid due to insufficient remaining balance"
         );
     }
@@ -790,8 +790,8 @@ pub mod tests {
             .verify_order(order2, pool_info, 421)
             .expect("second order should be valid");
 
-        assert!(result1.is_currently_valid, "First flash order should be valid");
-        assert!(result2.is_currently_valid, "Second flash order should be valid");
+        assert!(result1.is_currently_valid(), "First flash order should be valid");
+        assert!(result2.is_currently_valid(), "Second flash order should be valid");
     }
 
     #[test]
@@ -844,8 +844,8 @@ pub mod tests {
             .verify_order(flash_order, pool_info, 420)
             .expect("flash order should be valid");
 
-        assert!(standing_result.is_currently_valid, "Standing order should be valid");
-        assert!(flash_result.is_currently_valid, "Flash order should be valid");
+        assert!(standing_result.is_currently_valid(), "Standing order should be valid");
+        assert!(flash_result.is_currently_valid(), "Flash order should be valid");
     }
 
     #[test]
