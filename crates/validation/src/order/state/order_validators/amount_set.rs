@@ -31,7 +31,7 @@ fn test_no_amount_specified_error() {
 
     let mut order = make_base_order();
     if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
-        o.max_amount_in = 0;
+        o.min_amount_in = 0; // This is the value checked by min_amount()
     }
 
     let validator = EnsureAmountSet;
