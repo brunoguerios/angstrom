@@ -64,6 +64,5 @@ pub struct UserOrderPoolInfo {
     // token in for pool
     pub token:   Address,
     pub is_bid:  bool,
-    pub pool_id: PoolId,
-    pub fee:     u128
+    pub pool_id: PoolId
 }
