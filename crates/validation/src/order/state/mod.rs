@@ -190,6 +190,6 @@ mod test {
             .min_price(U256::ZERO.into())
             .ask()
             .build();
-        assert!(validator.validate(&order).is_ok())
+        validator.validate(&order).unwrap_err();
     }
 }
