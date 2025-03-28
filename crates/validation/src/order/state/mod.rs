@@ -160,3 +160,36 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         results
     }
 }
+#[cfg(test)]
+mod test {
+
+    use std::sync::Arc;
+
+    use alloy::primitives::U256;
+    use dashmap::DashMap;
+    use testing_tools::type_generator::orders::UserOrderBuilder;
+    use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
+
+    use super::{
+        StateValidation, account::UserAccountProcessor, db_state_utils::test_fetching::MockFetch,
+        pools::pool_tracker_mock::MockPoolTracker
+    };
+    #[test]
+    fn test_order_of_validators() {
+        let mock_pools = MockPoolTracker::default();
+        let mock_fetch = MockFetch::default();
+        let (tx, _) = tokio::sync::mpsc::channel(10);
+        let pools = SyncedUniswapPools::new(Arc::new(DashMap::new()), tx);
+        let validator =
+            StateValidation::new(UserAccountProcessor::new(mock_fetch), mock_pools, pools);
+
+        let order = UserOrderBuilder::new()
+            .standing()
+            .exact()
+            .amount(1)
+            .min_price(U256::ZERO.into())
+            .ask()
+            .build();
+        assert!(validator.validate(&order).is_ok())
+    }
+}
