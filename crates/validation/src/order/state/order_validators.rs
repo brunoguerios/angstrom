@@ -70,8 +70,8 @@ pub trait OrderValidation {
 pub enum OrderValidator {
     EnsureAmountSet(EnsureAmountSet),
     EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
-    EnsureGasSet(EnsureGasSet),
-    EnsurePriceSet(EnsurePriceSet)
+    EnsurePriceSet(EnsurePriceSet),
+    EnsureGasSet(EnsureGasSet)
 }
 
 impl OrderValidation for OrderValidator {
