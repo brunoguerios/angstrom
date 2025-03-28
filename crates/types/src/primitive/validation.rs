@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::primitive::PoolId;
 
-#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize)]
+#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OrderValidationError {
     #[error(transparent)]
     StateError(#[from] UserAccountVerificationError),
@@ -34,7 +34,7 @@ pub enum OrderValidationError {
     Unknown(String)
 }
 
-#[derive(Debug, Error, Clone, Serialize, Deserialize)]
+#[derive(Debug, Error, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum UserAccountVerificationError {
     #[error("tried to verify for block {} where current is {}", requested, current)]
     BlockMissMatch { requested: u64, current: u64, pool_info: UserOrderPoolInfo },
@@ -50,7 +50,7 @@ pub enum UserAccountVerificationError {
     CouldNotFetch(String)
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserOrderPoolInfo {
     // token in for pool
     pub token:   Address,
