@@ -22,7 +22,6 @@ pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
 
 #[ignore]
 #[test]
-#[ignore]
 fn build_bundle() {
     with_tracing(|| {
         let bytes = base64::prelude::BASE64_STANDARD.decode(NEW_BAD).unwrap();
