@@ -15,9 +15,9 @@ pub mod price_set;
 
 pub const ORDER_VALIDATORS: [OrderValidator; 4] = [
     OrderValidator::EnsureAmountSet(EnsureAmountSet),
-    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
     OrderValidator::EnsureGasSet(EnsureGasSet),
-    OrderValidator::EnsurePriceSet(EnsurePriceSet)
+    OrderValidator::EnsurePriceSet(EnsurePriceSet),
+    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
 ];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
