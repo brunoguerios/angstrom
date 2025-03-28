@@ -38,7 +38,7 @@ pub struct UserOrderBuilder {
 
 impl UserOrderBuilder {
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Self { min_price: Ray::from(U256::from(1)), ..Default::default() }
     }
 
     pub fn standing(self) -> Self {
@@ -138,10 +138,16 @@ impl UserOrderBuilder {
             if self.exact_in {
                 self.amount / 5
             } else {
+                if self.min_price.is_zero() {
+                    return 1;
+                }
                 // if zero for 1, t1 / t0
                 self.min_price.inverse_quantity(self.amount, true) / 5
             }
         } else if self.exact_in {
+            if self.min_price.is_zero() {
+                return 1;
+            }
             self.min_price
                 .mul_quantity(U256::from(self.amount))
                 .to::<u128>()

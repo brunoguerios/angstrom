@@ -64,12 +64,14 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             .prepare_for_new_block(address_changes, completed_orders)
     }
 
-    pub fn correctly_built<O: RawPoolOrder>(&self, order: &O) -> bool {
+    pub fn validate<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
         let mut state = OrderValidationState::new(order);
 
-        ORDER_VALIDATORS
-            .iter()
-            .all(|validator| validator.validate_order(&mut state).is_ok())
+        for validator in ORDER_VALIDATORS {
+            validator.validate_order(&mut state)?;
+        }
+
+        Ok(())
     }
 
     pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
@@ -88,13 +90,10 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 };
             }
 
-            if !self.correctly_built(&order) {
-                tracing::info!(?order, "invalidly built order");
-                return OrderValidationResults::Invalid {
-                    hash:  order_hash,
-                    error: OrderValidationError::InvalidPartialOrder
-                };
-            }
+            if let Err(e) = self.validate(&order) {
+                tracing::warn!(?order, "invalid order");
+                return OrderValidationResults::Invalid { hash: order_hash, error: e };
+            };
 
             let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {
                 tracing::debug!("order requested a invalid pool");
@@ -159,5 +158,38 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         }
 
         results
+    }
+}
+#[cfg(test)]
+mod test {
+
+    use std::sync::Arc;
+
+    use alloy::primitives::U256;
+    use dashmap::DashMap;
+    use testing_tools::type_generator::orders::UserOrderBuilder;
+    use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
+
+    use super::{
+        StateValidation, account::UserAccountProcessor, db_state_utils::test_fetching::MockFetch,
+        pools::pool_tracker_mock::MockPoolTracker
+    };
+    #[test]
+    fn test_order_of_validators() {
+        let mock_pools = MockPoolTracker::default();
+        let mock_fetch = MockFetch::default();
+        let (tx, _) = tokio::sync::mpsc::channel(10);
+        let pools = SyncedUniswapPools::new(Arc::new(DashMap::new()), tx);
+        let validator =
+            StateValidation::new(UserAccountProcessor::new(mock_fetch), mock_pools, pools);
+
+        let order = UserOrderBuilder::new()
+            .standing()
+            .exact()
+            .amount(1)
+            .min_price(U256::ZERO.into())
+            .ask()
+            .build();
+        validator.validate(&order).unwrap_err();
     }
 }

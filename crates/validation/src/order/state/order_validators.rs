@@ -6,15 +6,18 @@ use angstrom_types::{
 };
 use gas_set::EnsureGasSet;
 use max_gas_lt_min::EnsureMaxGasLessThanMinAmount;
+use price_set::EnsurePriceSet;
 
 pub mod amount_set;
 pub mod gas_set;
 pub mod max_gas_lt_min;
+pub mod price_set;
 
-pub const ORDER_VALIDATORS: [OrderValidator; 3] = [
+pub const ORDER_VALIDATORS: [OrderValidator; 4] = [
     OrderValidator::EnsureAmountSet(EnsureAmountSet),
-    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
-    OrderValidator::EnsureGasSet(EnsureGasSet)
+    OrderValidator::EnsureGasSet(EnsureGasSet),
+    OrderValidator::EnsurePriceSet(EnsurePriceSet),
+    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
 ];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -67,6 +70,7 @@ pub trait OrderValidation {
 pub enum OrderValidator {
     EnsureAmountSet(EnsureAmountSet),
     EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
+    EnsurePriceSet(EnsurePriceSet),
     EnsureGasSet(EnsureGasSet)
 }
 
@@ -80,7 +84,46 @@ impl OrderValidation for OrderValidator {
             OrderValidator::EnsureMaxGasLessThanMinAmount(validator) => {
                 validator.validate_order(state)
             }
-            OrderValidator::EnsureGasSet(validator) => validator.validate_order(state)
+            OrderValidator::EnsureGasSet(validator) => validator.validate_order(state),
+            OrderValidator::EnsurePriceSet(validator) => validator.validate_order(state)
         }
+    }
+}
+
+#[cfg(test)]
+pub fn make_base_order() -> angstrom_types::sol_bindings::grouped_orders::GroupedVanillaOrder {
+    use angstrom_types::sol_bindings::grouped_orders::{GroupedVanillaOrder, StandingVariants};
+    use testing_tools::type_generator::orders::UserOrderBuilder;
+
+    let mut order = match UserOrderBuilder::new()
+        .standing()
+        .partial()
+        .amount(1000)
+        .bid_min_price(Ray(U256::from(1)))
+        .block(100)
+        .deadline(U256::from(999_999))
+        .nonce(0)
+        .recipient(Default::default())
+        .build()
+    {
+        GroupedVanillaOrder::Standing(StandingVariants::Partial(o)) => o,
+        _ => unreachable!("builder must produce partial standing order")
+    };
+
+    // Explicitly ensure max_gas < min_qty
+    order.max_extra_fee_asset0 = 100;
+    order.min_amount_in = 200;
+
+    GroupedVanillaOrder::Standing(StandingVariants::Partial(order))
+}
+
+#[test]
+fn test_valid_order_passes_all_validators() {
+    let order = make_base_order();
+
+    for validator in ORDER_VALIDATORS {
+        let mut state = OrderValidationState::new(&order);
+        let result = validator.validate_order(&mut state);
+        assert_eq!(result, Ok(()), "Validator {:?} unexpectedly failed", validator);
     }
 }
