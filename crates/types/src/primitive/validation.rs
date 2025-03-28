@@ -32,7 +32,7 @@ pub enum OrderValidationError {
     Unknown(String)
 }
 
-#[derive(Debug, Error, Clone, Serialize, Deserialize)]
+#[derive(Debug, Error, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum UserAccountVerificationError {
     #[error("tried to verify for block {} where current is {}", requested, current)]
     BlockMissMatch { requested: u64, current: u64, pool_info: UserOrderPoolInfo },
@@ -45,10 +45,21 @@ pub enum UserAccountVerificationError {
     #[error("currently hooks are not supported. this field should be empty bytes")]
     NonEmptyHook,
     #[error("could not fetch, error - {0}")]
-    CouldNotFetch(String)
+    CouldNotFetch(String),
+    #[error("insufficient approval amounts. token {0} needs {1} more")]
+    InsufficientApproval(Address, u128),
+    #[error("insufficient balance amounts. token {0} needs {1} more")]
+    InsufficientBalance(Address, u128),
+    #[error(
+        "insufficient balance and approval amounts. token {0} needs {1} more balance and {2} more \
+         approvals"
+    )]
+    InsufficientBoth(Address, u128, u128),
+    #[error("{0}")]
+    Unknown(String)
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserOrderPoolInfo {
     // token in for pool
     pub token:   Address,

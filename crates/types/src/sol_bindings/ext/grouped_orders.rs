@@ -12,7 +12,7 @@ use super::{GenerateFlippedOrder, RawPoolOrder, RespendAvoidanceMethod};
 use crate::{
     matching::{Debt, Ray},
     orders::{OrderId, OrderLocation, OrderPriorityData},
-    primitive::{ANGSTROM_DOMAIN, PoolId},
+    primitive::{ANGSTROM_DOMAIN, PoolId, UserAccountVerificationError},
     sol_bindings::rpc_orders::{
         ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, PartialFlashOrder,
         PartialStandingOrder, TopOfBlockOrder
@@ -232,7 +232,7 @@ pub struct OrderWithStorageData<Order> {
     /// the pool this order belongs to
     pub pool_id:            PoolId,
     /// wether the order is waiting for approvals / proper balances
-    pub is_currently_valid: bool,
+    pub is_currently_valid: Option<UserAccountVerificationError>,
     /// what side of the book does this order lay on
     pub is_bid:             bool,
     /// is valid order
@@ -245,6 +245,10 @@ pub struct OrderWithStorageData<Order> {
 }
 
 impl<O: RawPoolOrder> OrderWithStorageData<O> {
+    pub fn is_currently_valid(&self) -> bool {
+        self.is_currently_valid.is_none()
+    }
+
     pub fn fetch_supply_or_demand_contribution_with_fee(&self, price: Ray, _pool_fee: u32) -> Ray {
         // priceOutVsIn * oneMinusFee / ONE_E6;
 

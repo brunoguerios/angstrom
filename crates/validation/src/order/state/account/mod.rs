@@ -90,21 +90,31 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?;
 
         // ensure that the current live state is enough to satisfy the order
-        let (is_cur_valid, mut invalid_orders) = live_state
+        match live_state
             .can_support_order(&order, &pool_info)
             .map(|pending_user_action| {
-                (
+                self.user_accounts
+                    .insert_pending_user_action(order.from(), pending_user_action)
+            }) {
+            Ok(mut invalid_orders) => {
+                invalid_orders.extend(conflicting_orders.into_iter().map(|o| o.order_hash));
+
+                Ok(order.into_order_storage_with_data(block, None, true, pool_info, invalid_orders))
+            }
+            Err(e) => {
+                let invalid_orders = conflicting_orders
+                    .into_iter()
+                    .map(|o| o.order_hash)
+                    .collect();
+                Ok(order.into_order_storage_with_data(
+                    block,
+                    Some(e),
                     true,
-                    self.user_accounts
-                        .insert_pending_user_action(order.from(), pending_user_action)
-                )
-            })
-            .unwrap_or_default();
-
-        // invalidate orders with clashing nonces
-        invalid_orders.extend(conflicting_orders.into_iter().map(|o| o.order_hash));
-
-        Ok(order.into_order_storage_with_data(block, is_cur_valid, true, pool_info, invalid_orders))
+                    pool_info,
+                    invalid_orders
+                ))
+            }
+        }
     }
 }
 
@@ -114,7 +124,7 @@ pub trait StorageWithData: RawPoolOrder {
     fn into_order_storage_with_data(
         self,
         block: u64,
-        is_cur_valid: bool,
+        is_cur_valid: Option<UserAccountVerificationError>,
         is_valid: bool,
         pool_info: UserOrderPoolInfo,
         invalidates: Vec<B256>
@@ -449,7 +459,7 @@ pub mod tests {
             .expect("verification should complete");
 
         assert!(
-            !result.is_currently_valid,
+            !result.is_currently_valid(),
             "Order should be marked as invalid due to insufficient balance {:?}",
             result
         );
@@ -493,7 +503,7 @@ pub mod tests {
             .expect("verification should complete");
 
         assert!(
-            !result.is_currently_valid,
+            !result.is_currently_valid(),
             "Order should be marked as invalid due to insufficient approval"
         );
     }
@@ -595,7 +605,7 @@ pub mod tests {
             .verify_order(order, pool_info, 420)
             .expect("order should be valid after state clear");
 
-        assert!(result.is_currently_valid, "Order should be valid after state clear");
+        assert!(result.is_currently_valid(), "Order should be valid after state clear");
     }
 
     #[test]
@@ -721,10 +731,10 @@ pub mod tests {
             .verify_order(order2, pool_info, 420)
             .expect("second order should complete verification");
 
-        assert!(result1.is_currently_valid, "First order should be valid");
+        assert!(result1.is_currently_valid(), "First order should be valid");
 
         assert!(
-            !result2.is_currently_valid,
+            !result2.is_currently_valid(),
             "Second order should be invalid due to insufficient remaining balance"
         );
     }
@@ -780,8 +790,8 @@ pub mod tests {
             .verify_order(order2, pool_info, 421)
             .expect("second order should be valid");
 
-        assert!(result1.is_currently_valid, "First flash order should be valid");
-        assert!(result2.is_currently_valid, "Second flash order should be valid");
+        assert!(result1.is_currently_valid(), "First flash order should be valid");
+        assert!(result2.is_currently_valid(), "Second flash order should be valid");
     }
 
     #[test]
@@ -834,8 +844,8 @@ pub mod tests {
             .verify_order(flash_order, pool_info, 420)
             .expect("flash order should be valid");
 
-        assert!(standing_result.is_currently_valid, "Standing order should be valid");
-        assert!(flash_result.is_currently_valid, "Flash order should be valid");
+        assert!(standing_result.is_currently_valid(), "Standing order should be valid");
+        assert!(flash_result.is_currently_valid(), "Flash order should be valid");
     }
 
     #[test]

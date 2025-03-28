@@ -145,7 +145,7 @@ fn setup_inputs(
             },
             is_bid: false,
             is_valid: true,
-            is_currently_valid: true,
+            is_currently_valid: None,
             order_id: OrderId {
                 flash_block: None,
                 reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),
@@ -174,7 +174,7 @@ fn setup_inputs(
             },
             is_bid: true,
             is_valid: true,
-            is_currently_valid: true,
+            is_currently_valid: None,
             order_id: OrderId {
                 flash_block: None,
                 reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),
@@ -201,7 +201,7 @@ fn setup_inputs(
         },
         is_bid: tob.is_bid(),
         is_valid: true,
-        is_currently_valid: true,
+        is_currently_valid: None,
         order_id: OrderId {
             flash_block: None,
             reuse_avoidance: angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(0),

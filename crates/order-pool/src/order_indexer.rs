@@ -451,10 +451,23 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 }
 
                 self.notify_order_subscribers(PoolManagerUpdate::NewOrder(valid.clone()));
-                self.notify_validation_subscribers(
-                    &hash,
-                    OrderValidationResults::Valid(valid.clone())
-                );
+                // check to see if the transaction is parked.
+                if let Some(ref error) = valid.is_currently_valid {
+                    self.notify_validation_subscribers(
+                        &hash,
+                        OrderValidationResults::Invalid {
+                            hash,
+                            error: angstrom_types::primitive::OrderValidationError::StateError(
+                                error.clone()
+                            )
+                        }
+                    );
+                } else {
+                    self.notify_validation_subscribers(
+                        &hash,
+                        OrderValidationResults::Valid(valid.clone())
+                    );
+                }
 
                 let to_propagate = valid.order.clone();
                 self.update_order_tracking(&hash, valid.from(), valid.order_id);
@@ -770,7 +783,7 @@ mod tests {
                 valid_block: 1,
                 pool_id,
                 is_bid: true,
-                is_currently_valid: true,
+                is_currently_valid: None,
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
@@ -841,7 +854,7 @@ mod tests {
                 valid_block: 1,
                 pool_id,
                 is_bid: true,
-                is_currently_valid: true,
+                is_currently_valid: None,
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
@@ -914,7 +927,7 @@ mod tests {
                 valid_block: 1,
                 pool_id,
                 is_bid: true,
-                is_currently_valid: true,
+                is_currently_valid: None,
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
@@ -1048,7 +1061,7 @@ mod tests {
                 valid_block: 1,
                 pool_id,
                 is_bid: true,
-                is_currently_valid: true,
+                is_currently_valid: None,
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
@@ -1121,7 +1134,7 @@ mod tests {
                 valid_block: 1,
                 pool_id,
                 is_bid: true,
-                is_currently_valid: true,
+                is_currently_valid: None,
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
@@ -1174,7 +1187,7 @@ mod tests {
                 valid_block: 1,
                 pool_id,
                 is_bid: true,
-                is_currently_valid: true,
+                is_currently_valid: None,
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],
@@ -1237,7 +1250,7 @@ mod tests {
                 valid_block: 1,
                 pool_id,
                 is_bid: true,
-                is_currently_valid: true,
+                is_currently_valid: None,
                 is_valid: true,
                 priority_data: Default::default(),
                 invalidates: vec![],

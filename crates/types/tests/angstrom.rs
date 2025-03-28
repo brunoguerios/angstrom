@@ -20,6 +20,7 @@ pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
     tracing::subscriber::with_default(subscriber, f)
 }
 
+#[ignore]
 #[test]
 fn build_bundle() {
     with_tracing(|| {

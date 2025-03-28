@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    primitive::UserOrderPoolInfo,
+    primitive::{UserAccountVerificationError, UserOrderPoolInfo},
     sol_bindings::{RespendAvoidanceMethod, ext::RawPoolOrder}
 };
 use angstrom_utils::FnResultOption;
@@ -34,23 +34,47 @@ impl LiveState {
         &self,
         order: &O,
         pool_info: &UserOrderPoolInfo
-    ) -> Option<PendingUserAction> {
+    ) -> Result<PendingUserAction, UserAccountVerificationError> {
         assert_eq!(order.token_in(), self.token, "incorrect lives state for order");
         let amount_in = U256::from(order.amount());
 
         let (angstrom_delta, token_delta) = if order.use_internal() {
             if self.angstrom_balance < amount_in {
-                return None;
+                return Err(UserAccountVerificationError::InsufficientBalance(
+                    self.token,
+                    (amount_in - self.angstrom_balance).to()
+                ));
             }
             (amount_in, U256::ZERO)
         } else {
-            if self.approval < amount_in || self.balance < amount_in {
-                return None;
-            }
+            match (self.approval < amount_in, self.balance < amount_in) {
+                (true, true) => {
+                    return Err(UserAccountVerificationError::InsufficientBoth(
+                        self.token,
+                        (amount_in - self.balance).to(),
+                        (amount_in - self.approval).to()
+                    ));
+                }
+                (true, false) => {
+                    return Err(UserAccountVerificationError::InsufficientApproval(
+                        self.token,
+                        (amount_in - self.approval).to()
+                    ));
+                }
+                (false, true) => {
+                    return Err(UserAccountVerificationError::InsufficientBalance(
+                        self.token,
+                        (amount_in - self.balance).to()
+                    ));
+                }
+                // is fine
+                (false, false) => {}
+            };
+
             (U256::ZERO, amount_in)
         };
 
-        Some(PendingUserAction {
+        Ok(PendingUserAction {
             order_hash: order.order_hash(),
             respend: order.respend_avoidance_strategy(),
             token_address: pool_info.token,
