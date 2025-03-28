@@ -19,7 +19,7 @@ impl OrderValidation for EnsureGasSet {
 }
 
 #[test]
-fn test_no_gas_specified() {
+fn test_no_gas_specified_error() {
     use angstrom_types::{
         primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
     };

@@ -19,7 +19,7 @@ impl OrderValidation for EnsureMaxGasLessThanMinAmount {
 }
 
 #[test]
-fn test_max_gas_greater_than_min() {
+fn test_max_gas_greater_than_min_error() {
     use angstrom_types::{
         primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
     };

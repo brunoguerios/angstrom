@@ -19,7 +19,7 @@ impl OrderValidation for EnsureAmountSet {
 }
 
 #[test]
-fn test_no_amount_specified() {
+fn test_no_amount_specified_error() {
     use angstrom_types::sol_bindings::grouped_orders::StandingVariants;
 
     use crate::order::{GroupedVanillaOrder, state::order_validators::make_base_order};
