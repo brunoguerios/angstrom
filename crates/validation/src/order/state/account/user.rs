@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     primitive::{UserAccountVerificationError, UserOrderPoolInfo},
-    sol_bindings::{RespendAvoidanceMethod, ext::RawPoolOrder}
+    sol_bindings::{Ray, RespendAvoidanceMethod, ext::RawPoolOrder}
 };
 use angstrom_utils::FnResultOption;
 use dashmap::DashMap;
@@ -36,7 +36,8 @@ impl LiveState {
         pool_info: &UserOrderPoolInfo
     ) -> Result<PendingUserAction, UserAccountVerificationError> {
         assert_eq!(order.token_in(), self.token, "incorrect lives state for order");
-        let amount_in = U256::from(order.amount());
+
+        let amount_in = self.fetch_amount_in(order);
 
         let (angstrom_delta, token_delta) = if order.use_internal() {
             if self.angstrom_balance < amount_in {
@@ -82,6 +83,26 @@ impl LiveState {
             angstrom_delta,
             token_approval: amount_in,
             pool_info: pool_info.clone()
+        })
+    }
+
+    /// gas is always applied to t0. when we haven't specified that t0 to be an
+    /// exact amount. because of this. there are two case where this can
+    /// occur.
+    ///
+    /// one is an one for zero(bid) swap where we specify exact out.
+    ///
+    ///  one is a zero for 1 swap with an exact out specified
+    fn fetch_amount_in<O: RawPoolOrder>(&self, order: &O) -> U256 {
+        let ray_price = Ray::from(order.limit_price());
+        U256::from(if order.is_bid() && !order.exact_in() {
+            ray_price
+                .inv_ray()
+                .inverse_quantity(order.amount() + order.max_gas_token_0(), true)
+        } else if !order.is_bid() && !order.exact_in() {
+            ray_price.inverse_quantity(order.amount(), true) + order.max_gas_token_0()
+        } else {
+            order.amount()
         })
     }
 }
