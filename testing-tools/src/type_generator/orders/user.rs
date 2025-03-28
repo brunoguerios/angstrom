@@ -38,7 +38,7 @@ pub struct UserOrderBuilder {
 
 impl UserOrderBuilder {
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Self { min_price: Ray::from(U256::from(1)), ..Default::default() }
     }
 
     pub fn standing(self) -> Self {

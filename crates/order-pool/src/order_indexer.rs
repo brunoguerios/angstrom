@@ -638,6 +638,7 @@ mod tests {
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
         contract_payloads::angstrom::AngstromPoolConfigStore,
+        matching::Ray,
         orders::OrderId,
         primitive::AngstromSigner,
         sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
@@ -693,6 +694,7 @@ mod tests {
             .asset_in(pool_id.currency0)
             .asset_out(pool_id.currency1)
             .amount(900)
+            .min_price(Ray::from(U256::from(1)))
             .signing_key(signer)
             .recipient(from);
 
