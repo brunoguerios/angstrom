@@ -89,3 +89,17 @@ impl OrderValidation for OrderValidator {
         }
     }
 }
+
+#[cfg(test)]
+pub fn make_base_order() -> angstrom_types::sol_bindings::grouped_orders::GroupedVanillaOrder {
+    testing_tools::type_generator::orders::UserOrderBuilder::new()
+        .standing()
+        .exact()
+        .amount(1)
+        .bid_min_price(Ray(U256::from(1)))
+        .block(100)
+        .deadline(U256::from(999_999))
+        .nonce(0)
+        .recipient(Default::default())
+        .build()
+}
