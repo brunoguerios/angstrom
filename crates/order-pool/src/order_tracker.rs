@@ -89,6 +89,11 @@ impl OrderTracker {
     ) -> Vec<B256> {
         let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let expiry_deadline = U256::from((time + ETH_BLOCK_TIME).as_secs()); // grab all expired hashes
+
+        // clear canceled order cache
+        self.cancelled_orders
+            .retain(|_, req| req.deadline > expiry_deadline);
+
         let hashes = self
             .order_hash_to_order_id
             .iter()
@@ -169,19 +174,17 @@ impl OrderTracker {
             || {
                 // if no deadline is provided the cancellation request is valid until block
                 // transition
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
+                U256::from(
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                )
             },
-            |deadline| {
-                let bytes: [u8; U256::BYTES] = deadline.to_le_bytes();
-                // should be safe
-                u64::from_le_bytes(bytes[..8].try_into().unwrap())
-            }
+            |deadline| deadline
         );
         self.cancelled_orders
-            .insert(*order_hash, InnerCancelOrderRequest { from, valid_until });
+            .insert(*order_hash, InnerCancelOrderRequest { from, deadline: valid_until });
     }
 
     pub fn cancel_order(

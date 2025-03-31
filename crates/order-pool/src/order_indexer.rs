@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::primitives::{Address, B256, BlockNumber};
+use alloy::primitives::{Address, B256, BlockNumber, U256};
 use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderOrigin, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
@@ -17,9 +17,7 @@ use angstrom_types::{
 use futures_util::{Stream, StreamExt};
 use tokio::sync::oneshot::Sender;
 use tracing::error;
-use validation::order::{
-    OrderValidationResults, OrderValidatorHandle, state::pools::AngstromPoolsTracker
-};
+use validation::order::{OrderValidationResults, OrderValidatorHandle};
 
 use crate::{
     PoolManagerUpdate,
@@ -31,9 +29,8 @@ use crate::{
 
 pub(crate) struct InnerCancelOrderRequest {
     /// The address of the entity requesting the cancellation.
-    pub from:        Address,
-    // The time until the cancellation request is valid.
-    pub valid_until: u64
+    pub from:     Address,
+    pub deadline: U256
 }
 
 pub struct OrderIndexer<V: OrderValidatorHandle> {
@@ -46,8 +43,6 @@ pub struct OrderIndexer<V: OrderValidatorHandle> {
     /// Order hash to order id, used for order inclusion lookups
     /// Order Validator
     validator:     OrderValidator<V>,
-    /// a mapping of tokens to pool_id
-    pool_id_map:   AngstromPoolsTracker,
     /// List of subscribers for order validation result
     /// order
     subscribers:   OrderSubscriptionTracker
@@ -58,14 +53,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         validator: V,
         order_storage: Arc<OrderStorage>,
         block_number: BlockNumber,
-        orders_subscriber_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
-        angstrom_pools: AngstromPoolsTracker
+        orders_subscriber_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>
     ) -> Self {
         Self {
             order_storage,
             order_tracker: OrderTracker::default(),
             block_number,
-            pool_id_map: angstrom_pools,
             validator: OrderValidator::new(validator),
             subscribers: OrderSubscriptionTracker::new(orders_subscriber_tx)
         }
@@ -437,7 +430,6 @@ mod tests {
     use alloy::{primitives::U256, signers::SignerSync, sol_types::SolValue};
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
-        contract_payloads::angstrom::AngstromPoolConfigStore,
         matching::Ray,
         orders::OrderId,
         primitive::AngstromSigner,
@@ -458,10 +450,8 @@ mod tests {
         let (tx, _) = broadcast::channel(100);
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
         let validator = MockValidator::default();
-        let pools_tracker =
-            AngstromPoolsTracker::new(Address::ZERO, Arc::new(AngstromPoolConfigStore::default()));
 
-        OrderIndexer::new(validator, order_storage, 1, tx, pools_tracker)
+        OrderIndexer::new(validator, order_storage, 1, tx)
     }
     /// Initialize the tracing subscriber for tests
     fn init_tracing() {

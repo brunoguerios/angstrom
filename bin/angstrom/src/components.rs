@@ -53,7 +53,6 @@ use uniswap_v4::{configure_uniswap_manager, fetch_angstrom_pools};
 use validation::{
     common::TokenPriceGenerator,
     init_validation,
-    order::state::pools::AngstromPoolsTracker,
     validator::{ValidationClient, ValidationRequest}
 };
 
@@ -330,8 +329,6 @@ where
 
     let pool_config = PoolConfig::with_pool_ids(pool_ids);
     let order_storage = Arc::new(OrderStorage::new(&pool_config));
-    let angstrom_pool_tracker =
-        AngstromPoolsTracker::new(node_config.angstrom_address, pool_config_store.clone());
 
     let _pool_handle = PoolManagerBuilder::new(
         validation_handle.clone(),
@@ -346,7 +343,6 @@ where
         executor.clone(),
         handles.orderpool_tx,
         handles.orderpool_rx,
-        angstrom_pool_tracker,
         handles.pool_manager_tx,
         block_id
     );
