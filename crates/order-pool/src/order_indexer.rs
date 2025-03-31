@@ -326,34 +326,25 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             return;
         }
 
-        let filled_orders = orders
-            .iter()
-            .filter_map(|hash| self.order_hash_to_order_id.remove(hash))
-            .filter_map(|order_id| match order_id.location {
-                OrderLocation::Limit => self.order_storage.remove_limit_order(&order_id),
-                OrderLocation::Searcher => self.order_storage.remove_searcher_order(&order_id)
+        let filled_orders = self
+            .order_tracker
+            .filled_orders(orders, &self.order_storage)
+            .map(|order| {
+                self.subscribers
+                    .notify_order_subscribers(PoolManagerUpdate::FilledOrder(
+                        block_number,
+                        order.clone()
+                    ));
+                order
             })
-            .collect::<Vec<OrderWithStorageData<AllOrders>>>();
+            .collect();
 
-        filled_orders.iter().for_each(|order| {
-            self.notify_order_subscribers(PoolManagerUpdate::FilledOrder(
-                block_number,
-                order.clone()
-            ));
-        });
         self.order_storage
             .add_filled_orders(block_number, filled_orders);
     }
 
     /// Given the nonce ordering rule. Sometimes new transactions can park old
     /// transactions.
-    fn park_transactions(&mut self, txes: &[B256]) {
-        let order_info = txes
-            .iter()
-            .filter_map(|tx_hash| self.order_hash_to_order_id.get(tx_hash))
-            .collect::<Vec<_>>();
-        self.order_storage.park_orders(order_info);
-    }
 
     fn handle_validated_order(
         &mut self,
@@ -363,9 +354,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             OrderValidationResults::Valid(valid) => {
                 let hash = valid.order_hash();
 
-                // what about the deadline?
                 if valid.valid_block != self.block_number {
-                    self.notify_validation_subscribers(
+                    self.subscribers.notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Invalid {
                             hash,
@@ -374,15 +364,15 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                         }
                     );
 
-                    self.seen_invalid_orders.insert(hash);
-                    let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
+                    let peers = self.order_tracker.invalid_verification(hash);
                     return Ok(PoolInnerEvent::BadOrderMessages(peers));
                 }
+                self.subscribers
+                    .notify_order_subscribers(PoolManagerUpdate::NewOrder(valid.clone()));
 
-                self.notify_order_subscribers(PoolManagerUpdate::NewOrder(valid.clone()));
                 // check to see if the transaction is parked.
                 if let Some(ref error) = valid.is_currently_valid {
-                    self.notify_validation_subscribers(
+                    self.subscribers.notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Invalid {
                             hash,
@@ -392,15 +382,18 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                         }
                     );
                 } else {
-                    self.notify_validation_subscribers(
+                    self.subscribers.notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Valid(valid.clone())
                     );
                 }
 
                 let to_propagate = valid.order.clone();
-                self.update_order_tracking(&hash, valid.from(), valid.order_id);
-                self.park_transactions(&valid.invalidates);
+                self.order_tracker
+                    .new_valid_order(&hash, valid.from(), valid.order_id);
+                self.order_tracker
+                    .park_orders(&valid.invalidates, &self.order_storage);
+
                 if let Err(e) = self.insert_order(valid) {
                     tracing::error!(%e, "failed to insert valid order");
                 }
@@ -408,26 +401,11 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 Ok(PoolInnerEvent::Propagation(to_propagate))
             }
             this @ OrderValidationResults::Invalid { hash, .. } => {
-                self.notify_validation_subscribers(&hash, this);
-                self.seen_invalid_orders.insert(hash);
-                let peers = self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
+                self.subscribers.notify_validation_subscribers(&hash, this);
+                let peers = self.order_tracker.invalid_verification(hash);
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
             OrderValidationResults::TransitionedToBlock => Ok(PoolInnerEvent::None)
-        }
-    }
-
-    fn notify_order_subscribers(&mut self, update: PoolManagerUpdate) {
-        let _ = self.orders_subscriber_tx.send(update);
-    }
-
-    fn notify_validation_subscribers(&mut self, hash: &B256, result: OrderValidationResults) {
-        if let Some(subscribers) = self.order_validation_subs.remove(hash) {
-            for subscriber in subscribers {
-                if let Err(e) = subscriber.send(result.clone()) {
-                    error!("Failed to send order validation result to subscriber: {:?}", e);
-                }
-            }
         }
     }
 
@@ -461,14 +439,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 )
                 .map_err(|e| eyre::anyhow!("{:?}", e))
         }
-    }
-
-    fn update_order_tracking(&mut self, hash: &B256, user: UserAddress, id: OrderId) {
-        self.order_hash_to_peer_id.remove(hash);
-        self.order_hash_to_order_id.insert(*hash, id);
-        // nonce overlap is checked during validation so its ok we
-        // don't check for duplicates
-        self.address_to_orders.entry(user).or_default().push(id);
     }
 
     pub fn get_all_orders(&self) -> OrderSet<GroupedVanillaOrder, TopOfBlockOrder> {

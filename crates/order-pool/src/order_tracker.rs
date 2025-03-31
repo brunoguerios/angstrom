@@ -8,7 +8,9 @@ use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderOrigin},
     primitive::PeerId,
-    sol_bindings::{RawPoolOrder, ext::grouped_orders::AllOrders}
+    sol_bindings::{
+        RawPoolOrder, ext::grouped_orders::AllOrders, grouped_orders::OrderWithStorageData
+    }
 };
 use tokio::sync::oneshot::Sender;
 use validation::order::OrderValidationResults;
@@ -59,6 +61,12 @@ impl OrderTracker {
         }
     }
 
+    pub fn invalid_verification(&mut self, hash: B256) -> Vec<PeerId> {
+        self.seen_invalid_orders.insert(hash);
+
+        return self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
+    }
+
     pub fn remove_expired_orders(
         &mut self,
         block_number: u64,
@@ -93,7 +101,38 @@ impl OrderTracker {
                     OrderLocation::Limit => storage.remove_limit_order(&id)
                 };
             });
+
         hashes
+    }
+
+    pub fn filled_orders<'a>(
+        &'a mut self,
+        orders: &'a [B256],
+        storage: &'a OrderStorage
+    ) -> impl Iterator<Item = OrderWithStorageData<AllOrders>> + 'a {
+        orders
+            .iter()
+            .filter_map(|hash| self.order_hash_to_order_id.remove(hash))
+            .filter_map(move |order_id| match order_id.location {
+                OrderLocation::Limit => storage.remove_limit_order(&order_id),
+                OrderLocation::Searcher => storage.remove_searcher_order(&order_id)
+            })
+    }
+
+    pub fn park_orders(&mut self, txes: &[B256], storage: &OrderStorage) {
+        let order_info = txes
+            .iter()
+            .filter_map(|tx_hash| self.order_hash_to_order_id.get(tx_hash))
+            .collect::<Vec<_>>();
+        storage.park_orders(order_info);
+    }
+
+    pub fn new_valid_order(&mut self, hash: &B256, user: Address, id: OrderId) {
+        self.order_hash_to_peer_id.remove(hash);
+        self.order_hash_to_order_id.insert(*hash, id);
+        // nonce overlap is checked during validation so its ok we
+        // don't check for duplicates
+        self.address_to_orders.entry(user).or_default().push(id);
     }
 }
 
