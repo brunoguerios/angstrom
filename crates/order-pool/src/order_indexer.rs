@@ -123,6 +123,19 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             request.order_id,
             &self.order_storage
         ) {
+            // grab all parked orders from this address and check if they are now valid.
+            self.order_tracker
+                .pending_orders_for_address(
+                    request.user_address,
+                    &self.order_storage,
+                    |order_id, storage| storage.remove_order(order_id)
+                )
+                .into_iter()
+                .for_each(|order| {
+                    self.validator
+                        .validate_order(OrderOrigin::Local, order.order);
+                });
+
             self.subscribers
                 .notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
                     order_hash: request.order_id,

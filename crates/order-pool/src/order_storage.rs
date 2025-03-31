@@ -299,6 +299,17 @@ impl OrderStorage {
         orders
     }
 
+    pub fn remove_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
+        match id.location {
+            OrderLocation::Limit => self.remove_limit_order(id),
+            OrderLocation::Searcher => self.remove_searcher_order(id)
+        }
+    }
+
+    pub fn remove_parked_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
+        self.remove_order(id)
+    }
+
     pub fn remove_searcher_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
         let order = self
             .searcher_orders
