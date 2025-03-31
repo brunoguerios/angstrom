@@ -1,14 +1,13 @@
 use std::{
-    collections::{HashMap, HashSet},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
-    time::{Duration, SystemTime, UNIX_EPOCH}
+    time::{SystemTime, UNIX_EPOCH}
 };
 
 use alloy::primitives::{Address, B256, BlockNumber, FixedBytes, U256};
 use angstrom_types::{
-    orders::{OrderId, OrderLocation, OrderOrigin, OrderSet, OrderStatus},
+    orders::{OrderId, OrderOrigin, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::{
         RawPoolOrder,
@@ -95,16 +94,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.order_storage.fetch_status_of_order(order_hash)
     }
 
-    fn is_missing(&self, order_hash: &B256) -> bool {
-        !self.order_hash_to_order_id.contains_key(order_hash)
-    }
-
     fn is_seen_invalid(&self, order_hash: &B256) -> bool {
-        self.seen_invalid_orders.contains(order_hash)
+        self.order_tracker.is_seen_invalid(order_hash)
     }
 
     fn is_cancelled(&self, order_hash: &B256) -> bool {
-        self.cancelled_orders.contains_key(order_hash)
+        self.order_tracker.is_cancelled(order_hash)
     }
 
     pub fn remove_pool(&self, key: PoolId) {
@@ -134,28 +129,11 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             return true;
         }
 
-        // the cancel arrived before the new order request
-        // nothing more needs to be done, since new_order() will return early
-        if self.is_missing(&request.order_id) {
-            // optimistically assuming that orders won't take longer than a day to propagate
-            let deadline = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-                + MAX_NEW_ORDER_DELAY_PROPAGATION * ETH_BLOCK_TIME.as_secs();
-            self.insert_cancel_request_with_deadline(
-                request.user_address,
-                &request.order_id,
-                Some(U256::from(deadline))
-            );
-
-            return true;
-        }
-
-        if let Some(pool_id) = self
-            .order_tracker
-            .cancel_order(request.order_id, &self.order_storage)
-        {
+        if let Some(pool_id) = self.order_tracker.cancel_order(
+            request.user_address,
+            request.order_id,
+            &self.order_storage
+        ) {
             self.subscribers
                 .notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
                     order_hash: request.order_id,
@@ -166,31 +144,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         }
 
         false
-    }
-
-    fn insert_cancel_request_with_deadline(
-        &mut self,
-        from: Address,
-        order_hash: &B256,
-        deadline: Option<U256>
-    ) {
-        let valid_until = deadline.map_or_else(
-            || {
-                // if no deadline is provided the cancellation request is valid until block
-                // transition
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-            },
-            |deadline| {
-                let bytes: [u8; U256::BYTES] = deadline.to_le_bytes();
-                // should be safe
-                u64::from_le_bytes(bytes[..8].try_into().unwrap())
-            }
-        );
-        self.cancelled_orders
-            .insert(*order_hash, CancelOrderRequest { from, valid_until });
     }
 
     fn new_order(
@@ -219,7 +172,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         }
 
         if self.order_tracker.is_duplicate(&hash) {
-            self.notify_validation_subscribers(
+            self.subscribers.notify_validation_subscribers(
                 &hash,
                 OrderValidationResults::Invalid {
                     hash,
@@ -233,28 +186,17 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.validator.validate_order(origin, order);
     }
 
-    /// used to remove orders that expire before the next ethereum block
-    fn remove_expired_orders(&mut self, block_number: BlockNumber) -> Vec<B256> {
-        self.order_tracker
-            .remove_expired_orders(block_number, self.order_storage.clone())
-    }
-
     fn eoa_state_change(&mut self, eoas: &[Address]) {
-        eoas.iter()
-            .filter_map(|eoa| self.address_to_orders.remove(eoa))
-            .for_each(|order_ids| {
-                order_ids.into_iter().for_each(|id| {
-                    let Some(order) = (match id.location {
-                        OrderLocation::Limit => self.order_storage.remove_limit_order(&id),
-                        OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id)
-                    }) else {
-                        return;
-                    };
-
-                    self.validator
-                        .validate_order(OrderOrigin::Local, order.order);
-                })
-            });
+        self.order_tracker.eoa_state_changes(
+            eoas,
+            &self.order_storage,
+            &mut self.validator,
+            |id, storage, validator| {
+                if let Some(order) = storage.get_order_from_id(id) {
+                    validator.validate_order(OrderOrigin::Local, order.order);
+                }
+            }
+        );
     }
 
     pub fn finalized_block(&mut self, block_number: BlockNumber) {
@@ -266,7 +208,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .reorg(orders)
             .into_iter()
             .for_each(|order| {
-                self.notify_order_subscribers(PoolManagerUpdate::UnfilledOrders(order.clone()));
+                self.subscribers
+                    .notify_order_subscribers(PoolManagerUpdate::UnfilledOrders(order.clone()));
                 self.validator
                     .validate_order(OrderOrigin::Local, order.order)
             });
@@ -419,13 +362,16 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         address_changes: Vec<Address>
     ) {
         // clear the invalid orders as they could of become valid.
-        self.seen_invalid_orders.clear();
+        self.order_tracker.clear_invalid();
         // deal with changed orders
         self.eoa_state_change(&address_changes);
         // deal with filled orders
         self.filled_orders(block_number, &completed_orders);
         // add expired orders to completed
-        completed_orders.extend(self.remove_expired_orders(block_number));
+        completed_orders.extend(
+            self.order_tracker
+                .remove_expired_orders(block_number, self.order_storage.clone())
+        );
 
         self.validator.notify_validation_on_changes(
             block_number,

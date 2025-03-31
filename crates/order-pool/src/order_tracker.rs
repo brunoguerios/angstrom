@@ -13,13 +13,17 @@ use angstrom_types::{
     }
 };
 use tokio::sync::oneshot::Sender;
-use validation::order::OrderValidationResults;
+use validation::order::{OrderValidationResults, OrderValidatorHandle};
 
-use crate::{order_indexer::InnerCancelOrderRequest, order_storage::OrderStorage};
+use crate::{
+    OrderIndexer, order_indexer::InnerCancelOrderRequest, order_storage::OrderStorage,
+    validator::OrderValidator
+};
 
 /// This is used to remove validated orders. During validation
 /// the same check wil be ran but with more accuracy
 const ETH_BLOCK_TIME: Duration = Duration::from_secs(12);
+const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 
 /// Used as a storage of order hashes to order ids of validated and pending
 /// validation orders.
@@ -40,6 +44,21 @@ pub struct OrderTracker {
 impl OrderTracker {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[inline(always)]
+    pub fn clear_invalid(&mut self) {
+        self.seen_invalid_orders.clear()
+    }
+
+    #[inline(always)]
+    pub fn is_seen_invalid(&self, order_hash: &B256) -> bool {
+        self.seen_invalid_orders.contains(order_hash)
+    }
+
+    #[inline(always)]
+    pub fn is_cancelled(&self, order_hash: &B256) -> bool {
+        self.cancelled_orders.contains_key(order_hash)
     }
 
     pub fn is_valid_cancel(&self, order: &B256, order_addr: Address) -> bool {
@@ -135,6 +154,15 @@ impl OrderTracker {
         self.address_to_orders.entry(user).or_default().push(id);
     }
 
+    fn cancel_with_next_block_deadline(&mut self, from: Address, order_hash: &B256) {
+        let deadline = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + MAX_NEW_ORDER_DELAY_PROPAGATION * ETH_BLOCK_TIME.as_secs();
+        self.insert_cancel_with_deadline(from, order_hash, Some(U256::from(deadline)));
+    }
+
     fn insert_cancel_with_deadline(
         &mut self,
         from: Address,
@@ -160,7 +188,12 @@ impl OrderTracker {
             .insert(*order_hash, InnerCancelOrderRequest { from, valid_until });
     }
 
-    pub fn cancel_order(&mut self, hash: B256, storage: &OrderStorage) -> Option<PoolId> {
+    pub fn cancel_order(
+        &mut self,
+        from: Address,
+        hash: B256,
+        storage: &OrderStorage
+    ) -> Option<PoolId> {
         self.order_hash_to_order_id
             .remove(&hash)
             .and_then(|v| storage.cancel_order(&v))
@@ -170,6 +203,13 @@ impl OrderTracker {
                 self.insert_cancel_with_deadline(order.from(), &hash, order.deadline());
 
                 order.pool_id
+            })
+            .or_else(|| {
+                // in the case we haven't index the order yet, we are going to add it
+                // in the cancel to register
+                self.cancel_with_next_block_deadline(from, &hash);
+
+                None
             })
     }
 
@@ -191,6 +231,22 @@ impl OrderTracker {
                     .collect()
             })
             .unwrap_or_else(|| vec![])
+    }
+
+    pub fn eoa_state_changes<F, V>(
+        &mut self,
+        eoas: &[Address],
+        indexer: &OrderStorage,
+        validator: &mut OrderValidator<V>,
+        f: F
+    ) where
+        F: Fn(&OrderId, &OrderStorage, &mut OrderValidator<V>),
+        V: OrderValidatorHandle<Order = AllOrders>
+    {
+        eoas.iter()
+            .filter_map(|eoa| self.address_to_orders.remove(eoa))
+            .flatten()
+            .for_each(|id| f(&id, indexer, validator));
     }
 }
 
