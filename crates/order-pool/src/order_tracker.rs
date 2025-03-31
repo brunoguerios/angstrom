@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
@@ -27,16 +26,16 @@ const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 /// validation orders.
 #[derive(Default)]
 pub struct OrderTracker {
-    address_to_orders:      HashMap<Address, Vec<OrderId>>,
+    pub(super) address_to_orders:      HashMap<Address, Vec<OrderId>>,
     /// current block_number
     /// Order hash to order id, used for order inclusion lookups
-    order_hash_to_order_id: HashMap<B256, OrderId>,
+    pub(super) order_hash_to_order_id: HashMap<B256, OrderId>,
     /// Used to get trigger reputation side-effects on network order submission
-    order_hash_to_peer_id:  HashMap<B256, Vec<PeerId>>,
+    pub(super) order_hash_to_peer_id:  HashMap<B256, Vec<PeerId>>,
     /// Used to avoid unnecessary computation on order spam
-    seen_invalid_orders:    HashSet<B256>,
+    pub(super) seen_invalid_orders:    HashSet<B256>,
     /// Used to protect against late order propagation
-    cancelled_orders:       HashMap<B256, InnerCancelOrderRequest>
+    pub(super) cancelled_orders:       HashMap<B256, InnerCancelOrderRequest>
 }
 
 impl OrderTracker {
@@ -86,7 +85,7 @@ impl OrderTracker {
     pub fn remove_expired_orders(
         &mut self,
         block_number: u64,
-        storage: Arc<OrderStorage>
+        storage: &OrderStorage
     ) -> Vec<B256> {
         let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let expiry_deadline = U256::from((time + ETH_BLOCK_TIME).as_secs()); // grab all expired hashes

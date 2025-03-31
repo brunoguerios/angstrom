@@ -364,7 +364,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         // add expired orders to completed
         completed_orders.extend(
             self.order_tracker
-                .remove_expired_orders(block_number, self.order_storage.clone())
+                .remove_expired_orders(block_number, &self.order_storage)
         );
 
         self.validator.notify_validation_on_changes(
@@ -429,7 +429,10 @@ pub enum PoolError {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{
+        sync::Arc,
+        time::{SystemTime, UNIX_EPOCH}
+    };
 
     use alloy::{primitives::U256, signers::SignerSync, sol_types::SolValue};
     use angstrom_types::{
@@ -578,17 +581,29 @@ mod tests {
             .unwrap();
 
         // Verify order was added
-        assert!(indexer.order_hash_to_order_id.contains_key(&order_hash));
+        assert!(
+            indexer
+                .order_tracker
+                .order_hash_to_order_id
+                .contains_key(&order_hash)
+        );
 
         // Wait for order to expire
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
         // Simulate block transition
-        let expired_hashes = indexer.remove_expired_orders(2);
+        let expired_hashes = indexer
+            .order_tracker
+            .remove_expired_orders(2, &indexer.order_storage);
 
         // Verify order was removed
         assert!(expired_hashes.contains(&order_hash));
-        assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
+        assert!(
+            !indexer
+                .order_tracker
+                .order_hash_to_order_id
+                .contains_key(&order_hash)
+        );
     }
 
     #[tokio::test]
@@ -655,7 +670,12 @@ mod tests {
         indexer.finish_new_block_processing(2, completed_orders.clone(), address_changes.clone());
 
         // Verify order was removed
-        assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
+        assert!(
+            !indexer
+                .order_tracker
+                .order_hash_to_order_id
+                .contains_key(&order_hash)
+        );
     }
 
     #[tokio::test]
@@ -694,8 +714,13 @@ mod tests {
         let order_hash = order.order_hash();
 
         // Verify peer tracking
-        assert!(indexer.order_hash_to_peer_id.contains_key(&order_hash));
-        assert_eq!(indexer.order_hash_to_peer_id[&order_hash], vec![peer_id]);
+        assert!(
+            indexer
+                .order_tracker
+                .order_hash_to_peer_id
+                .contains_key(&order_hash)
+        );
+        assert_eq!(indexer.order_tracker.order_hash_to_peer_id[&order_hash], vec![peer_id]);
 
         // Validate order
         indexer
@@ -722,7 +747,12 @@ mod tests {
             .unwrap();
 
         // Verify peer tracking is cleared after validation
-        assert!(!indexer.order_hash_to_peer_id.contains_key(&order_hash));
+        assert!(
+            !indexer
+                .order_tracker
+                .order_hash_to_peer_id
+                .contains_key(&order_hash)
+        );
     }
 
     #[tokio::test]
@@ -754,7 +784,7 @@ mod tests {
             .unwrap();
 
         // Verify order was marked as invalid
-        assert!(indexer.seen_invalid_orders.contains(&order_hash));
+        assert!(indexer.is_seen_invalid(&order_hash));
 
         // Verify validation result
         match rx.await {
@@ -792,7 +822,7 @@ mod tests {
             .unwrap();
 
         // Verify order was marked as invalid
-        assert!(indexer.seen_invalid_orders.contains(&order_hash));
+        assert!(indexer.is_seen_invalid(&order_hash));
 
         // Verify validation result
         match rx.await {
@@ -801,7 +831,7 @@ mod tests {
         }
 
         indexer.finish_new_block_processing(1, vec![], vec![]);
-        assert!(!indexer.seen_invalid_orders.contains(&order_hash));
+        assert!(!indexer.is_seen_invalid(&order_hash));
     }
 
     #[tokio::test]
@@ -929,8 +959,13 @@ mod tests {
             .unwrap();
 
         // Verify order was added
-        assert!(indexer.order_hash_to_order_id.contains_key(&order_hash));
-        assert!(indexer.address_to_orders.contains_key(&from));
+        assert!(
+            indexer
+                .order_tracker
+                .order_hash_to_order_id
+                .contains_key(&order_hash)
+        );
+        assert!(indexer.order_tracker.address_to_orders.contains_key(&from));
     }
 
     #[tokio::test]
@@ -993,8 +1028,18 @@ mod tests {
 
         let result = indexer.cancel_order(&cancel_request);
         assert!(result);
-        assert!(indexer.cancelled_orders.contains_key(&order_hash));
-        assert!(!indexer.order_hash_to_order_id.contains_key(&order_hash));
+        assert!(
+            indexer
+                .order_tracker
+                .cancelled_orders
+                .contains_key(&order_hash)
+        );
+        assert!(
+            !indexer
+                .order_tracker
+                .order_hash_to_order_id
+                .contains_key(&order_hash)
+        );
     }
 
     #[tokio::test]
