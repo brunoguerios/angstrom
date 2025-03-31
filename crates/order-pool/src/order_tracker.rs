@@ -7,7 +7,7 @@ use std::{
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderOrigin},
-    primitive::PeerId,
+    primitive::{PeerId, PoolId},
     sol_bindings::{
         RawPoolOrder, ext::grouped_orders::AllOrders, grouped_orders::OrderWithStorageData
     }
@@ -133,6 +133,64 @@ impl OrderTracker {
         // nonce overlap is checked during validation so its ok we
         // don't check for duplicates
         self.address_to_orders.entry(user).or_default().push(id);
+    }
+
+    fn insert_cancel_with_deadline(
+        &mut self,
+        from: Address,
+        order_hash: &B256,
+        deadline: Option<U256>
+    ) {
+        let valid_until = deadline.map_or_else(
+            || {
+                // if no deadline is provided the cancellation request is valid until block
+                // transition
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            },
+            |deadline| {
+                let bytes: [u8; U256::BYTES] = deadline.to_le_bytes();
+                // should be safe
+                u64::from_le_bytes(bytes[..8].try_into().unwrap())
+            }
+        );
+        self.cancelled_orders
+            .insert(*order_hash, InnerCancelOrderRequest { from, valid_until });
+    }
+
+    pub fn cancel_order(&mut self, hash: B256, storage: &OrderStorage) -> Option<PoolId> {
+        self.order_hash_to_order_id
+            .remove(&hash)
+            .and_then(|v| storage.cancel_order(&v))
+            .map(|order| {
+                self.order_hash_to_order_id.remove(&order.order_hash());
+                self.order_hash_to_peer_id.remove(&order.order_hash());
+                self.insert_cancel_with_deadline(order.from(), &hash, order.deadline());
+
+                order.pool_id
+            })
+    }
+
+    pub fn pending_orders_for_address<F>(
+        &self,
+        address: Address,
+        storage: &OrderStorage,
+        f: F
+    ) -> Vec<OrderWithStorageData<AllOrders>>
+    where
+        F: Fn(&OrderId, &OrderStorage) -> Option<OrderWithStorageData<AllOrders>>
+    {
+        self.address_to_orders
+            .get(&address)
+            .map(|order_ids| {
+                order_ids
+                    .iter()
+                    .filter_map(|order_id| f(order_id, storage))
+                    .collect()
+            })
+            .unwrap_or_else(|| vec![])
     }
 }
 

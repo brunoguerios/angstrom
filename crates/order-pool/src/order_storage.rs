@@ -108,6 +108,23 @@ impl OrderStorage {
         }
     }
 
+    pub fn get_order_from_id(&self, order_id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
+        match order_id.location {
+            OrderLocation::Limit => self
+                .limit_orders
+                .lock()
+                .expect("lock poisoned")
+                .get_order(order_id)
+                .and_then(|order| order.try_map_inner(|inner| Ok(inner.into())).ok()),
+            OrderLocation::Searcher => self
+                .searcher_orders
+                .lock()
+                .expect("lock poisoned")
+                .get_order(order_id.pool_id, order_id.hash)
+                .and_then(|order| order.try_map_inner(|inner| Ok(AllOrders::TOB(inner))).ok())
+        }
+    }
+
     pub fn cancel_order(&self, order_id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
         if self
             .pending_finalization_orders

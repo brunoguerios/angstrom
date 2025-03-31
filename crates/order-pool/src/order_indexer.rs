@@ -84,55 +84,11 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         &self,
         address: Address
     ) -> Vec<OrderWithStorageData<AllOrders>> {
-        let mut orders = Vec::new();
-        if let Some(order_ids) = self.address_to_orders.get(&address) {
-            for order_id in order_ids {
-                let order = match order_id.location {
-                    angstrom_types::orders::OrderLocation::Limit => self
-                        .order_storage
-                        .limit_orders
-                        .lock()
-                        .expect("lock poisoned")
-                        .get_order(order_id)
-                        .and_then(|order| order.try_map_inner(|inner| Ok(inner.into())).ok()),
-                    angstrom_types::orders::OrderLocation::Searcher => self
-                        .order_storage
-                        .searcher_orders
-                        .lock()
-                        .expect("lock poisoned")
-                        .get_order(order_id.pool_id, order_id.hash)
-                        .and_then(|order| {
-                            order.try_map_inner(|inner| Ok(AllOrders::TOB(inner))).ok()
-                        })
-                };
-
-                if let Some(order) = order {
-                    orders.push(order);
-                }
-            }
-        }
-        orders
-    }
-
-    pub fn orders_by_pool(
-        &self,
-        pool_id: FixedBytes<32>,
-        order_location: OrderLocation
-    ) -> Vec<AllOrders> {
-        match order_location {
-            OrderLocation::Limit => self
-                .order_storage
-                .limit_orders
-                .lock()
-                .expect("poisoned")
-                .get_all_orders_from_pool(pool_id),
-            OrderLocation::Searcher => self
-                .order_storage
-                .searcher_orders
-                .lock()
-                .expect("poisoned")
-                .get_all_orders_from_pool(pool_id)
-        }
+        self.order_tracker.pending_orders_for_address(
+            address,
+            &self.order_storage,
+            |order_id, storage| storage.get_order_from_id(order_id)
+        )
     }
 
     pub fn order_status(&self, order_hash: B256) -> Option<OrderStatus> {
@@ -195,21 +151,17 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
             return true;
         }
-        let id = self.order_hash_to_order_id.remove(&request.order_id);
-        if let Some(order) = id.and_then(|v| self.order_storage.cancel_order(&v)) {
-            self.order_hash_to_order_id.remove(&order.order_hash());
-            self.order_hash_to_peer_id.remove(&order.order_hash());
-            self.insert_cancel_request_with_deadline(
-                request.user_address,
-                &request.order_id,
-                order.deadline()
-            );
 
-            self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
-                order_hash: order.order_hash(),
-                user:       order.from(),
-                pool_id:    order.pool_id
-            });
+        if let Some(pool_id) = self
+            .order_tracker
+            .cancel_order(request.order_id, &self.order_storage)
+        {
+            self.subscribers
+                .notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
+                    order_hash: request.order_id,
+                    user: request.user_address,
+                    pool_id
+                });
             return true;
         }
 
@@ -474,13 +426,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.filled_orders(block_number, &completed_orders);
         // add expired orders to completed
         completed_orders.extend(self.remove_expired_orders(block_number));
-
-        let time_now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        self.cancelled_orders
-            .retain(|_, request| request.valid_until >= time_now);
 
         self.validator.notify_validation_on_changes(
             block_number,
