@@ -1,18 +1,23 @@
 use std::{
     collections::{HashMap, HashSet},
-    time::{SystemTime, UNIX_EPOCH}
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    orders::{OrderId, OrderOrigin},
+    orders::{OrderId, OrderLocation, OrderOrigin},
     primitive::PeerId,
     sol_bindings::{RawPoolOrder, ext::grouped_orders::AllOrders}
 };
 use tokio::sync::oneshot::Sender;
 use validation::order::OrderValidationResults;
 
-use crate::order_indexer::InnerCancelOrderRequest;
+use crate::{order_indexer::InnerCancelOrderRequest, order_storage::OrderStorage};
+
+/// This is used to remove validated orders. During validation
+/// the same check wil be ran but with more accuracy
+const ETH_BLOCK_TIME: Duration = Duration::from_secs(12);
 
 /// Used as a storage of order hashes to order ids of validated and pending
 /// validation orders.
@@ -35,57 +40,60 @@ impl OrderTracker {
         Self::default()
     }
 
-    pub fn new_order<F>(
-        &mut self,
+    pub fn is_valid_cancel(&self, order: &B256, order_addr: Address) -> bool {
+        let Some(req) = self.cancelled_orders.get(order) else { return false };
+        req.from == order_addr
+    }
 
-        peer_id: Option<PeerId>,
-        origin: OrderOrigin,
-        order: AllOrders,
-        validation_res_sub: Option<Sender<OrderValidationResults>>,
-        f: F
-    ) where
-        F: FnOnce(
-            OrderOrigin,
-            AllOrders,
-            Option<Sender<OrderValidationResults>>,
-            &HashMap<B256, InnerCancelOrderRequest>
-        ) -> OrderHandlingRes
-    {
-        let hash = order.order_hash();
-        let peer_id_c = peer_id.clone();
-        let deadline = order.deadline();
-        let from = order.from();
+    pub fn is_duplicate(&self, hash: &B256) -> bool {
+        return self.order_hash_to_order_id.contains_key(hash)
+            || self.seen_invalid_orders.contains(hash);
+    }
 
-        match f(origin, order, validation_res_sub, &self.cancelled_orders) {
-            OrderHandlingRes::ValidOrderRequest => {
-                if let Some(peer_id) = peer_id_c {
-                    self.order_hash_to_peer_id
-                        .entry(hash)
-                        .or_default()
-                        .push(peer_id);
-                }
-            }
-            OrderHandlingRes::CancelOrderRequest => {
-                let valid_until = deadline.map_or_else(
-                    || {
-                        // if no deadline is provided the cancellation request is valid until block
-                        // transition
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs()
-                    },
-                    |deadline| {
-                        let bytes: [u8; U256::BYTES] = deadline.to_le_bytes();
-                        // should be safe
-                        u64::from_le_bytes(bytes[..8].try_into().unwrap())
-                    }
-                );
-                self.cancelled_orders
-                    .insert(hash, InnerCancelOrderRequest { from, valid_until });
-            }
-            _ => {}
+    pub fn track_peer_id(&mut self, hash: B256, peer_id: Option<PeerId>) {
+        if let Some(peer) = peer_id {
+            self.order_hash_to_peer_id
+                .entry(hash)
+                .or_default()
+                .push(peer);
         }
+    }
+
+    pub fn remove_expired_orders(
+        &mut self,
+        block_number: u64,
+        storage: Arc<OrderStorage>
+    ) -> Vec<B256> {
+        let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let expiry_deadline = U256::from((time + ETH_BLOCK_TIME).as_secs()); // grab all expired hashes
+        let hashes = self
+            .order_hash_to_order_id
+            .iter()
+            .filter(|(_, v)| {
+                v.deadline.map(|i| i <= expiry_deadline).unwrap_or_default()
+                    || v.flash_block
+                        .map(|b| b != block_number + 1)
+                        .unwrap_or_default()
+            })
+            .map(|(k, _)| *k)
+            .collect::<Vec<_>>();
+
+        hashes
+            .iter()
+            // remove hash from id
+            .map(|hash| self.order_hash_to_order_id.remove(hash).unwrap())
+            // remove from all underlying pools
+            .for_each(|id| {
+                self.address_to_orders
+                    .values_mut()
+                    // remove from address to orders
+                    .for_each(|v| v.retain(|o| o != &id));
+                match id.location {
+                    OrderLocation::Searcher => storage.remove_searcher_order(&id),
+                    OrderLocation::Limit => storage.remove_limit_order(&id)
+                };
+            });
+        hashes
     }
 }
 

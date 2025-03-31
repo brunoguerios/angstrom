@@ -32,16 +32,13 @@ use crate::{
     validator::{OrderValidator, OrderValidatorRes}
 };
 
-/// This is used to remove validated orders. During validation
-/// the same check wil be ran but with more accuracy
-const ETH_BLOCK_TIME: Duration = Duration::from_secs(12);
 /// mostly arbitrary
 const SEEN_INVALID_ORDERS_CAPACITY: usize = 10000;
 /// represents the maximum number of blocks that we allow for new orders to not
 /// propagate (again mostly arbitrary)
 const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 
-struct CancelOrderRequest {
+pub(crate) struct InnerCancelOrderRequest {
     /// The address of the entity requesting the cancellation.
     pub from:        Address,
     // The time until the cancellation request is valid.
@@ -158,16 +155,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.order_storage.remove_pool(key);
     }
 
-    fn is_duplicate(&self, order_hash: &B256) -> bool {
-        if self.order_hash_to_order_id.contains_key(order_hash) || self.is_seen_invalid(order_hash)
-        {
-            trace!(?order_hash, "got duplicate order");
-            return true;
-        }
-
-        false
-    }
-
     pub fn new_rpc_order(
         &mut self,
         origin: OrderOrigin,
@@ -263,89 +250,41 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
     ) {
         let hash = order.order_hash();
         if let Some(validation_tx) = validation_res_sub {
-            self.order_validation_subs
-                .entry(hash)
-                .or_default()
-                .push(validation_tx);
+            self.subscribers.subscribe_to_order(hash, validation_tx);
         }
 
-        let cancel_request = self.cancelled_orders.get(&hash);
-        let is_valid_cancel_request =
-            cancel_request.is_some() && cancel_request.unwrap().from == order.from();
+        // if the order has been canceled, we just notify the validation subscribers
+        // that its a cancelled order
+        if self.order_tracker.is_valid_cancel(&hash, order.from()) {
+            self.subscribers.notify_validation_subscribers(
+                &hash,
+                OrderValidationResults::Invalid {
+                    hash,
+                    error: angstrom_types::primitive::OrderValidationError::CancelledOrder
+                }
+            );
+            self.order_storage.log_cancel_order(&order);
+        }
+
+        if self.order_tracker.is_duplicate(&hash) {
+            self.notify_validation_subscribers(
+                &hash,
+                OrderValidationResults::Invalid {
+                    hash,
+                    error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
+                }
+            );
+        }
 
         // network spammers will get penalized only once
-        if self.is_duplicate(&hash) || is_valid_cancel_request {
-            if is_valid_cancel_request {
-                self.insert_cancel_request_with_deadline(order.from(), &hash, order.deadline());
-
-                if let Some(pool_id) = self
-                    .pool_id_map
-                    .get_poolid(order.token_in(), order.token_out())
-                {
-                    self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
-                        order_hash: order.order_hash(),
-                        pool_id,
-                        user: order.from()
-                    });
-                }
-                self.order_storage.log_cancel_order(&order);
-            } else {
-                self.notify_validation_subscribers(
-                    &hash,
-                    OrderValidationResults::Invalid {
-                        hash,
-                        error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
-                    }
-                );
-                return;
-            }
-        }
-
-        let hash = order.order_hash();
-        if let Some(peer) = peer_id {
-            self.order_hash_to_peer_id
-                .entry(hash)
-                .or_default()
-                .push(peer);
-        }
-
+        self.order_tracker.track_peer_id(hash, peer_id);
         self.validator.validate_order(origin, order);
     }
 
     /// used to remove orders that expire before the next ethereum block
     fn remove_expired_orders(&mut self, block_number: BlockNumber) -> Vec<B256> {
-        self.block_number = block_number;
-        let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-        let expiry_deadline = U256::from((time + ETH_BLOCK_TIME).as_secs()); // grab all expired hashes
-        let hashes = self
-            .order_hash_to_order_id
-            .iter()
-            .filter(|(_, v)| {
-                v.deadline.map(|i| i <= expiry_deadline).unwrap_or_default()
-                    || v.flash_block
-                        .map(|b| b != block_number + 1)
-                        .unwrap_or_default()
-            })
-            .map(|(k, _)| *k)
-            .collect::<Vec<_>>();
-
-        hashes
-            .iter()
-            // remove hash from id
-            .map(|hash| self.order_hash_to_order_id.remove(hash).unwrap())
-            // remove from all underlying pools
-            .for_each(|id| {
-                self.address_to_orders
-                    .values_mut()
-                    // remove from address to orders
-                    .for_each(|v| v.retain(|o| o != &id));
-                match id.location {
-                    OrderLocation::Searcher => self.order_storage.remove_searcher_order(&id),
-                    OrderLocation::Limit => self.order_storage.remove_limit_order(&id)
-                };
-            });
-
-        hashes
+        self.order_tracker
+            .remove_expired_orders(block_number, self.order_storage.clone())
     }
 
     fn eoa_state_change(&mut self, eoas: &[Address]) {
