@@ -4,6 +4,7 @@ mod finalization_pool;
 mod limit;
 mod order_indexer;
 pub mod order_storage;
+pub mod order_tracker;
 
 mod searcher;
 mod validator;
