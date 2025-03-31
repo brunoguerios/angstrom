@@ -108,6 +108,21 @@ impl OrderStorage {
         }
     }
 
+    pub fn get_orders_by_pool(&self, pool_id: PoolId, location: OrderLocation) -> Vec<AllOrders> {
+        match location {
+            OrderLocation::Limit => self
+                .limit_orders
+                .lock()
+                .expect("lock poisoned")
+                .get_all_orders_from_pool(pool_id),
+            OrderLocation::Searcher => self
+                .searcher_orders
+                .lock()
+                .expect("lock poisoned")
+                .get_all_orders_from_pool(pool_id)
+        }
+    }
+
     pub fn get_order_from_id(&self, order_id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
         match order_id.location {
             OrderLocation::Limit => self

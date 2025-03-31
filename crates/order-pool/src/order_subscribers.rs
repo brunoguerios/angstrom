@@ -30,7 +30,7 @@ impl OrderSubscriptionTracker {
     }
 
     pub fn notify_order_subscribers(&mut self, update: PoolManagerUpdate) {
-        self.orders_subscriber_tx.send(update);
+        let _ = self.orders_subscriber_tx.send(update);
     }
 
     pub fn notify_validation_subscribers(&mut self, hash: &B256, result: OrderValidationResults) {

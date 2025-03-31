@@ -1,13 +1,12 @@
 use std::{
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
-    time::{SystemTime, UNIX_EPOCH}
+    task::{Context, Poll}
 };
 
-use alloy::primitives::{Address, B256, BlockNumber, FixedBytes, U256};
+use alloy::primitives::{Address, B256, BlockNumber};
 use angstrom_types::{
-    orders::{OrderId, OrderOrigin, OrderSet, OrderStatus},
+    orders::{OrderId, OrderLocation, OrderOrigin, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::{
         RawPoolOrder,
@@ -17,10 +16,9 @@ use angstrom_types::{
 };
 use futures_util::{Stream, StreamExt};
 use tokio::sync::oneshot::Sender;
-use tracing::{error, trace};
+use tracing::error;
 use validation::order::{
-    OrderValidationResults, OrderValidatorHandle,
-    state::{account::user::UserAddress, pools::AngstromPoolsTracker}
+    OrderValidationResults, OrderValidatorHandle, state::pools::AngstromPoolsTracker
 };
 
 use crate::{
@@ -30,12 +28,6 @@ use crate::{
     order_tracker::OrderTracker,
     validator::{OrderValidator, OrderValidatorRes}
 };
-
-/// mostly arbitrary
-const SEEN_INVALID_ORDERS_CAPACITY: usize = 10000;
-/// represents the maximum number of blocks that we allow for new orders to not
-/// propagate (again mostly arbitrary)
-const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 
 pub(crate) struct InnerCancelOrderRequest {
     /// The address of the entity requesting the cancellation.
@@ -88,6 +80,10 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             &self.order_storage,
             |order_id, storage| storage.get_order_from_id(order_id)
         )
+    }
+
+    pub fn orders_by_pool(&self, pool_id: PoolId, location: OrderLocation) -> Vec<AllOrders> {
+        self.order_storage.get_orders_by_pool(pool_id, location)
     }
 
     pub fn order_status(&self, order_hash: B256) -> Option<OrderStatus> {
@@ -224,13 +220,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         let filled_orders = self
             .order_tracker
             .filled_orders(orders, &self.order_storage)
-            .map(|order| {
+            .inspect(|order| {
                 self.subscribers
                     .notify_order_subscribers(PoolManagerUpdate::FilledOrder(
                         block_number,
                         order.clone()
                     ));
-                order
             })
             .collect();
 
@@ -240,7 +235,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
     /// Given the nonce ordering rule. Sometimes new transactions can park old
     /// transactions.
-
     fn handle_validated_order(
         &mut self,
         res: OrderValidationResults

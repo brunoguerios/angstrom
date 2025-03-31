@@ -6,18 +6,16 @@ use std::{
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    orders::{OrderId, OrderLocation, OrderOrigin},
+    orders::{OrderId, OrderLocation},
     primitive::{PeerId, PoolId},
     sol_bindings::{
         RawPoolOrder, ext::grouped_orders::AllOrders, grouped_orders::OrderWithStorageData
     }
 };
-use tokio::sync::oneshot::Sender;
-use validation::order::{OrderValidationResults, OrderValidatorHandle};
+use validation::order::OrderValidatorHandle;
 
 use crate::{
-    OrderIndexer, order_indexer::InnerCancelOrderRequest, order_storage::OrderStorage,
-    validator::OrderValidator
+    order_indexer::InnerCancelOrderRequest, order_storage::OrderStorage, validator::OrderValidator
 };
 
 /// This is used to remove validated orders. During validation
@@ -67,8 +65,7 @@ impl OrderTracker {
     }
 
     pub fn is_duplicate(&self, hash: &B256) -> bool {
-        return self.order_hash_to_order_id.contains_key(hash)
-            || self.seen_invalid_orders.contains(hash);
+        self.order_hash_to_order_id.contains_key(hash) || self.seen_invalid_orders.contains(hash)
     }
 
     pub fn track_peer_id(&mut self, hash: B256, peer_id: Option<PeerId>) {
@@ -83,7 +80,7 @@ impl OrderTracker {
     pub fn invalid_verification(&mut self, hash: B256) -> Vec<PeerId> {
         self.seen_invalid_orders.insert(hash);
 
-        return self.order_hash_to_peer_id.remove(&hash).unwrap_or_default();
+        self.order_hash_to_peer_id.remove(&hash).unwrap_or_default()
     }
 
     pub fn remove_expired_orders(
@@ -230,7 +227,7 @@ impl OrderTracker {
                     .filter_map(|order_id| f(order_id, storage))
                     .collect()
             })
-            .unwrap_or_else(|| vec![])
+            .unwrap_or_default()
     }
 
     pub fn eoa_state_changes<F, V>(
@@ -248,11 +245,4 @@ impl OrderTracker {
             .flatten()
             .for_each(|id| f(&id, indexer, validator));
     }
-}
-
-pub enum OrderHandlingRes {
-    CancelOrderRequest,
-    DuplicateOrderRequest,
-    ValidOrderRequest,
-    Filled
 }
