@@ -27,7 +27,8 @@ use validation::order::{
 use crate::{
     PoolManagerUpdate,
     order_storage::OrderStorage,
-    order_tracker::{OrderHandlingRes, OrderTracker},
+    order_subscribers::OrderSubscriptionTracker,
+    order_tracker::OrderTracker,
     validator::{OrderValidator, OrderValidatorRes}
 };
 
@@ -40,7 +41,7 @@ const SEEN_INVALID_ORDERS_CAPACITY: usize = 10000;
 /// propagate (again mostly arbitrary)
 const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 
-pub(crate) struct InnerCancelOrderRequest {
+struct CancelOrderRequest {
     /// The address of the entity requesting the cancellation.
     pub from:        Address,
     // The time until the cancellation request is valid.
@@ -49,20 +50,19 @@ pub(crate) struct InnerCancelOrderRequest {
 
 pub struct OrderIndexer<V: OrderValidatorHandle> {
     /// order storage
-    order_storage:         Arc<OrderStorage>,
+    order_storage: Arc<OrderStorage>,
     /// current block_number
-    block_number:          u64,
+    block_number:  u64,
     /// used to track the relevant order ids.
-    order_tracker:         OrderTracker,
+    order_tracker: OrderTracker,
     /// Order hash to order id, used for order inclusion lookups
     /// Order Validator
-    validator:             OrderValidator<V>,
+    validator:     OrderValidator<V>,
     /// a mapping of tokens to pool_id
-    pool_id_map:           AngstromPoolsTracker,
+    pool_id_map:   AngstromPoolsTracker,
     /// List of subscribers for order validation result
-    order_validation_subs: HashMap<B256, Vec<Sender<OrderValidationResults>>>,
-    /// List of subscribers for order state change notifications
-    orders_subscriber_tx:  tokio::sync::broadcast::Sender<PoolManagerUpdate>
+    /// order
+    subscribers:   OrderSubscriptionTracker
 }
 
 impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
@@ -78,9 +78,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             order_tracker: OrderTracker::default(),
             block_number,
             pool_id_map: angstrom_pools,
-            order_validation_subs: HashMap::new(),
             validator: OrderValidator::new(validator),
-            orders_subscriber_tx
+            subscribers: OrderSubscriptionTracker::new(orders_subscriber_tx)
         }
     }
 
@@ -262,52 +261,55 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         order: AllOrders,
         validation_res_sub: Option<Sender<OrderValidationResults>>
     ) {
-        self.order_tracker.new_order(
-            peer_id,
-            origin,
-            order,
-            validation_res_sub,
-            |origin, order, validation_res_sub, cancelled_orders| {
-                let hash = order.order_hash();
-                if let Some(validation_tx) = validation_res_sub {
-                    self.order_validation_subs
-                        .entry(hash)
-                        .or_default()
-                        .push(validation_tx);
-                }
+        let hash = order.order_hash();
+        if let Some(validation_tx) = validation_res_sub {
+            self.order_validation_subs
+                .entry(hash)
+                .or_default()
+                .push(validation_tx);
+        }
 
-                let cancel_request = cancelled_orders.get(&hash);
-                if cancel_request.map(|s| s.user_address) == Some(order.from()) {
-                    if let Some(pool_id) = self
-                        .pool_id_map
-                        .get_poolid(order.token_in(), order.token_out())
-                    {
-                        self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
-                            order_hash: order.order_hash(),
-                            pool_id,
-                            user: order.from()
-                        });
+        let cancel_request = self.cancelled_orders.get(&hash);
+        let is_valid_cancel_request =
+            cancel_request.is_some() && cancel_request.unwrap().from == order.from();
+
+        // network spammers will get penalized only once
+        if self.is_duplicate(&hash) || is_valid_cancel_request {
+            if is_valid_cancel_request {
+                self.insert_cancel_request_with_deadline(order.from(), &hash, order.deadline());
+
+                if let Some(pool_id) = self
+                    .pool_id_map
+                    .get_poolid(order.token_in(), order.token_out())
+                {
+                    self.notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
+                        order_hash: order.order_hash(),
+                        pool_id,
+                        user: order.from()
+                    });
+                }
+                self.order_storage.log_cancel_order(&order);
+            } else {
+                self.notify_validation_subscribers(
+                    &hash,
+                    OrderValidationResults::Invalid {
+                        hash,
+                        error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
                     }
-                    self.order_storage.log_cancel_order(&order);
-                    return OrderHandlingRes::CancelOrderRequest;
-                }
-
-                if self.is_duplicate(&hash) {
-                    self.notify_validation_subscribers(
-                        &hash,
-                        OrderValidationResults::Invalid {
-                            hash,
-                            error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
-                        }
-                    );
-
-                    return OrderHandlingRes::DuplicateOrderRequest;
-                }
-
-                self.validator.validate_order(origin, order);
-                OrderHandlingRes::ValidOrderRequest
+                );
+                return;
             }
-        );
+        }
+
+        let hash = order.order_hash();
+        if let Some(peer) = peer_id {
+            self.order_hash_to_peer_id
+                .entry(hash)
+                .or_default()
+                .push(peer);
+        }
+
+        self.validator.validate_order(origin, order);
     }
 
     /// used to remove orders that expire before the next ethereum block
