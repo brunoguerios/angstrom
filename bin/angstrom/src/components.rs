@@ -249,7 +249,6 @@ where
         ._0
         .into_iter()
         .collect::<HashSet<_>>();
-    tokio::time::sleep(Duration::from_secs(3)).await;
     tracing::info!(?node_set, "got node set");
 
     // Build our PoolManager using the PoolConfig and OrderStorage we've already
@@ -283,7 +282,6 @@ where
     )
     .await;
 
-    tokio::time::sleep(Duration::from_secs(3)).await;
     tracing::info!("uniswap manager start");
 
     let uniswap_pools = uniswap_pool_manager.pools();
@@ -317,7 +315,6 @@ where
     );
 
     let validation_handle = ValidationClient(handles.validator_tx.clone());
-    tokio::time::sleep(Duration::from_secs(3)).await;
     tracing::info!("validation manager start");
 
     let network_handle = network_builder
@@ -351,7 +348,6 @@ where
         // use same weight for all validators
         .map(|addr| AngstromValidator::new(addr, 100))
         .collect::<Vec<_>>();
-    tokio::time::sleep(Duration::from_secs(3)).await;
     tracing::info!("pool manager start");
 
     // spinup matching engine
