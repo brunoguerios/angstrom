@@ -225,13 +225,15 @@ where
     .await;
     tracing::info!("found pools");
 
-    let _ = sub.recv().await.expect("first block");
-
     // re-fetch given the fetch pools takes awhile. given this, we do techincally
     // have a gap in which a pool is deployed durning startup. This isn't
     // critical but we will want to fix this down the road.
     // let block_id = querying_provider.get_block_number().await.unwrap();
-    let block_id = querying_provider.get_block_number().await.unwrap();
+    let block_id = match sub.recv().await.expect("first block") {
+        CanonStateNotification::Commit { new } => new.tip().number,
+        CanonStateNotification::Reorg { new, .. } => new.tip().number
+    };
+
     tracing::info!(?block_id, "starting up with block");
     let eth_data_sub = node.provider.subscribe_to_canonical_state();
 
