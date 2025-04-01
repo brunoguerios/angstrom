@@ -3,7 +3,7 @@ use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     primitive::{UserAccountVerificationError, UserOrderPoolInfo},
-    sol_bindings::{Ray, RespendAvoidanceMethod, ext::RawPoolOrder}
+    sol_bindings::{OrderValidationPriority, Ray, RespendAvoidanceMethod, ext::RawPoolOrder}
 };
 use angstrom_utils::FnResultOption;
 use dashmap::DashMap;
@@ -78,6 +78,7 @@ impl LiveState {
         Ok(PendingUserAction {
             order_priority: OrderValidationPriority {
                 order_hash: order.order_hash(),
+                volume_t0:  order.min_qty_t0().unwrap(),
                 is_partial: order.is_partial(),
                 is_tob:     order.is_tob(),
                 respend:    order.respend_avoidance_strategy()
@@ -136,29 +137,6 @@ impl Deref for PendingUserAction {
 
     fn deref(&self) -> &Self::Target {
         &self.order_priority
-    }
-}
-
-#[derive(Clone, Debug, Copy)]
-pub(super) struct OrderValidationPriority {
-    pub order_hash: B256,
-    pub is_tob:     bool,
-    pub is_partial: bool,
-    pub respend:    RespendAvoidanceMethod
-}
-
-impl OrderValidationPriority {
-    pub fn is_higher_priority(&self, other: &Self) -> Ordering {
-        self.is_tob.cmp(&other.is_tob).then_with(|| {
-            self.is_partial.cmp(&other.is_partial).then_with(|| {
-                // we want the lower nonce
-                other
-                    .respend
-                    .get_ord_for_pending_orders()
-                    .cmp(&self.respend.get_ord_for_pending_orders())
-                    .then_with(|| other.order_hash.cmp(&self.order_hash))
-            })
-        })
     }
 }
 

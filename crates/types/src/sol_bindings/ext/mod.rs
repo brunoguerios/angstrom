@@ -1,5 +1,5 @@
 //! extension functionality to sol types
-use std::fmt;
+use std::{cmp::Ordering, fmt};
 
 use alloy::primitives::{Address, FixedBytes, TxHash, U256};
 use alloy_primitives::PrimitiveSignature;
@@ -76,6 +76,9 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     /// the total balance and approval.
     fn validation_priority(&self) -> OrderValidationPriority {
         OrderValidationPriority {
+            volume_t0:  self
+                .min_qty_t0()
+                .expect("should not be checking priority prior to validation"),
             order_hash: self.order_hash(),
             is_tob:     self.is_tob(),
             is_partial: self.is_partial(),
@@ -136,8 +139,25 @@ impl RespendAvoidanceMethod {
 
 #[derive(Clone, Debug, Copy)]
 pub struct OrderValidationPriority {
-    pub order_hash: B256,
+    pub order_hash: FixedBytes<32>,
+    pub volume_t0:  u128,
+
     pub is_tob:     bool,
     pub is_partial: bool,
     pub respend:    RespendAvoidanceMethod
+}
+
+impl OrderValidationPriority {
+    pub fn is_higher_priority(&self, other: &Self) -> Ordering {
+        self.is_tob.cmp(&other.is_tob).then_with(|| {
+            self.is_partial.cmp(&other.is_partial).then_with(|| {
+                // we want the lower nonce
+                other
+                    .respend
+                    .get_ord_for_pending_orders()
+                    .cmp(&self.respend.get_ord_for_pending_orders())
+                    .then_with(|| other.order_hash.cmp(&self.order_hash))
+            })
+        })
+    }
 }

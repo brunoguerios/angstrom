@@ -82,6 +82,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         tracing::trace!(?conflicting_orders);
 
         // if new order has lower hash cancel all orders with the same nonce
+        //
         // TODO: given we are cancelling here. We should notify the user that this
         // order will never be included
         conflicting_orders.iter().for_each(|order| {
@@ -92,7 +93,12 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         // that
         let live_state = self
             .user_accounts
-            .get_live_state_for_order(user, pool_info.token, respend, &self.fetch_utils)
+            .get_live_state_for_order(
+                user,
+                pool_info.token,
+                order.validation_priority(),
+                &self.fetch_utils
+            )
             .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?;
 
         // ensure that the current live state is enough to satisfy the order
@@ -137,10 +143,11 @@ pub trait StorageWithData: RawPoolOrder {
     ) -> OrderWithStorageData<Self> {
         OrderWithStorageData {
             priority_data: angstrom_types::orders::OrderPriorityData {
-                price:  self.limit_price(),
-                // it is always t0. this is because we don't
-                volume: self.min_qty_t0().unwrap(),
-
+                price:     self.limit_price(),
+                // this is always amount as order are collected as
+                // bid and ask, thus when compairing, these will all be
+                // on the same side
+                volume:    self.amount(),
                 gas:       U256::ZERO,
                 gas_units: 0
             },
