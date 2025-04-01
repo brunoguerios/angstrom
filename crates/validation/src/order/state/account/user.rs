@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
@@ -76,8 +76,12 @@ impl LiveState {
         };
 
         Ok(PendingUserAction {
-            order_hash: order.order_hash(),
-            respend: order.respend_avoidance_strategy(),
+            order_priority: OrderValidationPriority {
+                order_hash: order.order_hash(),
+                is_partial: order.is_partial(),
+                is_tob:     order.is_tob(),
+                respend:    order.respend_avoidance_strategy()
+            },
             token_address: pool_info.token,
             token_delta,
             angstrom_delta,
@@ -112,13 +116,8 @@ impl LiveState {
 /// TOB -> Partial Orders -> Book Orders.
 #[derive(Clone, Debug)]
 pub struct PendingUserAction {
-    /// hash of order
-    pub order_hash: B256,
-
+    pub order_priority: OrderValidationPriority,
     // TODO: easier to properly encode this stuff
-    pub is_tob:         bool,
-    pub is_partial:     bool,
-    pub respend:        RespendAvoidanceMethod,
     // for each order, there will be two different deltas
     pub token_address:  TokenAddress,
     // although we have deltas for two tokens, we only
@@ -132,7 +131,23 @@ pub struct PendingUserAction {
     pub pool_info: UserOrderPoolInfo
 }
 
-impl PendingUserAction {
+impl Deref for PendingUserAction {
+    type Target = OrderValidationPriority;
+
+    fn deref(&self) -> &Self::Target {
+        &self.order_priority
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub(super) struct OrderValidationPriority {
+    pub order_hash: B256,
+    pub is_tob:     bool,
+    pub is_partial: bool,
+    pub respend:    RespendAvoidanceMethod
+}
+
+impl OrderValidationPriority {
     pub fn is_higher_priority(&self, other: &Self) -> Ordering {
         self.is_tob.cmp(&other.is_tob).then_with(|| {
             self.is_partial.cmp(&other.is_partial).then_with(|| {
@@ -141,6 +156,7 @@ impl PendingUserAction {
                     .respend
                     .get_ord_for_pending_orders()
                     .cmp(&self.respend.get_ord_for_pending_orders())
+                    .then_with(|| other.order_hash.cmp(&self.order_hash))
             })
         })
     }
@@ -221,14 +237,14 @@ impl UserAccounts {
         &self,
         user: UserAddress,
         token: TokenAddress,
-        respend: RespendAvoidanceMethod,
+        order_priority: OrderValidationPriority,
         utils: &S
     ) -> eyre::Result<LiveState> {
         let out = self
-            .try_fetch_live_pending_state(user, token, respend)
+            .try_fetch_live_pending_state(user, token, order_priority)
             .invert_map_or_else(|| {
                 self.load_state_for(user, token, utils)?;
-                self.try_fetch_live_pending_state(user, token, respend)
+                self.try_fetch_live_pending_state(user, token, order_priority)
                     .ok_or(eyre::eyre!(
                         "after loading state for a address, the state wasn't found. this should \
                          be impossible"
@@ -271,7 +287,8 @@ impl UserAccounts {
         let value = entry.value_mut();
 
         value.push(action);
-        value.sort_unstable_by_key(|k| k.respend.get_ord_for_pending_orders());
+        // sorts them descending by priority
+        value.sort_unstable_by(|f, s| s.is_higher_priority(&f));
         drop(entry);
 
         // iterate through all vales collected the orders that
@@ -324,7 +341,7 @@ impl UserAccounts {
         &self,
         user: UserAddress,
         token: TokenAddress,
-        respend: RespendAvoidanceMethod
+        order_priority: OrderValidationPriority
     ) -> Option<LiveState> {
         let baseline = self.last_known_state.get(&user)?;
         let baseline_approval = *baseline.token_approval.get(&token)?;
@@ -339,8 +356,8 @@ impl UserAccounts {
                 val.iter()
                     .filter(|state| state.token_address == token)
                     .take_while(|state| {
-                        state.respend.get_ord_for_pending_orders()
-                            <= respend.get_ord_for_pending_orders()
+                        // needs to be greater
+                        state.is_higher_priority(&order_priority) == Ordering::Greater
                     })
                     .fold(
                         (Amount::default(), Amount::default(), Amount::default()),

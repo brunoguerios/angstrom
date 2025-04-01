@@ -1,7 +1,7 @@
 //! extension functionality to sol types
 use std::fmt;
 
-use alloy::primitives::{Address, TxHash, U256};
+use alloy::primitives::{Address, FixedBytes, TxHash, U256};
 use alloy_primitives::PrimitiveSignature;
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +46,13 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
         })
     }
 
+    /// ensure to override for variants that have tob.
+    fn is_tob(&self) -> bool {
+        false
+    }
+
+    /// if the order is partial. If the min amount == max amount but order is
+    /// specified as partial, we don't give it priority ordering
     fn is_partial(&self) -> bool {
         self.min_amount() < self.amount()
     }
@@ -64,6 +71,17 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
 
     /// the way in which we avoid a respend attack
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod;
+
+    /// when validating, the priority in which we sort orders to allocate
+    /// the total balance and approval.
+    fn validation_priority(&self) -> OrderValidationPriority {
+        OrderValidationPriority {
+            order_hash: self.order_hash(),
+            is_tob:     self.is_tob(),
+            is_partial: self.is_partial(),
+            respend:    self.respend_avoidance_strategy()
+        }
+    }
 
     /// token in
     fn token_in(&self) -> Address;
@@ -114,4 +132,12 @@ impl RespendAvoidanceMethod {
         let Self::Nonce(n) = self else { return 0 };
         *n
     }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub struct OrderValidationPriority {
+    pub order_hash: B256,
+    pub is_tob:     bool,
+    pub is_partial: bool,
+    pub respend:    RespendAvoidanceMethod
 }

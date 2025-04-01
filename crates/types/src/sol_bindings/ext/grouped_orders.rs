@@ -779,6 +779,10 @@ impl RawPoolOrder for TopOfBlockOrder {
         true
     }
 
+    fn is_tob(&self) -> bool {
+        true
+    }
+
     fn has_hook(&self) -> bool {
         false
     }
@@ -1177,6 +1181,10 @@ impl RawPoolOrder for ExactFlashOrder {
 }
 
 impl RawPoolOrder for AllOrders {
+    fn is_tob(&self) -> bool {
+        matches!(self, AllOrders::TOB(_))
+    }
+
     fn has_hook(&self) -> bool {
         match self {
             AllOrders::Standing(p) => p.has_hook(),
