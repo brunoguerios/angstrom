@@ -203,7 +203,6 @@ where
     tracing::info!(target: "angstrom::startup-sequence", "new block detected. initializing all modules");
 
     let block_id = querying_provider.get_block_number().await.unwrap();
-    tracing::info!(?block_id, "starting up with block");
 
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
@@ -231,8 +230,11 @@ where
     // re-fetch given the fetch pools takes awhile. given this, we do techincally
     // have a gap in which a pool is deployed durning startup. This isn't
     // critical but we will want to fix this down the road.
+    // let block_id = querying_provider.get_block_number().await.unwrap();
     let block_id = querying_provider.get_block_number().await.unwrap();
+    tracing::info!(?block_id, "starting up with block");
     let eth_data_sub = node.provider.subscribe_to_canonical_state();
+
     let global_block_sync = GlobalBlockSync::new(block_id);
 
     // this right here problem
