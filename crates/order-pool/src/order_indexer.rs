@@ -361,6 +361,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         mut completed_orders: Vec<B256>,
         address_changes: Vec<Address>
     ) {
+        self.block_number = block_number;
         // clear the invalid orders as they could of become valid.
         self.order_tracker.clear_invalid();
         // deal with changed orders
