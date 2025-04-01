@@ -52,6 +52,7 @@ impl RewardsUpdate {
             .get_range_for_tick(range_tick)
             .map(|r| (if from_above { r.lower_tick() } else { r.upper_tick() }, r.liquidity()))
             .unwrap_or_default();
+        tracing::warn!(current_tick, bound_tick, start_tick, start_liquidity, "Assembling rewards update");
 
         tracing::trace!(
             start_tick,
