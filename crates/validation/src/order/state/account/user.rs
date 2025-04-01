@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
@@ -92,7 +92,7 @@ impl LiveState {
     ///
     /// one is an one for zero(bid) swap where we specify exact out.
     ///
-    ///  one is a zero for 1 swap with an exact out specified
+    /// one is a zero for 1 swap with an exact out specified
     fn fetch_amount_in<O: RawPoolOrder>(&self, order: &O) -> U256 {
         let ray_price = Ray::from(order.limit_price());
         U256::from(if order.is_bid() && !order.exact_in() {
@@ -108,10 +108,16 @@ impl LiveState {
 }
 
 /// deltas to be applied to the base user action
+/// We need to update this ordering such that we prioritize
+/// TOB -> Partial Orders -> Book Orders.
 #[derive(Clone, Debug)]
 pub struct PendingUserAction {
     /// hash of order
-    pub order_hash:     B256,
+    pub order_hash: B256,
+
+    // TODO: easier to properly encode this stuff
+    pub is_tob:         bool,
+    pub is_partial:     bool,
     pub respend:        RespendAvoidanceMethod,
     // for each order, there will be two different deltas
     pub token_address:  TokenAddress,
@@ -124,6 +130,20 @@ pub struct PendingUserAction {
     pub angstrom_delta: Amount,
 
     pub pool_info: UserOrderPoolInfo
+}
+
+impl PendingUserAction {
+    pub fn is_higher_priority(&self, other: &Self) -> Ordering {
+        self.is_tob.cmp(&other.is_tob).then_with(|| {
+            self.is_partial.cmp(&other.is_partial).then_with(|| {
+                // we want the lower nonce
+                other
+                    .respend
+                    .get_ord_for_pending_orders()
+                    .cmp(&self.respend.get_ord_for_pending_orders())
+            })
+        })
+    }
 }
 
 pub struct UserAccounts {

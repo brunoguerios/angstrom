@@ -46,6 +46,10 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
         })
     }
 
+    fn is_partial(&self) -> bool {
+        self.min_amount() < self.amount()
+    }
+
     /// the amount specified by the user. if the order is a partial, this is the
     /// min value. otherwise it is the same as amount
     fn min_amount(&self) -> u128;
