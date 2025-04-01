@@ -386,7 +386,7 @@ impl<Order> OrderWithStorageData<Order> {
             is_currently_valid: self.is_currently_valid,
             is_valid:           self.is_valid,
             order_id:           self.order_id,
-            tob_reward:         U256::ZERO
+            tob_reward:         self.tob_reward
         })
     }
 }

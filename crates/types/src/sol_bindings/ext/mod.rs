@@ -5,7 +5,7 @@ use alloy::primitives::{Address, TxHash, U256};
 use alloy_primitives::PrimitiveSignature;
 use serde::{Deserialize, Serialize};
 
-use crate::orders::OrderLocation;
+use crate::{orders::OrderLocation, sol_bindings::Ray};
 
 pub mod flips;
 pub mod grouped_orders;
@@ -20,12 +20,34 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     /// The order signer
     fn from(&self) -> Address;
 
-    // the amount specified by the user. if the order is a partial, this is the max
-    // value
+    /// the amount specified by the user. if the order is a partial, this is the
+    /// max
+    // /value
     fn amount(&self) -> u128;
 
-    // the amount specified by the user. if the order is a partial, this is the min
-    // value. otherwise it is the same as amount
+    /// the min qty of t0 specified by the user
+    fn min_qty_t0(&self) -> Option<u128> {
+        if self.amount() == 0 || self.limit_price() == U256::ZERO {
+            return None;
+        }
+
+        Some(if !self.is_bid() {
+            if self.exact_in() {
+                self.min_amount()
+            } else {
+                Ray::from(self.limit_price()).inverse_quantity(self.min_amount(), true)
+            }
+        } else if self.exact_in() {
+            Ray::from(self.limit_price())
+                .mul_quantity(U256::from(self.min_amount()))
+                .to::<u128>()
+        } else {
+            self.min_amount()
+        })
+    }
+
+    /// the amount specified by the user. if the order is a partial, this is the
+    /// min value. otherwise it is the same as amount
     fn min_amount(&self) -> u128;
 
     /// Limit Price

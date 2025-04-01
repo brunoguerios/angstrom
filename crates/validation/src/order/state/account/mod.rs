@@ -73,11 +73,17 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             .iter()
             .any(|o| o.order_hash <= order_hash)
         {
+            // TODO: update this error message because we can't replace order
+            // unless the hash is lower. This is simply due to the fact that
+            // we need uniformity across all nodes validation in order to properly
+            // do slashing as everything needs to be replicable across the board.
             return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
         }
         tracing::trace!(?conflicting_orders);
 
         // if new order has lower hash cancel all orders with the same nonce
+        // TODO: given we are cancelling here. We should notify the user that this
+        // order will never be included
         conflicting_orders.iter().for_each(|order| {
             self.user_accounts.cancel_order(&user, &order.order_hash);
         });
@@ -131,9 +137,10 @@ pub trait StorageWithData: RawPoolOrder {
     ) -> OrderWithStorageData<Self> {
         OrderWithStorageData {
             priority_data: angstrom_types::orders::OrderPriorityData {
-                price:     self.limit_price(),
-                // it is always t1. this is because we don't
-                volume:    self.amount(),
+                price:  self.limit_price(),
+                // it is always t0. this is because we don't
+                volume: self.min_qty_t0().unwrap(),
+
                 gas:       U256::ZERO,
                 gas_units: 0
             },
