@@ -541,14 +541,12 @@ impl AngstromBundle {
         // order list
         let mut total_user_fees: u128 = 0;
         // We need to calculate our bids with this inverse ray
-        let mut has_filled_limits = false;
         for (outcome, order) in solution
             .limit
             .iter()
             .zip(order_list.iter())
             .filter(|(outcome, _)| outcome.is_filled())
         {
-            has_filled_limits |= true;
             trace!(user_order = ?order, "Mapping User Order");
             // Calculate our final amounts based on whether the order is in T0 or T1 context
             assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");
@@ -619,7 +617,7 @@ impl AngstromBundle {
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimially we have these seperate branches but this is just a patch fix
-        let book_end_price = if has_filled_limits {
+        let book_end_price = if solution.ucp.is_zero() {
             post_tob_price.clone()
         } else {
             tracing::info!(?solution.limit);
