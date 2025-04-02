@@ -613,20 +613,24 @@ impl AngstromBundle {
             .map(|(v, _)| v.end_bound.clone())
             .unwrap_or_else(|| snapshot.current_price());
 
-        tracing::info!("post tob price");
+        tracing::info!(?solution.ucp);
+
+        // NOTE: if we have no books, its a zero swap from exact price to exact price.
+        // optimially we have these seperate branches but this is just a patch fix
+        let book_end_price = if solution.limit.is_empty() {
+            post_tob_price.clone()
+        } else {
+            snapshot.at_price(solution.ucp.into())?
+        };
+
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
         // (`book_swap_vec`) to distribute any extra rewards from our book matching.
 
         // We're making an assumption here that's valid for the Delta validator (that
         // the AMM was swapped during matching from the post_tob_price to the UCP)
+        let book_swap_vec = PoolPriceVec::from_price_range(post_tob_price, book_end_price)?;
 
-        // THIS IS ERRORING
-        tracing::info!(?solution.ucp);
-        let book_swap_vec = PoolPriceVec::from_price_range(
-            post_tob_price,
-            snapshot.at_price(solution.ucp.into())?
-        )?;
         tracing::info!("book swap vec");
         // Build the rewards structure for the AMM swap
         let book_swap_rewards = book_swap_vec.t0_donation(solution.reward_t0);
