@@ -67,13 +67,12 @@ impl TokenApprovalSlot {
         if !self.hash_method.is_solidity() {
             return Err(eyre::eyre!("current type of contract hashing is not supported"));
         }
-
         let mut inner_buf = [0u8; 64];
-        inner_buf[12..32].copy_from_slice(&**contract);
+        inner_buf[12..32].copy_from_slice(&**user);
         inner_buf[63] = self.slot_index;
         let inner_hash = keccak256(inner_buf);
         let mut next = [0u8; 64];
-        next[12..32].copy_from_slice(&**user);
+        next[12..32].copy_from_slice(&**contract);
         next[32..64].copy_from_slice(&*inner_hash);
 
         Ok(U256::from_be_bytes(*keccak256(next)))
