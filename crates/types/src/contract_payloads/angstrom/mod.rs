@@ -605,6 +605,7 @@ impl AngstromBundle {
             .as_ref()
             .and_then(|tob| TopOfBlockOrder::calc_vec_and_reward(tob, snapshot).ok());
 
+        tracing::info!("tob swap info");
         // If we have a ToB swap, our post-tob-price is the price at the end of that
         // swap, otherwise we're starting from the snapshot's current price
         let post_tob_price = tob_swap_info
@@ -612,6 +613,7 @@ impl AngstromBundle {
             .map(|(v, _)| v.end_bound.clone())
             .unwrap_or_else(|| snapshot.current_price());
 
+        tracing::info!("post tob price");
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
         // (`book_swap_vec`) to distribute any extra rewards from our book matching.
@@ -622,8 +624,10 @@ impl AngstromBundle {
             post_tob_price,
             snapshot.at_price(solution.ucp.into())?
         )?;
+        tracing::info!("book swap vec");
         // Build the rewards structure for the AMM swap
         let book_swap_rewards = book_swap_vec.t0_donation(solution.reward_t0);
+        tracing::info!("swap rewards");
 
         // If we have a TOB swap, let's get the rewards and combine them - otherwise we
         // continue to use just the rewards we got from the AMM swap
@@ -633,6 +637,7 @@ impl AngstromBundle {
         } else {
             book_swap_rewards
         };
+        tracing::info!("total rewards");
 
         // Find our net AMM vec by combining T0s.  There's not a specific reason we use
         // T0 for this, we might want to make this a bit more robust or careful
@@ -649,6 +654,7 @@ impl AngstromBundle {
         } else {
             book_swap_vec
         };
+        tracing::info!("net pool vec");
 
         // Account for our net_pool_vec
         let (asset_in_index, asset_out_index) =
@@ -683,6 +689,8 @@ impl AngstromBundle {
             &net_result
         )?;
 
+        tracing::info!("net results additional_result");
+
         // The first PoolUpdate is the actual net pool swap and associated rewards
         pool_updates.push(PoolUpdate {
             zero_for_one: net_pool_vec.zero_for_one(),
@@ -710,6 +718,8 @@ impl AngstromBundle {
                 rewards_update:   ru
             });
         }
+
+        tracing::info!("additional result");
 
         // And we're done
         Ok(())
