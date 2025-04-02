@@ -90,6 +90,7 @@ where
         self.metrics.loading_approvals(|| {
             self.approvals
                 .fetch_approval_balance_for_token(user, token, &self.db)
+                .inspect(|f| tracing::info!(?f))
         })
     }
 
