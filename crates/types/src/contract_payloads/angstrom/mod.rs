@@ -620,6 +620,8 @@ impl AngstromBundle {
 
         // We're making an assumption here that's valid for the Delta validator (that
         // the AMM was swapped during matching from the post_tob_price to the UCP)
+
+        // THIS IS ERRORING
         let book_swap_vec = PoolPriceVec::from_price_range(
             post_tob_price,
             snapshot.at_price(solution.ucp.into())?

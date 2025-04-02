@@ -45,7 +45,7 @@ impl PoolSnapshot {
 
         // Tick spacing must be a positive integer
         if tick_spacing <= 0 {
-            return Err(eyre!("Invalid tick spacing: {tick_spacing}"))
+            return Err(eyre!("Invalid tick spacing: {tick_spacing}"));
         }
 
         // Ensure the ranges are contiguous and all ticks are aligned on spacing
@@ -65,7 +65,7 @@ impl PoolSnapshot {
                 if t % tick_spacing != 0 {
                     return Err(eyre!(
                         "Provided tick '{t}' not aligned with tick spacing {tick_spacing}"
-                    ))
+                    ));
                 }
             }
         }
@@ -77,7 +77,7 @@ impl PoolSnapshot {
                 if t % tick_spacing != 0 {
                     return Err(eyre!(
                         "Provided tick '{t}' not aligned with tick spacing {tick_spacing}"
-                    ))
+                    ));
                 }
             }
         }
@@ -196,6 +196,7 @@ impl PoolSnapshot {
     }
 
     pub fn at_price(&self, price: SqrtPriceX96) -> eyre::Result<PoolPrice> {
+        tracing::info!("price to tick `at_price`");
         let tick = price.to_tick()?;
         let range = self
             .get_range_for_tick(tick)
