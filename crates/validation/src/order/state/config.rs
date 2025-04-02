@@ -90,7 +90,6 @@ impl TokenApprovalSlot {
         if !self.hash_method.is_solidity() {
             return Err(eyre::eyre!("current type of contract hashing is not supported"));
         }
-        tracing::info!(?user,?contract,?self.slot_index);
 
         db.storage_ref(self.token, self.generate_slot(user, contract)?)
             .map_err(|_| eyre!("failed to load approval slot"))
