@@ -10628,6 +10628,47 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
+name = "sepolia-bundle-lander"
+version = "0.1.0"
+dependencies = [
+ "alloy 0.12.6",
+ "alloy-chains",
+ "alloy-primitives",
+ "alloy-rpc-types",
+ "angstrom-eth",
+ "angstrom-metrics",
+ "angstrom-network",
+ "angstrom-rpc",
+ "angstrom-types",
+ "clap",
+ "consensus",
+ "eyre",
+ "futures",
+ "matching-engine",
+ "order-pool",
+ "rayon",
+ "reth",
+ "reth-cli-util",
+ "reth-metrics",
+ "reth-network",
+ "reth-network-peers",
+ "reth-node-builder",
+ "reth-node-ethereum",
+ "reth-provider",
+ "revm-interpreter",
+ "secp256k1 0.30.0",
+ "serde",
+ "tikv-jemallocator",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "tracing",
+ "uniswap-v4",
+ "url",
+ "validation",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.219"
 source = "registry+https://github.com/rust-lang/crates.io-index"

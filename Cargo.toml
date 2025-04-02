@@ -1,19 +1,8 @@
 [workspace]
 members = [
-  "bin/angstrom",
-  "bin/testnet",
-  "crates/angstrom-net",
-  "crates/consensus",
-  "crates/types",
-  "crates/utils",
-  "crates/validation",
-  "crates/order-pool",
-  "crates/rpc",
-  "crates/eth/",
-  "testing-tools",
-  "crates/matching-engine",
-  "crates/metrics",
-  "crates/uniswap-v4",
+  "bin/*",
+  "crates/*",
+  "testing-tools"
 ]
 
 resolver = "2"
