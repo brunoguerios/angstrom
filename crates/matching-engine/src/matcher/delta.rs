@@ -14,7 +14,6 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tracing::trace;
 
@@ -58,11 +57,6 @@ pub struct DeltaMatcher<'a> {
 
 impl<'a> DeltaMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: DeltaMatcherToB, fee: u128, solve_for_t0: bool) -> Self {
-        // Dump the book
-        let json = serde_json::to_string(&(book, &tob)).unwrap();
-        let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
-        trace!(data = b64_output, "Raw book data");
-
         let amm_start_price = match tob {
             // If we have an order, apply that to the AMM start price
             DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {

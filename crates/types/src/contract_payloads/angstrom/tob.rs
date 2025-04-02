@@ -171,7 +171,6 @@ impl TopOfBlockOrder {
                 .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
 
-            tracing::info!(?cost,?tob.quantity_out,?tob.quantity_in);
             // But then we have to operate in the right direction to calculate how much T1
             // we ACTUALLY get out
             let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
