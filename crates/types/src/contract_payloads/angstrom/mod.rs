@@ -734,7 +734,7 @@ impl AngstromBundle {
 
     pub fn from_proposal(
         proposal: &Proposal,
-        gas_details: BundleGasDetails,
+        _gas_details: BundleGasDetails,
         pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
     ) -> eyre::Result<Self> {
         trace!("Starting from_proposal");
@@ -749,7 +749,7 @@ impl AngstromBundle {
         let orders_by_pool = PreProposal::orders_by_pool_id(&preproposals);
 
         // fetch the accumulated amount of gas delegated to the users
-        let (total_swaps, total_gas) = Self::fetch_total_orders_and_gas_delegated_to_orders(
+        let (total_swaps, _) = Self::fetch_total_orders_and_gas_delegated_to_orders(
             &orders_by_pool,
             &proposal.solutions
         );
@@ -759,8 +759,6 @@ impl AngstromBundle {
         if total_swaps == 0 {
             return Err(eyre::eyre!("have a total swaps count of 0"));
         }
-        let shared_gas_in_wei =
-            gas_details.total_gas_cost_wei.saturating_sub(total_gas) / total_swaps;
 
         // fetch gas used
         // Walk through our solutions to add them to the structure
@@ -777,18 +775,6 @@ impl AngstromBundle {
                 continue;
             };
 
-            // Get our shared gas information
-            let conversion_rate_to_token0 =
-                gas_details.token_price_per_wei.get(&(*t0, *t1)).expect(
-                    "don't have price for a critical pair. should be unreachable since no orders \
-                     would get validated. this would always be skipped"
-                );
-
-            // calculate the shared amount of gas in token 0 to share over this pool
-            let shared_gas = Some(
-                (*conversion_rate_to_token0 * U256::from(shared_gas_in_wei)).scale_out_of_ray()
-            );
-
             // Call our processing function with a fixed amount of shared gas
             Self::process_solution(
                 &mut pairs,
@@ -802,7 +788,7 @@ impl AngstromBundle {
                 *t0,
                 *t1,
                 *store_index,
-                shared_gas
+                Some(U256::ZERO)
             )?;
         }
         Ok(Self::new(
@@ -815,6 +801,7 @@ impl AngstromBundle {
     }
 }
 
+#[allow(unused)]
 #[derive(Debug, Clone, Default)]
 pub struct BundleGasDetails {
     /// a map (sorted tokens) of how much of token0 in gas is needed per unit of
