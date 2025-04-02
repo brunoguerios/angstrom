@@ -80,6 +80,7 @@ impl<'a> DeltaMatcher<'a> {
             // If we have no order or shift, we just use the AMM start price as-is
             DeltaMatcherToB::None => book.amm().map(|f| f.current_price())
         };
+        tracing::info!("did tob of swap");
 
         Self { book, amm_start_price, fee, solve_for_t0 }
     }
