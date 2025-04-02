@@ -47,7 +47,6 @@ impl SqrtPriceX96 {
     }
 
     pub fn to_tick(&self) -> eyre::Result<i32> {
-        tracing::info!(ratio=%self.0, "to tick" );
         Ok(get_tick_at_sqrt_ratio(U256::from(self.0))?)
     }
 
