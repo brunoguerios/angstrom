@@ -90,6 +90,7 @@ where
         self.metrics.loading_approvals(|| {
             self.approvals
                 .fetch_approval_balance_for_token(user, token, &self.db)
+                .inspect(|f| tracing::info!(?f))
         })
     }
 
@@ -98,6 +99,7 @@ where
             self.balances
                 .fetch_balance_in_angstrom(user, token, &self.db)
         }))
+        .inspect(|f| tracing::info!(?f))
     }
 
     fn fetch_balance_for_token_overrides(
@@ -110,6 +112,7 @@ where
         self.metrics.loading_balances(|| {
             self.balances
                 .fetch_balance_for_token_overrides(user, token, db, overrides)
+                .inspect(|f| tracing::info!(?f))
         })
     }
 
