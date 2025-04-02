@@ -622,6 +622,7 @@ impl AngstromBundle {
         // the AMM was swapped during matching from the post_tob_price to the UCP)
 
         // THIS IS ERRORING
+        tracing::info!(?solution.ucp);
         let book_swap_vec = PoolPriceVec::from_price_range(
             post_tob_price,
             snapshot.at_price(solution.ucp.into())?
