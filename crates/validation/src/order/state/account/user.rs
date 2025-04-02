@@ -239,7 +239,7 @@ impl UserAccounts {
     ) -> eyre::Result<()> {
         let approvals = utils
             .fetch_approval_balance_for_token(user, token)?
-            .unwrap_or_default();
+            .ok_or_else(|| eyre::eyre!("could not properly find approvals"))?;
         let balances = utils.fetch_balance_for_token(user, token)?;
 
         let mut entry = self.last_known_state.entry(user).or_default();
