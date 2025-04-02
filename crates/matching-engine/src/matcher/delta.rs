@@ -66,6 +66,7 @@ impl<'a> DeltaMatcher<'a> {
         let amm_start_price = match tob {
             // If we have an order, apply that to the AMM start price
             DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
+                tracing::info!("order");
                 ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot)
                     .expect("Order structure should be valid and never fail")
                     .0
@@ -73,6 +74,7 @@ impl<'a> DeltaMatcher<'a> {
             }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(q, is_bid) => book.amm().and_then(|f| {
+                tracing::info!("fixed shift");
                 PoolPriceVec::from_swap(f.current_price(), Direction::from_is_bid(!is_bid), q)
                     .ok()
                     .map(|v| v.end_bound)

@@ -149,6 +149,7 @@ impl TopOfBlockOrder {
             // Therefore, our input quantity is simple - the entire input amount from
             // the order.
             let pricevec = (snapshot.current_price() + Quantity::Token1(tob.quantity_in))?;
+            tracing::info!("got new price vec bid");
 
             let leftover = pricevec
                 .d_t0
@@ -165,6 +166,7 @@ impl TopOfBlockOrder {
             // First we find the amount of T0 in it would take to at least hit our quantity
             // out
             let cost = (snapshot.current_price() - Quantity::Token1(tob.quantity_out))?.d_t0;
+            tracing::info!("cost ask");
 
             let leftover = tob
                 .quantity_in
@@ -175,6 +177,7 @@ impl TopOfBlockOrder {
             // But then we have to operate in the right direction to calculate how much T1
             // we ACTUALLY get out
             let pricevec = (snapshot.current_price() + Quantity::Token0(cost))?;
+            tracing::info!("got new price vec ask");
             Ok((pricevec, leftover))
         }
     }
