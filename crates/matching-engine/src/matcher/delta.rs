@@ -14,7 +14,6 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
-use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tracing::trace;
 

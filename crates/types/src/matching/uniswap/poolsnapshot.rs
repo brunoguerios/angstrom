@@ -157,7 +157,6 @@ impl PoolSnapshot {
             .ranges_for_ticks(start_tick, end_tick)?
             .iter()
             .map(|r| {
-                println!("Processing range: {}-{} | {}", r.lower_tick, r.upper_tick, r.liquidity);
                 let target_tick = if from_above { r.lower_tick } else { r.upper_tick };
                 (target_tick, r.liquidity)
             })
@@ -169,7 +168,6 @@ impl PoolSnapshot {
             .take(ticks.len() - 1)
             .zip(liquidity.iter().skip(1))
             .fold([0u8; 32], |acc, (tick, liquidity)| {
-                println!("Processing tick {} : {}", tick, liquidity);
                 let tick_bytes: [u8; 3] = I24::unchecked_from(*tick).to_be_bytes();
                 let hash_input = [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
                 *keccak256(&hash_input)
