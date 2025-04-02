@@ -196,7 +196,6 @@ impl PoolSnapshot {
     }
 
     pub fn at_price(&self, price: SqrtPriceX96) -> eyre::Result<PoolPrice> {
-        tracing::info!("price to tick `at_price` {price:?}");
         let tick = price.to_tick()?;
         let range = self
             .get_range_for_tick(tick)
