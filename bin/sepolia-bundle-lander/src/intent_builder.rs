@@ -1,0 +1,190 @@
+use std::sync::Arc;
+
+use alloy::{
+    network::TransactionBuilder,
+    primitives::{I256, U256},
+    providers::Provider,
+    sol_types::SolCall
+};
+use alloy_primitives::TxKind;
+use alloy_rpc_types::TransactionRequest;
+use angstrom_rpc::api::OrderApiClient;
+use angstrom_types::{
+    matching::{Ray, SqrtPriceX96},
+    primitive::AngstromSigner,
+    sol_bindings::grouped_orders::AllOrders
+};
+use futures::StreamExt;
+use secp256k1::rand::{self, Rng};
+use testing_tools::type_generator::orders::UserOrderBuilder;
+use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
+
+use crate::balanceOfCall;
+
+/// given a pool and a user, looks at balances of the user and generates trades
+/// based off of this.
+pub struct PoolIntentBundler<'a, T> {
+    pool:            EnhancedUniswapPool,
+    block_number:    u64,
+    keys:            &'a [AngstromSigner],
+    provider:        Arc<Box<dyn Provider>>,
+    angstrom_client: &'a T
+}
+
+impl<'a, T> PoolIntentBundler<'a, T>
+where
+    T: OrderApiClient + Send + Sync + 'static
+{
+    pub fn new(
+        pool: EnhancedUniswapPool,
+        block_number: u64,
+        keys: &'a [AngstromSigner],
+        provider: Arc<Box<dyn Provider>>,
+        angstrom_client: &'a T
+    ) -> Self {
+        Self { pool, block_number, keys, provider, angstrom_client }
+    }
+
+    /// based on the users distrobution of tokens in the pool, will generate
+    /// a order that goes in the direction to even out the token amount. This
+    /// naturally will lead to orders being placed in both directions based
+    /// off inventory.
+    pub async fn generate_book_intents(&self) -> eyre::Result<Vec<AllOrders>> {
+        // t1 / t0
+        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
+
+        let mut gas = self
+            .angstrom_client
+            .estimate_gas(true, self.pool.token0, self.pool.token1)
+            .await?
+            .unwrap();
+        // cannot have zero gas.
+        if gas.is_zero() {
+            gas += U256::from(1);
+        }
+
+        let all_orders = futures::stream::iter(&self.keys[1..])
+            .map(|key| async {
+                let mut rng = rand::thread_rng();
+                let mut exact_in: bool = rng.r#gen();
+                let is_partial: bool = rng.r#gen();
+                if is_partial {
+                    exact_in = true;
+                }
+
+                let (amount, zfo) = self
+                    .fetch_direction_and_amounts(key, &pool_price, exact_in)
+                    .await;
+
+                let t_in = if zfo { self.pool.token0 } else { self.pool.token1 };
+
+                let SwapResult { amount0, amount1, sqrt_price_x_96, .. } =
+                    self.pool._simulate_swap(t_in, amount, None)?;
+
+                let mut clearing_price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
+                // how much we want to reduce our price from as we don't need the exact.
+                // we shave 5% off
+                let pct = Ray::generate_ray_decimal(95, 2);
+                clearing_price.mul_ray_assign(pct);
+
+                let amount = if zfo == exact_in {
+                    u128::try_from(amount0.abs()).unwrap()
+                } else {
+                    u128::try_from(amount1.abs()).unwrap()
+                };
+
+                // 2% range, should be fine given we only move 2/3 of balance at a time
+                let modifier = rng.gen_range(0.98..=1.02);
+                let amount = (amount as f64 * modifier) as u128;
+
+                if !zfo {
+                    // if we are a bid. we flip the price
+                    clearing_price.inv_ray_assign_round(true);
+                }
+
+                Ok(UserOrderBuilder::new()
+                    .signing_key(Some(key.clone()))
+                    .is_exact(!is_partial)
+                    .asset_in(if zfo { self.pool.token0 } else { self.pool.token1 })
+                    .asset_out(if !zfo { self.pool.token0 } else { self.pool.token1 })
+                    .is_standing(false)
+                    .gas_price_asset_zero(gas.to())
+                    .exact_in(exact_in)
+                    .min_price(clearing_price)
+                    .block(self.block_number + 1)
+                    .amount(amount)
+                    .build()
+                    .into())
+            })
+            .buffer_unordered(5)
+            .collect::<Vec<eyre::Result<AllOrders>>>()
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(all_orders)
+    }
+
+    // (amount, zfo)
+    pub async fn fetch_direction_and_amounts(
+        &self,
+        key: &AngstromSigner,
+        pool_price: &Ray,
+        exact_in: bool
+    ) -> (I256, bool) {
+        let token0_bal = balanceOfCall::abi_decode_returns(
+            &self
+                .provider
+                .call(
+                    TransactionRequest::default()
+                        .with_from(key.address())
+                        .with_kind(TxKind::Call(self.pool.token0))
+                        .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
+                )
+                .await
+                .unwrap(),
+            true
+        )
+        .unwrap();
+
+        let token1_bal = balanceOfCall::abi_decode_returns(
+            &self
+                .provider
+                .call(
+                    TransactionRequest::default()
+                        .with_from(key.address())
+                        .with_kind(TxKind::Call(self.pool.token1))
+                        .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
+                )
+                .await
+                .unwrap(),
+            true
+        )
+        .unwrap();
+
+        let t1_with_current_price = pool_price.mul_quantity(token0_bal.balance);
+        // if the current amount of t0 mulled through the price is more than our other
+        // balance this means that we have more t0 then t1 and thus want to sell
+        // some t0 for t1
+        let zfo = t1_with_current_price > token1_bal.balance;
+
+        let amount = if exact_in {
+            // exact in will swap 2/3 of the balance
+            I256::unchecked_from(if zfo {
+                token0_bal.balance * U256::from(2) / U256::from(3)
+            } else {
+                token1_bal.balance * U256::from(2) / U256::from(3)
+            })
+        } else {
+            // exact out
+            I256::unchecked_from(if zfo {
+                t1_with_current_price * U256::from(2) / U256::from(3)
+            } else {
+                token1_bal.balance * U256::from(2) / U256::from(3)
+            })
+            .wrapping_neg()
+        };
+
+        (amount, zfo)
+    }
+}

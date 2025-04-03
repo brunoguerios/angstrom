@@ -1,6 +1,12 @@
 pub mod cli;
 pub mod env;
+pub mod intent_builder;
 use clap::Parser;
+
+alloy::sol!(
+    function approve(address _spender, uint256 _value) public returns (bool success);
+    function balanceOf(address _owner) public view returns (uint256 balance);
+);
 
 #[inline]
 pub fn run() -> eyre::Result<()> {

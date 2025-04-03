@@ -2,6 +2,8 @@ use alloy::primitives::Address;
 use reth::tasks::TaskExecutor;
 use url::Url;
 
+use crate::env::BundleWashTraderEnv;
+
 #[derive(Debug, Clone, clap::Parser)]
 pub struct BundleLander {
     /// angstrom endpoint
@@ -19,6 +21,7 @@ pub struct BundleLander {
 /// and forth on the sepolia testnet
 impl BundleLander {
     pub async fn run(self, executor: TaskExecutor) -> eyre::Result<()> {
+        let env = BundleWashTraderEnv::init(&self).await?;
         Ok(())
     }
 }

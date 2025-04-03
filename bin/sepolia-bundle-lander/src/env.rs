@@ -1,15 +1,19 @@
 use std::sync::Arc;
 
 use alloy::{
-    primitives::{Address, U256},
+    eips::Encodable2718,
+    network::TransactionBuilder,
+    primitives::{Address, Bytes, U256},
     providers::{Provider, ProviderBuilder},
     sol_types::{SolCall, SolValue}
 };
+use alloy_rpc_types::TransactionRequest;
 use angstrom_types::{
     contract_bindings::mintable_mock_erc_20::MintableMockERC20::MintableMockERC20Instance,
     contract_payloads::angstrom::UniswapAngstromRegistry,
     primitive::{AngstromSigner, ERC20Calls, PoolId, UniswapPoolRegistry}
 };
+use futures::stream::FuturesUnordered;
 use uniswap_v4::{
     fetch_angstrom_pools,
     uniswap::{
@@ -19,7 +23,7 @@ use uniswap_v4::{
     }
 };
 
-use crate::cli::BundleLander;
+use crate::{approveCall, cli::BundleLander};
 
 pub struct BundleWashTraderEnv {
     pub keys:     Vec<AngstromSigner>,
@@ -56,6 +60,7 @@ impl BundleWashTraderEnv {
         let uni_ang_registry =
             UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
         let mut ang_pools = Vec::new();
+
         for pool in pools {
             let data_loader = DataLoader::new_with_registry(address, registry, pool_manager);
             let mut pool = EnhancedUniswapPool::new(data_loader, 200);
@@ -67,9 +72,11 @@ impl BundleWashTraderEnv {
             .testing_private_keys
             .iter()
             .map(|key| AngstromSigner::new(key.parse().unwrap()))
-            .collect();
+            .collect::<Vec<_>>();
 
-        Self { keys, provider, pools: ang_pools }
+        Self::approve_max_tokens_to_angstrom(cli.angstrom_address, tokens, &keys, provider).await?;
+
+        Ok(Self { keys, provider, pools: ang_pools })
     }
 
     async fn approve_max_tokens_to_angstrom(
@@ -78,18 +85,45 @@ impl BundleWashTraderEnv {
         users: &[AngstromSigner],
         provider: Arc<Box<dyn Provider>>
     ) -> eyre::Result<()> {
+        let mut nonce_offset = 0;
+        let pending_orders = FuturesUnordered::new();
+
+        let fees = provider.estimate_eip1559_fees().await.unwrap();
+        let chain_id = provider.get_chain_id().await.unwrap();
+
         for token in tokens {
-            let instance = MintableMockERC20Instance::new(token, provider.root());
             for user in users {
-                let raw_tx = instance
-                    .approve(angstrom, U256::MAX)
-                    .from(user.address())
-                    .build_unsigned_raw_transaction()
-                    .unwrap()
+                let call: Bytes = approveCall::new((angstrom, U256::MAX)).abi_encode().into();
+
+                let mut tx = TransactionRequest::default()
+                    .with_from(user.address())
+                    .with_kind(alloy_primitives::TxKind::Call(token))
+                    .with_input(call);
+
+                let next_nonce = provider
+                    .get_transaction_count(user.address())
                     .await
                     .unwrap();
+
+                tx.set_nonce(next_nonce + nonce_offset);
+                tx.set_gas_limit(30_000_000);
+                tx.set_max_fee_per_gas(fees.max_fee_per_gas);
+                tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
+
+                tx.set_chain_id(chain_id);
+                let signed_tx = tx.build(user).await.unwrap();
+
+                let encoded_tx = signed_tx.encoded_2718();
+                pending_orders.push(
+                    provider
+                        .send_raw_transaction(&encoded_tx)
+                        .await
+                        .unwrap()
+                        .watch()
+                );
             }
-            // let tx_builder =
+            // with a new token, the nonce will increase
+            nonce_offset += 1;
         }
 
         Ok(())

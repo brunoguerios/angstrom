@@ -26,12 +26,12 @@ use crate::uniswap::{
 };
 
 #[derive(Default)]
-struct SwapResult {
-    amount0:         I256,
-    amount1:         I256,
-    sqrt_price_x_96: U256,
-    liquidity:       u128,
-    tick:            i32
+pub struct SwapResult {
+    pub amount0:         I256,
+    pub amount1:         I256,
+    pub sqrt_price_x_96: U256,
+    pub liquidity:       u128,
+    pub tick:            i32
 }
 
 #[derive(Debug, Clone, Default)]
@@ -410,7 +410,7 @@ where
     ///       to try out all of the combinations below, to know exactly with
     ///       which set of zeroForOne x amountSpecified parameters the sim
     ///       method was called
-    fn _simulate_swap(
+    pub fn _simulate_swap(
         &self,
         token_in: Address,
         amount_specified: I256,
