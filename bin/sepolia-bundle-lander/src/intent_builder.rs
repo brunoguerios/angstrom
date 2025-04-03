@@ -58,9 +58,12 @@ where
     }
 
     pub async fn submit_new_orders_to_angstrom(&self) -> eyre::Result<()> {
+        tracing::info!("building orders for block");
         let orders = self.generate_orders_for_block().await?;
+        tracing::info!(?orders, "orders for block");
         let res = self.angstrom_client.send_orders(orders).await?;
         for order in res {
+            tracing::info!(?order);
             let _ = order?;
         }
         Ok(())
@@ -242,18 +245,18 @@ where
         let zfo = t1_with_current_price > token1_bal.balance;
 
         let amount = if exact_in {
-            // exact in will swap 2/3 of the balance
+            // exact in will swap 1/6 of the balance
             I256::unchecked_from(if zfo {
-                token0_bal.balance * U256::from(2) / U256::from(3)
+                token0_bal.balance / U256::from(6)
             } else {
-                token1_bal.balance * U256::from(2) / U256::from(3)
+                token1_bal.balance / U256::from(6)
             })
         } else {
             // exact out
             I256::unchecked_from(if zfo {
-                t1_with_current_price * U256::from(2) / U256::from(3)
+                t1_with_current_price / U256::from(6)
             } else {
-                token1_bal.balance * U256::from(2) / U256::from(3)
+                token1_bal.balance / U256::from(6)
             })
             .wrapping_neg()
         };

@@ -43,6 +43,7 @@ impl BundleLander {
         let keys: JsonPKs =
             serde_json::from_str(&std::fs::read_to_string(&self.testing_private_keys)?)?;
         let env = BundleWashTraderEnv::init(&self, keys).await?;
+        tracing::info!("startup complete");
 
         executor
             .spawn_critical("order placer", async move {
@@ -91,6 +92,7 @@ impl BundleLander {
                     let new_block = pinned.next().await;
                     match new_block {
                         Some(Ok(Some(block))) => {
+                            tracing::info!("new block");
                             futures::stream::iter(&mut processors)
                                 .for_each(|processor| async move {
                                     processor
@@ -103,6 +105,7 @@ impl BundleLander {
                                         .expect("failed to send angstrom orders");
                                 })
                                 .await;
+                            tracing::info!(%block, "all orders submitted for block");
                         }
                         _ => {
                             tracing::error!("failed to get new block number");

@@ -110,6 +110,16 @@ where
         *self.ticks.keys().max().unwrap()
     }
 
+    fn next_tick_lte(&self, tick: i32) -> i32 {
+        let extra = tick % self.tick_spacing;
+        tick - extra
+    }
+
+    fn next_tick_gte(&self, tick: i32) -> i32 {
+        let extra = tick % self.tick_spacing;
+        tick + extra
+    }
+
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, PoolSnapshot), PoolError> {
         if !self.data_is_populated() {
             return Err(PoolError::PoolNotInitialized);
@@ -127,11 +137,8 @@ where
         let current_range = LiqRange::new(
             // Because they're already sorted low to high - we want the highest low and the lowest
             // high
-            *less_than.last().expect("No lower bound to current range").0,
-            *more_than
-                .first()
-                .expect("No upper bound to corrent range")
-                .0,
+            self.next_tick_lte(self.tick),
+            self.next_tick_gte(self.tick),
             current_liquidity
         )
         .unwrap();
@@ -250,20 +257,17 @@ where
     pub fn apply_ticks(&mut self, mut fetched_ticks: Vec<TickData>) {
         fetched_ticks.sort_by_key(|k| k.tick);
 
-        fetched_ticks
-            .into_iter()
-            .filter(|tick| tick.initialized)
-            .for_each(|tick| {
-                self.ticks.insert(
-                    tick.tick.as_i32(),
-                    TickInfo {
-                        initialized:     tick.initialized,
-                        liquidity_gross: tick.liquidityGross,
-                        liquidity_net:   tick.liquidityNet
-                    }
-                );
-                self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
-            });
+        fetched_ticks.into_iter().for_each(|tick| {
+            self.ticks.insert(
+                tick.tick.as_i32(),
+                TickInfo {
+                    initialized:     tick.initialized,
+                    liquidity_gross: tick.liquidityGross,
+                    liquidity_net:   tick.liquidityNet
+                }
+            );
+            self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
+        });
     }
 
     pub async fn load_more_ticks<P: Provider>(
@@ -338,38 +342,30 @@ where
                 .await?
                 .0;
 
-            // Update current_tick for the next batch
-            if !batch_ticks.is_empty() {
-                // Move to the next tick after the last one in this batch
-                current_tick += (self.tick_spacing as u16 * batch_size) as i32;
-            }
-
+            current_tick += (self.tick_spacing as u16 * batch_size) as i32;
             fetched_ticks.extend(batch_ticks);
         }
 
         fetched_ticks.sort_by_key(|k| k.tick);
 
-        fetched_ticks
-            .into_iter()
-            .filter(|tick| tick.initialized)
-            .for_each(|tick| {
-                tracing::trace!(
-                    initialized = tick.initialized,
-                    liq_gross = tick.liquidityGross,
-                    liq_net = tick.liquidityNet,
-                    tick = tick.tick.as_i32(),
-                    "Inserting tick"
-                );
-                self.ticks.insert(
-                    tick.tick.as_i32(),
-                    TickInfo {
-                        initialized:     tick.initialized,
-                        liquidity_gross: tick.liquidityGross,
-                        liquidity_net:   tick.liquidityNet
-                    }
-                );
-                self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
-            });
+        fetched_ticks.into_iter().for_each(|tick| {
+            tracing::trace!(
+                initialized = tick.initialized,
+                liq_gross = tick.liquidityGross,
+                liq_net = tick.liquidityNet,
+                tick = tick.tick.as_i32(),
+                "Inserting tick"
+            );
+            self.ticks.insert(
+                tick.tick.as_i32(),
+                TickInfo {
+                    initialized:     tick.initialized,
+                    liquidity_gross: tick.liquidityGross,
+                    liquidity_net:   tick.liquidityNet
+                }
+            );
+            self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
+        });
 
         Ok(())
     }

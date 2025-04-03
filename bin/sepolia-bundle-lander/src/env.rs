@@ -3,14 +3,14 @@ use std::{collections::HashSet, sync::Arc};
 use alloy::{
     eips::Encodable2718,
     network::TransactionBuilder,
-    primitives::{Address, Bytes, FixedBytes, U256, aliases::I24},
+    primitives::{Address, Bytes, U256, address, aliases::I24},
     providers::{
         Identity, Provider, ProviderBuilder, RootProvider,
         fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller}
     },
     sol_types::{SolCall, SolEvent}
 };
-use alloy_rpc_types::TransactionRequest;
+use alloy_rpc_types::{Filter, TransactionRequest};
 use angstrom_types::{
     contract_bindings::{
         angstrom::Angstrom::PoolKey,
@@ -69,6 +69,7 @@ impl BundleWashTraderEnv {
             );
             let mut pool = EnhancedUniswapPool::new(data_loader, 200);
             pool.initialize(None, provider.root().into()).await?;
+            tracing::info!("{:#?}", pool);
             ang_pools.push(pool);
         }
 
@@ -90,12 +91,14 @@ impl BundleWashTraderEnv {
         Ok(Self { keys, provider, pools: ang_pools })
     }
 
+    #[allow(unused)]
     async fn approve_max_tokens_to_angstrom(
         angstrom: Address,
         tokens: Vec<Address>,
         users: &[AngstromSigner],
         provider: &ProviderType
     ) -> eyre::Result<()> {
+        return Ok(());
         let mut nonce_offset = 0;
         let mut pending_orders = FuturesUnordered::new();
 
@@ -118,8 +121,8 @@ impl BundleWashTraderEnv {
 
                 tx.set_nonce(next_nonce + nonce_offset);
                 tx.set_gas_limit(30_000_000);
-                tx.set_max_fee_per_gas(fees.max_fee_per_gas);
-                tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
+                tx.set_max_fee_per_gas(fees.max_fee_per_gas + 1e9 as u128);
+                tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas + 1e9 as u128);
 
                 tx.set_chain_id(chain_id);
                 let signed_tx = tx.build(user).await.unwrap();
@@ -136,9 +139,11 @@ impl BundleWashTraderEnv {
             // with a new token, the nonce will increase
             nonce_offset += 1;
         }
+        tracing::info!("placed approval txes");
 
         // wait and unwrap all orders.
         while let Some(next) = pending_orders.next().await {
+            tracing::info!("got tx");
             next?;
         }
 
@@ -146,11 +151,9 @@ impl BundleWashTraderEnv {
     }
 }
 
-const CONTROLLER_ADDRESS_SLOT: FixedBytes<32> = FixedBytes::<32>::ZERO;
-
 async fn fetch_angstrom_pools<P>(
     // the block angstrom was deployed at
-    deploy_block: usize,
+    mut deploy_block: usize,
     end_block: usize,
     angstrom_address: Address,
     db: &P
@@ -158,31 +161,42 @@ async fn fetch_angstrom_pools<P>(
 where
     P: Provider
 {
-    let logs = futures::stream::iter(deploy_block..=end_block)
-        .map(|block| async move {
-            let controller_addr = Address::from_word(FixedBytes::new(
-                db.get_storage_at(angstrom_address, U256::from_be_bytes(*CONTROLLER_ADDRESS_SLOT))
-                    .block_id((block as u64).into())
-                    .await
-                    .unwrap()
-                    .to_be_bytes::<32>()
-            ));
+    let mut filters = vec![];
+    let controller_address = address!("0x4De4326613020a00F5545074bC578C87761295c7");
 
-            db.get_block_receipts((block as u64).into())
+    loop {
+        let this_end_block = std::cmp::min(deploy_block + 99_999, end_block);
+
+        if this_end_block == deploy_block {
+            break;
+        }
+
+        tracing::info!(?deploy_block, ?this_end_block);
+        let filter = Filter::new()
+            .from_block(deploy_block as u64)
+            .to_block(this_end_block as u64)
+            .address(controller_address);
+
+        filters.push(filter);
+
+        deploy_block = std::cmp::min(end_block, this_end_block);
+    }
+
+    let logs = futures::stream::iter(filters)
+        .map(|filter| async move {
+            db.get_logs(&filter)
                 .await
                 .unwrap()
-                .unwrap_or_default()
                 .into_iter()
-                .flat_map(|receipt| receipt.logs().to_vec())
-                .filter(move |log| log.address() == controller_addr)
                 .collect::<Vec<_>>()
         })
-        .buffered(30)
+        .buffered(10)
         .collect::<Vec<_>>()
         .await
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
+    tracing::info!(?logs);
 
     logs.into_iter()
         .fold(HashSet::new(), |mut set, log| {

@@ -46,15 +46,15 @@ reth-db.workspace = true
 
 # Angstrom
 consensus.workspace = true
-angstrom-types = { workspace = true, features = ["testnet"] }
+angstrom-types = { workspace = true }
 angstrom-utils.workspace = true
 angstrom-network.workspace = true
 angstrom-eth.workspace = true
 angstrom-rpc.workspace = true
 angstrom.workspace = true
-testing-tools = { workspace = true, features = ["testnet"] }
+testing-tools = { workspace = true }
 order-pool.workspace = true
-validation = { workspace = true, features = ["testnet"] }
+validation = { workspace = true }
 angstrom-metrics.workspace = true
 matching-engine.workspace = true
 
@@ -89,6 +89,13 @@ path = "src/main.rs"
 
 [features]
 default = ["jemalloc", "ipc"]
+
+testnet = [
+  "angstrom-types/testnet",
+  "validation/testnet",
+  "testing-tools/testnet"
+]
+
 
 ws = []
 ipc = []
