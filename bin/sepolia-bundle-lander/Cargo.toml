@@ -50,7 +50,7 @@ revm-interpreter = { version = "16.0.0-alpha.7", default-features = false }
 url.workspace = true
 futures.workspace = true
 rayon = "1"
-testing-tools = { workspace = true, features = ["testnet-sepolia"] }
+testing-tools = { workspace = true}
 tracing.workspace = true
 tracing-subscriber.workspace = true
 itertools.workspace = true
@@ -71,6 +71,7 @@ testnet-sepolia = [
   "validation/testnet-sepolia",
   "consensus/testnet-sepolia",
   "uniswap-v4/testnet-sepolia",
+  "testing-tools/testnet-sepolia"
 ]
 
 
