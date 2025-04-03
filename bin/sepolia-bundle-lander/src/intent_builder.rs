@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH}
+};
 
 use alloy::{
     network::TransactionBuilder,
@@ -15,7 +18,6 @@ use angstrom_types::{
     sol_bindings::grouped_orders::AllOrders
 };
 use futures::StreamExt;
-use secp256k1::rand::{self, Rng};
 use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
 
@@ -23,7 +25,10 @@ use crate::{balanceOfCall, env::ProviderType};
 
 /// given a pool and a user, looks at balances of the user and generates trades
 /// based off of this.
-pub struct PoolIntentBundler<'a, T> {
+pub struct PoolIntentBundler<'a, T>
+where
+    T: OrderApiClient + Send + Sync + 'static
+{
     pool:            EnhancedUniswapPool,
     block_number:    u64,
     keys:            &'a [AngstromSigner],
@@ -45,7 +50,24 @@ where
         Self { pool, block_number, keys, provider, angstrom_client }
     }
 
-    pub async fn generate_orders_for_block(&self) -> eyre::Result<Vec<AllOrders>> {
+    pub async fn new_block(&mut self, block_number: u64) -> eyre::Result<()> {
+        self.block_number = block_number;
+        self.pool
+            .update_to_block(Some(block_number), self.provider.clone())
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn submit_new_orders_to_angstrom(&self) -> eyre::Result<()> {
+        let orders = self.generate_orders_for_block().await?;
+        let res = self.angstrom_client.send_orders(orders).await?;
+        for order in res {
+            let _ = order?;
+        }
+        Ok(())
+    }
+
+    async fn generate_orders_for_block(&self) -> eyre::Result<Vec<AllOrders>> {
         let mut all_orders = self.generate_book_intents().await?;
         all_orders.push(self.generate_tob_intent().await?);
 
@@ -74,14 +96,13 @@ where
 
         let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
         let mut amount_out = u128::try_from(amount_out.abs()).unwrap();
-        let mut rng = rand::thread_rng();
 
         if !zfo {
             std::mem::swap(&mut amount_in, &mut amount_out);
         }
 
         let range = (amount_in / 100).max(101);
-        amount_in += rng.gen_range(100..range);
+        amount_in += self.gen_range(100, range);
 
         let order: AllOrders = ToBOrderBuilder::new()
             .signing_key(Some(key.clone()))
@@ -117,9 +138,8 @@ where
 
         let all_orders = futures::stream::iter(&self.keys[1..])
             .map(|key| async {
-                let mut rng = rand::thread_rng();
-                let mut exact_in: bool = rng.r#gen();
-                let is_partial: bool = rng.r#gen();
+                let mut exact_in: bool = self.random_time_bool();
+                let is_partial: bool = self.random_time_bool();
                 if is_partial {
                     exact_in = true;
                 }
@@ -146,7 +166,7 @@ where
                 };
 
                 // 2% range, should be fine given we only move 2/3 of balance at a time
-                let modifier = rng.gen_range(0.98..=1.02);
+                let modifier = self.random_amount_modifier_time();
                 let amount = (amount as f64 * modifier) as u128;
 
                 if !zfo {
@@ -178,7 +198,7 @@ where
     }
 
     // (amount, zfo)
-    pub async fn fetch_direction_and_amounts(
+    async fn fetch_direction_and_amounts(
         &self,
         key: &AngstromSigner,
         pool_price: &Ray,
@@ -214,6 +234,15 @@ where
         )
         .unwrap();
 
+        if token0_bal.balance.is_zero() || token1_bal.balance.is_zero() {
+            panic!(
+                "no funds are in the given wallet t0: {:?} t1: {:?} wallet: {:?}",
+                self.pool.token0,
+                self.pool.token1,
+                key.address()
+            );
+        }
+
         let t1_with_current_price = pool_price.mul_quantity(token0_bal.balance);
         // if the current amount of t0 mulled through the price is more than our other
         // balance this means that we have more t0 then t1 and thus want to sell
@@ -238,5 +267,37 @@ where
         };
 
         (amount, zfo)
+    }
+
+    fn gen_range(&self, lower: u128, upper: u128) -> u128 {
+        assert!(lower < upper);
+        let top = upper + 1;
+
+        let modu = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            % top;
+
+        modu.max(lower)
+    }
+
+    fn random_amount_modifier_time(&self) -> f64 {
+        let modu = (SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            % 5) as f64;
+
+        0.98 + (modu * 1e-2)
+    }
+
+    fn random_time_bool(&self) -> bool {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            % 2
+            == 0
     }
 }
