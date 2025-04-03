@@ -96,9 +96,9 @@ where
         let conversion_lookup = price_gen.generate_lookup_map();
 
         thread_pool.spawn_raw(Box::pin(async move {
-
             #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
             {
+                tracing::info!("local testnet overrides");
                 use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
 
                 let overrides = bundle.fetch_needed_overrides(number + 1);

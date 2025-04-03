@@ -617,7 +617,6 @@ impl AngstromBundle {
         let book_end_price = if solution.ucp.is_zero() {
             post_tob_price.clone()
         } else {
-            tracing::info!(?solution.limit);
             snapshot.at_price(solution.ucp.into())?
         };
 
