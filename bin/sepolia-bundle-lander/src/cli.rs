@@ -1,10 +1,11 @@
-use std::{pin::pin, time::Duration};
+use std::{path::PathBuf, pin::pin, sync::Arc, time::Duration};
 
 use alloy::{primitives::Address, providers::Provider};
 use angstrom_types::primitive::ANGSTROM_DOMAIN;
 use futures::StreamExt;
 use jsonrpsee::http_client::HttpClientBuilder;
 use reth::tasks::TaskExecutor;
+use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 use url::Url;
@@ -18,12 +19,17 @@ pub struct BundleLander {
     pub node_endpoint:        Url,
     /// keys to trade with
     #[clap(short, long)]
-    pub testing_private_keys: Vec<String>,
+    pub testing_private_keys: PathBuf,
     /// address of angstrom
     #[clap(short, long)]
     pub angstrom_address:     Address,
     #[clap(short, long)]
     pub pool_manager_address: Address
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonPKs {
+    pub keys: Vec<String>
 }
 
 /// the way that the bundle lander works is by more or less wash trading back
@@ -34,7 +40,9 @@ impl BundleLander {
         let domain = ANGSTROM_DOMAIN;
         tracing::info!(?domain);
 
-        let env = BundleWashTraderEnv::init(&self).await?;
+        let keys: JsonPKs =
+            serde_json::from_str(&std::fs::read_to_string(&self.testing_private_keys)?)?;
+        let env = BundleWashTraderEnv::init(&self, keys).await?;
 
         executor
             .spawn_critical("order placer", async move {
@@ -58,7 +66,8 @@ impl BundleLander {
                         }
                     });
 
-                let http_client = HttpClientBuilder::new().build(self.node_endpoint).unwrap();
+                let http_client =
+                    Arc::new(HttpClientBuilder::new().build(self.node_endpoint).unwrap());
 
                 let mut pinned = pin!(subscription);
                 let Some(Ok(Some(current_block))) = pinned.next().await else {
@@ -71,9 +80,9 @@ impl BundleLander {
                         PoolIntentBundler::new(
                             pool,
                             current_block,
-                            &keys,
+                            keys.clone(),
                             provider.clone(),
-                            &http_client
+                            http_client.clone()
                         )
                     })
                     .collect::<Vec<_>>();
@@ -82,8 +91,8 @@ impl BundleLander {
                     let new_block = pinned.next().await;
                     match new_block {
                         Some(Ok(Some(block))) => {
-                            futures::stream::iter(&mut processors)
-                                .for_each(|processor| async {
+                            processors = futures::stream::iter(processors)
+                                .map(|mut processor| async move {
                                     processor
                                         .new_block(block)
                                         .await
@@ -92,7 +101,10 @@ impl BundleLander {
                                         .submit_new_orders_to_angstrom()
                                         .await
                                         .expect("failed to send angstrom orders");
+                                    processor
                                 })
+                                .buffer_unordered(10)
+                                .collect()
                                 .await;
                         }
                         _ => {

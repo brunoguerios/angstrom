@@ -22,7 +22,10 @@ use futures::{StreamExt, stream::FuturesUnordered};
 use itertools::Itertools;
 use uniswap_v4::uniswap::{pool::EnhancedUniswapPool, pool_data_loader::DataLoader};
 
-use crate::{approveCall, cli::BundleLander};
+use crate::{
+    approveCall,
+    cli::{BundleLander, JsonPKs}
+};
 
 pub type ProviderType = FillProvider<
     JoinFill<
@@ -39,12 +42,12 @@ pub struct BundleWashTraderEnv {
 }
 
 impl BundleWashTraderEnv {
-    pub async fn init(cli: &BundleLander) -> eyre::Result<Self> {
+    pub async fn init(cli: &BundleLander, keys: JsonPKs) -> eyre::Result<Self> {
         let provider = Arc::new(
             ProviderBuilder::<_, _, _>::default()
                 .with_recommended_fillers()
                 // backup
-                .connect(&cli.node_endpoint.as_str())
+                .connect(cli.node_endpoint.as_str())
                 .await
                 .unwrap()
         );
@@ -69,8 +72,8 @@ impl BundleWashTraderEnv {
             ang_pools.push(pool);
         }
 
-        let keys = cli
-            .testing_private_keys
+        let keys = keys
+            .keys
             .iter()
             .map(|key| AngstromSigner::new(key.parse().unwrap()))
             .collect::<Vec<_>>();

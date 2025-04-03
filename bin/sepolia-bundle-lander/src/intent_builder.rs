@@ -17,7 +17,6 @@ use angstrom_types::{
     primitive::AngstromSigner,
     sol_bindings::grouped_orders::AllOrders
 };
-use futures::StreamExt;
 use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
 
@@ -25,27 +24,27 @@ use crate::{balanceOfCall, env::ProviderType};
 
 /// given a pool and a user, looks at balances of the user and generates trades
 /// based off of this.
-pub struct PoolIntentBundler<'a, T>
+pub struct PoolIntentBundler<T>
 where
     T: OrderApiClient + Send + Sync + 'static
 {
     pool:            EnhancedUniswapPool,
     block_number:    u64,
-    keys:            &'a [AngstromSigner],
+    keys:            Vec<AngstromSigner>,
     provider:        Arc<ProviderType>,
-    angstrom_client: &'a T
+    angstrom_client: Arc<T>
 }
 
-impl<'a, T> PoolIntentBundler<'a, T>
+impl<T> PoolIntentBundler<T>
 where
     T: OrderApiClient + Send + Sync + 'static
 {
     pub fn new(
         pool: EnhancedUniswapPool,
         block_number: u64,
-        keys: &'a [AngstromSigner],
+        keys: Vec<AngstromSigner>,
         provider: Arc<ProviderType>,
-        angstrom_client: &'a T
+        angstrom_client: Arc<T>
     ) -> Self {
         Self { pool, block_number, keys, provider, angstrom_client }
     }
@@ -123,9 +122,16 @@ where
     /// naturally will lead to orders being placed in both directions based
     /// off inventory.
     async fn generate_book_intents(&self) -> eyre::Result<Vec<AllOrders>> {
-        // t1 / t0
-        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
+        let mut res = Vec::new();
 
+        for key in &self.keys {
+            res.push(self.angstrom_signer_inner(key).await?);
+        }
+
+        Ok(res)
+    }
+
+    async fn angstrom_signer_inner(&self, key: &AngstromSigner) -> eyre::Result<AllOrders> {
         let mut gas = self
             .angstrom_client
             .estimate_gas(true, self.pool.token0, self.pool.token1)
@@ -135,66 +141,57 @@ where
         if gas.is_zero() {
             gas += U256::from(1);
         }
+        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
 
-        let all_orders = futures::stream::iter(&self.keys[1..])
-            .map(|key| async {
-                let mut exact_in: bool = self.random_time_bool();
-                let is_partial: bool = self.random_time_bool();
-                if is_partial {
-                    exact_in = true;
-                }
+        let mut exact_in: bool = self.random_time_bool();
+        let is_partial: bool = self.random_time_bool();
+        if is_partial {
+            exact_in = true;
+        }
 
-                let (amount, zfo) = self
-                    .fetch_direction_and_amounts(key, &pool_price, exact_in)
-                    .await;
+        let (amount, zfo) = self
+            .fetch_direction_and_amounts(key, &pool_price, exact_in)
+            .await;
 
-                let t_in = if zfo { self.pool.token0 } else { self.pool.token1 };
+        let t_in = if zfo { self.pool.token0 } else { self.pool.token1 };
 
-                let SwapResult { amount0, amount1, sqrt_price_x_96, .. } =
-                    self.pool._simulate_swap(t_in, amount, None)?;
+        let SwapResult { amount0, amount1, sqrt_price_x_96, .. } =
+            self.pool._simulate_swap(t_in, amount, None)?;
 
-                let mut clearing_price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
-                // how much we want to reduce our price from as we don't need the exact.
-                // we shave 5% off
-                let pct = Ray::generate_ray_decimal(95, 2);
-                clearing_price.mul_ray_assign(pct);
+        let mut clearing_price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
+        // how much we want to reduce our price from as we don't need the exact.
+        // we shave 5% off
+        let pct = Ray::generate_ray_decimal(95, 2);
+        clearing_price.mul_ray_assign(pct);
 
-                let amount = if zfo == exact_in {
-                    u128::try_from(amount0.abs()).unwrap()
-                } else {
-                    u128::try_from(amount1.abs()).unwrap()
-                };
+        let amount = if zfo == exact_in {
+            u128::try_from(amount0.abs()).unwrap()
+        } else {
+            u128::try_from(amount1.abs()).unwrap()
+        };
 
-                // 2% range, should be fine given we only move 2/3 of balance at a time
-                let modifier = self.random_amount_modifier_time();
-                let amount = (amount as f64 * modifier) as u128;
+        // 2% range, should be fine given we only move 2/3 of balance at a time
+        let modifier = self.random_amount_modifier_time();
+        let amount = (amount as f64 * modifier) as u128;
 
-                if !zfo {
-                    // if we are a bid. we flip the price
-                    clearing_price.inv_ray_assign_round(true);
-                }
+        if !zfo {
+            // if we are a bid. we flip the price
+            clearing_price.inv_ray_assign_round(true);
+        }
 
-                Ok(UserOrderBuilder::new()
-                    .signing_key(Some(key.clone()))
-                    .is_exact(!is_partial)
-                    .asset_in(if zfo { self.pool.token0 } else { self.pool.token1 })
-                    .asset_out(if !zfo { self.pool.token0 } else { self.pool.token1 })
-                    .is_standing(false)
-                    .gas_price_asset_zero(gas.to())
-                    .exact_in(exact_in)
-                    .min_price(clearing_price)
-                    .block(self.block_number + 1)
-                    .amount(amount)
-                    .build()
-                    .into())
-            })
-            .buffer_unordered(5)
-            .collect::<Vec<eyre::Result<AllOrders>>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(all_orders)
+        Ok(UserOrderBuilder::new()
+            .signing_key(Some(key.clone()))
+            .is_exact(!is_partial)
+            .asset_in(if zfo { self.pool.token0 } else { self.pool.token1 })
+            .asset_out(if !zfo { self.pool.token0 } else { self.pool.token1 })
+            .is_standing(false)
+            .gas_price_asset_zero(gas.to())
+            .exact_in(exact_in)
+            .min_price(clearing_price)
+            .block(self.block_number + 1)
+            .amount(amount)
+            .build()
+            .into())
     }
 
     // (amount, zfo)
@@ -204,35 +201,30 @@ where
         pool_price: &Ray,
         exact_in: bool
     ) -> (I256, bool) {
-        let token0_bal = balanceOfCall::abi_decode_returns(
-            &self
-                .provider
-                .call(
-                    TransactionRequest::default()
-                        .with_from(key.address())
-                        .with_kind(TxKind::Call(self.pool.token0))
-                        .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
-                )
-                .await
-                .unwrap(),
-            true
-        )
-        .unwrap();
+        let bytes = self
+            .provider
+            .call(
+                TransactionRequest::default()
+                    .with_from(key.address())
+                    .with_kind(TxKind::Call(self.pool.token0))
+                    .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
+            )
+            .await
+            .unwrap();
 
-        let token1_bal = balanceOfCall::abi_decode_returns(
-            &self
-                .provider
-                .call(
-                    TransactionRequest::default()
-                        .with_from(key.address())
-                        .with_kind(TxKind::Call(self.pool.token1))
-                        .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
-                )
-                .await
-                .unwrap(),
-            true
-        )
-        .unwrap();
+        let token0_bal = balanceOfCall::abi_decode_returns(&bytes, true).unwrap();
+        let bytes = self
+            .provider
+            .call(
+                TransactionRequest::default()
+                    .with_from(key.address())
+                    .with_kind(TxKind::Call(self.pool.token1))
+                    .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
+            )
+            .await
+            .unwrap();
+
+        let token1_bal = balanceOfCall::abi_decode_returns(&bytes, true).unwrap();
 
         if token0_bal.balance.is_zero() || token1_bal.balance.is_zero() {
             panic!(
@@ -268,6 +260,9 @@ where
 
         (amount, zfo)
     }
+
+    // NOTE: these are all very unsafe for production. only should be used for
+    // testing.
 
     fn gen_range(&self, lower: u128, upper: u128) -> u128 {
         assert!(lower < upper);

@@ -10660,6 +10660,7 @@ dependencies = [
  "revm-interpreter",
  "secp256k1 0.30.0",
  "serde",
+ "serde_json",
  "testing-tools",
  "tikv-jemallocator",
  "tokio",
