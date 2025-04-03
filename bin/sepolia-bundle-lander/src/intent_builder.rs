@@ -19,7 +19,7 @@ use secp256k1::rand::{self, Rng};
 use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
 
-use crate::balanceOfCall;
+use crate::{balanceOfCall, env::ProviderType};
 
 /// given a pool and a user, looks at balances of the user and generates trades
 /// based off of this.
@@ -27,7 +27,7 @@ pub struct PoolIntentBundler<'a, T> {
     pool:            EnhancedUniswapPool,
     block_number:    u64,
     keys:            &'a [AngstromSigner],
-    provider:        Arc<Box<dyn Provider>>,
+    provider:        Arc<ProviderType>,
     angstrom_client: &'a T
 }
 
@@ -39,7 +39,7 @@ where
         pool: EnhancedUniswapPool,
         block_number: u64,
         keys: &'a [AngstromSigner],
-        provider: Arc<Box<dyn Provider>>,
+        provider: Arc<ProviderType>,
         angstrom_client: &'a T
     ) -> Self {
         Self { pool, block_number, keys, provider, angstrom_client }

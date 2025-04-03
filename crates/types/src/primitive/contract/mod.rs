@@ -89,6 +89,10 @@ impl UniswapPoolRegistry {
     pub fn pools(&self) -> HashMap<PoolId, PoolKey> {
         self.pools.clone()
     }
+
+    pub fn private_keys(&self) -> impl Iterator<Item = PoolId> + '_ {
+        self.conversion_map.values().copied()
+    }
 }
 
 impl From<Vec<PoolKey>> for UniswapPoolRegistry {

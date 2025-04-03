@@ -1,76 +1,71 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use alloy::{
     eips::Encodable2718,
     network::TransactionBuilder,
-    primitives::{Address, Bytes, U256},
-    providers::{Provider, ProviderBuilder},
-    sol_types::{SolCall, SolValue}
+    primitives::{Address, Bytes, FixedBytes, U256, aliases::I24},
+    providers::{
+        Identity, Provider, ProviderBuilder, RootProvider,
+        fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller}
+    },
+    sol_types::{SolCall, SolEvent}
 };
-use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
+use alloy_rpc_types::TransactionRequest;
 use angstrom_types::{
-    contract_bindings::mintable_mock_erc_20::MintableMockERC20::MintableMockERC20Instance,
-    contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-    primitive::{AngstromSigner, ERC20Calls, PoolId, UniswapPoolRegistry}
+    contract_bindings::{
+        angstrom::Angstrom::PoolKey,
+        controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
+    },
+    primitive::{AngstromSigner, UniswapPoolRegistry}
 };
-use futures::stream::FuturesUnordered;
+use futures::{StreamExt, stream::FuturesUnordered};
 use itertools::Itertools;
-use uniswap_v4::{
-    fetch_angstrom_pools,
-    uniswap::{
-        pool::EnhancedUniswapPool,
-        pool_data_loader::{DataLoader, PoolDataLoader},
-        pool_manager::SyncedUniswapPools
-    }
-};
+use uniswap_v4::uniswap::{pool::EnhancedUniswapPool, pool_data_loader::DataLoader};
 
 use crate::{approveCall, cli::BundleLander};
 
+pub type ProviderType = FillProvider<
+    JoinFill<
+        Identity,
+        JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>
+    >,
+    RootProvider
+>;
+
 pub struct BundleWashTraderEnv {
     pub keys:     Vec<AngstromSigner>,
-    pub provider: Arc<Box<dyn Provider>>,
+    pub provider: Arc<ProviderType>,
     pub pools:    Vec<EnhancedUniswapPool>
 }
 
 impl BundleWashTraderEnv {
     pub async fn init(cli: &BundleLander) -> eyre::Result<Self> {
-        let provider = Arc::new(Box::new(
+        let provider = Arc::new(
             ProviderBuilder::<_, _, _>::default()
                 .with_recommended_fillers()
                 // backup
                 .connect(&cli.node_endpoint.as_str())
                 .await
                 .unwrap()
-        )) as Arc<Box<dyn Provider>>;
+        );
 
         let block = provider.get_block_number().await.unwrap();
 
         let pools =
-            fetch_angstrom_pools(7838402, block as usize, cli.angstrom_address, todo!()).await;
+            fetch_angstrom_pools(7838402, block as usize, cli.angstrom_address, &provider).await;
 
         let uniswap_registry: UniswapPoolRegistry = pools.into();
 
-        let pool_config_store = Arc::new(
-            AngstromPoolConfigStore::load_from_chain(
-                cli.angstrom_address,
-                BlockId::Number(BlockNumberOrTag::Latest),
-                &provider.root()
-            )
-            .await
-            .unwrap()
-        );
-        let uni_ang_registry =
-            UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
         let mut ang_pools = Vec::new();
 
-        for pool in pools {
+        for pool_priv_key in uniswap_registry.private_keys() {
             let data_loader = DataLoader::new_with_registry(
-                todo!("private key"),
-                uniswap_registry,
+                pool_priv_key,
+                uniswap_registry.clone(),
                 cli.pool_manager_address
             );
             let mut pool = EnhancedUniswapPool::new(data_loader, 200);
-            pool.initialize(None, provider.root().into()).await;
+            pool.initialize(None, provider.root().into()).await?;
             ang_pools.push(pool);
         }
 
@@ -86,7 +81,7 @@ impl BundleWashTraderEnv {
             .unique()
             .collect::<Vec<_>>();
 
-        Self::approve_max_tokens_to_angstrom(cli.angstrom_address, all_tokens, &keys, provider)
+        Self::approve_max_tokens_to_angstrom(cli.angstrom_address, all_tokens, &keys, &provider)
             .await?;
 
         Ok(Self { keys, provider, pools: ang_pools })
@@ -96,10 +91,10 @@ impl BundleWashTraderEnv {
         angstrom: Address,
         tokens: Vec<Address>,
         users: &[AngstromSigner],
-        provider: Arc<Box<dyn Provider>>
+        provider: &ProviderType
     ) -> eyre::Result<()> {
         let mut nonce_offset = 0;
-        let pending_orders = FuturesUnordered::new();
+        let mut pending_orders = FuturesUnordered::new();
 
         let fees = provider.estimate_eip1559_fees().await.unwrap();
         let chain_id = provider.get_chain_id().await.unwrap();
@@ -139,6 +134,88 @@ impl BundleWashTraderEnv {
             nonce_offset += 1;
         }
 
+        // wait and unwrap all orders.
+        while let Some(next) = pending_orders.next().await {
+            next?;
+        }
+
         Ok(())
     }
+}
+
+const CONTROLLER_ADDRESS_SLOT: FixedBytes<32> = FixedBytes::<32>::ZERO;
+
+async fn fetch_angstrom_pools<P>(
+    // the block angstrom was deployed at
+    deploy_block: usize,
+    end_block: usize,
+    angstrom_address: Address,
+    db: &P
+) -> Vec<PoolKey>
+where
+    P: Provider
+{
+    let logs = futures::stream::iter(deploy_block..=end_block)
+        .map(|block| async move {
+            let controller_addr = Address::from_word(FixedBytes::new(
+                db.get_storage_at(angstrom_address, U256::from_be_bytes(*CONTROLLER_ADDRESS_SLOT))
+                    .block_id((block as u64).into())
+                    .await
+                    .unwrap()
+                    .to_be_bytes::<32>()
+            ));
+
+            db.get_block_receipts((block as u64).into())
+                .await
+                .unwrap()
+                .unwrap_or_default()
+                .into_iter()
+                .flat_map(|receipt| receipt.logs().to_vec())
+                .filter(move |log| log.address() == controller_addr)
+                .collect::<Vec<_>>()
+        })
+        .buffered(30)
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+    logs.into_iter()
+        .fold(HashSet::new(), |mut set, log| {
+            if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner(), true) {
+                let pool_key = PoolKey {
+                    currency0:   pool.asset0,
+                    currency1:   pool.asset1,
+                    fee:         pool.bundleFee,
+                    tickSpacing: I24::try_from_be_slice(&{
+                        let bytes = pool.tickSpacing.to_be_bytes();
+                        let mut a = [0u8; 3];
+                        a[1..3].copy_from_slice(&bytes);
+                        a
+                    })
+                    .unwrap(),
+                    hooks:       angstrom_address
+                };
+
+                set.insert(pool_key);
+                return set;
+            }
+
+            if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner(), true) {
+                let pool_key = PoolKey {
+                    currency0:   pool.asset0,
+                    currency1:   pool.asset1,
+                    fee:         pool.feeInE6,
+                    tickSpacing: pool.tickSpacing,
+                    hooks:       angstrom_address
+                };
+
+                set.remove(&pool_key);
+                return set;
+            }
+            set
+        })
+        .into_iter()
+        .collect::<Vec<_>>()
 }
