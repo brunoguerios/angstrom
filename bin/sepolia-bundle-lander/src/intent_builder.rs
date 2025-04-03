@@ -16,7 +16,7 @@ use angstrom_types::{
 };
 use futures::StreamExt;
 use secp256k1::rand::{self, Rng};
-use testing_tools::type_generator::orders::UserOrderBuilder;
+use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
 
 use crate::balanceOfCall;
@@ -45,11 +45,63 @@ where
         Self { pool, block_number, keys, provider, angstrom_client }
     }
 
-    /// based on the users distrobution of tokens in the pool, will generate
+    pub async fn generate_orders_for_block(&self) -> eyre::Result<Vec<AllOrders>> {
+        let mut all_orders = self.generate_book_intents().await?;
+        all_orders.push(self.generate_tob_intent().await?);
+
+        Ok(all_orders)
+    }
+
+    async fn generate_tob_intent(&self) -> eyre::Result<AllOrders> {
+        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
+        let mut gas = self
+            .angstrom_client
+            .estimate_gas(false, self.pool.token0, self.pool.token1)
+            .await?
+            .unwrap();
+        // cannot have zero gas.
+        if gas.is_zero() {
+            gas += U256::from(1);
+        }
+
+        let key = &self.keys[0];
+
+        let (amount, zfo) = self
+            .fetch_direction_and_amounts(key, &pool_price, true)
+            .await;
+        let t_in = if zfo { self.pool.token0 } else { self.pool.token1 };
+        let (amount_in, amount_out) = self.pool.simulate_swap(t_in, amount, None).unwrap();
+
+        let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
+        let mut amount_out = u128::try_from(amount_out.abs()).unwrap();
+        let mut rng = rand::thread_rng();
+
+        if !zfo {
+            std::mem::swap(&mut amount_in, &mut amount_out);
+        }
+
+        let range = (amount_in / 100).max(101);
+        amount_in += rng.gen_range(100..range);
+
+        let order: AllOrders = ToBOrderBuilder::new()
+            .signing_key(Some(key.clone()))
+            .asset_in(if zfo { self.pool.token0 } else { self.pool.token1 })
+            .asset_out(if !zfo { self.pool.token0 } else { self.pool.token1 })
+            .quantity_in(amount_in)
+            .max_gas(gas.to())
+            .quantity_out(amount_out)
+            .valid_block(self.block_number + 1)
+            .build()
+            .into();
+
+        Ok(order)
+    }
+
+    /// based on the users distribution of tokens in the pool, will generate
     /// a order that goes in the direction to even out the token amount. This
     /// naturally will lead to orders being placed in both directions based
     /// off inventory.
-    pub async fn generate_book_intents(&self) -> eyre::Result<Vec<AllOrders>> {
+    async fn generate_book_intents(&self) -> eyre::Result<Vec<AllOrders>> {
         // t1 / t0
         let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
 
