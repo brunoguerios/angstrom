@@ -91,8 +91,8 @@ impl BundleLander {
                     let new_block = pinned.next().await;
                     match new_block {
                         Some(Ok(Some(block))) => {
-                            processors = futures::stream::iter(processors)
-                                .map(|mut processor| async move {
+                            futures::stream::iter(&mut processors)
+                                .for_each(|processor| async move {
                                     processor
                                         .new_block(block)
                                         .await
@@ -101,10 +101,7 @@ impl BundleLander {
                                         .submit_new_orders_to_angstrom()
                                         .await
                                         .expect("failed to send angstrom orders");
-                                    processor
                                 })
-                                .buffer_unordered(10)
-                                .collect()
                                 .await;
                         }
                         _ => {

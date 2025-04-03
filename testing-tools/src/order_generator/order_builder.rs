@@ -124,7 +124,7 @@ impl OrderBuilder {
         }
 
         let deadline = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
-            + Duration::from_secs(600))
+            + Duration::from_secs(38))
         .as_secs();
 
         UserOrderBuilder::new()

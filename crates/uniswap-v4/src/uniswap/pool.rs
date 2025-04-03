@@ -379,10 +379,9 @@ where
             uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(sqrt_price_limit_x96).unwrap();
 
         let shift = self.token0_decimals as i8 - self.token1_decimals as i8;
-        // flipped to scale them properly with the token spacing
         match shift.cmp(&0) {
-            Ordering::Less => 1.0001_f64.powi(tick) * 10_f64.powi(-shift as i32),
-            Ordering::Greater => 1.0001_f64.powi(tick) / 10_f64.powi(shift as i32),
+            Ordering::Less => 1.0001_f64.powi(tick) / 10_f64.powi(-shift as i32),
+            Ordering::Greater => 1.0001_f64.powi(tick) * 10_f64.powi(shift as i32),
             Ordering::Equal => 1.0001_f64.powi(tick)
         }
     }
