@@ -117,7 +117,7 @@ where
 
     fn next_tick_gte(&self, tick: i32) -> i32 {
         let extra = tick % self.tick_spacing;
-        tick + extra
+        tick + (self.tick_spacing - extra)
     }
 
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, PoolSnapshot), PoolError> {
@@ -137,8 +137,8 @@ where
         let current_range = LiqRange::new(
             // Because they're already sorted low to high - we want the highest low and the lowest
             // high
-            self.next_tick_lte(self.tick),
-            self.next_tick_gte(self.tick + 1),
+            self.next_tick_lte(self.tick - 1),
+            self.next_tick_gte(self.tick),
             current_liquidity
         )
         .unwrap();
