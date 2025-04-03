@@ -52,6 +52,7 @@ url.workspace = true
 futures.workspace = true
 rayon = "1"
 testing-tools = { workspace = true, features = ["testnet"] }
+itertools.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 tikv-jemallocator = { version = "0.6.0", optional = true }

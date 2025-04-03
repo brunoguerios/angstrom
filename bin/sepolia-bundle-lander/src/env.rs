@@ -7,13 +7,14 @@ use alloy::{
     providers::{Provider, ProviderBuilder},
     sol_types::{SolCall, SolValue}
 };
-use alloy_rpc_types::TransactionRequest;
+use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
 use angstrom_types::{
     contract_bindings::mintable_mock_erc_20::MintableMockERC20::MintableMockERC20Instance,
-    contract_payloads::angstrom::UniswapAngstromRegistry,
+    contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     primitive::{AngstromSigner, ERC20Calls, PoolId, UniswapPoolRegistry}
 };
 use futures::stream::FuturesUnordered;
+use itertools::Itertools;
 use uniswap_v4::{
     fetch_angstrom_pools,
     uniswap::{
@@ -46,13 +47,14 @@ impl BundleWashTraderEnv {
 
         let pools =
             fetch_angstrom_pools(7838402, block as usize, cli.angstrom_address, todo!()).await;
+
         let uniswap_registry: UniswapPoolRegistry = pools.into();
 
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
-                node_config.angstrom_address,
+                cli.angstrom_address,
                 BlockId::Number(BlockNumberOrTag::Latest),
-                &querying_provider
+                &provider.root()
             )
             .await
             .unwrap()
@@ -62,9 +64,13 @@ impl BundleWashTraderEnv {
         let mut ang_pools = Vec::new();
 
         for pool in pools {
-            let data_loader = DataLoader::new_with_registry(address, registry, pool_manager);
+            let data_loader = DataLoader::new_with_registry(
+                todo!("private key"),
+                uniswap_registry,
+                cli.pool_manager_address
+            );
             let mut pool = EnhancedUniswapPool::new(data_loader, 200);
-            pool.initialize(None, provider).await;
+            pool.initialize(None, provider.root().into()).await;
             ang_pools.push(pool);
         }
 
@@ -74,7 +80,14 @@ impl BundleWashTraderEnv {
             .map(|key| AngstromSigner::new(key.parse().unwrap()))
             .collect::<Vec<_>>();
 
-        Self::approve_max_tokens_to_angstrom(cli.angstrom_address, tokens, &keys, provider).await?;
+        let all_tokens = ang_pools
+            .iter()
+            .flat_map(|p| [p.token0, p.token1])
+            .unique()
+            .collect::<Vec<_>>();
+
+        Self::approve_max_tokens_to_angstrom(cli.angstrom_address, all_tokens, &keys, provider)
+            .await?;
 
         Ok(Self { keys, provider, pools: ang_pools })
     }

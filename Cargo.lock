@@ -10644,6 +10644,7 @@ dependencies = [
  "consensus",
  "eyre",
  "futures",
+ "itertools 0.10.5",
  "matching-engine",
  "order-pool",
  "rayon",
