@@ -138,7 +138,7 @@ where
             // Because they're already sorted low to high - we want the highest low and the lowest
             // high
             self.next_tick_lte(self.tick),
-            self.next_tick_gte(self.tick),
+            self.next_tick_gte(self.tick + 1),
             current_liquidity
         )
         .unwrap();
