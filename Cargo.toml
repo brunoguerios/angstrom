@@ -1,19 +1,8 @@
 [workspace]
 members = [
-  "bin/angstrom",
-  "bin/testnet",
-  "crates/angstrom-net",
-  "crates/consensus",
-  "crates/types",
-  "crates/utils",
-  "crates/validation",
-  "crates/order-pool",
-  "crates/rpc",
-  "crates/eth/",
-  "testing-tools",
-  "crates/matching-engine",
-  "crates/metrics",
-  "crates/uniswap-v4",
+  "bin/*",
+  "crates/*",
+  "testing-tools"
 ]
 
 resolver = "2"
@@ -59,7 +48,7 @@ incremental = false
 
 [workspace.dependencies]
 consensus = { path = "./crates/consensus/" }
-angstrom-types = { path = "./crates/types/", default-features = false }
+angstrom-types = { path = "./crates/types/" }
 uniswap-v4 = { path = "./crates/uniswap-v4/" }
 angstrom-utils = { path = "./crates/utils/" }
 validation = { path = "./crates/validation/" }
@@ -68,7 +57,7 @@ angstrom-eth = { path = "./crates/eth/" }
 angstrom-rpc = { path = "./crates/rpc/" }
 angstrom-network = { path = "./crates/angstrom-net/" }
 angstrom-metrics = { path = "./crates/metrics/" }
-testing-tools = { path = "./testing-tools/" }
+testing-tools = { path = "./testing-tools/", default-features = false }
 angstrom = { path = "./bin/angstrom/" }
 matching-engine = { path = "./crates/matching-engine/" }
 contract-bindings = { path = "./crates/contract-bindings/" }

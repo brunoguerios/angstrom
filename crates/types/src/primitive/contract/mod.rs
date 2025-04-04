@@ -60,13 +60,13 @@ pub const TESTNET_ANGSTROM_ADDRESS: Address =
 #[cfg(all(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
-    version: "v1",
+    version: "not both",
     chain_id: 1,
 );
 #[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
     name: "Angstrom",
-    version: "v1",
+    version: "both",
     chain_id: 1,
     verifying_contract: TESTNET_ANGSTROM_ADDRESS,
 
@@ -88,6 +88,10 @@ impl UniswapPoolRegistry {
 
     pub fn pools(&self) -> HashMap<PoolId, PoolKey> {
         self.pools.clone()
+    }
+
+    pub fn private_keys(&self) -> impl Iterator<Item = PoolId> + '_ {
+        self.conversion_map.values().copied()
     }
 }
 

@@ -57,7 +57,7 @@ contract TickLibTest is Test {
             int24(bound(tickSpacing, TickMath.MIN_TICK_SPACING, TickMath.MAX_TICK_SPACING));
         (int16 wordPos, uint8 bitPos) = TickLib.position(tick / tickSpacing);
         int24 outTick = TickLib.toTick(wordPos, bitPos, tickSpacing);
-        assertEq(tick - tick % tickSpacing, outTick);
+        assertEq(tick - (tick % tickSpacing), outTick);
     }
 
     function _findNextGte(uint256 word, uint8 bitPos)

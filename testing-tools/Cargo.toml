@@ -10,7 +10,7 @@ exclude.workspace = true
 
 [dependencies]
 consensus.workspace = true
-angstrom-types = { workspace = true, features = ["testnet"] }
+angstrom-types. workspace = true 
 angstrom-utils.workspace = true
 uniswap-v4.workspace = true
 angstrom-network.workspace = true
@@ -85,7 +85,7 @@ uniswap_v3_math.workspace = true
 create3 = { git = "https://github.com/AmanRaj1608/create3" }
 
 [features]
-default = []
+default = ["testnet"]
 testnet = ["angstrom-types/testnet", "validation/testnet"]
 testnet-sepolia = [
     "angstrom-types/testnet-sepolia",

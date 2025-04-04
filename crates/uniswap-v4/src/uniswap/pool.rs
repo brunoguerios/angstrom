@@ -26,12 +26,12 @@ use crate::uniswap::{
 };
 
 #[derive(Default)]
-struct SwapResult {
-    amount0:         I256,
-    amount1:         I256,
-    sqrt_price_x_96: U256,
-    liquidity:       u128,
-    tick:            i32
+pub struct SwapResult {
+    pub amount0:         I256,
+    pub amount1:         I256,
+    pub sqrt_price_x_96: U256,
+    pub liquidity:       u128,
+    pub tick:            i32
 }
 
 #[derive(Debug, Clone, Default)]
@@ -110,6 +110,16 @@ where
         *self.ticks.keys().max().unwrap()
     }
 
+    fn next_tick_lte(&self, tick: i32) -> i32 {
+        let extra = tick % self.tick_spacing;
+        tick - extra
+    }
+
+    fn next_tick_gte(&self, tick: i32) -> i32 {
+        let extra = tick % self.tick_spacing;
+        tick + (self.tick_spacing - extra)
+    }
+
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, PoolSnapshot), PoolError> {
         if !self.data_is_populated() {
             return Err(PoolError::PoolNotInitialized);
@@ -127,11 +137,8 @@ where
         let current_range = LiqRange::new(
             // Because they're already sorted low to high - we want the highest low and the lowest
             // high
-            *less_than.last().expect("No lower bound to current range").0,
-            *more_than
-                .first()
-                .expect("No upper bound to corrent range")
-                .0,
+            self.next_tick_lte(self.tick - 1),
+            self.next_tick_gte(self.tick),
             current_liquidity
         )
         .unwrap();
@@ -250,20 +257,17 @@ where
     pub fn apply_ticks(&mut self, mut fetched_ticks: Vec<TickData>) {
         fetched_ticks.sort_by_key(|k| k.tick);
 
-        fetched_ticks
-            .into_iter()
-            .filter(|tick| tick.initialized)
-            .for_each(|tick| {
-                self.ticks.insert(
-                    tick.tick.as_i32(),
-                    TickInfo {
-                        initialized:     tick.initialized,
-                        liquidity_gross: tick.liquidityGross,
-                        liquidity_net:   tick.liquidityNet
-                    }
-                );
-                self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
-            });
+        fetched_ticks.into_iter().for_each(|tick| {
+            self.ticks.insert(
+                tick.tick.as_i32(),
+                TickInfo {
+                    initialized:     tick.initialized,
+                    liquidity_gross: tick.liquidityGross,
+                    liquidity_net:   tick.liquidityNet
+                }
+            );
+            self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
+        });
     }
 
     pub async fn load_more_ticks<P: Provider>(
@@ -338,38 +342,30 @@ where
                 .await?
                 .0;
 
-            // Update current_tick for the next batch
-            if !batch_ticks.is_empty() {
-                // Move to the next tick after the last one in this batch
-                current_tick += (self.tick_spacing as u16 * batch_size) as i32;
-            }
-
+            current_tick += (self.tick_spacing as u16 * batch_size) as i32;
             fetched_ticks.extend(batch_ticks);
         }
 
         fetched_ticks.sort_by_key(|k| k.tick);
 
-        fetched_ticks
-            .into_iter()
-            .filter(|tick| tick.initialized)
-            .for_each(|tick| {
-                tracing::trace!(
-                    initialized = tick.initialized,
-                    liq_gross = tick.liquidityGross,
-                    liq_net = tick.liquidityNet,
-                    tick = tick.tick.as_i32(),
-                    "Inserting tick"
-                );
-                self.ticks.insert(
-                    tick.tick.as_i32(),
-                    TickInfo {
-                        initialized:     tick.initialized,
-                        liquidity_gross: tick.liquidityGross,
-                        liquidity_net:   tick.liquidityNet
-                    }
-                );
-                self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
-            });
+        fetched_ticks.into_iter().for_each(|tick| {
+            tracing::trace!(
+                initialized = tick.initialized,
+                liq_gross = tick.liquidityGross,
+                liq_net = tick.liquidityNet,
+                tick = tick.tick.as_i32(),
+                "Inserting tick"
+            );
+            self.ticks.insert(
+                tick.tick.as_i32(),
+                TickInfo {
+                    initialized:     tick.initialized,
+                    liquidity_gross: tick.liquidityGross,
+                    liquidity_net:   tick.liquidityNet
+                }
+            );
+            self.flip_tick(tick.tick.as_i32(), self.tick_spacing);
+        });
 
         Ok(())
     }
@@ -379,10 +375,9 @@ where
             uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(sqrt_price_limit_x96).unwrap();
 
         let shift = self.token0_decimals as i8 - self.token1_decimals as i8;
-        // flipped to scale them properly with the token spacing
         match shift.cmp(&0) {
-            Ordering::Less => 1.0001_f64.powi(tick) * 10_f64.powi(-shift as i32),
-            Ordering::Greater => 1.0001_f64.powi(tick) / 10_f64.powi(shift as i32),
+            Ordering::Less => 1.0001_f64.powi(tick) / 10_f64.powi(-shift as i32),
+            Ordering::Greater => 1.0001_f64.powi(tick) * 10_f64.powi(shift as i32),
             Ordering::Equal => 1.0001_f64.powi(tick)
         }
     }
@@ -410,7 +405,7 @@ where
     ///       to try out all of the combinations below, to know exactly with
     ///       which set of zeroForOne x amountSpecified parameters the sim
     ///       method was called
-    fn _simulate_swap(
+    pub fn _simulate_swap(
         &self,
         token_in: Address,
         amount_specified: I256,

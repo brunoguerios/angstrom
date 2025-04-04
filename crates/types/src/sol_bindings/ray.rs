@@ -226,6 +226,15 @@ impl<'de> Deserialize<'de> for Ray {
 impl Ray {
     pub const ZERO: Ray = Ray(U256::ZERO);
 
+    /// given a value and a decimal point, generates a ray
+    /// ex value: 100 and decimal_point = 1 -> ray value of 10.0
+    pub fn generate_ray_decimal(value: u128, decimal_point: u8) -> Ray {
+        let ray_precision = 27 - decimal_point as u64;
+        let value = Natural::from(value) * Natural::from(10u128).pow(ray_precision);
+
+        Ray::from(Uint::from_limbs_slice(&value.to_limbs_asc()))
+    }
+
     /// value * 1e27
     pub fn scale_to_ray(value: U256) -> Ray {
         let value = Natural::from_limbs_asc(value.as_limbs()) * const_1e27();
