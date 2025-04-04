@@ -1,13 +1,13 @@
 use std::{
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH}
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use alloy::{
     network::TransactionBuilder,
     primitives::{I256, U256},
     providers::Provider,
-    sol_types::SolCall
+    sol_types::SolCall,
 };
 use alloy_primitives::TxKind;
 use alloy_rpc_types::TransactionRequest;
@@ -15,7 +15,7 @@ use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::{
     matching::{Ray, SqrtPriceX96},
     primitive::AngstromSigner,
-    sol_bindings::grouped_orders::AllOrders
+    sol_bindings::grouped_orders::AllOrders,
 };
 use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
@@ -26,25 +26,25 @@ use crate::{balanceOfCall, env::ProviderType};
 /// based off of this.
 pub struct PoolIntentBundler<T>
 where
-    T: OrderApiClient + Send + Sync + 'static
+    T: OrderApiClient + Send + Sync + 'static,
 {
-    pool:            EnhancedUniswapPool,
-    block_number:    u64,
-    keys:            Vec<AngstromSigner>,
-    provider:        Arc<ProviderType>,
-    angstrom_client: Arc<T>
+    pool: EnhancedUniswapPool,
+    block_number: u64,
+    keys: Vec<AngstromSigner>,
+    provider: Arc<ProviderType>,
+    angstrom_client: Arc<T>,
 }
 
 impl<T> PoolIntentBundler<T>
 where
-    T: OrderApiClient + Send + Sync + 'static
+    T: OrderApiClient + Send + Sync + 'static,
 {
     pub fn new(
         pool: EnhancedUniswapPool,
         block_number: u64,
         keys: Vec<AngstromSigner>,
         provider: Arc<ProviderType>,
-        angstrom_client: Arc<T>
+        angstrom_client: Arc<T>,
     ) -> Self {
         Self { pool, block_number, keys, provider, angstrom_client }
     }
@@ -58,14 +58,15 @@ where
     }
 
     pub async fn submit_new_orders_to_angstrom(&self) -> eyre::Result<()> {
+        tokio::time::sleep(Duration::from_secs(2)).await;
         tracing::info!("building orders for block");
         let orders = self.generate_orders_for_block().await?;
-        tracing::info!(?orders, "orders for block");
+        tracing::info!("orders for block {:#?}", orders);
         let res = self.angstrom_client.send_orders(orders).await?;
         for order in res {
             tracing::info!(?order);
-            // let _ = order.unwrap();
         }
+
         Ok(())
     }
 
@@ -93,8 +94,25 @@ where
         let (amount, zfo) = self
             .fetch_direction_and_amounts(key, &pool_price, true)
             .await;
+
+        // limit to crossing 30 ticks a swap
+        let target_price = if zfo {
+            uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
+                self.pool.tick - (5 * self.pool.tick_spacing),
+            )
+            .unwrap()
+        } else {
+            uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
+                self.pool.tick + (5 * self.pool.tick_spacing),
+            )
+            .unwrap()
+        };
+
         let t_in = if zfo { self.pool.token0 } else { self.pool.token1 };
-        let (amount_in, amount_out) = self.pool.simulate_swap(t_in, amount, None).unwrap();
+        let (amount_in, amount_out) = self
+            .pool
+            .simulate_swap(t_in, amount, Some(target_price))
+            .unwrap();
 
         let mut amount_in = u128::try_from(amount_in.abs()).unwrap();
         let mut amount_out = u128::try_from(amount_out.abs()).unwrap();
@@ -158,8 +176,20 @@ where
 
         let t_in = if zfo { self.pool.token0 } else { self.pool.token1 };
 
+        let target_price = if zfo {
+            uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
+                self.pool.tick - (30 * self.pool.tick_spacing),
+            )
+            .unwrap()
+        } else {
+            uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
+                self.pool.tick + (30 * self.pool.tick_spacing),
+            )
+            .unwrap()
+        };
+
         let SwapResult { amount0, amount1, sqrt_price_x_96, .. } =
-            self.pool._simulate_swap(t_in, amount, None)?;
+            self.pool._simulate_swap(t_in, amount, Some(target_price))?;
 
         let mut clearing_price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
         // how much we want to reduce our price from as we don't need the exact.
@@ -202,7 +232,7 @@ where
         &self,
         key: &AngstromSigner,
         pool_price: &Ray,
-        exact_in: bool
+        exact_in: bool,
     ) -> (I256, bool) {
         let bytes = self
             .provider
@@ -210,7 +240,7 @@ where
                 TransactionRequest::default()
                     .with_from(key.address())
                     .with_kind(TxKind::Call(self.pool.token0))
-                    .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
+                    .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode()),
             )
             .await
             .unwrap();
@@ -222,7 +252,7 @@ where
                 TransactionRequest::default()
                     .with_from(key.address())
                     .with_kind(TxKind::Call(self.pool.token1))
-                    .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode())
+                    .with_input(crate::balanceOfCall::new((key.address(),)).abi_encode()),
             )
             .await
             .unwrap();
@@ -247,16 +277,16 @@ where
         let amount = if exact_in {
             // exact in will swap 1/6 of the balance
             I256::unchecked_from(if zfo {
-                token0_bal.balance / U256::from(6)
+                token0_bal.balance / U256::from(10)
             } else {
-                token1_bal.balance / U256::from(6)
+                token1_bal.balance / U256::from(10)
             })
         } else {
             // exact out
             I256::unchecked_from(if zfo {
-                t1_with_current_price / U256::from(6)
+                t1_with_current_price / U256::from(10)
             } else {
-                token1_bal.balance / U256::from(6)
+                token1_bal.balance / U256::from(10)
             })
             .wrapping_neg()
         };
