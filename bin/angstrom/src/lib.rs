@@ -117,8 +117,6 @@ pub fn run() -> eyre::Result<()> {
     })
 }
 
-// pub fn build_querying_provider
-
 fn get_secret_key(sk_path: &PathBuf) -> eyre::Result<AngstromSigner> {
     let exists = sk_path.try_exists();
 
