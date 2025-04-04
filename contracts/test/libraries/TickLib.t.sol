@@ -11,10 +11,10 @@ contract TickLibTest is Test {
 
     function test_findNextGte() public pure {
         assertNextBitPosGteEq(1, 0, true, 0);
-        assertNextBitPosGteEq(1, 1, false, 255);
+        assertNextBitPosGteEq(1, 1, false, 254);
         assertNextBitPosGteEq(0x0201, 0, true, 0);
         assertNextBitPosGteEq(0x0201, 1, true, 9);
-        assertNextBitPosGteEq(0x0201, 10, false, 254);
+        assertNextBitPosGteEq(0x0201, 10, false, 245);
     }
 
     function test_fuzzing_findNextGte_zeroWord(uint8 bitPos) public pure {
