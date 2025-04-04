@@ -820,7 +820,9 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn limit_price(&self) -> U256 {
-        *Ray::scale_to_ray(U256::from(self.amount() / self.quantity_out))
+        let mut top = Ray::scale_to_ray(U256::from(self.amount()));
+        top.div_ray_assign(Ray::scale_to_ray(U256::from(self.quantity_out)));
+        *top
     }
 
     fn token_in(&self) -> Address {

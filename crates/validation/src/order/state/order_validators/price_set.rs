@@ -10,7 +10,7 @@ impl OrderValidation for EnsurePriceSet {
         &self,
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
-        if state.order().limit_price().is_zero() {
+        if !state.order.is_tob() && state.order().limit_price().is_zero() {
             Err(OrderValidationError::NoPriceSpecified)
         } else {
             Ok(())
