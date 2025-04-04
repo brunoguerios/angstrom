@@ -22,7 +22,7 @@ library TickLib {
 
             uint256 relativePos = LibBit.fls(word << offset);
             initialized = relativePos != 256;
-            nextBitPos = initialized ? uint8(relativePos - offset) : bitPos;
+            nextBitPos = initialized ? uint8(relativePos - offset) : 0;
         }
     }
 
@@ -34,7 +34,7 @@ library TickLib {
         unchecked {
             uint256 relativePos = LibBit.ffs(word >> bitPos);
             initialized = relativePos != 256;
-            nextBitPos = initialized ? uint8(relativePos + bitPos) : type(uint8).max - bitPos;
+            nextBitPos = initialized ? uint8(relativePos + bitPos) : type(uint8).max;
         }
     }
 

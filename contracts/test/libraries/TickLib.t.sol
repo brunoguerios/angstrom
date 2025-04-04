@@ -11,16 +11,16 @@ contract TickLibTest is Test {
 
     function test_findNextGte() public pure {
         assertNextBitPosGteEq(1, 0, true, 0);
-        assertNextBitPosGteEq(1, 1, false, 254);
+        assertNextBitPosGteEq(1, 1, false, 255);
         assertNextBitPosGteEq(0x0201, 0, true, 0);
         assertNextBitPosGteEq(0x0201, 1, true, 9);
-        assertNextBitPosGteEq(0x0201, 10, false, 245);
+        assertNextBitPosGteEq(0x0201, 10, false, 255);
     }
 
     function test_fuzzing_findNextGte_zeroWord(uint8 bitPos) public pure {
         (bool initialized, uint8 outPos) = TickLib.nextBitPosGte(0, bitPos);
         assertFalse(initialized);
-        assertEq(outPos, 255 - bitPos);
+        assertEq(outPos, 255);
     }
 
     function test_fuzzing_findNextGte(uint256 word, uint8 bitPos) public pure {
@@ -68,7 +68,7 @@ contract TickLibTest is Test {
         for (uint256 i = bitPos; i < 256; i++) {
             if (word & (1 << i) != 0) return (uint8(i), true);
         }
-        return (type(uint8).max - bitPos, false);
+        return (type(uint8).max, false);
     }
 
     function _findNextLte(uint256 word, uint8 bitPos)
@@ -76,7 +76,6 @@ contract TickLibTest is Test {
         pure
         returns (uint8 nextBitPos, bool initialized)
     {
-        nextBitPos = bitPos;
         while (true) {
             if (word & (1 << bitPos) != 0) return (uint8(bitPos), true);
             if (bitPos == 0) break;
