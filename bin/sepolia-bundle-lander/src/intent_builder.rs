@@ -64,7 +64,7 @@ where
         let res = self.angstrom_client.send_orders(orders).await?;
         for order in res {
             tracing::info!(?order);
-            let _ = order?;
+            // let _ = order.unwrap();
         }
         Ok(())
     }
