@@ -25,10 +25,10 @@ abstract contract UnlockHook is UniConsumer, TopLevelAuth, IBeforeSwapHook {
         _onlyUniV4();
 
         if (!_isUnlocked()) {
-            if (optionalUnlockData.length == 0) {
-                revert CannotSwapWhileLocked();
+            if (optionalUnlockData.length < 20) {
+                if (optionalUnlockData.length == 0) revert CannotSwapWhileLocked();
+                revert UnlockDataTooShort();
             } else {
-                if (optionalUnlockData.length < 20) revert UnlockDataTooShort();
                 address node = address(bytes20(optionalUnlockData[:20]));
                 bytes calldata signature = optionalUnlockData[20:];
                 unlockWithEmptyAttestation(node, signature);
