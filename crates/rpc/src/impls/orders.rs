@@ -385,5 +385,7 @@ mod tests {
         fn valid_nonce_for_user(&self, _address: Address) -> validation::order::NonceFuture {
             Box::pin(async move { 50 })
         }
+
+        fn cancel_order(&self, _: Address, _: B256) {}
     }
 }
