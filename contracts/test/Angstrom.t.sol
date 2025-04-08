@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {PoolManager} from "v4-core/src/PoolManager.sol";
 import {Angstrom} from "src/Angstrom.sol";
+import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
 import {Bundle} from "test/_reference/Bundle.sol";
 import {Asset, AssetLib} from "test/_reference/Asset.sol";
 import {Pair, PairLib} from "test/_reference/Pair.sol";
@@ -11,6 +12,7 @@ import {UserOrder, UserOrderLib} from "test/_reference/UserOrder.sol";
 import {PartialStandingOrder, ExactFlashOrder} from "test/_reference/OrderTypes.sol";
 import {PriceAB as Price10} from "src/types/Price.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
+import {AngstromView} from "src/periphery/AngstromView.sol";
 
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
@@ -21,6 +23,8 @@ import {console} from "forge-std/console.sol";
 
 /// @author philogy <https://github.com/philogy>
 contract AngstromTest is BaseTest {
+    using AngstromView for Angstrom;
+
     using Hooks for IHooks;
 
     using PairLib for Pair[];
@@ -111,6 +115,30 @@ contract AngstromTest is BaseTest {
         bytes memory payload = bundle.encode(rawGetConfigStore(address(angstrom)));
         vm.prank(node);
         angstrom.execute(payload);
+    }
+
+    function test_fuzzing_unlockEmpty(uint40 block1, uint64 block2) public {
+        block1 = uint40(bound(block1, 1, type(uint40).max));
+        block2 = uint64(bound(block2, uint64(block1) + 1, type(uint64).max));
+
+        Bundle memory bundle;
+        bytes memory payload = bundle.encode(angstrom.configStore().into());
+
+        vm.roll(block1);
+        vm.prank(node);
+        angstrom.execute(payload);
+
+        assertEq(angstrom.lastBlockUpdated(), block1);
+
+        vm.prank(node);
+        vm.expectRevert(TopLevelAuth.OnlyOncePerBlock.selector);
+        angstrom.execute(payload);
+
+        vm.roll(block2);
+        vm.prank(node);
+        angstrom.execute("");
+
+        assertEq(angstrom.lastBlockUpdated(), block2);
     }
 
     function digest712(bytes32 structHash) internal view returns (bytes32) {
