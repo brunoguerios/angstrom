@@ -5,7 +5,7 @@ use std::{
 
 use alloy::{
     network::TransactionBuilder,
-    primitives::{I256, U256},
+    primitives::{Address, I256, U256},
     providers::Provider,
     sol_types::SolCall,
 };
@@ -14,13 +14,8 @@ use alloy_rpc_types::TransactionRequest;
 use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::{
     matching::{Ray, SqrtPriceX96},
-<<<<<<< HEAD
-    primitive::AngstromSigner,
-    sol_bindings::grouped_orders::AllOrders,
-=======
     primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::{RawPoolOrder, grouped_orders::AllOrders, rpc_orders::OmitOrderMeta}
->>>>>>> 801b022f (wip)
 };
 use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
@@ -185,12 +180,20 @@ where
 
         let target_price = if zfo {
             uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
+<<<<<<< HEAD
                 self.pool.tick - (30 * self.pool.tick_spacing),
+=======
+                self.pool.tick - (10 * self.pool.tick_spacing)
+>>>>>>> 75f6874f (solid progress made)
             )
             .unwrap()
         } else {
             uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
+<<<<<<< HEAD
                 self.pool.tick + (30 * self.pool.tick_spacing),
+=======
+                self.pool.tick + (10 * self.pool.tick_spacing)
+>>>>>>> 75f6874f (solid progress made)
             )
             .unwrap()
         };
@@ -240,6 +243,20 @@ where
             .into())
     }
 
+    async fn make_call<TY: SolCall>(&self, from: Address, target: Address, call: TY) -> TY::Return {
+        let bytes = self
+            .provider
+            .call(
+                TransactionRequest::default()
+                    .with_from(from)
+                    .with_kind(TxKind::Call(target))
+                    .with_input(call.abi_encode())
+            )
+            .await
+            .unwrap();
+        TY::abi_decode_returns(&bytes, true).unwrap()
+    }
+
     // (amount, zfo)
     async fn fetch_direction_and_amounts(
         &self,
@@ -247,6 +264,7 @@ where
         pool_price: &Ray,
         exact_in: bool,
     ) -> (I256, bool) {
+<<<<<<< HEAD
         let bytes = self
             .provider
             .call(
@@ -271,6 +289,14 @@ where
             .unwrap();
 
         let token1_bal = balanceOfCall::abi_decode_returns(&bytes, true).unwrap();
+=======
+        let token0_bal = self
+            .make_call(key.address(), self.pool.token0, crate::balanceOfCall::new((key.address(),)))
+            .await;
+        let token1_bal = self
+            .make_call(key.address(), self.pool.token1, crate::balanceOfCall::new((key.address(),)))
+            .await;
+>>>>>>> 75f6874f (solid progress made)
 
         if token0_bal.balance.is_zero() || token1_bal.balance.is_zero() {
             panic!(
