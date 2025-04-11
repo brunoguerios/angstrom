@@ -1,5 +1,6 @@
 use alloy::primitives::Address;
 use itertools::Itertools;
+use tracing::{Level, event_enabled, trace};
 
 use super::{AssetArray, state::StageTracker};
 use crate::contract_payloads::Asset;
@@ -97,6 +98,12 @@ impl AssetBuilder {
     }
 
     pub fn get_asset_array(&self) -> Vec<Asset> {
+        if event_enabled!(target: "dumps::assetbuilder", Level::TRACE) {
+            trace!(target: "dumps::assetbuilder", map = ?self.swaps.map, "Swap level");
+            trace!(target: "dumps::assetbuilder", map = ?self.top_of_block.map, "ToB level");
+            trace!(target: "dumps::assetbuilder", map = ?self.user_orders.map, "User level");
+            trace!(target: "dumps::assetbuilder", map = ?self.rewards.map, "Reward level");
+        }
         let combined_assets = self
             .swaps
             .and_then(&self.top_of_block)

@@ -17,9 +17,10 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
+use base64::Engine;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracing::trace;
+use tracing::{Level, debug, trace};
 
 use crate::OrderBook;
 
@@ -34,7 +35,7 @@ struct OrderLiquidity {
 
 /// Enum describing what kind of ToB order we want to use to set the initial AMM
 /// price for our DeltaMatcher
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DeltaMatcherToB {
     /// No ToB Order at all, no price movement
     None,
@@ -70,6 +71,14 @@ pub struct DeltaMatcher<'a> {
 
 impl<'a> DeltaMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: DeltaMatcherToB, fee: u128, solve_for_t0: bool) -> Self {
+        // Dump if matcher dumps are enabled
+        if tracing::event_enabled!(target: "dump::delta_matcher", Level::TRACE) {
+            // Dump the solution
+            let json = serde_json::to_string(&(book, tob.clone(), fee, solve_for_t0)).unwrap();
+            let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+            trace!(target: "dump::delta_matcher", data = b64_output, "Raw DeltaMatcher data");
+        }
+
         let amm_start_price = match tob {
             // If we have an order, apply that to the AMM start price
             DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
@@ -103,16 +112,18 @@ impl<'a> DeltaMatcher<'a> {
         // the contract.  An order that purchases T0 from the contract is a bid
         let is_bid = start_sqrt >= end_sqrt;
 
-        // let direction = Direction::from_is_bid(is_bid);
-
         let Ok(res) = PoolPriceVec::from_price_range(start_price, end_price) else {
             return Default::default();
         };
-        // let Ok(res) = PoolPriceVec::swap_to_price(start_price.clone(), end_sqrt,
-        // direction) else {     return Default::default();
-        // };
 
-        trace!(?start_sqrt, ?end_sqrt, ?price, res.d_t0, res.d_t1, is_bid, "AMM swap calc");
+        trace!(
+            ?start_sqrt,
+            ?end_sqrt,
+            d_t0 = res.d_t0,
+            d_t1 = res.d_t1,
+            is_bid,
+            "AMM liquidity swap"
+        );
         if is_bid {
             // if the amm is swapping from zero to one, it means that we need more liquidity
             // it in token 1 and less in token zero
@@ -163,54 +174,60 @@ impl<'a> DeltaMatcher<'a> {
             .for_each(|o| {
                 // If we're precisely at our target price, we determine what our minimum and
                 // maximum output is for this order.  Otherwise our minimum is "all of it"
-                let (min_q, max_q) = if price == o.price_t1_over_t0() {
+                let at_price = price == o.price_t1_over_t0();
+                let (min_q, max_q) = if at_price {
                     if o.is_partial() {
                         // Partial orders at the price have a range
-                        (Some(o.min_amount()), Some(o.amount()))
+                        (o.min_amount(), Some(o.amount()))
                     } else {
                         // Exact orders at the price need to be registered as killable
                         let order_q = o.amount();
                         killable_orders.push((o.order_id, order_q, o.is_bid));
-                        (Some(order_q), None)
+                        (order_q, None)
                     }
                 } else {
                     // All other orders are completely filled
-                    (Some(o.amount()), None)
+                    (o.amount(), None)
                 };
 
                 // Calculate and account for our minimum fill, preserving quantity numbers in
                 // case we need to use them for slack later
-                let (min_in, min_out) = if let Some(fill_amount) = min_q {
-                    // Add the mandatory portion of this order to our overall delta
-                    let (q_in, q_out) = Self::get_amount_in_out(o, fill_amount, self.fee, price);
-                    let s_in = I256::try_from(q_in).unwrap();
-                    let s_out = I256::try_from(q_out).unwrap();
-                    let (t0_d, t1_d) = if o.is_bid {
-                        // For bid, output is negative T0, input is positive T1
-                        (s_out.saturating_neg(), s_in)
-                    } else {
-                        // For an ask, input is positive T0, output is negative T1
-                        (s_in, s_out.saturating_neg())
-                    };
-                    net_t0 += t0_d;
-                    net_t1 += t1_d;
-                    (q_in, q_out)
+                let (min_in, min_out) = Self::get_amount_in_out(o, min_q, self.fee, price);
+                // Add the mandatory portion of this order to our overall delta
+                let s_in = I256::try_from(min_in).unwrap();
+                let s_out = I256::try_from(min_out).unwrap();
+                let (t0_d, t1_d) = if o.is_bid {
+                    // For bid, output is negative T0, input is positive T1
+                    (s_out.saturating_neg(), s_in)
                 } else {
-                    (0, 0)
+                    // For an ask, input is positive T0, output is negative T1
+                    (s_in, s_out.saturating_neg())
                 };
+                net_t0 += t0_d;
+                net_t1 += t1_d;
+
                 // If we have a maximum available amount, put that into our slack to be matched
                 // later
-                if let Some(fill_amount) = max_q {
+                let (t0_s, t1_s) = if let Some(fill_amount) = max_q {
                     let (max_in, max_out) =
                         Self::get_amount_in_out(o, fill_amount, self.fee, price);
                     if o.is_bid {
-                        bid_slack.0 += max_out - min_out;
-                        bid_slack.1 += max_in - min_in;
+                        let t0_s = max_out - min_out;
+                        let t1_s = max_in - min_in;
+                        bid_slack.0 += t0_s;
+                        bid_slack.1 += t1_s;
+                        (t0_s, t1_s)
                     } else {
-                        ask_slack.0 += max_in - min_in;
-                        ask_slack.1 += max_out - min_out;
+                        let t0_s = max_in - min_in;
+                        let t1_s = max_out - min_out;
+                        ask_slack.0 += t0_s;
+                        ask_slack.1 += t1_s;
+                        (t0_s, t1_s)
                     }
-                }
+                } else {
+                    (0, 0)
+                };
+                trace!(at_price, is_bid = o.is_bid, ?t0_d, ?t1_d, t0_s, t1_s, "Processed order");
             });
         OrderLiquidity { net_t0, net_t1, bid_slack, ask_slack, killable_orders }
     }
@@ -244,6 +261,7 @@ impl<'a> DeltaMatcher<'a> {
         if total_elim >= min_target { (total_elim, order_ids) } else { (0_u128, None) }
     }
 
+    #[tracing::instrument(level = "trace", skip(self, killed))]
     fn check_ucp(&self, price: Ray, killed: &HashSet<OrderId>) -> SupplyDemandResult {
         let (book_t0, book_t1) = self.fetch_concentrated_liquidity(price);
 
@@ -254,8 +272,6 @@ impl<'a> DeltaMatcher<'a> {
         let t1_sum = book_t1 + net_t1;
 
         tracing::trace!(
-            self.solve_for_t0,
-            ?price,
             ?book_t0,
             ?book_t1,
             ?net_t0,
@@ -264,7 +280,7 @@ impl<'a> DeltaMatcher<'a> {
             ?t1_sum,
             ?bid_slack,
             ?ask_slack,
-            "Testing price"
+            "Liquidity sums"
         );
 
         if t0_sum.is_zero() && t1_sum.is_zero() {
@@ -584,6 +600,7 @@ impl<'a> DeltaMatcher<'a> {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
         let ep = Ray::from(U256::from(1));
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
@@ -601,7 +618,10 @@ impl<'a> DeltaMatcher<'a> {
             let p_mid = (p_max + p_min) / two;
 
             // the delta of t0
-            let res = self.check_ucp(p_mid, &killed);
+            let res = {
+                let check_ucp_span = tracing::trace_span!("check_ucp", price = ?p_mid, can_kill);
+                check_ucp_span.in_scope(|| self.check_ucp(p_mid, &killed))
+            };
 
             match (res, can_kill, self.solve_for_t0) {
                 (SupplyDemandResult::MoreSupply(Some(ko)), true, _)
@@ -622,7 +642,7 @@ impl<'a> DeltaMatcher<'a> {
                 (SupplyDemandResult::MoreSupply(_), _, false)
                 | (SupplyDemandResult::MoreDemand(_), _, true) => p_min = p_mid,
                 (SupplyDemandResult::NaturallyEqual, ..) => {
-                    trace!("solved based on sup, demand no partials");
+                    debug!(ucp = ?p_mid, partial = false, reward_t0 = 0_u128, "Solved");
 
                     return Some(UcpSolution {
                         ucp: p_mid,
@@ -632,7 +652,7 @@ impl<'a> DeltaMatcher<'a> {
                     });
                 }
                 (SupplyDemandResult::PartialFillEq { bid_fill_q, ask_fill_q, reward_t0 }, ..) => {
-                    trace!("solved based on sup, demand with partial order");
+                    debug!(ucp = ?p_mid, partial = true, reward_t0, "Solved");
                     return Some(UcpSolution {
                         ucp: p_mid,
                         killed,
@@ -642,7 +662,7 @@ impl<'a> DeltaMatcher<'a> {
                 }
             }
         }
-
+        debug!("Unable to solve");
         None
     }
 }

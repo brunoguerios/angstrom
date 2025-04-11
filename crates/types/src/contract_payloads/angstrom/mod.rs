@@ -16,7 +16,7 @@ use alloy_primitives::I256;
 use base64::Engine;
 use dashmap::DashMap;
 use pade_macro::{PadeDecode, PadeEncode};
-use tracing::{debug, trace, warn};
+use tracing::{Level, debug, error, trace, warn};
 
 use super::{
     Asset, CONFIG_STORE_SLOT, POOL_CONFIG_STORE_ENTRY_SIZE, Pair,
@@ -463,21 +463,27 @@ impl AngstromBundle {
         store_index: u16,
         shared_gas: Option<U256>
     ) -> eyre::Result<()> {
-        // Dump the solution
-        let json = serde_json::to_string(&(
-            solution,
-            orders_by_pool,
-            snapshot,
-            t0,
-            t1,
-            store_index,
-            shared_gas
-        ))
-        .unwrap();
-        let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
-        trace!(data = b64_output, "Raw solution data");
+        let process_solution_span =
+            tracing::debug_span!("process_solution", t0 = ?t0, t1 = ?t1, pool_id = ?solution.id)
+                .entered();
+        // Dump the solution if solution dumps are enabled
+        if tracing::event_enabled!(target: "dump::solution", Level::TRACE, pool_id = ?solution.id) {
+            // Dump the solution
+            let json = serde_json::to_string(&(
+                solution,
+                orders_by_pool,
+                snapshot,
+                t0,
+                t1,
+                store_index,
+                shared_gas
+            ))
+            .unwrap();
+            let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+            trace!(target: "dump::solution", data = b64_output, "Raw solution data");
+        }
 
-        debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
+        debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Processing solution for pool");
 
         // Make sure the involved assets are in our assets array and we have the
         // appropriate asset index for them
@@ -493,6 +499,9 @@ impl AngstromBundle {
             price_1over0: *solution.ucp
         });
         let pair_idx = pairs.len() - 1;
+
+        // Log the indexes we found for the assets and pair of this solution
+        trace!(t0_idx, t1_idx, pair_idx, "Found asset and pair indexes");
 
         // Add the ToB order to our tob order list - This is currently converting
         // between two ToB order formats
@@ -521,6 +530,8 @@ impl AngstromBundle {
                 );
                 TopOfBlockOrder::of_max_gas(tob, pair_idx as u16)
             };
+            let is_bid = tob.asset_in == t1;
+            trace!(quantity_in = ?contract_tob.quantity_in, quantity_out = ?contract_tob.quantity_out, is_bid, "Processing searcher (ToB) order");
             top_of_block_orders.push(contract_tob);
         }
 
@@ -547,7 +558,6 @@ impl AngstromBundle {
             .zip(order_list.iter())
             .filter(|(outcome, _)| outcome.is_filled())
         {
-            trace!(user_order = ?order, "Mapping User Order");
             // Calculate our final amounts based on whether the order is in T0 or T1 context
             assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");
 
@@ -600,10 +610,28 @@ impl AngstromBundle {
         // rewards
 
         // Let's get our swap and reward data out of our ToB order, if it exists
-        let tob_swap_info = solution
-            .searcher
-            .as_ref()
-            .and_then(|tob| TopOfBlockOrder::calc_vec_and_reward(tob, snapshot).ok());
+        let tob_swap_info = if let Some(ref tob) = solution.searcher {
+            match TopOfBlockOrder::calc_vec_and_reward(tob, snapshot) {
+                Ok((v, reward_q)) => {
+                    trace!(
+                        net_t0 = v.d_t0,
+                        net_t1 = v.d_t1,
+                        end_price = ?v.end_bound.price,
+                        is_bid = !v.zero_for_one(),
+                        reward_q,
+                        "Processing ToB swap vs AMM"
+                    );
+                    Some((v, reward_q))
+                }
+                Err(error) => {
+                    error!(?error, "Error in ToB swap vs AMM");
+                    None
+                }
+            }
+        } else {
+            trace!("No ToB Swap vs AMM");
+            None
+        };
 
         // If we have a ToB swap, our post-tob-price is the price at the end of that
         // swap, otherwise we're starting from the snapshot's current price
@@ -632,6 +660,15 @@ impl AngstromBundle {
         // Build the rewards structure for the AMM swap
         let book_swap_rewards = book_swap_vec.t0_donation(solution.reward_t0);
 
+        trace!(
+            net_t0 = book_swap_vec.d_t0,
+            net_t1 = book_swap_vec.d_t0,
+            end_price = ?book_swap_vec.end_bound.price,
+            is_bid = !book_swap_vec.zero_for_one(),
+            reward_q = book_swap_rewards.total_donated,
+            "Processing Book swap vs AMM"
+        );
+
         // If we have a TOB swap, let's get the rewards and combine them - otherwise we
         // continue to use just the rewards we got from the AMM swap
         let total_rewards = if let Some((tob_vec, tob_donation)) = tob_swap_info.as_ref() {
@@ -657,12 +694,20 @@ impl AngstromBundle {
             book_swap_vec
         };
 
+        trace!(
+            net_t0 = net_pool_vec.d_t0,
+            net_t1 = net_pool_vec.d_t0,
+            end_price = ?net_pool_vec.end_bound.price,
+            is_bid = !net_pool_vec.zero_for_one(),
+            reward_q = total_rewards.total_donated,
+            "Built net swap vec"
+        );
+
         // Account for our net_pool_vec
         let (asset_in_index, asset_out_index) =
             if net_pool_vec.zero_for_one() { (t0_idx, t1_idx) } else { (t1_idx, t0_idx) };
         let (quantity_in, quantity_out) = (net_pool_vec.input(), net_pool_vec.output());
 
-        trace!(asset_in_index, asset_out_index, quantity_in, quantity_out, "Merged swap evaluated");
         asset_builder.uniswap_swap(
             AssetBuilderStage::Swap,
             asset_in_index as usize,
@@ -675,6 +720,8 @@ impl AngstromBundle {
         // We might want to split this in some way in the future
         let total_reward = total_rewards.total_donated + total_user_fees;
         let tribute = 0_u128;
+
+        trace!(total_reward, tribute, "Allocating total reward and tribute");
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
@@ -717,6 +764,9 @@ impl AngstromBundle {
                 rewards_update:   ru
             });
         }
+
+        // Drop our span to give it purpose in life
+        drop(process_solution_span);
 
         // And we're done
         Ok(())

@@ -98,7 +98,7 @@ impl BorrowStateTracker {
 
 #[derive(Debug, Default)]
 pub struct StageTracker {
-    map: HashMap<Address, BorrowStateTracker>
+    pub(super) map: HashMap<Address, BorrowStateTracker>
 }
 
 impl StageTracker {

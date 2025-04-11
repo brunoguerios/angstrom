@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 pub type Tick = i32;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum Quantity {
     Token0(u128),
     Token1(u128)
