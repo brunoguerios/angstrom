@@ -576,7 +576,7 @@ impl AngstromBundle {
 
         trace!(
             net_t0 = book_swap_vec.d_t0,
-            net_t1 = book_swap_vec.d_t0,
+            net_t1 = book_swap_vec.d_t1,
             end_price = ?book_swap_vec.end_bound.price,
             is_bid = !book_swap_vec.zero_for_one(),
             reward_q = book_swap_rewards.total_donated,
@@ -615,7 +615,7 @@ impl AngstromBundle {
 
         trace!(
             net_t0 = net_pool_vec.d_t0,
-            net_t1 = net_pool_vec.d_t0,
+            net_t1 = net_pool_vec.d_t1,
             end_price = ?net_pool_vec.end_bound.price,
             is_bid = !net_pool_vec.zero_for_one(),
             reward_q = total_rewards.total_donated,
@@ -637,7 +637,9 @@ impl AngstromBundle {
 
         // Account for our total reward and fees
         // We might want to split this in some way in the future
-        let total_reward = total_rewards.total_donated + total_user_fees;
+        // TODO:  This kinda sucks because `total_donated` is meaningless if it's a
+        // current tick only donation.  Fix this in the future
+        let total_reward = total_rewards.get_total_donated() + total_user_fees;
         let tribute = 0_u128;
 
         trace!(total_reward, tribute, "Allocating total reward and tribute");
@@ -699,7 +701,6 @@ impl AngstromBundle {
         asset_builder: &mut AssetBuilder,
         user_orders: &mut Vec<UserOrder>
     ) -> eyre::Result<u128> {
-        trace!(user_order = ?order, "Mapping User Order");
         let order = order.unwrap();
         // Calculate our final amounts based on whether the order is in T0 or T1 context
         assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");

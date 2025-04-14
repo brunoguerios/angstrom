@@ -54,6 +54,9 @@ pub fn get_quantities_at_price(
     // Recreate our calculation that we do in the contract to make sure the numbers
     // all check out
 
+    // tracing::trace!(is_bid, exact_in, fill_amount, gas, fee, ?ray_ucp, "Detail
+    // price/quantity");
+
     match (is_bid, exact_in) {
         // ExactIn Bid - fill_amount is the exact amount of T1 being input to get a T0 output
         (true, true) => {
