@@ -20,7 +20,17 @@ pub struct AngstromConfig {
     #[clap(long, default_value = "6969", global = true)]
     pub metrics_port:        u16,
     #[clap(short, long, default_value = "https://rpc.flashbots.net")]
-    pub mev_boost_endpoints: Vec<Url>
+    pub mev_boost_endpoints: Vec<Url>,
+    /// needed to properly setup the node as we need some chain state before
+    /// starting the internal reth node
+    #[clap(short, long, default_value = "https://eth.drpc.org")]
+    pub boot_node:           String,
+    #[clap(
+        short,
+        long,
+        default_values_t = ["https://ethereum-sepolia.rpc.subquery.network/public".to_string(),"https://endpoints.omniatech.io/v1/eth/sepolia/public".to_string(),"https://sepolia.gateway.tenderly.co,https://1rpc.io/sepolia".to_string()]
+    )]
+    pub normal_nodes:        Vec<String>
 }
 
 #[derive(Debug, Clone, Deserialize)]

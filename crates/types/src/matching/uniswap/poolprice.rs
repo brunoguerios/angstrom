@@ -38,7 +38,10 @@ pub struct PoolPrice<'a> {
     /// Tick number within the current PoolRange that we're working with
     pub(crate) tick:      Tick,
     /// The ratio between Token0 and Token1
-    pub(crate) price:     SqrtPriceX96
+    pub(crate) price:     SqrtPriceX96,
+    /// the fee to swap on the pool
+    pub(crate) fee:       u32,
+    pub(crate) direction: bool
 }
 
 impl Eq for PoolPrice<'_> {}
@@ -62,14 +65,20 @@ impl Ord for PoolPrice<'_> {
 }
 
 impl<'a> PoolPrice<'a> {
-    pub fn checked_new(liq_range: LiqRangeRef<'a>, price: SqrtPriceX96, tick: i32) -> Self {
+    pub fn checked_new(
+        liq_range: LiqRangeRef<'a>,
+        price: SqrtPriceX96,
+        tick: i32,
+        fee: u32,
+        direction: bool
+    ) -> Self {
         if tick < liq_range.lower_tick || tick > liq_range.upper_tick {
             panic!("Created PoolPrice with out of range tick!");
         }
         if get_tick_at_sqrt_ratio(price.into()).unwrap() != tick {
             panic!("Created PoolPrice with price that doesn't match the given tick!");
         }
-        Self { liq_range, price, tick }
+        Self { liq_range, price, tick, fee, direction }
     }
 
     pub fn tick(&self) -> Tick {
@@ -86,6 +95,11 @@ impl<'a> PoolPrice<'a> {
 
     pub fn snapshot(&self) -> &'a PoolSnapshot {
         self.liq_range.pool_snap
+    }
+
+    pub fn no_fees(mut self) -> Self {
+        self.fee = 0;
+        self
     }
 
     /// Presuming a transaction in T0, return a new PoolPrice.  We error
@@ -172,7 +186,7 @@ impl<'a> PoolPrice<'a> {
             eyre!("Somehow have no active liquidity range despite iterationg - should never happen")
         })?;
         debug!(final_price = ?price, "Final price");
-        let new_price = PoolPrice::checked_new(liq_range, price, tick);
+        let new_price = PoolPrice::checked_new(liq_range, price, tick, self.fee, self.direction);
         Ok(new_price)
     }
 
@@ -187,7 +201,7 @@ impl<'a> PoolPrice<'a> {
     pub fn to_liq_range_upper(&self) -> eyre::Result<PoolPriceVec<'a>> {
         let end = if let Some(range) = self
             .snapshot()
-            .get_range_for_tick(self.liq_range.upper_tick)
+            .get_range_for_tick(self.liq_range.upper_tick, self.direction)
         {
             range.start_price(Direction::BuyingT0)
         } else {
@@ -196,11 +210,11 @@ impl<'a> PoolPrice<'a> {
         PoolPriceVec::from_price_range(self.clone(), end)
     }
 
-    /// Create a PoolPriceVec from the current price to the lower bound of the
-    /// liquidity range that the current price is in
-    pub fn to_liq_range_lower(&self) -> eyre::Result<PoolPriceVec<'a>> {
-        self.vec_to(SqrtPriceX96::at_tick(self.liq_range.lower_tick)?)
-    }
+    // /// Create a PoolPriceVec from the current price to the lower bound of the
+    // /// liquidity range that the current price is in
+    // pub fn to_liq_range_lower(&self) -> eyre::Result<PoolPriceVec<'a>> {
+    //     self.vec_to(SqrtPriceX96::at_tick(self.liq_range.lower_tick)?)
+    // }
 
     /// Determine the quantity of t0 needed to bring this price to the price of
     /// the given Debt
@@ -303,7 +317,9 @@ impl<'a> PoolPrice<'a> {
         let end_bound = Self {
             liq_range: LiqRangeRef { range: pool, range_idx: new_range_idx, ..self.liq_range },
             price:     closest_price,
-            tick:      get_tick_at_sqrt_ratio(closest_price.into()).ok()?
+            tick:      get_tick_at_sqrt_ratio(closest_price.into()).ok()?,
+            fee:       self.fee,
+            direction: false
         };
         Some(PoolPriceVec::new(self.clone(), end_bound))
     }
@@ -356,29 +372,9 @@ mod test {
     use alloy_primitives::U160;
 
     use crate::matching::{
-        Debt, Ray, SqrtPriceX96,
+        SqrtPriceX96,
         uniswap::{Direction, LiqRange, PoolSnapshot}
     };
-
-    #[test]
-    fn intersects_with_debt() {
-        let debt_price = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
-        let debt = Debt::new(crate::matching::DebtType::ExactOut(1_000_000_000_u128), debt_price);
-        let amm = PoolSnapshot::new(
-            10,
-            vec![LiqRange {
-                liquidity:  1_000_000_000_u128,
-                lower_tick: 99900,
-                upper_tick: 100100
-            }],
-            SqrtPriceX96::at_tick(100001).unwrap()
-        )
-        .unwrap();
-        let result = amm.current_price().intersect_with_debt(debt).unwrap();
-        println!("Result: {}", result);
-        let valid = debt.valid_for_price(amm.current_price().as_ray());
-        println!("Valid: {}", valid);
-    }
 
     #[test]
     fn can_buy_and_sell_t0() {
@@ -386,22 +382,49 @@ mod test {
             10,
             vec![
                 LiqRange {
-                    liquidity:  1_000_000_000_000_u128,
-                    lower_tick: 99900,
-                    upper_tick: 100100
+                    liquidity:      1_000_000_000_000_u128,
+                    lower_tick:     99900,
+                    upper_tick:     100100,
+                    is_tick_edge:   false,
+                    is_initialized: true,
+                    fee:            0,
+                    direction:      false
                 },
                 LiqRange {
-                    liquidity:  1_000_000_000_000_000_u128,
-                    lower_tick: 100100,
-                    upper_tick: 100200
+                    liquidity:      1_000_000_000_000_000_u128,
+                    lower_tick:     100100,
+                    upper_tick:     100200,
+                    is_tick_edge:   false,
+                    is_initialized: true,
+                    fee:            0,
+                    direction:      false
+                },
+                LiqRange {
+                    liquidity:      1_000_000_000_000_u128,
+                    lower_tick:     99900,
+                    upper_tick:     100100,
+                    is_tick_edge:   false,
+                    is_initialized: true,
+                    fee:            0,
+                    direction:      true
+                },
+                LiqRange {
+                    liquidity:      1_000_000_000_000_000_u128,
+                    lower_tick:     100100,
+                    upper_tick:     100200,
+                    is_tick_edge:   false,
+                    is_initialized: true,
+                    fee:            0,
+                    direction:      true
                 },
             ],
-            SqrtPriceX96::at_tick(100100).unwrap()
+            SqrtPriceX96::at_tick(100100).unwrap(),
+            0
         )
         .unwrap();
-        let cur_price = amm.current_price();
+        let cur_price = amm.current_price(false);
         let new_price = amm
-            .current_price()
+            .current_price(false)
             .d_t0(1000000, Direction::BuyingT0)
             .unwrap();
         assert!(new_price.price > cur_price.price, "Price didn't move up when buying T0");

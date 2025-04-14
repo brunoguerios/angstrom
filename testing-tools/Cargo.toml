@@ -10,7 +10,7 @@ exclude.workspace = true
 
 [dependencies]
 consensus.workspace = true
-angstrom-types = { workspace = true, features = ["testnet"] }
+angstrom-types.workspace = true
 angstrom-utils.workspace = true
 uniswap-v4.workspace = true
 angstrom-network.workspace = true
@@ -44,6 +44,7 @@ revm.workspace = true
 reth-chainspec.workspace = true
 reth-network-peers = { workspace = true, features = ["secp256k1"] }
 alloy-chains.workspace = true
+itertools.workspace =true
 
 
 # reth
@@ -71,7 +72,7 @@ reth-db.workspace = true
 enr = { workspace = true, features = ["serde", "k256"] }
 rand.workspace = true
 rand_distr.workspace = true
-rand_chacha = "0"
+rand_chacha = "0.3"
 secp256k1.workspace = true
 
 # misc
@@ -85,7 +86,7 @@ uniswap_v3_math.workspace = true
 create3 = { git = "https://github.com/AmanRaj1608/create3" }
 
 [features]
-default = []
+default = ["testnet"]
 testnet = ["angstrom-types/testnet", "validation/testnet"]
 testnet-sepolia = [
     "angstrom-types/testnet-sepolia",

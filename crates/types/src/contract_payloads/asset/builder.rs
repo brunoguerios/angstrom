@@ -34,6 +34,10 @@ impl AssetBuilder {
         }
     }
 
+    pub fn order_assets_properly(&mut self) {
+        self.assets.order_assets_properly();
+    }
+
     /// Uniswap swap, we 'take' everything from this
     pub fn uniswap_swap(
         &mut self,
@@ -121,7 +125,6 @@ impl AssetBuilder {
                 }
                 asset
             })
-            .sorted_by_key(|a| a.addr)
             .collect()
     }
 }

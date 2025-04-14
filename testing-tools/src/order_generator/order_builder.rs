@@ -99,14 +99,17 @@ impl OrderBuilder {
         let t_in = if zfo { token0 } else { token1 };
         let amount_specified = if zfo { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
 
-        let (amount_in, amount_out) = pool
+        let (amount0, amount1) = pool
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
 
         // amount of token zero
 
-        let amount_in = u128::try_from(amount_in.abs()).unwrap();
-        let amount_out = u128::try_from(amount_out.abs()).unwrap();
+        let mut amount_in = u128::try_from(amount0.abs()).unwrap();
+        let mut amount_out = u128::try_from(amount1.abs()).unwrap();
+        if !zfo {
+            std::mem::swap(&mut amount_in, &mut amount_out);
+        }
 
         let exact_in = rng.gen_bool(0.5);
         let modifier = rng.gen_range(0.099..=1.001);
@@ -121,7 +124,7 @@ impl OrderBuilder {
         }
 
         let deadline = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
-            + Duration::from_secs(600))
+            + Duration::from_secs(38))
         .as_secs();
 
         UserOrderBuilder::new()

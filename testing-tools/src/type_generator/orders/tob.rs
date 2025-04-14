@@ -12,6 +12,7 @@ pub struct ToBOrderBuilder {
     asset_out:    Option<Address>,
     quantity_in:  Option<u128>,
     quantity_out: Option<u128>,
+    max_gas:      Option<u128>,
     valid_block:  Option<u64>,
     signing_key:  Option<AngstromSigner>
 }
@@ -19,6 +20,10 @@ pub struct ToBOrderBuilder {
 impl ToBOrderBuilder {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn max_gas(self, gas: u128) -> Self {
+        Self { max_gas: Some(gas), ..self }
     }
 
     pub fn recipient(self, recipient: Address) -> Self {
@@ -57,14 +62,14 @@ impl ToBOrderBuilder {
             quantity_out: self.quantity_out.unwrap_or_default(),
             valid_for_block: self.valid_block.unwrap_or_default(),
             recipient: self.recipient.unwrap_or_default(),
-            max_gas_asset0: {
+            max_gas_asset0: self.max_gas.unwrap_or_else(|| {
                 // zero for 1
                 if self.asset_in < self.asset_out {
                     self.quantity_in.unwrap_or_default() / 2
                 } else {
                     self.quantity_out.unwrap_or_default() / 2
                 }
-            },
+            }),
             ..Default::default()
         };
         if let Some(signer) = self.signing_key {
