@@ -71,7 +71,6 @@ where
     }
 
     async fn generate_orders_for_block(&self) -> eyre::Result<Vec<AllOrders>> {
-        tokio::time::sleep(Duration::from_millis(15)).await;
         let mut all_orders = self.generate_book_intents().await?;
         // let mut all_orders = vec![];
         all_orders.push(black_box(self.generate_tob_intent().await?));
@@ -182,12 +181,12 @@ where
 
         let target_price = if zfo {
             uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
-                self.pool.tick - (10 * self.pool.tick_spacing)
+                self.pool.tick - (3 * self.pool.tick_spacing)
             )
             .unwrap()
         } else {
             uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(
-                self.pool.tick + (10 * self.pool.tick_spacing)
+                self.pool.tick + (3 * self.pool.tick_spacing)
             )
             .unwrap()
         };
@@ -201,12 +200,13 @@ where
         let pct = Ray::generate_ray_decimal(95, 2);
         clearing_price.mul_ray_assign(pct);
 
-        let amount = if zfo == exact_in {
-            u128::try_from(amount0.abs()).unwrap()
-        } else {
-            u128::try_from(amount1.abs()).unwrap()
-        };
+        let mut amount_in = u128::try_from(amount0.abs()).unwrap();
+        let mut amount_out = u128::try_from(amount1.abs()).unwrap();
+        if !zfo {
+            std::mem::swap(&mut amount_in, &mut amount_out);
+        }
 
+        let amount = if exact_in { amount_in } else { amount_out };
         // 2% range, should be fine given we only move 2/3 of balance at a time
         let modifier = self.random_amount_modifier_time();
         let amount = (amount as f64 * modifier) as u128;
