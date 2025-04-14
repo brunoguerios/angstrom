@@ -1,4 +1,5 @@
 use std::{
+    hint::black_box,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH}
 };
@@ -73,7 +74,7 @@ where
         tokio::time::sleep(Duration::from_millis(15)).await;
         let mut all_orders = self.generate_book_intents().await?;
         // let mut all_orders = vec![];
-        all_orders.push(self.generate_tob_intent().await?);
+        all_orders.push(black_box(self.generate_tob_intent().await?));
 
         Ok(all_orders)
     }
@@ -149,7 +150,7 @@ where
         let mut res = Vec::new();
 
         for key in &self.keys {
-            res.push(self.angstrom_signer_inner(key).await?);
+            res.push(black_box(self.angstrom_signer_inner(key).await?));
         }
 
         Ok(res)
