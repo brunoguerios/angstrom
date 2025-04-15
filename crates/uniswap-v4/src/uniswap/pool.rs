@@ -8,7 +8,7 @@ use alloy::{
     transports::Transport
 };
 use angstrom_types::{
-    matching::uniswap::{LiqRange, PoolSnapshot},
+    matching::uniswap::{LiqRange, PoolSnapshot, TickInfo},
     primitive::PoolId
 };
 use itertools::Itertools;
@@ -32,15 +32,6 @@ pub struct SwapResult {
     pub sqrt_price_x_96: U256,
     pub liquidity:       u128,
     pub tick:            i32
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct TickInfo {
-    pub liquidity_gross: u128,
-    pub liquidity_net:   i128,
-    pub initialized:     bool,
-    pub is_edge:         bool,
-    pub zfo:             bool
 }
 
 // at around 190 is when "max code size exceeded" comes up
@@ -311,90 +302,14 @@ where
         Ok((tick_data, block_number))
     }
 
-    pub fn apply_ticks(
-        &mut self,
-        direction: bool,
-        mut fetched_ticks: Vec<TickData>,
-        lower_tick: Option<I24>,
-        higher_tick: Option<I24>
-    ) {
+    pub fn apply_ticks(&mut self, direction: bool, mut fetched_ticks: Vec<TickData>) {
         fetched_ticks.sort_by_key(|k| k.tick);
-
-        let process_tick_lower = |l: I24, tick: &TickData| {
-            let tick = tick.tick;
-            (tick > l).then_some(TickData {
-                initialized:    false,
-                tick:           l,
-                liquidityNet:   0,
-                liquidityGross: 0
-            })
-        };
-
-        let process_tick_higher = |h: I24, tick: &TickData| {
-            let tick = tick.tick;
-            (tick < h).then_some(TickData {
-                initialized:    false,
-                tick:           h,
-                liquidityNet:   0,
-                liquidityGross: 0
-            })
-        };
-
-        // if we have a optional start or end tick. what we will do is
-        // create these ticks if they don't exist. this so that we can
-        // mark the end of a range within our model.
-        match (lower_tick, higher_tick) {
-            (Some(l), Some(h)) => {
-                // lower tick
-                let new_lower = fetched_ticks
-                    .first()
-                    .map(|tick| process_tick_lower(l, tick))
-                    .unwrap_or_else(|| process_tick_lower(l, &TickData::default_highest()));
-
-                let new_upper = fetched_ticks
-                    .last()
-                    .map(|tick| process_tick_higher(h, tick))
-                    .unwrap_or_else(|| process_tick_higher(h, &TickData::default_lowest()));
-
-                if let Some(new_upper) = new_upper {
-                    fetched_ticks.push(new_upper);
-                }
-
-                if let Some(new_lower) = new_lower {
-                    let mut lower = vec![new_lower];
-                    lower.extend(fetched_ticks);
-                    fetched_ticks = lower;
-                }
-            }
-            (None, Some(h)) => {
-                let new_upper = fetched_ticks
-                    .last()
-                    .map(|tick| process_tick_higher(h, tick))
-                    .unwrap_or_else(|| process_tick_higher(h, &TickData::default_lowest()));
-
-                if let Some(new_upper) = new_upper {
-                    fetched_ticks.push(new_upper);
-                }
-            }
-            (Some(l), None) => {
-                let new_lower = fetched_ticks
-                    .first()
-                    .map(|tick| process_tick_lower(l, tick))
-                    .unwrap_or_else(|| process_tick_lower(l, &TickData::default_highest()));
-
-                if let Some(new_lower) = new_lower {
-                    let mut lower = vec![new_lower];
-                    lower.extend(fetched_ticks);
-                    fetched_ticks = lower;
-                }
-            }
-            _ => {}
-        }
 
         fetched_ticks
             .into_iter()
             .unique()
-            .map(|tick| (!tick.initialized, tick))
+            // .fill_in_missing_ticks(direction, self.tick_spacing)
+            .map(|t| (!t.initialized, t))
             .for_each(|(is_edge, tick)| {
                 self.ticks.insert(
                     tick.tick.as_i32(),
@@ -406,7 +321,11 @@ where
                         zfo: direction
                     }
                 );
-                self.flip_tick_if_not_init(tick.tick.as_i32(), self.tick_spacing);
+
+                // only flip initalized ticks.
+                if !is_edge {
+                    self.flip_tick_if_not_init(tick.tick.as_i32(), self.tick_spacing);
+                }
             });
     }
 
@@ -428,7 +347,7 @@ where
             .0;
 
         // if we are zero for one, means that we need a new end tick.
-        self.apply_ticks(tick_data.zfo, ticks, None, None);
+        self.apply_ticks(tick_data.zfo, ticks);
 
         Ok(())
     }
@@ -452,11 +371,11 @@ where
             self.load_ticks_in_direction(provider.clone(), block_number, false),
         );
         let (_, _, asks) = asks?;
-        self.apply_ticks(true, asks, None, None);
+        self.apply_ticks(true, asks);
 
         let (_, _, bids) = bids?;
 
-        self.apply_ticks(false, bids, None, None);
+        self.apply_ticks(false, bids);
 
         Ok(())
     }
@@ -883,8 +802,9 @@ pub enum PoolError {
 impl<I: Iterator<Item = TickData>> TickSpaceFill for I {}
 
 pub trait TickSpaceFill: Iterator<Item = TickData> {
-    fn fill_in_missing_ticks_higher(
+    fn fill_in_missing_ticks(
         mut self,
+        zfo: bool,
         tick_spacing: i32
     ) -> impl Iterator<Item = (bool, TickData)>
     where
@@ -896,12 +816,22 @@ pub trait TickSpaceFill: Iterator<Item = TickData> {
         result.push((!current.initialized, current));
 
         for next_tick in self {
-            let mut diff = (next_tick.tick - current.tick).as_i32();
+            // going down
+            let mut diff = if zfo {
+                (current.tick - next_tick.tick).as_i32()
+            } else {
+                (next_tick.tick - current.tick).as_i32()
+            };
+
             // until we hit the tick spacing we want to create new ticks.
             let mut cnt = tick_spacing;
             while diff != tick_spacing {
                 let new_tick = TickData {
-                    tick:           current.tick + I24::unchecked_from(cnt),
+                    tick:           if zfo {
+                        current.tick - I24::unchecked_from(cnt)
+                    } else {
+                        current.tick + I24::unchecked_from(cnt)
+                    },
                     initialized:    false,
                     liquidityGross: 0,
                     liquidityNet:   0
