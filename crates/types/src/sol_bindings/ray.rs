@@ -412,8 +412,7 @@ impl Ray {
     /// output the provided amount of t0 (q).  Rounding determined by parameter
     pub fn quantity(&self, q: u128, round_up: bool) -> u128 {
         let rm = if round_up { RoundingMode::Ceiling } else { RoundingMode::Floor };
-        let product: U512 = self.0.widening_mul(U256::from(q));
-        let numerator = Natural::from_limbs_asc(product.as_limbs());
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs()) * Natural::from(q);
         let (res, _) = numerator.div_round(const_1e27(), rm);
         u128::saturating_from(&res)
     }

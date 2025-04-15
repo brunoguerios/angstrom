@@ -493,7 +493,7 @@ impl AngstromBundle {
                 outcome.is_filled() && o.is_some()
             })
         {
-            total_user_fees += total_user_fees.saturating_add(Self::apply_user_order(
+            total_user_fees = total_user_fees.saturating_add(Self::apply_user_order(
                 outcome,
                 order,
                 solution.ucp,
@@ -639,13 +639,18 @@ impl AngstromBundle {
         // We might want to split this in some way in the future
         // TODO:  This kinda sucks because `total_donated` is meaningless if it's a
         // current tick only donation.  Fix this in the future
-        let total_reward = total_rewards.get_total_donated() + total_user_fees;
+        let total_reward = total_rewards.get_total_donated();
         let tribute = 0_u128;
 
         trace!(total_reward, tribute, "Allocating total reward and tribute");
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
+        // We don't really have user fees right now but if some sneak in, let's save
+        // them.  We shouldn't call this gas fee, should overhaul this whole construct
+        // This is really wonky overall argh
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, total_user_fees);
+        asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, total_user_fees);
         // Account for our tribute
 
         // Build our PoolUpdate structures to actually report to the client

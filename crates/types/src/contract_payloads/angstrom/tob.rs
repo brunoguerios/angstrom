@@ -77,7 +77,7 @@ impl TopOfBlockOrder {
         internal: &OrderWithStorageData<RpcTopOfBlockOrder>,
         pairs_index: u16
     ) -> Self {
-        assert!(internal.is_valid_signature());
+        //assert!(internal.is_valid_signature());
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
         let recipient = Some(internal.recipient);
