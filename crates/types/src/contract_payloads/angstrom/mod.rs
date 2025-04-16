@@ -40,7 +40,8 @@ use crate::{
         RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
-    }
+    },
+    uni_structure::BaselinePoolState
 };
 
 mod order;
@@ -388,25 +389,13 @@ impl AngstromBundle {
         top_of_block_orders: &mut Vec<TopOfBlockOrder>,
         pool_updates: &mut Vec<PoolUpdate>,
         solution: &PoolSolution,
-        snapshot: &PoolSnapshot,
+        snapshot: &BaselinePoolState,
         t0: Address,
         t1: Address,
         store_index: u16,
         shared_gas: Option<U256>
     ) -> eyre::Result<()> {
         // Dump the solution
-        let json = serde_json::to_string(&(
-            solution,
-            orders_by_pool,
-            snapshot,
-            t0,
-            t1,
-            store_index,
-            shared_gas
-        ))
-        .unwrap();
-        let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
-        trace!(data = b64_output, "Raw solution data");
 
         debug!(t0 = ?t0, t1 = ?t1, pool_id = ?solution.id, "Starting processing of solution");
 
@@ -504,34 +493,23 @@ impl AngstromBundle {
             .searcher
             .as_ref()
             .and_then(|tob| TopOfBlockOrder::calc_vec_and_reward(tob, snapshot).ok());
+        let noop = snapshot.noop();
 
         // If we have a ToB swap, our post-tob-price is the price at the end of that
         // swap, otherwise we're starting from the snapshot's current price
         let post_tob_price = tob_swap_info
             .as_ref()
-            .map(|(v, _)| v.end_bound.clone())
-            .unwrap_or_else(|| {
-                // if we have no tob, its a swap from current to book.
-                if solution.ucp.is_zero() {
-                    // doesn't matter because we don't have tob or swap
-                    snapshot.current_price(true)
-                } else {
-                    let ucp: SqrtPriceX96 = solution.ucp.into();
-                    // if the price is moving down, we have a ask
-                    let is_ask = snapshot.sqrt_price_x96 >= ucp;
-                    snapshot.current_price(is_ask)
-                }
-            });
+            .map(|(v, _)| v)
+            .unwrap_or_else(|| &noop);
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
-        let book_end_price = if solution.ucp.is_zero() {
+        let book_swap_vec = if solution.ucp.is_zero() {
             post_tob_price.clone()
         } else {
             let ucp: SqrtPriceX96 = solution.ucp.into();
-            // if the price is moving down, we have a ask
-            let is_ask = snapshot.sqrt_price_x96 >= ucp;
-            snapshot.at_price(solution.ucp.into(), is_ask)?
+            let is_bid = post_tob_price.start_price >= ucp;
+            post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_bid), Some(ucp))?
         };
 
         // We then use `post_tob_price` as the start price for our book swap, just as
@@ -540,7 +518,8 @@ impl AngstromBundle {
 
         // We're making an assumption here that's valid for the Delta validator (that
         // the AMM was swapped during matching from the post_tob_price to the UCP)
-        let book_swap_vec = PoolPriceVec::from_price_range(post_tob_price, book_end_price)?;
+        // let book_swap_vec = PoolPriceVec::from_price_range(post_tob_price,
+        // book_end_price)?;
 
         // Build the rewards structure for the AMM swap
         let book_swap_rewards = book_swap_vec.t0_donation(solution.reward_t0);
@@ -700,7 +679,7 @@ impl AngstromBundle {
     pub fn from_proposal(
         proposal: &Proposal,
         _gas_details: BundleGasDetails,
-        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
     ) -> eyre::Result<Self> {
         trace!("Starting from_proposal");
         let mut top_of_block_orders = Vec::new();
@@ -798,7 +777,7 @@ impl AngstromBundle {
     pub fn for_gas_finalization(
         limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
         solutions: Vec<PoolSolution>,
-        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();

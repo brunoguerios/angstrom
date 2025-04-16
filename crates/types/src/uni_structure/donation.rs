@@ -1,28 +1,42 @@
 use std::collections::HashMap;
 
+use super::BaselinePoolState;
+use crate::contract_payloads::rewards::RewardsUpdate;
+
 pub struct DonationCalculation {
     // the amount to donate to the current tick of the pool.
     pub current_tick: u128,
+    // what direction the donate is going
+    pub direction:    bool,
     // pub current_tick: i32,
     // the amount to donate at the next tick increments
     pub rest:         HashMap<i32, u128>
 }
 
 impl DonationCalculation {
-    pub fn combine(&self, rhs: &Self) -> Self {
-        let donations = self.rest.iter().chain(rhs.rest.iter()).fold(
-            HashMap::<i32, u128>::new(),
-            |mut acc, (tick, t_amount)| {
-                acc.entry(*tick)
-                    .and_modify(|amount| *amount += t_amount)
-                    .or_insert(*t_amount);
-
-                acc
-            }
+    pub fn into_reward_updates(
+        &self,
+        snapshot: &BaselinePoolState,
+        _book: &Self
+    ) -> (RewardsUpdate, Option<RewardsUpdate>) {
+        return (
+            RewardsUpdate::CurrentOnly {
+                amount:             self.current_tick,
+                expected_liquidity: snapshot.liquidity.start_liquidity
+            },
+            None
         );
 
-        let current_tick = self.current_tick + rhs.current_tick;
-
-        Self { current_tick, rest: donations }
+        // //
+        // let pool_current_tick = snapshot.current_tick();
+        //
+        // // see if book donations are on both sides of the current tick.
+        // // this will let us know
+        //
+        // // if both tob and book didn't cross any ticks,
+        // // we can merge these into just a current
+        // if self.rest.is_empty() && book.rest.is_empty() {
+        //     RewardsUpdate {}
+        // }
     }
 }

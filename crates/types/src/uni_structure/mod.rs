@@ -1,6 +1,8 @@
 use alloy::primitives::I256;
+use alloy_primitives::U160;
 use liquidity_base::BaselineLiquidity;
 use pool_swap::{PoolSwap, PoolSwapResult};
+use uniswap_v3_math::tick_math;
 
 use crate::matching::{SqrtPriceX96, uniswap::Direction};
 
@@ -20,6 +22,10 @@ impl BaselinePoolState {
 
     pub fn fee(&self) -> u32 {
         self.fee
+    }
+
+    pub fn current_tick(&self) -> i32 {
+        self.liquidity.start_tick
     }
 
     pub fn noop<'a>(&'a self) -> PoolSwapResult<'a> {
@@ -71,5 +77,11 @@ impl BaselinePoolState {
             fee: self.fee
         }
         .swap()
+    }
+
+    pub fn checksum_for_ticks(&self, start_tick: i32, end_tick: i32) -> eyre::Result<U160> {
+        self.liquidity
+            .at_sqrt_price(tick_math::get_sqrt_ratio_at_tick(start_tick)?.into())?
+            .generate_checksum_to(end_tick)
     }
 }

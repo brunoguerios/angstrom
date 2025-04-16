@@ -121,6 +121,7 @@ impl<'a> PoolSwap<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct PoolSwapResult<'a> {
     pub fee:           u32,
     pub start_price:   SqrtPriceX96,
@@ -251,12 +252,14 @@ impl<'a> PoolSwapResult<'a> {
 
         DonationCalculation {
             current_tick: current_tick_donation,
-            rest:         donations_to_ticks
+            direction,
+            rest: donations_to_ticks
         }
     }
 }
 
 /// the step of swapping across this pool
+#[derive(Clone)]
 pub struct PoolSwapStep {
     start_price: SqrtPriceX96,
     start_tick:  i32,
