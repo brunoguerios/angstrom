@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use alloy::primitives::{U160, U256};
 use itertools::Itertools;
 use malachite::num::conversion::traits::SaturatingInto;
+use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
     bit_math,
     tick_bitmap::{next_initialized_tick_within_one_word, position},
@@ -15,7 +16,7 @@ use uniswap_v3_math::{
 use crate::matching::{SqrtPriceX96, uniswap::TickInfo};
 
 /// baseline holder for
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaselineLiquidity {
     pub(super) tick_spacing:     i32,
     pub(super) start_tick:       i32,
