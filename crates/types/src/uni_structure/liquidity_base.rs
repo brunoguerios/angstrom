@@ -15,6 +15,7 @@ use uniswap_v3_math::{
 use crate::matching::{SqrtPriceX96, uniswap::TickInfo};
 
 /// baseline holder for
+#[derive(Debug)]
 pub struct BaselineLiquidity {
     pub(super) tick_spacing:     i32,
     pub(super) start_tick:       i32,
@@ -110,7 +111,7 @@ impl BaselineLiquidity {
 /// represents the liquidity at a specified point. All operations use this
 /// object.
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LiquidityAtPoint<'a> {
     pub(super) tick_spacing:       i32,
     pub(super) current_tick:       i32,

@@ -11,6 +11,7 @@ use crate::{
 
 const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
+#[derive(Debug, Clone)]
 pub struct PoolSwap<'a> {
     pub(super) liquidity:     LiquidityAtPoint<'a>,
     /// swap to sqrt price limit
@@ -123,7 +124,7 @@ impl<'a> PoolSwap<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PoolSwapResult<'a> {
     pub fee:           u32,
     pub start_price:   SqrtPriceX96,
@@ -295,7 +296,7 @@ impl<'a> PoolSwapResult<'a> {
 }
 
 /// the step of swapping across this pool
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PoolSwapStep {
     start_price: SqrtPriceX96,
     start_tick:  i32,

@@ -10,6 +10,7 @@ pub mod donation;
 pub mod liquidity_base;
 pub mod pool_swap;
 
+#[derive(Debug, Clone)]
 pub struct BaselinePoolState {
     liquidity: BaselineLiquidity,
     fee:       u32
