@@ -95,30 +95,34 @@ impl<'a> DeltaMatcher<'a> {
         let is_bid = start_sqrt >= end_sqrt;
 
         // swap to start
-        pool.swap_to_price(I256::MAX, Direction::from_is_bid(is_bid), Some(end_sqrt));
-
-        let Ok(end_price) = start_price
-            .snapshot()
-            .at_price(end_sqrt, is_bid)
-            .map(|e| e.no_fees())
+        let Ok(res) = pool.swap_to_price(I256::MAX, Direction::from_is_bid(is_bid), Some(end_sqrt))
         else {
-            // no tob
             return Default::default();
         };
 
-        let Ok(res) = PoolPriceVec::from_price_range(start_price, end_price) else {
-            return Default::default();
-        };
-
-        trace!(?start_sqrt, ?end_sqrt, ?price, res.d_t0, res.d_t1, is_bid, "AMM swap calc");
+        trace!(
+            ?start_sqrt,
+            ?end_sqrt,
+            ?price,
+            res.total_d_t0,
+            res.total_d_t1,
+            is_bid,
+            "AMM swap calc"
+        );
         if is_bid {
             // if the amm is swapping from zero to one, it means that we need more liquidity
             // it in token 1 and less in token zero
-            (I256::try_from(res.d_t0).unwrap() * I256::MINUS_ONE, I256::try_from(res.d_t1).unwrap())
+            (
+                I256::try_from(res.total_d_t0).unwrap() * I256::MINUS_ONE,
+                I256::try_from(res.total_d_t1).unwrap()
+            )
         } else {
             // if we are one for zero, means we are adding liquidity in t0 and removing in
             // t1
-            (I256::try_from(res.d_t0).unwrap(), I256::try_from(res.d_t1).unwrap() * I256::MINUS_ONE)
+            (
+                I256::try_from(res.total_d_t0).unwrap(),
+                I256::try_from(res.total_d_t1).unwrap() * I256::MINUS_ONE
+            )
         }
     }
 
@@ -515,32 +519,17 @@ impl<'a> DeltaMatcher<'a> {
     /// Return the NetAmmOrder that moves the AMM to our UCP
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
         let end_price_sqrt = SqrtPriceX96::from(ucp);
-        let start_price = self
-            .amm_start_price
-            .clone()
-            .map(|s| s.no_fees())
-            .or_else(|| {
-                // if we have book, then we start at current
-                let book = self.book.amm()?;
-                let start = book.as_sqrtpricex96();
-                let is_bid = start >= end_price_sqrt;
-                Some(book.current_price(is_bid).no_fees())
-            })?;
+        let Some(pool) = self.amm_start_location.as_ref() else { return Default::default() };
 
-        let is_ask = start_price.as_sqrtpricex96() >= end_price_sqrt;
+        let is_bid = pool.start_price >= end_price_sqrt;
+        let direction = Direction::from_is_bid(is_bid);
 
-        let end_price = start_price
-            .snapshot()
-            .at_price(end_price_sqrt, is_ask)
-            .ok()?;
-
-        let Ok(res) = PoolPriceVec::from_price_range(start_price, end_price) else {
-            tracing::error!("Unable to create AMM movement at UCP");
-            return None;
+        let Ok(res) = pool.swap_to_price(I256::MAX, direction, Some(end_price_sqrt)) else {
+            return Default::default();
         };
 
-        let mut tob_amm = NetAmmOrder::new(Direction::from_is_bid(res.zero_for_one()));
-        tob_amm.add_quantity(res.d_t0, res.d_t1);
+        let mut tob_amm = NetAmmOrder::new(direction);
+        tob_amm.add_quantity(res.total_d_t0, res.total_d_t1);
 
         Some(tob_amm)
     }
