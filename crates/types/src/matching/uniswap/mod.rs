@@ -93,6 +93,10 @@ impl Direction {
         matches!(self, Self::BuyingT0)
     }
 
+    pub fn is_ask(&self) -> bool {
+        matches!(self, Self::SellingT0)
+    }
+
     /// Determine the direction of sale from a start and end price
     pub fn from_prices<P: Ord>(start: P, end: P) -> Self {
         match start.cmp(&end) {
