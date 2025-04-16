@@ -21,8 +21,8 @@ impl DonationCalculation {
     ) -> (RewardsUpdate, Option<RewardsUpdate>) {
         return (
             RewardsUpdate::CurrentOnly {
-                amount: self.total_donated
-                // expected_liquidity: snapshot.end_liquidity.current_liquidity
+                amount:             self.total_donated,
+                expected_liquidity: snapshot.end_liquidity.current_liquidity
             },
             None
         );
