@@ -70,7 +70,7 @@ where
     }
 
     async fn generate_orders_for_block(&self) -> eyre::Result<Vec<AllOrders>> {
-        tokio::time::sleep(Duration::from_millis(15)).await;
+        tokio::time::sleep(Duration::from_millis(1001)).await;
         let mut all_orders = self.generate_book_intents().await?;
         // let mut all_orders = vec![];
         all_orders.push(self.generate_tob_intent().await?);

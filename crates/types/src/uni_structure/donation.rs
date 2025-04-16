@@ -19,7 +19,6 @@ impl DonationCalculation {
         &self,
         snapshot: &PoolSwapResult<'_>
     ) -> (RewardsUpdate, Option<RewardsUpdate>) {
-        tracing::info!(?self.rest);
         return (
             RewardsUpdate::CurrentOnly {
                 amount:             self.total_donated,

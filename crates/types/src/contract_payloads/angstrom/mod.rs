@@ -512,7 +512,7 @@ impl AngstromBundle {
             post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_ask), Some(ucp))?
         };
 
-        tracing::info!(?solution.reward_t0, ?book_swap_vec);
+        // tracing::info!(?solution.reward_t0, ?book_swap_vec);
 
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
@@ -543,7 +543,7 @@ impl AngstromBundle {
             let net_t0 = book_swap_vec.t0_signed() + tob_vec.t0_signed();
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
-            tracing::info!(?net_t0, ?net_direction);
+            // tracing::info!(?net_t0, ?net_direction);
 
             let amount_in = if net_t0.is_negative() {
                 net_t0.unsigned_abs()
