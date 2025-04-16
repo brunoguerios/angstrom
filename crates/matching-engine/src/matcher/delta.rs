@@ -12,7 +12,8 @@ use angstrom_types::{
         RawPoolOrder, Ray,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
-    }
+    },
+    uni_structure::pool_swap::PoolSwapResult
 };
 use serde::{Deserialize, Serialize};
 use tracing::trace;
@@ -48,40 +49,31 @@ impl From<Option<OrderWithStorageData<TopOfBlockOrder>>> for DeltaMatcherToB {
 
 #[derive(Clone)]
 pub struct DeltaMatcher<'a> {
-    book:            &'a OrderBook,
-    fee:             u128,
+    book:               &'a OrderBook,
+    fee:                u128,
     /// If true, we solve for T0.  If false we solve for T1.
-    solve_for_t0:    bool,
+    solve_for_t0:       bool,
     /// changes if there is a tob or not
-    amm_start_price: Option<PoolPrice<'a>>
+    amm_start_location: Option<PoolSwapResult<'a>>
 }
 
 impl<'a> DeltaMatcher<'a> {
     pub fn new(book: &'a OrderBook, tob: DeltaMatcherToB, solve_for_t0: bool) -> Self {
-        let fee = book.amm().map(|amm| amm.get_fee()).unwrap_or_default() as u128;
-        let amm_start_price = match tob {
+        let fee = book.amm().map(|amm| amm.fee()).unwrap_or_default() as u128;
+        let amm_start_location = match tob {
             // If we have an order, apply that to the AMM start price
             DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
                 ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot)
                     .expect("Order structure should be valid and never fail")
                     .0
-                    .end_bound
             }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
-            DeltaMatcherToB::FixedShift(q, is_bid) => book.amm().and_then(|f| {
-                PoolPriceVec::from_swap(
-                    f.current_price(!is_bid).no_fees(),
-                    Direction::from_is_bid(!is_bid),
-                    q
-                )
-                .ok()
-                .map(|v| v.end_bound)
-            }),
+            DeltaMatcherToB::FixedShift(..) => panic!("not implemented"),
             // If we have no order or shift, we just use the AMM start price as-is
-            DeltaMatcherToB::None => None
+            DeltaMatcherToB::None => book.amm().map(|book| book.noop())
         };
 
-        Self { book, amm_start_price, fee, solve_for_t0 }
+        Self { book, amm_start_location, fee, solve_for_t0 }
     }
 
     fn fetch_concentrated_liquidity(&self, price: Ray) -> (I256, I256) {
@@ -93,26 +85,17 @@ impl<'a> DeltaMatcher<'a> {
 
             if price <= ray { this_price } else { MAX_SQRT_RATIO.into() }
         };
-        let Some(start_price) = self
-            .amm_start_price
-            .clone()
-            .map(|s| s.no_fees())
-            .or_else(|| {
-                // if we have book, then we start at current
-                let book = self.book.amm()?;
-                let start = book.as_sqrtpricex96();
-                let is_bid = start >= end_sqrt;
-                Some(book.current_price(is_bid).no_fees())
-            })
-        else {
-            return Default::default();
-        };
 
-        let start_sqrt = start_price.as_sqrtpricex96();
+        let Some(pool) = self.amm_start_location.as_ref() else { return Default::default() };
+
+        let start_sqrt = pool.start_price;
 
         // If the AMM price is decreasing, it is because the AMM is accepting T0 from
         // the contract.  An order that purchases T0 from the contract is a bid
         let is_bid = start_sqrt >= end_sqrt;
+
+        // swap to start
+        pool.swap_to_price(I256::MAX, Direction::from_is_bid(is_bid), Some(end_sqrt));
 
         let Ok(end_price) = start_price
             .snapshot()

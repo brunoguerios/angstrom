@@ -1,27 +1,28 @@
 //! Handles the management of baseline liquidity fetching. This will
 //! be the base, in which all other V4 related actions are built ontop of.
 
+use std::collections::HashMap;
+
 use alloy::primitives::U256;
 use itertools::Itertools;
 use malachite::num::conversion::traits::SaturatingInto;
-use std::collections::HashMap;
 use uniswap_v3_math::{
     tick_bitmap::next_initialized_tick_within_one_word,
-    tick_math::{MAX_TICK, MIN_TICK, get_tick_at_sqrt_ratio},
+    tick_math::{MAX_TICK, MIN_TICK, get_tick_at_sqrt_ratio}
 };
 
 use crate::matching::{SqrtPriceX96, uniswap::TickInfo};
 
 /// baseline holder for
 pub struct BaselineLiquidity {
-    pub(super) tick_spacing: i32,
-    pub(super) start_tick: i32,
+    pub(super) tick_spacing:     i32,
+    pub(super) start_tick:       i32,
     pub(super) start_sqrt_price: SqrtPriceX96,
-    pub(super) start_liquidity: u128,
+    pub(super) start_liquidity:  u128,
     /// should only have ticks that are initalized.
-    initialized_ticks: HashMap<i32, TickInfo>,
+    initialized_ticks:           HashMap<i32, TickInfo>,
     /// should only have ticks that are initalized, i.e have liquidity
-    tick_bitmap: HashMap<i16, U256>,
+    tick_bitmap:                 HashMap<i16, U256>
 }
 
 impl BaselineLiquidity {
@@ -31,7 +32,7 @@ impl BaselineLiquidity {
         start_sqrt_price: SqrtPriceX96,
         start_liquidity: u128,
         initialized_ticks: HashMap<i32, TickInfo>,
-        tick_bitmap: HashMap<i16, U256>,
+        tick_bitmap: HashMap<i16, U256>
     ) -> Self {
         Self {
             start_tick,
@@ -39,12 +40,12 @@ impl BaselineLiquidity {
             start_liquidity,
             initialized_ticks,
             tick_bitmap,
-            tick_spacing,
+            tick_spacing
         }
     }
 
-    /// returns a liquidity ref were the current liquidity is properly calculated
-    /// based on were the sqrt_price is at
+    /// returns a liquidity ref were the current liquidity is properly
+    /// calculated based on were the sqrt_price is at
     pub fn at_sqrt_price<'a>(&'a self, price: SqrtPriceX96) -> eyre::Result<LiquidityAtPoint<'a>> {
         // we are zero for one if the price is going down.
         let zfo = self.start_sqrt_price >= price;
@@ -56,7 +57,8 @@ impl BaselineLiquidity {
         // if we are going down
         // let current_tick = self.start_tick;
         let liquidity = if zfo {
-            // we want to sort high to low, so that as iterator is consumed, we are going down
+            // we want to sort high to low, so that as iterator is consumed, we are going
+            // down
             self.initialized_ticks
                 .iter()
                 .filter(|(t, _)| *t < &self.start_tick)
@@ -83,36 +85,37 @@ impl BaselineLiquidity {
         };
 
         Ok(LiquidityAtPoint {
-            tick_spacing: self.tick_spacing,
-            current_tick: tick_at_price,
-            current_liquidity: liquidity.unsigned_abs(),
+            tick_spacing:       self.tick_spacing,
+            current_tick:       tick_at_price,
+            current_liquidity:  liquidity.unsigned_abs(),
             current_sqrt_price: price,
-            initialized_ticks: &self.initialized_ticks,
-            tick_bitmap: &self.tick_bitmap,
+            initialized_ticks:  &self.initialized_ticks,
+            tick_bitmap:        &self.tick_bitmap
         })
     }
 
     pub fn current<'a>(&'a self) -> LiquidityAtPoint<'a> {
         LiquidityAtPoint {
-            tick_spacing: self.tick_spacing,
-            current_tick: self.start_tick,
+            tick_spacing:       self.tick_spacing,
+            current_tick:       self.start_tick,
             current_sqrt_price: self.start_sqrt_price,
-            current_liquidity: self.start_liquidity,
-            initialized_ticks: &self.initialized_ticks,
-            tick_bitmap: &self.tick_bitmap,
+            current_liquidity:  self.start_liquidity,
+            initialized_ticks:  &self.initialized_ticks,
+            tick_bitmap:        &self.tick_bitmap
         }
     }
 }
 
-/// represents the liquidity at a specified point. All operations use this object.
+/// represents the liquidity at a specified point. All operations use this
+/// object.
 #[derive(Clone)]
 pub struct LiquidityAtPoint<'a> {
-    pub(super) tick_spacing: i32,
-    pub(super) current_tick: i32,
+    pub(super) tick_spacing:       i32,
+    pub(super) current_tick:       i32,
     pub(super) current_sqrt_price: SqrtPriceX96,
-    pub(super) current_liquidity: u128,
-    initialized_ticks: &'a HashMap<i32, TickInfo>,
-    tick_bitmap: &'a HashMap<i16, U256>,
+    pub(super) current_liquidity:  u128,
+    initialized_ticks:             &'a HashMap<i32, TickInfo>,
+    tick_bitmap:                   &'a HashMap<i16, U256>
 }
 
 impl LiquidityAtPoint<'_> {
@@ -120,13 +123,13 @@ impl LiquidityAtPoint<'_> {
     /// the tick and the liquidity to swap with
     pub fn get_to_next_initialized_tick_within_one_word(
         &self,
-        direction: bool,
+        direction: bool
     ) -> eyre::Result<(i32, u128, bool)> {
         let (tick_next, init) = next_initialized_tick_within_one_word(
             self.tick_bitmap,
             self.current_tick,
             self.tick_spacing,
-            direction,
+            direction
         )?;
 
         // adjust self view
@@ -138,13 +141,13 @@ impl LiquidityAtPoint<'_> {
         sqrt_price: U256,
         direction: bool,
         full_range: bool,
-        sqrt_moved: bool,
+        sqrt_moved: bool
     ) -> eyre::Result<()> {
         let (tick_next, init) = next_initialized_tick_within_one_word(
             self.tick_bitmap,
             self.current_tick,
             self.tick_spacing,
-            direction,
+            direction
         )?;
 
         if full_range {

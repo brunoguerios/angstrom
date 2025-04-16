@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 pub struct DonationCalculation {
     // the amount to donate to the current tick of the pool.
-    pub current_tick_am: u128,
-    pub current_tick: i32,
+    pub current_tick: u128,
+    // pub current_tick: i32,
     // the amount to donate at the next tick increments
-    pub rest: HashMap<i32, u128>,
+    pub rest:         HashMap<i32, u128>
 }
 
 impl DonationCalculation {
@@ -18,7 +18,7 @@ impl DonationCalculation {
                     .or_insert(*t_amount);
 
                 acc
-            },
+            }
         );
 
         let current_tick = self.current_tick + rhs.current_tick;
