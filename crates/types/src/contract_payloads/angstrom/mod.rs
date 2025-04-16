@@ -507,8 +507,11 @@ impl AngstromBundle {
         } else {
             let ucp: SqrtPriceX96 = solution.ucp.into();
             let is_ask = post_tob_price.start_price >= ucp;
+            // grab amount in when swap to price, then from there, calculate
+            // actual values.
             post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_ask), Some(ucp))?
         };
+
         tracing::info!(?solution.reward_t0, ?book_swap_vec);
 
         // We then use `post_tob_price` as the start price for our book swap, just as
@@ -526,7 +529,9 @@ impl AngstromBundle {
         // If we have a TOB swap, let's get the rewards and combine them - otherwise we
         // continue to use just the rewards we got from the AMM swap
         let total_rewards = if let Some((tob_vec, tob_donation)) = tob_swap_info.as_ref() {
-            tob_vec.t0_donation(*tob_donation)
+            tob_vec
+                .t0_donation(*tob_donation)
+                .merge_rewards(&book_swap_rewards)
         } else {
             book_swap_rewards
         };
@@ -569,14 +574,19 @@ impl AngstromBundle {
             quantity_out
         );
 
+        // Now that we have our net pool vec, we know what the "current tick" is
+        // for the uniswap pool after our swap. Now we want to merge our t0
+        // rewards
+
         // Account for our total reward and fees
         // We might want to split this in some way in the future
         let total_reward = total_rewards.total_donated() + total_user_fees;
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
+        //
         // Account for our tribute
-        let (rewards_update, _) = total_rewards.into_reward_updates(snapshot);
+        let (rewards_update, _) = total_rewards.into_reward_updates(&net_pool_vec);
 
         // Build our PoolUpdate structures to actually report to the client
         // let (net_result, additional_result) =

@@ -1,27 +1,29 @@
 use std::collections::HashMap;
 
-use super::BaselinePoolState;
+use super::{BaselinePoolState, pool_swap::PoolSwapResult};
 use crate::contract_payloads::rewards::RewardsUpdate;
 
 pub struct DonationCalculation {
     // the amount to donate to the current tick of the pool.
-    pub current_tick: u128,
+    // pub current_tick: u128,
     // what direction the donate is going
-    pub direction:    bool,
+    // pub direction: bool,
     // pub current_tick: i32,
     // the amount to donate at the next tick increments
-    pub rest:         HashMap<i32, u128>
+    pub rest:          HashMap<i32, u128>,
+    pub total_donated: u128
 }
 
 impl DonationCalculation {
     pub fn into_reward_updates(
         &self,
-        snapshot: &BaselinePoolState // _book: &Self,
+        snapshot: &PoolSwapResult<'_>
     ) -> (RewardsUpdate, Option<RewardsUpdate>) {
+        tracing::info!(?self.rest);
         return (
             RewardsUpdate::CurrentOnly {
-                amount:             self.current_tick,
-                expected_liquidity: snapshot.liquidity.start_liquidity
+                amount:             self.total_donated,
+                expected_liquidity: snapshot.end_liquidity.current_liquidity
             },
             None
         );
@@ -39,7 +41,19 @@ impl DonationCalculation {
         // }
     }
 
+    pub fn merge_rewards(&self, rhs: &Self) -> Self {
+        let new_ticks = self.rest.iter().chain(rhs.rest.iter()).fold(
+            HashMap::<i32, u128>::new(),
+            |mut acc, (tick, am)| {
+                acc.entry(*tick).and_modify(|a| *a += am).or_insert(*am);
+                acc
+            }
+        );
+        let total_donate = self.total_donated + rhs.total_donated;
+        Self { rest: new_ticks, total_donated: total_donate }
+    }
+
     pub fn total_donated(&self) -> u128 {
-        self.current_tick
+        self.total_donated
     }
 }

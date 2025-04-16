@@ -158,6 +158,7 @@ impl<'a> PoolSwapResult<'a> {
 
     pub fn t0_donation(&self, total_donation: u128) -> DonationCalculation {
         // if end price is lower, than is zfo
+
         let direction = self.start_price >= self.end_price;
         let round_up = direction;
         let mut remaining_donation = total_donation;
@@ -225,7 +226,7 @@ impl<'a> PoolSwapResult<'a> {
 
         // the amount we donate to the current tick.
         let mut current_tick_donation = remaining_donation;
-        let donations_to_ticks = self
+        let mut donations_to_ticks = self
             .steps
             .iter()
             .filter(|s| s.init)
@@ -252,13 +253,12 @@ impl<'a> PoolSwapResult<'a> {
                 // swap to. withci
                 (step.end_tick, reward)
             })
-            .collect();
+            .collect::<std::collections::HashMap<_, _>>();
 
-        DonationCalculation {
-            current_tick: current_tick_donation,
-            direction,
-            rest: donations_to_ticks
-        }
+        // inject current_tick
+        donations_to_ticks.insert(self.start_tick, current_tick_donation);
+
+        DonationCalculation { rest: donations_to_ticks, total_donated: total_donation }
     }
 
     /// Returns the amount of T0 exchanged over this swap with a sign attached,

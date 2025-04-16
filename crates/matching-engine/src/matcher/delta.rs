@@ -5,7 +5,7 @@ use angstrom_types::{
     contract_payloads::angstrom::TopOfBlockOrder as ContractTopOfBlockOrder,
     matching::{
         SqrtPriceX96, get_quantities_at_price,
-        uniswap::{Direction, PoolPrice, PoolPriceVec, Quantity}
+        uniswap::{Direction, Quantity}
     },
     orders::{NetAmmOrder, OrderFillState, OrderOutcome, PoolSolution},
     sol_bindings::{
@@ -72,7 +72,6 @@ impl<'a> DeltaMatcher<'a> {
             // If we have no order or shift, we just use the AMM start price as-is
             DeltaMatcherToB::None => book.amm().map(|book| book.noop())
         };
-        tracing::info!(?amm_start_location);
 
         Self { book, amm_start_location, fee, solve_for_t0 }
     }
