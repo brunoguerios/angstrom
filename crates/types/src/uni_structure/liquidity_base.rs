@@ -140,6 +140,22 @@ impl LiquidityAtPoint<'_> {
         Ok((tick_next, self.current_liquidity, init))
     }
 
+    pub fn get_to_next_initialized_tick_within_one_word_from_tick(
+        &self,
+        tick: i32,
+        direction: bool
+    ) -> eyre::Result<(i32, u128, bool)> {
+        let (tick_next, init) = next_initialized_tick_within_one_word(
+            self.tick_bitmap,
+            tick,
+            self.tick_spacing,
+            direction
+        )?;
+
+        // adjust self view
+        Ok((tick_next, self.current_liquidity, init))
+    }
+
     pub fn move_to_next_tick(
         &mut self,
         sqrt_price: U256,

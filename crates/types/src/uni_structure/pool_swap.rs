@@ -158,8 +158,8 @@ impl<'a> PoolSwapResult<'a> {
 
     pub fn t0_donation(&self, total_donation: u128) -> DonationCalculation {
         // if end price is lower, than is zfo
-
         let direction = self.start_price >= self.end_price;
+
         let round_up = direction;
         let mut remaining_donation = total_donation;
 
@@ -226,7 +226,11 @@ impl<'a> PoolSwapResult<'a> {
 
         // the amount we donate to the current tick.
         let mut current_tick_donation = remaining_donation;
-        let mut donations_to_ticks = self
+
+        // the first range is the current range we in, it doesn't matter if
+        // its initialized or no
+
+        let donations_to_ticks = self
             .steps
             .iter()
             .filter(|s| s.init)
@@ -256,7 +260,7 @@ impl<'a> PoolSwapResult<'a> {
             .collect::<std::collections::HashMap<_, _>>();
 
         // inject current_tick
-        donations_to_ticks.insert(self.start_tick, current_tick_donation);
+        // donations_to_ticks.insert(start_tick_range, current_tick_donation);
 
         DonationCalculation { rest: donations_to_ticks, total_donated: total_donation }
     }
