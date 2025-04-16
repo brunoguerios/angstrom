@@ -43,7 +43,8 @@ impl<'a> PoolSwap<'a> {
 
         while amount_remaining != I256::ZERO && sqrt_price_x96 != sqrt_price_limit_x96 {
             let sqrt_price_start_x_96 = sqrt_price_x96;
-            let start_tick = self.liquidity.tick_spacing;
+            let start_tick = self.liquidity.current_tick;
+
             let (next_tick, liquidity, init) = self
                 .liquidity
                 .get_to_next_initialized_tick_within_one_word(self.direction.is_ask())?;
@@ -87,7 +88,7 @@ impl<'a> PoolSwap<'a> {
                 sqrt_price_x96,
                 self.direction.is_ask(),
                 sqrt_price_x96 == sqrt_price_next_x96,
-                sqrt_price_x96 == sqrt_price_start_x_96
+                sqrt_price_x96 != sqrt_price_start_x_96
             )?;
 
             steps.push(PoolSwapStep {

@@ -72,6 +72,7 @@ impl<'a> DeltaMatcher<'a> {
             // If we have no order or shift, we just use the AMM start price as-is
             DeltaMatcherToB::None => book.amm().map(|book| book.noop())
         };
+        tracing::info!(?amm_start_location);
 
         Self { book, amm_start_location, fee, solve_for_t0 }
     }

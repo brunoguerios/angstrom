@@ -13,7 +13,6 @@ use alloy::{
     sol_types::SolValue
 };
 use alloy_primitives::I256;
-use base64::Engine;
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -29,7 +28,6 @@ use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
-    contract_payloads::rewards::RewardsUpdate,
     matching::{
         Ray, SqrtPriceX96, get_quantities_at_price,
         uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity}
@@ -471,7 +469,7 @@ impl AngstromBundle {
                 outcome.is_filled() && o.is_some()
             })
         {
-            total_user_fees += total_user_fees.saturating_add(Self::apply_user_order(
+            total_user_fees = total_user_fees.saturating_add(Self::apply_user_order(
                 outcome,
                 order,
                 solution.ucp,
@@ -505,12 +503,13 @@ impl AngstromBundle {
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
         let book_swap_vec = if solution.ucp.is_zero() {
-            post_tob_price.clone()
+            snapshot.noop()
         } else {
             let ucp: SqrtPriceX96 = solution.ucp.into();
-            let is_bid = post_tob_price.start_price >= ucp;
-            post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_bid), Some(ucp))?
+            let is_ask = post_tob_price.start_price >= ucp;
+            post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_ask), Some(ucp))?
         };
+        tracing::info!(?solution.reward_t0, ?book_swap_vec);
 
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
@@ -535,14 +534,20 @@ impl AngstromBundle {
         // Find our net AMM vec by combining T0s.  There's not a specific reason we use
         // T0 for this, we might want to make this a bit more robust or careful
         let net_pool_vec = if let Some((tob_vec, _)) = tob_swap_info {
+            // if zero for 1 is neg
             let net_t0 = book_swap_vec.t0_signed() + tob_vec.t0_signed();
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
+            tracing::info!(?net_t0, ?net_direction);
 
-            // let quantity = Quantity::Token0(net_t0.unsigned_abs().to::<u128>());
+            let amount_in = if net_t0.is_negative() {
+                net_t0.unsigned_abs()
+            } else {
+                (book_swap_vec.t1_signed() + tob_vec.t1_signed()).unsigned_abs()
+            };
 
             snapshot
-                .swap_current_to(net_t0, net_direction, None)
+                .swap_current_to(I256::from_raw(amount_in), net_direction, None)
                 .unwrap()
                 .clone()
             // snap
