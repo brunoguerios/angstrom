@@ -16,8 +16,7 @@ pub struct DonationCalculation {
 impl DonationCalculation {
     pub fn into_reward_updates(
         &self,
-        snapshot: &BaselinePoolState
-        // _book: &Self,
+        snapshot: &BaselinePoolState // _book: &Self,
     ) -> (RewardsUpdate, Option<RewardsUpdate>) {
         return (
             RewardsUpdate::CurrentOnly {

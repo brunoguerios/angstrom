@@ -498,9 +498,9 @@ impl AngstromBundle {
         // If we have a ToB swap, our post-tob-price is the price at the end of that
         // swap, otherwise we're starting from the snapshot's current price
         let post_tob_price = tob_swap_info
-            .as_ref()
+            .clone()
             .map(|(v, _)| v)
-            .unwrap_or_else(|| &noop);
+            .unwrap_or_else(|| noop);
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
