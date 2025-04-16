@@ -527,8 +527,7 @@ impl AngstromBundle {
         // If we have a TOB swap, let's get the rewards and combine them - otherwise we
         // continue to use just the rewards we got from the AMM swap
         let total_rewards = if let Some((tob_vec, tob_donation)) = tob_swap_info.as_ref() {
-            let tob_rewards = tob_vec.t0_donation(*tob_donation);
-            book_swap_rewards.combine(&tob_rewards)?
+            tob_vec.t0_donation(*tob_donation)
         } else {
             book_swap_rewards
         };
@@ -540,16 +539,13 @@ impl AngstromBundle {
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
 
-            let quantity = Quantity::Token0(net_t0.unsigned_abs().to::<u128>());
+            // let quantity = Quantity::Token0(net_t0.unsigned_abs().to::<u128>());
 
-            // Create a poolpricevec based on this data
-            PoolPriceVec::from_swap(
-                // is_bid m
-                snapshot.current_price(!net_direction.is_bid()),
-                net_direction,
-                quantity
-            )
-            .expect("Unable to create net swap vec")
+            snapshot
+                .swap_current_to(net_t0, net_direction, None)
+                .unwrap()
+                .clone()
+            // snap
         } else {
             book_swap_vec
         };
@@ -570,20 +566,21 @@ impl AngstromBundle {
 
         // Account for our total reward and fees
         // We might want to split this in some way in the future
-        let total_reward = total_rewards.get_total_donated() + total_user_fees;
+        let total_reward = total_rewards.total_donated() + total_user_fees;
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
         // Account for our tribute
+        let (rewards_update, _) = total_rewards.into_reward_updates(snapshot);
 
         // Build our PoolUpdate structures to actually report to the client
-        let (net_result, additional_result) = total_rewards.donate_and_remainder(&net_pool_vec);
-        let rewards_update = RewardsUpdate::from_data(
-            net_pool_vec.end_bound.tick,
-            net_pool_vec.start_bound.tick,
-            snapshot,
-            &net_result
-        )?;
+        // let (net_result, additional_result) =
+        // total_rewards.donate_and_remainder(&net_pool_vec); let rewards_update
+        // = RewardsUpdate::from_data(     net_pool_vec.end_bound.tick,
+        //     net_pool_vec.start_bound.tick,
+        //     snapshot,
+        //     &net_result,
+        // )?;
 
         // The first PoolUpdate is the actual net pool swap and associated rewards
         pool_updates.push(PoolUpdate {
@@ -595,23 +592,23 @@ impl AngstromBundle {
         // If we have a second update to do for liquidity ranges on the opposite side of
         // our final price (due to combining the ToB and book swaps), we add a second
         // "null" swap here just to distribute rewards
-        if let Some(dr) = additional_result {
-            let current_tick = net_pool_vec.end_bound.tick;
-            let ru = RewardsUpdate::from_data(
-                current_tick,
-                dr.far_tick(current_tick)
-                    .expect("Unable to find far tick of range"),
-                snapshot,
-                &dr
-            )?;
-            // Push the actual swap with no reward
-            pool_updates.push(PoolUpdate {
-                zero_for_one:     false,
-                pair_index:       pair_idx as u16,
-                swap_in_quantity: 0,
-                rewards_update:   ru
-            });
-        }
+        // if let Some(dr) = additional_result {
+        //     let current_tick = net_pool_vec.end_bound.tick;
+        //     let ru = RewardsUpdate::from_data(
+        //         current_tick,
+        //         dr.far_tick(current_tick)
+        //             .expect("Unable to find far tick of range"),
+        //         snapshot,
+        //         &dr,
+        //     )?;
+        //     // Push the actual swap with no reward
+        //     pool_updates.push(PoolUpdate {
+        //         zero_for_one: false,
+        //         pair_index: pair_idx as u16,
+        //         swap_in_quantity: 0,
+        //         rewards_update: ru,
+        //     });
+        // }
 
         // And we're done
         Ok(())

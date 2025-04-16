@@ -16,8 +16,8 @@ pub struct DonationCalculation {
 impl DonationCalculation {
     pub fn into_reward_updates(
         &self,
-        snapshot: &BaselinePoolState,
-        _book: &Self
+        snapshot: &BaselinePoolState
+        // _book: &Self,
     ) -> (RewardsUpdate, Option<RewardsUpdate>) {
         return (
             RewardsUpdate::CurrentOnly {
@@ -38,5 +38,9 @@ impl DonationCalculation {
         // if self.rest.is_empty() && book.rest.is_empty() {
         //     RewardsUpdate {}
         // }
+    }
+
+    pub fn total_donated(&self) -> u128 {
+        self.current_tick
     }
 }
