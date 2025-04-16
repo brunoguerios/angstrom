@@ -95,7 +95,7 @@ impl<'a> PoolSwap<'a> {
                 start_price: sqrt_price_start_x_96.into(),
                 start_tick,
                 end_price: sqrt_price_x96.into(),
-                end_tick: self.liquidity.current_tick,
+                end_tick: next_tick,
                 init,
                 d_t0,
                 d_t1
