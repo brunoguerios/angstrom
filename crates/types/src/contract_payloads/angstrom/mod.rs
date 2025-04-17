@@ -586,7 +586,7 @@ impl AngstromBundle {
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
         //
         // Account for our tribute
-        let (rewards_update, _) = total_rewards.into_reward_updates(&net_pool_vec);
+        let (rewards_update, optional_reward) = total_rewards.into_reward_updates(&net_pool_vec);
 
         // Build our PoolUpdate structures to actually report to the client
         // let (net_result, additional_result) =
@@ -604,6 +604,15 @@ impl AngstromBundle {
             swap_in_quantity: net_pool_vec.input(),
             rewards_update
         });
+
+        if let Some(optional_reward) = optional_reward {
+            pool_updates.push(PoolUpdate {
+                zero_for_one:     false,
+                pair_index:       pair_idx as u16,
+                swap_in_quantity: 0,
+                rewards_update:   optional_reward
+            });
+        }
         // If we have a second update to do for liquidity ranges on the opposite side of
         // our final price (due to combining the ToB and book swaps), we add a second
         // "null" swap here just to distribute rewards

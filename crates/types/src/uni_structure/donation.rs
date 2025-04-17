@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use alloy_primitives::{U16, U160, aliases::I24};
+
 use super::{BaselinePoolState, pool_swap::PoolSwapResult};
 use crate::contract_payloads::rewards::RewardsUpdate;
 
@@ -19,6 +21,7 @@ impl DonationCalculation {
         &self,
         snapshot: &PoolSwapResult<'_>
     ) -> (RewardsUpdate, Option<RewardsUpdate>) {
+        // if self.rest.is_empty() {
         return (
             RewardsUpdate::CurrentOnly {
                 amount:             self.total_donated,
@@ -26,18 +29,127 @@ impl DonationCalculation {
             },
             None
         );
-
-        // //
-        // let pool_current_tick = snapshot.current_tick();
-        //
-        // // see if book donations are on both sides of the current tick.
-        // // this will let us know
-        //
-        // // if both tob and book didn't cross any ticks,
-        // // we can merge these into just a current
-        // if self.rest.is_empty() && book.rest.is_empty() {
-        //     RewardsUpdate {}
         // }
+
+        // the way we want to do this is tricky.
+        let current_tick = snapshot.end_liquidity.current_tick;
+        // we want to split this into below and above
+        let (mut lower, mut upper): (Vec<(&i32, &u128)>, Vec<(&i32, &u128)>) = self
+            .rest
+            .iter()
+            .partition(|(tick, _)| *tick <= &current_tick);
+
+        // want high to low sorting
+        upper.sort_unstable_by_key(|(t, _)| -*t);
+
+        // want low to high sorting.
+        lower.sort_unstable_by_key(|(t, _)| *t);
+
+        match (lower.is_empty(), upper.is_empty()) {
+            (true, true) => {
+                return (
+                    RewardsUpdate::CurrentOnly {
+                        amount:             self.total_donated,
+                        expected_liquidity: snapshot.end_liquidity.current_liquidity
+                    },
+                    None
+                );
+            }
+
+            (true, false) => {
+                // reward above
+                match upper.len() {
+                    1 => {
+                        return (
+                            RewardsUpdate::CurrentOnly {
+                                amount:             self.total_donated,
+                                expected_liquidity: snapshot.end_liquidity.current_liquidity
+                            },
+                            None
+                        );
+                    }
+                    _ => {
+                        // multi_tick
+                        let start_tick = I24::unchecked_from(*upper.first().unwrap().0);
+                        let start_liquidity = 0;
+                        let donate = RewardsUpdate::MultiTick {
+                            start_tick,
+                            start_liquidity,
+                            quantities: upper.iter().map(|(_, a)| **a).collect(),
+                            reward_checksum: U160::default()
+                        };
+
+                        return (donate, None);
+                    }
+                }
+            }
+            (false, true) => match lower.len() {
+                1 => {
+                    return (
+                        RewardsUpdate::CurrentOnly {
+                            amount:             self.total_donated,
+                            expected_liquidity: snapshot.end_liquidity.current_liquidity
+                        },
+                        None
+                    );
+                }
+                _ => {
+                    let start_tick = I24::unchecked_from(*lower.first().unwrap().0);
+                    let start_liquidity = 0;
+                    let donate = RewardsUpdate::MultiTick {
+                        start_tick,
+                        start_liquidity,
+                        quantities: lower.iter().map(|(_, a)| **a).collect(),
+                        reward_checksum: U160::default()
+                    };
+
+                    return (donate, None);
+                }
+            },
+            (false, false) => {
+                // split reward
+                let lower = match lower.len() {
+                    1 => RewardsUpdate::CurrentOnly {
+                        amount:             self.total_donated,
+                        expected_liquidity: snapshot.end_liquidity.current_liquidity
+                    },
+                    _ => {
+                        let start_tick = I24::unchecked_from(*lower.first().unwrap().0);
+                        let start_liquidity = 0;
+                        let donate = RewardsUpdate::MultiTick {
+                            start_tick,
+                            start_liquidity,
+                            quantities: lower.iter().map(|(_, a)| **a).collect(),
+                            reward_checksum: U160::default()
+                        };
+
+                        donate
+                    }
+                };
+
+                let upper = match upper.len() {
+                    1 => RewardsUpdate::CurrentOnly {
+                        amount:             self.total_donated,
+                        expected_liquidity: snapshot.end_liquidity.current_liquidity
+                    },
+                    _ => {
+                        // multi_tick
+                        let start_tick = I24::unchecked_from(*upper.first().unwrap().0);
+                        let start_liquidity = 0;
+                        let donate = RewardsUpdate::MultiTick {
+                            start_tick,
+                            start_liquidity,
+                            quantities: upper.iter().map(|(_, a)| **a).collect(),
+                            reward_checksum: U160::default()
+                        };
+
+                        donate
+                    }
+                };
+
+                return (lower, Some(upper));
+            }
+        }
     }
 
     pub fn merge_rewards(&self, rhs: &Self) -> Self {
