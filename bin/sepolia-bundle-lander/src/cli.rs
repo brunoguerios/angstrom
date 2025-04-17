@@ -130,6 +130,15 @@ pub struct JsonPKs {
     pub keys: Vec<String>
 }
 
+impl<'a> Deserialize<'a> for JsonPKs {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>
+    {
+        Ok(Self { keys: Deserialize::deserialize(deserializer)? })
+    }
+}
+
 pub fn init_tracing() {
     let level = Level::INFO;
 
