@@ -585,10 +585,13 @@ impl AngstromBundle {
 
         // Account for our total reward and fees
         // We might want to split this in some way in the future
-        let total_reward = total_rewards.total_donated() + total_user_fees;
+        let total_reward = total_rewards.total_donated();
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
+
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, total_user_fees);
+        asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, total_user_fees);
         //
         // Account for our tribute
         let (rewards_update, optional_reward) = total_rewards.into_reward_updates(&net_pool_vec);

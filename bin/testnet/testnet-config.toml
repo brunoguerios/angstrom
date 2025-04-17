@@ -15,11 +15,11 @@ liquidity = "34028236692"
 # weird bug were round down
 tick = 0
 
-# [[tokens_to_deploy]]
-# name = "Wrapped Bitcoin"
-# symbol = "WBTC"
-# address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
-#
+[[tokens_to_deploy]]
+name = "Wrapped Bitcoin"
+symbol = "WBTC"
+address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+
 [[tokens_to_deploy]]
 name = "Wrapped Ethereum"
 symbol = "WETH"
