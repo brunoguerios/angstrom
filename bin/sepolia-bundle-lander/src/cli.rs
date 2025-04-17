@@ -1,10 +1,9 @@
 use std::{path::PathBuf, pin::pin, sync::Arc, time::Duration};
 
-use alloy::{primitives::Address, providers::Provider, signers::local::PrivateKeySigner};
-use alloy_primitives::{B256, FixedBytes};
+use alloy::{primitives::Address, providers::Provider};
 use alloy_rpc_types::TransactionTrait;
 use angstrom_types::primitive::{
-    ANGSTROM_DOMAIN, AngstromSigner, TESTNET_ANGSTROM_ADDRESS, TESTNET_POOL_MANAGER_ADDRESS
+    ANGSTROM_DOMAIN, TESTNET_ANGSTROM_ADDRESS, TESTNET_POOL_MANAGER_ADDRESS
 };
 use futures::StreamExt;
 use jsonrpsee::http_client::HttpClientBuilder;

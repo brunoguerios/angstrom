@@ -20,9 +20,7 @@ use angstrom_types::{
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use itertools::Itertools;
-use uniswap_v4::uniswap::{
-    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_factory::V4PoolFactory
-};
+use uniswap_v4::uniswap::{pool::EnhancedUniswapPool, pool_data_loader::DataLoader};
 
 use crate::{
     approveCall,
