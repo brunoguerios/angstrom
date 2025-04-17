@@ -13,6 +13,7 @@ use alloy::{
     sol_types::SolValue
 };
 use alloy_primitives::I256;
+use base64::Engine;
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -28,6 +29,7 @@ use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
+    contract_payloads::rewards::RewardsUpdate,
     matching::{
         Ray, SqrtPriceX96, get_quantities_at_price,
         uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity}
@@ -39,7 +41,7 @@ use crate::{
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
-    uni_structure::BaselinePoolState
+    uni_structure::{BaselinePoolState, donation::DonationCalculation}
 };
 
 mod order;
@@ -514,9 +516,9 @@ impl AngstromBundle {
             match TopOfBlockOrder::calc_vec_and_reward(tob, snapshot) {
                 Ok((v, reward_q)) => {
                     trace!(
-                        net_t0 = v.d_t0,
-                        net_t1 = v.d_t1,
-                        end_price = ?v.end_bound.price,
+                        net_t0 = v.total_d_t0,
+                        net_t1 = v.total_d_t1,
+                        end_price = ?v.end_price,
                         is_bid = !v.zero_for_one(),
                         reward_q,
                         "Processing ToB swap vs AMM"
@@ -532,26 +534,40 @@ impl AngstromBundle {
             trace!("No ToB Swap vs AMM");
             None
         };
-        let noop = snapshot.noop();
 
         // If we have a ToB swap, our post-tob-price is the price at the end of that
         // swap, otherwise we're starting from the snapshot's current price
         let post_tob_price = tob_swap_info
             .clone()
             .map(|(v, _)| v)
-            .unwrap_or_else(|| noop);
+            .unwrap_or_else(|| snapshot.noop());
         tracing::info!("{:#?}", post_tob_price);
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
         let book_swap_vec = if solution.ucp.is_zero() {
-            snapshot.noop()
+            // snapshot.noop()
+            trace!("No book swap, UCP was zero");
+            None
         } else {
             let ucp: SqrtPriceX96 = solution.ucp.into();
             let is_ask = post_tob_price.start_price >= ucp;
             // grab amount in when swap to price, then from there, calculate
             // actual values.
-            post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_ask), Some(ucp))?
+            let book_swap_vec = post_tob_price.swap_to_price(
+                I256::MAX,
+                Direction::from_is_bid(is_ask),
+                Some(ucp)
+            )?;
+            trace!(
+                net_t0 = book_swap_vec.total_d_t0,
+                net_t1 = book_swap_vec.total_d_t1,
+                end_price = ?book_swap_vec.end_price,
+                is_bid = !book_swap_vec.zero_for_one(),
+                reward_q = solution.reward_t0,
+                "Processing Book swap vs AMM"
+            );
+            Some(book_swap_vec)
         };
 
         tracing::info!("{:#?}", book_swap_vec);
@@ -567,33 +583,36 @@ impl AngstromBundle {
         // let book_swap_vec = PoolPriceVec::from_price_range(post_tob_price,
         // book_end_price)?;
 
-        // Build the rewards structure for the AMM swap
-        let book_swap_rewards = book_swap_vec.t0_donation(solution.reward_t0);
-
-        trace!(
-            net_t0 = book_swap_vec.d_t0,
-            net_t1 = book_swap_vec.d_t1,
-            end_price = ?book_swap_vec.end_bound.price,
-            is_bid = !book_swap_vec.zero_for_one(),
-            reward_q = book_swap_rewards.total_donated,
-            "Processing Book swap vs AMM"
-        );
-
-        // If we have a TOB swap, let's get the rewards and combine them - otherwise we
-        // continue to use just the rewards we got from the AMM swap
-        let total_rewards = if let Some((tob_vec, tob_donation)) = tob_swap_info.as_ref() {
-            tob_vec
-                .t0_donation(*tob_donation)
-                .merge_rewards(&book_swap_rewards)
-        } else {
-            book_swap_rewards
+        // We need to do our donations in the right order - first the ToB and then the
+        // book.  So let's do that
+        let book_donation_vec = book_swap_vec
+            .as_ref()
+            .map(|bsv| bsv.t0_donation_vec(solution.reward_t0));
+        let tob_donation_vec = tob_swap_info
+            .as_ref()
+            .map(|(tob_vec, tob_d)| tob_vec.t0_donation_vec(*tob_d));
+        let donation = match (book_donation_vec, tob_donation_vec) {
+            (Some(bsv), Some(tob)) => {
+                Some(&(DonationCalculation::from_vec(&bsv))? + tob.as_slice())
+            }
+            (Some(bsv), None) => Some(DonationCalculation::from_vec(&bsv)?),
+            (None, Some(tob)) => Some(DonationCalculation::from_vec(&tob)?),
+            (None, None) => None
         };
+        let total_donation = donation
+            .as_ref()
+            .map(|d| d.total_donated)
+            .unwrap_or(solution.reward_t0);
 
         // Find our net AMM vec by combining T0s.  There's not a specific reason we use
         // T0 for this, we might want to make this a bit more robust or careful
         let net_pool_vec = if let Some((tob_vec, _)) = tob_swap_info {
             // if zero for 1 is neg
-            let net_t0 = book_swap_vec.t0_signed() + tob_vec.t0_signed();
+            let net_t0 = book_swap_vec
+                .as_ref()
+                .map(|b| b.t0_signed())
+                .unwrap_or(I256::ZERO)
+                + tob_vec.t0_signed();
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
             // tracing::info!(?net_t0, ?net_direction);
@@ -601,7 +620,12 @@ impl AngstromBundle {
             let amount_in = if net_t0.is_negative() {
                 net_t0.unsigned_abs()
             } else {
-                (book_swap_vec.t1_signed() + tob_vec.t1_signed()).unsigned_abs()
+                (book_swap_vec
+                    .as_ref()
+                    .map(|b| b.t1_signed())
+                    .unwrap_or(I256::ZERO)
+                    + tob_vec.t1_signed())
+                .unsigned_abs()
             };
 
             snapshot
@@ -610,15 +634,15 @@ impl AngstromBundle {
                 .clone()
             // snap
         } else {
-            book_swap_vec
+            book_swap_vec.unwrap_or_else(|| snapshot.noop())
         };
 
         trace!(
-            net_t0 = net_pool_vec.d_t0,
-            net_t1 = net_pool_vec.d_t1,
-            end_price = ?net_pool_vec.end_bound.price,
+            net_t0 = net_pool_vec.total_d_t0,
+            net_t1 = net_pool_vec.total_d_t1,
+            end_price = ?net_pool_vec.end_price,
             is_bid = !net_pool_vec.zero_for_one(),
-            reward_q = total_rewards.total_donated,
+            reward_q = total_donation,
             "Built net swap vec"
         );
 
@@ -641,26 +665,27 @@ impl AngstromBundle {
 
         // Account for our total reward and fees
         // We might want to split this in some way in the future
-        let total_reward = total_rewards.total_donated();
 
         // Allocate the reward quantity
-        asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, total_donation);
         // We don't really have user fees right now but if some sneak in, let's save
         // them.  We shouldn't call this gas fee, should overhaul this whole construct
         // This is really wonky overall argh
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_user_fees);
         asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, total_user_fees);
         // Account for our tribute
-        let (rewards_update, optional_reward) = total_rewards.into_reward_updates(&net_pool_vec);
 
-        // Build our PoolUpdate structures to actually report to the client
-        // let (net_result, additional_result) =
-        // total_rewards.donate_and_remainder(&net_pool_vec); let rewards_update
-        // = RewardsUpdate::from_data(     net_pool_vec.end_bound.tick,
-        //     net_pool_vec.start_bound.tick,
-        //     snapshot,
-        //     &net_result,
-        // )?;
+        let (rewards_update, optional_reward) = donation
+            .map(|d| d.into_reward_updates())
+            .unwrap_or_else(|| {
+                (
+                    RewardsUpdate::CurrentOnly {
+                        amount:             total_donation,
+                        expected_liquidity: snapshot.current_liquidity()
+                    },
+                    None
+                )
+            });
 
         // The first PoolUpdate is the actual net pool swap and associated rewards
         pool_updates.push(PoolUpdate {
@@ -678,26 +703,6 @@ impl AngstromBundle {
                 rewards_update:   optional_reward
             });
         }
-        // If we have a second update to do for liquidity ranges on the opposite side of
-        // our final price (due to combining the ToB and book swaps), we add a second
-        // "null" swap here just to distribute rewards
-        // if let Some(dr) = additional_result {
-        //     let current_tick = net_pool_vec.end_bound.tick;
-        //     let ru = RewardsUpdate::from_data(
-        //         current_tick,
-        //         dr.far_tick(current_tick)
-        //             .expect("Unable to find far tick of range"),
-        //         snapshot,
-        //         &dr,
-        //     )?;
-        //     // Push the actual swap with no reward
-        //     pool_updates.push(PoolUpdate {
-        //         zero_for_one: false,
-        //         pair_index: pair_idx as u16,
-        //         swap_in_quantity: 0,
-        //         rewards_update: ru,
-        //     });
-        // }
 
         // Drop our span to give it purpose in life
         drop(process_solution_span);

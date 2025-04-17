@@ -1,10 +1,82 @@
-use std::collections::HashMap;
+use std::{collections::VecDeque, ops::Add};
 
-use alloy_primitives::{U16, U160, aliases::I24};
+use alloy::primitives::{U160, U256, aliases::I24};
+use revm_primitives::keccak256;
 
-use super::{BaselinePoolState, pool_swap::PoolSwapResult};
 use crate::contract_payloads::rewards::RewardsUpdate;
 
+#[derive(Clone, Debug)]
+pub enum DonationType {
+    Below { high_tick: i32, donation: u128, liquidity: u128 },
+    Above { low_tick: i32, donation: u128, liquidity: u128 },
+    Current { final_tick: i32, donation: u128, liquidity: u128 }
+}
+
+impl DonationType {
+    pub fn current(final_tick: i32, donation: u128, liquidity: u128) -> Self {
+        Self::Current { final_tick, donation, liquidity }
+    }
+
+    pub fn below(high_tick: i32, donation: u128, liquidity: u128) -> Self {
+        Self::Below { high_tick, donation, liquidity }
+    }
+
+    pub fn above(low_tick: i32, donation: u128, liquidity: u128) -> Self {
+        Self::Above { low_tick, donation, liquidity }
+    }
+
+    pub fn donation(&self) -> u128 {
+        match self {
+            Self::Current { donation, .. } => *donation,
+            Self::Above { donation, .. } => *donation,
+            Self::Below { donation, .. } => *donation
+        }
+    }
+
+    pub fn liquidity(&self) -> u128 {
+        match self {
+            Self::Current { liquidity, .. } => *liquidity,
+            Self::Above { liquidity, .. } => *liquidity,
+            Self::Below { liquidity, .. } => *liquidity
+        }
+    }
+
+    pub fn tick(&self) -> i32 {
+        match self {
+            Self::Current { final_tick, .. } => *final_tick,
+            Self::Above { low_tick, .. } => *low_tick,
+            Self::Below { high_tick, .. } => *high_tick
+        }
+    }
+}
+
+impl Add<u128> for &DonationType {
+    type Output = DonationType;
+
+    fn add(self, rhs: u128) -> Self::Output {
+        match self {
+            DonationType::Below { donation: d, high_tick, liquidity } => {
+                DonationType::below(*high_tick, d + rhs, *liquidity)
+            }
+            DonationType::Above { donation: d, low_tick, liquidity } => {
+                DonationType::above(*low_tick, d + rhs, *liquidity)
+            }
+            DonationType::Current { final_tick, donation: d, liquidity } => {
+                DonationType::current(*final_tick, d + rhs, *liquidity)
+            }
+        }
+    }
+}
+
+impl Add<&DonationType> for &DonationType {
+    type Output = DonationType;
+
+    fn add(self, rhs: &DonationType) -> Self::Output {
+        rhs + self.donation()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct DonationCalculation {
     // the amount to donate to the current tick of the pool.
     // pub current_tick: u128,
@@ -12,159 +84,260 @@ pub struct DonationCalculation {
     // pub direction: bool,
     // pub current_tick: i32,
     // the amount to donate at the next tick increments
-    pub rest:          HashMap<i32, u128>,
+    pub donations:    VecDeque<DonationType>,
+    pub current_tick: i32,
+    /// Index of the "Current" element in our vector
+    pub break_idx:    usize,
+
+    /// Hash of target donation ticks to (quantity, liquidity)
+    // pub rest:          HashMap<i32, (u128, u128)>,
     pub total_donated: u128
 }
 
 impl DonationCalculation {
-    pub fn into_reward_updates(
-        &self,
-        snapshot: &PoolSwapResult<'_>
-    ) -> (RewardsUpdate, Option<RewardsUpdate>) {
-        // if self.rest.is_empty() {
-        return (
-            RewardsUpdate::CurrentOnly {
-                amount:             self.total_donated,
-                expected_liquidity: snapshot.end_liquidity.current_liquidity
-            },
-            None
+    pub fn from_vec(vec: &[DonationType]) -> eyre::Result<Self> {
+        // If we're coming from an empty vec, return an empty DonationCalculation
+        if vec.is_empty() {
+            return Ok(Self {
+                donations:     VecDeque::new(),
+                current_tick:  0,
+                break_idx:     0,
+                total_donated: 0
+            })
+        }
+        assert!(
+            vec.iter()
+                .any(|x| matches!(x, DonationType::Current { .. })),
+            "Vec does not have a 'Current' element!"
         );
-        // }
+        let (donations, break_idx) = match vec.first() {
+            Some(DonationType::Above { .. }) => {
+                (vec.iter().cloned().rev().collect::<VecDeque<_>>(), 0)
+            }
+            Some(_) => (vec.iter().cloned().collect::<VecDeque<_>>(), vec.len() - 1),
+            None => (VecDeque::new(), 0)
+        };
 
-        // the way we want to do this is tricky.
-        let current_tick = snapshot.end_liquidity.current_tick;
-        // we want to split this into below and above
-        let (mut lower, mut upper): (Vec<(&i32, &u128)>, Vec<(&i32, &u128)>) = self
-            .rest
-            .iter()
-            .partition(|(tick, _)| *tick <= &current_tick);
+        let current_tick = if let Some(DonationType::Current { final_tick, .. }) =
+            vec.get(vec.len().saturating_sub(1))
+        {
+            *final_tick
+        } else {
+            0
+        };
+        // If the first element in our vec is an Above, we need to reverse the vec
+        let total_donated = vec.iter().fold(0_u128, |acc, e| acc + e.donation());
+        Ok(Self { donations, break_idx, current_tick, total_donated })
+    }
 
-        // want high to low sorting
-        upper.sort_unstable_by_key(|(t, _)| -*t);
-
-        // want low to high sorting.
-        lower.sort_unstable_by_key(|(t, _)| *t);
-
-        match (lower.is_empty(), upper.is_empty()) {
-            (true, true) => {
-                return (
-                    RewardsUpdate::CurrentOnly {
-                        amount:             self.total_donated,
-                        expected_liquidity: snapshot.end_liquidity.current_liquidity
-                    },
-                    None
+    pub fn into_reward_updates(&self) -> (RewardsUpdate, Option<RewardsUpdate>) {
+        match (self.break_idx, self.donations.len()) {
+            (_, 0) | (_, 1) => {
+                // Whatever our break_idx is, if we have just one donation it must be just the
+                // current tick
+                let (amount, expected_liquidity) = if let Some(d) = self.donations.front() {
+                    (d.donation(), d.liquidity())
+                } else {
+                    (0, 0)
+                };
+                (RewardsUpdate::CurrentOnly { amount, expected_liquidity }, None)
+            }
+            (0, l) => {
+                // If the break_idx is 0, the entire donation vec is one side - above
+                let (start_tick, start_liquidity) = (
+                    I24::unchecked_from(self.donations[l - 1].tick()),
+                    self.donations[l - 1].liquidity()
                 );
-            }
-
-            (true, false) => {
-                // reward above
-                match upper.len() {
-                    1 => {
-                        return (
-                            RewardsUpdate::CurrentOnly {
-                                amount:             self.total_donated,
-                                expected_liquidity: snapshot.end_liquidity.current_liquidity
-                            },
-                            None
-                        );
-                    }
-                    _ => {
-                        // multi_tick
-                        let start_tick = I24::unchecked_from(*upper.first().unwrap().0);
-                        let start_liquidity = 0;
-                        let donate = RewardsUpdate::MultiTick {
-                            start_tick,
-                            start_liquidity,
-                            quantities: upper.iter().map(|(_, a)| **a).collect(),
-                            reward_checksum: U160::default()
-                        };
-
-                        return (donate, None);
-                    }
-                }
-            }
-            (false, true) => match lower.len() {
-                1 => {
-                    return (
-                        RewardsUpdate::CurrentOnly {
-                            amount:             self.total_donated,
-                            expected_liquidity: snapshot.end_liquidity.current_liquidity
-                        },
-                        None
-                    );
-                }
-                _ => {
-                    let start_tick = I24::unchecked_from(*lower.first().unwrap().0);
-                    let start_liquidity = 0;
-                    let donate = RewardsUpdate::MultiTick {
+                let quantities = self.donations.iter().rev().map(|d| d.donation()).collect();
+                let tick_iter = self
+                    .donations
+                    .iter()
+                    .rev()
+                    .take(self.donations.len() - 1)
+                    .map(|d| d.tick());
+                let liq_iter = self.donations.iter().rev().skip(1).map(|d| d.liquidity());
+                let checksum_bytes =
+                    tick_iter
+                        .zip(liq_iter)
+                        .fold([0u8; 32], |acc, (tick, liquidity)| {
+                            let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
+                            let hash_input =
+                                [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
+                            *keccak256(&hash_input)
+                        });
+                let reward_checksum = U160::from(U256::from_be_bytes(checksum_bytes) >> 96);
+                (
+                    RewardsUpdate::MultiTick {
                         start_tick,
                         start_liquidity,
-                        quantities: lower.iter().map(|(_, a)| **a).collect(),
-                        reward_checksum: U160::default()
-                    };
+                        quantities,
+                        reward_checksum
+                    },
+                    None
+                )
+            }
+            (b, l) if b == (l - 1) => {
+                // If the break_idx is the max index, the entire donation vec is below
+                let (start_tick, start_liquidity) =
+                    (I24::unchecked_from(self.donations[0].tick()), self.donations[0].liquidity());
+                let quantities = self.donations.iter().rev().map(|d| d.donation()).collect();
+                let tick_iter = self.donations.iter().take(l - 1).map(|d| d.tick());
+                let liq_iter = self.donations.iter().skip(1).map(|d| d.liquidity());
+                let checksum_bytes =
+                    tick_iter
+                        .zip(liq_iter)
+                        .fold([0u8; 32], |acc, (tick, liquidity)| {
+                            let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
+                            let hash_input =
+                                [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
+                            *keccak256(&hash_input)
+                        });
+                let reward_checksum = U160::from(U256::from_be_bytes(checksum_bytes) >> 96);
+                (
+                    RewardsUpdate::MultiTick {
+                        start_tick,
+                        start_liquidity,
+                        quantities,
+                        reward_checksum
+                    },
+                    None
+                )
+            }
+            (..) => {
+                // We have some mixed split to do
+                let mut below = self.donations.clone();
+                let self_and_above = below.split_off(self.break_idx);
+                below.push_back(self_and_above[0].clone());
 
-                    return (donate, None);
+                // Self_and_above
+                let saa_last = self_and_above.len() - 1;
+                let (start_tick, start_liquidity) = (
+                    I24::unchecked_from(self_and_above[saa_last].tick()),
+                    self_and_above[saa_last].liquidity()
+                );
+                let quantities = self_and_above.iter().rev().map(|d| d.donation()).collect();
+                let tick_iter = self_and_above.iter().take(saa_last).map(|d| d.tick());
+                let liq_iter = self_and_above.iter().skip(1).map(|d| d.liquidity());
+                let checksum_bytes =
+                    tick_iter
+                        .zip(liq_iter)
+                        .fold([0u8; 32], |acc, (tick, liquidity)| {
+                            let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
+                            let hash_input =
+                                [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
+                            *keccak256(&hash_input)
+                        });
+                let reward_checksum = U160::from(U256::from_be_bytes(checksum_bytes) >> 96);
+
+                // Below
+                let (below_start_tick, below_start_liquidity) =
+                    (I24::unchecked_from(below[0].tick()), below[0].liquidity());
+                let mut below_quantities: Vec<u128> = below.iter().map(|d| d.donation()).collect();
+                // Given that we rewarded "current" above, we can't reward it here
+                if let Some(last_q) = below_quantities.last_mut() {
+                    *last_q = 0;
                 }
-            },
-            (false, false) => {
-                // split reward
-                let lower = match lower.len() {
-                    1 => RewardsUpdate::CurrentOnly {
-                        amount:             self.total_donated,
-                        expected_liquidity: snapshot.end_liquidity.current_liquidity
-                    },
-                    _ => {
-                        let start_tick = I24::unchecked_from(*lower.first().unwrap().0);
-                        let start_liquidity = 0;
-                        let donate = RewardsUpdate::MultiTick {
-                            start_tick,
-                            start_liquidity,
-                            quantities: lower.iter().map(|(_, a)| **a).collect(),
-                            reward_checksum: U160::default()
-                        };
-
-                        donate
+                let below_tick_iter = below.iter().take(below.len() - 1).map(|d| d.tick());
+                let below_liq_iter = below.iter().skip(1).map(|d| d.liquidity());
+                let below_checksum_bytes = below_tick_iter.zip(below_liq_iter).fold(
+                    [0u8; 32],
+                    |acc, (tick, liquidity)| {
+                        let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
+                        let hash_input =
+                            [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
+                        *keccak256(&hash_input)
                     }
-                };
+                );
+                let below_reward_checksum =
+                    U160::from(U256::from_be_bytes(below_checksum_bytes) >> 96);
 
-                let upper = match upper.len() {
-                    1 => RewardsUpdate::CurrentOnly {
-                        amount:             self.total_donated,
-                        expected_liquidity: snapshot.end_liquidity.current_liquidity
+                (
+                    RewardsUpdate::MultiTick {
+                        start_tick,
+                        start_liquidity,
+                        quantities,
+                        reward_checksum
                     },
-                    _ => {
-                        // multi_tick
-                        let start_tick = I24::unchecked_from(*upper.first().unwrap().0);
-                        let start_liquidity = 0;
-                        let donate = RewardsUpdate::MultiTick {
-                            start_tick,
-                            start_liquidity,
-                            quantities: upper.iter().map(|(_, a)| **a).collect(),
-                            reward_checksum: U160::default()
-                        };
-
-                        donate
-                    }
-                };
-
-                return (lower, Some(upper));
+                    Some(RewardsUpdate::MultiTick {
+                        start_tick:      below_start_tick,
+                        start_liquidity: below_start_liquidity,
+                        quantities:      below_quantities,
+                        reward_checksum: below_reward_checksum
+                    })
+                )
             }
         }
     }
 
-    pub fn merge_rewards(&self, rhs: &Self) -> Self {
-        let new_ticks = self.rest.iter().chain(rhs.rest.iter()).fold(
-            HashMap::<i32, u128>::new(),
-            |mut acc, (tick, am)| {
-                acc.entry(*tick).and_modify(|a| *a += am).or_insert(*am);
-                acc
-            }
-        );
-        let total_donate = self.total_donated + rhs.total_donated;
-        Self { rest: new_ticks, total_donated: total_donate }
-    }
-
     pub fn total_donated(&self) -> u128 {
         self.total_donated
+    }
+}
+
+impl Add<&[DonationType]> for &DonationCalculation {
+    type Output = DonationCalculation;
+
+    fn add(self, rhs: &[DonationType]) -> Self::Output {
+        let mut donations = self.donations.clone();
+        let mut total_donated = self.total_donated;
+        let mut rel_idx = self.break_idx + 1;
+        let mut current_tick = self.current_tick;
+        for i in rhs {
+            // We always update our total_donated with the donation amount from our incoming
+            // vec
+            total_donated += i.donation();
+
+            // If our incoming donation event is "Current", this will be the end and we
+            // should set our final tick to the final tick described there
+            if let DonationType::Current { final_tick, .. } = i {
+                current_tick = *final_tick;
+            }
+            // Check to see if we are going to merge or extend
+            // if if rel_idx - 1 gets us something, we're merging
+            // if rel_idx - 1 gets us nothing, we're extending off the front
+            // If we've hit the new "Current" then update our final_tick to be that tick
+            if rel_idx == 0 {
+                // We're moving downwards and off the front edge of our storage vec, so we will
+                // just be pushing all future elements to the front of the vec and we don't need
+                // to move rel_idx anymore
+                donations.push_front(i.clone());
+            } else if let Some(entry) = donations.get_mut(rel_idx - 1) {
+                // If we're already pointing at an existing entry it needs to be combined and
+                // flipped to the new entry type
+                *entry = &*entry + i;
+                // We move rel_idx based on the type of new entry we're at
+                match i {
+                    DonationType::Above { .. } => rel_idx -= 1,
+                    DonationType::Below { .. } => rel_idx += 1,
+                    DonationType::Current { .. } => ()
+                }
+            } else {
+                // If we're up off the back edge of our storage vec, we will be pushing all
+                // future elements to the end of the vec, but we still do want to move rel_idx
+                // to point at the right end element
+                donations.push_back(i.clone());
+                rel_idx += 1;
+            }
+        }
+        // We use saturating_sub because if our rel_idx is 0, that's where it should
+        // stay
+        let break_idx = rel_idx.saturating_sub(1);
+        DonationCalculation { donations, total_donated, break_idx, current_tick }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DonationCalculation;
+
+    #[test]
+    pub fn constructs_from_empty_vec() {
+        let donation = DonationCalculation::from_vec(&vec![]).unwrap();
+        let res = donation.into_reward_updates();
+        if let (r, None) = res {
+            println!("{:?}", r);
+        } else {
+            panic!("Made the wrong thing");
+        }
     }
 }

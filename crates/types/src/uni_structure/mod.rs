@@ -30,6 +30,10 @@ impl BaselinePoolState {
         self.liquidity.start_tick
     }
 
+    pub fn current_liquidity(&self) -> u128 {
+        self.liquidity.start_liquidity
+    }
+
     pub fn noop<'a>(&'a self) -> PoolSwapResult<'a> {
         PoolSwapResult {
             fee:           self.fee,

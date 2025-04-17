@@ -1,9 +1,10 @@
 use std::ops::Neg;
 
 use alloy::primitives::{I256, U256};
+use itertools::Itertools;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
-use super::{donation::DonationCalculation, liquidity_base::LiquidityAtPoint};
+use super::{donation::DonationType, liquidity_base::LiquidityAtPoint};
 use crate::{
     matching::{SqrtPriceX96, uniswap::Direction},
     sol_bindings::Ray
@@ -97,6 +98,7 @@ impl<'a> PoolSwap<'a> {
                 end_price: sqrt_price_x96.into(),
                 end_tick: next_tick,
                 init,
+                liquidity,
                 d_t0,
                 d_t1
             });
@@ -156,7 +158,61 @@ impl<'a> PoolSwapResult<'a> {
         .swap()
     }
 
-    pub fn t0_donation(&self, total_donation: u128) -> DonationCalculation {
+    /// Reduce `PoolSwapStep`s into contiguous ranges for reward calculation.
+    /// This relies on the fact that the steps, having been inserted
+    /// as-processed, are already in order.  It will iterate over steps,
+    /// combining them until it finds a step with an initialized `end_tick`.
+    /// This symbolizes the final edge of a liquidity range.  At this point it
+    /// will emit the combined range information and continue onwards.  If we
+    /// never hit the edge of a liquidity range (the entire swap is within one
+    /// range) we will still emit that range as we can use it to perform a
+    /// current-only reward distribution.
+    fn reduce_ranges(&self, direction: bool) -> Vec<TickInterval> {
+        let mut last_initialized: Option<i32> = None;
+        self.steps
+            .iter()
+            .batching(|i| match i.next() {
+                Some(q) => {
+                    let mut acc = (q.d_t0, q.d_t1, q.end_tick, q.liquidity, q.init);
+                    while !acc.4 {
+                        if let Some(v) = i.next() {
+                            // Putting an assert here for the moment, this should always be equal
+                            // unless something WEIRD happens
+                            assert_eq!(acc.3, v.liquidity, "Mismatched liquidity in step");
+                            acc.0 += v.d_t0;
+                            acc.1 += v.d_t1;
+                            acc.2 = v.end_tick;
+                            acc.4 = v.init;
+                        } else {
+                            break;
+                        }
+                    }
+                    let final_tick = if acc.4 { Some(acc.2) } else { None };
+                    let (lower_tick, upper_tick) = if !direction {
+                        (last_initialized, final_tick)
+                    } else {
+                        (final_tick, last_initialized)
+                    };
+                    last_initialized.insert(acc.2);
+                    let stats = TickInterval {
+                        lower_tick,
+                        upper_tick,
+                        liquidity: acc.3,
+                        d_t0: acc.0,
+                        d_t1: acc.1
+                    };
+                    Some(stats)
+                }
+                None => None
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn t0_donation_vec(&self, total_donation: u128) -> Vec<DonationType> {
+        // Return nothing if we have no steps in this
+        if self.steps.is_empty() {
+            return vec![]
+        }
         // if end price is lower, than is zfo
         let direction = self.start_price >= self.end_price;
 
@@ -165,17 +221,19 @@ impl<'a> PoolSwapResult<'a> {
 
         let mut current_blob: Option<(u128, u128)> = None;
 
-        for step in &self.steps {
+        let ranges = self.reduce_ranges(direction);
+
+        for r in ranges.iter() {
             // If our current blob is empty, we can just insert the current step's stats
             // into it
             let Some((c_t0, c_t1)) = &mut current_blob else {
-                current_blob = Some((step.d_t0, step.d_t1));
+                current_blob = Some((r.d_t0, r.d_t1));
                 continue;
             };
 
             // Find the average price of our current step and get our existing blob to
             // that price
-            let target_price = step.avg_price().unwrap();
+            let target_price = r.avg_price();
             let target_t0 = target_price.inverse_quantity(*c_t1, round_up);
             // The step cost is the difference between the amount of t0 we actually moved
             // and the amount we should have moved to be at this step's average price
@@ -200,8 +258,8 @@ impl<'a> PoolSwapResult<'a> {
             if step_complete {
                 // If we had enough reward to complete this step, we continue and merge this
                 // step into the blob
-                *c_t0 += step.d_t0;
-                *c_t1 += step.d_t1;
+                *c_t0 += r.d_t0;
+                *c_t1 += r.d_t1;
             } else {
                 // If we didn't have enough reward to complete this step, we're done
                 break;
@@ -230,39 +288,41 @@ impl<'a> PoolSwapResult<'a> {
         // the first range is the current range we in, it doesn't matter if
         // its initialized or no
 
-        let donations_to_ticks = self
-            .steps
+        let last_range = ranges.len() - 1;
+        ranges
             .iter()
-            .filter(|s| s.init)
-            .map(|step| {
-                let reward = if let Some(f) = filled_price {
+            .enumerate()
+            .map(|(i, r)| {
+                let donation = if let Some(f) = filled_price {
                     // T1 is constant, so we need to know how much t0 we need
-                    let target_t0 = f.inverse_quantity(step.d_t1, round_up);
+                    let target_t0 = f.inverse_quantity(r.d_t1, round_up);
                     if direction {
                         // If the filled_price should be lower than our current price, then our
                         // target T0 is MORE than we have in this step
-                        std::cmp::min(remaining_donation, target_t0.saturating_sub(step.d_t0))
+                        std::cmp::min(remaining_donation, target_t0.saturating_sub(r.d_t0))
                     } else {
                         // If the filled_price should be higher than our current price, then our
                         // target T0 is LESS than we have in this step
-                        std::cmp::min(remaining_donation, step.d_t0.saturating_sub(target_t0))
+                        std::cmp::min(remaining_donation, r.d_t0.saturating_sub(target_t0))
                     }
                 } else {
                     0
                 };
-                remaining_donation -= reward;
-                current_tick_donation -= reward;
+                remaining_donation -= donation;
+                current_tick_donation -= donation;
 
-                // because these are based off of direction, end tick will always be the tick we
-                // swap to. withci
-                (step.end_tick, reward)
+                if i == last_range {
+                    let final_tick = self.end_tick;
+                    DonationType::current(final_tick, donation, r.liquidity)
+                } else if direction {
+                    let low_tick = r.lower_tick.unwrap();
+                    DonationType::above(low_tick, donation, r.liquidity)
+                } else {
+                    let high_tick = r.upper_tick.unwrap();
+                    DonationType::below(high_tick, donation, r.liquidity)
+                }
             })
-            .collect::<std::collections::HashMap<_, _>>();
-
-        // inject current_tick
-        // donations_to_ticks.insert(start_tick_range, current_tick_donation);
-
-        DonationCalculation { rest: donations_to_ticks, total_donated: total_donation }
+            .collect::<Vec<_>>()
     }
 
     /// Returns the amount of T0 exchanged over this swap with a sign attached,
@@ -308,6 +368,7 @@ pub struct PoolSwapStep {
     end_price:   SqrtPriceX96,
     end_tick:    i32,
     init:        bool,
+    liquidity:   u128,
     d_t0:        u128,
     d_t1:        u128
 }
@@ -323,5 +384,20 @@ impl PoolSwapStep {
 
     pub fn empty(&self) -> bool {
         self.d_t0 == 0 || self.d_t1 == 0
+    }
+}
+
+#[derive(Debug)]
+pub struct TickInterval {
+    lower_tick: Option<i32>,
+    upper_tick: Option<i32>,
+    liquidity:  u128,
+    d_t0:       u128,
+    d_t1:       u128
+}
+
+impl TickInterval {
+    pub fn avg_price(&self) -> Ray {
+        Ray::calc_price(U256::from(self.d_t0), U256::from(self.d_t1))
     }
 }
