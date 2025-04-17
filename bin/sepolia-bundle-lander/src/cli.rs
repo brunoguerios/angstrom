@@ -34,39 +34,6 @@ pub struct BundleLander {
     pub pool_manager_address: Address
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct JsonPKs {
-    pub keys: Vec<String>
-}
-
-impl<'a> Deserialize<'a> for JsonPKs {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'a>
-    {
-        let values: Vec<serde_json::Value> = Deserialize::deserialize(deserializer)?;
-
-        let keys = values
-            .into_iter()
-            .map(|val| {
-                let hex_value: B256 =
-                    if let Ok(byte_vec) = serde_json::from_value::<[u8; 32]>(val.clone()) {
-                        byte_vec.into()
-                    } else if let Ok(hex_32_string) = serde_json::from_value(val.clone()) {
-                        hex_32_string
-                    } else {
-                        return Err(eyre::eyre!("could not parse value: {val:?}"))
-                    };
-
-                Ok(format!("{hex_value:?}"))
-            })
-            .collect::<Result<Vec<AngstromSigner>, _>>()
-            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
-
-        Ok(Self { keys })
-    }
-}
-
 /// the way that the bundle lander works is by more or less wash trading back
 /// and forth on the sepolia testnet
 impl BundleLander {
@@ -158,6 +125,49 @@ impl BundleLander {
         Ok(())
     }
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JsonPKs {
+    pub keys: Vec<String>
+}
+
+impl<'a> Deserialize<'a> for JsonPKs {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>
+    {
+        let values: Vec<serde_json::Value> = Deserialize::deserialize(deserializer)?;
+
+        let keys = values
+            .into_iter()
+            .map(|val| {
+                let hex_value: B256 =
+                    if let Ok(byte_vec) = serde_json::from_value::<[u8; 32]>(val.clone()) {
+                        byte_vec.into()
+                    } else if let Ok(hex_32_string) = serde_json::from_value(val.clone()) {
+                        hex_32_string
+                    } else {
+                        return Err(eyre::eyre!("could not parse value: {val:?}"))
+                    };
+
+                Ok(format!("{hex_value:?}"))
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+
+        Ok(Self { keys })
+    }
+}
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn test_des_json_pks() {
+
+//     }
+// }
 
 pub fn init_tracing() {
     let level = Level::INFO;
