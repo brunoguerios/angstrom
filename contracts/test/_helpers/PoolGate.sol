@@ -51,7 +51,10 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         uint160 sqrtPriceLimitX96
     ) public returns (BalanceDelta delta) {
         bytes memory data = UNI_V4.unlock(
-            abi.encodeCall(this.__swap, (assetIn, assetOut, amountSpecified, sqrtPriceLimitX96))
+            abi.encodeCall(
+                this.__swap,
+                (assetIn, assetOut, amountSpecified, sqrtPriceLimitX96)
+            )
         );
         delta = abi.decode(data, (BalanceDelta));
     }
@@ -64,14 +67,19 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         uint256 liquidity,
         bytes32 salt
     ) public returns (uint256 amount0, uint256 amount1) {
-        IPoolManager.ModifyLiquidityParams memory params = IPoolManager.ModifyLiquidityParams({
-            tickLower: tickLower,
-            tickUpper: tickUpper,
-            liquidityDelta: liquidity.signed(),
-            salt: salt
-        });
-        bytes memory data =
-            UNI_V4.unlock(abi.encodeCall(this.__addLiquidity, (asset0, asset1, msg.sender, params)));
+        IPoolManager.ModifyLiquidityParams memory params = IPoolManager
+            .ModifyLiquidityParams({
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                liquidityDelta: liquidity.signed(),
+                salt: salt
+            });
+        bytes memory data = UNI_V4.unlock(
+            abi.encodeCall(
+                this.__addLiquidity,
+                (asset0, asset1, msg.sender, params)
+            )
+        );
         BalanceDelta delta = abi.decode(data, (BalanceDelta));
         amount0 = uint128(-delta.amount0());
         amount1 = uint128(-delta.amount1());
@@ -85,14 +93,18 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         uint256 liquidity,
         bytes32 salt
     ) public returns (uint256 amount0, uint256 amount1) {
-        IPoolManager.ModifyLiquidityParams memory params = IPoolManager.ModifyLiquidityParams({
-            tickLower: tickLower,
-            tickUpper: tickUpper,
-            liquidityDelta: liquidity.neg(),
-            salt: salt
-        });
+        IPoolManager.ModifyLiquidityParams memory params = IPoolManager
+            .ModifyLiquidityParams({
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                liquidityDelta: liquidity.neg(),
+                salt: salt
+            });
         bytes memory data = UNI_V4.unlock(
-            abi.encodeCall(this.__removeLiquidity, (asset0, asset1, msg.sender, params))
+            abi.encodeCall(
+                this.__removeLiquidity,
+                (asset0, asset1, msg.sender, params)
+            )
         );
         BalanceDelta delta = abi.decode(data, (BalanceDelta));
         amount0 = uint128(delta.amount0());
@@ -107,16 +119,28 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         UNI_V4.unlock(abi.encodeCall(this.__mint, (to, asset, amount)));
     }
 
-    function isInitialized(address asset0, address asset1) public view returns (bool) {
-        PoolKey memory pk = poolKey(Angstrom(hook), asset0, asset1, _tickSpacing);
+    function isInitialized(
+        address asset0,
+        address asset1
+    ) public view returns (bool) {
+        PoolKey memory pk = poolKey(
+            Angstrom(hook),
+            asset0,
+            asset1,
+            _tickSpacing
+        );
         Slot0 slot0 = UNI_V4.getSlot0(pk.toId());
         return slot0.sqrtPriceX96() != 0;
     }
 
-    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+    function unlockCallback(
+        bytes calldata data
+    ) external returns (bytes memory) {
         (bool success, bytes memory retData) = address(this).call(data);
         assembly ("memory-safe") {
-            if iszero(success) { revert(add(retData, 0x20), mload(retData)) }
+            if iszero(success) {
+                revert(add(retData, 0x20), mload(retData))
+            }
         }
         return retData;
     }
@@ -128,9 +152,17 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         uint160 sqrtPriceLimitX96
     ) public returns (BalanceDelta swapDelta) {
         bool zeroForOne = assetIn < assetOut;
-        PoolKey memory key = zeroForOne ? poolKey(assetIn, assetOut) : poolKey(assetOut, assetIn);
+        PoolKey memory key = zeroForOne
+            ? poolKey(assetIn, assetOut)
+            : poolKey(assetOut, assetIn);
         swapDelta = UNI_V4.swap(
-            key, IPoolManager.SwapParams(zeroForOne, amountSpecified, sqrtPriceLimitX96), ""
+            key,
+            IPoolManager.SwapParams(
+                zeroForOne,
+                amountSpecified,
+                sqrtPriceLimitX96
+            ),
+            ""
         );
         _clearDelta(Currency.unwrap(key.currency0), swapDelta.amount0());
         _clearDelta(Currency.unwrap(key.currency1), swapDelta.amount1());
@@ -149,7 +181,8 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         if (address(vm).code.length > 0) vm.startPrank(sender);
         BalanceDelta feeDelta;
         (callerDelta, feeDelta) = UNI_V4.modifyLiquidity(pk, params, "");
-        if (!(feeDelta.amount0() == 0 && feeDelta.amount1() == 0)) revert GettingFees();
+        if (!(feeDelta.amount0() == 0 && feeDelta.amount1() == 0))
+            revert GettingFees();
 
         if (!(callerDelta.amount0() <= 0 && callerDelta.amount1() <= 0)) {
             revert GettingTokensForAddingLiq();
@@ -164,18 +197,30 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         address sender,
         IPoolManager.ModifyLiquidityParams calldata params
     ) public returns (BalanceDelta delta) {
-        PoolKey memory pk = poolKey(Angstrom(hook), asset0, asset1, _tickSpacing);
+        PoolKey memory pk = poolKey(
+            Angstrom(hook),
+            asset0,
+            asset1,
+            _tickSpacing
+        );
         if (address(vm).code.length > 0) vm.startPrank(sender);
-        (delta,) = UNI_V4.modifyLiquidity(pk, params, "");
+        (delta, ) = UNI_V4.modifyLiquidity(pk, params, "");
 
         bytes32 delta0Slot = keccak256(abi.encode(sender, asset0));
         bytes32 delta1Slot = keccak256(abi.encode(sender, asset1));
         bytes32 rawDelta0 = UNI_V4.exttload(delta0Slot);
         bytes32 rawDelta1 = UNI_V4.exttload(delta1Slot);
-        delta = delta
-            + toBalanceDelta(int128(int256(uint256(rawDelta0))), int128(int256(uint256(rawDelta1))));
+        delta =
+            delta +
+            toBalanceDelta(
+                int128(int256(uint256(rawDelta0))),
+                int128(int256(uint256(rawDelta1)))
+            );
 
-        require(delta.amount0() >= 0 && delta.amount1() >= 0, "losing money for removing liquidity");
+        require(
+            delta.amount0() >= 0 && delta.amount1() >= 0,
+            "losing money for removing liquidity"
+        );
         _clear(asset0, asset1, delta);
 
         if (address(vm).code.length > 0) vm.stopPrank();
@@ -184,12 +229,18 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
     function __mint(address to, address asset, uint256 amount) public {
         uint256 id;
         // forgefmt: disable-next-item
-        assembly { id := asset }
+        assembly {
+            id := asset
+        }
         UNI_V4.mint(to, id, amount);
         _settleMintable(asset, amount, true);
     }
 
-    function _settleMintable(address asset, uint256 amount, bool needsSync) internal {
+    function _settleMintable(
+        address asset,
+        uint256 amount,
+        bool needsSync
+    ) internal {
         if (amount > 0) {
             if (needsSync) UNI_V4.sync(Currency.wrap(asset));
             MockERC20(asset).mint(address(UNI_V4), amount);
@@ -197,7 +248,11 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         }
     }
 
-    function _clear(address asset0, address asset1, BalanceDelta delta) internal {
+    function _clear(
+        address asset0,
+        address asset1,
+        BalanceDelta delta
+    ) internal {
         _clearDelta(asset0, delta.amount0());
         _clearDelta(asset1, delta.amount1());
     }
@@ -212,8 +267,14 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         }
     }
 
-    function poolKey(address asset0, address asset1) internal view returns (PoolKey memory) {
-        require(_tickSpacing > 0, "Must set _tickSpacing via call to tickSpacing(...) first");
+    function poolKey(
+        address asset0,
+        address asset1
+    ) internal view returns (PoolKey memory) {
+        require(
+            _tickSpacing > 0,
+            "Must set _tickSpacing via call to tickSpacing(...) first"
+        );
         return poolKey(Angstrom(hook), asset0, asset1, _tickSpacing);
     }
 }
