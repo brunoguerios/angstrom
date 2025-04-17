@@ -126,9 +126,33 @@ impl BundleLander {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonPKs {
     pub keys: Vec<String>
+}
+
+/*
+impl JsonPKs {
+    fn parse_file(file_path: &str) -> eyre::Result<Self> {
+        let file_data = std::fs::read_to_string(file_path)?;
+
+        for line in file_data.lines() {
+
+        }
+    }
+
+    fn try_des(value: serde_json::Value) -> eyre::Result<String> {
+        let hex_value: B256 =
+            if let Ok(byte_vec) = serde_json::from_value::<[u8; 32]>(value.clone()) {
+                byte_vec.into()
+            } else if let Ok(hex_32_string) = serde_json::from_value(value.clone()) {
+                hex_32_string
+            } else {
+                return Err(eyre::eyre!("could not parse value: {value:?}"))
+            };
+
+        Ok(format!("{hex_value:?}"))
+    }
 }
 
 impl<'a> Deserialize<'a> for JsonPKs {
@@ -136,38 +160,42 @@ impl<'a> Deserialize<'a> for JsonPKs {
     where
         D: serde::Deserializer<'a>
     {
-        let values: Vec<serde_json::Value> = Deserialize::deserialize(deserializer)?;
+        let value: serde_json::Value = Deserialize::deserialize(deserializer)?;
 
-        let keys = values
-            .into_iter()
-            .map(|val| {
-                let hex_value: B256 =
-                    if let Ok(byte_vec) = serde_json::from_value::<[u8; 32]>(val.clone()) {
-                        byte_vec.into()
-                    } else if let Ok(hex_32_string) = serde_json::from_value(val.clone()) {
-                        hex_32_string
-                    } else {
-                        return Err(eyre::eyre!("could not parse value: {val:?}"))
-                    };
-
-                Ok(format!("{hex_value:?}"))
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        if let Some(vec_values) = value.as_array() {
+            vec_values
+                .into_iter()
+                .map(|val| Self::try_des(val))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        } else {
+            panic!()
+        }
 
         Ok(Self { keys })
     }
 }
+    */
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
 
-//     #[test]
-//     fn test_des_json_pks() {
+    use super::*;
 
-//     }
-// }
+    #[test]
+    fn test_des_json_pks() {
+        let json_val = json!({
+            [
+                "58000c4568b84b009f212110bcaef80eae8e6c1ae4bbfb87a33b256b0f5100",
+                "58000c4568b84b009f212110bcaef80eae8e6c1ae4bbfb87a33b256b0f5100"
+            ]
+        });
+
+        let out = serde_json::from_value::<JsonPKs>(json_val);
+        assert!(out.is_ok());
+    }
+}
 
 pub fn init_tracing() {
     let level = Level::INFO;
