@@ -68,7 +68,8 @@ impl BundleWashTraderEnv {
                 cli.pool_manager_address
             );
             let mut pool = EnhancedUniswapPool::new(data_loader, 400);
-            pool.initialize(None, provider.root().into()).await?;
+            pool.initialize(Some(provider.get_block_number().await?), provider.root().into())
+                .await?;
             tracing::info!("{:#?}", pool);
             ang_pools.push(pool);
         }
