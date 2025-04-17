@@ -302,23 +302,21 @@ where
         Ok((tick_data, block_number))
     }
 
-    pub fn apply_ticks(&mut self, direction: bool, mut fetched_ticks: Vec<TickData>) {
+    pub fn apply_ticks(&mut self, mut fetched_ticks: Vec<TickData>) {
         fetched_ticks.sort_by_key(|k| k.tick);
 
         fetched_ticks
             .into_iter()
             .unique()
-            // .fill_in_missing_ticks(direction, self.tick_spacing)
+            .filter(|f| f.initialized)
             .map(|t| (!t.initialized, t))
             .for_each(|(is_edge, tick)| {
                 self.ticks.insert(
                     tick.tick.as_i32(),
                     TickInfo {
-                        initialized: tick.initialized,
+                        initialized:     tick.initialized,
                         liquidity_gross: tick.liquidityGross,
-                        liquidity_net: tick.liquidityNet,
-                        is_edge,
-                        zfo: direction
+                        liquidity_net:   tick.liquidityNet
                     }
                 );
 
@@ -347,7 +345,7 @@ where
             .0;
 
         // if we are zero for one, means that we need a new end tick.
-        self.apply_ticks(tick_data.zfo, ticks);
+        self.apply_ticks(ticks);
 
         Ok(())
     }
@@ -371,11 +369,11 @@ where
             self.load_ticks_in_direction(provider.clone(), block_number, false),
         );
         let (_, _, asks) = asks?;
-        self.apply_ticks(true, asks);
+        self.apply_ticks(asks);
 
         let (_, _, bids) = bids?;
 
-        self.apply_ticks(false, bids);
+        self.apply_ticks(bids);
 
         Ok(())
     }

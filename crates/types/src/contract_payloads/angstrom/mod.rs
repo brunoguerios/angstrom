@@ -499,6 +499,7 @@ impl AngstromBundle {
             .clone()
             .map(|(v, _)| v)
             .unwrap_or_else(|| noop);
+        tracing::info!("{:#?}", post_tob_price);
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
@@ -511,6 +512,8 @@ impl AngstromBundle {
             // actual values.
             post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_ask), Some(ucp))?
         };
+
+        tracing::info!("{:#?}", book_swap_vec);
 
         // tracing::info!(?solution.reward_t0, ?book_swap_vec);
 
@@ -559,6 +562,8 @@ impl AngstromBundle {
         } else {
             book_swap_vec
         };
+
+        tracing::info!("{:#?}", net_pool_vec);
 
         // Account for our net_pool_vec
         let (asset_in_index, asset_out_index) =

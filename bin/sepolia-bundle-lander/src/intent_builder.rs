@@ -196,8 +196,8 @@ where
 
         let mut clearing_price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
         // how much we want to reduce our price from as we don't need the exact.
-        // we shave 5% off
-        let pct = Ray::generate_ray_decimal(50, 2);
+        // we shave 70% off
+        let pct = Ray::generate_ray_decimal(30, 2);
         clearing_price.mul_ray_assign(pct);
 
         let amount = if zfo == exact_in {
