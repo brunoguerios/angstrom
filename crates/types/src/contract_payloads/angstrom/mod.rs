@@ -13,7 +13,6 @@ use alloy::{
     sol_types::SolValue
 };
 use alloy_primitives::I256;
-use base64::Engine;
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -29,7 +28,6 @@ use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
-    contract_payloads::rewards::RewardsUpdate,
     matching::{
         Ray, SqrtPriceX96, get_quantities_at_price,
         uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity}
@@ -40,7 +38,8 @@ use crate::{
         RawPoolOrder,
         grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
-    }
+    },
+    uni_structure::BaselinePoolState
 };
 
 mod order;
@@ -388,7 +387,7 @@ impl AngstromBundle {
         top_of_block_orders: &mut Vec<TopOfBlockOrder>,
         pool_updates: &mut Vec<PoolUpdate>,
         solution: &PoolSolution,
-        snapshot: &PoolSnapshot,
+        snapshot: &BaselinePoolState,
         t0: Address,
         t1: Address,
         store_index: u16,
@@ -533,35 +532,31 @@ impl AngstromBundle {
             trace!("No ToB Swap vs AMM");
             None
         };
+        let noop = snapshot.noop();
 
         // If we have a ToB swap, our post-tob-price is the price at the end of that
         // swap, otherwise we're starting from the snapshot's current price
         let post_tob_price = tob_swap_info
-            .as_ref()
-            .map(|(v, _)| v.end_bound.clone())
-            .unwrap_or_else(|| {
-                // if we have no tob, its a swap from current to book.
-                if solution.ucp.is_zero() {
-                    // doesn't matter because we don't have tob or swap
-                    snapshot.current_price(true)
-                } else {
-                    let ucp: SqrtPriceX96 = solution.ucp.into();
-                    // if the price is moving down, we have a ask
-                    let is_ask = snapshot.sqrt_price_x96 >= ucp;
-                    snapshot.current_price(is_ask)
-                }
-            });
+            .clone()
+            .map(|(v, _)| v)
+            .unwrap_or_else(|| noop);
+        tracing::info!("{:#?}", post_tob_price);
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
-        let book_end_price = if solution.ucp.is_zero() {
-            post_tob_price.clone()
+        let book_swap_vec = if solution.ucp.is_zero() {
+            snapshot.noop()
         } else {
             let ucp: SqrtPriceX96 = solution.ucp.into();
-            // if the price is moving down, we have a ask
-            let is_ask = snapshot.sqrt_price_x96 >= ucp;
-            snapshot.at_price(solution.ucp.into(), is_ask)?
+            let is_ask = post_tob_price.start_price >= ucp;
+            // grab amount in when swap to price, then from there, calculate
+            // actual values.
+            post_tob_price.swap_to_price(I256::MAX, Direction::from_is_bid(is_ask), Some(ucp))?
         };
+
+        tracing::info!("{:#?}", book_swap_vec);
+
+        // tracing::info!(?solution.reward_t0, ?book_swap_vec);
 
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
@@ -569,7 +564,8 @@ impl AngstromBundle {
 
         // We're making an assumption here that's valid for the Delta validator (that
         // the AMM was swapped during matching from the post_tob_price to the UCP)
-        let book_swap_vec = PoolPriceVec::from_price_range(post_tob_price, book_end_price)?;
+        // let book_swap_vec = PoolPriceVec::from_price_range(post_tob_price,
+        // book_end_price)?;
 
         // Build the rewards structure for the AMM swap
         let book_swap_rewards = book_swap_vec.t0_donation(solution.reward_t0);
@@ -586,8 +582,9 @@ impl AngstromBundle {
         // If we have a TOB swap, let's get the rewards and combine them - otherwise we
         // continue to use just the rewards we got from the AMM swap
         let total_rewards = if let Some((tob_vec, tob_donation)) = tob_swap_info.as_ref() {
-            let tob_rewards = tob_vec.t0_donation(*tob_donation);
-            book_swap_rewards.combine(&tob_rewards)?
+            tob_vec
+                .t0_donation(*tob_donation)
+                .merge_rewards(&book_swap_rewards)
         } else {
             book_swap_rewards
         };
@@ -595,20 +592,23 @@ impl AngstromBundle {
         // Find our net AMM vec by combining T0s.  There's not a specific reason we use
         // T0 for this, we might want to make this a bit more robust or careful
         let net_pool_vec = if let Some((tob_vec, _)) = tob_swap_info {
+            // if zero for 1 is neg
             let net_t0 = book_swap_vec.t0_signed() + tob_vec.t0_signed();
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
+            // tracing::info!(?net_t0, ?net_direction);
 
-            let quantity = Quantity::Token0(net_t0.unsigned_abs().to::<u128>());
+            let amount_in = if net_t0.is_negative() {
+                net_t0.unsigned_abs()
+            } else {
+                (book_swap_vec.t1_signed() + tob_vec.t1_signed()).unsigned_abs()
+            };
 
-            // Create a poolpricevec based on this data
-            PoolPriceVec::from_swap(
-                // is_bid m
-                snapshot.current_price(!net_direction.is_bid()),
-                net_direction,
-                quantity
-            )
-            .expect("Unable to create net swap vec")
+            snapshot
+                .swap_current_to(I256::from_raw(amount_in), net_direction, None)
+                .unwrap()
+                .clone()
+            // snap
         } else {
             book_swap_vec
         };
@@ -635,14 +635,13 @@ impl AngstromBundle {
             quantity_out
         );
 
+        // Now that we have our net pool vec, we know what the "current tick" is
+        // for the uniswap pool after our swap. Now we want to merge our t0
+        // rewards
+
         // Account for our total reward and fees
         // We might want to split this in some way in the future
-        // TODO:  This kinda sucks because `total_donated` is meaningless if it's a
-        // current tick only donation.  Fix this in the future
-        let total_reward = total_rewards.get_total_donated();
-        let tribute = 0_u128;
-
-        trace!(total_reward, tribute, "Allocating total reward and tribute");
+        let total_reward = total_rewards.total_donated();
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_reward);
@@ -652,15 +651,16 @@ impl AngstromBundle {
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_user_fees);
         asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, total_user_fees);
         // Account for our tribute
+        let (rewards_update, optional_reward) = total_rewards.into_reward_updates(&net_pool_vec);
 
         // Build our PoolUpdate structures to actually report to the client
-        let (net_result, additional_result) = total_rewards.donate_and_remainder(&net_pool_vec);
-        let rewards_update = RewardsUpdate::from_data(
-            net_pool_vec.end_bound.tick,
-            net_pool_vec.start_bound.tick,
-            snapshot,
-            &net_result
-        )?;
+        // let (net_result, additional_result) =
+        // total_rewards.donate_and_remainder(&net_pool_vec); let rewards_update
+        // = RewardsUpdate::from_data(     net_pool_vec.end_bound.tick,
+        //     net_pool_vec.start_bound.tick,
+        //     snapshot,
+        //     &net_result,
+        // )?;
 
         // The first PoolUpdate is the actual net pool swap and associated rewards
         pool_updates.push(PoolUpdate {
@@ -669,26 +669,35 @@ impl AngstromBundle {
             swap_in_quantity: net_pool_vec.input(),
             rewards_update
         });
-        // If we have a second update to do for liquidity ranges on the opposite side of
-        // our final price (due to combining the ToB and book swaps), we add a second
-        // "null" swap here just to distribute rewards
-        if let Some(dr) = additional_result {
-            let current_tick = net_pool_vec.end_bound.tick;
-            let ru = RewardsUpdate::from_data(
-                current_tick,
-                dr.far_tick(current_tick)
-                    .expect("Unable to find far tick of range"),
-                snapshot,
-                &dr
-            )?;
-            // Push the actual swap with no reward
+
+        if let Some(optional_reward) = optional_reward {
             pool_updates.push(PoolUpdate {
                 zero_for_one:     false,
                 pair_index:       pair_idx as u16,
                 swap_in_quantity: 0,
-                rewards_update:   ru
+                rewards_update:   optional_reward
             });
         }
+        // If we have a second update to do for liquidity ranges on the opposite side of
+        // our final price (due to combining the ToB and book swaps), we add a second
+        // "null" swap here just to distribute rewards
+        // if let Some(dr) = additional_result {
+        //     let current_tick = net_pool_vec.end_bound.tick;
+        //     let ru = RewardsUpdate::from_data(
+        //         current_tick,
+        //         dr.far_tick(current_tick)
+        //             .expect("Unable to find far tick of range"),
+        //         snapshot,
+        //         &dr,
+        //     )?;
+        //     // Push the actual swap with no reward
+        //     pool_updates.push(PoolUpdate {
+        //         zero_for_one: false,
+        //         pair_index: pair_idx as u16,
+        //         swap_in_quantity: 0,
+        //         rewards_update: ru,
+        //     });
+        // }
 
         // Drop our span to give it purpose in life
         drop(process_solution_span);
@@ -758,7 +767,7 @@ impl AngstromBundle {
     pub fn from_proposal(
         proposal: &Proposal,
         _gas_details: BundleGasDetails,
-        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
     ) -> eyre::Result<Self> {
         trace!("Starting from_proposal");
         let mut top_of_block_orders = Vec::new();
@@ -856,7 +865,7 @@ impl AngstromBundle {
     pub fn for_gas_finalization(
         limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
         solutions: Vec<PoolSolution>,
-        pools: &HashMap<PoolId, (Address, Address, PoolSnapshot, u16)>
+        pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();
