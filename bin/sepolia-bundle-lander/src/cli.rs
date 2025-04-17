@@ -125,7 +125,7 @@ impl BundleLander {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct JsonPKs {
     pub keys: Vec<String>
 }
