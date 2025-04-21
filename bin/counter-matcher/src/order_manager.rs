@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use alloy::{signers::SignerSync, sol_types::SolValue};
 use alloy_primitives::B256;
-use angstrom_rpc::api::OrderApiClient;
+use angstrom_rpc::{api::OrderApiClient, types::OrderSubscriptionResult};
 use angstrom_types::{
     matching::Ray,
     orders::CancelOrderRequest,
@@ -23,10 +23,10 @@ pub struct OrderManager {
 
     /// our active orders to the wallet that signed them.
     /// due to how we do accounting, we don't have to store the order
-    active_orders: HashMap<B256, usize>,
+    active_orders: HashMap<B256, (usize, AllOrders)>,
     /// map of user order to our active counter order
     user_orders:   HashMap<B256, B256>,
-    client:        WsClient
+    client:        Arc<WsClient>
 }
 
 impl OrderManager {
@@ -34,7 +34,7 @@ impl OrderManager {
         block_number: u64,
         provider: Arc<ProviderType>,
         wallets: Vec<WalletAccounting>,
-        client: WsClient
+        client: Arc<WsClient>
     ) -> Self {
         Self {
             block_number,
@@ -55,6 +55,20 @@ impl OrderManager {
         self.block_number = block_number;
     }
 
+    pub async fn handle_event(&mut self, event: OrderSubscriptionResult) {
+        match event {
+            OrderSubscriptionResult::NewOrder(order) => {
+                self.on_new_order(order).await;
+            }
+            OrderSubscriptionResult::FilledOrder(_, order) => self.on_filled_order(order).await,
+            OrderSubscriptionResult::ExpiredOrder(hash) => {
+                self.on_expired_order(hash);
+            }
+            OrderSubscriptionResult::CancelledOrder(hash) => self.on_order_cancel(hash).await,
+            _ => unreachable!()
+        }
+    }
+
     /// handles when a new order is pulled from the stream.
     pub async fn on_new_order(&mut self, order: AllOrders) {
         let hash = order.order_hash();
@@ -69,9 +83,9 @@ impl OrderManager {
     pub fn on_expired_order(&mut self, hash: B256) {
         // we never have to worry about a user order
         // being expired as we match our expires to our counter orders
-        if let Some(index) = self.active_orders.remove(&hash) {
+        if let Some((index, order)) = self.active_orders.remove(&hash) {
             let wallet = &mut self.wallets[index];
-            wallet.try_remove_order(&hash);
+            wallet.remove_order(order.token_in(), &hash);
             return;
         }
 
@@ -86,7 +100,7 @@ impl OrderManager {
             return;
         };
 
-        if let Some(index) = self.active_orders.remove(&hash) {
+        if let Some((index, _)) = self.active_orders.remove(&hash) {
             let wallet = &mut self.wallets[index];
             wallet.remove_order(order.token_in(), &hash);
         }
@@ -95,11 +109,9 @@ impl OrderManager {
         self.user_orders.remove(&hash);
     }
 
-    pub async fn on_order_cancel(&mut self, order: AllOrders) {
-        let hash = order.order_hash();
-
+    pub async fn on_order_cancel(&mut self, hash: B256) {
         let Some(our_hash) = self.user_orders.remove(&hash) else { return };
-        let Some(wallet) = self.active_orders.remove(&our_hash) else { return };
+        let Some((wallet, order)) = self.active_orders.remove(&our_hash) else { return };
 
         let order_wallet = &mut self.wallets[wallet];
         let addr = order_wallet.pk.address();
@@ -209,7 +221,8 @@ impl OrderManager {
 
         self.user_orders
             .insert(placed_user_order.order_hash(), our_order_hash);
-        self.active_orders.insert(our_order_hash, wallet_index);
+        self.active_orders
+            .insert(our_order_hash, (wallet_index, order.clone()));
 
         let res = self.client.send_order(order).await.unwrap();
 

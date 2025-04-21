@@ -1,16 +1,20 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, pin::pin, sync::Arc, time::Duration};
 
+use accounting::WalletAccounting;
+use alloy::providers::Provider;
 use angstrom_rpc::{
     api::OrderApiClient,
     types::{OrderSubscriptionFilter, OrderSubscriptionKind}
 };
-use angstrom_types::primitive::{ANGSTROM_DOMAIN, TESTNET_ANGSTROM_ADDRESS};
+use angstrom_types::primitive::ANGSTROM_DOMAIN;
 use clap::Parser;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
+use itertools::Itertools;
 use jsonrpsee::{
     http_client::HttpClientBuilder,
     ws_client::{PingConfig, WsClientBuilder}
 };
+use order_manager::OrderManager;
 use reth::tasks::TaskExecutor;
 use sepolia_bundle_lander::{
     cli::{BundleLander, JsonPKs},
@@ -38,27 +42,79 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
     let keys: JsonPKs = serde_json::from_str(&std::fs::read_to_string(&cfg.testing_private_keys)?)?;
     let env = BundleWashTraderEnv::init(&cfg, keys).await?;
 
-    let ws = WsClientBuilder::new()
-        .enable_ws_ping(PingConfig::default())
-        .build(cfg.node_endpoint.as_str())
-        .await
-        .expect("node endpoint must be WS");
+    executor
+        .spawn_critical("counter matcher", async move {
+            let ws = Arc::new(
+                WsClientBuilder::new()
+                    .enable_ws_ping(PingConfig::default())
+                    .build(cfg.node_endpoint.as_str())
+                    .await
+                    .expect("node endpoint must be WS")
+            );
 
-    let mut filters = HashSet::new();
-    let mut subscriptions = HashSet::new();
+            let BundleWashTraderEnv { keys, provider, pools } = env;
+            let all_tokens = pools
+                .iter()
+                .flat_map(|pool| [pool.token0, pool.token1])
+                .unique()
+                .collect::<Vec<_>>();
 
-    filters.insert(OrderSubscriptionFilter::None);
-    subscriptions.insert(OrderSubscriptionKind::NewOrders);
-    subscriptions.insert(OrderSubscriptionKind::FilledOrders);
-    subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
-    subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
+            let block_subscription = provider
+                .clone()
+                .watch_blocks()
+                .await
+                .unwrap()
+                .with_poll_interval(Duration::from_millis(50))
+                .into_stream()
+                .flat_map(futures::stream::iter)
+                .then(|hash| {
+                    let provider_c = provider.clone();
+                    async move { provider_c.get_block_by_hash(hash).hashes().await }
+                });
+            let mut block_sub = pin!(block_subscription);
 
-    let sub = ws
-        .subscribe_orders(subscriptions, filters)
-        .await
-        .unwrap()
-        .into_stream();
+            let Some(Ok(Some(current_block))) = block_sub.next().await else {
+                tracing::error!("couldn't fetch next block");
+                return;
+            };
+            // spawn up wallets
 
+            let bn = current_block.header.number;
+            let mut wallet_acc = Vec::new();
+            for signer in keys {
+                wallet_acc.push(
+                    WalletAccounting::new(bn, signer, all_tokens.clone(), provider.clone()).await
+                );
+            }
+            let mut order_manager = OrderManager::new(bn, provider.clone(), wallet_acc, ws.clone());
+
+            let mut filters = HashSet::new();
+            let mut subscriptions = HashSet::new();
+
+            filters.insert(OrderSubscriptionFilter::None);
+            subscriptions.insert(OrderSubscriptionKind::NewOrders);
+            subscriptions.insert(OrderSubscriptionKind::FilledOrders);
+            subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
+            subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
+
+            let mut sub = ws
+                .subscribe_orders(subscriptions, filters)
+                .await
+                .unwrap()
+                .into_stream();
+
+            loop {
+                tokio::select! {
+                     Some(Ok(event)) = sub.next() => {
+                         order_manager.handle_event(event).await;
+                    }
+                     Some(Ok(Some(block))) = block_sub.next() => {
+                         order_manager.new_block(block.header.number).await;
+                     }
+                }
+            }
+        })
+        .await?;
     Ok(())
 }
 

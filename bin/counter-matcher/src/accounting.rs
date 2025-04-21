@@ -3,10 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use alloy::{network::TransactionBuilder, providers::Provider, sol_types::SolCall};
 use alloy_primitives::{Address, B256, TxKind};
 use alloy_rpc_types::TransactionRequest;
-use angstrom_types::{
-    primitive::AngstromSigner,
-    sol_bindings::{RawPoolOrder, grouped_orders::AllOrders}
-};
+use angstrom_types::primitive::AngstromSigner;
 use sepolia_bundle_lander::env::ProviderType;
 
 // fetch balances.
@@ -72,15 +69,6 @@ impl WalletAccounting {
             .entry(token)
             .or_default()
             .insert(order_id, amount);
-    }
-
-    /// less efficient but need for some ops
-    pub fn try_remove_order(&mut self, order_id: &B256) {
-        self.pending_adjustments.retain(|_, inner| {
-            inner.remove(order_id);
-
-            !inner.is_empty()
-        });
     }
 
     pub fn remove_order(&mut self, token: Address, order_id: &B256) {
