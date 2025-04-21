@@ -249,9 +249,8 @@ contract ControllerV1 is Ownable {
     }
 
     function _checkOwnerOrNode() internal view {
-        if (msg.sender == msg.sender) return;
-        // if (owner() == msg.sender) return;
-        // if (_nodes.contains(msg.sender)) return;
+        if (owner() == msg.sender) return;
+        if (_nodes.contains(msg.sender)) return;
         revert NotNodeOrOwner();
     }
 }
