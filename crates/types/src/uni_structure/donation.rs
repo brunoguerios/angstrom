@@ -130,6 +130,22 @@ impl DonationCalculation {
         Ok(Self { donations, break_idx, current_tick, total_donated })
     }
 
+    fn checksum_iter<'a, T: Clone + Iterator<Item = &'a DonationType>>(
+        donations: T,
+        len: usize
+    ) -> U160 {
+        let tick_iter = donations.clone().take(len - 1).map(|d| d.tick());
+        let liq_iter = donations.clone().skip(1).map(|d| d.liquidity());
+        let checksum_bytes = tick_iter
+            .zip(liq_iter)
+            .fold([0u8; 32], |acc, (tick, liquidity)| {
+                let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
+                let hash_input = [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
+                *keccak256(&hash_input)
+            });
+        U160::from(U256::from_be_bytes(checksum_bytes) >> 96)
+    }
+
     pub fn into_reward_updates(&self) -> (RewardsUpdate, Option<RewardsUpdate>) {
         match (self.break_idx, self.donations.len()) {
             (_, 0) | (_, 1) => {
@@ -142,30 +158,14 @@ impl DonationCalculation {
                 };
                 (RewardsUpdate::CurrentOnly { amount, expected_liquidity }, None)
             }
-            (0, l) => {
+            (0, len) => {
                 // If the break_idx is 0, the entire donation vec is one side - above
                 let (start_tick, start_liquidity) = (
-                    I24::unchecked_from(self.donations[l - 1].tick()),
-                    self.donations[l - 1].liquidity()
+                    I24::unchecked_from(self.donations[len - 1].tick()),
+                    self.donations[len - 1].liquidity()
                 );
                 let quantities = self.donations.iter().rev().map(|d| d.donation()).collect();
-                let tick_iter = self
-                    .donations
-                    .iter()
-                    .rev()
-                    .take(self.donations.len() - 1)
-                    .map(|d| d.tick());
-                let liq_iter = self.donations.iter().rev().skip(1).map(|d| d.liquidity());
-                let checksum_bytes =
-                    tick_iter
-                        .zip(liq_iter)
-                        .fold([0u8; 32], |acc, (tick, liquidity)| {
-                            let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
-                            let hash_input =
-                                [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
-                            *keccak256(&hash_input)
-                        });
-                let reward_checksum = U160::from(U256::from_be_bytes(checksum_bytes) >> 96);
+                let reward_checksum = Self::checksum_iter(self.donations.iter().rev(), len);
                 (
                     RewardsUpdate::MultiTick {
                         start_tick,
@@ -176,23 +176,12 @@ impl DonationCalculation {
                     None
                 )
             }
-            (b, l) if b == (l - 1) => {
+            (b, len) if b == (len - 1) => {
                 // If the break_idx is the max index, the entire donation vec is below
                 let (start_tick, start_liquidity) =
                     (I24::unchecked_from(self.donations[0].tick()), self.donations[0].liquidity());
-                let quantities = self.donations.iter().rev().map(|d| d.donation()).collect();
-                let tick_iter = self.donations.iter().take(l - 1).map(|d| d.tick());
-                let liq_iter = self.donations.iter().skip(1).map(|d| d.liquidity());
-                let checksum_bytes =
-                    tick_iter
-                        .zip(liq_iter)
-                        .fold([0u8; 32], |acc, (tick, liquidity)| {
-                            let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
-                            let hash_input =
-                                [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
-                            *keccak256(&hash_input)
-                        });
-                let reward_checksum = U160::from(U256::from_be_bytes(checksum_bytes) >> 96);
+                let quantities = self.donations.iter().map(|d| d.donation()).collect();
+                let reward_checksum = Self::checksum_iter(self.donations.iter(), len);
                 (
                     RewardsUpdate::MultiTick {
                         start_tick,
@@ -216,18 +205,8 @@ impl DonationCalculation {
                     self_and_above[saa_last].liquidity()
                 );
                 let quantities = self_and_above.iter().rev().map(|d| d.donation()).collect();
-                let tick_iter = self_and_above.iter().take(saa_last).map(|d| d.tick());
-                let liq_iter = self_and_above.iter().skip(1).map(|d| d.liquidity());
-                let checksum_bytes =
-                    tick_iter
-                        .zip(liq_iter)
-                        .fold([0u8; 32], |acc, (tick, liquidity)| {
-                            let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
-                            let hash_input =
-                                [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
-                            *keccak256(&hash_input)
-                        });
-                let reward_checksum = U160::from(U256::from_be_bytes(checksum_bytes) >> 96);
+                let reward_checksum =
+                    Self::checksum_iter(self_and_above.iter(), self_and_above.len());
 
                 // Below
                 let (below_start_tick, below_start_liquidity) =
@@ -237,20 +216,7 @@ impl DonationCalculation {
                 if let Some(last_q) = below_quantities.last_mut() {
                     *last_q = 0;
                 }
-                let below_tick_iter = below.iter().take(below.len() - 1).map(|d| d.tick());
-                let below_liq_iter = below.iter().skip(1).map(|d| d.liquidity());
-                let below_checksum_bytes = below_tick_iter.zip(below_liq_iter).fold(
-                    [0u8; 32],
-                    |acc, (tick, liquidity)| {
-                        let tick_bytes: [u8; 3] = I24::unchecked_from(tick).to_be_bytes();
-                        let hash_input =
-                            [acc.as_slice(), &liquidity.to_be_bytes(), &tick_bytes].concat();
-                        *keccak256(&hash_input)
-                    }
-                );
-                let below_reward_checksum =
-                    U160::from(U256::from_be_bytes(below_checksum_bytes) >> 96);
-
+                let below_reward_checksum = Self::checksum_iter(below.iter(), below.len());
                 (
                     RewardsUpdate::MultiTick {
                         start_tick,
@@ -332,7 +298,7 @@ mod tests {
 
     #[test]
     pub fn constructs_from_empty_vec() {
-        let donation = DonationCalculation::from_vec(&vec![]).unwrap();
+        let donation = DonationCalculation::from_vec(&[]).unwrap();
         let res = donation.into_reward_updates();
         if let (r, None) = res {
             println!("{:?}", r);

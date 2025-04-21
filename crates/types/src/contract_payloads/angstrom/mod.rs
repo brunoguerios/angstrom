@@ -593,7 +593,7 @@ impl AngstromBundle {
             .map(|(tob_vec, tob_d)| tob_vec.t0_donation_vec(*tob_d));
         let donation = match (book_donation_vec, tob_donation_vec) {
             (Some(bsv), Some(tob)) => {
-                Some(&(DonationCalculation::from_vec(&bsv))? + tob.as_slice())
+                Some(&(DonationCalculation::from_vec(&tob))? + bsv.as_slice())
             }
             (Some(bsv), None) => Some(DonationCalculation::from_vec(&bsv)?),
             (None, Some(tob)) => Some(DonationCalculation::from_vec(&tob)?),

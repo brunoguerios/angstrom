@@ -215,18 +215,18 @@ impl<'a> PoolSwapResult<'a> {
         }
         // if end price is lower, than is zfo
         let direction = self.start_price >= self.end_price;
-
         let round_up = direction;
-        let mut remaining_donation = total_donation;
 
-        let mut current_blob: Option<(u128, u128)> = None;
-
+        // Reduce our steps into the combined intervals that we know about
         let ranges = self.reduce_ranges(direction);
 
+        // Setup our iteration variables for the first loop
+        let mut remaining_donation = total_donation;
+        let mut current_blob: Option<(u128, u128)> = None;
         for r in ranges.iter() {
             // If our current blob is empty, we can just insert the current step's stats
             // into it
-            let Some((c_t0, c_t1)) = &mut current_blob else {
+            let Some((c_t0, c_t1)) = current_blob.as_mut() else {
                 current_blob = Some((r.d_t0, r.d_t1));
                 continue;
             };
@@ -279,14 +279,12 @@ impl<'a> PoolSwapResult<'a> {
                 }
             }
         }
+
         // get the filled price for the ranges
         let filled_price = current_blob.map(|(t0, t1)| Ray::calc_price_generic(t0, t1, !direction));
 
-        // the amount we donate to the current tick.
-        let mut current_tick_donation = remaining_donation;
-
-        // the first range is the current range we in, it doesn't matter if
-        // its initialized or no
+        // Reset our "remaining donaton" temp variable
+        remaining_donation = total_donation;
 
         let last_range = ranges.len() - 1;
         ranges
@@ -309,7 +307,6 @@ impl<'a> PoolSwapResult<'a> {
                     0
                 };
                 remaining_donation -= donation;
-                current_tick_donation -= donation;
 
                 if i == last_range {
                     let final_tick = self.end_tick;
