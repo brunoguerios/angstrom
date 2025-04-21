@@ -232,7 +232,7 @@ where
             .is_standing(true)
             .gas_price_asset_zero(gas.to())
             .deadline(U256::from(deadline))
-            .nonce(nonce)
+            .nonce(deadline)
             .exact_in(exact_in)
             .min_price(clearing_price)
             .block(self.block_number + 1)
