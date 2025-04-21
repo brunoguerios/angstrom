@@ -85,9 +85,10 @@ impl WalletAccounting {
     /// the order here is the counter matched order.
     /// NOTABLY, we have a max allocation of 20% of the balance of the account
     /// that can be swapped.
-    pub fn can_support_amount(&self, order: &AllOrders) -> bool {
-        let token_in = order.token_in();
-        true
+    pub fn can_support_amount(&self, token_in: &Address, amount: u128) -> bool {
+        let funds = (self.available_funds(token_in) as f64 * MAX_AMOUNT_PER_TOKEN) as u128;
+
+        funds >= amount
     }
 
     fn available_funds(&self, token: &Address) -> u128 {
