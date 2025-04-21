@@ -26,6 +26,9 @@ contract ControllerV1 is Ownable {
     using AngstromView for IAngstromAuth;
     using SafeTransferLib for address;
 
+    /// @dev Controller enforced fee maximum (can be overriden by swapping out controller).
+    uint256 internal constant MAX_FEE_BPS = 0.01e6;
+
     event NewControllerSet(address indexed newController);
     event NewControllerAccepted(address indexed newController);
 
@@ -46,6 +49,7 @@ contract ControllerV1 is Ownable {
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
 
+    error FeeAboveMax();
     error NotSetController();
     error AlreadyNode();
     error NotNodeOrOwner();
@@ -102,6 +106,8 @@ contract ControllerV1 is Ownable {
         uint24 unlockedFee
     ) external {
         _checkOwner();
+        if (bundleFee > MAX_FEE_BPS) revert FeeAboveMax();
+        if (unlockedFee > MAX_FEE_BPS) revert FeeAboveMax();
 
         // Call to `.configurePool` will check for us whether `asset0 == asset1`.
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
@@ -162,6 +168,9 @@ contract ControllerV1 is Ownable {
 
         for (uint256 i = 0; i < updates.length; i++) {
             PoolUpdate calldata update = updates[i];
+            if (update.bundleFee > MAX_FEE_BPS) revert FeeAboveMax();
+            if (update.unlockedFee > MAX_FEE_BPS) revert FeeAboveMax();
+
             (address asset0, address asset1) = (update.assetA, update.assetB);
             if (asset1 > asset0) (asset0, asset1) = (asset1, asset0);
             StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);

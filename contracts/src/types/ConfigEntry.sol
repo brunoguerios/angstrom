@@ -14,6 +14,7 @@ uint256 constant TICK_SPACING_OFFSET = 24;
 uint256 constant FEE_MASK = 0xffffff;
 uint256 constant FEE_OFFSET = 0;
 
+/// @dev Max bundle fee.
 uint24 constant MAX_FEE = 0.2e6;
 /// @dev 100% fee in `bundleFee` units (pips).
 uint24 constant ONE_E6 = 1.0e6;

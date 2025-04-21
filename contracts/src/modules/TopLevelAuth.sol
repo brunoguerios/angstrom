@@ -16,7 +16,7 @@ import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
-import {console} from "forge-std/console.sol";
+uint256 constant MAX_UNLOCK_FEE_BPS = 0.4e6;
 
 /// @author philogy <https://github.com/philogy>
 abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
@@ -30,6 +30,9 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     error NotNode();
     error IndexMayHaveChanged();
     error InvalidSignature();
+    error UnlockFeeAboveMax();
+
+    /// @dev Maximum fee that the `bundleFee` for any given pool should be settable to.
 
     /// @dev `keccak256("AttestAngstromBlockEmpty(uint64 block_number)")`
     uint256 internal constant ATTEST_EMPTY_BLOCK_TYPE_HASH =
@@ -190,6 +193,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     }
 
     function _setUnlockedFee(StoreKey key, uint24 unlockedFee) internal {
+        if (unlockedFee > MAX_UNLOCK_FEE_BPS) revert UnlockFeeAboveMax();
         _unlockedFeePackedSet[key] = (uint256(unlockedFee) << 1) | 1;
     }
 
