@@ -56,6 +56,7 @@ impl OrderManager {
     }
 
     pub async fn handle_event(&mut self, event: OrderSubscriptionResult) {
+        tracing::info!(?event, "new event detected");
         match event {
             OrderSubscriptionResult::NewOrder(order) => {
                 self.on_new_order(order).await;
@@ -84,6 +85,7 @@ impl OrderManager {
         // we never have to worry about a user order
         // being expired as we match our expires to our counter orders
         if let Some((index, order)) = self.active_orders.remove(&hash) {
+            tracing::info!(?hash, "our order expired");
             let wallet = &mut self.wallets[index];
             wallet.remove_order(order.token_in(), &hash);
             return;
@@ -101,6 +103,7 @@ impl OrderManager {
         };
 
         if let Some((index, _)) = self.active_orders.remove(&hash) {
+            tracing::info!(?hash, "our order filled");
             let wallet = &mut self.wallets[index];
             wallet.remove_order(order.token_in(), &hash);
         }
@@ -130,6 +133,7 @@ impl OrderManager {
             tracing::error!("failed to cancel order");
             panic!();
         }
+        tracing::info!(?our_hash, "canceled our order");
 
         // remove the token in that we allocated to this order
         order_wallet.remove_order(order.token_in(), &our_hash);
@@ -233,6 +237,11 @@ impl OrderManager {
             self.user_orders.remove(&placed_user_order.order_hash());
             return;
         }
+        tracing::info!(
+            ?our_order_hash,
+            user_hash = ?placed_user_order.order_hash(),
+            "placed counter order"
+        );
 
         // add order to wallet accounting
         wallet.add_order(token_in, our_order_hash, amount_needed);
