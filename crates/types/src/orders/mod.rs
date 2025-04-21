@@ -1,7 +1,7 @@
 mod fillstate;
 mod origin;
 use alloy::{
-    primitives::{Address, B256, FixedBytes, PrimitiveSignature, keccak256},
+    primitives::{Address, B256, PrimitiveSignature},
     sol_types::SolValue
 };
 pub mod orderpool;
@@ -21,7 +21,10 @@ pub type OrderPrice = MatchingPrice;
 use crate::{
     matching::{MatchingPrice, Ray, uniswap::Direction},
     primitive::PoolId,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{
+        grouped_orders::{AllOrders, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder
+    }
 };
 
 #[derive(Debug)]
@@ -30,9 +33,23 @@ pub struct OrderSet<Limit, Searcher> {
     pub searcher: Vec<OrderWithStorageData<Searcher>>
 }
 
-impl<Limit, Searcher> OrderSet<Limit, Searcher> {
+impl<Limit, Searcher> OrderSet<Limit, Searcher>
+where
+    Limit: Clone,
+    Searcher: Clone,
+    AllOrders: From<Searcher> + From<Limit>
+{
     pub fn total_orders(&self) -> usize {
         self.limit.len() + self.searcher.len()
+    }
+
+    pub fn into_all_orders(&self) -> Vec<AllOrders> {
+        self.limit
+            .clone()
+            .into_iter()
+            .map(|o| o.order.into())
+            .chain(self.searcher.clone().into_iter().map(|o| o.order.into()))
+            .collect()
     }
 }
 
@@ -153,7 +170,10 @@ pub struct PoolSolution {
     pub amm_quantity: Option<NetAmmOrder>,
     /// IDs of limit orders to be executed - it might be easier to just use
     /// hashes here
-    pub limit:        Vec<OrderOutcome>
+    pub limit:        Vec<OrderOutcome>,
+    /// Any additional reward quantity to be taken out of excess T0 after all
+    /// other operations
+    pub reward_t0:    u128
 }
 
 impl PartialOrd for PoolSolution {
@@ -179,8 +199,8 @@ pub struct CancelOrderRequest {
 }
 
 impl CancelOrderRequest {
-    fn signing_payload(&self) -> FixedBytes<32> {
-        keccak256((self.user_address, self.order_id).abi_encode())
+    fn signing_payload(&self) -> Vec<u8> {
+        (self.user_address, self.order_id).abi_encode_packed()
     }
 
     pub fn is_valid(&self) -> bool {

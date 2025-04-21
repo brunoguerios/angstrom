@@ -19,6 +19,7 @@ library TickLib {
     {
         unchecked {
             uint8 offset = 0xff - bitPos;
+
             uint256 relativePos = LibBit.fls(word << offset);
             initialized = relativePos != 256;
             nextBitPos = initialized ? uint8(relativePos - offset) : 0;

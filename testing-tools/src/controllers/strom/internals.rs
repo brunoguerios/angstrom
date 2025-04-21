@@ -213,7 +213,6 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             executor.clone(),
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
-            pool_storage,
             strom_handles.pool_manager_tx,
             block_number
         );
@@ -262,6 +261,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             node_config.angstrom_signer(),
             initial_validators,
             order_storage.clone(),
+            block_number,
             block_number,
             inital_angstrom_state.angstrom_addr,
             pool_registry,

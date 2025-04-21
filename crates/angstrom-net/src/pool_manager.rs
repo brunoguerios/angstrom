@@ -26,9 +26,7 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}
 };
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
-use validation::order::{
-    OrderValidationResults, OrderValidatorHandle, state::pools::AngstromPoolsTracker
-};
+use validation::order::{OrderValidationResults, OrderValidatorHandle};
 
 use crate::{LruCache, NetworkOrderEvent, StromMessage, StromNetworkEvent, StromNetworkHandle};
 
@@ -182,7 +180,6 @@ where
         task_spawner: TP,
         tx: UnboundedSender<OrderCommand>,
         rx: UnboundedReceiver<OrderCommand>,
-        pool_storage: AngstromPoolsTracker,
         pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
         block_number: u64
     ) -> PoolHandle {
@@ -196,8 +193,7 @@ where
             self.validator.clone(),
             order_storage.clone(),
             block_number,
-            pool_manager_tx.clone(),
-            pool_storage
+            pool_manager_tx.clone()
         );
         self.global_sync.register(MODULE_NAME);
 
@@ -218,11 +214,7 @@ where
         handle
     }
 
-    pub fn build<TP: TaskSpawner>(
-        self,
-        pool_storage: AngstromPoolsTracker,
-        task_spawner: TP
-    ) -> PoolHandle {
+    pub fn build<TP: TaskSpawner>(self, task_spawner: TP) -> PoolHandle {
         let (tx, rx) = unbounded_channel();
         let rx = UnboundedReceiverStream::new(rx);
         let order_storage = self
@@ -235,8 +227,7 @@ where
             self.validator.clone(),
             order_storage.clone(),
             0,
-            pool_manager_tx.clone(),
-            pool_storage
+            pool_manager_tx.clone()
         );
 
         task_spawner.spawn_critical(
@@ -390,6 +381,8 @@ where
                         )
                     }
                 );
+                let all_orders = self.order_indexer.get_all_orders().into_all_orders();
+                self.broadcast_orders_to_peers(all_orders);
             }
             StromNetworkEvent::SessionClosed { peer_id, .. } => {
                 // remove the peer
@@ -398,19 +391,7 @@ where
             StromNetworkEvent::PeerRemoved(peer_id) => {
                 self.peer_to_info.remove(&peer_id);
             }
-            StromNetworkEvent::PeerAdded(peer_id) => {
-                self.peer_to_info.insert(
-                    peer_id,
-                    StromPeer {
-                        orders:        LruCache::new(
-                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
-                        ),
-                        cancellations: LruCache::new(
-                            NonZeroUsize::new(PEER_ORDER_CACHE_LIMIT).unwrap()
-                        )
-                    }
-                );
-            }
+            StromNetworkEvent::PeerAdded(_) => {}
         }
     }
 
@@ -503,13 +484,13 @@ where
             // halt dealing with these till we have synced
             if this.global_sync.can_operate() {
                 // drain commands
-                while let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
+                if let Poll::Ready(Some(cmd)) = this.command_rx.poll_next_unpin(cx) {
                     this.on_command(cmd);
                     cx.waker().wake_by_ref();
                 }
 
                 // drain incoming transaction events
-                while let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
+                if let Poll::Ready(Some(event)) = this.order_events.poll_next_unpin(cx) {
                     this.on_network_order_event(event);
                     cx.waker().wake_by_ref();
                 }

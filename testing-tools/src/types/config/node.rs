@@ -7,8 +7,10 @@ use alloy::{
 use alloy_primitives::{Address, U256};
 use angstrom_types::{CHAIN_ID, primitive::AngstromSigner};
 use consensus::AngstromValidator;
-use rand::{RngCore, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+use rand_chacha::{
+    ChaCha20Rng,
+    rand_core::{RngCore, SeedableRng}
+};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 
 use super::TestingConfigKind;

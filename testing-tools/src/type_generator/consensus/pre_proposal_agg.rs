@@ -117,7 +117,7 @@ impl PreProposalAggregationBuilder {
                     order,
                     priority_data,
                     is_bid: true,
-                    is_currently_valid: true,
+                    is_currently_valid: None,
                     is_valid: true,
                     order_id,
                     pool_id: pool_id.id(),

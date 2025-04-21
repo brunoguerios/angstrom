@@ -12,7 +12,7 @@ use super::{GenerateFlippedOrder, RawPoolOrder, RespendAvoidanceMethod};
 use crate::{
     matching::{Debt, Ray},
     orders::{OrderId, OrderLocation, OrderPriorityData},
-    primitive::{ANGSTROM_DOMAIN, PoolId},
+    primitive::{ANGSTROM_DOMAIN, PoolId, UserAccountVerificationError},
     sol_bindings::rpc_orders::{
         ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, PartialFlashOrder,
         PartialStandingOrder, TopOfBlockOrder
@@ -232,7 +232,7 @@ pub struct OrderWithStorageData<Order> {
     /// the pool this order belongs to
     pub pool_id:            PoolId,
     /// wether the order is waiting for approvals / proper balances
-    pub is_currently_valid: bool,
+    pub is_currently_valid: Option<UserAccountVerificationError>,
     /// what side of the book does this order lay on
     pub is_bid:             bool,
     /// is valid order
@@ -245,6 +245,10 @@ pub struct OrderWithStorageData<Order> {
 }
 
 impl<O: RawPoolOrder> OrderWithStorageData<O> {
+    pub fn is_currently_valid(&self) -> bool {
+        self.is_currently_valid.is_none()
+    }
+
     pub fn fetch_supply_or_demand_contribution_with_fee(&self, price: Ray, _pool_fee: u32) -> Ray {
         // priceOutVsIn * oneMinusFee / ONE_E6;
 
@@ -382,7 +386,7 @@ impl<Order> OrderWithStorageData<Order> {
             is_currently_valid: self.is_currently_valid,
             is_valid:           self.is_valid,
             order_id:           self.order_id,
-            tob_reward:         U256::ZERO
+            tob_reward:         self.tob_reward
         })
     }
 }
@@ -775,6 +779,10 @@ impl RawPoolOrder for TopOfBlockOrder {
         true
     }
 
+    fn is_tob(&self) -> bool {
+        true
+    }
+
     fn has_hook(&self) -> bool {
         false
     }
@@ -812,7 +820,9 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn limit_price(&self) -> U256 {
-        *Ray::scale_to_ray(U256::from(self.amount() / self.quantity_out))
+        let mut top = Ray::scale_to_ray(U256::from(self.amount()));
+        top.div_ray_assign(Ray::scale_to_ray(U256::from(self.quantity_out)));
+        *top
     }
 
     fn token_in(&self) -> Address {
@@ -1173,6 +1183,10 @@ impl RawPoolOrder for ExactFlashOrder {
 }
 
 impl RawPoolOrder for AllOrders {
+    fn is_tob(&self) -> bool {
+        matches!(self, AllOrders::TOB(_))
+    }
+
     fn has_hook(&self) -> bool {
         match self {
             AllOrders::Standing(p) => p.has_hook(),

@@ -85,8 +85,7 @@ fn end_to_end_agent<'a>(
                                  pending_orders.push(client.send_orders(all_orders));
                             }
                         }
-                        Some(resolved_order) = pending_orders.next() => {
-                            tracing::info!("orders resolved");
+                        Some(_resolved_order) = pending_orders.next() => {
                         }
 
                     }

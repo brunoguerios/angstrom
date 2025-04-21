@@ -12,15 +12,29 @@ use crate::matching::SqrtPriceX96;
 #[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
 pub struct LiqRange {
     /// Lower tick for this range
-    pub(super) lower_tick: Tick,
+    pub(super) lower_tick:     Tick,
     /// Upper tick for this range
-    pub(super) upper_tick: Tick,
+    pub(super) upper_tick:     Tick,
     /// Total liquidity within this range
-    pub(super) liquidity:  u128
+    pub(super) liquidity:      u128,
+    pub(super) is_tick_edge:   bool,
+    pub(super) is_initialized: bool,
+    pub(super) fee:            u32,
+    /// The direction in which this range is valid for.
+    /// this is because ranges change based on which way you are
+    /// swapping through the pool. direction is zero for 1 or
+    /// true == ask
+    pub(super) direction:      bool
 }
 
 impl LiqRange {
-    pub fn new(lower_tick: Tick, upper_tick: Tick, liquidity: u128) -> eyre::Result<Self> {
+    pub fn new_init(
+        lower_tick: Tick,
+        upper_tick: Tick,
+        liquidity: u128,
+        fee: u32,
+        direction: bool
+    ) -> eyre::Result<Self> {
         // Validate our inputs
         if upper_tick <= lower_tick {
             return Err(eyre!(
@@ -35,7 +49,41 @@ impl LiqRange {
         if lower_tick < MIN_TICK {
             return Err(eyre!("Proposed lower tick '{}' out of valid tick range", lower_tick));
         }
-        Ok(Self { lower_tick, upper_tick, liquidity })
+        Ok(Self {
+            lower_tick,
+            upper_tick,
+            liquidity,
+            is_tick_edge: false,
+            is_initialized: true,
+            fee,
+            direction
+        })
+    }
+
+    pub fn new_uninit(
+        lower_tick: Tick,
+        upper_tick: Tick,
+        liquidity: u128,
+        is_tick_edge: bool,
+        is_initialized: bool,
+        fee: u32,
+        direction: bool
+    ) -> eyre::Result<Self> {
+        // Validate our inputs
+        if upper_tick <= lower_tick {
+            return Err(eyre!(
+                "Upper tick bound less than or equal to lower tick bound for range ({}, {})",
+                lower_tick,
+                upper_tick
+            ));
+        }
+        if upper_tick > MAX_TICK {
+            return Err(eyre!("Proposed upper tick '{}' out of valid tick range", upper_tick));
+        }
+        if lower_tick < MIN_TICK {
+            return Err(eyre!("Proposed lower tick '{}' out of valid tick range", lower_tick));
+        }
+        Ok(Self { lower_tick, upper_tick, liquidity, is_tick_edge, is_initialized, fee, direction })
     }
 
     pub fn lower_tick(&self) -> i32 {
@@ -109,13 +157,25 @@ impl<'a> LiqRangeRef<'a> {
     /// PoolPrice representing the start price of this liquidity bound
     pub fn start_price(&self, direction: Direction) -> PoolPrice<'a> {
         let tick = self.start_tick(direction);
-        PoolPrice { tick, liq_range: *self, price: SqrtPriceX96::at_tick(tick).unwrap() }
+        PoolPrice {
+            tick,
+            liq_range: *self,
+            price: SqrtPriceX96::at_tick(tick).unwrap(),
+            fee: self.fee,
+            direction: !direction.is_bid()
+        }
     }
 
     /// PoolPrice representing the end price of this liquidity bound
     pub fn end_price(&self, direction: Direction) -> PoolPrice<'a> {
         let tick = self.end_tick(direction);
-        PoolPrice { tick, liq_range: *self, price: SqrtPriceX96::at_tick(tick).unwrap() }
+        PoolPrice {
+            tick,
+            liq_range: *self,
+            price: SqrtPriceX96::at_tick(tick).unwrap(),
+            fee: self.fee,
+            direction: !direction.is_bid()
+        }
     }
 
     /// Returns the appropriate tick to donate to in order to reward LPs in this
@@ -124,10 +184,18 @@ impl<'a> LiqRangeRef<'a> {
         self.lower_tick
     }
 
+    /// finds the next initialized or edge tick. this is in order
+    /// to properly mirror the uniswap swap logic
     pub fn next(&self, direction: Direction) -> Option<Self> {
         match direction {
-            Direction::BuyingT0 => self.pool_snap.get_range_for_tick(self.range.upper_tick),
-            Direction::SellingT0 => self.pool_snap.get_range_for_tick(self.range.lower_tick - 1)
+            // bid, price goes up
+            Direction::BuyingT0 => self
+                .pool_snap
+                .get_range_for_tick(self.range.upper_tick, false),
+            // ask price goes down
+            Direction::SellingT0 => self
+                .pool_snap
+                .get_range_for_tick(self.range.lower_tick - 1, true)
         }
     }
 }

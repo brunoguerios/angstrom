@@ -5,11 +5,10 @@ use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::{
     primitive::OrderValidationError,
-    sol_bindings::{
-        Ray, ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder
-    }
+    sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 use db_state_utils::StateFetchUtils;
+use order_validators::{ORDER_VALIDATORS, OrderValidation, OrderValidationState};
 use parking_lot::RwLock;
 use pools::PoolsTracker;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -19,6 +18,7 @@ use super::OrderValidationResults;
 pub mod account;
 pub mod config;
 pub mod db_state_utils;
+pub mod order_validators;
 pub mod pools;
 
 /// State validation is all validation that requires reading from the Ethereum
@@ -64,12 +64,18 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             .prepare_for_new_block(address_changes, completed_orders)
     }
 
-    pub fn correctly_built<O: RawPoolOrder>(&self, order: &O) -> bool {
+    pub fn cancel_order(&self, user: Address, hash: B256) {
+        self.user_account_tracker.cancel_order(user, hash);
+    }
+
+    pub fn validate<O: RawPoolOrder>(&self, order: &O) -> Result<(), OrderValidationError> {
         let mut state = OrderValidationState::new(order);
 
-        ORDER_VALIDATORS
-            .iter()
-            .all(|validator| validator.validate_order(&mut state).is_ok())
+        for validator in ORDER_VALIDATORS {
+            validator.validate_order(&mut state)?;
+        }
+
+        Ok(())
     }
 
     pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
@@ -88,13 +94,10 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 };
             }
 
-            if !self.correctly_built(&order) {
-                tracing::info!(?order, "invalidly built order");
-                return OrderValidationResults::Invalid {
-                    hash:  order_hash,
-                    error: OrderValidationError::InvalidPartialOrder
-                };
-            }
+            if let Err(e) = self.validate(&order) {
+                tracing::warn!(?order, "invalid order");
+                return OrderValidationResults::Invalid { hash: order_hash, error: e };
+            };
 
             let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {
                 tracing::debug!("order requested a invalid pool");
@@ -161,102 +164,36 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         results
     }
 }
+#[cfg(test)]
+mod test {
 
-pub const ORDER_VALIDATORS: [OrderValidator; 2] = [
-    OrderValidator::EnsureAmountSet(EnsureAmountSet),
-    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
-];
+    use std::sync::Arc;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct OrderValidationState<'a, O: RawPoolOrder> {
-    order:   &'a O,
-    min_qty: Option<u128>
-}
+    use alloy::primitives::U256;
+    use dashmap::DashMap;
+    use testing_tools::type_generator::orders::UserOrderBuilder;
+    use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-impl<'a, O: RawPoolOrder> OrderValidationState<'a, O> {
-    pub const fn new(order: &'a O) -> Self {
-        Self { order, min_qty: None }
-    }
+    use super::{
+        StateValidation, account::UserAccountProcessor, db_state_utils::test_fetching::MockFetch,
+        pools::pool_tracker_mock::MockPoolTracker
+    };
+    #[test]
+    fn test_order_of_validators() {
+        let mock_pools = MockPoolTracker::default();
+        let mock_fetch = MockFetch::default();
+        let (tx, _) = tokio::sync::mpsc::channel(10);
+        let pools = SyncedUniswapPools::new(Arc::new(DashMap::new()), tx);
+        let validator =
+            StateValidation::new(UserAccountProcessor::new(mock_fetch), mock_pools, pools);
 
-    pub fn min_qty_in_t0(&mut self) -> u128 {
-        if let Some(min_qty) = self.min_qty {
-            min_qty
-        } else {
-            let order = self.order;
-            let min_qty = if !order.is_bid() {
-                if order.exact_in() {
-                    order.min_amount()
-                } else {
-                    Ray::from(order.limit_price()).inverse_quantity(order.min_amount(), true)
-                }
-            } else if order.exact_in() {
-                Ray::from(order.limit_price())
-                    .mul_quantity(U256::from(order.min_amount()))
-                    .to::<u128>()
-            } else {
-                order.min_amount()
-            };
-            self.min_qty = Some(min_qty);
-            min_qty
-        }
-    }
-}
-
-pub trait OrderValidation {
-    fn validate_order<O: RawPoolOrder>(
-        &self,
-        state: &mut OrderValidationState<O>
-    ) -> Result<(), OrderValidationError>;
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum OrderValidator {
-    EnsureAmountSet(EnsureAmountSet),
-    EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
-}
-
-impl OrderValidation for OrderValidator {
-    fn validate_order<O: RawPoolOrder>(
-        &self,
-        state: &mut OrderValidationState<O>
-    ) -> Result<(), OrderValidationError> {
-        match self {
-            OrderValidator::EnsureAmountSet(validator) => validator.validate_order(state),
-            OrderValidator::EnsureMaxGasLessThanMinAmount(validator) => {
-                validator.validate_order(state)
-            }
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
-pub struct EnsureAmountSet;
-
-impl OrderValidation for EnsureAmountSet {
-    fn validate_order<O: RawPoolOrder>(
-        &self,
-        state: &mut OrderValidationState<O>
-    ) -> Result<(), OrderValidationError> {
-        if state.min_qty_in_t0() == 0 {
-            Err(OrderValidationError::NoAmountSpecified)
-        } else {
-            Ok(())
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
-pub struct EnsureMaxGasLessThanMinAmount;
-
-impl OrderValidation for EnsureMaxGasLessThanMinAmount {
-    fn validate_order<O: RawPoolOrder>(
-        &self,
-        state: &mut OrderValidationState<O>
-    ) -> Result<(), OrderValidationError> {
-        if state.min_qty_in_t0() < state.order.max_gas_token_0() {
-            Err(OrderValidationError::MaxGasGreaterThanMinAmount)
-        } else {
-            Ok(())
-        }
+        let order = UserOrderBuilder::new()
+            .standing()
+            .exact()
+            .amount(1)
+            .min_price(U256::ZERO.into())
+            .ask()
+            .build();
+        validator.validate(&order).unwrap_err();
     }
 }

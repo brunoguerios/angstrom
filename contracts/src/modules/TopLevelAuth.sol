@@ -18,6 +18,7 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 uint256 constant MAX_UNLOCK_FEE_BPS = 0.4e6;
 
+
 /// @author philogy <https://github.com/philogy>
 abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     using LPFeeLibrary for uint24;
@@ -33,6 +34,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     error UnlockFeeAboveMax();
 
     /// @dev Maximum fee that the `bundleFee` for any given pool should be settable to.
+
 
     /// @dev `keccak256("AttestAngstromBlockEmpty(uint64 block_number)")`
     uint256 internal constant ATTEST_EMPTY_BLOCK_TYPE_HASH =

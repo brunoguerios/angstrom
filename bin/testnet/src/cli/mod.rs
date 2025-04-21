@@ -1,10 +1,8 @@
-pub mod compare_engines;
 pub mod devnet;
 pub mod e2e_orders;
 pub mod testnet;
 use angstrom_metrics::{METRICS_ENABLED, initialize_prometheus_metrics};
 use clap::{ArgAction, Parser, Subcommand};
-use compare_engines::CompareEnginesCli;
 use devnet::DevnetCli;
 use e2e_orders::End2EndOrdersCli;
 use reth_tasks::TaskExecutor;
@@ -15,10 +13,7 @@ use tracing_subscriber::{
     EnvFilter, Layer, Registry, filter, layer::SubscriberExt, util::SubscriberInitExt
 };
 
-use crate::{
-    run_devnet, run_testnet,
-    simulations::{e2e_orders::run_e2e_orders, matching_comp::compare_matching_engines}
-};
+use crate::{run_devnet, run_testnet, simulations::e2e_orders::run_e2e_orders};
 
 #[derive(Parser)]
 pub struct AngstromTestnetCli {
@@ -75,9 +70,7 @@ pub enum TestnetSubcommmand {
     #[command(name = "devnet")]
     Devnet(DevnetCli),
     #[command(name = "e2e")]
-    End2EndOrders(End2EndOrdersCli),
-    #[command(name = "engine-sim")]
-    Compare(CompareEnginesCli)
+    End2EndOrders(End2EndOrdersCli)
 }
 
 impl TestnetSubcommmand {
@@ -85,8 +78,7 @@ impl TestnetSubcommmand {
         match self {
             TestnetSubcommmand::Testnet(testnet_cli) => run_testnet(executor, testnet_cli).await,
             TestnetSubcommmand::Devnet(devnet_cli) => run_devnet(executor, devnet_cli).await,
-            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await,
-            TestnetSubcommmand::Compare(cli) => compare_matching_engines(executor, cli).await
+            TestnetSubcommmand::End2EndOrders(e2e_cli) => run_e2e_orders(executor, e2e_cli).await
         }
     }
 }

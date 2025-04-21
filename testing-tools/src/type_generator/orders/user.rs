@@ -31,6 +31,7 @@ pub struct UserOrderBuilder {
     asset_in:    Address,
     asset_out:   Address,
     amount:      u128,
+    gas_0:       Option<u128>,
     min_price:   Ray,
     deadline:    U256,
     signing_key: Option<AngstromSigner>
@@ -38,7 +39,7 @@ pub struct UserOrderBuilder {
 
 impl UserOrderBuilder {
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Self { min_price: Ray::from(U256::from(1)), ..Default::default() }
     }
 
     pub fn standing(self) -> Self {
@@ -127,21 +128,35 @@ impl UserOrderBuilder {
         Self { signing_key, ..self }
     }
 
+    pub fn gas_price_asset_zero(self, gas: u128) -> Self {
+        Self { gas_0: Some(gas), ..self }
+    }
+
     // returns at zero
     pub fn get_max_fee_zero(&mut self) -> u128 {
         // partials are always exact in
         if !self.is_exact {
             self.exact_in = true;
         }
+        if let Some(amt) = self.gas_0 {
+            return amt;
+        }
+
         // zero for 1
         if self.asset_in < self.asset_out {
             if self.exact_in {
                 self.amount / 5
             } else {
+                if self.min_price.is_zero() {
+                    return 1;
+                }
                 // if zero for 1, t1 / t0
                 self.min_price.inverse_quantity(self.amount, true) / 5
             }
         } else if self.exact_in {
+            if self.min_price.is_zero() {
+                return 1;
+            }
             self.min_price
                 .mul_quantity(U256::from(self.amount))
                 .to::<u128>()
