@@ -36,7 +36,7 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
     let domain = ANGSTROM_DOMAIN;
     tracing::info!(?domain);
 
-    let keys: JsonPKs = serde_json::from_str(&std::fs::read_to_string(&cfg.testing_private_keys)?)?;
+    let keys: JsonPKs = serde_json::from_str(&std::fs::read_to_string(&cfg.secret_keys_path)?)?;
     let env = BundleWashTraderEnv::init(&cfg, keys).await?;
 
     executor
