@@ -10,10 +10,7 @@ use angstrom_types::primitive::ANGSTROM_DOMAIN;
 use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
-use jsonrpsee::{
-    http_client::HttpClientBuilder,
-    ws_client::{PingConfig, WsClientBuilder}
-};
+use jsonrpsee::ws_client::{PingConfig, WsClientBuilder};
 use order_manager::OrderManager;
 use reth::tasks::TaskExecutor;
 use sepolia_bundle_lander::{
