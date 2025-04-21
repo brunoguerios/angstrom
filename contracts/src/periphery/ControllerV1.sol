@@ -48,6 +48,7 @@ contract ControllerV1 is Ownable {
 
     error NotSetController();
     error AlreadyNode();
+    error NotNodeOrOwner();
     error NotNode();
     error NonexistentPool(address asset0, address asset1);
     error KeyNotFound();
@@ -100,7 +101,8 @@ contract ControllerV1 is Ownable {
         uint24 bundleFee,
         uint24 unlockedFee
     ) external {
-        _checkOwner();
+        _checkOwnerOrNode();
+
         // Call to `.configurePool` will check for us whether `asset0 == asset1`.
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
@@ -117,7 +119,7 @@ contract ControllerV1 is Ownable {
     }
 
     function removePool(address asset0, address asset1) external {
-        _checkOwner();
+        _checkOwnerOrNode();
 
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
@@ -154,7 +156,7 @@ contract ControllerV1 is Ownable {
     }
 
     function batchUpdatePools(PoolUpdate[] calldata updates) external {
-        _checkOwner();
+        _checkOwnerOrNode();
 
         ConfigEntryUpdate[] memory entry_updates = new ConfigEntryUpdate[](updates.length);
 
@@ -244,5 +246,12 @@ contract ControllerV1 is Ownable {
         address[] memory nodesToToggle = new address[](1);
         nodesToToggle[0] = node;
         ANGSTROM.toggleNodes(nodesToToggle);
+    }
+
+    function _checkOwnerOrNode() internal view {
+        if (msg.sender == msg.sender) return;
+        // if (owner() == msg.sender) return;
+        // if (_nodes.contains(msg.sender)) return;
+        revert NotNodeOrOwner();
     }
 }
