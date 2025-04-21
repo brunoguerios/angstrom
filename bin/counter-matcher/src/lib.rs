@@ -6,6 +6,7 @@ use angstrom_rpc::{
 };
 use angstrom_types::primitive::{ANGSTROM_DOMAIN, TESTNET_ANGSTROM_ADDRESS};
 use clap::Parser;
+use futures::TryStreamExt;
 use jsonrpsee::{
     http_client::HttpClientBuilder,
     ws_client::{PingConfig, WsClientBuilder}
@@ -18,6 +19,7 @@ use sepolia_bundle_lander::{
 use tracing::Level;
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
+pub mod accounting;
 pub mod order_manager;
 
 #[inline]
@@ -49,6 +51,12 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
     subscriptions.insert(OrderSubscriptionKind::NewOrders);
     subscriptions.insert(OrderSubscriptionKind::FilledOrders);
     subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
+
+    let sub = ws
+        .subscribe_orders(subscriptions, filters)
+        .await
+        .unwrap()
+        .into_stream();
 
     Ok(())
 }
