@@ -88,12 +88,12 @@ name = "testnet"
 path = "src/main.rs"
 
 [features]
-default = ["jemalloc", "ipc", "testnet"]
+default = ["jemalloc", "ipc"]
 
 testnet = [
   "angstrom-types/testnet",
   "validation/testnet",
-  "testing-tools/testnet"
+  "testing-tools/testnet",
 ]
 
 
@@ -102,5 +102,3 @@ ipc = []
 
 jemalloc = ["dep:tikv-jemallocator"]
 jemalloc-prof = ["jemalloc", "tikv-jemallocator?/profiling"]
-
-

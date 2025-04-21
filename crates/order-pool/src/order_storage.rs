@@ -358,4 +358,15 @@ impl OrderStorage {
             .expect("poisoned")
             .new_pool(pool);
     }
+
+    pub fn remove_invalid_order(&self, order_hash: FixedBytes<32>) {
+        self.searcher_orders
+            .lock()
+            .expect("poisoned")
+            .remove_invalid_order(order_hash);
+        self.limit_orders
+            .lock()
+            .expect("poisoned")
+            .remove_invalid_order(order_hash);
+    }
 }

@@ -10714,6 +10714,7 @@ dependencies = [
  "jsonrpsee",
  "matching-engine",
  "order-pool",
+ "rand 0.8.5",
  "rayon",
  "reth",
  "reth-cli-util",

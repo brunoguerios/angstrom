@@ -219,6 +219,8 @@ where
             + Duration::from_secs(36))
         .as_secs();
 
+        let nonce = self.angstrom_client.valid_nonce(key.address()).await?;
+
         Ok(UserOrderBuilder::new()
             .signing_key(Some(key.clone()))
             .is_exact(!is_partial)
@@ -227,7 +229,7 @@ where
             .is_standing(true)
             .gas_price_asset_zero(gas.to())
             .deadline(U256::from(deadline))
-            .nonce(deadline)
+            .nonce(nonce)
             .exact_in(exact_in)
             .min_price(clearing_price)
             .block(self.block_number + 1)
