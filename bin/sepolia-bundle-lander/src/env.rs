@@ -67,8 +67,9 @@ impl BundleWashTraderEnv {
                 uniswap_registry.clone(),
                 cli.pool_manager_address
             );
-            let mut pool = EnhancedUniswapPool::new(data_loader, 100);
-            pool.initialize(None, provider.root().into()).await?;
+            let mut pool = EnhancedUniswapPool::new(data_loader, 400);
+            pool.initialize(Some(provider.get_block_number().await?), provider.root().into())
+                .await?;
             tracing::info!("{:#?}", pool);
             ang_pools.push(pool);
         }
@@ -85,7 +86,6 @@ impl BundleWashTraderEnv {
             .unique()
             .collect::<Vec<_>>();
 
-        // Self::verify_proper_signing_angstrom(&keys, provider.clone()).await?;
         Self::approve_max_tokens_to_angstrom(cli.angstrom_address, all_tokens, &keys, &provider)
             .await?;
 

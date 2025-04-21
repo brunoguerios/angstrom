@@ -2,6 +2,8 @@ use std::{path::PathBuf, pin::pin, sync::Arc, time::Duration};
 
 use alloy::{primitives::Address, providers::Provider};
 use alloy_rpc_types::TransactionTrait;
+#[cfg(feature = "testnet-sepolia")]
+use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
 use angstrom_types::primitive::{ANGSTROM_DOMAIN, TESTNET_ANGSTROM_ADDRESS};
 use futures::StreamExt;
 use jsonrpsee::http_client::HttpClientBuilder;
@@ -16,21 +18,19 @@ use crate::{env::BundleWashTraderEnv, intent_builder::PoolIntentBundler};
 #[derive(Debug, Clone, clap::Parser)]
 pub struct BundleLander {
     /// angstrom endpoint
-    #[clap(short, long)]
+    #[clap(short, long, default_value = "http://localhost:8489")]
     pub node_endpoint:        Url,
-    /// keys to trade with
+    /// private keys to trade with
+    /// can be either hex or byte vecs
     #[clap(short, long)]
-    pub testing_private_keys: PathBuf,
+    pub secret_keys_path:     PathBuf,
     /// address of angstrom
-    #[clap(short, long)]
+    #[cfg_attr(feature = "testnet-sepolia", clap(short, long, default_value_t = TESTNET_ANGSTROM_ADDRESS))]
+    #[cfg_attr(not(feature = "testnet-sepolia"), clap(short, long))]
     pub angstrom_address:     Address,
-    #[clap(short, long)]
+    #[cfg_attr(feature = "testnet-sepolia", clap(short, long, default_value_t = TESTNET_POOL_MANAGER_ADDRESS))]
+    #[cfg_attr(not(feature = "testnet-sepolia"), clap(short, long))]
     pub pool_manager_address: Address
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct JsonPKs {
-    pub keys: Vec<String>
 }
 
 /// the way that the bundle lander works is by more or less wash trading back
@@ -42,7 +42,7 @@ impl BundleLander {
         tracing::info!(?domain);
 
         let keys: JsonPKs =
-            serde_json::from_str(&std::fs::read_to_string(&self.testing_private_keys)?)?;
+            serde_json::from_str(&std::fs::read_to_string(&self.secret_keys_path)?)?;
         let env = BundleWashTraderEnv::init(&self, keys).await?;
         tracing::info!("startup complete");
 
@@ -123,6 +123,11 @@ impl BundleLander {
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonPKs {
+    pub keys: Vec<String>
 }
 
 pub fn init_tracing() {
