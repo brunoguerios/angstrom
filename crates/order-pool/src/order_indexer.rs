@@ -300,6 +300,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             }
             this @ OrderValidationResults::Invalid { hash, .. } => {
                 self.subscribers.notify_validation_subscribers(&hash, this);
+                self.order_storage.remove_invalid_order(hash);
                 let peers = self.order_tracker.invalid_verification(hash);
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
@@ -440,6 +441,7 @@ pub enum PoolError {
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::HashSet,
         sync::Arc,
         time::{SystemTime, UNIX_EPOCH}
     };
@@ -449,7 +451,7 @@ mod tests {
         contract_bindings::angstrom::Angstrom::PoolKey,
         matching::Ray,
         orders::OrderId,
-        primitive::AngstromSigner,
+        primitive::{AngstromSigner, OrderValidationError},
         sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
     };
     use pade::PadeEncode;
@@ -470,6 +472,19 @@ mod tests {
 
         OrderIndexer::new(validator, order_storage, 1, tx)
     }
+
+    fn setup_test_indexer_with_fn(
+        mut f: impl FnMut(&mut MockValidator)
+    ) -> OrderIndexer<MockValidator> {
+        init_tracing();
+        let (tx, _) = broadcast::channel(100);
+        let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
+        let mut validator = MockValidator::default();
+        f(&mut validator);
+
+        OrderIndexer::new(validator, order_storage, 1, tx)
+    }
+
     /// Initialize the tracing subscriber for tests
     fn init_tracing() {
         let _ = fmt()
@@ -1051,22 +1066,31 @@ mod tests {
 
     #[tokio::test]
     async fn test_duplicate_order_rejection() {
-        let mut indexer = setup_test_indexer();
         let from = Address::random();
-
         let pool_key = PoolKey {
             currency0: Address::random(),
             currency1: Address::random(),
             ..Default::default()
         };
         let pool_id = PoolId::from(pool_key.clone());
+        let order = create_test_order(from, pool_key.clone(), None, None);
+        let order_hash = order.order_hash();
+
+        let mut indexer = setup_test_indexer_with_fn(|validator| {
+            validator.add_order(
+                order.from(),
+                OrderValidationResults::Invalid {
+                    hash:  order_hash,
+                    error: OrderValidationError::DuplicateOrder
+                }
+            )
+        });
+
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
             currency_in:  pool_key.currency1,
             id:           PoolId::from(pool_key.clone())
         });
-        let order = create_test_order(from, pool_key, None, None);
-        let order_hash = order.order_hash();
 
         // Submit the order first time
         let (tx1, _) = tokio::sync::oneshot::channel();
@@ -1105,5 +1129,19 @@ mod tests {
             Ok(OrderValidationResults::Invalid { hash, .. }) => assert_eq!(hash, order_hash),
             _ => panic!("Expected invalid order result")
         }
+
+        let _ = indexer.next().await;
+
+        // get_all_orders
+        let all_order_storage_hashes = indexer
+            .order_storage
+            .get_all_orders()
+            .into_all_orders()
+            .into_iter()
+            .map(|o| o.order_hash())
+            .collect::<HashSet<_>>();
+        assert!(!all_order_storage_hashes.contains(&order_hash));
+
+        // assert!(!indexer.order_tracker.or)
     }
 }
