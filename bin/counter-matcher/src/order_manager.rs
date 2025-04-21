@@ -39,7 +39,15 @@ impl OrderManager {
         pools: Vec<EnhancedUniswapPool>,
         client: WsClient
     ) -> Self {
-        Self { block_number, provider, wallets, pools, client, active_orders: Default::default() }
+        Self {
+            block_number,
+            provider,
+            wallets,
+            pools,
+            client,
+            active_orders: Default::default(),
+            user_orders: Default::default()
+        }
     }
 
     pub async fn new_block(&mut self, block_number: u64) {
@@ -64,11 +72,11 @@ impl OrderManager {
 
     pub async fn on_order_cancel(&mut self, order: AllOrders) {
         let hash = order.order_hash();
-        let Some((our_hash, order)) = self.user_orders.remove(&hash) else { return };
+        let Some((our_hash, _)) = self.user_orders.remove(&hash) else { return };
 
-        let Some((wallet, our_order)) = self.active_orders.remove(&our_hash) else { return };
+        let Some((wallet, _)) = self.active_orders.remove(&our_hash) else { return };
 
-        let order_wallet = &self.wallets[wallet];
+        let order_wallet = &mut self.wallets[wallet];
         let addr = order_wallet.pk.address();
         let signing_bytes = (addr, our_hash).abi_encode_packed();
         let sig = order_wallet.pk.sign_message_sync(&signing_bytes).unwrap();
@@ -85,7 +93,7 @@ impl OrderManager {
             tracing::error!("failed to cancel order");
             panic!();
         }
-
-        // if self.active_orders.contains_key(&hash)
+        // remove the token in that we allocated to this order
+        order_wallet.remove_order(order.token_in(), &our_hash);
     }
 }
