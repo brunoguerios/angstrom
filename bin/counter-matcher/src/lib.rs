@@ -92,7 +92,9 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
             subscriptions.insert(OrderSubscriptionKind::NewOrders);
             subscriptions.insert(OrderSubscriptionKind::FilledOrders);
             subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
-            subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
+            // this will be added once this branch is deployed on the remote. For now we
+            // leave commented out.
+            // subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
 
             let mut sub = ws
                 .subscribe_orders(subscriptions, filters)
@@ -106,6 +108,7 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
                          order_manager.handle_event(event).await;
                     }
                      Some(Ok(Some(block))) = block_sub.next() => {
+                         tracing::info!("new block");
                          order_manager.new_block(block.header.number).await;
                      }
                 }
