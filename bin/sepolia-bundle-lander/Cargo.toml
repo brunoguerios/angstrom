@@ -39,7 +39,7 @@ validation.workspace = true
 consensus.workspace = true
 uniswap-v4.workspace = true
 
-testing-tools = { workspace = true}
+testing-tools = { workspace = true }
 
 # Other things
 tokio.workspace = true
@@ -64,7 +64,7 @@ tikv-jemallocator = { version = "0.6.0", optional = true }
 
 
 [features]
-default = ["jemalloc"]
+default = ["jemalloc", "testnet-sepolia"]
 jemalloc = ["dep:tikv-jemallocator"]
 testnet-sepolia = [
   "angstrom-types/testnet-sepolia",
@@ -73,7 +73,7 @@ testnet-sepolia = [
   "validation/testnet-sepolia",
   "consensus/testnet-sepolia",
   "uniswap-v4/testnet-sepolia",
-  "testing-tools/testnet-sepolia"
+  "testing-tools/testnet-sepolia",
 ]
 
 
