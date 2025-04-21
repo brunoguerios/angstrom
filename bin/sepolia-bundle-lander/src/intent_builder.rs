@@ -19,6 +19,7 @@ use angstrom_types::{
 };
 use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 use uniswap_v4::uniswap::pool::{EnhancedUniswapPool, SwapResult};
+use validation::order::state::db_state_utils::nonces::Nonces;
 
 use crate::env::ProviderType;
 
@@ -28,11 +29,12 @@ pub struct PoolIntentBundler<T>
 where
     T: OrderApiClient + Send + Sync + 'static
 {
-    pool:            EnhancedUniswapPool,
-    block_number:    u64,
-    keys:            Vec<AngstromSigner>,
-    provider:        Arc<ProviderType>,
-    angstrom_client: Arc<T>
+    pool:             EnhancedUniswapPool,
+    block_number:     u64,
+    keys:             Vec<AngstromSigner>,
+    provider:         Arc<ProviderType>,
+    angstrom_client:  Arc<T>,
+    angstrom_address: Address
 }
 
 impl<T> PoolIntentBundler<T>
@@ -44,9 +46,10 @@ where
         block_number: u64,
         keys: Vec<AngstromSigner>,
         provider: Arc<ProviderType>,
-        angstrom_client: Arc<T>
+        angstrom_client: Arc<T>,
+        angstrom_address: Address
     ) -> Self {
-        Self { pool, block_number, keys, provider, angstrom_client }
+        Self { pool, block_number, keys, provider, angstrom_client, angstrom_address }
     }
 
     pub async fn new_block(&mut self, block_number: u64) -> eyre::Result<()> {
@@ -219,6 +222,8 @@ where
             + Duration::from_secs(36))
         .as_secs();
 
+        let nonce = self.get_valid_nonce(key.address()).await?;
+
         Ok(UserOrderBuilder::new()
             .signing_key(Some(key.clone()))
             .is_exact(!is_partial)
@@ -227,7 +232,7 @@ where
             .is_standing(true)
             .gas_price_asset_zero(gas.to())
             .deadline(U256::from(deadline))
-            .nonce(deadline)
+            .nonce(nonce)
             .exact_in(exact_in)
             .min_price(clearing_price)
             .block(self.block_number + 1)
@@ -332,5 +337,27 @@ where
             .as_nanos()
             % 2
             == 0
+    }
+
+    async fn get_valid_nonce(&self, user: Address) -> eyre::Result<u64> {
+        let nonce_tracker = Nonces::new(self.angstrom_address);
+
+        let mut nonce: u64 = rand::random();
+        loop {
+            let slot = nonce_tracker.get_nonce_word_slot(user, nonce);
+
+            let word = self
+                .provider
+                .get_storage_at(self.angstrom_address, slot.into())
+                .await?;
+
+            let flag = U256::from(1) << (nonce as u8);
+
+            if (word ^ flag) & flag == flag {
+                break Ok(nonce);
+            } else {
+                nonce = rand::random();
+            }
+        }
     }
 }

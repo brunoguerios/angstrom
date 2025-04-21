@@ -40,6 +40,7 @@ impl BundleLander {
         init_tracing();
         let domain = ANGSTROM_DOMAIN;
         tracing::info!(?domain);
+        let angstrom_address = self.angstrom_address;
 
         let keys: JsonPKs =
             serde_json::from_str(&std::fs::read_to_string(&self.secret_keys_path)?)?;
@@ -79,7 +80,8 @@ impl BundleLander {
                             current_block.header.number,
                             keys.clone(),
                             provider.clone(),
-                            http_client.clone()
+                            http_client.clone(),
+                            angstrom_address
                         )
                     })
                     .collect::<Vec<_>>();
