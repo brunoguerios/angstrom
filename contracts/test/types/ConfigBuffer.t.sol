@@ -3,16 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import {StoreKey, StoreKeyLib, HASH_TO_STORE_KEY_SHIFT} from "src/types/StoreKey.sol";
-import {
-    ConfigEntry,
-    ConfigEntryLib,
-    ENTRY_SIZE,
-    KEY_MASK,
-    TICK_SPACING_MASK,
-    TICK_SPACING_OFFSET,
-    FEE_MASK,
-    FEE_OFFSET
-} from "src/types/ConfigEntry.sol";
+import {ConfigEntry, ConfigEntryLib, MAX_FEE} from "src/types/ConfigEntry.sol";
 import {ConfigBuffer, ConfigBufferLib} from "src/types/ConfigBuffer.sol";
 import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {PRNG} from "solady/src/utils/g/LibPRNG.sol";
@@ -209,11 +200,14 @@ contract ConfigBufferTest is BaseTest {
             StoreKey key2 = StoreKeyLib.keyFromAssetsUnchecked(ASSET0, ASSET2);
             StoreKey key3 = StoreKeyLib.keyFromAssetsUnchecked(ASSET0, ASSET3);
 
-            ConfigEntry entry1 = ConfigEntryLib.init(key1, tickSpacing, fee);
-            ConfigEntry entry2 =
-                ConfigEntryLib.init(key2, uint16(tickSpacing + 1), uint24(fee + 1000));
-            ConfigEntry entry3 =
-                ConfigEntryLib.init(key3, uint16(tickSpacing + 2), uint24(fee + 2000));
+            ConfigEntry entry1 =
+                ConfigEntryLib.init(key1, boundTickSpacing(tickSpacing), boundE6(fee, MAX_FEE));
+            ConfigEntry entry2 = ConfigEntryLib.init(
+                key2, boundTickSpacing(tickSpacing + 1), boundE6(fee + 1000, MAX_FEE)
+            );
+            ConfigEntry entry3 = ConfigEntryLib.init(
+                key3, boundTickSpacing(tickSpacing + 2), boundE6(fee + 2000, MAX_FEE)
+            );
 
             buffer.unsafe_add(entry1);
             buffer.unsafe_add(entry2);
