@@ -156,7 +156,7 @@ contract ControllerV1 is Ownable {
     }
 
     function batchUpdatePools(PoolUpdate[] calldata updates) external {
-        _checkOwnerOrNode();
+        _checkNodeOrOwner();
 
         ConfigEntryUpdate[] memory entry_updates = new ConfigEntryUpdate[](updates.length);
 
@@ -248,9 +248,9 @@ contract ControllerV1 is Ownable {
         ANGSTROM.toggleNodes(nodesToToggle);
     }
 
-    function _checkOwnerOrNode() internal view {
-        if (owner() == msg.sender) return;
+    function _checkNodeOrOwner() internal view {
         if (_nodes.contains(msg.sender)) return;
+        if (owner() == msg.sender) return;
         revert NotNodeOrOwner();
     }
 }
