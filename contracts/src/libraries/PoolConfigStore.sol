@@ -154,8 +154,4 @@ library PoolConfigStoreLib {
     function into(PoolConfigStore self) internal pure returns (address) {
         return PoolConfigStore.unwrap(self);
     }
-
-    function into(PoolConfigStore self) internal pure returns (address) {
-        return PoolConfigStore.unwrap(self);
-    }
 }
