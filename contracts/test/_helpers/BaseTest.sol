@@ -18,7 +18,9 @@ import {TickLib} from "src/libraries/TickLib.sol";
 import {HookDeployer} from "./HookDeployer.sol";
 import {hasAngstromHookFlags, ANGSTROM_INIT_HOOK_FEE} from "src/modules/UniConsumer.sol";
 import {TypedDataHasherLib} from "src/types/TypedDataHasher.sol";
-import {PoolConfigStore, PoolConfigStoreLib, StoreKey} from "src/libraries/PoolConfigStore.sol";
+import {PoolConfigStore} from "src/libraries/PoolConfigStore.sol";
+import {ConfigEntryLib} from "src/types/ConfigEntry.sol";
+import {StoreKey, StoreKeyLib} from "src/types/StoreKey.sol";
 import {PairLib} from "test/_reference/Pair.sol";
 import {AngstromView} from "src/periphery/AngstromView.sol";
 
@@ -325,6 +327,14 @@ contract BaseTest is Test, HookDeployer {
         return x > y ? x : y;
     }
 
+    function assertEq(StoreKey skey1, StoreKey skey2) internal pure {
+        assertEq(StoreKey.unwrap(skey1), StoreKey.unwrap(skey2));
+    }
+
+    function assertEq(StoreKey skey1, StoreKey skey2, string memory errMsg) internal pure {
+        assertEq(StoreKey.unwrap(skey1), StoreKey.unwrap(skey2), errMsg);
+    }
+
     function poolId(Angstrom angstrom, address asset0, address asset1)
         internal
         view
@@ -334,14 +344,15 @@ contract BaseTest is Test, HookDeployer {
         address store = rawGetConfigStore(address(angstrom));
         uint256 storeIndex = PairLib.getStoreIndex(store, asset0, asset1);
         (int24 tickSpacing,) = PoolConfigStore.wrap(store).get(
-            PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1), storeIndex
+            StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1), storeIndex
         );
         return poolKey(angstrom, asset0, asset1, tickSpacing).toId();
     }
 
     function skey(address asset0, address asset1) internal pure returns (StoreKey key) {
         assertTrue(asset0 < asset1, "Building key with out of order assets");
-        key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+        key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
+        // console.log("(%s, %s): %x", asset0, asset1, uint256(bytes32(StoreKey.unwrap(key))));
     }
 
     function boundE6(uint24 fee) internal pure returns (uint24) {
@@ -350,6 +361,11 @@ contract BaseTest is Test, HookDeployer {
 
     function boundE6(uint24 fee, uint24 upperBound) internal pure returns (uint24) {
         return uint24(bound(fee, 0, upperBound));
+    }
+
+    function boundTickSpacing(uint256 input) internal pure returns (uint16) {
+        return
+            uint16(bound(input, ConfigEntryLib.MIN_TICK_SPACING, ConfigEntryLib.MAX_TICK_SPACING));
     }
 
     function sort(address asset0, address asset1) internal pure returns (address, address) {

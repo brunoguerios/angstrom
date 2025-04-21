@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAngstromAuth} from "../interfaces/IAngstromAuth.sol";
+import {IAngstromAuth, ConfigEntryUpdate} from "../interfaces/IAngstromAuth.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
-import {
-    PoolConfigStore,
-    PoolConfigStoreLib,
-    StoreKey,
-    STORE_HEADER_SIZE
-} from "../libraries/PoolConfigStore.sol";
+import {PoolConfigStore, STORE_HEADER_SIZE} from "../libraries/PoolConfigStore.sol";
+import {StoreKey, StoreKeyLib} from "../types/StoreKey.sol";
 import {ConfigEntry, ENTRY_SIZE, KEY_MASK} from "../types/ConfigEntry.sol";
 import {AddressSet} from "solady/src/utils/g/EnumerableSetLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
@@ -41,6 +37,8 @@ contract ControllerV1 is Ownable {
         uint24 unlockedFee
     );
 
+    event OpaqueBatchPoolUpdate();
+
     event PoolRemoved(
         address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
     );
@@ -49,10 +47,10 @@ contract ControllerV1 is Ownable {
     event NodeRemoved(address indexed node);
 
     error NotSetController();
-    error DuplicateAssets();
     error AlreadyNode();
     error NotNode();
     error NonexistentPool(address asset0, address asset1);
+    error KeyNotFound();
     error TotalNotDistributed();
     error FunctionDisabled();
 
@@ -66,7 +64,8 @@ contract ControllerV1 is Ownable {
     address public setController;
     AddressSet internal _nodes;
 
-    mapping(StoreKey key => Pool) public pools;
+    Pool[] internal _pools;
+    mapping(StoreKey key => uint256 maybeIndex) internal _poolIndices;
 
     constructor(IAngstromAuth angstrom, address initialOwner) {
         _initializeOwner(initialOwner);
@@ -102,9 +101,16 @@ contract ControllerV1 is Ownable {
         uint24 unlockedFee
     ) external {
         _checkOwner();
+        // Call to `.configurePool` will check for us whether `asset0 == asset1`.
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
-        pools[key] = Pool(asset0, asset1);
+        StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
+
+        uint256 maybe_index = _poolIndices[key];
+        if (maybe_index == 0) {
+            _pools.push(Pool(asset0, asset1));
+            maybe_index = _pools.length;
+            _poolIndices[key] = maybe_index;
+        }
 
         emit PoolConfigured(asset0, asset1, tickSpacing, bundleFee, unlockedFee);
         ANGSTROM.configurePool(asset0, asset1, tickSpacing, bundleFee, unlockedFee);
@@ -114,23 +120,62 @@ contract ControllerV1 is Ownable {
         _checkOwner();
 
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
-        PoolConfigStore configStore = ANGSTROM.configStore();
-        uint256 poolIndex = 0;
+        StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
 
-        uint256 totalEntries = configStore.totalEntries();
-        ConfigEntry entry;
-        while (true) {
-            entry = configStore.getWithDefaultEmpty(key, poolIndex);
-            if (!entry.isEmpty()) break;
-            poolIndex++;
-            if (poolIndex >= totalEntries) {
-                revert NonexistentPool(asset0, asset1);
+        unchecked {
+            uint256 index_plus_one = _poolIndices[key];
+            if (index_plus_one == 0) revert NonexistentPool(asset0, asset1);
+            uint256 index = index_plus_one - 1;
+
+            uint256 length = _pools.length;
+            if (index_plus_one < length) {
+                Pool memory last_pool = _pools[length - 1];
+                StoreKey last_key =
+                    StoreKeyLib.keyFromAssetsUnchecked(last_pool.asset0, last_pool.asset1);
+                _pools[index] = last_pool;
+                _poolIndices[last_key] = index_plus_one;
             }
+
+            _poolIndices[key] = 0;
+            _pools.pop();
+
+            PoolConfigStore config_store = ANGSTROM.configStore();
+            (int24 tick_spacing, uint24 bundle_fee) = config_store.get(key, index);
+            emit PoolRemoved(asset0, asset1, tick_spacing, bundle_fee);
+            ANGSTROM.removePool(key, config_store, index);
+        }
+    }
+
+    struct PoolUpdate {
+        address assetA;
+        address assetB;
+        uint24 bundleFee;
+        uint24 unlockedFee;
+    }
+
+    function batchUpdatePools(PoolUpdate[] calldata updates) external {
+        _checkOwner();
+
+        ConfigEntryUpdate[] memory entry_updates = new ConfigEntryUpdate[](updates.length);
+
+        for (uint256 i = 0; i < updates.length; i++) {
+            PoolUpdate calldata update = updates[i];
+            (address asset0, address asset1) = (update.assetA, update.assetB);
+            if (asset1 > asset0) (asset0, asset1) = (asset1, asset0);
+            StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
+
+            entry_updates[i] = ConfigEntryUpdate({
+                index: _poolIndices[key] - 1,
+                key: key,
+                bundleFee: update.bundleFee,
+                unlockedFee: update.unlockedFee
+            });
         }
 
-        emit PoolRemoved(asset0, asset1, entry.tickSpacing(), entry.bundleFee());
-        ANGSTROM.removePool(key, configStore, poolIndex);
+        emit OpaqueBatchPoolUpdate();
+
+        PoolConfigStore config_store = ANGSTROM.configStore();
+        ANGSTROM.batchUpdatePools(config_store, entry_updates);
     }
 
     function distributeFees(Asset[] calldata assets) external {
@@ -166,6 +211,28 @@ contract ControllerV1 is Ownable {
 
     function totalNodes() public view returns (uint256) {
         return _nodes.length();
+    }
+
+    function totalPools() public view returns (uint256) {
+        return _pools.length;
+    }
+
+    function getPoolByIndex(uint256 index) public view returns (address asset0, address asset1) {
+        Pool storage pool = _pools[index];
+        asset0 = pool.asset0;
+        asset1 = pool.asset1;
+    }
+
+    function getPoolByKey(StoreKey key) public view returns (address asset0, address asset1) {
+        uint256 index_plus_one = _poolIndices[key];
+        if (index_plus_one == 0) revert KeyNotFound();
+        Pool storage pool = _pools[index_plus_one - 1];
+        asset0 = pool.asset0;
+        asset1 = pool.asset1;
+    }
+
+    function keyExists(StoreKey key) public view returns (bool) {
+        return _poolIndices[key] > 0;
     }
 
     /// @dev Loads all node addresses from storage, could exceed gas limit if too many nodes are added.
