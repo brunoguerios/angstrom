@@ -222,7 +222,7 @@ where
             + Duration::from_secs(36))
         .as_secs();
 
-        let nonce = self.get_valid_nonce(key.address()).await?;
+        // let nonce = self.get_valid_nonce(key.address()).await?;
 
         Ok(UserOrderBuilder::new()
             .signing_key(Some(key.clone()))
