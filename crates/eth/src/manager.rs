@@ -205,6 +205,9 @@ where
                     self.pool_store
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
 
+                    self.angstrom_tokens.remove(&removed_pool.asset0);
+                    self.angstrom_tokens.remove(&removed_pool.asset1);
+
                     let pool_key = PoolKey {
                         currency1:   removed_pool.asset1,
                         currency0:   removed_pool.asset0,
