@@ -1,3 +1,5 @@
+use counter_matcher::run;
+
 fn main() {
-    println!("Hello, world!");
+    run().unwrap()
 }

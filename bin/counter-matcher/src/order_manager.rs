@@ -66,6 +66,17 @@ impl OrderManager {
         self.try_create_counter_order(&order).await;
     }
 
+    /// what we need to be able to do is detect if the user order got filled but
+    /// ours didn't. in the case it didn't, we want to cancel it
+    pub async fn on_filled_order(&mut self, order: AllOrders) {
+        let hash = order.order_hash();
+        if order.is_tob() {
+            return;
+        };
+
+        if self.active_orders.contains_key(&hash) {}
+    }
+
     pub async fn on_order_cancel(&mut self, order: AllOrders) {
         let hash = order.order_hash();
 
@@ -103,12 +114,13 @@ impl OrderManager {
             Ray::from(placed_user_order.limit_price())
         };
 
-        let (token_in, token_out, amount_needed, price) = if !placed_user_order.exact_in() {
+        let (token_in, token_out, mut amount_needed, price) = if !placed_user_order.exact_in() {
             (
                 placed_user_order.token_out(),
                 placed_user_order.token_in(),
                 placed_user_order.amount(),
-                Ray::from(placed_user_order.limit_price()).inv_ray_round(true)
+                Ray::from(placed_user_order.limit_price())
+                    .inv_ray_round(!placed_user_order.is_bid())
             )
         } else {
             // is exact in. need to get amount out
@@ -126,11 +138,14 @@ impl OrderManager {
                 placed_user_order.token_in(),
                 amount,
                 // always other side.
-                Ray::from(placed_user_order.limit_price()).inv_ray_round(true)
+                Ray::from(placed_user_order.limit_price())
+                    .inv_ray_round(!placed_user_order.is_bid())
             )
         };
-
         // see if there is any wallet that can supply these amounts
+
+        // will add an extra 5% to the amount
+        amount_needed = (amount_needed as f64 * 1.05) as u128;
 
         let Some((wallet_index, wallet)) = self
             .wallets
