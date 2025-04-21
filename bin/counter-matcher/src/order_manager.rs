@@ -102,8 +102,7 @@ impl OrderManager {
         } else {
             Ray::from(placed_user_order.limit_price())
         };
-        // if we aren't an exact in order. this makes it a lot easier
-        // as this is the amount we want to put in
+
         let (token_in, token_out, amount_needed, price) = if !placed_user_order.exact_in() {
             (
                 placed_user_order.token_out(),
