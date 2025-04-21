@@ -2,9 +2,9 @@ use std::{path::PathBuf, pin::pin, sync::Arc, time::Duration};
 
 use alloy::{primitives::Address, providers::Provider};
 use alloy_rpc_types::TransactionTrait;
-use angstrom_types::primitive::{
-    ANGSTROM_DOMAIN, TESTNET_ANGSTROM_ADDRESS, TESTNET_POOL_MANAGER_ADDRESS
-};
+#[cfg(feature = "testnet-sepolia")]
+use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
+use angstrom_types::primitive::{ANGSTROM_DOMAIN, TESTNET_ANGSTROM_ADDRESS};
 use futures::StreamExt;
 use jsonrpsee::http_client::HttpClientBuilder;
 use reth::tasks::TaskExecutor;

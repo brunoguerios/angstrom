@@ -86,7 +86,6 @@ impl BundleWashTraderEnv {
             .unique()
             .collect::<Vec<_>>();
 
-        // Self::verify_proper_signing_angstrom(&keys, provider.clone()).await?;
         Self::approve_max_tokens_to_angstrom(cli.angstrom_address, all_tokens, &keys, &provider)
             .await?;
 
