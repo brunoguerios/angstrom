@@ -66,15 +66,33 @@ impl OrderManager {
         self.try_create_counter_order(&order).await;
     }
 
-    /// what we need to be able to do is detect if the user order got filled but
-    /// ours didn't. in the case it didn't, we want to cancel it
+    pub fn on_expired_order(&mut self, hash: B256) {
+        // we never have to worry about a user order
+        // being expired as we match our expires to our counter orders
+        if let Some(index) = self.active_orders.remove(&hash) {
+            let wallet = &mut self.wallets[index];
+            wallet.try_remove_order(&hash);
+            return;
+        }
+
+        // if not our order, remove user order.
+        self.user_orders.remove(&hash);
+    }
+
+    /// if one of our order is filled. we will remove the pending allocation
     pub async fn on_filled_order(&mut self, order: AllOrders) {
         let hash = order.order_hash();
         if order.is_tob() {
             return;
         };
 
-        if self.active_orders.contains_key(&hash) {}
+        if let Some(index) = self.active_orders.remove(&hash) {
+            let wallet = &mut self.wallets[index];
+            wallet.remove_order(order.token_in(), &hash);
+        }
+
+        // remove user order if it is 1
+        self.user_orders.remove(&hash);
     }
 
     pub async fn on_order_cancel(&mut self, order: AllOrders) {

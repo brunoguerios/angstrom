@@ -51,6 +51,7 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
     subscriptions.insert(OrderSubscriptionKind::NewOrders);
     subscriptions.insert(OrderSubscriptionKind::FilledOrders);
     subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
+    subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
 
     let sub = ws
         .subscribe_orders(subscriptions, filters)

@@ -74,6 +74,15 @@ impl WalletAccounting {
             .insert(order_id, amount);
     }
 
+    /// less efficient but need for some ops
+    pub fn try_remove_order(&mut self, order_id: &B256) {
+        self.pending_adjustments.retain(|_, inner| {
+            inner.remove(order_id);
+
+            !inner.is_empty()
+        });
+    }
+
     pub fn remove_order(&mut self, token: Address, order_id: &B256) {
         self.pending_adjustments
             .entry(token)
