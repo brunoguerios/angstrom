@@ -8,12 +8,12 @@ use std::{
 use alloy::{
     consensus::{BlockHeader, Transaction},
     primitives::{Address, B256, BlockHash, BlockNumber, aliases::I24},
-    sol_types::SolEvent
+    sol_types::{SolCall, SolEvent}
 };
 use angstrom_types::{
     block_sync::BlockSyncProducer,
     contract_bindings::{
-        angstrom::Angstrom::PoolKey,
+        angstrom::Angstrom::{PoolKey, executeCall},
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
     contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore}
@@ -259,7 +259,10 @@ where
         tip_txs
             .filter(|tx| tx.to() == Some(self.angstrom_address))
             .filter_map(|transaction| {
-                let mut input: &[u8] = transaction.input();
+                let input: &[u8] = transaction.input();
+                let call = executeCall::abi_decode(input, true).ok()?;
+
+                let mut input = call.encoded.as_ref();
                 AngstromBundle::pade_decode(&mut input, None).ok()
             })
             .flat_map(move |bundle| {
