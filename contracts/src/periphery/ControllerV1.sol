@@ -101,7 +101,7 @@ contract ControllerV1 is Ownable {
         uint24 bundleFee,
         uint24 unlockedFee
     ) external {
-        _checkOwnerOrNode();
+        _checkOwner();
 
         // Call to `.configurePool` will check for us whether `asset0 == asset1`.
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
@@ -119,7 +119,7 @@ contract ControllerV1 is Ownable {
     }
 
     function removePool(address asset0, address asset1) external {
-        _checkOwnerOrNode();
+        _checkOwner();
 
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
