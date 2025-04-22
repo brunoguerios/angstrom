@@ -149,10 +149,12 @@ mod tests {
     }
 
     #[test]
-    fn adds_amm_to_book() {
+    fn does_not_add_amm() {
+        // We no longer add the AMM to our generated book
         let snapshot = generate_amm_market(100);
         let book = BookBuilder::new().amm(Some(snapshot.clone())).build();
-        assert!(book.amm().is_some(), "No AMM in book");
-        assert!(*book.amm().unwrap() == snapshot, "AMM in book isn't equal to what was provided");
+        assert!(book.amm().is_none(), "AMM in book");
+        // assert!(*book.amm().unwrap() == snapshot, "AMM in book isn't equal to
+        // what was provided");
     }
 }
