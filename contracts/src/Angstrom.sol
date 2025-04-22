@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.26;
 
-import {console} from "forge-std/console.sol";
 import {EIP712} from "solady/src/utils/EIP712.sol";
 import {TopLevelAuth} from "./modules/TopLevelAuth.sol";
 import {Settlement} from "./modules/Settlement.sol";
@@ -61,20 +60,14 @@ contract Angstrom is
 
         AssetArray assets;
         (reader, assets) = AssetLib.readFromAndValidate(reader);
-        console.log("Read assets");
         PairArray pairs;
         (reader, pairs) = PairLib.readFromAndValidate(reader, assets, _configStore);
 
-        console.log("read pairs and assets");
         _takeAssets(assets);
-        console.log("took assets");
 
         reader = _updatePools(reader, pairs);
-        console.log("updated pools");
         reader = _validateAndExecuteToBOrders(reader, pairs);
-        console.log("exectued tob");
         reader = _validateAndExecuteUserOrders(reader, pairs);
-        console.log("executed user");
         reader.requireAtEndOf(data);
         _saveAndSettle(assets);
 
