@@ -193,15 +193,17 @@ where
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| log.address == periphery_address)
             .for_each(|log| {
-                if let Ok(remove_node) = NodeRemoved::decode_log(log, true) {
+                if let Ok(remove_node) = NodeRemoved::decode_log(log) {
                     self.node_set.remove(&remove_node.node);
                     self.send_events(EthEvent::RemovedNode(remove_node.node));
+                    return;
                 }
-                if let Ok(added_node) = NodeAdded::decode_log(log, true) {
+                if let Ok(added_node) = NodeAdded::decode_log(log) {
                     self.node_set.insert(added_node.node);
                     self.send_events(EthEvent::AddedNode(added_node.node));
+                    return;
                 }
-                if let Ok(removed_pool) = PoolRemoved::decode_log(log, true) {
+                if let Ok(removed_pool) = PoolRemoved::decode_log(log) {
                     self.pool_store
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
 
@@ -216,8 +218,9 @@ where
                         hooks:       self.angstrom_address
                     };
                     self.send_events(EthEvent::RemovedPool { pool: pool_key });
+                    return;
                 }
-                if let Ok(added_pool) = PoolConfigured::decode_log(log, true) {
+                if let Ok(added_pool) = PoolConfigured::decode_log(log) {
                     let asset0 = added_pool.asset0;
                     let asset1 = added_pool.asset1;
                     let entry = AngPoolConfigEntry {
@@ -260,7 +263,7 @@ where
             .filter(|tx| tx.to() == Some(self.angstrom_address))
             .filter_map(|transaction| {
                 let input: &[u8] = transaction.input();
-                let call = executeCall::abi_decode(input, true).ok()?;
+                let call = executeCall::abi_decode(input).ok()?;
 
                 let mut input = call.encoded.as_ref();
                 AngstromBundle::pade_decode(&mut input, None).ok()
@@ -282,9 +285,9 @@ where
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| self.angstrom_tokens.contains(&log.address))
             .flat_map(|logs| {
-                Transfer::decode_log(logs, true)
+                Transfer::decode_log(logs)
                     .map(|log| log._from)
-                    .or_else(|_| Approval::decode_log(logs, true).map(|log| log._owner))
+                    .or_else(|_| Approval::decode_log(logs).map(|log| log._owner))
             })
             .unique()
             .collect()

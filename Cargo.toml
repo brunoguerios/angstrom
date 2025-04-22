@@ -87,6 +87,8 @@ revm-bytecode = { version = "3.0.0", default-features = false }
 revm-database = { version = "3.0.0", default-features = false }
 revm-state = { version = "3.0.0", default-features = false }
 revm-primitives = { version = "18.0.0", default-features = false }
+revm-interpreter = { version = "18.0.0", default-features = false }
+
 
 
 # reth
@@ -148,8 +150,8 @@ alloy-sol-macro = "0.14.0"
 alloy-dyn-abi = "0.14.0"
 alloy-sol-types = "1.0.0"
 alloy-rlp = "0.3.10"
-alloy-rlp-derive = "0.3.8"
-alloy-trie = { version = "0.7.8", default-features = false }
+alloy-rlp-derive = "0.3.10"
+alloy-trie = { version = "0.8.1", default-features = false }
 alloy-rpc-types = { version = "0.14.0", default-features = false, features = [
   "eth",
 ] }
@@ -182,7 +184,7 @@ alloy-rpc-client = { version = "0.14.0", default-features = false }
 
 
 # Uniswap math helpers
-uniswap_v3_math = { git = "https://github.com/0xKitsune/uniswap-v3-math.git", version = "0.6" }
+uniswap_v3_math = { git = "https://github.com/SorellaLabs/v3-math", branch = "main" }
 
 hex-literal = "0"
 
@@ -196,7 +198,7 @@ tracing-subscriber = "0"
 thiserror = "1"
 serde_json = "1"
 serde = { version = "1", default-features = false, features = ["derive"] }
-rand = "0.8.5"
+rand = "0.9.0"
 rand_distr = "0.4.3"
 num-traits = "0"
 num-bigfloat = "1"
