@@ -535,7 +535,9 @@ pub mod test {
 
         let leg = TxLegacy {
             to: TxKind::Call(angstrom_address),
-            input: angstrom_bundle_with_orders.pade_encode().into(),
+            input: executeCall::new((angstrom_bundle_with_orders.pade_encode().into(),))
+                .abi_encode()
+                .into(),
             ..Default::default()
         };
 
