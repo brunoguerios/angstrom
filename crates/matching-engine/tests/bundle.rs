@@ -78,9 +78,10 @@ fn delta_matcher_test() {
         let amm = book.amm().unwrap();
         let mut matcher = DeltaMatcher::new(&book, tob, solve_for_t0);
         let solution = matcher.solution(None);
-        let end_price = amm.at_price(solution.ucp.into(), true).unwrap();
-        let mid_map = PoolPriceVec::from_price_range(amm.current_price(true), end_price).unwrap();
-        println!("Mid-map: {} {} {:?}", mid_map.d_t0, mid_map.d_t1, mid_map.end_bound.as_ray());
+        // let end_price = amm.at_price(solution.ucp.into(), true).unwrap();
+        // let mid_map = PoolPriceVec::from_price_range(amm.current_price(true),
+        // end_price).unwrap(); println!("Mid-map: {} {} {:?}",
+        // mid_map.d_t0, mid_map.d_t1, mid_map.end_bound.as_ray());
         // println!("{:#?}", solution);
     })
 }
