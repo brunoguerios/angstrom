@@ -31,24 +31,6 @@ pub struct OrderManager {
     client:        Arc<WsClient>
 }
 
-impl Drop for OrderManager {
-    fn drop(&mut self) {
-        // take all active orders and then try to cancel pending
-        std::thread::scope(|s| {
-            s.spawn(|| {
-                let runtime = tokio::runtime::Builder::new_multi_thread().build().unwrap();
-                runtime.block_on(async move {
-                    tracing::info!("canceling all orders");
-                    let keys = self.user_orders.keys().cloned().collect_vec();
-                    for hash in keys {
-                        self.on_order_cancel(hash).await;
-                    }
-                });
-            });
-        });
-    }
-}
-
 impl OrderManager {
     pub fn new(
         block_number: u64,
@@ -63,6 +45,14 @@ impl OrderManager {
             client,
             active_orders: Default::default(),
             user_orders: Default::default()
+        }
+    }
+
+    pub async fn shutdown(mut self) {
+        tracing::info!("canceling all orders");
+        let keys = self.user_orders.keys().cloned().collect_vec();
+        for hash in keys {
+            self.on_order_cancel(hash).await;
         }
     }
 

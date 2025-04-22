@@ -80,12 +80,6 @@ impl OrderBuilder {
 
         let pool = self.pool_data.read().unwrap();
 
-        let mut unshifted_price = Ray::from(
-            pool.calculate_price_unshifted(SqrtPriceX96::from_float_price(cur_price).into())
-        );
-        // if the pool price > than price we want. given t1 / t0 -> more t0 less t1 ->
-        // cur_price
-
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
 
@@ -103,13 +97,17 @@ impl OrderBuilder {
             .simulate_swap(t_in, amount_specified, Some(price))
             .unwrap();
 
-        // amount of token zero
-
         let mut amount_in = u128::try_from(amount0.abs()).unwrap();
         let mut amount_out = u128::try_from(amount1.abs()).unwrap();
         if !zfo {
             std::mem::swap(&mut amount_in, &mut amount_out);
         }
+
+        let mut price = Ray::from(amount_out);
+        price.div_ray_assign(Ray::from(amount_in));
+
+        let pct = Ray::generate_ray_decimal(70, 2);
+        price.mul_ray_assign(pct);
 
         let exact_in = rng.random_bool(0.5);
         let modifier = rng.random_range(0.099..=1.001);
@@ -117,11 +115,6 @@ impl OrderBuilder {
         let amount = if exact_in { amount_in } else { amount_out };
 
         let amount = (amount as f64 * modifier) as u128;
-
-        // if the random direction changes the swap. inv the price
-        if !zfo {
-            unshifted_price.inv_ray_assign_round(true);
-        }
 
         let deadline = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
             + Duration::from_secs(38))
@@ -136,7 +129,7 @@ impl OrderBuilder {
             .deadline(U256::from(deadline))
             .nonce(rng.random())
             .exact_in(exact_in)
-            .min_price(unshifted_price)
+            .min_price(price)
             .block(block_number)
             .amount(amount)
             .build()

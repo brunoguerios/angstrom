@@ -40,7 +40,7 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
     let env = BundleWashTraderEnv::init(&cfg, keys).await?;
 
     executor
-        .spawn_critical("counter matcher", async move {
+        .spawn_critical_with_graceful_shutdown_signal("counter_matcher", |mut signal| async move {
             let ws = Arc::new(
                 WsClientBuilder::new()
                     .enable_ws_ping(PingConfig::default())
@@ -101,9 +101,12 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
                 .await
                 .unwrap()
                 .into_stream();
-
             loop {
                 tokio::select! {
+                    _ = &mut signal => {
+                        tracing::info!("got shutdown");
+                        break;
+                    }
                      Some(Ok(event)) = sub.next() => {
                          order_manager.handle_event(event).await;
                     }
@@ -113,6 +116,8 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
                      }
                 }
             }
+
+            order_manager.shutdown().await;
         })
         .await?;
     Ok(())
