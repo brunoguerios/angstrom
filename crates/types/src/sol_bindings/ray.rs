@@ -440,7 +440,7 @@ impl Ray {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::U160;
-    use rand::{Rng, thread_rng};
+    use rand::{Rng, rng};
 
     use super::*;
 
@@ -705,9 +705,9 @@ mod tests {
 
     #[test]
     fn converts_from_sqrtpricex96() {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         // Make sure our random number fits in here
-        let x: U160 = rng.sample(rand::distributions::Standard);
+        let x: U160 = rng.sample(rand::distr::StandardUniform);
         // let random: U256 = U256::ZERO;
         // let sp = Ray(random);
         let sp: SqrtPriceX96 = Ray(Uint::from(x)).into();

@@ -34,7 +34,7 @@ impl<CTX> Inspector<CTX> for CallDataInspector {
             let mut input = inputs.input.to_vec();
             patch_hh_console_selector(&mut input);
 
-            let out = console_log::ConsoleLog::ConsoleLogCalls::abi_decode(&input, false);
+            let out = console_log::ConsoleLog::ConsoleLogCalls::abi_decode(&input);
             tracing::info!(?out);
         }
         None

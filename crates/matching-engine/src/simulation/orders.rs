@@ -22,8 +22,8 @@ pub fn order_distribution(
     quantity_scale: f64,
     quantity_shape: f64
 ) -> Result<Vec<BookOrder>, String> {
-    let mut rng = rand::thread_rng();
-    let mut rng2 = rand::thread_rng();
+    let mut rng = rand::rng();
+    let mut rng2 = rand::rng();
     let price_gen = SkewNormal::new(price_location, price_scale, price_shape)
         .map_err(|e| format!("Error creating price distribution: {}", e))?;
     let quantity_gen = SkewNormal::new(quantity_location, quantity_scale, quantity_shape)

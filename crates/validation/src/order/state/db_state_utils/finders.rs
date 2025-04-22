@@ -11,6 +11,7 @@ use angstrom_types::{
     CHAIN_ID,
     contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall}
 };
+use revm::context::JournalTr;
 // use revm::{
 //     db::CacheDB,
 //     primitives::{EnvWithHandlerCfg, TxKind}
@@ -46,7 +47,7 @@ where
             tx:              TxEnv::default(),
             block:           BlockEnv::default(),
             cfg:             CfgEnv::<SpecId>::default(),
-            journaled_state: Journal::<CacheDB<&DB>>::new(SpecId::LATEST, db.clone()),
+            journaled_state: Journal::<CacheDB<&DB>>::new(db.clone()),
             chain:           (),
             error:           Ok(())
         }
@@ -72,8 +73,8 @@ where
             .output()
             .unwrap()
             .to_vec();
-        let return_data = balanceOfCall::abi_decode_returns(&output, false)?;
-        if return_data._0 == U256::from(123456789) {
+        let return_data = balanceOfCall::abi_decode_returns(&output)?;
+        if return_data == U256::from(123456789) {
             return Ok(offset as u64);
         }
     }
@@ -109,7 +110,7 @@ where
             tx:              TxEnv::default(),
             block:           BlockEnv::default(),
             cfg:             CfgEnv::<SpecId>::default(),
-            journaled_state: Journal::<CacheDB<&DB>>::new(SpecId::LATEST, db.clone()),
+            journaled_state: Journal::<CacheDB<&DB>>::new(db.clone()),
             chain:           (),
             error:           Ok(())
         }
@@ -137,8 +138,8 @@ where
             .output()
             .unwrap()
             .to_vec();
-        let return_data = allowanceCall::abi_decode_returns(&output, false)?;
-        if return_data._0 == U256::from(123456789) {
+        let return_data = allowanceCall::abi_decode_returns(&output)?;
+        if return_data == U256::from(123456789) {
             return Ok(offset as u64);
         }
     }

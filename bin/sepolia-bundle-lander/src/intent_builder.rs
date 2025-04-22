@@ -134,6 +134,7 @@ where
             .quantity_in(amount_in)
             .max_gas(gas.to())
             .quantity_out(amount_out)
+            .recipient(key.address())
             .valid_block(self.block_number + 1)
             .build();
         let recovery_order_hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
@@ -150,6 +151,7 @@ where
         let mut res = Vec::new();
 
         for key in &self.keys {
+            tracing::info!(?key);
             res.push(black_box(self.angstrom_signer_inner(key).await?));
         }
 
@@ -221,6 +223,8 @@ where
             + Duration::from_secs(36))
         .as_secs();
 
+        let nonce = self.angstrom_client.valid_nonce(key.address()).await?;
+
         Ok(UserOrderBuilder::new()
             .signing_key(Some(key.clone()))
             .is_exact(!is_partial)
@@ -229,7 +233,8 @@ where
             .is_standing(true)
             .gas_price_asset_zero(gas.to())
             .deadline(U256::from(deadline))
-            .nonce(deadline)
+            .recipient(key.address())
+            .nonce(nonce)
             .exact_in(exact_in)
             .min_price(clearing_price)
             .block(self.block_number + 1)
@@ -249,7 +254,7 @@ where
             )
             .await
             .unwrap();
-        TY::abi_decode_returns(&bytes, true).unwrap()
+        TY::abi_decode_returns(&bytes).unwrap()
     }
 
     // (amount, zfo)
@@ -266,7 +271,7 @@ where
             .make_call(key.address(), self.pool.token1, crate::balanceOfCall::new((key.address(),)))
             .await;
 
-        if token0_bal.balance.is_zero() || token1_bal.balance.is_zero() {
+        if token0_bal.is_zero() || token1_bal.is_zero() {
             panic!(
                 "no funds are in the given wallet t0: {:?} t1: {:?} wallet: {:?}",
                 self.pool.token0,
@@ -275,25 +280,25 @@ where
             );
         }
 
-        let t1_with_current_price = pool_price.mul_quantity(token0_bal.balance);
+        let t1_with_current_price = pool_price.mul_quantity(token0_bal);
         // if the current amount of t0 mulled through the price is more than our other
         // balance this means that we have more t0 then t1 and thus want to sell
         // some t0 for t1
-        let zfo = t1_with_current_price > token1_bal.balance;
+        let zfo = t1_with_current_price > token1_bal;
 
         let amount = if exact_in {
             // exact in will swap 1/6 of the balance
             I256::unchecked_from(if zfo {
-                token0_bal.balance / U256::from(30)
+                token0_bal / U256::from(30)
             } else {
-                token1_bal.balance / U256::from(30)
+                token1_bal / U256::from(30)
             })
         } else {
             // exact out
             I256::unchecked_from(if zfo {
                 t1_with_current_price / U256::from(30)
             } else {
-                token1_bal.balance / U256::from(30)
+                token1_bal / U256::from(30)
             })
             .wrapping_neg()
         };

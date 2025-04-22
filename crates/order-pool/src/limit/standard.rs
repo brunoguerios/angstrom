@@ -134,4 +134,18 @@ impl LimitPool {
 
         assert!(old_is_none);
     }
+
+    pub fn remove_invalid_order(&mut self, order_hash: B256) {
+        self.pending_orders.iter_mut().for_each(|(pool_id, pool)| {
+            if pool.remove_order(order_hash).is_some() {
+                self.metrics.decr_pending_orders(*pool_id, 1);
+            }
+        });
+
+        self.parked_orders.iter_mut().for_each(|(pool_id, pool)| {
+            if pool.remove_order(order_hash).is_some() {
+                self.metrics.decr_parked_orders(*pool_id, 1);
+            }
+        });
+    }
 }

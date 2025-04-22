@@ -82,13 +82,12 @@ impl TopOfBlockOrder {
         //assert!(internal.is_valid_signature());
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
-        let recipient = Some(internal.recipient);
+        let recipient = (!internal.recipient.is_zero()).then_some(internal.recipient);
         // Zero_for_1 is an Ask, an Ask is NOT a bid
         let zero_for_1 = !internal.is_bid;
         let sig_bytes = internal.meta.signature.to_vec();
         let decoded_signature =
-            alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
-                .unwrap();
+            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
         let signature = Signature::from(decoded_signature);
         Self {
             use_internal: internal.use_internal,
@@ -111,13 +110,12 @@ impl TopOfBlockOrder {
     ) -> eyre::Result<Self> {
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
-        let recipient = Some(internal.recipient);
+        let recipient = (!internal.recipient.is_zero()).then_some(internal.recipient);
         // Zero_for_1 is an Ask, an Ask is NOT a bid
         let zero_for_1 = !internal.is_bid;
         let sig_bytes = internal.meta.signature.to_vec();
         let decoded_signature =
-            alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
-                .unwrap();
+            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
         let signature = Signature::from(decoded_signature);
         let used_gas: u128 = (internal.priority_data.gas).saturating_to();
 
