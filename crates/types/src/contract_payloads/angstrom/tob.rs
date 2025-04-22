@@ -80,7 +80,7 @@ impl TopOfBlockOrder {
         assert!(internal.is_valid_signature());
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
-        let recipient = Some(internal.recipient);
+        let recipient = (!internal.recipient.is_zero()).then_some(internal.recipient);
         // Zero_for_1 is an Ask, an Ask is NOT a bid
         let zero_for_1 = !internal.is_bid;
         let sig_bytes = internal.meta.signature.to_vec();
@@ -109,7 +109,7 @@ impl TopOfBlockOrder {
     ) -> eyre::Result<Self> {
         let quantity_in = internal.quantity_in;
         let quantity_out = internal.quantity_out;
-        let recipient = Some(internal.recipient);
+        let recipient = (!internal.recipient.is_zero()).then_some(internal.recipient);
         // Zero_for_1 is an Ask, an Ask is NOT a bid
         let zero_for_1 = !internal.is_bid;
         let sig_bytes = internal.meta.signature.to_vec();
