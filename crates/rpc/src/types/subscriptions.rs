@@ -35,9 +35,11 @@ pub enum OrderSubscriptionKind {
     /// Any new filled orders
     FilledOrders,
     /// Any new reorged orders
-    UnfilleOrders,
+    UnfilledOrders,
     /// Any new cancelled orders
-    CancelledOrders
+    CancelledOrders,
+    /// Orders that expire.
+    ExpiredOrders
 }
 
 #[derive(
@@ -62,5 +64,6 @@ pub enum OrderSubscriptionResult {
     NewOrder(AllOrders),
     FilledOrder(u64, AllOrders),
     UnfilledOrder(AllOrders),
-    CancelledOrder(B256)
+    CancelledOrder(B256),
+    ExpiredOrder(B256)
 }

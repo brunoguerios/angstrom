@@ -373,11 +373,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         // deal with filled orders
         self.filled_orders(block_number, &completed_orders);
         // add expired orders to completed
-        completed_orders.extend(
-            self.order_tracker
-                .remove_expired_orders(block_number, &self.order_storage)
-        );
+        let expired_orders = self
+            .order_tracker
+            .remove_expired_orders(block_number, &self.order_storage);
+        self.subscribers.notify_expired_orders(&expired_orders);
 
+        completed_orders.extend(expired_orders);
         self.validator.notify_validation_on_changes(
             block_number,
             completed_orders,

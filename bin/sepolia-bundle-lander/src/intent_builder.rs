@@ -133,6 +133,7 @@ where
             .quantity_in(amount_in)
             .max_gas(gas.to())
             .quantity_out(amount_out)
+            .recipient(key.address())
             .valid_block(self.block_number + 1)
             .build();
         let recovery_order_hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
@@ -149,6 +150,7 @@ where
         let mut res = Vec::new();
 
         for key in &self.keys {
+            tracing::info!(?key);
             res.push(self.angstrom_signer_inner(key).await?);
         }
 
@@ -229,6 +231,7 @@ where
             .is_standing(true)
             .gas_price_asset_zero(gas.to())
             .deadline(U256::from(deadline))
+            .recipient(key.address())
             .nonce(nonce)
             .exact_in(exact_in)
             .min_price(clearing_price)
