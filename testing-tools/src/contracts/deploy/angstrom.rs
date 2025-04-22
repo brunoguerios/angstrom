@@ -1,6 +1,4 @@
-use alloy::{
-    contract::RawCallBuilder, primitives::Address, sol_types::SolValue, transports::Transport
-};
+use alloy::{contract::RawCallBuilder, primitives::Address, sol_types::SolValue};
 use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom;
 

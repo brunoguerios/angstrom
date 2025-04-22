@@ -2,7 +2,7 @@
 use std::{cmp::Ordering, fmt};
 
 use alloy::primitives::{Address, FixedBytes, TxHash, U256};
-use alloy_primitives::PrimitiveSignature;
+use alloy_primitives::Signature;
 use serde::{Deserialize, Serialize};
 
 use crate::{orders::OrderLocation, sol_bindings::Ray};
@@ -102,7 +102,7 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     /// whether to use angstrom balances or not
     fn use_internal(&self) -> bool;
 
-    fn order_signature(&self) -> eyre::Result<PrimitiveSignature>;
+    fn order_signature(&self) -> eyre::Result<Signature>;
 
     fn exact_in(&self) -> bool;
 

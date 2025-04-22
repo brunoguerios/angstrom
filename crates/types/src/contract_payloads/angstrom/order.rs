@@ -362,8 +362,7 @@ impl UserOrder {
 
         let sig_bytes = order.signature().clone().0.to_vec();
         let decoded_signature =
-            alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
-                .unwrap();
+            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
         let signature = Signature::from(decoded_signature);
 
         Ok(Self {
@@ -434,8 +433,7 @@ impl UserOrder {
         let hook_data = if hook_bytes.is_empty() { None } else { Some(hook_bytes) };
         let sig_bytes = order.signature().to_vec();
         let decoded_signature =
-            alloy::primitives::PrimitiveSignature::pade_decode(&mut sig_bytes.as_slice(), None)
-                .unwrap();
+            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
 
         let recipient = (!recipient.is_zero()).then_some(recipient);
 

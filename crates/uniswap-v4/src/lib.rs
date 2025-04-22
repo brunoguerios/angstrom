@@ -414,13 +414,13 @@ pub mod fuzz_uniswap {
         t0_dec: u8,
         t1_dec: u8
     ) -> Option<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::random();
 
-        let zfo: bool = rng.r#gen();
+        let zfo: bool = rng.random();
         let amount = if zfo {
-            rng.gen_range(1..10u128.pow(t1_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t1_dec as u32 / 2))
         } else {
-            rng.gen_range(1..10u128.pow(t0_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t0_dec as u32 / 2))
         };
 
         println!("trying to swap with amount {amount} {key:#?} {zfo}");
@@ -477,14 +477,14 @@ pub mod fuzz_uniswap {
         t0_dec: u8,
         t1_dec: u8
     ) -> Option<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let zfo: bool = rng.r#gen();
+        let zfo: bool = rng.random();
 
         let amount = if zfo {
-            rng.gen_range(1..10u128.pow(t0_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t0_dec as u32 / 2))
         } else {
-            rng.gen_range(1..10u128.pow(t1_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t1_dec as u32 / 2))
         };
         println!("trying to swap with amount {amount} {key:#?} {zfo}");
 
