@@ -7,7 +7,7 @@ use angstrom_types::{
         RawPoolOrder, grouped_orders::OrderWithStorageData, testnet::random::Randomizer
     }
 };
-use rand::{Rng, thread_rng};
+use rand::{Rng, rng};
 
 use super::pool::{Pool, PoolBuilder};
 use crate::type_generator::orders::{
@@ -95,7 +95,7 @@ impl PreproposalBuilder {
         let searcher = pools
             .iter()
             .map(|pool_id| {
-                let mut rng = thread_rng();
+                let mut rng = rng();
                 let order = ToBOrderBuilder::new()
                     .recipient(pool_id.tob_recipient())
                     .asset_in(pool_id.token1())
@@ -109,7 +109,7 @@ impl PreproposalBuilder {
                     .pool_id(pool_id.id())
                     .order_hash(order.order_hash())
                     .build();
-                let price: u128 = Rng::r#gen(&mut rng);
+                let price: u128 = Rng::random(&mut rng);
                 let priority_data = OrderPriorityData {
                     price:     U256::from(price),
                     volume:    1,

@@ -105,7 +105,7 @@ impl<S: Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send + 'static> AnvilEt
         tracing::info!("!!!!!!!!found angstrom address with a angstrom tx!!!!!!!");
         let input = angstrom_tx.input();
 
-        let Ok(bytes) = TestnetHub::executeCall::abi_decode(input, false) else {
+        let Ok(bytes) = TestnetHub::executeCall::abi_decode(input) else {
             tracing::warn!("found angstrom contract call thats not a bundle");
             return;
         };

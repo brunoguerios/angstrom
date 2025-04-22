@@ -85,7 +85,7 @@ pub(crate) trait SafeDeployPending {
     ) -> impl Future<Output = eyre::Result<(PendingTransaction, Address)>> + Send;
 }
 
-impl<P, N> SafeDeployPending for RawCallBuilder<(), P, N>
+impl<P, N> SafeDeployPending for RawCallBuilder<P, N>
 where
     P: Provider<N>,
     N: Network
@@ -110,7 +110,7 @@ where
     }
 }
 
-impl<P, C, N> SafeDeployPending for SolCallBuilder<(), P, C, N>
+impl<P, C, N> SafeDeployPending for SolCallBuilder<P, C, N>
 where
     P: Provider<N> + Clone,
     C: SolCall + Send + Sync + Clone,

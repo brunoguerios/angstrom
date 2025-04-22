@@ -248,7 +248,7 @@ pub mod test {
                 .filter_map(|tx| {
                     let calldata = tx.input().to_vec();
                     let mut slice = calldata.as_slice();
-                    let bytes = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::abi_decode(slice,true).unwrap().encoded.to_vec();
+                    let bytes = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::abi_decode(slice).unwrap().encoded.to_vec();
 
                     let mut slice = bytes.as_slice();
                     let data = &mut slice;

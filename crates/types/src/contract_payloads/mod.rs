@@ -42,7 +42,7 @@ impl Signature {
         match self {
             Self::Contract { from, .. } => *from,
             Self::Ecdsa { v, r, s } => {
-                let sig = alloy::primitives::PrimitiveSignature::new(
+                let sig = alloy::primitives::Signature::new(
                     U256::from_be_slice(&**r),
                     U256::from_be_slice(&**s),
                     normalize_v(*v as u64).unwrap()
@@ -59,8 +59,8 @@ impl Default for Signature {
     }
 }
 
-impl From<alloy::primitives::PrimitiveSignature> for Signature {
-    fn from(value: alloy::primitives::PrimitiveSignature) -> Self {
+impl From<alloy::primitives::Signature> for Signature {
+    fn from(value: alloy::primitives::Signature) -> Self {
         let v = 27 + value.v() as u8;
         let r: FixedBytes<32> = value.r().into();
         let s: FixedBytes<32> = value.s().into();

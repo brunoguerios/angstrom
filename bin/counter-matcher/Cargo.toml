@@ -50,7 +50,7 @@ secp256k1 = { workspace = true, features = ["serde"] }
 clap.workspace = true
 eyre.workspace = true
 toml.workspace = true
-revm-interpreter = { version = "16.0.0-alpha.7", default-features = false }
+revm-interpreter.workspace = true
 url.workspace = true
 futures.workspace = true
 rayon = "1"

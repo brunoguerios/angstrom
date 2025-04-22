@@ -73,7 +73,6 @@ pub fn run() -> eyre::Result<()> {
             .call()
             .await
             .unwrap()
-            ._0
             .into_iter()
             .collect::<HashSet<_>>();
 

@@ -74,8 +74,8 @@ impl OrderDistributionBuilder {
             self.volumeparams.unwrap_or_default();
 
         // We need two RNG handles because we hand them out as a mutable
-        let mut rng = rand::thread_rng();
-        let mut rng2 = rand::thread_rng();
+        let mut rng = rand::rng();
+        let mut rng2 = rand::rng();
 
         let price_gen = SkewNormal::new(price_location, price_scale, price_shape)
             .map_err(|e| eyre!("Error creating price distribution: {}", e))?;

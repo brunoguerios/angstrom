@@ -45,13 +45,13 @@ impl OrderGenerator {
     }
 
     pub fn generate_orders(&self) -> Vec<GeneratedPoolOrders> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         self.pools
             .iter()
             .map(|pool| {
                 pool.generate_set(
-                    rng.gen_range(self.order_amt_range.clone()),
-                    rng.gen_range(self.partial_pct_range.clone())
+                    rng.random_range(self.order_amt_range.clone()),
+                    rng.random_range(self.partial_pct_range.clone())
                 )
             })
             .collect::<Vec<_>>()
@@ -85,7 +85,7 @@ impl<const N: usize> PriceDistribution<N> {
     pub fn sample_around_price(&self, amount: usize) -> Vec<f64> {
         let price_avg = self.last_prices.iter().sum::<f64>() / N as f64;
         let normal = Normal::new(price_avg, price_avg * (self.sd_factor / 100.0)).unwrap();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut res = Vec::with_capacity(amount);
         for _ in 0..amount {
@@ -102,7 +102,7 @@ impl<const N: usize> PriceDistribution<N> {
     pub fn generate_price(&mut self) -> f64 {
         let price_avg = self.last_prices.iter().sum::<f64>() / N as f64;
         let normal = Normal::new(price_avg, price_avg * (self.sd_factor / 100.0)).unwrap();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let new_price = normal
             .sample(&mut rng)
