@@ -167,7 +167,7 @@ pub mod fuzz_uniswap {
     use rand::Rng;
     use revm::{
         Context, DatabaseRef, ExecuteEvm, Journal, MainBuilder,
-        context::{BlockEnv, CfgEnv, TxEnv},
+        context::{BlockEnv, CfgEnv, JournalTr, TxEnv},
         database::CacheDB,
         primitives::{TxKind, hardfork::SpecId}
     };
@@ -302,7 +302,7 @@ pub mod fuzz_uniswap {
             tx:              TxEnv::default(),
             block:           BlockEnv::default(),
             cfg:             CfgEnv::<SpecId>::default().with_chain_id(CHAIN_ID),
-            journaled_state: Journal::<CacheDB<Arc<DB>>>::new(SpecId::LATEST, db.clone()),
+            journaled_state: Journal::<CacheDB<Arc<DB>>>::new(db.clone()),
             chain:           (),
             error:           Ok(())
         }
@@ -346,7 +346,7 @@ pub mod fuzz_uniswap {
                 .result
                 .into_logs()
                 .into_iter()
-                .filter_map(|log| Swap::decode_log(&log, true).ok())
+                .filter_map(|log| Swap::decode_log(&log).ok())
                 .collect::<Vec<_>>()[0]
                 .clone()
                 .data
@@ -414,7 +414,7 @@ pub mod fuzz_uniswap {
         t0_dec: u8,
         t1_dec: u8
     ) -> Option<()> {
-        let mut rng = rand::random();
+        let mut rng = rand::rng();
 
         let zfo: bool = rng.random();
         let amount = if zfo {
@@ -640,7 +640,7 @@ pub mod fuzz_uniswap {
 
         logs.into_iter()
             .fold(HashSet::new(), |mut set, log| {
-                if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner(), true) {
+                if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner()) {
                     let pool_key = PoolKey {
                         currency0:   pool.asset0,
                         currency1:   pool.asset1,
@@ -659,7 +659,7 @@ pub mod fuzz_uniswap {
                     return set;
                 }
 
-                if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner(), true) {
+                if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner()) {
                     let pool_key = PoolKey {
                         currency0:   pool.asset0,
                         currency1:   pool.asset1,
