@@ -8,8 +8,10 @@ use angstrom_types::{
     orders::CancelOrderRequest,
     sol_bindings::{RawPoolOrder, grouped_orders::AllOrders}
 };
+use itertools::Itertools;
 use jsonrpsee::ws_client::WsClient;
 use pade::PadeEncode;
+use secp256k1::rand;
 use sepolia_bundle_lander::env::ProviderType;
 use testing_tools::type_generator::orders::UserOrderBuilder;
 
@@ -27,6 +29,24 @@ pub struct OrderManager {
     /// map of user order to our active counter order
     user_orders:   HashMap<B256, B256>,
     client:        Arc<WsClient>
+}
+
+impl Drop for OrderManager {
+    fn drop(&mut self) {
+        // take all active orders and then try to cancel pending
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                let runtime = tokio::runtime::Builder::new_multi_thread().build().unwrap();
+                runtime.block_on(async move {
+                    tracing::info!("canceling all orders");
+                    let keys = self.user_orders.keys().cloned().collect_vec();
+                    for hash in keys {
+                        self.on_order_cancel(hash).await;
+                    }
+                });
+            });
+        });
+    }
 }
 
 impl OrderManager {
@@ -102,14 +122,14 @@ impl OrderManager {
             return;
         };
 
+        // if its a user order. lets try to optimistically cancel ours
+        self.on_order_cancel(hash).await;
+
         if let Some((index, _)) = self.active_orders.remove(&hash) {
             tracing::info!(?hash, "our order filled");
             let wallet = &mut self.wallets[index];
             wallet.remove_order(order.token_in(), &hash);
         }
-
-        // remove user order if it is 1
-        self.user_orders.remove(&hash);
     }
 
     pub async fn on_order_cancel(&mut self, hash: B256) {
@@ -130,11 +150,10 @@ impl OrderManager {
 
         let cancel_res = self.client.cancel_order(cancel_request).await.unwrap();
         if !cancel_res {
-            tracing::error!("failed to cancel order");
-            panic!();
+            tracing::info!("failed to cancel order");
+            return;
         }
         tracing::info!(?our_hash, "canceled our order");
-
         // remove the token in that we allocated to this order
         order_wallet.remove_order(order.token_in(), &our_hash);
     }
@@ -185,6 +204,9 @@ impl OrderManager {
             .wallets
             .iter_mut()
             .enumerate()
+            // we randomize the order here so that we don't always use the same wallet, yet we will
+            // check all of them
+            .sorted_by_key(|(k, _)| *k * (rand::random::<usize>() / 20))
             .find(|(_, wallet)| wallet.can_support_amount(&token_in, amount_needed))
         else {
             tracing::info!(?placed_user_order, "no wallet has enough to support user order");

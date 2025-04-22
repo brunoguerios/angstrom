@@ -150,6 +150,7 @@ where
         let mut res = Vec::new();
 
         for key in &self.keys {
+            tracing::info!(?key);
             res.push(self.angstrom_signer_inner(key).await?);
         }
 
