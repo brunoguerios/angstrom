@@ -196,7 +196,7 @@ impl OrderManager {
             .enumerate()
             // we randomize the order here so that we don't always use the same wallet, yet we will
             // check all of them
-            .sorted_by_key(|(k, _)| *k * (rand::random::<usize>() / 20))
+            .sorted_by_key(|(..)| rand::random::<usize>())
             .find(|(_, wallet)| wallet.can_support_amount(&token_in, amount_needed))
         else {
             tracing::info!(?placed_user_order, "no wallet has enough to support user order");
