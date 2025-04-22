@@ -39,9 +39,9 @@ use crate::{
 pub struct AnvilInitializer {
     provider:             WalletProvider,
     angstrom_env:         AngstromEnv<UniswapEnv<WalletProvider>>,
-    controller_v1:        ControllerV1Instance<(), WalletProviderRpc>,
-    angstrom:             AngstromInstance<(), WalletProviderRpc>,
-    pool_gate:            PoolGateInstance<(), WalletProviderRpc>,
+    controller_v1:        ControllerV1Instance<WalletProviderRpc>,
+    angstrom:             AngstromInstance<WalletProviderRpc>,
+    pool_gate:            PoolGateInstance<WalletProviderRpc>,
     pending_state:        PendingDeployedPools,
     initial_state_config: InitialStateConfig
 }
@@ -316,7 +316,7 @@ impl AnvilInitializer {
                 .isInitialized(key.currency0, key.currency1)
                 .call()
                 .await?;
-            if !out._0 {
+            if !out {
                 tracing::warn!(?key, "pool is still not initalized, even after deploying state");
             }
         }

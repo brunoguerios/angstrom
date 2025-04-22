@@ -252,7 +252,7 @@ where
             )
             .await
             .unwrap();
-        TY::abi_decode_returns(&bytes, true).unwrap()
+        TY::abi_decode_returns(&bytes).unwrap()
     }
 
     // (amount, zfo)
@@ -269,7 +269,7 @@ where
             .make_call(key.address(), self.pool.token1, crate::balanceOfCall::new((key.address(),)))
             .await;
 
-        if token0_bal.balance.is_zero() || token1_bal.balance.is_zero() {
+        if token0_bal.is_zero() || token1_bal.is_zero() {
             panic!(
                 "no funds are in the given wallet t0: {:?} t1: {:?} wallet: {:?}",
                 self.pool.token0,
@@ -278,25 +278,25 @@ where
             );
         }
 
-        let t1_with_current_price = pool_price.mul_quantity(token0_bal.balance);
+        let t1_with_current_price = pool_price.mul_quantity(token0_bal);
         // if the current amount of t0 mulled through the price is more than our other
         // balance this means that we have more t0 then t1 and thus want to sell
         // some t0 for t1
-        let zfo = t1_with_current_price > token1_bal.balance;
+        let zfo = t1_with_current_price > token1_bal;
 
         let amount = if exact_in {
             // exact in will swap 1/6 of the balance
             I256::unchecked_from(if zfo {
-                token0_bal.balance / U256::from(50)
+                token0_bal / U256::from(50)
             } else {
-                token1_bal.balance / U256::from(50)
+                token1_bal / U256::from(50)
             })
         } else {
             // exact out
             I256::unchecked_from(if zfo {
                 t1_with_current_price / U256::from(50)
             } else {
-                token1_bal.balance / U256::from(50)
+                token1_bal / U256::from(50)
             })
             .wrapping_neg()
         };

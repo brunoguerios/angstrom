@@ -3,7 +3,6 @@ mod implementations;
 mod primitives;
 
 use rand::{Rng, RngCore, distr::StandardUniform, prelude::Distribution};
-use rand_distr::Standard;
 
 // need to redefine the Random trait due to trait + types (reth) not being ours
 pub trait Randomizer<T>: Rng {
@@ -16,7 +15,6 @@ pub trait Randomizer<T>: Rng {
 
 impl<T, R> Randomizer<T> for R
 where
-    Standard: Distribution<T>,
     StandardUniform: Distribution<T>,
     R: RngCore
 {
@@ -35,7 +33,6 @@ pub trait RandomizerSized<T>: Rng {
 
 pub trait RandomValues
 where
-    Standard: Distribution<Self>,
     StandardUniform: Distribution<Self>,
     Self: Sized
 {
@@ -52,7 +49,6 @@ where
 
 impl<T> RandomValues for T
 where
-    Standard: Distribution<T>,
     StandardUniform: Distribution<T>,
     T: Sized
 {

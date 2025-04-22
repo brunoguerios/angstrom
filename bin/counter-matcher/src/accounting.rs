@@ -60,7 +60,7 @@ impl WalletAccounting {
                 )
                 .await;
 
-            self.on_chain.insert(*token, balance.balance.to::<u128>());
+            self.on_chain.insert(*token, balance.to::<u128>());
         }
     }
 
@@ -123,6 +123,6 @@ impl WalletAccounting {
             .block(block_number.into())
             .await
             .unwrap();
-        TY::abi_decode_returns(&bytes, true).unwrap()
+        TY::abi_decode_returns(&bytes).unwrap()
     }
 }

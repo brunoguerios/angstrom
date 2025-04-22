@@ -1,5 +1,5 @@
 use alloy::{
-    contract::RawCallBuilder, network::Ethereum, primitives::Address, sol_types::SolValue
+    contract::RawCallBuilder, primitives::Address, sol_types::SolValue, transports::Transport
 };
 use alloy_sol_types::SolCall;
 use angstrom_types::contract_bindings::angstrom::Angstrom;
@@ -7,8 +7,7 @@ use angstrom_types::contract_bindings::angstrom::Angstrom;
 use super::{SUB_ZERO_FACTORY, mine_create3_address, mine_create3_address_uni};
 
 pub async fn deploy_angstrom_create3<
-    T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, Ethereum> + alloy::providers::WalletProvider<Ethereum>
+    P: alloy::contract::private::Provider + alloy::providers::WalletProvider
 >(
     provider: &P,
     pool_manager: Address,
@@ -23,7 +22,7 @@ pub async fn deploy_angstrom_create3<
 
     let mint_call = _private::mintCall { to: owner, id: salt, nonce };
 
-    RawCallBuilder::<(), _, _>::new_raw(&provider, mint_call.abi_encode().into())
+    RawCallBuilder::<_, _>::new_raw(&provider, mint_call.abi_encode().into())
         .to(SUB_ZERO_FACTORY)
         .from(owner)
         .gas(50e6 as u64)
@@ -34,7 +33,7 @@ pub async fn deploy_angstrom_create3<
 
     let deploy_call = _private::deployCall { id: salt, initcode: code.into() };
 
-    RawCallBuilder::<(), _, _>::new_raw(&provider, deploy_call.abi_encode().into())
+    RawCallBuilder::<_, _>::new_raw(&provider, deploy_call.abi_encode().into())
         .from(owner)
         .gas(50e6 as u64)
         .to(SUB_ZERO_FACTORY)
@@ -57,8 +56,7 @@ mod _private {
 }
 
 pub async fn deploy_uni_create3<
-    T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, Ethereum> + alloy::providers::WalletProvider<Ethereum>
+    P: alloy::contract::private::Provider + alloy::providers::WalletProvider
 >(
     provider: &P,
     controller: Address
@@ -72,7 +70,7 @@ pub async fn deploy_uni_create3<
 
     let mint_call = _private::mintCall { to: owner, id: salt, nonce };
 
-    RawCallBuilder::<(), _, _>::new_raw(&provider, mint_call.abi_encode().into())
+    RawCallBuilder::<_, _>::new_raw(&provider, mint_call.abi_encode().into())
         .to(SUB_ZERO_FACTORY)
         .from(owner)
         .gas(50e6 as u64)
@@ -85,7 +83,7 @@ pub async fn deploy_uni_create3<
 
     let deploy_call = _private::deployCall { id: salt, initcode: code.into() };
 
-    RawCallBuilder::<(), _, _>::new_raw(&provider, deploy_call.abi_encode().into())
+    RawCallBuilder::<_, _>::new_raw(&provider, deploy_call.abi_encode().into())
         .from(owner)
         .gas(50e6 as u64)
         .to(SUB_ZERO_FACTORY)

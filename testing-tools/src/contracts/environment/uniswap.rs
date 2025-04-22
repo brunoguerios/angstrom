@@ -94,7 +94,7 @@ where
         Ok(position_manager_addr)
     }
 
-    pub fn pool_gate(&self) -> PoolGateInstance<(), &E::P> {
+    pub fn pool_gate(&self) -> PoolGateInstance<&E::P> {
         PoolGateInstance::new(self.pool_gate, self.provider())
     }
 }

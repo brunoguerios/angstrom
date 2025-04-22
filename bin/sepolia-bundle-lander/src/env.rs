@@ -201,7 +201,7 @@ where
 
     logs.into_iter()
         .fold(HashSet::new(), |mut set, log| {
-            if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner(), true) {
+            if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner()) {
                 let pool_key = PoolKey {
                     currency0:   pool.asset0,
                     currency1:   pool.asset1,
@@ -220,7 +220,7 @@ where
                 return set;
             }
 
-            if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner(), true) {
+            if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner()) {
                 let pool_key = PoolKey {
                     currency0:   pool.asset0,
                     currency1:   pool.asset1,

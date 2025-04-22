@@ -38,9 +38,7 @@ impl SubmitTx for AnvilSubmissionProvider {
                 let data_vec = tx.input.input.clone().unwrap().to_vec();
                 let slice = data_vec.as_slice();
                 // problem is we have abi enocded as bytes so we need to unabi incode
-                let bytes = Angstrom::executeCall::abi_decode(slice, true)
-                    .unwrap()
-                    .encoded;
+                let bytes = Angstrom::executeCall::abi_decode(slice).unwrap().encoded;
 
                 let vecd = bytes.to_vec();
                 let mut slice = vecd.as_slice();

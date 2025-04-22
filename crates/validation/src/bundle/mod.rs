@@ -13,7 +13,7 @@ use futures::Future;
 use pade::PadeEncode;
 use revm::{
     Context, InspectEvm, Journal, MainBuilder,
-    context::{BlockEnv, CfgEnv, TxEnv},
+    context::{BlockEnv, CfgEnv, JournalTr, TxEnv},
     database::CacheDB,
     primitives::{TxKind, hardfork::SpecId}
 };
@@ -125,7 +125,7 @@ where
                         tx: TxEnv::default(),
                         block: BlockEnv::default(),
                         cfg: CfgEnv::<SpecId>::default().with_chain_id(CHAIN_ID),
-                        journaled_state: Journal::<CacheDB<Arc<DB>>>::new(SpecId::LATEST, db.clone()),
+                        journaled_state: Journal::<CacheDB<Arc<DB>>>::new(db.clone()),
                         chain: (),
                         error: Ok(()),
                     }
