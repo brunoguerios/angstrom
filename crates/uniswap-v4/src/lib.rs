@@ -159,9 +159,10 @@ pub mod fuzz_uniswap {
     use alloy_primitives::keccak256;
     use angstrom_types::{
         CHAIN_ID,
-        matching::uniswap::{PoolSnapshot, Quantity},
+        matching::uniswap::Quantity,
         primitive::{TESTNET_ANGSTROM_ADDRESS, TESTNET_POOL_MANAGER_ADDRESS},
-        reth_db_wrapper::DBError
+        reth_db_wrapper::DBError,
+        uni_structure::BaselinePoolState
     };
     use futures::StreamExt;
     use rand::Rng;
@@ -409,7 +410,7 @@ pub mod fuzz_uniswap {
         pool: &EnhancedUniswapPool,
         target_block: u64,
         db: CacheDB<Arc<DB>>,
-        snap: PoolSnapshot,
+        snap: BaselinePoolState,
         key: PoolKey,
         t0_dec: u8,
         t1_dec: u8
@@ -440,10 +441,10 @@ pub mod fuzz_uniswap {
         let t1 = t1.abs().into_raw().to::<u128>();
 
         // local calculations
-        let local_swap_output = (snap.current_price(zfo) - amount_i).ok()?;
-        let t0_delta_local = local_swap_output.d_t0;
-        let t1_delta_local = local_swap_output.d_t1;
-        let sqrt_price_local = *local_swap_output.end_bound.as_sqrtpricex96();
+        let local_swap_output = (&snap - amount_i).ok()?;
+        let t0_delta_local = local_swap_output.total_d_t0;
+        let t1_delta_local = local_swap_output.total_d_t1;
+        let sqrt_price_local = *local_swap_output.end_price;
 
         assert_eq!(t0, t0_delta_local, "t0 pool.sim_swap != poolsnap sim");
         assert_eq!(t1, t1_delta_local, "t1 pool.sim_swap != poolsnap sim");
@@ -472,7 +473,7 @@ pub mod fuzz_uniswap {
         pool: &EnhancedUniswapPool,
         target_block: u64,
         db: CacheDB<Arc<DB>>,
-        snap: PoolSnapshot,
+        snap: BaselinePoolState,
         key: PoolKey,
         t0_dec: u8,
         t1_dec: u8
@@ -506,14 +507,14 @@ pub mod fuzz_uniswap {
         let t1 = t1.abs().into_raw().to::<u128>();
 
         // local calculations
-        let local_swap_output = (snap.current_price(zfo) + amount_i).ok()?;
-        let t0_delta_local = local_swap_output.d_t0;
-        let t1_delta_local = local_swap_output.d_t1;
+        let local_swap_output = (&snap + amount_i).ok()?;
+        let t0_delta_local = local_swap_output.total_d_t0;
+        let t1_delta_local = local_swap_output.total_d_t1;
 
         assert_eq!(t0, t0_delta_local, "t0 pool.sim_swap != poolsnap sim");
         assert_eq!(t1, t1_delta_local, "t1 pool.sim_swap != poolsnap sim");
 
-        let sqrt_price_local = *local_swap_output.end_bound.as_sqrtpricex96();
+        let sqrt_price_local = *local_swap_output.end_price;
 
         let t0_delta_revm = revm_swap_output.amount0.unsigned_abs();
         let t1_delta_revm = revm_swap_output.amount1.unsigned_abs();

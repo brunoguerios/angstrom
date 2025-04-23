@@ -1,4 +1,3 @@
-use angstrom_types::matching::uniswap::{PoolPriceVec, Quantity};
 use base64::Engine;
 use matching_engine::{
     book::OrderBook,
@@ -72,25 +71,16 @@ fn delta_matcher_test() {
         let bytes = base64::prelude::BASE64_STANDARD
             .decode(DELTA_BOOK_TEST)
             .unwrap();
-        let (book, tob): (OrderBook, DeltaMatcherToB) = serde_json::from_slice(&bytes).unwrap();
+        let (book, tob, solve_for_t0): (OrderBook, DeltaMatcherToB, bool) =
+            serde_json::from_slice(&bytes).unwrap();
         println!("TOB: {tob:#?}");
-        let amm = book.amm().unwrap();
-        let post_tob = (amm.current_price(false) + Quantity::Token1(2595367055652127901)).unwrap();
-        let post_tob_price = post_tob.end_bound.as_ray();
-        println!("Post-TOB: {post_tob_price:?}");
-        let post_match = (post_tob.end_bound - Quantity::Token1(4265126092132152183)).unwrap();
-        println!(
-            "Post-match: {} {} {:?}",
-            post_match.d_t0,
-            post_match.d_t1,
-            post_match.end_bound.as_ray()
-        );
-
-        let mut matcher = DeltaMatcher::new(&book, tob, false);
-        let solution = matcher.solution(None);
-        let end_price = amm.at_price(solution.ucp.into(), true).unwrap();
-        let mid_map = PoolPriceVec::from_price_range(amm.current_price(true), end_price).unwrap();
-        println!("Mid-map: {} {} {:?}", mid_map.d_t0, mid_map.d_t1, mid_map.end_bound.as_ray());
+        let _amm = book.amm().unwrap();
+        let mut matcher = DeltaMatcher::new(&book, tob, solve_for_t0);
+        let _solution = matcher.solution(None);
+        // let end_price = amm.at_price(solution.ucp.into(), true).unwrap();
+        // let mid_map = PoolPriceVec::from_price_range(amm.current_price(true),
+        // end_price).unwrap(); println!("Mid-map: {} {} {:?}",
+        // mid_map.d_t0, mid_map.d_t1, mid_map.end_bound.as_ray());
         // println!("{:#?}", solution);
     })
 }

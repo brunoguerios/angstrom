@@ -18,9 +18,9 @@ use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_payloads::angstrom::TopOfBlockOrder as PayloadTopOfBlockOrder,
-    matching::uniswap::PoolSnapshot,
     primitive::PoolId,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
+    uni_structure::BaselinePoolState
 };
 use arraydeque::ArrayDeque;
 use dashmap::DashMap;
@@ -217,7 +217,7 @@ where
         }
     }
 
-    pub fn fetch_pool_snapshots(&self) -> HashMap<PoolId, PoolSnapshot> {
+    pub fn fetch_pool_snapshots(&self) -> HashMap<PoolId, BaselinePoolState> {
         self.pools
             .iter()
             .filter_map(|refr| {

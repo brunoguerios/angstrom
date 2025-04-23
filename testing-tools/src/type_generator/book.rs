@@ -28,11 +28,11 @@ impl BookBuilder {
 
     pub fn build(self) -> OrderBook {
         let id = self._poolid.unwrap_or_default();
-        let amm = self._amm;
+        // let amm = self._amm;
         let bids = self._bids.unwrap_or_default();
         let asks = self._asks.unwrap_or_default();
         let sort = self._sort;
-        OrderBook::new(id, amm, bids, asks, sort)
+        OrderBook::new(id, None, bids, asks, sort)
     }
 
     pub fn poolid(mut self, poolid: PoolId) -> Self {
@@ -149,10 +149,12 @@ mod tests {
     }
 
     #[test]
-    fn adds_amm_to_book() {
+    fn does_not_add_amm() {
+        // We no longer add the AMM to our generated book
         let snapshot = generate_amm_market(100);
         let book = BookBuilder::new().amm(Some(snapshot.clone())).build();
-        assert!(book.amm().is_some(), "No AMM in book");
-        assert!(*book.amm().unwrap() == snapshot, "AMM in book isn't equal to what was provided");
+        assert!(book.amm().is_none(), "AMM in book");
+        // assert!(*book.amm().unwrap() == snapshot, "AMM in book isn't equal to
+        // what was provided");
     }
 }
