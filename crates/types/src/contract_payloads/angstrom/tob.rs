@@ -148,10 +148,9 @@ impl TopOfBlockOrder {
             // than needed, but the entire input will be swapped through the AMM.
             // Therefore, our input quantity is simple - the entire input amount from
             // the order.
-            let res = snapshot.swap_current_to(
+            let res = snapshot.swap_current_with_amount(
                 I256::unchecked_from(tob.quantity_in),
-                Direction::BuyingT0,
-                None
+                Direction::BuyingT0
             )?;
             let leftover = res
                 .total_d_t0
@@ -170,10 +169,9 @@ impl TopOfBlockOrder {
             // out
 
             let cost = snapshot
-                .swap_current_to(
+                .swap_current_with_amount(
                     -I256::unchecked_from(tob.quantity_out),
-                    Direction::SellingT0,
-                    None
+                    Direction::SellingT0
                 )?
                 .total_d_t0;
 
@@ -182,8 +180,8 @@ impl TopOfBlockOrder {
                 .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
 
-            let price_vec =
-                snapshot.swap_current_to(I256::unchecked_from(cost), Direction::SellingT0, None)?;
+            let price_vec = snapshot
+                .swap_current_with_amount(I256::unchecked_from(cost), Direction::SellingT0)?;
             Ok((price_vec, leftover))
         }
     }

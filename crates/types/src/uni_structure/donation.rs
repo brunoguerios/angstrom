@@ -103,7 +103,7 @@ impl DonationCalculation {
                 current_tick:  0,
                 break_idx:     0,
                 total_donated: 0
-            })
+            });
         }
         assert!(
             vec.iter()
@@ -326,6 +326,6 @@ mod tests {
         ];
         let donation = DonationCalculation::from_vec(&don_vec).unwrap();
         let extended = &donation + &second_vec;
-        let update = extended.into_reward_updates();
+        let _ = extended.into_reward_updates();
     }
 }

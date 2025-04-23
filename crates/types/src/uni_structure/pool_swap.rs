@@ -44,7 +44,6 @@ impl<'a> PoolSwap<'a> {
 
         while amount_remaining != I256::ZERO && sqrt_price_x96 != sqrt_price_limit_x96 {
             let sqrt_price_start_x_96 = sqrt_price_x96;
-            let start_tick = self.liquidity.current_tick;
 
             let (next_tick, liquidity, init) = self
                 .liquidity
@@ -92,16 +91,7 @@ impl<'a> PoolSwap<'a> {
                 sqrt_price_x96 != sqrt_price_start_x_96
             )?;
 
-            steps.push(PoolSwapStep {
-                start_price: sqrt_price_start_x_96.into(),
-                start_tick,
-                end_price: sqrt_price_x96.into(),
-                end_tick: next_tick,
-                init,
-                liquidity,
-                d_t0,
-                d_t1
-            });
+            steps.push(PoolSwapStep { end_tick: next_tick, init, liquidity, d_t0, d_t1 });
         }
 
         // the final sqrt price
@@ -142,20 +132,40 @@ pub struct PoolSwapResult<'a> {
 
 impl<'a> PoolSwapResult<'a> {
     /// initialize a swap from the end of this swap into a new swap.
-    pub fn swap_to_price(
+    pub fn swap_to_amount(
         &'a self,
         amount: I256,
-        direction: Direction,
-        price_limit: Option<SqrtPriceX96>
+        direction: Direction
     ) -> eyre::Result<PoolSwapResult<'a>> {
         PoolSwap {
             liquidity: self.end_liquidity.clone(),
-            target_price: price_limit,
+            target_price: None,
             direction,
             target_amount: amount,
             fee: self.fee
         }
         .swap()
+    }
+
+    pub fn swap_to_price(
+        &'a self,
+        direction: Direction,
+        price_limit: SqrtPriceX96
+    ) -> eyre::Result<PoolSwapResult<'a>> {
+        let price_swap = PoolSwap {
+            liquidity: self.end_liquidity.clone(),
+            target_price: Some(price_limit),
+            direction,
+            target_amount: I256::MAX,
+            fee: self.fee
+        }
+        .swap()?;
+
+        let amount_in =
+            if direction.is_ask() { price_swap.total_d_t0 } else { price_swap.total_d_t1 };
+        let amount = I256::unchecked_from(amount_in);
+
+        self.swap_to_amount(amount, direction)
     }
 
     /// Reduce `PoolSwapStep`s into contiguous ranges for reward calculation.
@@ -193,7 +203,7 @@ impl<'a> PoolSwapResult<'a> {
                     } else {
                         (final_tick, last_initialized)
                     };
-                    last_initialized.insert(acc.2);
+                    let _ = last_initialized.insert(acc.2);
                     let stats = TickInterval {
                         lower_tick,
                         upper_tick,
@@ -211,7 +221,7 @@ impl<'a> PoolSwapResult<'a> {
     pub fn t0_donation_vec(&self, total_donation: u128) -> Vec<DonationType> {
         // Return nothing if we have no steps in this
         if self.steps.is_empty() {
-            return vec![]
+            return vec![];
         }
         // if end price is lower, than is zfo
         let direction = self.start_price >= self.end_price;
@@ -360,14 +370,11 @@ impl<'a> PoolSwapResult<'a> {
 /// the step of swapping across this pool
 #[derive(Clone, Debug)]
 pub struct PoolSwapStep {
-    start_price: SqrtPriceX96,
-    start_tick:  i32,
-    end_price:   SqrtPriceX96,
-    end_tick:    i32,
-    init:        bool,
-    liquidity:   u128,
-    d_t0:        u128,
-    d_t1:        u128
+    end_tick:  i32,
+    init:      bool,
+    liquidity: u128,
+    d_t0:      u128,
+    d_t1:      u128
 }
 
 impl PoolSwapStep {

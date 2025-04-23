@@ -485,10 +485,11 @@ impl AngstromBundle {
             .iter()
             .map(|order| (order, order_list.remove(&order.id)))
             .filter(|(outcome, o)| {
-                if outcome.is_filled() && o.is_none() {
+                if o.is_none() {
                     tracing::error!(?outcome, "lost a order");
+                    return false;
                 }
-                outcome.is_filled() && o.is_some()
+                outcome.is_filled()
             })
         {
             total_user_fees = total_user_fees.saturating_add(Self::apply_user_order(
@@ -538,7 +539,6 @@ impl AngstromBundle {
             .clone()
             .map(|(v, _)| v)
             .unwrap_or_else(|| snapshot.noop());
-        tracing::info!("{:#?}", post_tob_price);
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
@@ -551,11 +551,8 @@ impl AngstromBundle {
             let is_ask = post_tob_price.start_price >= ucp;
             // grab amount in when swap to price, then from there, calculate
             // actual values.
-            let book_swap_vec = post_tob_price.swap_to_price(
-                I256::MAX,
-                Direction::from_is_bid(is_ask),
-                Some(ucp)
-            )?;
+            let book_swap_vec =
+                post_tob_price.swap_to_price(Direction::from_is_bid(is_ask), ucp)?;
             trace!(
                 net_t0 = book_swap_vec.total_d_t0,
                 net_t1 = book_swap_vec.total_d_t1,
@@ -566,10 +563,6 @@ impl AngstromBundle {
             );
             Some(book_swap_vec)
         };
-
-        tracing::info!("{:#?}", book_swap_vec);
-
-        // tracing::info!(?solution.reward_t0, ?book_swap_vec);
 
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
@@ -585,9 +578,11 @@ impl AngstromBundle {
         let book_donation_vec = book_swap_vec
             .as_ref()
             .map(|bsv| bsv.t0_donation_vec(solution.reward_t0));
+
         let tob_donation_vec = tob_swap_info
             .as_ref()
             .map(|(tob_vec, tob_d)| tob_vec.t0_donation_vec(*tob_d));
+
         let donation = match (book_donation_vec, tob_donation_vec) {
             (Some(bsv), Some(tob)) => {
                 Some(&(DonationCalculation::from_vec(&tob))? + bsv.as_slice())
@@ -604,15 +599,17 @@ impl AngstromBundle {
         // Find our net AMM vec by combining T0s.  There's not a specific reason we use
         // T0 for this, we might want to make this a bit more robust or careful
         let net_pool_vec = if let Some((tob_vec, _)) = tob_swap_info {
+            // zero for 1 is neg
+
             // if zero for 1 is neg
             let net_t0 = book_swap_vec
                 .as_ref()
                 .map(|b| b.t0_signed())
                 .unwrap_or(I256::ZERO)
                 + tob_vec.t0_signed();
+
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
-            // tracing::info!(?net_t0, ?net_direction);
 
             let amount_in = if net_t0.is_negative() {
                 net_t0.unsigned_abs()
@@ -626,7 +623,7 @@ impl AngstromBundle {
             };
 
             snapshot
-                .swap_current_to(I256::from_raw(amount_in), net_direction, None)
+                .swap_current_with_amount(I256::from_raw(amount_in), net_direction)
                 .unwrap()
                 .clone()
             // snap

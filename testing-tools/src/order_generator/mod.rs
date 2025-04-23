@@ -4,6 +4,7 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{grouped_orders::GroupedVanillaOrder, rpc_orders::TopOfBlockOrder}
 };
+use itertools::Itertools;
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -33,6 +34,7 @@ impl OrderGenerator {
                 let pool_data = item.value();
                 PoolOrderGenerator::new(*pool_id, pool_data.clone(), block_number)
             })
+            .sorted_by_key(|k| k.pool_id)
             .collect::<Vec<_>>();
 
         Self { pools, order_amt_range, partial_pct_range }

@@ -117,8 +117,7 @@ impl<'a> DeltaMatcher<'a> {
         let is_bid = start_sqrt >= end_sqrt;
 
         // swap to start
-        let Ok(res) = pool.swap_to_price(I256::MAX, Direction::from_is_bid(is_bid), Some(end_sqrt))
-        else {
+        let Ok(res) = pool.swap_to_price(Direction::from_is_bid(is_bid), end_sqrt) else {
             return Default::default();
         };
 
@@ -567,7 +566,7 @@ impl<'a> DeltaMatcher<'a> {
         let is_bid = pool.start_price >= end_price_sqrt;
         let direction = Direction::from_is_bid(is_bid);
 
-        let Ok(res) = pool.swap_to_price(I256::MAX, direction, Some(end_price_sqrt)) else {
+        let Ok(res) = pool.swap_to_price(direction, end_price_sqrt) else {
             return Default::default();
         };
 
@@ -602,7 +601,7 @@ impl<'a> DeltaMatcher<'a> {
         let mut amm = self.fetch_amm_movement_at_ucp(price_and_partial_solution.ucp);
 
         // get weird overflow values
-        if limit.is_empty() {
+        if limit.iter().filter(|f| f.is_filled()).count() == 0 {
             price_and_partial_solution.ucp = Ray::default();
             amm = None;
         }

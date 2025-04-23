@@ -84,7 +84,6 @@ fn end_to_end_agent<'a>(
                                     .map(Into::into)
                                     .chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
-                                // let all_orders = vec![tob.into()];
 
                                  pending_orders.push(client.send_orders(all_orders));
                             }

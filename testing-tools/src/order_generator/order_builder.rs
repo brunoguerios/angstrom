@@ -8,7 +8,7 @@ use angstrom_types::{
 };
 use rand::Rng;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
+use uniswap_v4::uniswap::{pool::U256_1, pool_manager::SyncedUniswapPool};
 
 use crate::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
@@ -28,7 +28,7 @@ impl OrderBuilder {
 
         // convert price to sqrtx96
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
-        let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
+        let price = price.clamp(MIN_SQRT_RATIO + U256_1, MAX_SQRT_RATIO - U256_1);
         let sqrt_price = pool.sqrt_price;
         let float_price = SqrtPriceX96::from(sqrt_price).as_f64();
         tracing::info!(?cur_price, ?float_price);
@@ -81,7 +81,7 @@ impl OrderBuilder {
         let pool = self.pool_data.read().unwrap();
 
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
-        let price = price.clamp(MIN_SQRT_RATIO, MAX_SQRT_RATIO);
+        let price = price.clamp(MIN_SQRT_RATIO + U256_1, MAX_SQRT_RATIO - U256_1);
 
         let sqrt_price = pool.sqrt_price;
 

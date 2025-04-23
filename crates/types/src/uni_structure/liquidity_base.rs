@@ -3,14 +3,12 @@
 
 use std::collections::HashMap;
 
-use alloy::primitives::{U160, U256};
+use alloy::primitives::U256;
 use itertools::Itertools;
 use malachite::num::conversion::traits::SaturatingInto;
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
-    bit_math,
-    tick_bitmap::{next_initialized_tick_within_one_word, position},
-    tick_math::get_tick_at_sqrt_ratio
+    tick_bitmap::next_initialized_tick_within_one_word, tick_math::get_tick_at_sqrt_ratio
 };
 
 use crate::matching::{SqrtPriceX96, uniswap::TickInfo};
@@ -49,7 +47,7 @@ impl BaselineLiquidity {
 
     /// returns a liquidity ref were the current liquidity is properly
     /// calculated based on were the sqrt_price is at
-    pub fn at_sqrt_price<'a>(&'a self, price: SqrtPriceX96) -> eyre::Result<LiquidityAtPoint<'a>> {
+    pub fn at_sqrt_price(&self, price: SqrtPriceX96) -> eyre::Result<LiquidityAtPoint<'_>> {
         // we are zero for one if the price is going down.
         let zfo = self.start_sqrt_price >= price;
         let tick_at_price = get_tick_at_sqrt_ratio(price.into())?;
@@ -97,7 +95,7 @@ impl BaselineLiquidity {
         })
     }
 
-    pub fn current<'a>(&'a self) -> LiquidityAtPoint<'a> {
+    pub fn current(&self) -> LiquidityAtPoint<'_> {
         LiquidityAtPoint {
             tick_spacing:       self.tick_spacing,
             current_tick:       self.start_tick,
@@ -202,57 +200,5 @@ impl LiquidityAtPoint<'_> {
 
     pub fn set_sqrt_price(&mut self, sqrt_price: U256) {
         self.current_sqrt_price = sqrt_price.into();
-    }
-
-    fn get_next_tick_gt(&mut self) -> (i32, bool) {
-        let (word_pos, bit) = position((self.current_tick / self.tick_spacing) + 1);
-        let word = self.tick_bitmap.get(&word_pos).cloned().unwrap_or_default();
-
-        // least sig bytes
-        let rel_pos = bit_math::least_significant_bit(word >> bit)
-            .map(|v| U256::from(v))
-            .unwrap_or_else(|_| U256::from(256));
-
-        let initialized = rel_pos != U256::from(256);
-        let next_bit_pos = if initialized { rel_pos.to::<u8>() + bit } else { u8::MAX };
-        let tick = self.to_tick(word_pos, next_bit_pos);
-        self.current_tick = tick;
-
-        (tick, initialized)
-    }
-
-    fn get_next_tick_lt(&mut self) -> (i32, bool) {
-        let (word_pos, bit) = position((self.current_tick / self.tick_spacing) - 1);
-        let word = self.tick_bitmap.get(&word_pos).cloned().unwrap_or_default();
-        let offset = 255 - bit;
-
-        let rel_pos = bit_math::most_significant_bit(word << offset)
-            .map(|v| U256::from(v))
-            .unwrap_or_else(|_| U256::from(256));
-
-        let initialized = rel_pos != U256::from(256);
-        let next_bit_pos = if initialized { rel_pos.to::<u8>() - offset } else { 0 };
-        let tick = self.to_tick(word_pos, next_bit_pos);
-        self.current_tick = tick;
-
-        (tick, initialized)
-    }
-
-    fn to_tick(&self, word: i16, bit: u8) -> i32 {
-        ((word as i32) * 256 + bit as i32) * self.tick_spacing
-    }
-
-    pub fn generate_checksum_to(self, end_tick: i32) -> eyre::Result<U160> {
-        let direction = self.current_tick > end_tick;
-
-        // reward up
-        if direction {
-            // let start_tick =
-        }
-        // reward down
-        else {
-        }
-
-        todo!()
     }
 }
