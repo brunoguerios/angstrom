@@ -1,4 +1,3 @@
-use angstrom_types::matching::uniswap::{PoolPriceVec, Quantity};
 use base64::Engine;
 use matching_engine::{
     book::OrderBook,
@@ -75,9 +74,9 @@ fn delta_matcher_test() {
         let (book, tob, solve_for_t0): (OrderBook, DeltaMatcherToB, bool) =
             serde_json::from_slice(&bytes).unwrap();
         println!("TOB: {tob:#?}");
-        let amm = book.amm().unwrap();
+        let _amm = book.amm().unwrap();
         let mut matcher = DeltaMatcher::new(&book, tob, solve_for_t0);
-        let solution = matcher.solution(None);
+        let _solution = matcher.solution(None);
         // let end_price = amm.at_price(solution.ucp.into(), true).unwrap();
         // let mid_map = PoolPriceVec::from_price_range(amm.current_price(true),
         // end_price).unwrap(); println!("Mid-map: {} {} {:?}",

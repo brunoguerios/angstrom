@@ -113,7 +113,7 @@ impl TestOrder {
 fn make_books(
     bids_raw: Vec<TestOrder>,
     asks_raw: Vec<TestOrder>,
-    amm: Option<PoolSnapshot>
+    _amm: Option<PoolSnapshot>
 ) -> OrderBook {
     let bids = bids_raw.iter().map(TestOrder::to_bid).collect();
     let asks = asks_raw.iter().map(TestOrder::to_ask).collect();

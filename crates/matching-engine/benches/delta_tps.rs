@@ -6,6 +6,7 @@ use std::{
 use alloy::primitives::U256;
 use alloy_primitives::Address;
 use angstrom_types::{
+    matching::uniswap::TickInfo,
     orders::{OrderId, OrderPriorityData},
     primitive::PoolId,
     sol_bindings::{
@@ -21,9 +22,7 @@ use matching_engine::{
 use testing_tools::order_generator::{GeneratedPoolOrders, PoolOrderGenerator};
 use uniswap_v3_math::{tick_bitmap::flip_tick, tick_math::get_sqrt_ratio_at_tick};
 use uniswap_v4::uniswap::{
-    pool::{EnhancedUniswapPool, TickInfo},
-    pool_data_loader::DataLoader,
-    pool_manager::SyncedUniswapPool
+    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_manager::SyncedUniswapPool
 };
 
 const TPS_BUCKETS: [u64; 9] = [20, 40, 100, 200, 500, 1000, 5000, 25_000, 100_000];
@@ -41,9 +40,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
             TickInfo {
                 liquidity_net:   100_000_000,
                 liquidity_gross: 300_000_000,
-                is_edge:         false,
-                initialized:     true,
-                zfo:             true
+                initialized:     true
             }
         ),
         (
@@ -51,9 +48,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
             TickInfo {
                 liquidity_net:   100_000_000,
                 liquidity_gross: 400_000_000,
-                is_edge:         false,
-                initialized:     true,
-                zfo:             true
+                initialized:     true
             }
         ),
         (
@@ -61,9 +56,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
             TickInfo {
                 liquidity_net:   100_000_000,
                 liquidity_gross: 500_000_000,
-                is_edge:         false,
-                initialized:     true,
-                zfo:             true
+                initialized:     true
             }
         ),
         (
@@ -71,9 +64,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
             TickInfo {
                 liquidity_net:   100_000_000,
                 liquidity_gross: 600_000_000,
-                is_edge:         false,
-                initialized:     true,
-                zfo:             true
+                initialized:     true
             }
         ),
         (
@@ -81,9 +72,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
             TickInfo {
                 liquidity_net:   100_000_000,
                 liquidity_gross: 700_000_000,
-                is_edge:         false,
-                initialized:     true,
-                zfo:             true
+                initialized:     true
             }
         ),
         (
@@ -91,9 +80,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
             TickInfo {
                 liquidity_net:   100_000_000,
                 liquidity_gross: 800_000_000,
-                is_edge:         false,
-                initialized:     true,
-                zfo:             true
+                initialized:     true
             }
         ),
         (
@@ -101,9 +88,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
             TickInfo {
                 liquidity_net:   100_000_000,
                 liquidity_gross: 900_000_000,
-                is_edge:         false,
-                initialized:     true,
-                zfo:             true
+                initialized:     true
             }
         ),
     ]

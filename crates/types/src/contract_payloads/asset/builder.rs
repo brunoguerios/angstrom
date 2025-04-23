@@ -1,5 +1,4 @@
 use alloy::primitives::Address;
-use itertools::Itertools;
 use tracing::{Level, event_enabled, trace};
 
 use super::{AssetArray, state::StageTracker};

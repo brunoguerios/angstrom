@@ -4,12 +4,11 @@ mod solutionlib;
 
 use angstrom_types::{
     contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder},
-    matching::uniswap::{Direction, PoolPriceVec, PoolSnapshot, Quantity},
     orders::PoolSolution,
     uni_structure::BaselinePoolState
 };
 use base64::Engine;
-use solutionlib::{ANOTHER_BAD, NEW_BAD};
+use solutionlib::ANOTHER_BAD;
 use tracing::Level;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {

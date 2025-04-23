@@ -8,12 +8,11 @@ use alloy::{
     transports::Transport
 };
 use angstrom_types::{
-    matching::uniswap::{LiqRange, TickInfo},
+    matching::uniswap::TickInfo,
     primitive::PoolId,
     uni_structure::{BaselinePoolState, liquidity_base::BaselineLiquidity}
 };
 use itertools::Itertools;
-use malachite::num::conversion::traits::SaturatingInto;
 use thiserror::Error;
 use uniswap_v3_math::{
     error::UniswapV3MathError,

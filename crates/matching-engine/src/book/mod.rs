@@ -1,9 +1,9 @@
 //! basic book impl so we can benchmark
-use std::{io::Write, iter::Chain, slice::Iter, time::UNIX_EPOCH};
+use std::{iter::Chain, slice::Iter};
 
 use alloy_primitives::U256;
 use angstrom_types::{
-    matching::{SqrtPriceX96, uniswap::PoolSnapshot},
+    matching::SqrtPriceX96,
     primitive::PoolId,
     sol_bindings::{
         Ray,

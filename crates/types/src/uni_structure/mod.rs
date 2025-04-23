@@ -1,3 +1,5 @@
+use std::ops::{Add, Sub};
+
 use alloy::primitives::I256;
 use alloy_primitives::U160;
 use liquidity_base::BaselineLiquidity;
@@ -5,7 +7,10 @@ use pool_swap::{PoolSwap, PoolSwapResult};
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math;
 
-use crate::matching::{SqrtPriceX96, uniswap::Direction};
+use crate::matching::{
+    SqrtPriceX96,
+    uniswap::{Direction, Quantity}
+};
 
 pub mod donation;
 pub mod liquidity_base;
@@ -34,7 +39,11 @@ impl BaselinePoolState {
         self.liquidity.start_liquidity
     }
 
-    pub fn noop<'a>(&'a self) -> PoolSwapResult<'a> {
+    pub fn current_price(&self) -> SqrtPriceX96 {
+        self.liquidity.start_sqrt_price
+    }
+
+    pub fn noop(&self) -> PoolSwapResult<'_> {
         PoolSwapResult {
             fee:           self.fee,
             start_price:   self.liquidity.start_sqrt_price,
@@ -48,12 +57,12 @@ impl BaselinePoolState {
         }
     }
 
-    pub fn swap_current_to<'a>(
-        &'a self,
+    pub fn swap_current_to(
+        &self,
         amount: I256,
         direction: Direction,
         price_limit: Option<SqrtPriceX96>
-    ) -> eyre::Result<PoolSwapResult<'a>> {
+    ) -> eyre::Result<PoolSwapResult<'_>> {
         let liq = self.liquidity.current();
 
         PoolSwap {
@@ -66,13 +75,13 @@ impl BaselinePoolState {
         .swap()
     }
 
-    pub fn swap_from_price_to<'a>(
-        &'a self,
+    pub fn swap_from_price_to(
+        &self,
         start_price: SqrtPriceX96,
         amount: I256,
         direction: Direction,
         price_limit: Option<SqrtPriceX96>
-    ) -> eyre::Result<PoolSwapResult<'a>> {
+    ) -> eyre::Result<PoolSwapResult<'_>> {
         let liq = self.liquidity.at_sqrt_price(start_price)?;
 
         PoolSwap {
@@ -89,5 +98,25 @@ impl BaselinePoolState {
         self.liquidity
             .at_sqrt_price(tick_math::get_sqrt_ratio_at_tick(start_tick)?.into())?
             .generate_checksum_to(end_tick)
+    }
+}
+
+impl<'a> Add<Quantity> for &'a BaselinePoolState {
+    type Output = eyre::Result<PoolSwapResult<'a>>;
+
+    fn add(self, rhs: Quantity) -> Self::Output {
+        let amount = I256::unchecked_from(rhs.magnitude());
+        let direction = rhs.as_input();
+        self.swap_current_to(amount, direction, None)
+    }
+}
+
+impl<'a> Sub<Quantity> for &'a BaselinePoolState {
+    type Output = eyre::Result<PoolSwapResult<'a>>;
+
+    fn sub(self, rhs: Quantity) -> Self::Output {
+        let amount = I256::unchecked_from(rhs.magnitude()).saturating_neg();
+        let direction = rhs.as_output();
+        self.swap_current_to(amount, direction, None)
     }
 }
