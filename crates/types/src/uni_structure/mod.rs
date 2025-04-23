@@ -93,12 +93,6 @@ impl BaselinePoolState {
         }
         .swap()
     }
-
-    pub fn checksum_for_ticks(&self, start_tick: i32, end_tick: i32) -> eyre::Result<U160> {
-        self.liquidity
-            .at_sqrt_price(tick_math::get_sqrt_ratio_at_tick(start_tick)?.into())?
-            .generate_checksum_to(end_tick)
-    }
 }
 
 impl<'a> Add<Quantity> for &'a BaselinePoolState {

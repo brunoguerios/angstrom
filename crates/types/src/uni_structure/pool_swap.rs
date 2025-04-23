@@ -193,7 +193,7 @@ impl<'a> PoolSwapResult<'a> {
                     } else {
                         (final_tick, last_initialized)
                     };
-                    last_initialized.insert(acc.2);
+                    let _ = last_initialized.insert(acc.2);
                     let stats = TickInterval {
                         lower_tick,
                         upper_tick,
@@ -211,7 +211,7 @@ impl<'a> PoolSwapResult<'a> {
     pub fn t0_donation_vec(&self, total_donation: u128) -> Vec<DonationType> {
         // Return nothing if we have no steps in this
         if self.steps.is_empty() {
-            return vec![]
+            return vec![];
         }
         // if end price is lower, than is zfo
         let direction = self.start_price >= self.end_price;

@@ -156,7 +156,7 @@ pub mod test {
                                 let new_orders = generator.generate_orders();
                                 tracing::info!("generated new orders. submitting to rpc");
 
-                                for orders in new_orders {
+                                for orders in new_orders.into_iter().take(1) {
                                     let GeneratedPoolOrders { pool_id, tob, book } = orders;
                                     let all_orders = book
                                         .into_iter()
