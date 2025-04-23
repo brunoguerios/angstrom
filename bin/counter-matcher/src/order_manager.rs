@@ -157,7 +157,7 @@ impl OrderManager {
             Ray::from(placed_user_order.limit_price())
         };
 
-        let (token_in, token_out, mut amount_needed, price) = if !placed_user_order.exact_in() {
+        let (token_in, token_out, mut amount_needed, mut price) = if !placed_user_order.exact_in() {
             (
                 placed_user_order.token_out(),
                 placed_user_order.token_in(),
@@ -185,10 +185,16 @@ impl OrderManager {
                     .inv_ray_round(!placed_user_order.is_bid())
             )
         };
+        // lower price to give more landing ops
+        let pct = Ray::generate_ray_decimal(90, 2);
+        price.mul_ray_assign(pct);
+
         // see if there is any wallet that can supply these amounts
 
+        // will add an extra 10% to the amount
+        amount_needed = (amount_needed as f64 * 1.1) as u128;
+        // see if there is any wallet that can supply these amounts
         // will add an extra 5% to the amount
-        amount_needed = (amount_needed as f64 * 1.05) as u128;
 
         let Some((wallet_index, wallet)) = self
             .wallets
