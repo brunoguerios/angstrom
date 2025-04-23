@@ -8,6 +8,7 @@ import {TickMath} from "v4-core/src/libraries/TickMath.sol";
 import {Hooks, IHooks} from "v4-core/src/libraries/Hooks.sol";
 import {CustomRevert} from "v4-core/src/libraries/CustomRevert.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
+import {MAX_UNLOCK_FEE_BPS} from "src/modules/TopLevelAuth.sol";
 
 import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {RouterActor, PoolKey} from "test/_mocks/RouterActor.sol";
@@ -68,7 +69,7 @@ contract UnlookHookTest is BaseTest {
     {
         vm.roll(boundBlock(bn));
 
-        unlockedFee = uint24(bound(unlockedFee, 0.01e6, 1.0e6));
+        unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_BPS));
         swapAmount = bound(swapAmount, 1e8, 10e18);
 
         // ------ PRE SNAPSHOT ------

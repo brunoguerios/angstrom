@@ -5,7 +5,7 @@ import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {PoolManager} from "v4-core/src/PoolManager.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
 import {Angstrom} from "src/Angstrom.sol";
-import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
+import {TopLevelAuth, MAX_UNLOCK_FEE_BPS} from "src/modules/TopLevelAuth.sol";
 import {Bundle} from "test/_reference/Bundle.sol";
 import {Asset, AssetLib} from "test/_reference/Asset.sol";
 import {Pair, PairLib} from "test/_reference/Pair.sol";
@@ -187,7 +187,7 @@ contract AngstromTest is BaseTest {
 
         bytes memory unlockData = bytes.concat(bytes20(node.addr), r, s, bytes1(v));
 
-        unlockedFee = uint24(bound(unlockedFee, 0.01e6, 1.0e6));
+        unlockedFee = uint24(bound(unlockedFee, 0, MAX_UNLOCK_FEE_BPS));
         swapAmount1 = bound(swapAmount1, 1e8, 10e18);
         swapAmount2 = bound(swapAmount2, 1e8, 10e18);
 

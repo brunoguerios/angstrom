@@ -126,7 +126,7 @@ contract ControllerV1Test is BaseTest {
         (int24 tickSpacing, uint24 feeInE6) = store.get(key, 0);
         assertEq(tickSpacing, 100);
         assertEq(feeInE6, 0);
-        (address asset0, address asset1) = controller.pools(key);
+        (address asset0, address asset1) = controller.getPoolByKey(key);
         assertEq(asset0, assets[0]);
         assertEq(asset1, assets[2]);
 

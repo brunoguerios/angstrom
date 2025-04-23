@@ -11,6 +11,8 @@ import {
     FEE_OFFSET,
     FEE_MASK
 } from "../types/ConfigEntry.sol";
+import {StoreKey} from "../types/StoreKey.sol";
+import {ConfigBuffer} from "../types/ConfigBuffer.sol";
 
 type PoolConfigStore is address;
 
@@ -19,15 +21,6 @@ uint256 constant STORE_ADDR_OFFSET = 32;
 uint256 constant SIZE_OFFSET = 0;
 uint256 constant SIZE_MASK = 0xffffffff;
 uint256 constant STORE_HEADER_SIZE = 1;
-
-/// @dev Left shift in bits to convert the full hash `keccak256(abi.encode(asset0, asset1))` to a store key.
-uint256 constant HASH_TO_STORE_KEY_SHIFT = 40;
-
-/// @dev Max fee allowed.
-uint24 constant MAX_FEE = 0.2e6;
-uint256 constant ONE_E6 = 1e6;
-
-type StoreKey is bytes27;
 
 using PoolConfigStoreLib for PoolConfigStore global;
 
@@ -48,11 +41,7 @@ library PoolConfigStoreLib {
 
     error NoEntry();
 
-    error InvalidAssets();
-    error InvalidTickSpacing();
-    error FeeAboveMax();
     error FailedToDeployNewStore();
-    error InvalidStoreIndex();
 
     /*
      * @dev Generated from ./StoreDeployer.huff using https://github.com/Philogy/py-huff (commit: 44bbb4b)
@@ -78,104 +67,57 @@ library PoolConfigStoreLib {
     uint256 internal constant STORE_DEPLOYER = 0x600b380380600b5f395ff300;
     uint256 internal constant STORE_DEPLOYER_BYTES = 12;
 
-    function removeIntoNew(PoolConfigStore previousStore, uint256 storeIndex)
-        internal
-        returns (PoolConfigStore newStore)
-    {
-        uint256 total = previousStore.totalEntries();
-        if (storeIndex >= total) revert InvalidStoreIndex();
-        // If removing last entry, we can return an empty store.
-        if (total == 1) return newStore;
-        uint256 entriesAfterToBeRemoved = total - storeIndex - 1;
-        assembly ("memory-safe") {
-            // Get free memory & copy in the entire store's contents.
-            let free := mload(0x40)
-            // Add deployment code to the front.
-            mstore(free, STORE_DEPLOYER)
-            // Get offset after store deployer code for entries.
-            let entryOffset := add(free, 0x20)
-            // Copy the old store into memory.
-            let totalEntryBytes := mul(ENTRY_SIZE, total)
-            extcodecopy(previousStore, entryOffset, STORE_HEADER_SIZE, totalEntryBytes)
-            // Shift all entries in memory after the one to be removed back by one entry.
-            let toBeRemovedMemOffset := add(entryOffset, mul(storeIndex, ENTRY_SIZE))
-            mcopy(
-                toBeRemovedMemOffset,
-                add(toBeRemovedMemOffset, 0x20),
-                mul(entriesAfterToBeRemoved, ENTRY_SIZE)
-            )
-            // Deploy store.
-            newStore :=
-                create(
-                    0,
-                    add(free, sub(32, STORE_DEPLOYER_BYTES)),
-                    add(sub(totalEntryBytes, ENTRY_SIZE), STORE_DEPLOYER_BYTES)
-                )
-        }
-        if (PoolConfigStore.unwrap(newStore) == address(0)) {
-            revert FailedToDeployNewStore();
-        }
+    /// @dev Copy to the entries from the store to a new buffer. Does
+    function read_to_buffer(PoolConfigStore self) internal view returns (ConfigBuffer memory) {
+        return self.read_to_buffer(0);
     }
 
-    /// @dev Create a new store from an old when appending or overriding the entry for the given
-    /// asset pair.
-    function setIntoNew(
-        PoolConfigStore previousStore,
-        StoreKey key,
-        address asset0,
-        address asset1,
-        uint16 tickSpacing,
-        uint24 bundleFee
-    ) internal returns (PoolConfigStore newStore) {
-        if (asset1 <= asset0) revert InvalidAssets();
-        if (tickSpacing == 0) revert InvalidTickSpacing();
-        if (bundleFee > MAX_FEE) revert FeeAboveMax();
+    function read_to_buffer(PoolConfigStore self, uint256 extra_capacity)
+        internal
+        view
+        returns (ConfigBuffer memory buffer)
+    {
+        uint256 entry_count = self.totalEntries();
+        uint256 capacity = entry_count + extra_capacity;
 
-        // Update store.
-        uint256 total = previousStore.totalEntries();
+        buffer.reset_and_alloc_capacity(capacity);
+
+        // Copy store contents into buffer.
+        ConfigEntry[] memory entries = buffer.entries;
         assembly ("memory-safe") {
-            // Get free memory & copy in the entire store's contents.
-            let free := mload(0x40)
-            // Add deployment code to the front.
-            mstore(free, STORE_DEPLOYER)
-            // Get offset after store deployer code for entries.
-            let entryOffset := add(free, 0x20)
-            // Copy the old store into memory.
-            let totalEntryBytes := mul(ENTRY_SIZE, total)
-            extcodecopy(previousStore, entryOffset, STORE_HEADER_SIZE, totalEntryBytes)
-            // Construct new entry by splicing in the values.
-            let newEntry :=
-                or(
-                    key,
-                    or(
-                        shl(TICK_SPACING_OFFSET, and(tickSpacing, TICK_SPACING_MASK)),
-                        shl(FEE_OFFSET, and(bundleFee, FEE_MASK))
-                    )
-                )
-            // Search pool to see if it was already configured, if so replace the entry.
-            let entriesEnd := add(entryOffset, totalEntryBytes)
-            for {} lt(entryOffset, entriesEnd) { entryOffset := add(entryOffset, 0x20) } {
-                let entry := mload(entryOffset)
-                if eq(key, and(entry, KEY_MASK)) {
-                    mstore(entryOffset, newEntry)
-                    break
-                }
-            }
-            // Increase `totalEntryBytes` by 0x20 if we didn't break in the loop.
-            totalEntryBytes := add(totalEntryBytes, shl(5, eq(entryOffset, entriesEnd)))
-            // Append the entry to the end in case we include it (`totalEntryBytes` will ensure we don't
-            // if the entry was found & replaced).
-            mstore(entriesEnd, newEntry)
-            // Deploy store.
-            newStore :=
-                create(
-                    0,
-                    add(free, sub(32, STORE_DEPLOYER_BYTES)),
-                    add(totalEntryBytes, STORE_DEPLOYER_BYTES)
-                )
+            // Copy all the entries from store into the buffer.
+            let bytes_to_copy := mul(entry_count, ENTRY_SIZE)
+            extcodecopy(self, add(entries, 0x20), STORE_HEADER_SIZE, bytes_to_copy)
         }
 
-        if (PoolConfigStore.unwrap(newStore) == address(0)) {
+        // Safety: We allocated at least `entry_count` capacity and have copied exactly
+        // `entry_count` valid entries from the store into the buffer.
+        buffer.unsafe_resize(entry_count);
+    }
+
+    function store_from_buffer(ConfigBuffer memory buffer)
+        internal
+        returns (PoolConfigStore new_store)
+    {
+        ConfigEntry[] memory entries = buffer.entries;
+        uint256 entry_count = entries.length;
+
+        assembly ("memory-safe") {
+            // Temporarily overwrite `entries.length` with deployer bytecode.
+            mstore(entries, STORE_DEPLOYER)
+            // Create store contract.
+            new_store :=
+                create(
+                    0,
+                    add(entries, sub(0x20, STORE_DEPLOYER_BYTES)),
+                    add(STORE_DEPLOYER_BYTES, mul(entry_count, ENTRY_SIZE))
+                )
+            // Reset length to previous value.
+            mstore(entries, entry_count)
+        }
+
+        /// Verify that the deployment was successful.
+        if (PoolConfigStore.unwrap(new_store) == address(0)) {
             revert FailedToDeployNewStore();
         }
     }
@@ -205,22 +147,8 @@ library PoolConfigStoreLib {
     {
         ConfigEntry entry = self.getWithDefaultEmpty(key, index);
         if (entry.isEmpty()) revert NoEntry();
-        tickSpacing = entry.tickSpacing();
+        tickSpacing = int24(uint24(entry.tickSpacing()));
         bundleFee = entry.bundleFee();
-    }
-
-    /// @dev Computes the `StoreKey` from the inputs. WARN: Does not check that the assets are
-    /// sorted and in unique order.
-    function keyFromAssetsUnchecked(address asset0, address asset1)
-        internal
-        pure
-        returns (StoreKey key)
-    {
-        assembly ("memory-safe") {
-            mstore(0x00, asset0)
-            mstore(0x20, asset1)
-            key := shl(HASH_TO_STORE_KEY_SHIFT, keccak256(0x00, 0x40))
-        }
     }
 
     function into(PoolConfigStore self) internal pure returns (address) {

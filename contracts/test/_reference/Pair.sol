@@ -6,12 +6,8 @@ import {Asset, AssetLib} from "./Asset.sol";
 import {RayMathLib} from "src/libraries/RayMathLib.sol";
 import {PairLib as ActualPairLib} from "src/types/Pair.sol";
 import {PriceAB} from "src/types/Price.sol";
-import {
-    PoolConfigStore,
-    PoolConfigStoreLib,
-    StoreKey,
-    STORE_HEADER_SIZE
-} from "src/libraries/PoolConfigStore.sol";
+import {PoolConfigStore, STORE_HEADER_SIZE} from "src/libraries/PoolConfigStore.sol";
+import {StoreKey, StoreKeyLib} from "src/types/StoreKey.sol";
 import {ConfigEntry, ENTRY_SIZE} from "src/types/ConfigEntry.sol";
 
 import {FormatLib} from "super-sol/libraries/FormatLib.sol";
@@ -105,7 +101,7 @@ library PairLib {
         returns (uint16 index)
     {
         require(asset0 < asset1, "getStoreIndex:assets unsorted");
-        StoreKey key = PoolConfigStoreLib.keyFromAssetsUnchecked(asset0, asset1);
+        StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1);
         uint256 totalEntries = store.code.length / ENTRY_SIZE;
         PoolConfigStore configStore = PoolConfigStore.wrap(store);
         for (index = 0; index < totalEntries; index++) {

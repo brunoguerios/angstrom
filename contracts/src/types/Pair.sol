@@ -4,12 +4,9 @@ pragma solidity ^0.8.13;
 import {CalldataReader} from "./CalldataReader.sol";
 import {AssetArray} from "./Asset.sol";
 import {RayMathLib} from "../libraries/RayMathLib.sol";
-import {
-    PoolConfigStore,
-    StoreKey,
-    HASH_TO_STORE_KEY_SHIFT,
-    ONE_E6
-} from "../libraries/PoolConfigStore.sol";
+import {PoolConfigStore, StoreKey} from "../libraries/PoolConfigStore.sol";
+import {ONE_E6} from "./ConfigEntry.sol";
+import {StoreKey, HASH_TO_STORE_KEY_SHIFT} from "../types/StoreKey.sol";
 
 type Pair is uint256;
 
