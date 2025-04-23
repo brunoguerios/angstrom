@@ -5,6 +5,7 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {ANGSTROM_INIT_HOOK_FEE} from "../modules/UniConsumer.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "v4-core/src/types/BalanceDelta.sol";
+import {console} from "forge-std/console.sol";
 
 // forgefmt: disable-next-item
 struct SwapCall {
@@ -32,7 +33,8 @@ library SwapCallLib {
     /// @dev Uniswap's `MIN_SQRT_RATIO + 1` to pass the limit check.
     uint160 internal constant MIN_SQRT_RATIO = 4295128740;
     /// @dev Uniswap's `MAX_SQRT_RATIO - 1` to pass the limit check.
-    uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970341;
+    uint160 internal constant MAX_SQRT_RATIO =
+        1461446703485210103287273052203988822378723970341;
 
     uint256 internal constant HOOK_DATA_CD_REL_OFFSET = 0x120;
     uint256 internal constant CALL_PAYLOAD_START_OFFSET = 28;
@@ -40,14 +42,21 @@ library SwapCallLib {
     uint256 internal constant POOL_KEY_OFFSET = 0x20;
     uint256 internal constant POOL_KEY_SIZE = 0xa0;
 
-    function newSwapCall(address hook) internal pure returns (SwapCall memory swapCall) {
-        swapCall.leftPaddedSelector = uint256(uint32(IPoolManager.swap.selector));
+    function newSwapCall(
+        address hook
+    ) internal pure returns (SwapCall memory swapCall) {
+        swapCall.leftPaddedSelector = uint256(
+            uint32(IPoolManager.swap.selector)
+        );
         swapCall.fee = ANGSTROM_INIT_HOOK_FEE;
         swapCall.hook = hook;
         swapCall.hookDataRelativeOffset = HOOK_DATA_CD_REL_OFFSET;
     }
 
-    function setZeroForOne(SwapCall memory self, bool zeroForOne) internal pure {
+    function setZeroForOne(
+        SwapCall memory self,
+        bool zeroForOne
+    ) internal pure {
         self.zeroForOne = zeroForOne;
         self.sqrtPriceLimitX96 = zeroForOne ? MIN_SQRT_RATIO : MAX_SQRT_RATIO;
     }
@@ -59,14 +68,34 @@ library SwapCallLib {
     }
 
     function call(SwapCall memory self, IPoolManager uni) internal {
+        BalanceDelta delta;
         assembly ("memory-safe") {
-            let success :=
-                call(gas(), uni, 0, add(self, CALL_PAYLOAD_START_OFFSET), CALL_PAYLOAD_CD_BYTES, 0, 0)
+            let success := call(
+                gas(),
+                uni,
+                0,
+                add(self, CALL_PAYLOAD_START_OFFSET),
+                CALL_PAYLOAD_CD_BYTES,
+                0,
+                0
+            )
             if iszero(success) {
                 let free := mload(0x40)
                 returndatacopy(free, 0, returndatasize())
                 revert(free, returndatasize())
             }
+
+            let free := mload(0x40)
+            returndatacopy(free, 0, returndatasize())
+            delta := mload(free)
         }
+
+        int128 delta_0 = delta.amount0();
+        int128 delta_1 = delta.amount1();
+
+        console.log("swap_delta0");
+        console.logInt(int256(delta_0));
+        console.log("swap_delta1");
+        console.logInt(int256(delta_1));
     }
 }

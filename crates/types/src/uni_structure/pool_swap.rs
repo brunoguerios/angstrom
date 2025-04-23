@@ -142,20 +142,40 @@ pub struct PoolSwapResult<'a> {
 
 impl<'a> PoolSwapResult<'a> {
     /// initialize a swap from the end of this swap into a new swap.
-    pub fn swap_to_price(
+    pub fn swap_to_amount(
         &'a self,
         amount: I256,
-        direction: Direction,
-        price_limit: Option<SqrtPriceX96>
+        direction: Direction
     ) -> eyre::Result<PoolSwapResult<'a>> {
         PoolSwap {
             liquidity: self.end_liquidity.clone(),
-            target_price: price_limit,
+            target_price: None,
             direction,
             target_amount: amount,
             fee: self.fee
         }
         .swap()
+    }
+
+    pub fn swap_to_price(
+        &'a self,
+        direction: Direction,
+        price_limit: SqrtPriceX96
+    ) -> eyre::Result<PoolSwapResult<'a>> {
+        let price_swap = PoolSwap {
+            liquidity: self.end_liquidity.clone(),
+            target_price: Some(price_limit),
+            direction,
+            target_amount: I256::MAX,
+            fee: self.fee
+        }
+        .swap()?;
+
+        let amount_in =
+            if direction.is_ask() { price_swap.total_d_t0 } else { price_swap.total_d_t1 };
+        let amount = I256::unchecked_from(amount_in);
+
+        self.swap_to_amount(amount, direction)
     }
 
     /// Reduce `PoolSwapStep`s into contiguous ranges for reward calculation.
