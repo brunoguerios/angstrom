@@ -43,6 +43,18 @@ impl Sum for Ray {
     }
 }
 
+impl PartialEq<U256> for Ray {
+    fn eq(&self, other: &U256) -> bool {
+        self.0.eq(other)
+    }
+}
+
+impl PartialOrd<U256> for Ray {
+    fn partial_cmp(&self, other: &U256) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(other)
+    }
+}
+
 impl From<Ray> for Natural {
     fn from(value: Ray) -> Self {
         Natural::from_limbs_asc(value.0.as_limbs())
@@ -400,8 +412,7 @@ impl Ray {
     /// output the provided amount of t0 (q).  Rounding determined by parameter
     pub fn quantity(&self, q: u128, round_up: bool) -> u128 {
         let rm = if round_up { RoundingMode::Ceiling } else { RoundingMode::Floor };
-        let product: U512 = self.0.widening_mul(U256::from(q));
-        let numerator = Natural::from_limbs_asc(product.as_limbs());
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs()) * Natural::from(q);
         let (res, _) = numerator.div_round(const_1e27(), rm);
         u128::saturating_from(&res)
     }
@@ -429,7 +440,7 @@ impl Ray {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::U160;
-    use rand::{Rng, thread_rng};
+    use rand::{Rng, rng};
 
     use super::*;
 
@@ -694,9 +705,9 @@ mod tests {
 
     #[test]
     fn converts_from_sqrtpricex96() {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         // Make sure our random number fits in here
-        let x: U160 = rng.sample(rand::distributions::Standard);
+        let x: U160 = rng.sample(rand::distr::StandardUniform);
         // let random: U256 = U256::ZERO;
         // let sp = Ray(random);
         let sp: SqrtPriceX96 = Ray(Uint::from(x)).into();

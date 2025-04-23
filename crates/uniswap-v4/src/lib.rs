@@ -80,7 +80,7 @@ where
 
     logs.into_iter()
         .fold(HashSet::new(), |mut set, log| {
-            if let Ok(pool) = PoolConfigured::decode_log(&log, true) {
+            if let Ok(pool) = PoolConfigured::decode_log(&log) {
                 let pool_key = PoolKey {
                     currency0:   pool.asset0,
                     currency1:   pool.asset1,
@@ -99,7 +99,7 @@ where
                 return set;
             }
 
-            if let Ok(pool) = PoolRemoved::decode_log(&log, true) {
+            if let Ok(pool) = PoolRemoved::decode_log(&log) {
                 let pool_key = PoolKey {
                     currency0:   pool.asset0,
                     currency1:   pool.asset1,
@@ -159,15 +159,16 @@ pub mod fuzz_uniswap {
     use alloy_primitives::keccak256;
     use angstrom_types::{
         CHAIN_ID,
-        matching::uniswap::{PoolSnapshot, Quantity},
+        matching::uniswap::Quantity,
         primitive::{TESTNET_ANGSTROM_ADDRESS, TESTNET_POOL_MANAGER_ADDRESS},
-        reth_db_wrapper::DBError
+        reth_db_wrapper::DBError,
+        uni_structure::BaselinePoolState
     };
     use futures::StreamExt;
     use rand::Rng;
     use revm::{
         Context, DatabaseRef, ExecuteEvm, Journal, MainBuilder,
-        context::{BlockEnv, CfgEnv, TxEnv},
+        context::{BlockEnv, CfgEnv, JournalTr, TxEnv},
         database::CacheDB,
         primitives::{TxKind, hardfork::SpecId}
     };
@@ -302,7 +303,7 @@ pub mod fuzz_uniswap {
             tx:              TxEnv::default(),
             block:           BlockEnv::default(),
             cfg:             CfgEnv::<SpecId>::default().with_chain_id(CHAIN_ID),
-            journaled_state: Journal::<CacheDB<Arc<DB>>>::new(SpecId::LATEST, db.clone()),
+            journaled_state: Journal::<CacheDB<Arc<DB>>>::new(db.clone()),
             chain:           (),
             error:           Ok(())
         }
@@ -346,7 +347,7 @@ pub mod fuzz_uniswap {
                 .result
                 .into_logs()
                 .into_iter()
-                .filter_map(|log| Swap::decode_log(&log, true).ok())
+                .filter_map(|log| Swap::decode_log(&log).ok())
                 .collect::<Vec<_>>()[0]
                 .clone()
                 .data
@@ -409,18 +410,18 @@ pub mod fuzz_uniswap {
         pool: &EnhancedUniswapPool,
         target_block: u64,
         db: CacheDB<Arc<DB>>,
-        snap: PoolSnapshot,
+        snap: BaselinePoolState,
         key: PoolKey,
         t0_dec: u8,
         t1_dec: u8
     ) -> Option<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let zfo: bool = rng.r#gen();
+        let zfo: bool = rng.random();
         let amount = if zfo {
-            rng.gen_range(1..10u128.pow(t1_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t1_dec as u32 / 2))
         } else {
-            rng.gen_range(1..10u128.pow(t0_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t0_dec as u32 / 2))
         };
 
         println!("trying to swap with amount {amount} {key:#?} {zfo}");
@@ -440,10 +441,10 @@ pub mod fuzz_uniswap {
         let t1 = t1.abs().into_raw().to::<u128>();
 
         // local calculations
-        let local_swap_output = (snap.current_price(zfo) - amount_i).ok()?;
-        let t0_delta_local = local_swap_output.d_t0;
-        let t1_delta_local = local_swap_output.d_t1;
-        let sqrt_price_local = *local_swap_output.end_bound.as_sqrtpricex96();
+        let local_swap_output = (&snap - amount_i).ok()?;
+        let t0_delta_local = local_swap_output.total_d_t0;
+        let t1_delta_local = local_swap_output.total_d_t1;
+        let sqrt_price_local = *local_swap_output.end_price;
 
         assert_eq!(t0, t0_delta_local, "t0 pool.sim_swap != poolsnap sim");
         assert_eq!(t1, t1_delta_local, "t1 pool.sim_swap != poolsnap sim");
@@ -472,19 +473,19 @@ pub mod fuzz_uniswap {
         pool: &EnhancedUniswapPool,
         target_block: u64,
         db: CacheDB<Arc<DB>>,
-        snap: PoolSnapshot,
+        snap: BaselinePoolState,
         key: PoolKey,
         t0_dec: u8,
         t1_dec: u8
     ) -> Option<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let zfo: bool = rng.r#gen();
+        let zfo: bool = rng.random();
 
         let amount = if zfo {
-            rng.gen_range(1..10u128.pow(t0_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t0_dec as u32 / 2))
         } else {
-            rng.gen_range(1..10u128.pow(t1_dec as u32 / 2))
+            rng.random_range(1..10u128.pow(t1_dec as u32 / 2))
         };
         println!("trying to swap with amount {amount} {key:#?} {zfo}");
 
@@ -506,14 +507,14 @@ pub mod fuzz_uniswap {
         let t1 = t1.abs().into_raw().to::<u128>();
 
         // local calculations
-        let local_swap_output = (snap.current_price(zfo) + amount_i).ok()?;
-        let t0_delta_local = local_swap_output.d_t0;
-        let t1_delta_local = local_swap_output.d_t1;
+        let local_swap_output = (&snap + amount_i).ok()?;
+        let t0_delta_local = local_swap_output.total_d_t0;
+        let t1_delta_local = local_swap_output.total_d_t1;
 
         assert_eq!(t0, t0_delta_local, "t0 pool.sim_swap != poolsnap sim");
         assert_eq!(t1, t1_delta_local, "t1 pool.sim_swap != poolsnap sim");
 
-        let sqrt_price_local = *local_swap_output.end_bound.as_sqrtpricex96();
+        let sqrt_price_local = *local_swap_output.end_price;
 
         let t0_delta_revm = revm_swap_output.amount0.unsigned_abs();
         let t1_delta_revm = revm_swap_output.amount1.unsigned_abs();
@@ -640,7 +641,7 @@ pub mod fuzz_uniswap {
 
         logs.into_iter()
             .fold(HashSet::new(), |mut set, log| {
-                if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner(), true) {
+                if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner()) {
                     let pool_key = PoolKey {
                         currency0:   pool.asset0,
                         currency1:   pool.asset1,
@@ -659,7 +660,7 @@ pub mod fuzz_uniswap {
                     return set;
                 }
 
-                if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner(), true) {
+                if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner()) {
                     let pool_key = PoolKey {
                         currency0:   pool.asset0,
                         currency1:   pool.asset1,

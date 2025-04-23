@@ -8,12 +8,12 @@ use std::{
 use alloy::{
     consensus::{BlockHeader, Transaction},
     primitives::{Address, B256, BlockHash, BlockNumber, aliases::I24},
-    sol_types::SolEvent
+    sol_types::{SolCall, SolEvent}
 };
 use angstrom_types::{
     block_sync::BlockSyncProducer,
     contract_bindings::{
-        angstrom::Angstrom::PoolKey,
+        angstrom::Angstrom::{PoolKey, executeCall},
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
     contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore}
@@ -193,15 +193,17 @@ where
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| log.address == periphery_address)
             .for_each(|log| {
-                if let Ok(remove_node) = NodeRemoved::decode_log(log, true) {
+                if let Ok(remove_node) = NodeRemoved::decode_log(log) {
                     self.node_set.remove(&remove_node.node);
                     self.send_events(EthEvent::RemovedNode(remove_node.node));
+                    return;
                 }
-                if let Ok(added_node) = NodeAdded::decode_log(log, true) {
+                if let Ok(added_node) = NodeAdded::decode_log(log) {
                     self.node_set.insert(added_node.node);
                     self.send_events(EthEvent::AddedNode(added_node.node));
+                    return;
                 }
-                if let Ok(removed_pool) = PoolRemoved::decode_log(log, true) {
+                if let Ok(removed_pool) = PoolRemoved::decode_log(log) {
                     self.pool_store
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
 
@@ -216,8 +218,9 @@ where
                         hooks:       self.angstrom_address
                     };
                     self.send_events(EthEvent::RemovedPool { pool: pool_key });
+                    return;
                 }
-                if let Ok(added_pool) = PoolConfigured::decode_log(log, true) {
+                if let Ok(added_pool) = PoolConfigured::decode_log(log) {
                     let asset0 = added_pool.asset0;
                     let asset1 = added_pool.asset1;
                     let entry = AngPoolConfigEntry {
@@ -259,7 +262,10 @@ where
         tip_txs
             .filter(|tx| tx.to() == Some(self.angstrom_address))
             .filter_map(|transaction| {
-                let mut input: &[u8] = transaction.input();
+                let input: &[u8] = transaction.input();
+                let call = executeCall::abi_decode(input).ok()?;
+
+                let mut input = call.encoded.as_ref();
                 AngstromBundle::pade_decode(&mut input, None).ok()
             })
             .flat_map(move |bundle| {
@@ -279,9 +285,9 @@ where
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| self.angstrom_tokens.contains(&log.address))
             .flat_map(|logs| {
-                Transfer::decode_log(logs, true)
+                Transfer::decode_log(logs)
                     .map(|log| log._from)
-                    .or_else(|_| Approval::decode_log(logs, true).map(|log| log._owner))
+                    .or_else(|_| Approval::decode_log(logs).map(|log| log._owner))
             })
             .unique()
             .collect()
@@ -532,7 +538,9 @@ pub mod test {
 
         let leg = TxLegacy {
             to: TxKind::Call(angstrom_address),
-            input: angstrom_bundle_with_orders.pade_encode().into(),
+            input: executeCall::new((angstrom_bundle_with_orders.pade_encode().into(),))
+                .abi_encode()
+                .into(),
             ..Default::default()
         };
 

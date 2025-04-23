@@ -99,7 +99,7 @@ impl From<U256> for MatchingPrice {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::{U160, U256};
-    use rand::{Rng, thread_rng};
+    use rand::{Rng, rng};
 
     use super::{MatchingPrice, Ray};
     use crate::matching::SqrtPriceX96;
@@ -111,8 +111,8 @@ mod tests {
 
     #[test]
     fn can_convert_ray() {
-        let mut rng = thread_rng();
-        let value: U256 = rng.sample(rand::distributions::Standard);
+        let mut rng = rng();
+        let value: U256 = rng.sample(rand::distr::StandardUniform);
         let ray = Ray::from(value);
         let m = MatchingPrice::from(ray);
         assert_eq!(*m, *ray);
@@ -120,8 +120,8 @@ mod tests {
 
     #[test]
     fn can_convert_sqrtpricex96() {
-        let mut rng = thread_rng();
-        let value: U160 = rng.sample(rand::distributions::Standard);
+        let mut rng = rng();
+        let value: U160 = rng.sample(rand::distr::StandardUniform);
         let sp96 = SqrtPriceX96::from(value);
         let m = MatchingPrice::from(sp96);
         let ray = Ray::from(sp96);

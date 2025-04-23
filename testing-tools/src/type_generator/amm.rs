@@ -103,7 +103,7 @@ pub fn generate_amm_with_distributed_liquidity(
     price: SqrtPriceX96
 ) -> PoolSnapshot {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let mut ranges = Vec::new();
     let (min_liq, max_liq) = liquidity_range;
@@ -115,7 +115,7 @@ pub fn generate_amm_with_distributed_liquidity(
     let mut current_tick = aligned_low;
     while current_tick < aligned_high {
         // Generate random liquidity amount within specified range
-        let liquidity = rng.gen_range(min_liq..=max_liq);
+        let liquidity = rng.random_range(min_liq..=max_liq);
 
         // Create range from current_tick to current_tick + tick_spacing
         if let Ok(range) =
@@ -173,7 +173,7 @@ fn generate_pool_distribution(
     } = liquidity;
     let liquidity_gen = SkewNormal::new(liq_location as f64, liq_scale, liq_shape)
         .wrap_err("Error creating liquidity distribution")?;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let liq_values: Vec<u128> = liquidity_gen
         .sample_iter(&mut rng)
         .take(tick_count as usize)

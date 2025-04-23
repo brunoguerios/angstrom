@@ -198,7 +198,7 @@ impl OrderFilterMatching for PoolManagerUpdate {
                 Some(OrderSubscriptionResult::FilledOrder(block, order.order))
             }
             PoolManagerUpdate::UnfilledOrders(order)
-                if kind.contains(&OrderSubscriptionKind::UnfilleOrders)
+                if kind.contains(&OrderSubscriptionKind::UnfilledOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
@@ -212,6 +212,11 @@ impl OrderFilterMatching for PoolManagerUpdate {
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::CancelledOrder(order_hash))
+            }
+            PoolManagerUpdate::ExpiredOrder(order_hash)
+                if kind.contains(&OrderSubscriptionKind::ExpiredOrders) =>
+            {
+                Some(OrderSubscriptionResult::ExpiredOrder(order_hash))
             }
             _ => None
         }

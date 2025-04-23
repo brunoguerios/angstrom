@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use alloy::{
     consensus::{SignableTransaction, TypedTransaction},
     network::{Ethereum, NetworkWallet},
-    primitives::PrimitiveSignature,
+    primitives::Signature,
     signers::{SignerSync, local::PrivateKeySigner}
 };
 use alloy_primitives::Address;
@@ -47,8 +47,8 @@ impl AngstromSigner {
 
     fn sign_transaction_inner(
         &self,
-        tx: &mut dyn SignableTransaction<PrimitiveSignature>
-    ) -> alloy::signers::Result<PrimitiveSignature> {
+        tx: &mut dyn SignableTransaction<Signature>
+    ) -> alloy::signers::Result<Signature> {
         let hash = tx.signature_hash();
 
         self.signer.sign_hash_sync(&hash)

@@ -149,7 +149,9 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         if (address(vm).code.length > 0) vm.startPrank(sender);
         BalanceDelta feeDelta;
         (callerDelta, feeDelta) = UNI_V4.modifyLiquidity(pk, params, "");
-        if (!(feeDelta.amount0() == 0 && feeDelta.amount1() == 0)) revert GettingFees();
+        if (!(feeDelta.amount0() == 0 && feeDelta.amount1() == 0)) {
+            revert GettingFees();
+        }
 
         if (!(callerDelta.amount0() <= 0 && callerDelta.amount1() <= 0)) {
             revert GettingTokensForAddingLiq();
@@ -184,7 +186,9 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
     function __mint(address to, address asset, uint256 amount) public {
         uint256 id;
         // forgefmt: disable-next-item
-        assembly { id := asset }
+        assembly {
+            id := asset
+        }
         UNI_V4.mint(to, id, amount);
         _settleMintable(asset, amount, true);
     }

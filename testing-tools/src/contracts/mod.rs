@@ -31,7 +31,7 @@ pub trait DebugTransaction {
     async fn run_with_results_safe(self) -> eyre::Result<TxHash>;
 }
 
-impl<T, P, D> DebugTransaction for CallBuilder<T, P, D>
+impl<P, D> DebugTransaction for CallBuilder<P, D>
 where
     P: alloy::providers::Provider + Clone,
     D: alloy::contract::CallDecoder

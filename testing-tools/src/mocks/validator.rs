@@ -58,11 +58,13 @@ impl OrderValidatorHandle for MockValidator {
         _origin: angstrom_types::orders::OrderOrigin,
         transaction: Self::Order
     ) -> validation::order::ValidationFuture {
+        println!("{transaction:?}");
         let address = transaction.from();
         let res = self
             .limit_orders
             .lock()
-            .remove(&address)
+            .get(&address)
+            .cloned()
             .expect("not in mock");
         Box::pin(async move { res })
     }

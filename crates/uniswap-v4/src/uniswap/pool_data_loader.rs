@@ -221,7 +221,7 @@ impl PoolDataLoader for DataLoader {
             None => deployer.call_raw().await?
         };
 
-        let pool_data_v4 = PoolDataV4::abi_decode(&data, true)?;
+        let pool_data_v4 = PoolDataV4::abi_decode(&data)?;
 
         Ok(PoolData {
             tokenA:         pool_key.currency0,
@@ -261,7 +261,7 @@ impl PoolDataLoader for DataLoader {
             None => deployer.call_raw().await?
         };
 
-        let result = TicksWithBlock::abi_decode(&data, true)?;
+        let result = TicksWithBlock::abi_decode(&data)?;
 
         Ok((
             result
@@ -281,11 +281,10 @@ impl PoolDataLoader for DataLoader {
         logs.into_iter()
             .filter_map(|log| {
                 if Self::is_modify_position_event(&log) {
-                    let modify_event =
-                        IUniswapV4Pool::ModifyLiquidity::decode_log(&log, true).ok()?;
+                    let modify_event = IUniswapV4Pool::ModifyLiquidity::decode_log(&log).ok()?;
                     return Some((modify_event.id, log));
                 } else if Self::is_swap_event(&log) {
-                    let swap = IUniswapV4Pool::Swap::decode_log(&log, true).ok()?;
+                    let swap = IUniswapV4Pool::Swap::decode_log(&log).ok()?;
                     return Some((swap.id, log));
                 };
                 None
@@ -310,7 +309,7 @@ impl PoolDataLoader for DataLoader {
     }
 
     fn decode_swap_event(log: &Log) -> Result<SwapEvent, PoolError> {
-        let swap_event = IUniswapV4Pool::Swap::decode_log(log, true)?;
+        let swap_event = IUniswapV4Pool::Swap::decode_log(log)?;
         Ok(SwapEvent {
             sender:         swap_event.sender,
             amount0:        i128_to_i256(swap_event.amount0),

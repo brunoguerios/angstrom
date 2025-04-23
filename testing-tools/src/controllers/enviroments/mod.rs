@@ -59,8 +59,8 @@ where
     }
 
     pub fn random_peer(&self) -> &TestnetNode<C, P> {
-        let mut rng = rand::thread_rng();
-        let peer = rng.gen_range(0..self.current_max_peer_id);
+        let mut rng = rand::rng();
+        let peer = rng.random_range(0..self.current_max_peer_id);
         self.get_peer(peer)
     }
 
@@ -73,7 +73,7 @@ where
 
     fn random_valid_id(&self) -> u64 {
         let ids = self.peers.keys().copied().collect::<Vec<_>>();
-        let id_idx = rand::thread_rng().gen_range(0..ids.len());
+        let id_idx = rand::rng().random_range(0..ids.len());
         ids[id_idx]
     }
 

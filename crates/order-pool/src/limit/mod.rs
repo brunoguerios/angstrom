@@ -133,6 +133,11 @@ impl LimitOrderPool {
         self.limit_orders.new_pool(pool);
         self.composable_orders.new_pool(pool);
     }
+
+    pub fn remove_invalid_order(&mut self, order_hash: B256) {
+        self.composable_orders.remove_invalid_order(order_hash);
+        self.limit_orders.remove_invalid_order(order_hash);
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -124,6 +124,15 @@ impl SearcherPool {
     pub fn remove_pool(&mut self, key: &PoolId) {
         let _ = self.searcher_orders.remove(key);
     }
+
+    pub fn remove_invalid_order(&mut self, order_hash: B256) {
+        self.searcher_orders.iter_mut().for_each(|(pool_id, pool)| {
+            if pool.remove_order(order_hash).is_some() {
+                self.metrics.decr_all_orders(*pool_id, 1);
+                self.size.remove_order(1);
+            }
+        });
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

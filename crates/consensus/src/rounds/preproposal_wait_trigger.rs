@@ -58,8 +58,8 @@ impl Clone for PreProposalWaitTrigger {
 
 impl PreProposalWaitTrigger {
     pub fn new(order_storage: Arc<OrderStorage>) -> Self {
-        let mut rng = rand::thread_rng();
-        let jitter = Duration::from_millis(rng.gen_range(30..=100));
+        let mut rng = rand::rng();
+        let jitter = Duration::from_millis(rng.random_range(30..=100));
 
         Self {
             wait_duration: DEFAULT_DURATION + jitter,

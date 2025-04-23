@@ -2,7 +2,10 @@ use std::pin::Pin;
 
 use angstrom_eth::manager::ChainExt;
 use angstrom_rpc::{api::OrderApiClient, impls::OrderApi};
-use angstrom_types::{sol_bindings::grouped_orders::AllOrders, testnet::InitialTestnetState};
+use angstrom_types::{
+    CHAIN_ID, primitive::ANGSTROM_DOMAIN, sol_bindings::grouped_orders::AllOrders,
+    testnet::InitialTestnetState
+};
 use futures::{Future, StreamExt, stream::FuturesUnordered};
 use jsonrpsee::http_client::HttpClient;
 use reth_provider::{CanonStateSubscriptions, test_utils::NoopProvider};
@@ -24,7 +27,7 @@ pub async fn run_e2e_orders(executor: TaskExecutor, cli: End2EndOrdersCli) -> ey
     let config = cli.testnet_config.make_config()?;
 
     let agents = vec![end_to_end_agent];
-    tracing::info!("spinning up e2e nodes for angstrom");
+    tracing::info!(?ANGSTROM_DOMAIN, ?CHAIN_ID, "spinning up e2e nodes for angstrom");
 
     // spawn testnet
     let testnet =
@@ -47,8 +50,8 @@ fn end_to_end_agent<'a>(
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
-            5..10,
-            0.7..0.9
+            10..15,
+            0.5..0.9
         );
 
         let mut stream =
@@ -81,6 +84,7 @@ fn end_to_end_agent<'a>(
                                     .map(Into::into)
                                     .chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
+                                // let all_orders = vec![tob.into()];
 
                                  pending_orders.push(client.send_orders(all_orders));
                             }
@@ -245,7 +249,7 @@ pub mod test {
                 .filter_map(|tx| {
                     let calldata = tx.input().to_vec();
                     let mut slice = calldata.as_slice();
-                    let bytes = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::abi_decode(slice,true).unwrap().encoded.to_vec();
+                    let bytes = angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::abi_decode(slice).unwrap().encoded.to_vec();
 
                     let mut slice = bytes.as_slice();
                     let data = &mut slice;

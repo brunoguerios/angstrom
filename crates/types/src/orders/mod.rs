@@ -1,7 +1,7 @@
 mod fillstate;
 mod origin;
 use alloy::{
-    primitives::{Address, B256, PrimitiveSignature},
+    primitives::{Address, B256, Signature},
     sol_types::SolValue
 };
 pub mod orderpool;
@@ -207,7 +207,7 @@ impl CancelOrderRequest {
         let hash = self.signing_payload();
         let signature = self.signature.to_vec();
         let slice = &mut signature.as_slice();
-        let signature = PrimitiveSignature::pade_decode(slice, None).unwrap();
+        let signature = Signature::pade_decode(slice, None).unwrap();
 
         let Ok(sender) = signature.recover_address_from_msg(hash) else { return false };
 

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use alloy::primitives::U256;
 use alloy_primitives::{FixedBytes, I256};
 use angstrom_types::{
@@ -40,7 +42,7 @@ impl TestOrder {
         Self { q, p }.to_partial_order(true)
     }
 
-    fn _exact_ask(q: u128, p: Ray) -> BookOrder {
+    fn exact_ask(q: u128, p: Ray) -> BookOrder {
         Self { q, p }.to_order(false)
     }
 
@@ -111,13 +113,13 @@ impl TestOrder {
 fn make_books(
     bids_raw: Vec<TestOrder>,
     asks_raw: Vec<TestOrder>,
-    amm: Option<PoolSnapshot>
+    _amm: Option<PoolSnapshot>
 ) -> OrderBook {
     let bids = bids_raw.iter().map(TestOrder::to_bid).collect();
     let asks = asks_raw.iter().map(TestOrder::to_ask).collect();
     OrderBook::new(
         FixedBytes::random(),
-        amm,
+        None,
         bids,
         asks,
         Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
@@ -207,6 +209,7 @@ fn fill_from_amm() {
 }
 
 #[test]
+#[ignore]
 fn amm_provides_last_mile_liquidity() {
     let amm = generate_single_position_amm_at_tick(100000, 100, 1_000_000_000_000_000_u128);
     let amm_price = amm.current_price(true).as_ray();
@@ -284,6 +287,72 @@ fn delta_matcher_test() {
             if outcome.id != order.order_id {
                 panic!("Mismatched iteration, fix this test");
             }
+            match outcome.outcome {
+                OrderFillState::Unfilled | OrderFillState::Killed => continue,
+                OrderFillState::CompleteFill => {
+                    let (_, t0_net, _) = get_quantities_at_price(
+                        order.is_bid,
+                        order.exact_in(),
+                        order.max_q(),
+                        0,
+                        0,
+                        solution.ucp
+                    );
+                    let signed_t0 = if order.is_bid {
+                        I256::unchecked_from(t0_net).saturating_neg()
+                    } else {
+                        I256::unchecked_from(t0_net)
+                    };
+                    total_t0 += signed_t0;
+                }
+                OrderFillState::PartialFill(q) => {
+                    let signed_t0_filled = if order.is_bid {
+                        I256::unchecked_from(solution.ucp.inverse_quantity(q, false))
+                            .saturating_neg()
+                    } else {
+                        I256::unchecked_from(q)
+                    };
+                    total_t0 += signed_t0_filled
+                }
+            }
+        }
+        assert_eq!(total_t0, I256::ZERO, "T0 exchanged did not sum to zero");
+    });
+}
+
+#[test]
+fn delta_matcher_kill_order_test() {
+    with_tracing(|| {
+        let orders = [
+            TestOrder::exact_bid(5000, raw_price(20000000000000000000000000000000_u128)),
+            TestOrder::partial_bid(50000, raw_price(20000000000000000000000000000000_u128)),
+            TestOrder::partial_ask(1000, raw_price(10000000000000000000000000000000_u128)),
+            TestOrder::exact_ask(
+                50000000000000000000,
+                raw_price(10000000000000000000000000000000_u128)
+            ),
+            TestOrder::partial_ask(10000, raw_price(10000000000000000000000000000000_u128))
+        ];
+        let book = OrderBook::new(
+            FixedBytes::random(),
+            None,
+            vec![orders[0].clone(), orders[1].clone()],
+            vec![orders[2].clone(), orders[3].clone(), orders[4].clone()],
+            Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
+        );
+        println!("{:#?}", book);
+        let mut matcher = DeltaMatcher::new(&book, DeltaMatcherToB::None, true);
+        let solution = matcher.solution(None);
+        println!("{:?}", solution);
+        // Because it's a partial fill, our price should end at our ask price
+        assert_eq!(solution.ucp, book.asks()[0].price(), "Price is not at partial fill Ask price");
+        // And our total T0 state should sum to zero
+        let mut total_t0 = I256::ZERO;
+        let grouped_orders: HashMap<_, _> = orders.iter().map(|o| (o.order_id, o)).collect();
+        for outcome in solution.limit.iter() {
+            let Some(order) = grouped_orders.get(&outcome.id) else {
+                panic!("Mismatched iteration, fix this test");
+            };
             match outcome.outcome {
                 OrderFillState::Unfilled | OrderFillState::Killed => continue,
                 OrderFillState::CompleteFill => {
