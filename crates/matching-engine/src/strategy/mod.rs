@@ -1,4 +1,3 @@
-
 mod binary_search;
 // mod simplecheckpoint;
 pub use binary_search::BinarySearchStrategy;

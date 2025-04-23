@@ -1,32 +1,27 @@
 #[cfg(feature = "anvil")]
 use {
-    alloy_primitives::{
-        Address, FixedBytes, U256
-    },
+    alloy_primitives::{Address, FixedBytes, U256},
     angstrom_types::{
         contract_bindings::{
-            angstrom::Angstrom::AngstromInstance,
-            mintable_mock_erc_20::MintableMockERC20,
+            angstrom::Angstrom::AngstromInstance, mintable_mock_erc_20::MintableMockERC20,
             pool_gate::PoolGate::PoolGateInstance
         },
         contract_payloads::{
             Asset, Pair, Signature,
-            angstrom::{
-                AngstromBundle, OrderQuantities, TopOfBlockOrder, UserOrder
-            },
+            angstrom::{AngstromBundle, OrderQuantities, TopOfBlockOrder, UserOrder},
             rewards::PoolUpdate
         }
     },
     pade::PadeEncode,
     std::str::FromStr,
     testing_tools::contracts::{
-            DebugTransaction,
-            environment::{
-                LocalAnvil, TestAnvilEnvironment,
-                angstrom::AngstromEnv,
-                uniswap::{TestUniswapEnv, UniswapEnv}
-            }
+        DebugTransaction,
+        environment::{
+            LocalAnvil, TestAnvilEnvironment,
+            angstrom::AngstromEnv,
+            uniswap::{TestUniswapEnv, UniswapEnv}
         }
+    }
 };
 
 #[cfg(feature = "anvil")]
