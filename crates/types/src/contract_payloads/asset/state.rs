@@ -180,7 +180,7 @@ impl StageTracker {
                     save:            state.save + extra_liquidity,
                     settle:          state.settle
                 };
-                tracing::trace!(target: "dump::assetbuilder", map = ?new_state, "collect extra");
+                tracing::trace!(target: "dump::assetbuilder", map = ?new_state, ?addr, "collect extra");
                 (*addr, new_state)
             })
             .collect();
