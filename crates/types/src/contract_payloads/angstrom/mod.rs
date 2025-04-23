@@ -539,7 +539,6 @@ impl AngstromBundle {
             .clone()
             .map(|(v, _)| v)
             .unwrap_or_else(|| snapshot.noop());
-        tracing::info!("{:#?}", post_tob_price);
 
         // NOTE: if we have no books, its a zero swap from exact price to exact price.
         // optimally we have these separate branches but this is just a patch fix
@@ -564,10 +563,6 @@ impl AngstromBundle {
             );
             Some(book_swap_vec)
         };
-
-        tracing::info!("{:#?}", book_swap_vec);
-
-        // tracing::info!(?solution.reward_t0, ?book_swap_vec);
 
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
@@ -615,7 +610,6 @@ impl AngstromBundle {
 
             let net_direction =
                 if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
-            // tracing::info!(?net_t0, ?net_direction);
 
             let amount_in = if net_t0.is_negative() {
                 net_t0.unsigned_abs()
