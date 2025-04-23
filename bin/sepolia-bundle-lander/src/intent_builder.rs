@@ -71,9 +71,8 @@ where
     }
 
     async fn generate_orders_for_block(&self) -> eyre::Result<Vec<AllOrders>> {
-        tokio::time::sleep(Duration::from_millis(1001)).await;
+        tokio::time::sleep(Duration::from_millis(101)).await;
         let mut all_orders = self.generate_book_intents().await?;
-        // let mut all_orders = vec![];
         all_orders.push(black_box(self.generate_tob_intent().await?));
 
         Ok(all_orders)
@@ -200,16 +199,15 @@ where
         let mut clearing_price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
         // how much we want to reduce our price from as we don't need the exact.
         // we shave 70% off
-        let pct = Ray::generate_ray_decimal(30, 2);
+        let pct = Ray::generate_ray_decimal(75, 2);
         clearing_price.mul_ray_assign(pct);
 
-        let mut amount_in = u128::try_from(amount0.abs()).unwrap();
-        let mut amount_out = u128::try_from(amount1.abs()).unwrap();
-        if !zfo {
-            std::mem::swap(&mut amount_in, &mut amount_out);
-        }
+        let amount = if zfo == exact_in {
+            u128::try_from(amount0.abs()).unwrap()
+        } else {
+            u128::try_from(amount1.abs()).unwrap()
+        };
 
-        let amount = if exact_in { amount_in } else { amount_out };
         // 2% range, should be fine given we only move 2/3 of balance at a time
         let modifier = self.random_amount_modifier_time();
         let amount = (amount as f64 * modifier) as u128;
