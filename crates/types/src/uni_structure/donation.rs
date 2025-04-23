@@ -267,22 +267,25 @@ impl Add<&[DonationType]> for &DonationCalculation {
                 // just be pushing all future elements to the front of the vec and we don't need
                 // to move rel_idx anymore
                 donations.push_front(i.clone());
+                // We no longer need to adjust rel_idx
+                continue;
             } else if let Some(entry) = donations.get_mut(rel_idx - 1) {
                 // If we're already pointing at an existing entry it needs to be combined and
                 // flipped to the new entry type
                 *entry = &*entry + i;
                 // We move rel_idx based on the type of new entry we're at
-                match i {
-                    DonationType::Above { .. } => rel_idx -= 1,
-                    DonationType::Below { .. } => rel_idx += 1,
-                    DonationType::Current { .. } => ()
-                }
             } else {
                 // If we're up off the back edge of our storage vec, we will be pushing all
                 // future elements to the end of the vec, but we still do want to move rel_idx
                 // to point at the right end element
                 donations.push_back(i.clone());
-                rel_idx += 1;
+            }
+            // Ajdust our pointer.  When we hit `Current` in the new vec, we're done and we
+            // should leave rel_idx pointing there
+            match i {
+                DonationType::Above { .. } => rel_idx -= 1,
+                DonationType::Below { .. } => rel_idx += 1,
+                DonationType::Current { .. } => ()
             }
         }
         // We use saturating_sub because if our rel_idx is 0, that's where it should
@@ -294,7 +297,7 @@ impl Add<&[DonationType]> for &DonationCalculation {
 
 #[cfg(test)]
 mod tests {
-    use super::DonationCalculation;
+    use super::{DonationCalculation, DonationType};
 
     #[test]
     pub fn constructs_from_empty_vec() {
@@ -305,5 +308,24 @@ mod tests {
         } else {
             panic!("Made the wrong thing");
         }
+    }
+
+    #[test]
+    pub fn extends_properly() {
+        let don_vec = vec![
+            DonationType::Below { donation: 100, high_tick: -500, liquidity: 100 },
+            DonationType::Below { donation: 100, high_tick: -400, liquidity: 100 },
+            DonationType::Below { donation: 100, high_tick: -300, liquidity: 100 },
+            DonationType::Current { donation: 100, final_tick: -278, liquidity: 100 },
+        ];
+        let second_vec = vec![
+            DonationType::Below { donation: 100, high_tick: -200, liquidity: 100 },
+            DonationType::Below { donation: 100, high_tick: -100, liquidity: 100 },
+            DonationType::Below { donation: 100, high_tick: 0, liquidity: 100 },
+            DonationType::Current { donation: 100, final_tick: 78, liquidity: 100 },
+        ];
+        let donation = DonationCalculation::from_vec(&don_vec).unwrap();
+        let extended = &donation + &second_vec;
+        let update = extended.into_reward_updates();
     }
 }
