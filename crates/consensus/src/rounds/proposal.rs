@@ -111,8 +111,6 @@ impl ProposalState {
             return false;
         };
 
-        println!("{:#?}", bundle);
-
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
 
         let mut tx = TransactionRequest::default()
