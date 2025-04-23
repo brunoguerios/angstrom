@@ -8,7 +8,6 @@ import {DeltaTracker} from "../types/DeltaTracker.sol";
 import {AssetArray, Asset, FEE_SUMMARY_ENTRY_SIZE} from "../types/Asset.sol";
 import {AmountA as AmountOut, AmountB as AmountIn} from "../types/Price.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {console} from "forge-std/console.sol";
 
 /// @author philogy <https://github.com/philogy>
 /// @dev Handles settlement as well as maintaining Angstrom's solvency invariant.
@@ -81,8 +80,6 @@ abstract contract Settlement is UniConsumer {
             int256 delta = bundleDeltas.sub(addr, saving + settle);
 
             if (delta != 0) {
-                console.log("addr", addr);
-                console.logInt(delta);
                 revert BundlDeltaUnresolved(addr);
             }
 
