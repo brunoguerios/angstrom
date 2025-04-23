@@ -14,7 +14,7 @@ pub struct PoolOrderGenerator {
     cur_price:          f64,
     price_distribution: PriceDistribution,
     builder:            OrderBuilder,
-    pool_id:            PoolId
+    pub pool_id:        PoolId
 }
 
 impl PoolOrderGenerator {

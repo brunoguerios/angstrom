@@ -485,10 +485,11 @@ impl AngstromBundle {
             .iter()
             .map(|order| (order, order_list.remove(&order.id)))
             .filter(|(outcome, o)| {
-                if outcome.is_filled() && o.is_none() {
+                if o.is_none() {
                     tracing::error!(?outcome, "lost a order");
+                    return false;
                 }
-                outcome.is_filled() && o.is_some()
+                outcome.is_filled()
             })
         {
             total_user_fees = total_user_fees.saturating_add(Self::apply_user_order(
