@@ -77,12 +77,12 @@ fn end_to_end_agent<'a>(
                             let new_orders = generator.generate_orders();
                             tracing::info!("generated new orders. submitting to rpc");
 
-                            for orders in new_orders { //.into_iter().take(1) {
+                            for orders in new_orders {
                                 let GeneratedPoolOrders { pool_id, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter()
                                     .map(Into::into)
-                                    // .chain(vec![tob.into()])
+                                    .chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
 
                                  pending_orders.push(client.send_orders(all_orders));
