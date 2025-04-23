@@ -602,7 +602,7 @@ impl<'a> DeltaMatcher<'a> {
         let mut amm = self.fetch_amm_movement_at_ucp(price_and_partial_solution.ucp);
 
         // get weird overflow values
-        if limit.is_empty() {
+        if limit.iter().filter(|f| f.is_filled()).count() == 0 {
             price_and_partial_solution.ucp = Ray::default();
             amm = None;
         }
