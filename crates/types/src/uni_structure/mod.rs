@@ -1,11 +1,9 @@
 use std::ops::{Add, Sub};
 
 use alloy::primitives::I256;
-use alloy_primitives::U160;
 use liquidity_base::BaselineLiquidity;
 use pool_swap::{PoolSwap, PoolSwapResult};
 use serde::{Deserialize, Serialize};
-use uniswap_v3_math::tick_math;
 
 use crate::matching::{
     SqrtPriceX96,

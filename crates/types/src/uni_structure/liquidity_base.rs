@@ -47,7 +47,7 @@ impl BaselineLiquidity {
 
     /// returns a liquidity ref were the current liquidity is properly
     /// calculated based on were the sqrt_price is at
-    pub fn at_sqrt_price<'a>(&'a self, price: SqrtPriceX96) -> eyre::Result<LiquidityAtPoint<'a>> {
+    pub fn at_sqrt_price(&self, price: SqrtPriceX96) -> eyre::Result<LiquidityAtPoint<'_>> {
         // we are zero for one if the price is going down.
         let zfo = self.start_sqrt_price >= price;
         let tick_at_price = get_tick_at_sqrt_ratio(price.into())?;
@@ -95,7 +95,7 @@ impl BaselineLiquidity {
         })
     }
 
-    pub fn current<'a>(&'a self) -> LiquidityAtPoint<'a> {
+    pub fn current(&self) -> LiquidityAtPoint<'_> {
         LiquidityAtPoint {
             tick_spacing:       self.tick_spacing,
             current_tick:       self.start_tick,

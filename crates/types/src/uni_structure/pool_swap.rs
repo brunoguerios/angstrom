@@ -44,7 +44,6 @@ impl<'a> PoolSwap<'a> {
 
         while amount_remaining != I256::ZERO && sqrt_price_x96 != sqrt_price_limit_x96 {
             let sqrt_price_start_x_96 = sqrt_price_x96;
-            let start_tick = self.liquidity.current_tick;
 
             let (next_tick, liquidity, init) = self
                 .liquidity
@@ -92,16 +91,7 @@ impl<'a> PoolSwap<'a> {
                 sqrt_price_x96 != sqrt_price_start_x_96
             )?;
 
-            steps.push(PoolSwapStep {
-                start_price: sqrt_price_start_x_96.into(),
-                start_tick,
-                end_price: sqrt_price_x96.into(),
-                end_tick: next_tick,
-                init,
-                liquidity,
-                d_t0,
-                d_t1
-            });
+            steps.push(PoolSwapStep { end_tick: next_tick, init, liquidity, d_t0, d_t1 });
         }
 
         // the final sqrt price
@@ -380,14 +370,11 @@ impl<'a> PoolSwapResult<'a> {
 /// the step of swapping across this pool
 #[derive(Clone, Debug)]
 pub struct PoolSwapStep {
-    start_price: SqrtPriceX96,
-    start_tick:  i32,
-    end_price:   SqrtPriceX96,
-    end_tick:    i32,
-    init:        bool,
-    liquidity:   u128,
-    d_t0:        u128,
-    d_t1:        u128
+    end_tick:  i32,
+    init:      bool,
+    liquidity: u128,
+    d_t0:      u128,
+    d_t1:      u128
 }
 
 impl PoolSwapStep {
