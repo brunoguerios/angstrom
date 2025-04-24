@@ -548,7 +548,7 @@ impl AngstromBundle {
             None
         } else {
             let ucp: SqrtPriceX96 = solution.ucp.into();
-            let is_ask = post_tob_price.start_price >= ucp;
+            let is_ask = post_tob_price.end_price >= ucp;
             // grab amount in when swap to price, then from there, calculate
             // actual values.
             let book_swap_vec =
