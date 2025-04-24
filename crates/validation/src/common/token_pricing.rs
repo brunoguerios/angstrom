@@ -364,8 +364,7 @@ pub mod test {
             .get_eth_conversion_price(TOKEN2, TOKEN0)
             .unwrap();
 
-        let expected_rate = Ray::scale_to_ray(U256::from(5e18)).inv_ray();
-
+        let expected_rate = Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER);
         println!("rate: {:?} got: {:?}", rate, expected_rate);
         assert_eq!(rate, expected_rate)
     }
@@ -377,17 +376,40 @@ pub mod test {
             .get_eth_conversion_price(TOKEN2, TOKEN3)
             .unwrap();
 
-        let expected_rate = Ray::scale_to_ray(U256::from(5e18)).inv_ray();
+        // t3 / t2 = pair 1 = 2e45
+        // weth / t2 = pair 2 =  5e45
+        //
+        //  given t2 < weth
+        //
+        //  conversion = price =  weth / t2  == 5e45
+
+        let expected_rate = Ray::scale_to_ray(U256::from(5e18));
         println!("rate: {:?} got: {:?}", rate, expected_rate);
         assert_eq!(rate, expected_rate)
     }
 
     #[test]
     fn test_multi_hop_where_token1_matches() {
+        // 625000000000000000000000000000000
+
         let token_conversion = setup();
         let rate = token_conversion
             .get_eth_conversion_price(TOKEN4, TOKEN1)
             .unwrap();
+
+        // we have a  t1 / t4 pair and a t1 / weth pair
+        //
+        // t1 / t4 = 125000000000
+        //
+        // t1 / weth = 200000000000000000000000000000000
+        //
+        // what we want is weth / t4
+        //
+        //  if weth t0 = true, then we flip
+        //  so then t1 /t4 * weth / t1 =  weth / t4
+        //
+        // 125000000000 * (1e54 / 200000000000000000000000000000000) =
+        // 625000000000000000000000000000000
 
         // hop 1 rate
         // assumes token1 is 6 decimals and token 0 is 18 with a conversion rate of 0.2
@@ -398,7 +420,7 @@ pub mod test {
         // let pair4_rate = U256::from(1e18) / U256::from(8e6);
         //
         // gives us 0.2 * 0.8 = 0.16;
-        let expected_rate = Ray(U256::from(1600000000000000000000u128));
+        let expected_rate = Ray::scale_to_ray(U256::from(625000));
         assert_eq!(rate, expected_rate)
     }
 
@@ -417,11 +439,13 @@ pub mod test {
             .get_eth_conversion_price(TOKEN2, WETH_ADDRESS)
             .unwrap();
 
-        assert_eq!(rate, Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER).inv_ray());
+        assert_eq!(rate, Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER));
     }
 
     #[test]
     fn test_price_averaging() {
+        // 3000000000000000000000000000000000000000000000
+
         let mut token_conversion = setup();
 
         // Create varying prices over 5 blocks
@@ -447,7 +471,7 @@ pub mod test {
 
         let mut sum = Ray::default();
         for i in 1..=5 {
-            sum += Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER).inv_ray();
+            sum += Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER);
         }
         let expected = sum / U256::from(5);
 
@@ -496,6 +520,7 @@ pub mod test {
 
     #[test]
     fn test_insufficient_price_data() {
+        // 1000000000000000000000000000000000000000000000
         let mut token_conversion = setup();
 
         // Create a pool with insufficient price data
@@ -517,7 +542,7 @@ pub mod test {
             .get_eth_conversion_price(TOKEN5, WETH_ADDRESS)
             .unwrap();
 
-        assert_eq!(rate, Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER).inv_ray());
+        assert_eq!(rate, Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER));
     }
 
     #[test]
