@@ -71,17 +71,8 @@ impl TickData {
 }
 
 impl PoolData {
-    /// converts the loaded sqrt_price_x96 into the limit price that is used
-    /// for internal math. this is different than just the raw conversion given
-    /// that we don't do any decimal adjustments
     pub fn get_raw_price(&self) -> Ray {
-        let this = SqrtPriceX96::from(self.sqrtPrice);
-        tracing::debug!(sqrt_price=?this);
-        let tick = this.to_tick().expect("should never fail");
-        // TODO: not a fan of this given precision will be lost. could cause problems
-        // down the road.
-        let normalized_price = 1.0001_f64.powi(tick);
-        Ray::from(normalized_price)
+        Ray::from(SqrtPriceX96::from(self.sqrtPrice))
     }
 }
 
