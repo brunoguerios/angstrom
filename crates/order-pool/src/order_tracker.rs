@@ -35,7 +35,8 @@ pub struct OrderTracker {
     /// Used to avoid unnecessary computation on order spam
     pub(super) seen_invalid_orders:    HashSet<B256>,
     /// Used to protect against late order propagation
-    pub(super) cancelled_orders:       HashMap<B256, InnerCancelOrderRequest>
+    pub(super) cancelled_orders:       HashMap<B256, InnerCancelOrderRequest>,
+    pub(super) is_validating:          HashSet<B256>
 }
 
 impl OrderTracker {
@@ -56,6 +57,18 @@ impl OrderTracker {
     #[inline(always)]
     pub fn is_cancelled(&self, order_hash: &B256) -> bool {
         self.cancelled_orders.contains_key(order_hash)
+    }
+
+    pub fn start_validating(&mut self, order: B256) {
+        let _ = self.is_validating.insert(order);
+    }
+
+    pub fn stop_validating(&mut self, order: &B256) {
+        let _ = self.is_validating.remove(order);
+    }
+
+    pub fn is_validating(&self, order: &B256) -> bool {
+        self.is_validating.contains(order)
     }
 
     pub fn is_valid_cancel(&self, order: &B256, order_addr: Address) -> bool {

@@ -186,8 +186,13 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             );
         }
 
-        // network spammers will get penalized only once
         self.order_tracker.track_peer_id(hash, peer_id);
+
+        if self.order_tracker.is_validating(&hash) {
+            return;
+        }
+        self.order_tracker.start_validating(hash);
+
         self.validator.validate_order(origin, order);
     }
 
@@ -251,6 +256,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         match res {
             OrderValidationResults::Valid(valid) => {
                 let hash = valid.order_hash();
+                self.order_tracker.stop_validating(&hash);
 
                 if valid.valid_block != self.block_number {
                     self.subscribers.notify_validation_subscribers(
@@ -299,6 +305,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 Ok(PoolInnerEvent::Propagation(to_propagate))
             }
             this @ OrderValidationResults::Invalid { hash, .. } => {
+                self.order_tracker.stop_validating(&hash);
                 self.subscribers.notify_validation_subscribers(&hash, this);
                 self.order_storage.remove_invalid_order(hash);
                 let peers = self.order_tracker.invalid_verification(hash);
