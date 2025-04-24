@@ -146,7 +146,7 @@ impl TokenPriceGenerator {
 
     /// NOTE: assumes tokens are properly sorted.
     /// the previous prices are stored in RAY (1e27).
-    /// we take this price. then
+    /// returns price in GAS / t0
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         // if token zero is weth, then we mul by 1
         if token_0 == self.base_gas_token {

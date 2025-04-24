@@ -62,11 +62,11 @@ where
                     (order.asset_out, order.asset_in, order.max_gas_token_0())
                 };
 
-                // grab price conversion
+                /// price of
                 let conversion_factor = conversion
                     .get_eth_conversion_price(token0, token1)
                     .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
-                let gas_token_0 = conversion_factor.quantity(gas_in_wei as u128, false);
+                let gas_token_0 = conversion_factor.inverse_quantity(gas_in_wei as u128, false);
 
                 // convert to u256 for overflow cases.
                 if gas_token_0 > max_gas {
@@ -103,7 +103,7 @@ where
                 let conversion_factor = conversion
                     .get_eth_conversion_price(token0, token1)
                     .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
-                let gas_token_0 = conversion_factor.quantity(gas_in_wei as u128, false);
+                let gas_token_0 = conversion_factor.inverse_quantity(gas_in_wei as u128, false);
 
                 // convert to u256 for overflow cases.
                 if gas_token_0 > max_gas {
