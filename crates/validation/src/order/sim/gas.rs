@@ -106,7 +106,7 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("tob order err={} {:?}", e, tob.order_hash()))
-        Ok(BOOK_GAS)
+        Ok(TOB_GAS)
     }
 
     pub fn gas_of_book_order(
