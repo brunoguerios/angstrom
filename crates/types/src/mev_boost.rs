@@ -25,6 +25,8 @@ use futures::{Future, FutureExt};
 
 use crate::primitive::AngstromSigner;
 
+const EXTRA_GAS: u128 = (cfg!(feature = "testnet-sepolia") as u128) * (2e9 as u128);
+
 /// Allows for us to have a look at the angstrom payload to ensure that we can
 /// set balances properly for when the transaction is submitted
 pub trait SubmitTx: Send + Sync {
@@ -150,8 +152,8 @@ where
         tx.set_nonce(next_nonce);
         tx.set_gas_limit(30_000_000);
         let fees = self.node_provider.estimate_eip1559_fees().await.unwrap();
-        tx.set_max_fee_per_gas(fees.max_fee_per_gas + 3e9 as u128);
-        tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas + 3e9 as u128);
+        tx.set_max_fee_per_gas(fees.max_fee_per_gas + EXTRA_GAS);
+        tx.set_max_priority_fee_per_gas(fees.max_priority_fee_per_gas + EXTRA_GAS);
 
         let chain_id = self.node_provider.get_chain_id().await.unwrap();
         tx.set_chain_id(chain_id);
