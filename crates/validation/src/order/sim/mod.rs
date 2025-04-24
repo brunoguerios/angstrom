@@ -62,7 +62,6 @@ where
                     (order.asset_out, order.asset_in, order.max_gas_token_0())
                 };
 
-                /// price of
                 let conversion_factor = conversion
                     .get_eth_conversion_price(token0, token1)
                     .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
