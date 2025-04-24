@@ -174,6 +174,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 }
             );
             self.order_storage.log_cancel_order(&order);
+            return;
         }
 
         if self.order_tracker.is_duplicate(&hash) {
@@ -184,6 +185,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     error: angstrom_types::primitive::OrderValidationError::DuplicateOrder
                 }
             );
+            return;
         }
 
         self.order_tracker.track_peer_id(hash, peer_id);
