@@ -148,6 +148,7 @@ impl TokenPriceGenerator {
     /// the previous prices are stored in RAY (1e27).
     /// we take this price. then
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
+        // if token zero is weth, then we mul by 1
         if token_0 == self.base_gas_token {
             return Some(Ray::scale_to_ray(U256::from(1)));
         }
@@ -164,29 +165,21 @@ impl TokenPriceGenerator {
                 warn!(?size,?self.blocks_to_avg_price,"size of loaded blocks doesn't match the value we set");
             }
 
-            return Some(
-                prices
-                    .iter()
-                    .map(|price| {
-                        // flip price
-                        price.price_1_over_0.inv_ray()
-                    })
-                    .sum::<Ray>()
-                    / U256::from(size)
-            );
+            // if t1 == gas, then t0am  * t1 / t0 = am t1
+            return Some(prices.iter().map(|p| p.price_1_over_0).sum::<Ray>() / U256::from(size));
         }
 
         // need to pass through a pair.
         let (first_flip, token_0_hop1, token_1_hop1) = if token_0 < self.base_gas_token {
-            (false, token_0, self.base_gas_token)
+            (true, token_0, self.base_gas_token)
         } else {
-            (true, self.base_gas_token, token_0)
+            (false, self.base_gas_token, token_0)
         };
 
         let (second_flip, token_0_hop2, token_1_hop2) = if token_1 < self.base_gas_token {
-            (false, token_1, self.base_gas_token)
+            (true, token_1, self.base_gas_token)
         } else {
-            (true, self.base_gas_token, token_1)
+            (false, self.base_gas_token, token_1)
         };
 
         // check token_0 first for a weth pair. otherwise, check token_1.
@@ -199,11 +192,16 @@ impl TokenPriceGenerator {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
 
+            // if we have this, this means that (p0, p1) has (p0, gas) pair.
+            // because of this, we can just convert directly on this.
+            // if first_flip = true, means token0 < gas, were price is gas / token0.
+            // thus gas_am t0 * price = gas.
+
             Some(
                 prices
                     .iter()
                     .map(|price| {
-                        // means weth is token0
+                        // if true, means gas is token zero
                         if first_flip {
                             price.price_1_over_0
                         } else {
@@ -228,13 +226,9 @@ impl TokenPriceGenerator {
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
-
-            // token 0 / token 1
-            let first_hop_price = prices
-                .iter()
-                .map(|price| price.price_1_over_0.inv_ray())
-                .sum::<Ray>()
-                / U256::from(size);
+            // price as t1 / t0
+            let first_hop_price =
+                prices.iter().map(|price| price.price_1_over_0).sum::<Ray>() / U256::from(size);
 
             // grab second hop
             let prices = self.prev_prices.get(key)?;
@@ -244,22 +238,19 @@ impl TokenPriceGenerator {
                 warn!("size of loaded blocks doesn't match the value we set");
             }
 
+            // if flip = true, then  gas / token1, otherwise token1 / gas
+
             // token1 / WETH
             let second_hop_price = prices
                 .iter()
                 .map(|price| {
-                    // means weth is token0
-                    if second_flip {
-                        price.price_1_over_0
-                    } else {
-                        // need to flip. add 18 decimal precision then reciprocal
-                        price.price_1_over_0.inv_ray()
-                    }
+                    // means gas is token1
+                    if second_flip { price.price_1_over_0 } else { price.price_1_over_0.inv_ray() }
                 })
                 .sum::<Ray>()
                 / U256::from(size);
 
-            // token 0 / token1 * token1 / weth  = token0 / weth
+            // t1 / t0 *  gas / t1 = gas / t0
             Some(first_hop_price.mul_ray(second_hop_price))
         } else {
             tracing::error!("found a token that doesn't have a 1 hop to WETH");

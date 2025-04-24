@@ -66,14 +66,14 @@ where
                 let conversion_factor = conversion
                     .get_eth_conversion_price(token0, token1)
                     .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
-                let gas_token_0 = (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray();
+                let gas_token_0 = conversion_factor.quantity(gas_in_wei as u128, false);
 
                 // convert to u256 for overflow cases.
-                if gas_token_0 > U256::from(max_gas) {
+                if gas_token_0 > max_gas {
                     eyre::bail!("gas_needed_token0 > max_gas");
                 }
 
-                Ok((gas_in_wei, gas_token_0))
+                Ok((gas_in_wei, U256::from(gas_token_0)))
             })
         })
     }
@@ -103,14 +103,14 @@ where
                 let conversion_factor = conversion
                     .get_eth_conversion_price(token0, token1)
                     .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
-                let gas_token_0 = (conversion_factor * U256::from(gas_in_wei)).scale_out_of_ray();
+                let gas_token_0 = conversion_factor.quantity(gas_in_wei as u128, false);
 
                 // convert to u256 for overflow cases.
-                if gas_token_0 > U256::from(max_gas) {
+                if gas_token_0 > max_gas {
                     eyre::bail!("gas_needed_token0 > max_gas");
                 }
 
-                Ok((gas_in_wei, gas_token_0))
+                Ok((gas_in_wei, U256::from(gas_token_0)))
             })
         })
     }
