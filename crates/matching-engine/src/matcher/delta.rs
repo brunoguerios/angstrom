@@ -110,7 +110,7 @@ impl<'a> DeltaMatcher<'a> {
 
         let Some(pool) = self.amm_start_location.as_ref() else { return Default::default() };
 
-        let start_sqrt = pool.start_price;
+        let start_sqrt = pool.end_price;
 
         // If the AMM price is decreasing, it is because the AMM is accepting T0 from
         // the contract.  An order that purchases T0 from the contract is a bid
@@ -563,7 +563,7 @@ impl<'a> DeltaMatcher<'a> {
         let end_price_sqrt = SqrtPriceX96::from(ucp);
         let Some(pool) = self.amm_start_location.as_ref() else { return Default::default() };
 
-        let is_bid = pool.start_price >= end_price_sqrt;
+        let is_bid = pool.end_price >= end_price_sqrt;
         let direction = Direction::from_is_bid(is_bid);
 
         let Ok(res) = pool.swap_to_price(direction, end_price_sqrt) else {
