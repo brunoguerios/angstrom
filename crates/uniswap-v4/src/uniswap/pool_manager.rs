@@ -352,11 +352,13 @@ where
                     let pool =
                         async_to_sync(self.factory.create_new_angstrom_pool(pool.clone(), block));
                     let key = pool.address();
+                    tracing::info!(?key, "adding pool");
                     self.pools.insert(key, Arc::new(RwLock::new(pool)));
                 }
                 EthEvent::RemovedPool { pool } => {
                     let id = self.factory.remove_pool(pool);
                     self.pools.remove(&id);
+                    tracing::info!(?id, "removed pool");
                 }
                 _ => {}
             }

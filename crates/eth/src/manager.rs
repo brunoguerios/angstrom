@@ -194,16 +194,20 @@ where
             .filter(|log| log.address == periphery_address)
             .for_each(|log| {
                 if let Ok(remove_node) = NodeRemoved::decode_log(log) {
+                    tracing::info!(?remove_node.node, "node removed from set");
                     self.node_set.remove(&remove_node.node);
                     self.send_events(EthEvent::RemovedNode(remove_node.node));
                     return;
                 }
                 if let Ok(added_node) = NodeAdded::decode_log(log) {
+                    tracing::info!(?added_node.node, "new node added to set");
                     self.node_set.insert(added_node.node);
                     self.send_events(EthEvent::AddedNode(added_node.node));
                     return;
                 }
                 if let Ok(removed_pool) = PoolRemoved::decode_log(log) {
+                    tracing::info!("new pool removed log");
+
                     self.pool_store
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
 
@@ -211,8 +215,8 @@ where
                     self.angstrom_tokens.remove(&removed_pool.asset1);
 
                     let pool_key = PoolKey {
-                        currency1:   removed_pool.asset1,
                         currency0:   removed_pool.asset0,
+                        currency1:   removed_pool.asset1,
                         fee:         removed_pool.feeInE6,
                         tickSpacing: removed_pool.tickSpacing,
                         hooks:       self.angstrom_address
@@ -221,6 +225,7 @@ where
                     return;
                 }
                 if let Ok(added_pool) = PoolConfigured::decode_log(log) {
+                    tracing::info!("new pool configured log");
                     let asset0 = added_pool.asset0;
                     let asset1 = added_pool.asset1;
                     let entry = AngPoolConfigEntry {
@@ -231,16 +236,10 @@ where
                     };
 
                     let pool_key = PoolKey {
-                        currency1:   asset1,
                         currency0:   asset0,
+                        currency1:   asset1,
                         fee:         added_pool.bundleFee,
-                        tickSpacing: I24::try_from_be_slice(&{
-                            let bytes = added_pool.tickSpacing.to_be_bytes();
-                            let mut a = [0u8; 3];
-                            a[1..3].copy_from_slice(&bytes);
-                            a
-                        })
-                        .unwrap(),
+                        tickSpacing: I24::unchecked_from(added_pool.tickSpacing),
                         hooks:       self.angstrom_address
                     };
 
