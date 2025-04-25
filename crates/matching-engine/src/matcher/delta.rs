@@ -3,7 +3,7 @@ use std::{
     collections::HashSet
 };
 
-use alloy_primitives::{I256, U256};
+use alloy_primitives::{I256, Sign, U256};
 use angstrom_types::{
     contract_payloads::angstrom::TopOfBlockOrder as ContractTopOfBlockOrder,
     matching::{
@@ -637,6 +637,7 @@ impl<'a> DeltaMatcher<'a> {
         let two = U256::from(2);
         let four = U256::from(4);
         let mut killed = HashSet::new();
+        let mut dust: Option<UcpSolution> = None;
         while (p_max - p_min) > ep {
             // We're willing to kill orders if and only if we're at the end of our
             // iteration.  I believe that a distance of four will capture the last 2 cycles
@@ -650,6 +651,41 @@ impl<'a> DeltaMatcher<'a> {
                 let check_ucp_span = tracing::trace_span!("check_ucp", price = ?p_mid, can_kill);
                 check_ucp_span.in_scope(|| self.check_ucp(p_mid, &killed))
             };
+
+            // If we're on our last iterations, check to see if we can come up with a
+            // "within_one" solution
+            if can_kill {
+                let within_one = if self.solve_for_t0 {
+                    match (stats.amm_t0 + stats.order_t0).into_sign_and_abs() {
+                        (Sign::Positive, u) => u < U256::from(p_mid.inverse_quantity(1, false)),
+                        _ => false
+                    }
+                } else {
+                    match (stats.amm_t1 + stats.order_t1).into_sign_and_abs() {
+                        (Sign::Positive, u) => u < U256::from(p_mid.quantity(1, false)),
+                        _ => false
+                    }
+                };
+                if within_one {
+                    let (partial_fills, reward_t0) = if let SupplyDemandResult::PartialFillEq {
+                        bid_fill_q,
+                        ask_fill_q,
+                        reward_t0
+                    } = res
+                    {
+                        (Some((bid_fill_q, ask_fill_q)), reward_t0)
+                    } else {
+                        (None, 0_u128)
+                    };
+                    debug!(ucp = ?p_mid, partial = partial_fills.is_some(), reward_t0, ?stats.amm_t0, ?stats.amm_t1, ?stats.order_t0, ?stats.order_t1, ?stats.order_bid_slack, ?stats.order_ask_slack, "Dust solution found and cached");
+                    dust = Some(UcpSolution {
+                        ucp: p_mid,
+                        killed: killed.clone(),
+                        partial_fills,
+                        reward_t0
+                    });
+                }
+            }
 
             match (res, can_kill, self.solve_for_t0) {
                 (SupplyDemandResult::MoreSupply(Some(ko)), true, _)
@@ -689,8 +725,12 @@ impl<'a> DeltaMatcher<'a> {
                 }
             }
         }
-        debug!("Unable to solve");
-        None
+        if dust.is_some() {
+            debug!("Solved with dust solution");
+        } else {
+            debug!("Unable to solve");
+        }
+        dust
     }
 }
 
