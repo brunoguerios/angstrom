@@ -204,6 +204,7 @@ impl<'a> DeltaMatcher<'a> {
 
                 // Calculate and account for our minimum fill, preserving quantity numbers in
                 // case we need to use them for slack later
+
                 let (min_in, min_out) = Self::get_amount_in_out(o, min_q, self.fee, price);
                 // Add the mandatory portion of this order to our overall delta
                 let s_in = I256::try_from(min_in).unwrap();
@@ -631,8 +632,8 @@ impl<'a> DeltaMatcher<'a> {
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
         let ep = Ray::from(U256::from(1));
-        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
-        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
+        let mut p_max = Ray::from(self.book.highest_clearing_price());
+        let mut p_min = Ray::from(self.book.lowest_clearing_price());
 
         let two = U256::from(2);
         let four = U256::from(4);

@@ -13,6 +13,7 @@ use angstrom_types::{
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
+use uniswap_v4::uniswap::pool::U256_1;
 
 use self::sort::SortStrategy;
 
@@ -72,20 +73,21 @@ impl OrderBook {
     }
 
     pub fn lowest_clearing_price(&self) -> Ray {
-        self.bids()
+        // because bids need to be ucp <= bid price
+        // they don't have a lowest price but rather
+        // a max price. Thus we can only use asks to properly set this bound.
+        self.asks()
             .iter()
-            .map(|bid| bid.bid_price() / U256::from(2))
-            .chain(self.asks().iter().map(|ask| ask.price() / U256::from(2)))
+            .map(|ask| ask.price())
             .min()
-            .unwrap_or_else(|| SqrtPriceX96::from(MIN_SQRT_RATIO).into())
+            .unwrap_or_else(|| SqrtPriceX96::from(MIN_SQRT_RATIO + U256_1).into())
     }
 
     pub fn highest_clearing_price(&self) -> Ray {
         self.bids()
             .iter()
-            .map(|bid| bid.bid_price() * U256::from(2))
-            .chain(self.asks().iter().map(|ask| ask.price() * U256::from(2)))
+            .map(|bid| bid.bid_price())
             .max()
-            .unwrap_or_else(|| SqrtPriceX96::from(MAX_SQRT_RATIO).into())
+            .unwrap_or_else(|| SqrtPriceX96::from(MAX_SQRT_RATIO - U256_1).into())
     }
 }

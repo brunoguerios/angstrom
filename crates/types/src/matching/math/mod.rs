@@ -49,7 +49,7 @@ pub fn get_quantities_at_price(
     fill_amount: u128,
     gas: u128,
     fee: u128,
-    ray_ucp: Ray
+    ray_ucp: Ray // this is t1 / t0
 ) -> (u128, u128, u128) {
     // Recreate our calculation that we do in the contract to make sure the numbers
     // all check out
@@ -64,6 +64,8 @@ pub fn get_quantities_at_price(
             let bid_price = ray_ucp.inv_ray();
             // Find the fee price
             let bid_fee_price = bid_price.scale_to_fee(fee);
+
+            // price = t0 /t1
 
             // The total amount of t0 exchanged at UCP for the input T1
             let exchanged_t0 = bid_price.quantity(fill_amount, false);
