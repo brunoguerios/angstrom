@@ -88,13 +88,16 @@ impl OrderBuilder {
 
         let sqrt_price = pool.sqrt_price;
 
+        // if current price is higher than target price, we have a ask
         let zfo = sqrt_price > price;
 
         let token0 = pool.token0;
         let token1 = pool.token1;
 
         let t_in = if zfo { token0 } else { token1 };
-        let amount_specified = if zfo { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
+
+        let exact_in = rng.random_bool(0.5);
+        let amount_specified = if exact_in { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
 
         let SwapResult { amount0, amount1, sqrt_price_x_96, .. } = pool
             ._simulate_swap(t_in, amount_specified, Some(price))
@@ -103,19 +106,18 @@ impl OrderBuilder {
         let mut amount_in = u128::try_from(amount0.abs()).unwrap();
         let mut amount_out = u128::try_from(amount1.abs()).unwrap();
         let mut price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
-        let pct = Ray::generate_ray_decimal(95, 2);
-        price.mul_ray_assign(pct);
 
         if !zfo {
             std::mem::swap(&mut amount_in, &mut amount_out);
             price.inv_ray_assign_round(true);
         }
 
-        let exact_in = rng.random_bool(0.5);
-        let modifier = rng.random_range(0.9..=1.1);
+        let pct = Ray::generate_ray_decimal(95, 2);
+        price.mul_ray_assign(pct);
+
+        let modifier = rng.random_range(1.0..1.5);
 
         let amount = if exact_in { amount_in } else { amount_out };
-
         let amount = (amount as f64 * modifier) as u128;
 
         let deadline = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
