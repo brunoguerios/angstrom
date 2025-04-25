@@ -325,7 +325,7 @@ impl<'a> DeltaMatcher<'a> {
         };
 
         // We need our absolute excess in all cases here
-        let abs_excess = excess_liquidity.unsigned_abs().to::<u128>();
+        let abs_excess = excess_liquidity.unsigned_abs().saturating_to::<u128>();
 
         // We should see if we can fix our excess liquidity to be within the realm of
         // our add?
