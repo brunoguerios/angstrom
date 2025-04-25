@@ -23,6 +23,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::{Level, debug, trace};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
+use uniswap_v4::uniswap::pool::U256_1;
 
 use crate::OrderBook;
 
@@ -631,9 +632,9 @@ impl<'a> DeltaMatcher<'a> {
 
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
-        let ep = Ray::from(U256::from(1));
-        let mut p_max = self.book.highest_clearing_price();
-        let mut p_min = self.book.lowest_clearing_price();
+        let ep = Ray::from(U256_1);
+        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
+        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
 
         let two = U256::from(2);
         let four = U256::from(4);
