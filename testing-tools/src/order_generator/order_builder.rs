@@ -96,7 +96,7 @@ impl OrderBuilder {
 
         let t_in = if zfo { token0 } else { token1 };
 
-        let exact_in = false; //  rng.random_bool(0.5);
+        let exact_in = rng.random_bool(0.5);
         let amount_specified = if exact_in { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
 
         let SwapResult { amount0, amount1, sqrt_price_x_96, .. } = pool
@@ -115,7 +115,7 @@ impl OrderBuilder {
         let pct = Ray::generate_ray_decimal(95, 2);
         price.mul_ray_assign(pct);
 
-        let modifier = 1.0;
+        let modifier = rng.random_range(1.0..1.5);
 
         let amount = if exact_in { amount_in } else { amount_out };
         let amount = (amount as f64 * modifier) as u128;
@@ -126,7 +126,7 @@ impl OrderBuilder {
 
         UserOrderBuilder::new()
             .signing_key(self.keys.get(rng.random_range(0..10)).cloned())
-            .is_exact(true)
+            .is_exact(!is_partial)
             .asset_in(if zfo { token0 } else { token1 })
             .asset_out(if !zfo { token0 } else { token1 })
             .is_standing(rng.random_bool(0.5))

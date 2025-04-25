@@ -84,8 +84,7 @@ fn end_to_end_agent<'a>(
                                 let all_orders = book
                                     .into_iter()
                                     .map(Into::into)
-                                    .filter(|o: &AllOrders| o.is_bid())
-                                    // .chain(vec![tob.into()])
+                                    .chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
 
                                  pending_orders.push(client.send_orders(all_orders));
