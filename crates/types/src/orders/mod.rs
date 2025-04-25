@@ -173,7 +173,9 @@ pub struct PoolSolution {
     pub limit:        Vec<OrderOutcome>,
     /// Any additional reward quantity to be taken out of excess T0 after all
     /// other operations
-    pub reward_t0:    u128
+    pub reward_t0:    u128,
+    // fee on user orders.
+    pub fee:          u32
 }
 
 impl PartialOrd for PoolSolution {

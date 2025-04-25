@@ -62,14 +62,8 @@ impl BaselinePoolState {
     ) -> eyre::Result<PoolSwapResult<'_>> {
         let liq = self.liquidity.current();
 
-        PoolSwap {
-            liquidity: liq,
-            target_amount: amount,
-            target_price: None,
-            direction,
-            fee: self.fee
-        }
-        .swap()
+        PoolSwap { liquidity: liq, target_amount: amount, target_price: None, direction, fee: 0 }
+            .swap()
     }
 
     pub fn swap_current_to_price(
@@ -84,7 +78,7 @@ impl BaselinePoolState {
             target_amount: I256::MAX,
             target_price: Some(price_limit),
             direction,
-            fee: self.fee
+            fee: 0
         }
         .swap()?;
 
@@ -109,7 +103,7 @@ impl BaselinePoolState {
             target_amount: amount,
             target_price: price_limit,
             direction,
-            fee: self.fee
+            fee: 0
         }
         .swap()
     }

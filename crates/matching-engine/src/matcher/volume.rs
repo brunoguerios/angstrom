@@ -775,6 +775,7 @@ impl<'a> VolumeFillMatcher<'a> {
             amm_quantity: self.amm_outcome.clone(),
             searcher,
             limit,
+            fee: 0,
             reward_t0: 0
         }
     }
