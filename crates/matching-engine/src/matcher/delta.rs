@@ -641,7 +641,7 @@ impl<'a> DeltaMatcher<'a> {
             // We're willing to kill orders if and only if we're at the end of our
             // iteration.  I believe that a distance of four will capture the last 2 cycles
             // of iteration
-            let can_kill = (p_max - p_min) >= four;
+            let can_kill = (p_max - p_min) <= four;
             // Find the midpoint that we'll be testing
             let p_mid = (p_max + p_min) / two;
 
