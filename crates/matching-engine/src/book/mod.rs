@@ -1,7 +1,6 @@
 //! basic book impl so we can benchmark
 use std::{iter::Chain, slice::Iter};
 
-use alloy_primitives::U256;
 use angstrom_types::{
     matching::SqrtPriceX96,
     primitive::PoolId,

@@ -632,8 +632,8 @@ impl<'a> DeltaMatcher<'a> {
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
         let ep = Ray::from(U256::from(1));
-        let mut p_max = Ray::from(self.book.highest_clearing_price());
-        let mut p_min = Ray::from(self.book.lowest_clearing_price());
+        let mut p_max = self.book.highest_clearing_price();
+        let mut p_min = self.book.lowest_clearing_price();
 
         let two = U256::from(2);
         let four = U256::from(4);
