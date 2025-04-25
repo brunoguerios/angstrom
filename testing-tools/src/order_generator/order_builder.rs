@@ -126,7 +126,7 @@ impl OrderBuilder {
 
         UserOrderBuilder::new()
             .signing_key(self.keys.get(rng.random_range(0..10)).cloned())
-            .is_exact(!is_partial)
+            .is_exact(true)
             .asset_in(if zfo { token0 } else { token1 })
             .asset_out(if !zfo { token0 } else { token1 })
             .is_standing(rng.random_bool(0.5))
