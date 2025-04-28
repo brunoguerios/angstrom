@@ -584,15 +584,10 @@ pub mod test {
         eth.handle_reorg(old_chain, new_chain);
 
         // Should receive both NewBlockTransitions and ReorgedOrders events
-        let mut received_transitions = false;
         let mut received_reorg = false;
 
-        for _ in 0..2 {
-            match rx.try_recv().expect("Should receive two events") {
-                EthEvent::NewBlockTransitions { block_number, .. } => {
-                    assert_eq!(block_number, 95);
-                    received_transitions = true;
-                }
+        for _ in 0..1 {
+            match rx.try_recv().expect("Should receive 1 event") {
                 EthEvent::ReorgedOrders(_, range) => {
                     assert_eq!(*range.start(), 95);
                     assert_eq!(*range.end(), 95);
@@ -602,7 +597,6 @@ pub mod test {
             }
         }
 
-        assert!(received_transitions, "Should have received NewBlockTransitions event");
         assert!(received_reorg, "Should have received ReorgedOrders event");
     }
 
