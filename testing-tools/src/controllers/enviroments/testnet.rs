@@ -156,7 +156,7 @@ where
                         initial_angstrom_state,
                         block_st,
                         agents.clone(),
-                        block_sync,
+                        block_sync.clone(),
                         ex.clone()
                     )
                     .await?;
@@ -164,7 +164,7 @@ where
 
                     tracing::info!(node_id, "made angstrom node");
 
-                    eyre::Ok((node_id, node))
+                    eyre::Ok((node_id, node, block_sync.clone()))
                 }
             })
             .buffer_unordered(100)
@@ -172,7 +172,8 @@ where
             .await;
 
         for res in nodes {
-            let (node_id, mut node) = res?;
+            let (node_id, mut node, bs) = res?;
+            bs.clear();
             node.connect_to_all_peers(&mut self.peers).await;
             self.peers.insert(node_id, node);
         }

@@ -158,6 +158,7 @@ where
         self.apply_periphery_logs(&new);
 
         let tip = new.tip_number();
+        tracing::info!(?self.block_sync);
         self.block_sync.new_block(tip);
 
         let filled_orders = self.fetch_filled_order(&new).collect::<Vec<_>>();
@@ -247,6 +248,7 @@ where
         &'a self,
         chain: &'a impl ChainExt
     ) -> impl Iterator<Item = B256> + 'a {
+        tracing::info!(txes=?chain.tip_transactions().cloned().collect::<Vec<_>>());
         let tip_txs = chain.tip_transactions().cloned();
 
         tip_txs
