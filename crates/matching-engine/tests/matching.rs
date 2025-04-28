@@ -51,10 +51,6 @@ impl TestOrder {
     fn _exact_inverse_bid(q: u128, p: Ray) -> BookOrder {
         Self { q, p }.to_inverse_order(true)
     }
-
-    fn exact_inverse_ask(q: u128, p: Ray) -> BookOrder {
-        Self { q, p }.to_inverse_order(false)
-    }
 }
 
 impl TestOrder {

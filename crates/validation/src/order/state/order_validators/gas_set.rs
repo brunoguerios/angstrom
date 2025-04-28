@@ -32,7 +32,7 @@ mod test {
 
         let mut order = make_base_order();
         if let AllOrders::PartialStanding(ref mut o) = order {
-            o.min_amount_in = 0; // This is the value checked by min_amount()
+            o.max_extra_fee_asset0 = 0; // This is the value checked by min_amount()
         }
 
         let validator = EnsureGasSet;
