@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy_rpc_types::{Block, Transaction};
+use alloy_rpc_types::{Block, Transaction, TransactionReceipt};
 use itertools::Itertools;
 use parking_lot::RwLock;
 use reth_node_types::{Block as _, BlockBody};
@@ -22,7 +22,7 @@ impl AnvilConsensusCanonStateNotification {
         Self { chain: Arc::new(RwLock::new(Chain::default())) }
     }
 
-    pub fn new_block(&self, block: &Block) -> Arc<Chain> {
+    pub fn new_block(&self, block: &Block, receipts: Vec<TransactionReceipt>) -> Arc<Chain> {
         let mut chain = self.chain.write();
 
         // the consensus only uses the block number so we can use default values for the
@@ -44,9 +44,21 @@ impl AnvilConsensusCanonStateNotification {
         // recovered_block.
         // rec
 
-        // let ex = ExecutionOutcome::default().with_receipts(receipts)
+        let mapped = receipts
+            .into_iter()
+            .map(|r| {
+                let r = r.into_primitives_receipt();
+                reth_primitives::Receipt {
+                    tx_type:             r.inner.tx_type(),
+                    success:             r.inner.status(),
+                    cumulative_gas_used: r.inner.cumulative_gas_used(),
+                    logs:                r.logs().to_vec()
+                }
+            })
+            .collect_vec();
+        let ex = ExecutionOutcome::default().with_receipts(vec![mapped]);
         // add recipets
-        chain.append_block(recovered_block, ExecutionOutcome::default());
+        chain.append_block(recovered_block, ex);
 
         Arc::new(chain.clone())
     }
