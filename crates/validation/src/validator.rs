@@ -113,7 +113,7 @@ where
             }
             ValidationRequest::Nonce { sender, user_address } => {
                 let nonce = self.order_validator.fetch_nonce(user_address);
-                sender.send(nonce).unwrap();
+                let _ = sender.send(nonce);
             }
             ValidationRequest::GasEstimation { sender, is_book, mut token_0, mut token_1 } => {
                 if token_0 > token_1 {
@@ -128,13 +128,10 @@ where
                     let _ = sender.send(Err(eyre::eyre!("not valid token pair")));
                     return;
                 };
-                // NOTE: this is currently fixed with gasprice. when we update, this will need
-                // to be changed
-                //
                 let gas_in_wei = if is_book { BOOK_GAS } else { TOB_GAS };
+                let amount = cvrt.inverse_quantity(gas_in_wei as u128, false);
 
-                let gas_token_0 = (cvrt * U256::from(gas_in_wei)).scale_out_of_ray();
-                let _ = sender.send(Ok(gas_token_0));
+                let _ = sender.send(Ok(U256::from(amount)));
             }
         }
     }

@@ -14,8 +14,10 @@ use alloy::{
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensusEvent};
 use angstrom_types::{
-    block_sync::BlockSyncConsumer, contract_payloads::angstrom::UniswapAngstromRegistry,
-    mev_boost::MevBoostProvider, primitive::AngstromSigner
+    block_sync::BlockSyncConsumer,
+    contract_payloads::angstrom::UniswapAngstromRegistry,
+    mev_boost::MevBoostProvider,
+    primitive::{AngstromSigner, ChainExt}
 };
 use futures::StreamExt;
 use matching_engine::MatchingEngineHandle;
@@ -102,6 +104,7 @@ where
     fn on_blockchain_state(&mut self, notification: CanonStateNotification, waker: Waker) {
         tracing::info!("got new block_chain state");
         let new_block = notification.tip();
+
         self.current_height = new_block.number();
         let round_leader = self
             .leader_selection
@@ -113,8 +116,18 @@ where
             .reset_round(self.current_height, round_leader);
         self.broadcasted_messages.clear();
 
-        self.block_sync
-            .sign_off_on_block(MODULE_NAME, self.current_height, Some(waker));
+        match notification {
+            CanonStateNotification::Reorg { old, new } => {
+                let tip = new.tip_number();
+                let reorg = old.reorged_range(&new).unwrap_or(tip..=tip);
+                self.block_sync
+                    .sign_off_reorg(MODULE_NAME, reorg, Some(waker));
+            }
+            CanonStateNotification::Commit { .. } => {
+                self.block_sync
+                    .sign_off_on_block(MODULE_NAME, self.current_height, Some(waker));
+            }
+        }
     }
 
     fn on_network_event(&mut self, event: StromConsensusEvent) {

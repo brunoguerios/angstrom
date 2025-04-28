@@ -2,10 +2,7 @@ use alloy::primitives::{FixedBytes, U256};
 use angstrom_types::{
     matching::Ray,
     orders::{OrderId, OrderPriorityData},
-    sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::ExactFlashOrder
-    }
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::ExactFlashOrder}
 };
 use rand_distr::{Distribution, SkewNormal};
 
@@ -32,14 +29,12 @@ pub fn order_distribution(
         .sample_iter(&mut rng)
         .zip(quantity_gen.sample_iter(&mut rng2))
         .map(|(p, q)| {
-            let order = GroupedVanillaOrder::KillOrFill(
-                angstrom_types::sol_bindings::grouped_orders::FlashVariants::Exact(
-                    ExactFlashOrder {
-                        amount: q.floor() as u128,
-                        min_price: Ray::from(p).into(),
-                        ..Default::default()
-                    }
-                )
+            let order = angstrom_types::sol_bindings::grouped_orders::AllOrders::ExactFlash(
+                ExactFlashOrder {
+                    amount: q.floor() as u128,
+                    min_price: Ray::from(p).into(),
+                    ..Default::default()
+                }
             );
             OrderWithStorageData {
                 invalidates: vec![],

@@ -2,7 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use alloy::primitives::Address;
 use angstrom_types::sol_bindings::{
-    grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+    grouped_orders::{AllOrders, OrderWithStorageData},
     rpc_orders::TopOfBlockOrder
 };
 use reth_provider::BlockNumReader;
@@ -106,12 +106,12 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("tob order err={} {:?}", e, tob.order_hash()))
-        Ok(BOOK_GAS)
+        Ok(TOB_GAS)
     }
 
     pub fn gas_of_book_order(
         &self,
-        _order: &OrderWithStorageData<GroupedVanillaOrder>,
+        _order: &OrderWithStorageData<AllOrders>,
         _block: u64
     ) -> eyre::Result<GasUsed> {
         // let exact_in = order.exact_in();

@@ -4,10 +4,7 @@ use alloy::primitives::{B256, FixedBytes};
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
-    sol_bindings::grouped_orders::{
-        AllOrders, GroupedComposableOrder, GroupedUserOrder, GroupedVanillaOrder,
-        OrderWithStorageData
-    }
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 
 use self::{composable::ComposableLimitPool, standard::LimitPool};
@@ -36,23 +33,10 @@ impl LimitOrderPool {
         }
     }
 
-    pub fn get_order(&self, id: &OrderId) -> Option<OrderWithStorageData<GroupedUserOrder>> {
+    pub fn get_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
         self.limit_orders
             .get_order(id.pool_id, id.hash)
-            .and_then(|value| {
-                value
-                    .try_map_inner(|this| Ok(GroupedUserOrder::Vanilla(this)))
-                    .ok()
-            })
-            .or_else(|| {
-                self.composable_orders
-                    .get_order(id.pool_id, id.hash)
-                    .and_then(|value| {
-                        value
-                            .try_map_inner(|this| Ok(GroupedUserOrder::Composable(this)))
-                            .ok()
-                    })
-            })
+            .or_else(|| self.composable_orders.get_order(id.pool_id, id.hash))
     }
 
     pub fn remove_pool(&mut self, key: &PoolId) {
@@ -67,7 +51,7 @@ impl LimitOrderPool {
 
     pub fn add_composable_order(
         &mut self,
-        order: OrderWithStorageData<GroupedComposableOrder>
+        order: OrderWithStorageData<AllOrders>
     ) -> Result<(), LimitPoolError> {
         let size = order.size();
         if !self.size.has_space(size) {
@@ -79,7 +63,7 @@ impl LimitOrderPool {
 
     pub fn add_vanilla_order(
         &mut self,
-        order: OrderWithStorageData<GroupedVanillaOrder>
+        order: OrderWithStorageData<AllOrders>
     ) -> Result<(), LimitPoolError> {
         let size = order.size();
         if !self.size.has_space(size) {
@@ -89,26 +73,13 @@ impl LimitOrderPool {
         self.limit_orders.add_order(order)
     }
 
-    pub fn remove_order(&mut self, id: &OrderId) -> Option<OrderWithStorageData<GroupedUserOrder>> {
+    pub fn remove_order(&mut self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
         self.limit_orders
             .remove_order(id.pool_id, id.hash)
-            .and_then(|value| {
-                value
-                    .try_map_inner(|this| Ok(GroupedUserOrder::Vanilla(this)))
-                    .ok()
-            })
-            .or_else(|| {
-                self.composable_orders
-                    .remove_order(id.pool_id, id.hash)
-                    .and_then(|value| {
-                        value
-                            .try_map_inner(|this| Ok(GroupedUserOrder::Composable(this)))
-                            .ok()
-                    })
-            })
+            .or_else(|| self.composable_orders.remove_order(id.pool_id, id.hash))
     }
 
-    pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<GroupedVanillaOrder>> {
+    pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<AllOrders>> {
         self.limit_orders.get_all_orders()
     }
 
@@ -119,7 +90,7 @@ impl LimitOrderPool {
             .map(|pool| {
                 pool.get_all_orders()
                     .into_iter()
-                    .map(|p| p.order.into())
+                    .map(|o| o.order)
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default()

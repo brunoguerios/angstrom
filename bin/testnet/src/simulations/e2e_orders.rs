@@ -1,9 +1,10 @@
 use std::pin::Pin;
 
-use angstrom_eth::manager::ChainExt;
 use angstrom_rpc::{api::OrderApiClient, impls::OrderApi};
 use angstrom_types::{
-    CHAIN_ID, primitive::ANGSTROM_DOMAIN, sol_bindings::grouped_orders::AllOrders,
+    CHAIN_ID,
+    primitive::{ANGSTROM_DOMAIN, ChainExt},
+    sol_bindings::{RawPoolOrder, grouped_orders::AllOrders},
     testnet::InitialTestnetState
 };
 use futures::{Future, StreamExt, stream::FuturesUnordered};
@@ -81,7 +82,6 @@ fn end_to_end_agent<'a>(
                                 let GeneratedPoolOrders { pool_id, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter()
-                                    .map(Into::into)
                                     .chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
 
@@ -158,9 +158,7 @@ pub mod test {
                                 for orders in new_orders {
                                     let GeneratedPoolOrders { pool_id, tob, book } = orders;
                                     let all_orders = book
-                                        .into_iter()
-                                        .map(Into::into)
-                                        .chain(vec![tob.into()])
+                                        .into_iter().chain(vec![tob.into()])
                                         .collect::<Vec<AllOrders>>();
 
                                      pending_orders.push(client.send_orders(all_orders));

@@ -2,7 +2,7 @@ use alloy::primitives::Uint;
 use angstrom_types::{
     matching::Ray,
     primitive::{AngstromSigner, PoolId},
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 use eyre::eyre;
 use rand_distr::{Distribution, SkewNormal, num_traits::ToPrimitive};
@@ -61,7 +61,7 @@ impl OrderDistributionBuilder {
         Self { signing_key, ..self }
     }
 
-    pub fn build(self) -> eyre::Result<Vec<OrderWithStorageData<GroupedVanillaOrder>>> {
+    pub fn build(self) -> eyre::Result<Vec<OrderWithStorageData<AllOrders>>> {
         let order_count = self.order_count.unwrap_or_default();
         let pool_id = self.pool_id.unwrap_or_default();
         let valid_block = self.valid_block.unwrap_or_default();

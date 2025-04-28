@@ -232,7 +232,7 @@ mod tests {
     use angstrom_types::{
         orders::{OrderOrigin, OrderStatus},
         primitive::OrderValidationError,
-        sol_bindings::grouped_orders::{AllOrders, FlashVariants, StandingVariants}
+        sol_bindings::grouped_orders::AllOrders
     };
     use futures::FutureExt;
     use order_pool::PoolManagerUpdate;
@@ -245,11 +245,11 @@ mod tests {
 
     // Test fixtures
     fn create_standing_order() -> AllOrders {
-        AllOrders::Standing(StandingVariants::Partial(Default::default()))
+        AllOrders::PartialStanding(Default::default())
     }
 
     fn create_flash_order() -> AllOrders {
-        AllOrders::Flash(FlashVariants::Exact(Default::default()))
+        AllOrders::ExactFlash(Default::default())
     }
 
     fn create_tob_order() -> AllOrders {

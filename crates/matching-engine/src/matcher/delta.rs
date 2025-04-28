@@ -3,7 +3,7 @@ use std::{
     collections::HashSet
 };
 
-use alloy_primitives::{I256, U256};
+use alloy_primitives::{I256, Sign, U256};
 use angstrom_types::{
     contract_payloads::angstrom::TopOfBlockOrder as ContractTopOfBlockOrder,
     matching::{
@@ -13,7 +13,7 @@ use angstrom_types::{
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
         RawPoolOrder, Ray,
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     },
     uni_structure::pool_swap::PoolSwapResult
@@ -23,6 +23,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::{Level, debug, trace};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
+use uniswap_v4::uniswap::pool::U256_1;
 
 use crate::OrderBook;
 
@@ -204,6 +205,7 @@ impl<'a> DeltaMatcher<'a> {
 
                 // Calculate and account for our minimum fill, preserving quantity numbers in
                 // case we need to use them for slack later
+
                 let (min_in, min_out) = Self::get_amount_in_out(o, min_q, self.fee, price);
                 // Add the mandatory portion of this order to our overall delta
                 let s_in = I256::try_from(min_in).unwrap();
@@ -273,19 +275,22 @@ impl<'a> DeltaMatcher<'a> {
         if total_elim >= min_target { (total_elim, order_ids) } else { (0_u128, None) }
     }
 
-    #[tracing::instrument(level = "trace", skip(self, killed))]
-    fn check_ucp(&self, price: Ray, killed: &HashSet<OrderId>) -> SupplyDemandResult {
-        let (book_t0, book_t1) = self.fetch_concentrated_liquidity(price);
+    fn check_ucp(
+        &self,
+        price: Ray,
+        killed: &HashSet<OrderId>
+    ) -> (CheckUcpStats, SupplyDemandResult) {
+        let (amm_t0, amm_t1) = self.fetch_concentrated_liquidity(price);
 
         let OrderLiquidity { net_t0, net_t1, bid_slack, ask_slack, killable_orders } =
             self.order_liquidity(price, killed);
 
-        let t0_sum = book_t0 + net_t0;
-        let t1_sum = book_t1 + net_t1;
+        let t0_sum = amm_t0 + net_t0;
+        let t1_sum = amm_t1 + net_t1;
 
         tracing::trace!(
-            ?book_t0,
-            ?book_t1,
+            ?amm_t0,
+            ?amm_t1,
             ?net_t0,
             ?net_t1,
             ?t0_sum,
@@ -295,8 +300,17 @@ impl<'a> DeltaMatcher<'a> {
             "Liquidity sums"
         );
 
+        let stats = CheckUcpStats {
+            amm_t0,
+            amm_t1,
+            order_t0: net_t0,
+            order_t1: net_t1,
+            order_bid_slack: bid_slack,
+            order_ask_slack: ask_slack
+        };
+
         if t0_sum.is_zero() && t1_sum.is_zero() {
-            return SupplyDemandResult::NaturallyEqual;
+            return (stats, SupplyDemandResult::NaturallyEqual);
         }
 
         // Depending on how we're solving, we want to look at a specific excess
@@ -311,7 +325,7 @@ impl<'a> DeltaMatcher<'a> {
         };
 
         // We need our absolute excess in all cases here
-        let abs_excess = excess_liquidity.unsigned_abs().to::<u128>();
+        let abs_excess = excess_liquidity.unsigned_abs().saturating_to::<u128>();
 
         // We should see if we can fix our excess liquidity to be within the realm of
         // our add?
@@ -325,7 +339,7 @@ impl<'a> DeltaMatcher<'a> {
                 let min_target = abs_excess - available_add;
                 let (_, ko) =
                     Self::check_killable_orders(&killable_orders, bid_is_input, min_target);
-                return SupplyDemandResult::MoreDemand(ko);
+                return (stats, SupplyDemandResult::MoreDemand(ko));
             };
             // Otherwise let's see if we can fill any extra after this
             let additional_fillable = min(remaining_add, available_drain);
@@ -391,7 +405,7 @@ impl<'a> DeltaMatcher<'a> {
                 let min_target = abs_excess - available_add;
                 let (_, ko) =
                     Self::check_killable_orders(&killable_orders, bid_is_input, min_target);
-                return SupplyDemandResult::MoreSupply(ko);
+                return (stats, SupplyDemandResult::MoreSupply(ko));
             };
             let additional_drainable = min(remaining_drain, available_add);
             if self.solve_for_t0 {
@@ -452,13 +466,13 @@ impl<'a> DeltaMatcher<'a> {
             }
         };
 
-        SupplyDemandResult::PartialFillEq { bid_fill_q, ask_fill_q, reward_t0 }
+        (stats, SupplyDemandResult::PartialFillEq { bid_fill_q, ask_fill_q, reward_t0 })
     }
 
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
     fn get_amount_in_out(
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        order: &OrderWithStorageData<AllOrders>,
         fill_amount: u128,
         fee: u128,
         ray_ucp: Ray
@@ -519,7 +533,7 @@ impl<'a> DeltaMatcher<'a> {
                                 // If we have partial to fill, check to see if we have enough to
                                 // completely fill this order
                                 let max_partial = if o.is_partial() {
-                                    o.max_q() - o.min_amount()
+                                    o.amount() - o.min_amount()
                                 } else {
                                     o.min_amount()
                                 };
@@ -612,32 +626,69 @@ impl<'a> DeltaMatcher<'a> {
             amm_quantity: amm,
             limit,
             searcher,
-            reward_t0: price_and_partial_solution.reward_t0
+            reward_t0: price_and_partial_solution.reward_t0,
+            fee: self.fee as u32
         }
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
-        let ep = Ray::from(U256::from(1));
+        let ep = Ray::from(U256_1);
         let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
         let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
 
         let two = U256::from(2);
         let four = U256::from(4);
         let mut killed = HashSet::new();
+        let mut dust: Option<UcpSolution> = None;
         while (p_max - p_min) > ep {
             // We're willing to kill orders if and only if we're at the end of our
             // iteration.  I believe that a distance of four will capture the last 2 cycles
             // of iteration
-            let can_kill = (p_max - p_min) >= four;
+            let can_kill = (p_max - p_min) <= four;
             // Find the midpoint that we'll be testing
             let p_mid = (p_max + p_min) / two;
 
             // the delta of t0
-            let res = {
+            let (stats, res) = {
                 let check_ucp_span = tracing::trace_span!("check_ucp", price = ?p_mid, can_kill);
                 check_ucp_span.in_scope(|| self.check_ucp(p_mid, &killed))
             };
+
+            // If we're on our last iterations, check to see if we can come up with a
+            // "within_one" solution
+            if can_kill {
+                let within_one = if self.solve_for_t0 {
+                    match (stats.amm_t0 + stats.order_t0).into_sign_and_abs() {
+                        (Sign::Positive, u) => u < U256::from(p_mid.inverse_quantity(1, false)),
+                        _ => false
+                    }
+                } else {
+                    match (stats.amm_t1 + stats.order_t1).into_sign_and_abs() {
+                        (Sign::Positive, u) => u < U256::from(p_mid.quantity(1, false)),
+                        _ => false
+                    }
+                };
+                if within_one {
+                    let (partial_fills, reward_t0) = if let SupplyDemandResult::PartialFillEq {
+                        bid_fill_q,
+                        ask_fill_q,
+                        reward_t0
+                    } = res
+                    {
+                        (Some((bid_fill_q, ask_fill_q)), reward_t0)
+                    } else {
+                        (None, 0_u128)
+                    };
+                    debug!(ucp = ?p_mid, partial = partial_fills.is_some(), reward_t0, ?stats.amm_t0, ?stats.amm_t1, ?stats.order_t0, ?stats.order_t1, ?stats.order_bid_slack, ?stats.order_ask_slack, "Dust solution found and cached");
+                    dust = Some(UcpSolution {
+                        ucp: p_mid,
+                        killed: killed.clone(),
+                        partial_fills,
+                        reward_t0
+                    });
+                }
+            }
 
             match (res, can_kill, self.solve_for_t0) {
                 (SupplyDemandResult::MoreSupply(Some(ko)), true, _)
@@ -658,8 +709,7 @@ impl<'a> DeltaMatcher<'a> {
                 (SupplyDemandResult::MoreSupply(_), _, false)
                 | (SupplyDemandResult::MoreDemand(_), _, true) => p_min = p_mid,
                 (SupplyDemandResult::NaturallyEqual, ..) => {
-                    debug!(ucp = ?p_mid, partial = false, reward_t0 = 0_u128, "Solved");
-
+                    debug!(ucp = ?p_mid, partial = false, reward_t0 = 0_u128, ?stats.amm_t0, ?stats.amm_t1, ?stats.order_t0, ?stats.order_t1, ?stats.order_bid_slack, ?stats.order_ask_slack, "Pool solution found");
                     return Some(UcpSolution {
                         ucp: p_mid,
                         killed,
@@ -668,7 +718,7 @@ impl<'a> DeltaMatcher<'a> {
                     });
                 }
                 (SupplyDemandResult::PartialFillEq { bid_fill_q, ask_fill_q, reward_t0 }, ..) => {
-                    debug!(ucp = ?p_mid, partial = true, reward_t0, "Solved");
+                    debug!(ucp = ?p_mid, partial = true, reward_t0, ?stats.amm_t0, ?stats.amm_t1, ?stats.order_t0, ?stats.order_t1, ?stats.order_bid_slack, ?stats.order_ask_slack, "Pool solution found");
                     return Some(UcpSolution {
                         ucp: p_mid,
                         killed,
@@ -678,8 +728,12 @@ impl<'a> DeltaMatcher<'a> {
                 }
             }
         }
-        debug!("Unable to solve");
-        None
+        if dust.is_some() {
+            debug!("Solved with dust solution");
+        } else {
+            debug!("Unable to solve");
+        }
+        dust
     }
 }
 
@@ -693,6 +747,15 @@ struct UcpSolution {
     partial_fills: Option<(u128, u128)>,
     /// Extra T0 that should be added to rewards
     reward_t0:     u128
+}
+
+struct CheckUcpStats {
+    amm_t0:          I256,
+    amm_t1:          I256,
+    order_t0:        I256,
+    order_t1:        I256,
+    order_bid_slack: (u128, u128),
+    order_ask_slack: (u128, u128)
 }
 
 #[derive(Debug)]

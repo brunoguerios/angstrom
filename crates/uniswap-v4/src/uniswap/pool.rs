@@ -515,11 +515,7 @@ where
         self.sqrt_price = U256::from(pool_data.sqrtPrice);
         self.tick = pool_data.tick.as_i32();
         self.tick_spacing = pool_data.tickSpacing.as_i32();
-        // ignore as this will be dynamic
-        //
-        // let mut bytes = [0u8; 4];
-        // bytes[..3].copy_from_slice(&pool_data.fee.to_le_bytes::<3>());
-        // self.fee = u32::from_le_bytes(bytes);
+        self.book_fee = self.data_loader.pool_fee();
         self.liquidity_net = pool_data.liquidityNet;
         Ok(())
     }
@@ -796,6 +792,10 @@ mod tests {
 
         fn decode_swap_event(_: &Log) -> Result<pool_data_loader::SwapEvent, PoolError> {
             unimplemented!()
+        }
+
+        fn pool_fee(&self) -> u32 {
+            0
         }
     }
 
