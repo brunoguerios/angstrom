@@ -23,9 +23,7 @@ mod test {
     use super::*;
     #[test]
     fn test_max_gas_greater_than_min_error() {
-        use angstrom_types::{
-            primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
-        };
+        use angstrom_types::primitive::OrderValidationError;
 
         use crate::order::{
             AllOrders,

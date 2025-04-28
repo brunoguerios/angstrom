@@ -1,5 +1,4 @@
 use alloy::primitives::{Address, B256, Bytes, U256, aliases::U40};
-use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
 
 use crate::{

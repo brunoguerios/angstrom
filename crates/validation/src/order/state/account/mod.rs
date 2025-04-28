@@ -180,7 +180,7 @@ pub mod tests {
     use alloy::primitives::{Address, U256};
     use angstrom_types::{
         primitive::{AngstromSigner, PoolId},
-        sol_bindings::{RawPoolOrder, grouped_orders::GroupedVanillaOrder}
+        sol_bindings::RawPoolOrder
     };
     use testing_tools::type_generator::orders::UserOrderBuilder;
     use tracing::info;

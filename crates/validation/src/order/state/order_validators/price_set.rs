@@ -29,9 +29,7 @@ mod test {
     use super::*;
     #[test]
     fn test_no_price_specified_error() {
-        use angstrom_types::{
-            primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
-        };
+        use angstrom_types::primitive::OrderValidationError;
         use revm_primitives::U256;
 
         use crate::order::{

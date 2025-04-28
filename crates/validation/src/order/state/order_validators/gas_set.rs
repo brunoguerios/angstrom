@@ -23,9 +23,7 @@ mod test {
     use super::*;
     #[test]
     fn test_no_gas_specified_error() {
-        use angstrom_types::{
-            primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
-        };
+        use angstrom_types::primitive::OrderValidationError;
 
         use crate::order::{
             AllOrders,
