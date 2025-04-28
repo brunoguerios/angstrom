@@ -83,7 +83,6 @@ fn end_to_end_agent<'a>(
                                 let GeneratedPoolOrders { pool_id, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter()
-                                    .map(Into::into)
                                     .chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
 

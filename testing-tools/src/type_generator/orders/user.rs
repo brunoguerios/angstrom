@@ -7,7 +7,7 @@ use angstrom_types::{
     matching::Ray,
     primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::{
-        grouped_orders::{FlashVariants, GroupedVanillaOrder, StandingVariants},
+        grouped_orders::{AllOrders, FlashVariants, GroupedVanillaOrder, StandingVariants},
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder
@@ -181,7 +181,7 @@ impl UserOrderBuilder {
         }
     }
 
-    pub fn build(mut self) -> GroupedVanillaOrder {
+    pub fn build(mut self) -> AllOrders {
         match (self.is_standing, self.is_exact) {
             (true, true) => {
                 let mut order = ExactStandingOrder {
@@ -205,7 +205,7 @@ impl UserOrderBuilder {
                         signature: sig.pade_encode().into()
                     };
                 }
-                GroupedVanillaOrder::Standing(StandingVariants::Exact(order))
+                AllOrders::ExactStanding(order)
             }
             (true, false) => {
                 let mut order = PartialStandingOrder {
@@ -229,7 +229,7 @@ impl UserOrderBuilder {
                         signature: sig.pade_encode().into()
                     };
                 }
-                GroupedVanillaOrder::Standing(StandingVariants::Partial(order))
+                AllOrders::PartialStanding(order)
             }
             (false, true) => {
                 let mut order = ExactFlashOrder {
@@ -253,7 +253,7 @@ impl UserOrderBuilder {
                         signature: sig.pade_encode().into()
                     };
                 }
-                GroupedVanillaOrder::KillOrFill(FlashVariants::Exact(order))
+                AllOrders::ExactFlash(order)
             }
             (false, false) => {
                 let mut order = PartialFlashOrder {
@@ -276,7 +276,7 @@ impl UserOrderBuilder {
                         signature: sig.pade_encode().into()
                     };
                 }
-                GroupedVanillaOrder::KillOrFill(FlashVariants::Partial(order))
+                AllOrders::PartialFlash(order)
             }
         }
     }

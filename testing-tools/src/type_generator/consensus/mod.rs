@@ -3,7 +3,9 @@ pub mod pre_proposal_agg;
 pub mod preproposal;
 pub mod proposal;
 
-use angstrom_types::sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData};
+use angstrom_types::sol_bindings::grouped_orders::{
+    AllOrders, GroupedVanillaOrder, OrderWithStorageData
+};
 
 use super::orders::UserOrderBuilder;
 
@@ -11,7 +13,7 @@ pub fn generate_limit_order_set(
     count: usize,
     is_bid: bool,
     block: u64
-) -> Vec<OrderWithStorageData<GroupedVanillaOrder>> {
+) -> Vec<OrderWithStorageData<AllOrders>> {
     (0..count)
         .map(|_| {
             UserOrderBuilder::new()

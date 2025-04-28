@@ -4,7 +4,7 @@ use alloy::primitives::B256;
 use angstrom_metrics::ComposableLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
     primitive::{NewInitializedPool, PoolId},
-    sol_bindings::grouped_orders::{GroupedComposableOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{AllOrders, GroupedComposableOrder, OrderWithStorageData}
 };
 use angstrom_utils::map::OwnedMap;
 
@@ -12,7 +12,7 @@ use super::{LimitPoolError, pending::PendingPool};
 
 #[derive(Default)]
 pub struct ComposableLimitPool {
-    pub(super) map: HashMap<PoolId, PendingPool<GroupedComposableOrder>>,
+    pub(super) map: HashMap<PoolId, PendingPool<AllOrders>>,
     metrics:        ComposableLimitOrderPoolMetricsWrapper
 }
 
@@ -26,7 +26,7 @@ impl ComposableLimitPool {
         &self,
         pool_id: PoolId,
         order_id: alloy::primitives::FixedBytes<32>
-    ) -> Option<OrderWithStorageData<GroupedComposableOrder>> {
+    ) -> Option<OrderWithStorageData<AllOrders>> {
         self.map
             .get(&pool_id)
             .and_then(|pool| pool.get_order(order_id))
@@ -34,7 +34,7 @@ impl ComposableLimitPool {
 
     pub fn add_order(
         &mut self,
-        order: OrderWithStorageData<GroupedComposableOrder>
+        order: OrderWithStorageData<AllOrders>
     ) -> Result<(), LimitPoolError> {
         let pool_id = order.pool_id;
         self.map
@@ -51,7 +51,7 @@ impl ComposableLimitPool {
         &mut self,
         pool_id: PoolId,
         tx_id: alloy::primitives::FixedBytes<32>
-    ) -> Option<OrderWithStorageData<GroupedComposableOrder>> {
+    ) -> Option<OrderWithStorageData<AllOrders>> {
         self.map
             .get_mut(&pool_id)?
             .remove_order(tx_id)

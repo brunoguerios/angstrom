@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{GenerateFlippedOrder, RawPoolOrder, RespendAvoidanceMethod};
 use crate::{
-    matching::{Debt, Ray},
+    matching::Ray,
     orders::{OrderId, OrderLocation, OrderPriorityData},
     primitive::{ANGSTROM_DOMAIN, PoolId, UserAccountVerificationError},
     sol_bindings::rpc_orders::{
@@ -21,8 +21,10 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum AllOrders {
-    Standing(StandingVariants),
-    Flash(FlashVariants),
+    ExactStanding(ExactStandingOrder),
+    PartialStanding(PartialStandingOrder),
+    ExactFlash(ExactFlashOrder),
+    PartialFlash(PartialFlashOrder),
     TOB(TopOfBlockOrder)
 }
 
@@ -55,39 +57,7 @@ impl StandingVariants {
         }
     }
 
-    /// Minimum quantity accepted by this order
-    pub fn min_q(&self) -> u128 {
-        match self {
-            Self::Exact(o) => o.amount,
-            Self::Partial(o) => o.min_amount_in
-        }
-    }
-
     /// The quantity available for this order to match in terms of T0
-    pub fn quantity(&self, _debt: Option<&Debt>) -> u128 {
-        let is_bid = self.is_bid();
-        let exact_in = self.exact_in();
-        let raw_q = match self {
-            Self::Exact(o) => o.amount,
-            Self::Partial(o) => o.max_amount_in
-        };
-        match (is_bid, exact_in) {
-            // Exact In bid
-            (true, true) => {
-                // In this case the price in this order is stored as T0/T1 so we use
-                // mul_quantity to get the number of T0 for this amount of T1
-                let order_price = Ray::from(self.limit_price());
-                order_price.mul_quantity(U256::from(raw_q)).saturating_to()
-            }
-            // Exact Out ask
-            (false, false) => {
-                let order_price = Ray::from(self.limit_price());
-                order_price.inverse_quantity(raw_q, true)
-            }
-            // Exact Out bid (normal bid) and Exact In ask (normal ask)
-            (true, false) | (false, true) => raw_q
-        }
-    }
 
     pub fn exact_in(&self) -> bool {
         match self {
@@ -171,51 +141,57 @@ impl From<TopOfBlockOrder> for AllOrders {
         Self::TOB(value)
     }
 }
-impl From<GroupedComposableOrder> for AllOrders {
-    fn from(value: GroupedComposableOrder) -> Self {
-        match value {
-            GroupedComposableOrder::Partial(p) => AllOrders::Standing(p),
-            GroupedComposableOrder::KillOrFill(kof) => AllOrders::Flash(kof)
-        }
-    }
-}
+// impl From<GroupedComposableOrder> for AllOrders {
+//     fn from(value: GroupedComposableOrder) -> Self {
+//         match value {
+//             GroupedComposableOrder::Partial(p) => AllOrders::Standing(p),
+//             GroupedComposableOrder::KillOrFill(kof) => AllOrders::Flash(kof),
+//         }
+//     }
+// }
+//
+// impl From<GroupedVanillaOrder> for AllOrders {
+//     fn from(value: GroupedVanillaOrder) -> Self {
+//         match value {
+//             GroupedVanillaOrder::Standing(p) => AllOrders::Standing(p),
+//             GroupedVanillaOrder::KillOrFill(kof) => AllOrders::Flash(kof),
+//         }
+//     }
+// }
 
-impl From<GroupedVanillaOrder> for AllOrders {
-    fn from(value: GroupedVanillaOrder) -> Self {
-        match value {
-            GroupedVanillaOrder::Standing(p) => AllOrders::Standing(p),
-            GroupedVanillaOrder::KillOrFill(kof) => AllOrders::Flash(kof)
-        }
-    }
-}
-
-impl From<GroupedUserOrder> for AllOrders {
-    fn from(value: GroupedUserOrder) -> Self {
-        match value {
-            GroupedUserOrder::Vanilla(v) => match v {
-                GroupedVanillaOrder::Standing(p) => AllOrders::Standing(p),
-                GroupedVanillaOrder::KillOrFill(kof) => AllOrders::Flash(kof)
-            },
-            GroupedUserOrder::Composable(v) => match v {
-                GroupedComposableOrder::Partial(p) => AllOrders::Standing(p),
-                GroupedComposableOrder::KillOrFill(kof) => AllOrders::Flash(kof)
-            }
-        }
-    }
-}
+// impl From<GroupedUserOrder> for AllOrders {
+//     fn from(value: GroupedUserOrder) -> Self {
+//         match value {
+//             GroupedUserOrder::Vanilla(v) => match v {
+//                 GroupedVanillaOrder::Standing(p) => AllOrders::Standing(p),
+//                 GroupedVanillaOrder::KillOrFill(kof) =>
+// AllOrders::Flash(kof),             },
+//             GroupedUserOrder::Composable(v) => match v {
+//                 GroupedComposableOrder::Partial(p) => AllOrders::Standing(p),
+//                 GroupedComposableOrder::KillOrFill(kof) =>
+// AllOrders::Flash(kof),             },
+//         }
+//     }
+// }
 
 impl AllOrders {
     pub fn order_hash(&self) -> FixedBytes<32> {
         match self {
-            Self::Standing(p) => match p {
-                StandingVariants::Exact(e) => e.unique_order_hash(e.from()),
-                StandingVariants::Partial(e) => e.unique_order_hash(e.from())
-            },
-            Self::Flash(f) => match f {
-                FlashVariants::Exact(e) => e.unique_order_hash(e.from()),
-                FlashVariants::Partial(e) => e.unique_order_hash(e.from())
-            },
+            Self::ExactStanding(p) => p.unique_order_hash(p.from()),
+            Self::PartialStanding(p) => p.unique_order_hash(p.from()),
+            Self::ExactFlash(p) => p.unique_order_hash(p.from()),
+            Self::PartialFlash(p) => p.unique_order_hash(p.from()),
             Self::TOB(t) => t.unique_order_hash(t.from())
+        }
+    }
+
+    pub fn is_vanilla(&self) -> bool {
+        !match self {
+            Self::ExactStanding(p) => p.has_hook(),
+            Self::PartialStanding(p) => p.has_hook(),
+            Self::ExactFlash(p) => p.has_hook(),
+            Self::PartialFlash(p) => p.has_hook(),
+            Self::TOB(_) => false
         }
     }
 }
@@ -344,15 +320,11 @@ impl<Order> Hash for OrderWithStorageData<Order> {
 impl OrderWithStorageData<AllOrders> {
     pub fn from(&self) -> Address {
         match &self.order {
-            AllOrders::Flash(kof) => match kof {
-                FlashVariants::Exact(e) => e.meta.from,
-                FlashVariants::Partial(p) => p.meta.from
-            },
-            AllOrders::Standing(p) => match p {
-                StandingVariants::Partial(p) => p.meta.from,
-                StandingVariants::Exact(p) => p.meta.from
-            },
-            AllOrders::TOB(tob) => tob.meta.from
+            AllOrders::ExactStanding(p) => p.from(),
+            AllOrders::PartialStanding(p) => p.from(),
+            AllOrders::ExactFlash(p) => p.from(),
+            AllOrders::PartialFlash(p) => p.from(),
+            AllOrders::TOB(t) => t.from()
         }
     }
 }
@@ -408,8 +380,8 @@ impl GroupedUserOrder {
 
     pub fn order_hash(&self) -> B256 {
         match self {
-            GroupedUserOrder::Vanilla(v) => v.hash(),
-            GroupedUserOrder::Composable(c) => c.hash()
+            GroupedUserOrder::Vanilla(v) => v.order_hash(),
+            GroupedUserOrder::Composable(c) => c.order_hash()
         }
     }
 }
@@ -659,20 +631,14 @@ impl Default for GroupedVanillaOrder {
     }
 }
 
-impl GroupedVanillaOrder {
+impl AllOrders {
     pub fn hash(&self) -> FixedBytes<32> {
-        match self {
-            GroupedVanillaOrder::Standing(p) => p.order_hash(),
-            GroupedVanillaOrder::KillOrFill(p) => p.order_hash()
-        }
+        self.order_hash()
     }
 
     /// Primarily used for debugging to work with price as an f64
     pub fn float_price(&self) -> f64 {
-        match self {
-            Self::Standing(o) => Ray::from(o.limit_price()).as_f64(),
-            Self::KillOrFill(o) => Ray::from(o.limit_price()).as_f64()
-        }
+        Ray::from(self.limit_price()).as_f64()
     }
 
     /// Bid orders need to invert their price
@@ -692,10 +658,7 @@ impl GroupedVanillaOrder {
     /// Provides the LITERAL price as specified in the order.  Note that for
     /// bids this can be inverse
     pub fn price(&self) -> Ray {
-        match self {
-            Self::Standing(o) => o.limit_price().into(),
-            Self::KillOrFill(o) => o.limit_price().into()
-        }
+        self.limit_price().into()
     }
 
     /// Provides the price in T1/T0 format.  For "ask" orders this means just
@@ -715,41 +678,6 @@ impl GroupedVanillaOrder {
     /// for bids this can be inverse
     pub fn fee_adj_price(&self, fee: u128) -> Ray {
         self.price().scale_to_fee(fee)
-    }
-
-    pub fn exact_in(&self) -> bool {
-        match self {
-            Self::Standing(o) => o.exact_in(),
-            Self::KillOrFill(o) => o.exact_in()
-        }
-    }
-
-    /// Maximum quantity fillable by this order
-    pub fn max_q(&self) -> u128 {
-        match self {
-            Self::Standing(o) => o.max_q(),
-            Self::KillOrFill(o) => o.max_q()
-        }
-    }
-
-    /// Quantity filled by this order in terms of T0
-    pub fn quantity_t0(&self) -> u128 {
-        0
-    }
-
-    pub fn signature(&self) -> &Bytes {
-        match self {
-            Self::Standing(o) => o.signature(),
-            Self::KillOrFill(o) => o.signature()
-        }
-    }
-
-    pub fn is_partial(&self) -> bool {
-        matches!(
-            self,
-            Self::Standing(StandingVariants::Partial(_))
-                | Self::KillOrFill(FlashVariants::Partial(_))
-        )
     }
 }
 
@@ -1189,137 +1117,171 @@ impl RawPoolOrder for AllOrders {
 
     fn has_hook(&self) -> bool {
         match self {
-            AllOrders::Standing(p) => p.has_hook(),
-            AllOrders::Flash(kof) => kof.has_hook(),
-            AllOrders::TOB(tob) => tob.has_hook()
+            AllOrders::ExactStanding(p) => p.has_hook(),
+            AllOrders::PartialStanding(p) => p.has_hook(),
+            AllOrders::ExactFlash(p) => p.has_hook(),
+            AllOrders::PartialFlash(p) => p.has_hook(),
+            AllOrders::TOB(t) => t.has_hook()
         }
     }
 
     fn min_amount(&self) -> u128 {
         match self {
-            AllOrders::Standing(p) => p.min_amount(),
-            AllOrders::Flash(kof) => kof.min_amount(),
-            AllOrders::TOB(tob) => tob.min_amount()
+            AllOrders::ExactStanding(p) => p.min_amount(),
+            AllOrders::PartialStanding(p) => p.min_amount(),
+            AllOrders::ExactFlash(p) => p.min_amount(),
+            AllOrders::PartialFlash(p) => p.min_amount(),
+            AllOrders::TOB(t) => t.min_amount()
         }
     }
 
     fn exact_in(&self) -> bool {
         match self {
-            AllOrders::Standing(p) => p.exact_in(),
-            AllOrders::Flash(kof) => kof.exact_in(),
-            AllOrders::TOB(tob) => tob.exact_in()
+            AllOrders::ExactStanding(p) => p.exact_in(),
+            AllOrders::PartialStanding(p) => p.exact_in(),
+            AllOrders::ExactFlash(p) => p.exact_in(),
+            AllOrders::PartialFlash(p) => p.exact_in(),
+            AllOrders::TOB(t) => t.exact_in()
         }
     }
 
     fn max_gas_token_0(&self) -> u128 {
         match self {
-            AllOrders::Standing(p) => p.max_gas_token_0(),
-            AllOrders::Flash(kof) => kof.max_gas_token_0(),
-            AllOrders::TOB(tob) => tob.max_gas_token_0()
+            AllOrders::ExactStanding(p) => p.max_gas_token_0(),
+            AllOrders::PartialStanding(p) => p.max_gas_token_0(),
+            AllOrders::ExactFlash(p) => p.max_gas_token_0(),
+            AllOrders::PartialFlash(p) => p.max_gas_token_0(),
+            AllOrders::TOB(t) => t.max_gas_token_0()
         }
     }
 
     fn is_valid_signature(&self) -> bool {
         match self {
-            AllOrders::Standing(p) => p.is_valid_signature(),
-            AllOrders::Flash(kof) => kof.is_valid_signature(),
-            AllOrders::TOB(tob) => tob.is_valid_signature()
+            AllOrders::ExactStanding(p) => p.is_valid_signature(),
+            AllOrders::PartialStanding(p) => p.is_valid_signature(),
+            AllOrders::ExactFlash(p) => p.is_valid_signature(),
+            AllOrders::PartialFlash(p) => p.is_valid_signature(),
+            AllOrders::TOB(t) => t.is_valid_signature()
         }
     }
 
     fn from(&self) -> Address {
         match self {
-            AllOrders::Standing(p) => p.from(),
-            AllOrders::Flash(kof) => kof.from(),
-            AllOrders::TOB(tob) => tob.from()
+            AllOrders::ExactStanding(p) => p.from(),
+            AllOrders::PartialStanding(p) => p.from(),
+            AllOrders::ExactFlash(p) => p.from(),
+            AllOrders::PartialFlash(p) => p.from(),
+            AllOrders::TOB(t) => t.from()
         }
     }
 
     fn order_hash(&self) -> TxHash {
         match self {
-            AllOrders::Standing(p) => p.order_hash(),
-            AllOrders::Flash(kof) => kof.order_hash(),
-            AllOrders::TOB(tob) => tob.order_hash()
+            AllOrders::ExactStanding(p) => p.order_hash(),
+            AllOrders::PartialStanding(p) => p.order_hash(),
+            AllOrders::ExactFlash(p) => p.order_hash(),
+            AllOrders::PartialFlash(p) => p.order_hash(),
+            AllOrders::TOB(t) => t.order_hash()
         }
     }
 
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod {
         match self {
-            AllOrders::Standing(p) => p.respend_avoidance_strategy(),
-            AllOrders::Flash(kof) => kof.respend_avoidance_strategy(),
-            AllOrders::TOB(tob) => tob.respend_avoidance_strategy()
+            AllOrders::ExactStanding(p) => p.respend_avoidance_strategy(),
+            AllOrders::PartialStanding(p) => p.respend_avoidance_strategy(),
+            AllOrders::ExactFlash(p) => p.respend_avoidance_strategy(),
+            AllOrders::PartialFlash(p) => p.respend_avoidance_strategy(),
+            AllOrders::TOB(t) => t.respend_avoidance_strategy()
         }
     }
 
     fn deadline(&self) -> Option<U256> {
         match self {
-            AllOrders::Standing(p) => p.deadline(),
-            AllOrders::Flash(k) => k.deadline(),
+            AllOrders::ExactStanding(p) => p.deadline(),
+            AllOrders::PartialStanding(p) => p.deadline(),
+            AllOrders::ExactFlash(p) => p.deadline(),
+            AllOrders::PartialFlash(p) => p.deadline(),
             AllOrders::TOB(t) => t.deadline()
         }
     }
 
     fn amount(&self) -> u128 {
         match self {
-            AllOrders::Standing(p) => p.amount(),
-            AllOrders::Flash(kof) => kof.amount(),
-            AllOrders::TOB(tob) => tob.amount()
+            AllOrders::ExactStanding(p) => p.amount(),
+            AllOrders::PartialStanding(p) => p.amount(),
+            AllOrders::ExactFlash(p) => p.amount(),
+            AllOrders::PartialFlash(p) => p.amount(),
+            AllOrders::TOB(t) => t.amount()
         }
     }
 
     fn limit_price(&self) -> U256 {
         match self {
-            AllOrders::Standing(p) => p.limit_price(),
-            AllOrders::Flash(kof) => kof.limit_price(),
+            AllOrders::ExactStanding(p) => p.limit_price(),
+            AllOrders::PartialStanding(p) => p.limit_price(),
+            AllOrders::ExactFlash(p) => p.limit_price(),
+            AllOrders::PartialFlash(p) => p.limit_price(),
             AllOrders::TOB(t) => t.limit_price()
         }
     }
 
     fn token_out(&self) -> Address {
         match self {
-            AllOrders::Standing(p) => p.token_out(),
-            AllOrders::Flash(kof) => kof.token_out(),
-            AllOrders::TOB(tob) => tob.token_out()
+            AllOrders::ExactStanding(p) => p.token_out(),
+            AllOrders::PartialStanding(p) => p.token_out(),
+            AllOrders::ExactFlash(p) => p.token_out(),
+            AllOrders::PartialFlash(p) => p.token_out(),
+            AllOrders::TOB(t) => t.token_out()
         }
     }
 
     fn token_in(&self) -> Address {
         match self {
-            AllOrders::Standing(p) => p.token_in(),
-            AllOrders::Flash(kof) => kof.token_in(),
-            AllOrders::TOB(tob) => tob.token_in()
+            AllOrders::ExactStanding(p) => p.token_in(),
+            AllOrders::PartialStanding(p) => p.token_in(),
+            AllOrders::ExactFlash(p) => p.token_in(),
+            AllOrders::PartialFlash(p) => p.token_in(),
+            AllOrders::TOB(t) => t.token_in()
         }
     }
 
     fn flash_block(&self) -> Option<u64> {
         match self {
-            AllOrders::Standing(_) => None,
-            AllOrders::Flash(kof) => kof.flash_block(),
-            AllOrders::TOB(tob) => tob.flash_block()
+            AllOrders::ExactStanding(p) => p.flash_block(),
+            AllOrders::PartialStanding(p) => p.flash_block(),
+            AllOrders::ExactFlash(p) => p.flash_block(),
+            AllOrders::PartialFlash(p) => p.flash_block(),
+            AllOrders::TOB(t) => t.flash_block()
         }
     }
 
     fn order_location(&self) -> OrderLocation {
         match &self {
-            AllOrders::Standing(_) => OrderLocation::Limit,
-            AllOrders::Flash(_) => OrderLocation::Limit,
-            AllOrders::TOB(_) => OrderLocation::Searcher
+            AllOrders::ExactStanding(p) => p.order_location(),
+            AllOrders::PartialStanding(p) => p.order_location(),
+            AllOrders::ExactFlash(p) => p.order_location(),
+            AllOrders::PartialFlash(p) => p.order_location(),
+            AllOrders::TOB(t) => t.order_location()
         }
     }
 
     fn use_internal(&self) -> bool {
         match self {
-            AllOrders::Standing(p) => p.use_internal(),
-            AllOrders::Flash(kof) => kof.use_internal(),
-            AllOrders::TOB(tob) => tob.use_internal()
+            AllOrders::ExactStanding(p) => p.use_internal(),
+            AllOrders::PartialStanding(p) => p.use_internal(),
+            AllOrders::ExactFlash(p) => p.use_internal(),
+            AllOrders::PartialFlash(p) => p.use_internal(),
+            AllOrders::TOB(t) => t.use_internal()
         }
     }
 
     fn order_signature(&self) -> eyre::Result<Signature> {
         match self {
-            AllOrders::Standing(p) => p.order_signature(),
-            AllOrders::Flash(kof) => kof.order_signature(),
-            AllOrders::TOB(tob) => tob.order_signature()
+            AllOrders::ExactStanding(p) => p.order_signature(),
+            AllOrders::PartialStanding(p) => p.order_signature(),
+            AllOrders::ExactFlash(p) => p.order_signature(),
+            AllOrders::PartialFlash(p) => p.order_signature(),
+            AllOrders::TOB(t) => t.order_signature()
         }
     }
 }

@@ -331,25 +331,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 .map_err(|e| eyre::anyhow!("{:?}", e)),
             angstrom_types::orders::OrderLocation::Limit => self
                 .order_storage
-                .add_new_limit_order(
-                    res.try_map_inner(|inner| {
-                        Ok(match inner {
-                            AllOrders::Standing(p) => {
-                                GroupedUserOrder::Vanilla(GroupedVanillaOrder::Standing(p))
-                            }
-                            AllOrders::Flash(kof) => {
-                                GroupedUserOrder::Vanilla(GroupedVanillaOrder::KillOrFill(kof))
-                            }
-                            _ => eyre::bail!("unreachable")
-                        })
-                    })
-                    .expect("should be unreachable")
-                )
+                .add_new_limit_order(res)
                 .map_err(|e| eyre::anyhow!("{:?}", e))
         }
     }
 
-    pub fn get_all_orders(&self) -> OrderSet<GroupedVanillaOrder, TopOfBlockOrder> {
+    pub fn get_all_orders(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
         self.order_storage.get_all_orders()
     }
 

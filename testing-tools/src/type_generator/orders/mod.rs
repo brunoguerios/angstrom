@@ -10,7 +10,7 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{
         ext::RawPoolOrder,
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };
@@ -44,7 +44,7 @@ pub struct SigningInfo {
 
 #[derive(Clone, Debug)]
 pub struct StoredOrderBuilder {
-    order:       GroupedVanillaOrder,
+    order:       AllOrders,
     is_bid:      bool,
     pool_id:     Option<FixedBytes<32>>,
     valid_block: Option<u64>,
@@ -52,7 +52,7 @@ pub struct StoredOrderBuilder {
 }
 
 impl StoredOrderBuilder {
-    pub fn new(order: GroupedVanillaOrder) -> Self {
+    pub fn new(order: AllOrders) -> Self {
         Self { order, is_bid: false, pool_id: None, valid_block: None, tob_reward: None }
     }
 
@@ -85,12 +85,12 @@ impl StoredOrderBuilder {
         Self { tob_reward: Some(tob_reward), ..self }
     }
 
-    pub fn build(self) -> OrderWithStorageData<GroupedVanillaOrder> {
+    pub fn build(self) -> OrderWithStorageData<AllOrders> {
         let is_bid = self.is_bid;
         let pool_id = self.pool_id.unwrap_or_default();
         let order_id = OrderIdBuilder::new()
             .pool_id(pool_id)
-            .order_hash(self.order.hash())
+            .order_hash(self.order.order_hash())
             .build();
         // Our specified block or the order's specified block or default
         let valid_block = self
@@ -98,8 +98,8 @@ impl StoredOrderBuilder {
             .or(self.order.flash_block())
             .unwrap_or_default();
         let priority_data = OrderPriorityData {
-            price:     self.order.price_for_book_side(is_bid).into(),
-            volume:    self.order.max_q(),
+            price:     self.order.limit_price(),
+            volume:    self.order.amount(),
             gas:       U256::ZERO,
             gas_units: 0
         };

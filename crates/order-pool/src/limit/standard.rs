@@ -5,7 +5,7 @@ use angstrom_metrics::VanillaLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId, UserAccountVerificationError},
-    sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData}
 };
 use angstrom_utils::map::OwnedMap;
 
@@ -14,7 +14,7 @@ use crate::limit::LimitPoolError;
 
 #[derive(Default)]
 pub struct LimitPool {
-    pub(super) pending_orders: HashMap<PoolId, PendingPool<GroupedVanillaOrder>>,
+    pub(super) pending_orders: HashMap<PoolId, PendingPool<AllOrders>>,
     pub(super) parked_orders:  HashMap<PoolId, ParkedPool>,
     metrics:                   VanillaLimitOrderPoolMetricsWrapper
 }
@@ -52,7 +52,7 @@ impl LimitPool {
         &self,
         pool_id: PoolId,
         order_id: alloy::primitives::FixedBytes<32>
-    ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
+    ) -> Option<OrderWithStorageData<AllOrders>> {
         // Try to get from pending orders first
         self.pending_orders
             .get(&pool_id)
@@ -67,7 +67,7 @@ impl LimitPool {
 
     pub fn add_order(
         &mut self,
-        order: OrderWithStorageData<GroupedVanillaOrder>
+        order: OrderWithStorageData<AllOrders>
     ) -> Result<(), LimitPoolError> {
         let pool_id = order.pool_id;
         let err = || LimitPoolError::NoPool(pool_id);
@@ -93,7 +93,7 @@ impl LimitPool {
         &mut self,
         pool_id: PoolId,
         order_id: alloy::primitives::FixedBytes<32>
-    ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
+    ) -> Option<OrderWithStorageData<AllOrders>> {
         self.pending_orders
             .get_mut(&pool_id)
             .and_then(|pool| {
@@ -108,7 +108,7 @@ impl LimitPool {
             })
     }
 
-    pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<GroupedVanillaOrder>> {
+    pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<AllOrders>> {
         self.pending_orders
             .values()
             .flat_map(|p| p.get_all_orders())

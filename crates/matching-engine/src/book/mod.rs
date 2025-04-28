@@ -5,8 +5,8 @@ use angstrom_types::{
     matching::SqrtPriceX96,
     primitive::PoolId,
     sol_bindings::{
-        Ray,
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
+        RawPoolOrder, Ray,
+        grouped_orders::{AllOrders, OrderWithStorageData}
     },
     uni_structure::BaselinePoolState
 };
@@ -16,7 +16,7 @@ use uniswap_v4::uniswap::pool::U256_1;
 
 use self::sort::SortStrategy;
 
-pub type BookOrder = OrderWithStorageData<GroupedVanillaOrder>;
+pub type BookOrder = OrderWithStorageData<AllOrders>;
 
 pub mod order;
 pub mod sort;
@@ -60,10 +60,7 @@ impl OrderBook {
     /// Bids first, then asks.
     pub fn all_orders_iter(
         &self
-    ) -> Chain<
-        Iter<OrderWithStorageData<GroupedVanillaOrder>>,
-        Iter<OrderWithStorageData<GroupedVanillaOrder>>
-    > {
+    ) -> Chain<Iter<OrderWithStorageData<AllOrders>>, Iter<OrderWithStorageData<AllOrders>>> {
         self.bids.iter().chain(self.asks.iter())
     }
 
@@ -77,7 +74,7 @@ impl OrderBook {
         // a max price. Thus we can only use asks to properly set this bound.
         self.asks()
             .iter()
-            .map(|ask| ask.price())
+            .map(|ask| ask.limit_price().into())
             .min()
             .unwrap_or_else(|| SqrtPriceX96::from(MIN_SQRT_RATIO + U256_1).into())
     }
@@ -85,7 +82,7 @@ impl OrderBook {
     pub fn highest_clearing_price(&self) -> Ray {
         self.bids()
             .iter()
-            .map(|bid| bid.bid_price())
+            .map(|bid| Ray::from(bid.limit_price()).inv_ray_round(true))
             .max()
             .unwrap_or_else(|| SqrtPriceX96::from(MAX_SQRT_RATIO - U256_1).into())
     }

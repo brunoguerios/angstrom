@@ -16,7 +16,7 @@ use crate::{
     orders::OrderSet,
     primitive::{AngstromSigner, PoolId},
     sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };
@@ -26,7 +26,7 @@ pub struct PreProposal {
     pub block_height: BlockNumber,
     pub source:       PeerId,
     // TODO: this really should be HashMap<PoolId, GroupedVanillaOrder>
-    pub limit:        Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+    pub limit:        Vec<OrderWithStorageData<AllOrders>>,
     // TODO: this really should be another type with HashMap<PoolId, {order, tob_reward}>
     pub searcher:     Vec<OrderWithStorageData<TopOfBlockOrder>>,
     /// The signature is over the ethereum height as well as the limit and
@@ -50,7 +50,7 @@ impl Default for PreProposal {
 pub struct PreProposalContent {
     pub block_height: BlockNumber,
     pub source:       PeerId,
-    pub limit:        Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+    pub limit:        Vec<OrderWithStorageData<AllOrders>>,
     pub searcher:     Vec<OrderWithStorageData<TopOfBlockOrder>>
 }
 
@@ -87,7 +87,7 @@ impl PreProposal {
     pub fn generate_pre_proposal(
         ethereum_height: BlockNumber,
         sk: &AngstromSigner,
-        limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+        limit: Vec<OrderWithStorageData<AllOrders>>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>
     ) -> Self {
         let payload = Self::serialize_payload(&ethereum_height, &limit, &searcher);
@@ -99,7 +99,7 @@ impl PreProposal {
     pub fn new(
         ethereum_height: u64,
         sk: &AngstromSigner,
-        orders: OrderSet<GroupedVanillaOrder, TopOfBlockOrder>
+        orders: OrderSet<AllOrders, TopOfBlockOrder>
     ) -> Self {
         let OrderSet { limit, searcher } = orders;
         let limit_orders = limit.len();
@@ -121,7 +121,7 @@ impl PreProposal {
 
     fn serialize_payload(
         block_height: &BlockNumber,
-        limit: &Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+        limit: &Vec<OrderWithStorageData<AllOrders>>,
         searcher: &Vec<OrderWithStorageData<TopOfBlockOrder>>
     ) -> Vec<u8> {
         let mut buf = Vec::new();
@@ -137,7 +137,7 @@ impl PreProposal {
 
     pub fn orders_by_pool_id(
         preproposals: &[PreProposal]
-    ) -> HashMap<PoolId, HashSet<OrderWithStorageData<GroupedVanillaOrder>>> {
+    ) -> HashMap<PoolId, HashSet<OrderWithStorageData<AllOrders>>> {
         preproposals
             .iter()
             .flat_map(|p| p.limit.iter())

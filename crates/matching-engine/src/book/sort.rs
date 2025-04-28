@@ -1,3 +1,5 @@
+use angstrom_types::sol_bindings::RawPoolOrder;
+
 use super::BookOrder;
 
 // There are lots of different ways we can sort the orders we get in, so let's
