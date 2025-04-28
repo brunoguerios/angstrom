@@ -6,8 +6,8 @@ use std::{
 };
 
 use alloy::{
-    consensus::{BlockHeader, Transaction},
-    primitives::{Address, B256, BlockHash, BlockNumber, aliases::I24},
+    consensus::Transaction,
+    primitives::{Address, B256, aliases::I24},
     sol_types::{SolCall, SolEvent}
 };
 use angstrom_types::{
@@ -16,15 +16,14 @@ use angstrom_types::{
         angstrom::Angstrom::{PoolKey, executeCall},
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
-    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore}
+    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore},
+    primitive::ChainExt
 };
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
 use itertools::Itertools;
 use pade::PadeDecode;
-use reth_ethereum_primitives::{Block, Receipt, TransactionSigned};
-use reth_primitives_traits::RecoveredBlock;
-use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain};
+use reth_provider::{CanonStateNotification, CanonStateNotifications};
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
@@ -35,8 +34,6 @@ alloy::sol!(
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 );
-
-const MAX_REORG_DEPTH: u64 = 150;
 
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
@@ -153,13 +150,6 @@ where
         let difference: Vec<_> = old_filled.difference(&new_filled).copied().collect();
         let reorged_orders = EthEvent::ReorgedOrders(difference, reorg);
 
-        let transitions = EthEvent::NewBlockTransitions {
-            block_number:      new.tip_number(),
-            filled_orders:     new_filled.into_iter().collect(),
-            address_changeset: eoas
-        };
-
-        self.send_events(transitions);
         self.send_events(reorged_orders);
     }
 
@@ -337,71 +327,12 @@ pub enum EthEvent {
     RemovedNode(Address)
 }
 
-#[auto_impl::auto_impl(&, Arc)]
-pub trait ChainExt {
-    fn tip_number(&self) -> BlockNumber;
-    fn tip_hash(&self) -> BlockHash;
-    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>>;
-    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_;
-    fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>>;
-    fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_;
-}
-
-impl ChainExt for Chain {
-    fn tip_number(&self) -> BlockNumber {
-        self.tip().number
-    }
-
-    fn tip_hash(&self) -> BlockHash {
-        self.tip().hash()
-    }
-
-    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>> {
-        self.receipts_by_block_hash(block_hash)
-    }
-
-    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
-        self.tip().body().transactions.iter()
-    }
-
-    fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>> {
-        let tip = new.tip_number();
-        // search 150 blocks back;
-        let start = tip - MAX_REORG_DEPTH;
-
-        let mut range = self
-            .blocks_iter()
-            .filter(|b| b.number() >= start)
-            .zip(new.blocks_iter().filter(|b| b.number() >= start))
-            .filter(|&(old, new)| (old.hash() != new.hash()))
-            .map(|(_, new)| new.number())
-            .collect::<Vec<_>>();
-
-        match range.len() {
-            0 => None,
-            1 => {
-                let r = range.remove(0);
-                Some(r..=r)
-            }
-            _ => {
-                let start = *range.first().unwrap();
-                let end = *range.last().unwrap();
-                Some(start..=end)
-            }
-        }
-    }
-
-    fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_ {
-        self.blocks_iter()
-    }
-}
-
 #[cfg(test)]
 pub mod test {
     use alloy::{
         consensus::TxLegacy,
         hex,
-        primitives::{Log, TxKind, U256, aliases::U24, b256},
+        primitives::{BlockHash, BlockNumber, Log, TxKind, U256, aliases::U24, b256},
         signers::Signature,
         sol_types::SolEvent
     };
@@ -415,11 +346,12 @@ pub mod test {
             angstrom::{TopOfBlockOrder, UserOrder}
         },
         orders::OrderOutcome,
-        primitive::AngstromSigner,
+        primitive::{AngstromSigner, ChainExt},
         sol_bindings::grouped_orders::OrderWithStorageData
     };
     use pade::PadeEncode;
-    use reth_primitives::LogData;
+    use reth_ethereum_primitives::Receipt;
+    use reth_primitives::{Block, LogData, RecoveredBlock, TransactionSigned};
     use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
     use super::*;
@@ -652,15 +584,10 @@ pub mod test {
         eth.handle_reorg(old_chain, new_chain);
 
         // Should receive both NewBlockTransitions and ReorgedOrders events
-        let mut received_transitions = false;
         let mut received_reorg = false;
 
-        for _ in 0..2 {
-            match rx.try_recv().expect("Should receive two events") {
-                EthEvent::NewBlockTransitions { block_number, .. } => {
-                    assert_eq!(block_number, 95);
-                    received_transitions = true;
-                }
+        for _ in 0..1 {
+            match rx.try_recv().expect("Should receive 1 event") {
                 EthEvent::ReorgedOrders(_, range) => {
                     assert_eq!(*range.start(), 95);
                     assert_eq!(*range.end(), 95);
@@ -670,7 +597,6 @@ pub mod test {
             }
         }
 
-        assert!(received_transitions, "Should have received NewBlockTransitions event");
         assert!(received_reorg, "Should have received ReorgedOrders event");
     }
 
