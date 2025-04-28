@@ -114,7 +114,7 @@ pub mod test {
     use futures::{FutureExt, StreamExt};
     use pade::PadeDecode;
     use reth_tasks::{TaskSpawner, TokioTaskExecutor};
-    use testing_tools::contracts::anvil::WalletProviderRpc;
+    use testing_tools::{contracts::anvil::WalletProviderRpc, utils::noop_agent};
     use tokio::time::timeout;
 
     use super::*;
@@ -262,5 +262,77 @@ pub mod test {
                 break;
             }
         }
+    }
+
+    #[test]
+    fn test_remove_add_pool() {
+        init_tracing(4);
+        let runner = reth::CliRunner::try_default_runtime().unwrap();
+
+        runner.run_command_until_exit(|ctx| async move {
+            let config = TestnetCli {
+                eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
+                ..Default::default()
+            };
+
+            let config = config.make_config().unwrap();
+
+            let agents = vec![noop_agent];
+            tracing::info!("spinning up e2e nodes for angstrom");
+
+            // spawn testnet
+            let testnet = AngstromTestnet::spawn_testnet(
+                NoopProvider::default(),
+                config,
+                agents,
+                ctx.task_executor.clone()
+            )
+            .await
+            .expect("failed to start angstrom testnet");
+
+            // grab provider so we can query from the chain later.
+            let provider = testnet.node_provider(Some(0)).rpc_provider();
+
+            let task = ctx.task_executor.spawn_critical(
+                "testnet",
+                testnet.run_to_completion(ctx.task_executor.clone()).boxed()
+            );
+
+            // given we have the leader provider
+
+            eyre::Ok(())
+        });
+    }
+
+    fn add_remove_agent<'a>(
+        _: &'a InitialTestnetState,
+        agent_config: AgentConfig
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            tracing::info!("starting e2e agent");
+
+            let mut stream = agent_config
+                .state_provider
+                .canonical_state_stream()
+                .map(|node| match node {
+                    reth_provider::CanonStateNotification::Commit { new }
+                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
+                });
+
+            tokio::spawn(
+                async move {
+                    loop {
+                        tokio::select! {
+                            Some(block_number) = stream.next() => {
+                            }
+
+                        }
+                    }
+                }
+                .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))
+            );
+
+            Ok(())
+        }) as Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
     }
 }

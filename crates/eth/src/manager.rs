@@ -171,6 +171,7 @@ where
         self.block_sync.new_block(tip);
 
         let filled_orders = self.fetch_filled_order(&new).collect::<Vec<_>>();
+        tracing::info!(?filled_orders, "filled orders found");
 
         let eoas = self.get_eoa(new.clone());
 

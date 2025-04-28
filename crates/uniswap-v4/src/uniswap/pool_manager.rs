@@ -98,6 +98,10 @@ where
         Self { pools, tx }
     }
 
+    pub fn pool_count(&self) -> usize {
+        self.pools.len()
+    }
+
     /// Will calculate the tob rewards that this order specifies. More Notably,
     /// this function is async and will make sure that we always have the
     /// needed ticks loaded in order to ensure we can always properly
