@@ -6,8 +6,8 @@ use std::{
 };
 
 use alloy::{
-    consensus::{BlockHeader, Transaction},
-    primitives::{Address, B256, BlockHash, BlockNumber, aliases::I24},
+    consensus::Transaction,
+    primitives::{Address, B256, aliases::I24},
     sol_types::{SolCall, SolEvent}
 };
 use angstrom_types::{
@@ -23,9 +23,7 @@ use futures::Future;
 use futures_util::{FutureExt, StreamExt};
 use itertools::Itertools;
 use pade::PadeDecode;
-use reth_ethereum_primitives::{Block, Receipt, TransactionSigned};
-use reth_primitives_traits::RecoveredBlock;
-use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain};
+use reth_provider::{CanonStateNotification, CanonStateNotifications};
 use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
@@ -152,14 +150,7 @@ where
         let difference: Vec<_> = old_filled.difference(&new_filled).copied().collect();
         let reorged_orders = EthEvent::ReorgedOrders(difference, reorg);
 
-        let transitions = EthEvent::NewBlockTransitions {
-            block_number:      new.tip_number(),
-            filled_orders:     new_filled.into_iter().collect(),
-            address_changeset: eoas
-        };
-
         self.send_events(reorged_orders);
-        self.send_events(transitions);
     }
 
     fn handle_commit(&mut self, new: Arc<impl ChainExt>) {
@@ -341,7 +332,7 @@ pub mod test {
     use alloy::{
         consensus::TxLegacy,
         hex,
-        primitives::{Log, TxKind, U256, aliases::U24, b256},
+        primitives::{BlockHash, BlockNumber, Log, TxKind, U256, aliases::U24, b256},
         signers::Signature,
         sol_types::SolEvent
     };
@@ -355,11 +346,12 @@ pub mod test {
             angstrom::{TopOfBlockOrder, UserOrder}
         },
         orders::OrderOutcome,
-        primitive::AngstromSigner,
+        primitive::{AngstromSigner, ChainExt},
         sol_bindings::grouped_orders::OrderWithStorageData
     };
     use pade::PadeEncode;
-    use reth_primitives::LogData;
+    use reth_ethereum_primitives::Receipt;
+    use reth_primitives::{Block, LogData, RecoveredBlock, TransactionSigned};
     use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
     use super::*;

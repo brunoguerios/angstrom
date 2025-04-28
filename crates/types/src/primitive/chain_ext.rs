@@ -1,18 +1,12 @@
-use std::{
-    collections::HashSet,
-    ops::RangeInclusive,
-    sync::Arc,
-    task::{Context, Poll}
-};
+use std::ops::RangeInclusive;
 
 use alloy::{
-    consensus::{BlockHeader, Transaction},
-    primitives::{Address, B256, BlockHash, BlockNumber, aliases::I24},
-    sol_types::{SolCall, SolEvent}
+    consensus::BlockHeader,
+    primitives::{BlockHash, BlockNumber}
 };
 use reth_ethereum_primitives::{Block, Receipt, TransactionSigned};
 use reth_primitives_traits::RecoveredBlock;
-use reth_provider::{CanonStateNotification, CanonStateNotifications, Chain};
+use reth_provider::Chain;
 
 pub const MAX_REORG_DEPTH: u64 = 150;
 

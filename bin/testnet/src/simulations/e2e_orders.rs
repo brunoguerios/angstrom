@@ -1,10 +1,9 @@
 use std::pin::Pin;
 
-use angstrom_eth::manager::ChainExt;
 use angstrom_rpc::{api::OrderApiClient, impls::OrderApi};
 use angstrom_types::{
     CHAIN_ID,
-    primitive::ANGSTROM_DOMAIN,
+    primitive::{ANGSTROM_DOMAIN, ChainExt},
     sol_bindings::{RawPoolOrder, grouped_orders::AllOrders},
     testnet::InitialTestnetState
 };
