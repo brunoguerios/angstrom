@@ -3,12 +3,9 @@ use std::collections::HashMap;
 use alloy::primitives::U256;
 use alloy_primitives::{FixedBytes, I256};
 use angstrom_types::{
-    matching::{Ray, get_quantities_at_price, uniswap::PoolSnapshot},
+    matching::{Ray, get_quantities_at_price},
     orders::OrderFillState,
-    sol_bindings::{
-        RawPoolOrder,
-        grouped_orders::{AllOrders, OrderWithStorageData}
-    }
+    sol_bindings::RawPoolOrder
 };
 use matching_engine::{
     book::{BookOrder, OrderBook},
@@ -47,10 +44,6 @@ impl TestOrder {
     fn partial_ask(q: u128, p: Ray) -> BookOrder {
         Self { q, p }.to_partial_order(false)
     }
-
-    fn _exact_inverse_bid(q: u128, p: Ray) -> BookOrder {
-        Self { q, p }.to_inverse_order(true)
-    }
 }
 
 impl TestOrder {
@@ -78,46 +71,6 @@ impl TestOrder {
             .is_bid(is_bid)
             .build()
     }
-
-    pub fn to_inverse_order(&self, is_bid: bool) -> BookOrder {
-        let min_price = if is_bid { self.p.inv_ray_round(true) } else { self.p };
-        // If it's a bid, our t1-based order is Exact In.  If ask, t1-based orders are
-        // Exact Out
-        let exact_in = is_bid;
-        UserOrderBuilder::new()
-            .is_bid(is_bid)
-            .amount(self.q)
-            .min_price(min_price)
-            .exact_in(exact_in)
-            .exact()
-            .with_storage()
-            .is_bid(is_bid)
-            .build()
-    }
-
-    pub fn to_bid(&self) -> OrderWithStorageData<AllOrders> {
-        self.to_order(true)
-    }
-
-    pub fn to_ask(&self) -> OrderWithStorageData<AllOrders> {
-        self.to_order(false)
-    }
-}
-
-fn make_books(
-    bids_raw: Vec<TestOrder>,
-    asks_raw: Vec<TestOrder>,
-    _amm: Option<PoolSnapshot>
-) -> OrderBook {
-    let bids = bids_raw.iter().map(TestOrder::to_bid).collect();
-    let asks = asks_raw.iter().map(TestOrder::to_ask).collect();
-    OrderBook::new(
-        FixedBytes::random(),
-        None,
-        bids,
-        asks,
-        Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
-    )
 }
 
 fn raw_price(p: u128) -> Ray {
