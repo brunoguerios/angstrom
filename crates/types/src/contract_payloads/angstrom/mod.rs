@@ -35,7 +35,7 @@ use crate::{
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
     uni_structure::{BaselinePoolState, donation::DonationCalculation}
@@ -264,7 +264,7 @@ impl AngstromBundle {
     }
 
     pub fn build_dummy_for_user_gas(
-        user_order: &OrderWithStorageData<GroupedVanillaOrder>
+        user_order: &OrderWithStorageData<AllOrders>
     ) -> eyre::Result<Self> {
         // in order to properly build this. we will create a fake order with the
         // amount's flipped going the other way so we have a direct match and
@@ -324,10 +324,7 @@ impl AngstromBundle {
     }
 
     fn fetch_total_orders_and_gas_delegated_to_orders(
-        orders_by_pool: &HashMap<
-            FixedBytes<32>,
-            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
-        >,
+        orders_by_pool: &HashMap<FixedBytes<32>, HashSet<OrderWithStorageData<AllOrders>>>,
         solutions: &[PoolSolution]
     ) -> (u64, u64) {
         solutions
@@ -379,10 +376,7 @@ impl AngstromBundle {
         pairs: &mut Vec<Pair>,
         asset_builder: &mut AssetBuilder,
         user_orders: &mut Vec<UserOrder>,
-        orders_by_pool: &HashMap<
-            FixedBytes<32>,
-            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
-        >,
+        orders_by_pool: &HashMap<FixedBytes<32>, HashSet<OrderWithStorageData<AllOrders>>>,
         top_of_block_orders: &mut Vec<TopOfBlockOrder>,
         pool_updates: &mut Vec<PoolUpdate>,
         solution: &PoolSolution,
@@ -471,11 +465,10 @@ impl AngstromBundle {
 
         let default = HashMap::new();
         // Get our list of user orders, if we have any
-        let mut order_list: HashMap<OrderId, &OrderWithStorageData<GroupedVanillaOrder>> =
-            orders_by_pool
-                .get(&solution.id)
-                .map(|o| o.iter().map(|order| (order.order_id, order)).collect())
-                .unwrap_or_else(|| default);
+        let mut order_list: HashMap<OrderId, &OrderWithStorageData<AllOrders>> = orders_by_pool
+            .get(&solution.id)
+            .map(|o| o.iter().map(|order| (order.order_id, order)).collect())
+            .unwrap_or_else(|| default);
 
         // Loop through our filled user orders, do accounting, and add them to our user
         // order list
@@ -708,7 +701,7 @@ impl AngstromBundle {
 
     fn apply_user_order(
         outcome: &OrderOutcome,
-        order: Option<&OrderWithStorageData<GroupedVanillaOrder>>,
+        order: Option<&OrderWithStorageData<AllOrders>>,
         ucp: Ray,
         fee: u32,
         shared_gas: Option<U256>,
@@ -720,7 +713,7 @@ impl AngstromBundle {
         // Calculate our final amounts based on whether the order is in T0 or T1 context
         assert_eq!(outcome.id.hash, order.order_id.hash, "Order and outcome mismatched");
 
-        let fill_amount = outcome.fill_amount(order.max_q());
+        let fill_amount = outcome.fill_amount(order.amount());
 
         // TODO: this needs to be properly set
 
@@ -869,7 +862,7 @@ impl AngstromBundle {
     /// fully passing env. with the gas details from the response, can
     /// properly allocate order gas amounts.
     pub fn for_gas_finalization(
-        limit: Vec<OrderWithStorageData<GroupedVanillaOrder>>,
+        limit: Vec<OrderWithStorageData<AllOrders>>,
         solutions: Vec<PoolSolution>,
         pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
     ) -> eyre::Result<Self> {
@@ -881,7 +874,7 @@ impl AngstromBundle {
 
         let orders_by_pool: HashMap<
             alloy_primitives::FixedBytes<32>,
-            HashSet<OrderWithStorageData<GroupedVanillaOrder>>
+            HashSet<OrderWithStorageData<AllOrders>>
         > = limit.iter().fold(HashMap::new(), |mut acc, x| {
             acc.entry(x.pool_id).or_default().insert(x.clone());
             acc

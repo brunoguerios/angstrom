@@ -13,7 +13,7 @@ use angstrom_types::{
     orders::{NetAmmOrder, OrderFillState, OrderId, OrderOutcome, PoolSolution},
     sol_bindings::{
         RawPoolOrder, Ray,
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     },
     uni_structure::pool_swap::PoolSwapResult
@@ -472,7 +472,7 @@ impl<'a> DeltaMatcher<'a> {
     /// calculates given the supply, demand, optional supply and optional demand
     /// what way the algo's price should move if we want it too
     fn get_amount_in_out(
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        order: &OrderWithStorageData<AllOrders>,
         fill_amount: u128,
         fee: u128,
         ray_ucp: Ray
@@ -533,7 +533,7 @@ impl<'a> DeltaMatcher<'a> {
                                 // If we have partial to fill, check to see if we have enough to
                                 // completely fill this order
                                 let max_partial = if o.is_partial() {
-                                    o.max_q() - o.min_amount()
+                                    o.amount() - o.min_amount()
                                 } else {
                                     o.min_amount()
                                 };

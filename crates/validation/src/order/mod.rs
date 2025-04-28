@@ -6,9 +6,7 @@ use angstrom_types::{
     primitive::OrderValidationError,
     sol_bindings::{
         ext::RawPoolOrder,
-        grouped_orders::{
-            AllOrders, GroupedComposableOrder, GroupedVanillaOrder, OrderWithStorageData
-        }
+        grouped_orders::{AllOrders, GroupedComposableOrder, OrderWithStorageData}
     }
 };
 use sim::SimValidation;
@@ -42,8 +40,10 @@ impl From<OrderValidationRequest> for OrderValidation {
     fn from(value: OrderValidationRequest) -> Self {
         match value {
             OrderValidationRequest::ValidateOrder(tx, order, orign) => match order {
-                order @ AllOrders::Standing(_) => OrderValidation::Limit(tx, order, orign),
-                order @ AllOrders::Flash(_) => OrderValidation::Limit(tx, order, orign),
+                order @ AllOrders::PartialStanding(_) => OrderValidation::Limit(tx, order, orign),
+                order @ AllOrders::ExactStanding(_) => OrderValidation::Limit(tx, order, orign),
+                order @ AllOrders::ExactFlash(_) => OrderValidation::Limit(tx, order, orign),
+                order @ AllOrders::PartialFlash(_) => OrderValidation::Limit(tx, order, orign),
                 tob @ AllOrders::TOB(_) => OrderValidation::Searcher(tx, tob, orign)
             }
         }
@@ -88,15 +88,8 @@ impl OrderValidationResults {
                     sim,
                     token_price,
                     block,
-                    |order| match order {
-                        AllOrders::Standing(s) => GroupedVanillaOrder::Standing(s),
-                        AllOrders::Flash(f) => GroupedVanillaOrder::KillOrFill(f),
-                        _ => unreachable!()
-                    },
-                    |order| match order {
-                        GroupedVanillaOrder::Standing(s) => AllOrders::Standing(s),
-                        GroupedVanillaOrder::KillOrFill(s) => AllOrders::Flash(s)
-                    },
+                    |order| order,
+                    |order| order,
                     SimValidation::calculate_user_gas
                 );
 

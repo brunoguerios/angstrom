@@ -23,18 +23,16 @@ mod test {
     use super::*;
     #[test]
     fn test_no_gas_specified_error() {
-        use angstrom_types::{
-            primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
-        };
+        use angstrom_types::primitive::OrderValidationError;
 
         use crate::order::{
-            GroupedVanillaOrder,
+            AllOrders,
             state::order_validators::{EnsureGasSet, OrderValidationState, make_base_order}
         };
 
         let mut order = make_base_order();
-        if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
-            o.max_extra_fee_asset0 = 0;
+        if let AllOrders::PartialStanding(ref mut o) = order {
+            o.max_extra_fee_asset0 = 0; // This is the value checked by min_amount()
         }
 
         let validator = EnsureGasSet;

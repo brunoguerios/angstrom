@@ -1,5 +1,4 @@
 use alloy::primitives::{Address, B256, Bytes, U256, aliases::U40};
-use pade::PadeDecode;
 use pade_macro::{PadeDecode, PadeEncode};
 
 use crate::{
@@ -8,9 +7,7 @@ use crate::{
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{
-            FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
-        },
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder
@@ -304,53 +301,46 @@ impl UserOrder {
     }
 
     pub fn from_internal_order(
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        order: &OrderWithStorageData<AllOrders>,
         outcome: &OrderOutcome,
         shared_gas: U256,
         pair_index: u16
     ) -> eyre::Result<Self> {
         let (order_quantities, standing_validation, recipient) = match &order.order {
-            GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(e) => {
-                    (OrderQuantities::Exact { quantity: order.amount() }, None, e.recipient)
-                }
-                FlashVariants::Partial(p_o) => (
-                    OrderQuantities::Partial {
-                        min_quantity_in: p_o.min_amount_in,
-                        max_quantity_in: p_o.max_amount_in,
-                        filled_quantity: outcome.fill_amount(p_o.max_amount_in)
-                    },
-                    None,
-                    p_o.recipient
-                )
-            },
-            GroupedVanillaOrder::Standing(o) => match o {
-                StandingVariants::Exact(e) => (
-                    OrderQuantities::Exact { quantity: order.amount() },
-                    Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
-                    e.recipient
-                ),
-                StandingVariants::Partial(p_o) => {
-                    let max_quantity_in = p_o.max_amount_in;
-                    let filled_quantity = outcome.fill_amount(p_o.max_amount_in);
-                    (
-                        OrderQuantities::Partial {
-                            min_quantity_in: p_o.min_amount_in,
-                            max_quantity_in,
-                            filled_quantity
-                        },
-                        Some(StandingValidation {
-                            nonce:    p_o.nonce,
-                            deadline: p_o.deadline.to()
-                        }),
-                        p_o.recipient
-                    )
-                }
+            AllOrders::PartialFlash(p_o) => (
+                OrderQuantities::Partial {
+                    min_quantity_in: p_o.min_amount_in,
+                    max_quantity_in: p_o.max_amount_in,
+                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                },
+                None,
+                p_o.recipient
+            ),
+            AllOrders::PartialStanding(p_o) => (
+                OrderQuantities::Partial {
+                    min_quantity_in: p_o.min_amount_in,
+                    max_quantity_in: p_o.max_amount_in,
+                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                },
+                Some(StandingValidation { nonce: p_o.nonce, deadline: p_o.deadline.to() }),
+                p_o.recipient
+            ),
+            AllOrders::ExactFlash(o) => {
+                (OrderQuantities::Exact { quantity: order.amount() }, None, o.recipient)
             }
+            AllOrders::ExactStanding(o) => (
+                OrderQuantities::Exact { quantity: order.amount() },
+                Some(StandingValidation { nonce: o.nonce, deadline: o.deadline.to() }),
+                o.recipient
+            ),
+            AllOrders::TOB(_) => panic!("tob found in limit orders")
         };
-        let hook_bytes = match order.order {
-            GroupedVanillaOrder::KillOrFill(ref o) => o.hook_data().clone(),
-            GroupedVanillaOrder::Standing(ref o) => o.hook_data().clone()
+        let hook_bytes = match &order.order {
+            AllOrders::PartialFlash(p_o) => p_o.hook_data.clone(),
+            AllOrders::PartialStanding(p_o) => p_o.hook_data.clone(),
+            AllOrders::ExactFlash(o) => o.hook_data.clone(),
+            AllOrders::ExactStanding(o) => o.hook_data.clone(),
+            AllOrders::TOB(_) => panic!("tob found in limit orders")
         };
         let hook_data = if hook_bytes.is_empty() { None } else { Some(hook_bytes) };
 
@@ -360,16 +350,14 @@ impl UserOrder {
             return Err(eyre::eyre!("order used more gas than allocated"));
         }
 
-        let sig_bytes = order.signature().clone().0.to_vec();
-        let decoded_signature =
-            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
-        let signature = Signature::from(decoded_signature);
+        let sig = order.order_signature().unwrap();
+        let signature = Signature::from(sig);
 
         Ok(Self {
             ref_id: 0,
             use_internal: order.use_internal(),
             pair_index,
-            min_price: *order.price(),
+            min_price: order.limit_price(),
             recipient,
             hook_data,
             zero_for_one: !order.is_bid,
@@ -383,57 +371,49 @@ impl UserOrder {
     }
 
     pub fn from_internal_order_max_gas(
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        order: &OrderWithStorageData<AllOrders>,
         outcome: &OrderOutcome,
         pair_index: u16
     ) -> Self {
         let (order_quantities, standing_validation, recipient) = match &order.order {
-            GroupedVanillaOrder::KillOrFill(o) => match o {
-                FlashVariants::Exact(e) => {
-                    (OrderQuantities::Exact { quantity: order.amount() }, None, e.recipient)
-                }
-                FlashVariants::Partial(p_o) => (
-                    OrderQuantities::Partial {
-                        min_quantity_in: p_o.min_amount_in,
-                        max_quantity_in: p_o.max_amount_in,
-                        filled_quantity: outcome.fill_amount(p_o.max_amount_in)
-                    },
-                    None,
-                    p_o.recipient
-                )
-            },
-            GroupedVanillaOrder::Standing(o) => match o {
-                StandingVariants::Exact(e) => (
-                    OrderQuantities::Exact { quantity: order.amount() },
-                    Some(StandingValidation { nonce: e.nonce, deadline: e.deadline.to() }),
-                    e.recipient
-                ),
-                StandingVariants::Partial(p_o) => {
-                    let max_quantity_in = p_o.max_amount_in;
-                    let filled_quantity = outcome.fill_amount(p_o.max_amount_in);
-                    (
-                        OrderQuantities::Partial {
-                            min_quantity_in: p_o.min_amount_in,
-                            max_quantity_in,
-                            filled_quantity
-                        },
-                        Some(StandingValidation {
-                            nonce:    p_o.nonce,
-                            deadline: p_o.deadline.to()
-                        }),
-                        p_o.recipient
-                    )
-                }
+            AllOrders::PartialFlash(p_o) => (
+                OrderQuantities::Partial {
+                    min_quantity_in: p_o.min_amount_in,
+                    max_quantity_in: p_o.max_amount_in,
+                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                },
+                None,
+                p_o.recipient
+            ),
+            AllOrders::PartialStanding(p_o) => (
+                OrderQuantities::Partial {
+                    min_quantity_in: p_o.min_amount_in,
+                    max_quantity_in: p_o.max_amount_in,
+                    filled_quantity: outcome.fill_amount(p_o.max_amount_in)
+                },
+                Some(StandingValidation { nonce: p_o.nonce, deadline: p_o.deadline.to() }),
+                p_o.recipient
+            ),
+            AllOrders::ExactFlash(o) => {
+                (OrderQuantities::Exact { quantity: order.amount() }, None, o.recipient)
             }
+            AllOrders::ExactStanding(o) => (
+                OrderQuantities::Exact { quantity: order.amount() },
+                Some(StandingValidation { nonce: o.nonce, deadline: o.deadline.to() }),
+                o.recipient
+            ),
+            AllOrders::TOB(_) => panic!("tob found in limit orders")
         };
-        let hook_bytes = match order.order {
-            GroupedVanillaOrder::KillOrFill(ref o) => o.hook_data().clone(),
-            GroupedVanillaOrder::Standing(ref o) => o.hook_data().clone()
+        let hook_bytes = match &order.order {
+            AllOrders::PartialFlash(p_o) => p_o.hook_data.clone(),
+            AllOrders::PartialStanding(p_o) => p_o.hook_data.clone(),
+            AllOrders::ExactFlash(o) => o.hook_data.clone(),
+            AllOrders::ExactStanding(o) => o.hook_data.clone(),
+            AllOrders::TOB(_) => panic!("tob found in limit orders")
         };
         let hook_data = if hook_bytes.is_empty() { None } else { Some(hook_bytes) };
-        let sig_bytes = order.signature().to_vec();
-        let decoded_signature =
-            alloy::primitives::Signature::pade_decode(&mut sig_bytes.as_slice(), None).unwrap();
+        let sig = order.order_signature().unwrap();
+        let signature = Signature::from(sig);
 
         let recipient = (!recipient.is_zero()).then_some(recipient);
 
@@ -441,7 +421,7 @@ impl UserOrder {
             ref_id: 0,
             use_internal: order.use_internal(),
             pair_index,
-            min_price: *order.price(),
+            min_price: order.limit_price(),
             recipient,
             hook_data,
             zero_for_one: !order.is_bid,
@@ -450,7 +430,7 @@ impl UserOrder {
             max_extra_fee_asset0: order.max_gas_token_0(),
             extra_fee_asset0: order.priority_data.gas.to(),
             exact_in: order.exact_in(),
-            signature: Signature::from(decoded_signature)
+            signature
         }
     }
 }
