@@ -113,7 +113,7 @@ where
             }
             ValidationRequest::Nonce { sender, user_address } => {
                 let nonce = self.order_validator.fetch_nonce(user_address);
-                sender.send(nonce).unwrap();
+                let _ = sender.send(nonce);
             }
             ValidationRequest::GasEstimation { sender, is_book, mut token_0, mut token_1 } => {
                 if token_0 > token_1 {
