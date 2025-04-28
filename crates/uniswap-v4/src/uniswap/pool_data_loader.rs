@@ -146,6 +146,7 @@ pub trait PoolDataLoader: Clone {
     ) -> impl Future<Output = Result<PoolData, PoolError>> + Send;
 
     fn address(&self) -> AngstromPoolId;
+    fn pool_fee(&self) -> u32;
 
     fn group_logs(logs: Vec<Log>) -> HashMap<AngstromPoolId, Vec<Log>>;
     fn event_signatures() -> Vec<B256>;
@@ -170,6 +171,32 @@ impl DataLoader {
 }
 
 impl PoolDataLoader for DataLoader {
+    fn pool_fee(&self) -> u32 {
+        let id = self
+            .pool_registry
+            .as_ref()
+            .unwrap()
+            .conversion_map
+            .iter()
+            .find_map(|(pubic, priva)| {
+                if priva == &self.address() {
+                    return Some(pubic);
+                }
+                None
+            })
+            .unwrap();
+
+        let pool_key = self
+            .pool_registry
+            .as_ref()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .clone();
+
+        pool_key.fee.to()
+    }
+
     async fn load_pool_data<P: Provider>(
         &self,
         block_number: Option<BlockNumber>,

@@ -626,7 +626,8 @@ impl<'a> DeltaMatcher<'a> {
             amm_quantity: amm,
             limit,
             searcher,
-            reward_t0: price_and_partial_solution.reward_t0
+            reward_t0: price_and_partial_solution.reward_t0,
+            fee: self.fee as u32
         }
     }
 

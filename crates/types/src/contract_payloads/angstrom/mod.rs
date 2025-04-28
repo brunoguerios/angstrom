@@ -489,6 +489,7 @@ impl AngstromBundle {
                 outcome,
                 order,
                 solution.ucp,
+                solution.fee,
                 shared_gas,
                 pair_idx,
                 asset_builder,
@@ -702,6 +703,7 @@ impl AngstromBundle {
         outcome: &OrderOutcome,
         order: Option<&OrderWithStorageData<AllOrders>>,
         ucp: Ray,
+        fee: u32,
         shared_gas: Option<U256>,
         pair_idx: usize,
         asset_builder: &mut AssetBuilder,
@@ -714,11 +716,16 @@ impl AngstromBundle {
         let fill_amount = outcome.fill_amount(order.amount());
 
         // TODO: this needs to be properly set
-        let fee = 0;
 
         let gas = order.priority_data.gas.to::<u128>();
-        let (t1, t0_net, t0_fee) =
-            get_quantities_at_price(order.is_bid(), order.exact_in(), fill_amount, gas, fee, ucp);
+        let (t1, t0_net, t0_fee) = get_quantities_at_price(
+            order.is_bid(),
+            order.exact_in(),
+            fill_amount,
+            gas,
+            fee as u128,
+            ucp
+        );
 
         // we don't account for the gas here in these quantites as the order
         let (quantity_in, quantity_out) = if order.is_bid() {

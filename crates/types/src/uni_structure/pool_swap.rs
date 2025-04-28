@@ -142,7 +142,7 @@ impl<'a> PoolSwapResult<'a> {
             target_price: None,
             direction,
             target_amount: amount,
-            fee: self.fee
+            fee: 0
         }
         .swap()
     }
@@ -157,7 +157,7 @@ impl<'a> PoolSwapResult<'a> {
             target_price: Some(price_limit),
             direction,
             target_amount: I256::MAX,
-            fee: self.fee
+            fee: 0
         }
         .swap()?;
 
