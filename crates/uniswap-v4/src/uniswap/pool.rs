@@ -793,6 +793,10 @@ mod tests {
         fn decode_swap_event(_: &Log) -> Result<pool_data_loader::SwapEvent, PoolError> {
             unimplemented!()
         }
+
+        fn pool_fee(&self) -> u32 {
+            0
+        }
     }
 
     fn setup_basic_pool() -> EnhancedUniswapPool<MockLoader> {
