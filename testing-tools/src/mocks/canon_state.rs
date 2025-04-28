@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
-use alloy_rpc_types::Block;
+use alloy_rpc_types::{Block, Transaction};
+use itertools::Itertools;
 use parking_lot::RwLock;
-use reth_node_types::Block as _;
+use reth_node_types::{Block as _, BlockBody};
+use reth_primitives::{RecoveredBlock, TransactionSigned};
 use reth_provider::{Chain, ExecutionOutcome};
 
 #[derive(Clone, Debug)]
@@ -25,14 +27,26 @@ impl AnvilConsensusCanonStateNotification {
 
         // the consensus only uses the block number so we can use default values for the
         // rest of the block
-        let recovered = reth_primitives::Block {
-            header: reth_primitives::Header { number: block.header.number, ..Default::default() },
-            ..Default::default()
-        }
-        .try_into_recovered()
-        .unwrap();
+        let b = block
+            .clone()
+            .into_consensus()
+            .map_transactions(|tx| tx.into_recovered());
 
-        chain.append_block(recovered, ExecutionOutcome::default());
+        let signers = b.body.transactions().map(|tx| tx.signer()).collect_vec();
+        let block = block.clone().into_consensus().map_transactions(|t| {
+            let signed = t.into_signed();
+            let sig = signed.signature().clone();
+            let raw_tx = signed.tx().clone();
+            TransactionSigned::new_unhashed(raw_tx.into(), sig)
+        });
+
+        let recovered_block = RecoveredBlock::new_unhashed(block, signers);
+        // recovered_block.
+        // rec
+
+        // let ex = ExecutionOutcome::default().with_receipts(receipts)
+        // add recipets
+        chain.append_block(recovered_block, ExecutionOutcome::default());
 
         Arc::new(chain.clone())
     }
