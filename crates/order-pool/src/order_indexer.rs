@@ -10,7 +10,7 @@ use angstrom_types::{
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{AllOrders, OrderWithStorageData, *},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };
@@ -331,25 +331,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 .map_err(|e| eyre::anyhow!("{:?}", e)),
             angstrom_types::orders::OrderLocation::Limit => self
                 .order_storage
-                .add_new_limit_order(
-                    res.try_map_inner(|inner| {
-                        Ok(match inner {
-                            AllOrders::Standing(p) => {
-                                GroupedUserOrder::Vanilla(GroupedVanillaOrder::Standing(p))
-                            }
-                            AllOrders::Flash(kof) => {
-                                GroupedUserOrder::Vanilla(GroupedVanillaOrder::KillOrFill(kof))
-                            }
-                            _ => eyre::bail!("unreachable")
-                        })
-                    })
-                    .expect("should be unreachable")
-                )
+                .add_new_limit_order(res)
                 .map_err(|e| eyre::anyhow!("{:?}", e))
         }
     }
 
-    pub fn get_all_orders(&self) -> OrderSet<GroupedVanillaOrder, TopOfBlockOrder> {
+    pub fn get_all_orders(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
         self.order_storage.get_all_orders()
     }
 
@@ -462,7 +449,7 @@ mod tests {
         matching::Ray,
         orders::OrderId,
         primitive::{AngstromSigner, OrderValidationError},
-        sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
+        sol_bindings::RespendAvoidanceMethod
     };
     use pade::PadeEncode;
     use testing_tools::{
@@ -539,13 +526,7 @@ mod tests {
             builder = builder.block(flash_block);
         }
 
-        let order =
-            if validity.is_standing { builder.standing() } else { builder.kill_or_fill() }.build();
-
-        match order {
-            GroupedVanillaOrder::Standing(o) => AllOrders::Standing(o),
-            GroupedVanillaOrder::KillOrFill(o) => AllOrders::Flash(o)
-        }
+        if validity.is_standing { builder.standing() } else { builder.kill_or_fill() }.build()
     }
 
     #[tokio::test]

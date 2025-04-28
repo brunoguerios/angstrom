@@ -12,7 +12,7 @@ use angstrom_types::{
     orders::{OrderId, OrderLocation, OrderSet, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
     sol_bindings::{
-        grouped_orders::{AllOrders, GroupedUserOrder, GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };
@@ -130,7 +130,7 @@ impl OrderStorage {
                 .lock()
                 .expect("lock poisoned")
                 .get_order(order_id)
-                .and_then(|order| order.try_map_inner(|inner| Ok(inner.into())).ok()),
+                .and_then(|order| order.try_map_inner(Ok).ok()),
             OrderLocation::Searcher => self
                 .searcher_orders
                 .lock()
@@ -156,14 +156,12 @@ impl OrderStorage {
                 .lock()
                 .expect("lock poisoned")
                 .remove_order(order_id)
-                .and_then(|order| {
-                    match order.order {
-                        GroupedUserOrder::Composable(_) => {
-                            self.metrics.incr_cancelled_composable_orders()
-                        }
-                        GroupedUserOrder::Vanilla(_) => self.metrics.incr_cancelled_vanilla_orders()
+                .inspect(|order| {
+                    if order.is_vanilla() {
+                        self.metrics.incr_cancelled_vanilla_orders()
+                    } else {
+                        self.metrics.incr_cancelled_composable_orders()
                     }
-                    order.try_map_inner(|inner| Ok(inner.into())).ok()
                 }),
             angstrom_types::orders::OrderLocation::Searcher => self
                 .searcher_orders
@@ -216,33 +214,19 @@ impl OrderStorage {
 
     pub fn add_new_limit_order(
         &self,
-        order: OrderWithStorageData<GroupedUserOrder>
+        order: OrderWithStorageData<AllOrders>
     ) -> Result<(), LimitPoolError> {
         if order.is_vanilla() {
-            let mapped_order = order.try_map_inner(|this| {
-                let GroupedUserOrder::Vanilla(order) = this else {
-                    return Err(eyre::eyre!("unreachable"));
-                };
-                Ok(order)
-            })?;
-
             self.limit_orders
                 .lock()
                 .expect("lock poisoned")
-                .add_vanilla_order(mapped_order)?;
+                .add_vanilla_order(order)?;
             self.metrics.incr_vanilla_limit_orders(1);
         } else {
-            let mapped_order = order.try_map_inner(|this| {
-                let GroupedUserOrder::Composable(order) = this else {
-                    return Err(eyre::eyre!("unreachable"));
-                };
-                Ok(order)
-            })?;
-
             self.limit_orders
                 .lock()
                 .expect("lock poisoned")
-                .add_composable_order(mapped_order)?;
+                .add_composable_order(order)?;
             self.metrics.incr_composable_limit_orders(1);
         }
 
@@ -333,18 +317,16 @@ impl OrderStorage {
             .lock()
             .expect("poisoned")
             .remove_order(id)
-            .and_then(|order| {
+            .inspect(|order| {
                 if order.is_vanilla() {
                     self.metrics.decr_vanilla_limit_orders(1);
-                } else if order.is_composable() {
+                } else {
                     self.metrics.decr_composable_limit_orders(1);
                 }
-
-                order.try_map_inner(|inner| Ok(inner.into())).ok()
             })
     }
 
-    pub fn get_all_orders(&self) -> OrderSet<GroupedVanillaOrder, TopOfBlockOrder> {
+    pub fn get_all_orders(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
         let limit = self.limit_orders.lock().expect("poisoned").get_all_orders();
         let searcher = self.top_tob_orders();
 

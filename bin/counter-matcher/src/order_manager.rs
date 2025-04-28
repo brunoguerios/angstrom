@@ -225,7 +225,6 @@ impl OrderManager {
                 .recipient(wallet.pk.address())
                 .signing_key(Some(wallet.pk.clone()))
                 .build()
-                .into()
         } else {
             UserOrderBuilder::default()
                 .partial()
@@ -238,7 +237,6 @@ impl OrderManager {
                 .recipient(wallet.pk.address())
                 .signing_key(Some(wallet.pk.clone()))
                 .build()
-                .into()
         };
 
         let our_order_hash = order.order_hash();

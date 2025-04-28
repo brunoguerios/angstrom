@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use angstrom_types::{
     primitive::PoolId,
-    sol_bindings::{grouped_orders::GroupedVanillaOrder, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 use itertools::Itertools;
 use rand::Rng;
@@ -64,7 +64,7 @@ impl OrderGenerator {
 pub struct GeneratedPoolOrders {
     pub pool_id: PoolId,
     pub tob:     TopOfBlockOrder,
-    pub book:    Vec<GroupedVanillaOrder>
+    pub book:    Vec<AllOrders>
 }
 
 /// samples from a normal price distribution where true price is a

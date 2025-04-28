@@ -4,7 +4,7 @@ use alloy::primitives::{I256, U256};
 use angstrom_types::{
     matching::{Ray, SqrtPriceX96},
     primitive::AngstromSigner,
-    sol_bindings::{grouped_orders::GroupedVanillaOrder, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 use rand::Rng;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
@@ -77,7 +77,7 @@ impl OrderBuilder {
         cur_price: f64,
         block_number: u64,
         partial_pct: f64
-    ) -> GroupedVanillaOrder {
+    ) -> AllOrders {
         let mut rng = rand::rng();
         let is_partial = rng.random_bool(partial_pct);
 

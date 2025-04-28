@@ -4,7 +4,7 @@ use alloy::primitives::Address;
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{
     RawPoolOrder,
-    grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
+    grouped_orders::{AllOrders, OrderWithStorageData},
     rpc_orders::TopOfBlockOrder
 };
 use gas::OrderGasCalculations;
@@ -81,7 +81,7 @@ where
     /// zero for gas is greater than the max amount specified.
     pub fn calculate_user_gas(
         &self,
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
+        order: &OrderWithStorageData<AllOrders>,
         conversion: &TokenPriceGenerator,
         block: u64
     ) -> eyre::Result<(GasUsed, GasInToken0)> {

@@ -237,8 +237,7 @@ where
             .min_price(clearing_price)
             .block(self.block_number + 1)
             .amount(amount)
-            .build()
-            .into())
+            .build())
     }
 
     async fn make_call<TY: SolCall>(&self, from: Address, target: Address, call: TY) -> TY::Return {

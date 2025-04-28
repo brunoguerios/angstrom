@@ -23,19 +23,17 @@ mod test {
     use super::*;
     #[test]
     fn test_max_gas_greater_than_min_error() {
-        use angstrom_types::{
-            primitive::OrderValidationError, sol_bindings::grouped_orders::StandingVariants
-        };
+        use angstrom_types::primitive::OrderValidationError;
 
         use crate::order::{
-            GroupedVanillaOrder,
+            AllOrders,
             state::order_validators::{
                 EnsureMaxGasLessThanMinAmount, OrderValidationState, make_base_order
             }
         };
 
         let mut order = make_base_order();
-        if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
+        if let AllOrders::PartialStanding(ref mut o) = order {
             o.max_extra_fee_asset0 = o.min_amount_in + 1;
         }
 

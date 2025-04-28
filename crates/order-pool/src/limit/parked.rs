@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use alloy::primitives::FixedBytes;
-use angstrom_types::sol_bindings::grouped_orders::{GroupedVanillaOrder, OrderWithStorageData};
+use angstrom_types::sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData};
 
-pub struct ParkedPool(HashMap<FixedBytes<32>, OrderWithStorageData<GroupedVanillaOrder>>);
+pub struct ParkedPool(HashMap<FixedBytes<32>, OrderWithStorageData<AllOrders>>);
 
 impl ParkedPool {
     #[allow(dead_code)]
@@ -11,21 +11,18 @@ impl ParkedPool {
         Self(HashMap::new())
     }
 
-    pub fn get_order(
-        &self,
-        order_id: FixedBytes<32>
-    ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
+    pub fn get_order(&self, order_id: FixedBytes<32>) -> Option<OrderWithStorageData<AllOrders>> {
         self.0.get(&order_id).cloned()
     }
 
     pub fn remove_order(
         &mut self,
         order_id: FixedBytes<32>
-    ) -> Option<OrderWithStorageData<GroupedVanillaOrder>> {
+    ) -> Option<OrderWithStorageData<AllOrders>> {
         self.0.remove(&order_id)
     }
 
-    pub fn new_order(&mut self, order: OrderWithStorageData<GroupedVanillaOrder>) {
-        self.0.insert(order.hash(), order);
+    pub fn new_order(&mut self, order: OrderWithStorageData<AllOrders>) {
+        self.0.insert(order.order_hash(), order);
     }
 }

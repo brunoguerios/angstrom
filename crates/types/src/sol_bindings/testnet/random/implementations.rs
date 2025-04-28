@@ -11,12 +11,14 @@ use crate::sol_bindings::{
 
 impl Distribution<AllOrders> for StandardUniform {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> AllOrders {
-        let rand_variant = rng.random_range(0..3);
+        let rand_variant = rng.random_range(0..5);
 
         match rand_variant {
-            0 => AllOrders::Flash(rng.random()),
-            1 => AllOrders::Standing(rng.random()),
-            2 => AllOrders::TOB(rng.random()),
+            0 => AllOrders::TOB(rng.random()),
+            1 => AllOrders::ExactStanding(rng.random()),
+            2 => AllOrders::PartialStanding(rng.random()),
+            3 => AllOrders::PartialFlash(rng.random()),
+            4 => AllOrders::ExactFlash(rng.random()),
             _ => unreachable!()
         }
     }
