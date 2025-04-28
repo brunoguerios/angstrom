@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy_rpc_types::{Block, Transaction, TransactionReceipt};
+use alloy_rpc_types::{Block, TransactionReceipt};
 use itertools::Itertools;
 use parking_lot::RwLock;
 use reth_node_types::{Block as _, BlockBody};
@@ -35,7 +35,7 @@ impl AnvilConsensusCanonStateNotification {
         let signers = b.body.transactions().map(|tx| tx.signer()).collect_vec();
         let block = block.clone().into_consensus().map_transactions(|t| {
             let signed = t.into_signed();
-            let sig = signed.signature().clone();
+            let sig = *signed.signature();
             let raw_tx = signed.tx().clone();
             TransactionSigned::new_unhashed(raw_tx.into(), sig)
         });

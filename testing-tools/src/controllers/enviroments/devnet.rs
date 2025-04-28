@@ -77,8 +77,7 @@ where
             let provider = if self.config.is_leader(node_id) {
                 let mut initializer = AnvilProvider::new(
                     AnvilInitializer::new(node_config.clone(), node_addresses.clone()),
-                    false,
-                    block_sync.clone()
+                    false
                 )
                 .await?;
                 let provider = initializer.provider_mut().provider_mut();
@@ -90,12 +89,8 @@ where
             } else {
                 tracing::info!(?node_id, "default init");
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
-                let provider = AnvilProvider::new(
-                    WalletProvider::new(node_config.clone()),
-                    false,
-                    block_sync.clone()
-                )
-                .await?;
+                let provider =
+                    AnvilProvider::new(WalletProvider::new(node_config.clone()), false).await?;
                 provider.set_state(state_bytes).await?;
                 provider.rpc_provider().anvil_mine(Some(5), None).await?;
                 provider

@@ -37,8 +37,8 @@ use crate::{
     agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
     providers::{
-        AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider,
-        WalletProvider, utils::StromContractInstance
+        AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider, WalletProvider,
+        utils::StromContractInstance
     },
     types::{
         GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig

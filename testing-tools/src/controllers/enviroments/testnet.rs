@@ -109,7 +109,6 @@ where
         let l_block_sync = GlobalBlockSync::new(0);
         let leader_provider = Rc::new(Cell::new(
             self.initalize_leader_provider(
-                l_block_sync.clone(),
                 front,
                 &mut initial_angstrom_state,
                 node_addresses,
@@ -137,21 +136,12 @@ where
                     tracing::info!(node_id, "connecting to state provider");
                     let provider = if node_id == 0 {
                         leader_provider.replace(
-                            AnvilProvider::new(
-                                WalletProvider::new(node_config.clone()),
-                                true,
-                                block_sync.clone()
-                            )
-                            .await?
+                            AnvilProvider::new(WalletProvider::new(node_config.clone()), true)
+                                .await?
                         )
                     } else {
                         tracing::info!(?node_id, "follower node init");
-                        AnvilProvider::new(
-                            WalletProvider::new(node_config.clone()),
-                            true,
-                            block_sync.clone()
-                        )
-                        .await?
+                        AnvilProvider::new(WalletProvider::new(node_config.clone()), true).await?
                     };
 
                     tracing::info!(node_id, "connected to state provider");
@@ -192,14 +182,13 @@ where
 
     async fn initalize_leader_provider(
         &mut self,
-        block_sync: GlobalBlockSync,
         node_config: TestingNodeConfig<TestnetConfig>,
         initial_angstrom_state: &mut Option<InitialTestnetState>,
         node_addresses: Vec<Address>,
         ex: TaskExecutor
     ) -> eyre::Result<AnvilProvider<WalletProvider>> {
         let (p, initial_state) = self
-            .leader_initialization(node_config.clone(), block_sync.clone(), node_addresses, ex)
+            .leader_initialization(node_config.clone(), node_addresses, ex)
             .await?;
         *initial_angstrom_state = Some(initial_state);
         Ok(p)
@@ -208,16 +197,11 @@ where
     async fn leader_initialization(
         &mut self,
         config: TestingNodeConfig<TestnetConfig>,
-        block_sync: GlobalBlockSync,
         node_addresses: Vec<Address>,
         ex: TaskExecutor
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
-        let mut provider = AnvilProvider::new(
-            AnvilInitializer::new(config.clone(), node_addresses),
-            true,
-            block_sync
-        )
-        .await?;
+        let mut provider =
+            AnvilProvider::new(AnvilInitializer::new(config.clone(), node_addresses), true).await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());
 
         tracing::debug!(leader_address = ?provider.rpc_provider().default_signer_address());

@@ -3,10 +3,7 @@ use std::{future::IntoFuture, time::Duration};
 use alloy::{providers::Provider, rpc::types::Block};
 use alloy_primitives::{Address, B256, BlockNumber, U256};
 use alloy_rpc_types::{BlockId, TransactionReceipt};
-use angstrom_types::{
-    block_sync::{BlockSyncProducer, GlobalBlockSync},
-    reth_db_wrapper::DBError
-};
+use angstrom_types::reth_db_wrapper::DBError;
 use futures::stream::StreamExt;
 use reth_primitives::EthPrimitives;
 use reth_provider::{
@@ -27,17 +24,15 @@ use crate::{
 pub struct AnvilStateProvider<P> {
     provider:       P,
     canon_state:    AnvilConsensusCanonStateNotification,
-    canon_state_tx: broadcast::Sender<CanonStateNotification>,
-    block_sync:     GlobalBlockSync
+    canon_state_tx: broadcast::Sender<CanonStateNotification>
 }
 
 impl<P: WithWalletProvider> AnvilStateProvider<P> {
-    pub(crate) fn new(provider: P, block_sync: GlobalBlockSync) -> Self {
+    pub(crate) fn new(provider: P) -> Self {
         Self {
             provider,
             canon_state: AnvilConsensusCanonStateNotification::new(),
-            canon_state_tx: broadcast::channel(1000).0,
-            block_sync
+            canon_state_tx: broadcast::channel(1000).0
         }
     }
 
@@ -70,8 +65,7 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
         AnvilStateProvider {
             provider:       self.provider.wallet_provider(),
             canon_state:    self.canon_state.clone(),
-            canon_state_tx: self.canon_state_tx.clone(),
-            block_sync:     self.block_sync.clone()
+            canon_state_tx: self.canon_state_tx.clone()
         }
     }
 
@@ -111,11 +105,9 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
                     .await
                     .unwrap()
                     .unwrap();
-                tracing::info!("updating block sync");
-                self.block_sync.new_block(block.header.number);
                 tracing::info!("updating cannon chain");
 
-                self.update_canon_chain(&block).unwrap();
+                self.update_canon_chain(&block, recipts).unwrap();
             }
         }
     }
