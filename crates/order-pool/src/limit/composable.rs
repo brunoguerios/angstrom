@@ -4,7 +4,7 @@ use alloy::primitives::B256;
 use angstrom_metrics::ComposableLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
     primitive::{NewInitializedPool, PoolId},
-    sol_bindings::grouped_orders::{AllOrders, GroupedComposableOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 use angstrom_utils::map::OwnedMap;
 

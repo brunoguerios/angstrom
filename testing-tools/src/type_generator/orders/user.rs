@@ -7,7 +7,7 @@ use angstrom_types::{
     matching::Ray,
     primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::{
-        grouped_orders::{AllOrders, FlashVariants, GroupedVanillaOrder, StandingVariants},
+        grouped_orders::AllOrders,
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder

@@ -8,9 +8,7 @@ use crate::{
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{
-            AllOrders, FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
-        },
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::{
             ExactFlashOrder, ExactStandingOrder, OmitOrderMeta, OrderMeta, PartialFlashOrder,
             PartialStandingOrder

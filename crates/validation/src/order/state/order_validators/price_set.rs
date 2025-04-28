@@ -35,12 +35,12 @@ mod test {
         use revm_primitives::U256;
 
         use crate::order::{
-            GroupedVanillaOrder,
+            AllOrders,
             state::order_validators::{EnsurePriceSet, OrderValidationState, make_base_order}
         };
 
         let mut order = make_base_order();
-        if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
+        if let AllOrders::PartialStanding(ref mut o) = order {
             o.min_price = U256::from(0);
         }
 

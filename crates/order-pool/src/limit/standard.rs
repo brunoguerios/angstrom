@@ -5,7 +5,7 @@ use angstrom_metrics::VanillaLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId, UserAccountVerificationError},
-    sol_bindings::grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 use angstrom_utils::map::OwnedMap;
 

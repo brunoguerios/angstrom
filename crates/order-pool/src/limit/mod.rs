@@ -4,10 +4,7 @@ use alloy::primitives::{B256, FixedBytes};
 use angstrom_types::{
     orders::{OrderId, OrderStatus},
     primitive::{NewInitializedPool, PoolId},
-    sol_bindings::grouped_orders::{
-        AllOrders, GroupedComposableOrder, GroupedUserOrder, GroupedVanillaOrder,
-        OrderWithStorageData
-    }
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 
 use self::{composable::ComposableLimitPool, standard::LimitPool};

@@ -10,7 +10,7 @@ use angstrom_types::{
     primitive::{NewInitializedPool, PeerId, PoolId},
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{AllOrders, OrderWithStorageData, *},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };
@@ -449,7 +449,7 @@ mod tests {
         matching::Ray,
         orders::OrderId,
         primitive::{AngstromSigner, OrderValidationError},
-        sol_bindings::{RespendAvoidanceMethod, grouped_orders::GroupedVanillaOrder}
+        sol_bindings::RespendAvoidanceMethod
     };
     use pade::PadeEncode;
     use testing_tools::{
@@ -526,13 +526,7 @@ mod tests {
             builder = builder.block(flash_block);
         }
 
-        let order =
-            if validity.is_standing { builder.standing() } else { builder.kill_or_fill() }.build();
-
-        match order {
-            GroupedVanillaOrder::Standing(o) => AllOrders::Standing(o),
-            GroupedVanillaOrder::KillOrFill(o) => AllOrders::Flash(o)
-        }
+        if validity.is_standing { builder.standing() } else { builder.kill_or_fill() }.build()
     }
 
     #[tokio::test]

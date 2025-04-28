@@ -227,7 +227,7 @@ pub mod tests {
 
         mock_pool.add_pool(token0, token1, pool);
 
-        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -270,7 +270,7 @@ pub mod tests {
 
         mock_pool.add_pool(token0, token1, pool);
 
-        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -326,7 +326,7 @@ pub mod tests {
 
         mock_pool.add_pool(token0, token1, pool);
 
-        let order0: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order0 = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -337,7 +337,7 @@ pub mod tests {
             .build();
         info!("Created order0 with nonce 420");
 
-        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order1 = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -409,7 +409,7 @@ pub mod tests {
         mock_pool.add_pool(token0, token1, pool);
 
         // Create flash order for block 421 (current block + 1)
-        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order = UserOrderBuilder::new()
             .kill_or_fill()
             .asset_in(token0)
             .asset_out(token1)
@@ -453,7 +453,7 @@ pub mod tests {
         let pool = PoolId::default();
         mock_pool.add_pool(token0, token1, pool);
 
-        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -499,7 +499,7 @@ pub mod tests {
         let pool = PoolId::default();
         mock_pool.add_pool(token0, token1, pool);
 
-        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -543,7 +543,7 @@ pub mod tests {
         mock_pool.add_pool(token0, token1, pool);
 
         // Create two flash orders for the same block
-        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order1 = UserOrderBuilder::new()
             .kill_or_fill()
             .asset_in(token0)
             .asset_out(token1)
@@ -553,7 +553,7 @@ pub mod tests {
             .recipient(user)
             .build();
 
-        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order2 = UserOrderBuilder::new()
             .kill_or_fill()
             .asset_in(token0)
             .asset_out(token1)
@@ -595,7 +595,7 @@ pub mod tests {
         let pool = PoolId::default();
         mock_pool.add_pool(token0, token1, pool);
 
-        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -643,7 +643,7 @@ pub mod tests {
         mock_pool.add_pool(token0, token1, pool);
 
         // Create three orders with decreasing nonces
-        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order1 = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -653,7 +653,7 @@ pub mod tests {
             .signing_key(Some(sk.clone()))
             .build();
 
-        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order2 = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -663,7 +663,7 @@ pub mod tests {
             .signing_key(Some(sk.clone()))
             .build();
 
-        let order3: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order3 = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -697,9 +697,9 @@ pub mod tests {
             .expect("third order should be valid");
 
         // Verify that each order invalidates all previous orders
-        assert!(result2.invalidates.contains(&order1.hash()));
-        assert!(result3.invalidates.contains(&order2.hash()));
-        assert!(result3.invalidates.contains(&order1.hash()));
+        assert!(result2.invalidates.contains(&order1.order_hash()));
+        assert!(result3.invalidates.contains(&order2.order_hash()));
+        assert!(result3.invalidates.contains(&order1.order_hash()));
     }
 
     #[test]
@@ -714,7 +714,7 @@ pub mod tests {
         mock_pool.add_pool(token0, token1, pool);
 
         // Create two orders that together exceed available balance
-        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order1 = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -724,7 +724,7 @@ pub mod tests {
             .signing_key(Some(sk.clone()))
             .build();
 
-        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order2 = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -774,7 +774,7 @@ pub mod tests {
         mock_pool.add_pool(token0, token1, pool);
 
         // Create sequence of flash orders for consecutive blocks
-        let order1: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order1 = UserOrderBuilder::new()
             .kill_or_fill()
             .asset_in(token0)
             .asset_out(token1)
@@ -784,7 +784,7 @@ pub mod tests {
             .signing_key(Some(sk.clone()))
             .build();
 
-        let order2: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order2 = UserOrderBuilder::new()
             .kill_or_fill()
             .asset_in(token0)
             .asset_out(token1)
@@ -829,7 +829,7 @@ pub mod tests {
         mock_pool.add_pool(token0, token1, pool);
 
         // Create mix of standing and flash orders
-        let standing_order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let standing_order = UserOrderBuilder::new()
             .standing()
             .asset_in(token0)
             .asset_out(token1)
@@ -839,7 +839,7 @@ pub mod tests {
             .signing_key(Some(sk.clone()))
             .build();
 
-        let flash_order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let flash_order = UserOrderBuilder::new()
             .kill_or_fill()
             .asset_in(token0)
             .asset_out(token1)
@@ -884,7 +884,7 @@ pub mod tests {
 
         mock_pool.add_pool(token0, token1, pool);
 
-        let order: GroupedVanillaOrder = UserOrderBuilder::new()
+        let order = UserOrderBuilder::new()
             .standing()
             .recipient(user)
             .asset_in(token0)

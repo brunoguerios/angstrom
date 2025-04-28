@@ -2,7 +2,7 @@ use alloy::primitives::Uint;
 use angstrom_types::{
     matching::Ray,
     primitive::{AngstromSigner, PoolId},
-    sol_bindings::grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 use eyre::eyre;
 use rand_distr::{Distribution, SkewNormal, num_traits::ToPrimitive};

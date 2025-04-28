@@ -2,10 +2,7 @@ use alloy::primitives::{FixedBytes, U256};
 use angstrom_types::{
     matching::Ray,
     orders::{OrderId, OrderPriorityData},
-    sol_bindings::{
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData},
-        rpc_orders::ExactFlashOrder
-    }
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::ExactFlashOrder}
 };
 use rand_distr::{Distribution, SkewNormal};
 

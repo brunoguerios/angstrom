@@ -10,7 +10,7 @@ use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{
         ext::RawPoolOrder,
-        grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };

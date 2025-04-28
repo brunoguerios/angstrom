@@ -1,7 +1,7 @@
 use angstrom_types::{
     matching::{SqrtPriceX96, uniswap::PoolSnapshot},
     primitive::PoolId,
-    sol_bindings::grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData}
+    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
 };
 use matching_engine::book::{OrderBook, sort::SortStrategy};
 use uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio;

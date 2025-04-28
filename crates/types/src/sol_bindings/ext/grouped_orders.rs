@@ -57,8 +57,6 @@ impl StandingVariants {
         }
     }
 
-    /// The quantity available for this order to match in terms of T0
-
     pub fn exact_in(&self) -> bool {
         match self {
             StandingVariants::Exact(o) => o.exact_in,

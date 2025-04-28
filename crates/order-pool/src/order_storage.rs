@@ -130,7 +130,7 @@ impl OrderStorage {
                 .lock()
                 .expect("lock poisoned")
                 .get_order(order_id)
-                .and_then(|order| order.try_map_inner(|inner| Ok(inner.into())).ok()),
+                .and_then(|order| order.try_map_inner(Ok).ok()),
             OrderLocation::Searcher => self
                 .searcher_orders
                 .lock()
@@ -156,13 +156,12 @@ impl OrderStorage {
                 .lock()
                 .expect("lock poisoned")
                 .remove_order(order_id)
-                .and_then(|order| {
+                .inspect(|order| {
                     if order.is_vanilla() {
                         self.metrics.incr_cancelled_vanilla_orders()
                     } else {
                         self.metrics.incr_cancelled_composable_orders()
                     }
-                    Some(order)
                 }),
             angstrom_types::orders::OrderLocation::Searcher => self
                 .searcher_orders
@@ -318,13 +317,12 @@ impl OrderStorage {
             .lock()
             .expect("poisoned")
             .remove_order(id)
-            .and_then(|order| {
+            .inspect(|order| {
                 if order.is_vanilla() {
                     self.metrics.decr_vanilla_limit_orders(1);
                 } else {
                     self.metrics.decr_composable_limit_orders(1);
                 }
-                Some(order)
             })
     }
 

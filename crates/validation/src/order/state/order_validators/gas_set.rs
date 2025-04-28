@@ -28,13 +28,13 @@ mod test {
         };
 
         use crate::order::{
-            GroupedVanillaOrder,
+            AllOrders,
             state::order_validators::{EnsureGasSet, OrderValidationState, make_base_order}
         };
 
         let mut order = make_base_order();
-        if let GroupedVanillaOrder::Standing(StandingVariants::Partial(ref mut o)) = order {
-            o.max_extra_fee_asset0 = 0;
+        if let AllOrders::PartialStanding(ref mut o) = order {
+            o.min_amount_in = 0; // This is the value checked by min_amount()
         }
 
         let validator = EnsureGasSet;

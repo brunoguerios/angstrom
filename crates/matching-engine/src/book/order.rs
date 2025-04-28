@@ -1,11 +1,9 @@
 use angstrom_types::{
-    matching::{CompositeOrder, Debt, DebtType, Ray, max_t1_for_t0, uniswap::Direction},
+    matching::{CompositeOrder, Debt, Ray, uniswap::Direction},
     orders::{OrderFillState, OrderId, OrderPrice, OrderVolume},
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{
-            FlashVariants, GroupedVanillaOrder, OrderWithStorageData, StandingVariants
-        }
+        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
     }
 };
 use eyre::{OptionExt, eyre};

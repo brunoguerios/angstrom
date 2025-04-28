@@ -2,10 +2,7 @@ use std::ops::Range;
 
 use angstrom_types::{
     primitive::PoolId,
-    sol_bindings::{
-        grouped_orders::{AllOrders, GroupedVanillaOrder},
-        rpc_orders::TopOfBlockOrder
-    }
+    sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 use itertools::Itertools;
 use rand::Rng;

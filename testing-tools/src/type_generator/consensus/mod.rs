@@ -3,9 +3,7 @@ pub mod pre_proposal_agg;
 pub mod preproposal;
 pub mod proposal;
 
-use angstrom_types::sol_bindings::grouped_orders::{
-    AllOrders, GroupedVanillaOrder, OrderWithStorageData
-};
+use angstrom_types::sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData};
 
 use super::orders::UserOrderBuilder;
 

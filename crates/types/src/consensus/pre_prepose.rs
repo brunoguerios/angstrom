@@ -16,7 +16,7 @@ use crate::{
     orders::OrderSet,
     primitive::{AngstromSigner, PoolId},
     sol_bindings::{
-        grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     }
 };

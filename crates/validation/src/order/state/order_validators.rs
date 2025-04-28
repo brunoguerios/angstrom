@@ -78,12 +78,9 @@ impl OrderValidation for OrderValidator {
 }
 
 #[cfg(test)]
-pub fn make_base_order() -> angstrom_types::sol_bindings::grouped_orders::GroupedVanillaOrder {
+pub fn make_base_order() -> angstrom_types::sol_bindings::grouped_orders::AllOrders {
     use alloy::primitives::U256;
-    use angstrom_types::sol_bindings::{
-        Ray,
-        grouped_orders::{GroupedVanillaOrder, StandingVariants}
-    };
+    use angstrom_types::sol_bindings::{Ray, grouped_orders::AllOrders};
     use testing_tools::type_generator::orders::UserOrderBuilder;
 
     let mut order = match UserOrderBuilder::new()
@@ -97,7 +94,7 @@ pub fn make_base_order() -> angstrom_types::sol_bindings::grouped_orders::Groupe
         .recipient(Default::default())
         .build()
     {
-        GroupedVanillaOrder::Standing(StandingVariants::Partial(o)) => o,
+        AllOrders::PartialStanding(o) => o,
         _ => unreachable!("builder must produce partial standing order")
     };
 
@@ -105,7 +102,7 @@ pub fn make_base_order() -> angstrom_types::sol_bindings::grouped_orders::Groupe
     order.max_extra_fee_asset0 = 100;
     order.min_amount_in = 200;
 
-    GroupedVanillaOrder::Standing(StandingVariants::Partial(order))
+    AllOrders::PartialStanding(order)
 }
 
 #[test]

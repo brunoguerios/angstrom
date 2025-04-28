@@ -35,7 +35,7 @@ use crate::{
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
         RawPoolOrder,
-        grouped_orders::{AllOrders, GroupedVanillaOrder, OrderWithStorageData},
+        grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
     uni_structure::{BaselinePoolState, donation::DonationCalculation}
