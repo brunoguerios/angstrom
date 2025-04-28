@@ -16,7 +16,8 @@ use angstrom_types::{
         angstrom::Angstrom::{PoolKey, executeCall},
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
-    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore}
+    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore},
+    primitive::ChainExt
 };
 use futures::Future;
 use futures_util::{FutureExt, StreamExt};
@@ -35,8 +36,6 @@ alloy::sol!(
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 );
-
-const MAX_REORG_DEPTH: u64 = 150;
 
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
@@ -159,8 +158,8 @@ where
             address_changeset: eoas
         };
 
-        self.send_events(transitions);
         self.send_events(reorged_orders);
+        self.send_events(transitions);
     }
 
     fn handle_commit(&mut self, new: Arc<impl ChainExt>) {
@@ -335,65 +334,6 @@ pub enum EthEvent {
     },
     AddedNode(Address),
     RemovedNode(Address)
-}
-
-#[auto_impl::auto_impl(&, Arc)]
-pub trait ChainExt {
-    fn tip_number(&self) -> BlockNumber;
-    fn tip_hash(&self) -> BlockHash;
-    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>>;
-    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_;
-    fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>>;
-    fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_;
-}
-
-impl ChainExt for Chain {
-    fn tip_number(&self) -> BlockNumber {
-        self.tip().number
-    }
-
-    fn tip_hash(&self) -> BlockHash {
-        self.tip().hash()
-    }
-
-    fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>> {
-        self.receipts_by_block_hash(block_hash)
-    }
-
-    fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
-        self.tip().body().transactions.iter()
-    }
-
-    fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>> {
-        let tip = new.tip_number();
-        // search 150 blocks back;
-        let start = tip - MAX_REORG_DEPTH;
-
-        let mut range = self
-            .blocks_iter()
-            .filter(|b| b.number() >= start)
-            .zip(new.blocks_iter().filter(|b| b.number() >= start))
-            .filter(|&(old, new)| (old.hash() != new.hash()))
-            .map(|(_, new)| new.number())
-            .collect::<Vec<_>>();
-
-        match range.len() {
-            0 => None,
-            1 => {
-                let r = range.remove(0);
-                Some(r..=r)
-            }
-            _ => {
-                let start = *range.first().unwrap();
-                let end = *range.last().unwrap();
-                Some(start..=end)
-            }
-        }
-    }
-
-    fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_ {
-        self.blocks_iter()
-    }
 }
 
 #[cfg(test)]
