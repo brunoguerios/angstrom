@@ -86,10 +86,16 @@ impl PreProposalWaitTrigger {
     fn update_wait_duration_base(&mut self, info: LastRoundInfo) {
         let base = ETH_BLOCK_TIME - TARGET_SUBMISSION_TIME_REM;
 
-        if info.time_to_complete < base && self.wait_duration < base {
-            self.wait_duration += (base - info.time_to_complete) / SCALING_REM_ADJUSTMENT;
+        let delta = if info.time_to_complete < base {
+            (base - info.time_to_complete) / SCALING_REM_ADJUSTMENT
         } else {
-            self.wait_duration -= (info.time_to_complete - base) * SCALING_REM_ADJUSTMENT;
+            (info.time_to_complete - base) * SCALING_REM_ADJUSTMENT
+        };
+
+        if self.wait_duration < base {
+            self.wait_duration += delta;
+        } else {
+            self.wait_duration = self.wait_duration.saturating_sub(delta);
         }
 
         self.wait_duration = sigmoid_clamp(self.wait_duration);
