@@ -234,13 +234,7 @@ where
                         currency1:   asset1,
                         currency0:   asset0,
                         fee:         added_pool.bundleFee,
-                        tickSpacing: I24::try_from_be_slice(&{
-                            let bytes = added_pool.tickSpacing.to_be_bytes();
-                            let mut a = [0u8; 3];
-                            a[1..3].copy_from_slice(&bytes);
-                            a
-                        })
-                        .unwrap(),
+                        tickSpacing: I24::unchecked_from(added_pool.tickSpacing),
                         hooks:       self.angstrom_address
                     };
 
