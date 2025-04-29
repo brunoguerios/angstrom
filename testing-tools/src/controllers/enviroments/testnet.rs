@@ -88,10 +88,12 @@ where
     {
         let mut initial_angstrom_state = None;
 
-        let mut configs = (0..self.config.node_count())
+        let configs = (0..self.config.node_count())
             .map(|_| {
                 let node_id = self.incr_peer_id();
-                TestingNodeConfig::new(node_id, self.config.clone(), 100)
+                let c = TestingNodeConfig::new(node_id, self.config.clone(), 100);
+                tracing::info!(?c);
+                c
             })
             .collect::<Vec<_>>();
 
@@ -105,7 +107,7 @@ where
             .collect::<Vec<_>>();
 
         // initialize leader provider
-        let front = configs.remove(0);
+        let front = configs.first().unwrap().clone();
         let l_block_sync = GlobalBlockSync::new(0);
         let leader_provider = Rc::new(Cell::new(
             self.initalize_leader_provider(
@@ -135,6 +137,7 @@ where
 
                     tracing::info!(node_id, "connecting to state provider");
                     let provider = if node_id == 0 {
+                        tracing::info!("replaced leader provider");
                         leader_provider.replace(
                             AnvilProvider::new(WalletProvider::new(node_config.clone()), true)
                                 .await?

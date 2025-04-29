@@ -62,7 +62,7 @@ where
         + 'static,
     P: WithWalletProvider
 {
-    #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider, agents, block_sync), fields(id = node_config.node_id))]
+    #[instrument(name = "node", level = "trace", skip(c, state_provider, initial_validators, inital_angstrom_state, block_provider, agents, block_sync), fields(id = node_config.node_id))]
     pub async fn new<G: GlobalTestingConfig, F>(
         c: C,
         node_config: TestingNodeConfig<G>,

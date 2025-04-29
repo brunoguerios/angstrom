@@ -308,6 +308,8 @@ pub mod test {
                 testnet.run_to_completion(ctx.task_executor.clone()).boxed()
             );
 
+            tracing::info!("testnet configured");
+
             // remove the first configured pool
             let pk = addresses.pool_keys.first().unwrap();
             let controller_instance = ControllerV1::new(addresses.controller_addr, provider);
@@ -356,6 +358,7 @@ pub mod test {
         agent_config: AgentConfig
     ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
         Box::pin(async move {
+            tracing::info!("starting add remove listener");
             // what we want to do is remove and then add back a pool. from this we want to
             // see the pools update to ensure that configure + remove
             // functionality works.
@@ -376,6 +379,7 @@ pub mod test {
                             higher = true;
                             break;
                         }
+                        tokio::time::sleep(Duration::from_secs(1)).await;
                     }
                     WORKED.store(true, std::sync::atomic::Ordering::SeqCst);
                 }
