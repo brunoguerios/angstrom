@@ -106,7 +106,11 @@ pub mod test {
 
     use std::{sync::atomic::AtomicBool, time::Duration};
 
-    use alloy::{consensus::BlockHeader, providers::Provider, sol_types::SolCall};
+    use alloy::{
+        consensus::BlockHeader,
+        providers::{Provider, WalletProvider},
+        sol_types::SolCall
+    };
     use alloy_primitives::aliases::U24;
     use alloy_rpc_types::{BlockTransactionsKind, TransactionTrait};
     use angstrom_types::{
@@ -312,40 +316,41 @@ pub mod test {
 
             // remove the first configured pool
             let pk = addresses.pool_keys.first().unwrap();
+            let addr = provider.signer_addresses().collect::<Vec<_>>()[0].clone();
+            let cnt = provider.get_transaction_count(addr).await.unwrap();
+
             let controller_instance = ControllerV1::new(addresses.controller_addr, provider);
 
             let _ = controller_instance
                 .removePool(pk.currency0, pk.currency1)
+                .nonce(cnt)
                 .send()
                 .await
                 .unwrap()
                 .watch()
                 .await
                 .unwrap();
+            tracing::info!("removed pool \n\n\n\n\n\n");
 
             // wait some time to ensure that we can properly index the node being removed
             tokio::time::sleep(Duration::from_secs(12 * 3)).await;
 
             let _ = controller_instance
-                .configurePool(
-                    pk.currency0,
-                    pk.currency1,
-                    pk.tickSpacing.as_u16(),
-                    pk.fee,
-                    U24::ZERO
-                )
+                .configurePool(pk.currency0, pk.currency1, 60, pk.fee, U24::ZERO)
+                .nonce(cnt + 1)
                 .send()
                 .await
                 .unwrap()
                 .watch()
                 .await
                 .unwrap();
-
+            tracing::info!("configured pool \n\n\n\n\n\n\n\n\n\n");
             // wait for the pool to be re-indexed.
             tokio::time::sleep(Duration::from_secs(12 * 3)).await;
+
             assert!(
                 WORKED.load(std::sync::atomic::Ordering::SeqCst),
-                "properly removed and added pool"
+                "failed to properly remove and add pool"
             );
 
             testnet_task.abort();
@@ -381,6 +386,7 @@ pub mod test {
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
                     }
+
                     WORKED.store(true, std::sync::atomic::Ordering::SeqCst);
                 }
                 .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))

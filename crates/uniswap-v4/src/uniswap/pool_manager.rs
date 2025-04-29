@@ -14,6 +14,7 @@ use alloy::{
     rpc::types::Block,
     transports::{RpcError, TransportErrorKind}
 };
+use alloy_primitives::aliases::U24;
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
@@ -352,17 +353,18 @@ where
         while let Poll::Ready(Some(event)) = self.update_stream.poll_next_unpin(cx) {
             match event {
                 EthEvent::NewPool { pool } => {
+                    tracing::info!(?pool, "adding pool");
                     let block = self.latest_synced_block;
                     let pool =
                         async_to_sync(self.factory.create_new_angstrom_pool(pool.clone(), block));
                     let key = pool.address();
-                    tracing::info!(?key, "adding pool");
                     self.pools.insert(key, Arc::new(RwLock::new(pool)));
                 }
-                EthEvent::RemovedPool { pool } => {
+                EthEvent::RemovedPool { mut pool } => {
+                    tracing::info!(?pool, "removed pool");
+                    pool.fee = U24::from(0x800000);
                     let id = self.factory.remove_pool(pool);
                     self.pools.remove(&id);
-                    tracing::info!(?id, "removed pool");
                 }
                 _ => {}
             }

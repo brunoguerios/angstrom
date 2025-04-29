@@ -178,6 +178,7 @@ where
     /// sending out info.
     fn apply_periphery_logs(&mut self, chain: &impl ChainExt) {
         let periphery_address = self.periphery_address;
+
         chain
             .receipts_by_block_hash(chain.tip_hash())
             .unwrap_or_default()

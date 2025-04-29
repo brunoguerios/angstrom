@@ -91,9 +91,7 @@ where
         let configs = (0..self.config.node_count())
             .map(|_| {
                 let node_id = self.incr_peer_id();
-                let c = TestingNodeConfig::new(node_id, self.config.clone(), 100);
-                tracing::info!(?c);
-                c
+                TestingNodeConfig::new(node_id, self.config.clone(), 100)
             })
             .collect::<Vec<_>>();
 
@@ -138,10 +136,12 @@ where
                     tracing::info!(node_id, "connecting to state provider");
                     let provider = if node_id == 0 {
                         tracing::info!("replaced leader provider");
-                        leader_provider.replace(
-                            AnvilProvider::new(WalletProvider::new(node_config.clone()), true)
-                                .await?
-                        )
+                        let mut config = node_config.clone();
+                        // change so we don't spawn a new anvil instance
+                        config.node_id = 69;
+
+                        leader_provider
+                            .replace(AnvilProvider::new(WalletProvider::new(config), true).await?)
                     } else {
                         tracing::info!(?node_id, "follower node init");
                         AnvilProvider::new(WalletProvider::new(node_config.clone()), true).await?
