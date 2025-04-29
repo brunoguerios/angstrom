@@ -248,7 +248,6 @@ where
         &'a self,
         chain: &'a impl ChainExt
     ) -> impl Iterator<Item = B256> + 'a {
-        tracing::info!(txes=?chain.tip_transactions().cloned().collect::<Vec<_>>());
         let tip_txs = chain.tip_transactions().cloned();
 
         tip_txs

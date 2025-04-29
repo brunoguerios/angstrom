@@ -104,12 +104,21 @@ fn end_to_end_agent<'a>(
 #[cfg(test)]
 pub mod test {
 
-    use std::time::Duration;
+    use std::{sync::atomic::AtomicBool, time::Duration};
 
     use alloy::{consensus::BlockHeader, providers::Provider, sol_types::SolCall};
+    use alloy_primitives::aliases::U24;
     use alloy_rpc_types::{BlockTransactionsKind, TransactionTrait};
     use angstrom_types::{
-        contract_payloads::angstrom::AngstromBundle, primitive::TESTNET_ANGSTROM_ADDRESS
+        contract_bindings::{
+            angstrom::Angstrom::configurePoolCall,
+            controller_v_1::{
+                self,
+                ControllerV1::{self, removePoolCall}
+            }
+        },
+        contract_payloads::angstrom::AngstromBundle,
+        primitive::TESTNET_ANGSTROM_ADDRESS
     };
     use futures::{FutureExt, StreamExt};
     use pade::PadeDecode;
@@ -262,6 +271,8 @@ pub mod test {
         }
     }
 
+    const WORKED: AtomicBool = AtomicBool::new(false);
+
     #[test]
     fn test_remove_add_pool() {
         init_tracing(4);
@@ -275,7 +286,7 @@ pub mod test {
 
             let config = config.make_config().unwrap();
 
-            let agents = vec![noop_agent];
+            let agents = vec![add_remove_agent];
             tracing::info!("spinning up e2e nodes for angstrom");
 
             // spawn testnet
@@ -290,42 +301,83 @@ pub mod test {
 
             // grab provider so we can query from the chain later.
             let provider = testnet.node_provider(Some(0)).rpc_provider();
+            let addresses = testnet.get_random_peer(vec![]).get_init_state().clone();
 
-            let task = ctx.task_executor.spawn_critical(
+            let testnet_task = ctx.task_executor.spawn_critical(
                 "testnet",
                 testnet.run_to_completion(ctx.task_executor.clone()).boxed()
             );
 
-            // given we have the leader provider
+            // remove the first configured pool
+            let pk = addresses.pool_keys.first().unwrap();
+            let controller_instance = ControllerV1::new(addresses.controller_addr, provider);
 
+            let _ = controller_instance
+                .removePool(pk.currency0, pk.currency1)
+                .send()
+                .await
+                .unwrap()
+                .watch()
+                .await
+                .unwrap();
+
+            // wait some time to ensure that we can properly index the node being removed
+            tokio::time::sleep(Duration::from_secs(12 * 3)).await;
+
+            let _ = controller_instance
+                .configurePool(
+                    pk.currency0,
+                    pk.currency1,
+                    pk.tickSpacing.as_u16(),
+                    pk.fee,
+                    U24::ZERO
+                )
+                .send()
+                .await
+                .unwrap()
+                .watch()
+                .await
+                .unwrap();
+
+            // wait for the pool to be re-indexed.
+            tokio::time::sleep(Duration::from_secs(12 * 3)).await;
+            assert!(
+                WORKED.load(std::sync::atomic::Ordering::SeqCst),
+                "properly removed and added pool"
+            );
+
+            testnet_task.abort();
             eyre::Ok(())
         });
     }
 
     fn add_remove_agent<'a>(
-        _: &'a InitialTestnetState,
+        init: &'a InitialTestnetState,
         agent_config: AgentConfig
     ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
         Box::pin(async move {
-            tracing::info!("starting e2e agent");
-
-            let mut stream = agent_config
-                .state_provider
-                .canonical_state_stream()
-                .map(|node| match node {
-                    reth_provider::CanonStateNotification::Commit { new }
-                    | reth_provider::CanonStateNotification::Reorg { new, .. } => new.tip_number()
-                });
-
+            // what we want to do is remove and then add back a pool. from this we want to
+            // see the pools update to ensure that configure + remove
+            // functionality works.
             tokio::spawn(
                 async move {
-                    loop {
-                        tokio::select! {
-                            Some(block_number) = stream.next() => {
-                            }
+                    let start_pool_len = agent_config.uniswap_pools.len();
+                    let mut lower = false;
+                    let mut higher = false;
 
+                    loop {
+                        let this_len = agent_config.uniswap_pools.len();
+
+                        if this_len + 1 == start_pool_len {
+                            tracing::info!("processed removed pool");
+                            lower = true;
+                        } else if lower && this_len == start_pool_len {
+                            tracing::info!("processed added pool");
+                            higher = true;
+                            break;
                         }
                     }
+                    WORKED.store(true, std::sync::atomic::Ordering::SeqCst);
                 }
                 .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))
             );
