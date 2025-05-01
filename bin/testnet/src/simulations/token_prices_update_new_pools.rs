@@ -13,7 +13,7 @@ use tracing::{debug, info};
 use crate::cli::devnet::DevnetCli;
 
 pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::Result<()> {
-    let config = cli.make_config();
+    let config = cli.make_config()?;
     let initial_state = config.initial_state_config();
 
     let mut testnet =

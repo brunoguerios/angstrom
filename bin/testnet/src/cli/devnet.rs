@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use testing_tools::types::config::DevnetConfig;
 
+use super::testnet::AllPoolKeyInners;
+
 #[derive(Parser, Clone, Debug)]
 pub struct DevnetCli {
     /// starting port for the rpc for submitting transactions.
