@@ -34,6 +34,7 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
 
     testnet.advance_block();
     testnet.deploy_new_pool(new_pool_key);
+    testnet.advance_block();
     testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
     // testnet.advance_block();
     // pairs_to_pools.in
