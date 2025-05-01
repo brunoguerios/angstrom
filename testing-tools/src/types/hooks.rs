@@ -32,7 +32,7 @@ pub(crate) trait HookResult: Sized {
 
     fn is_pass(&self) -> bool;
 
-    fn fmt_result(self, i: usize, name: &'static str) {
+    fn fmt_result(self, i: usize, name: &'static str) -> bool {
         if let Some(e) = self.error() {
             tracing::error!(target: "devnet::state-machine", hook = i, name, "{:?}", e);
             panic!("{:?}", e.root_cause());
@@ -41,9 +41,10 @@ pub(crate) trait HookResult: Sized {
 
         if self.is_pass() {
             tracing::info!(target: "devnet::state-machine", hook = i, name, "hook PASSED");
+            true
         } else {
             tracing::error!(target: "devnet::state-machine", hook = i, name, "hook FAILED");
-            panic!()
+            false
         }
     }
 }
