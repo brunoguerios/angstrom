@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
+#![allow(async_fn_in_trait)]
 
 /// External tools that are initialized on-top of the testnet
 /// for example a order generator that pushes orders to the nodes rpc

@@ -38,18 +38,20 @@ use crate::{
     contracts::anvil::WalletProviderRpc,
     controllers::TestnetStateFutureLock,
     network::{EthPeerPool, TestnetNodeNetwork},
-    providers::AnvilProvider,
-    types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig}
+    providers::{AnvilProvider, AnvilStateProvider, WalletProvider},
+    types::{GlobalTestingConfig, WithWalletProvider, config::TestingNodeConfig},
+    validation::TestOrderValidator
 };
 
-pub struct TestnetNode<C: Unpin, P> {
+pub struct TestnetNode<C: Unpin, P, G> {
     testnet_node_id: u64,
     network:         TestnetNodeNetwork,
     strom:           AngstromNodeInternals<P>,
-    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc, NetworkHandle>
+    state_lock:      TestnetStateFutureLock<C, WalletProviderRpc, NetworkHandle>,
+    config:          TestingNodeConfig<G>
 }
 
-impl<C, P> TestnetNode<C, P>
+impl<C, P, G> TestnetNode<C, P, G>
 where
     C: BlockReader<Block = reth_primitives::Block>
         + HeaderProvider<Header = reth_primitives::Header>
@@ -59,10 +61,11 @@ where
         + Clone
         + ChainSpecProvider<ChainSpec: Hardforks>
         + 'static,
-    P: WithWalletProvider
+    P: WithWalletProvider,
+    G: GlobalTestingConfig
 {
     #[instrument(name = "node", level = "trace", skip(node_config, c, state_provider, initial_validators, inital_angstrom_state, block_provider, agents, block_sync), fields(id = node_config.node_id))]
-    pub async fn new<G: GlobalTestingConfig, F>(
+    pub async fn new<F>(
         c: C,
         node_config: TestingNodeConfig<G>,
         state_provider: AnvilProvider<P>,
@@ -116,7 +119,13 @@ where
             ex.clone()
         );
 
-        Ok(Self { testnet_node_id: node_config.node_id, network: strom_network, strom, state_lock })
+        Ok(Self {
+            testnet_node_id: node_config.node_id,
+            network: strom_network,
+            strom,
+            state_lock,
+            config: node_config
+        })
     }
 
     /// General
@@ -128,6 +137,10 @@ where
 
     pub fn testnet_node_id(&self) -> u64 {
         self.testnet_node_id
+    }
+
+    pub fn testnet_node_config(&self) -> TestingNodeConfig<G> {
+        self.config.clone()
     }
 
     pub fn peer_id(&self) -> PeerId {
@@ -200,6 +213,20 @@ where
         F: FnOnce(&mut StromNetworkManager<C, NetworkHandle>) -> R
     {
         self.state_lock.strom_network_manager_mut(f)
+    }
+
+    pub fn strom_validation<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&TestOrderValidator<AnvilStateProvider<WalletProvider>>) -> R
+    {
+        self.state_lock.strom_validation(f)
+    }
+
+    pub fn strom_validation_mut<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut TestOrderValidator<AnvilStateProvider<WalletProvider>>) -> R
+    {
+        self.state_lock.strom_validation_mut(f)
     }
 
     pub fn eth_peer<F, R>(&self, f: F) -> R
@@ -285,7 +312,7 @@ where
 
     pub async fn connect_to_all_peers(
         &mut self,
-        other_peers: &mut HashMap<u64, TestnetNode<C, P>>
+        other_peers: &mut HashMap<u64, TestnetNode<C, P, G>>
     ) {
         self.start_network();
         other_peers.iter().for_each(|(_, peer)| {

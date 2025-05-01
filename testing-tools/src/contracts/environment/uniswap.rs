@@ -51,6 +51,15 @@ where
         Ok(Self { inner, pool_manager, pool_gate, position_manager })
     }
 
+    pub fn new_existing(
+        inner: E,
+        pool_manager: Address,
+        position_manager: Address,
+        pool_gate: Address
+    ) -> Self {
+        Self { inner, pool_gate, pool_manager, position_manager }
+    }
+
     async fn deploy_pool_manager(inner: &E) -> eyre::Result<Address> {
         debug!("Deploying pool manager...");
         let pool_manager_addr = inner

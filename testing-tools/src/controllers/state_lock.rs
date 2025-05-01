@@ -103,6 +103,20 @@ where
         self.strom_consensus.on_inner_mut(f)
     }
 
+    pub(crate) fn strom_validation<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&TestOrderValidator<AnvilStateProvider<WalletProvider>>) -> R
+    {
+        self.validation.on_inner(f)
+    }
+
+    pub(crate) fn strom_validation_mut<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut TestOrderValidator<AnvilStateProvider<WalletProvider>>) -> R
+    {
+        self.validation.on_inner_mut(f)
+    }
+
     pub(crate) fn set_validation(&self, running: bool) {
         self.validation.lock.store(running, Ordering::Relaxed);
     }

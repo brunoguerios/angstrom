@@ -20,7 +20,7 @@ use itertools::Itertools;
 use reth_tasks::TaskExecutor;
 use uniswap_v3_math::tick_math::{MAX_TICK, MIN_TICK};
 
-use super::WalletProvider;
+use super::{AnvilProvider, WalletProvider};
 use crate::{
     contracts::{
         anvil::{SafeDeployPending, WalletProviderRpc},
@@ -33,7 +33,9 @@ use crate::{
     types::{
         GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
-        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools}
+        initial_state::{
+            DeployedAddresses, InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools
+        }
     }
 };
 
@@ -51,7 +53,7 @@ impl AnvilInitializer {
     pub async fn new<G: GlobalTestingConfig>(
         config: TestingNodeConfig<G>,
         nodes: Vec<Address>
-    ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
+    ) -> eyre::Result<(Self, Option<AnvilInstance>, DeployedAddresses)> {
         let (provider, anvil) = config.spawn_anvil_rpc().await?;
 
         tracing::debug!("deploying UniV4 enviroment");
@@ -74,6 +76,15 @@ impl AnvilInitializer {
             angstrom_env.provider().clone()
         );
 
+        let deployed_addresses = DeployedAddresses {
+            angstrom_address:         *angstrom.address(),
+            pool_gate_address:        *pool_gate.address(),
+            controller_v1_address:    angstrom_env.controller_v1(),
+            position_fetcher_address: angstrom_env.position_fetcher(),
+            pool_manager_address:     angstrom_env.pool_manager(),
+            position_manager_address: angstrom_env.position_manager()
+        };
+
         let pending_state = PendingDeployedPools::new();
 
         let this = Self {
@@ -86,7 +97,53 @@ impl AnvilInitializer {
             initial_state_config: config.global_config.initial_state_config()
         };
 
-        Ok((this, anvil))
+        Ok((this, anvil, deployed_addresses))
+    }
+
+    pub fn new_existing<G: GlobalTestingConfig, P: WithWalletProvider>(
+        provider: &AnvilProvider<P>,
+        config: TestingNodeConfig<G>
+    ) -> Self {
+        let deployed_addresses = provider
+            .deployed_addresses()
+            .expect("deployed_addresses not set");
+        let provider = provider.wallet_provider();
+        let angstrom =
+            AngstromInstance::new(deployed_addresses.angstrom_address, provider.provider().clone());
+
+        let pool_gate = PoolGateInstance::new(
+            deployed_addresses.pool_gate_address,
+            provider.provider().clone()
+        );
+
+        let controller_v1 = ControllerV1Instance::new(
+            deployed_addresses.controller_v1_address,
+            provider.provider().clone()
+        );
+
+        let pending_state = PendingDeployedPools::new();
+
+        let uniswap_env = UniswapEnv::new_existing(
+            provider.clone(),
+            deployed_addresses.pool_manager_address,
+            deployed_addresses.position_manager_address,
+            deployed_addresses.pool_gate_address
+        );
+
+        Self {
+            provider,
+            controller_v1,
+            angstrom_env: AngstromEnv::new_existing(
+                uniswap_env,
+                deployed_addresses.angstrom_address,
+                deployed_addresses.controller_v1_address,
+                deployed_addresses.position_fetcher_address
+            ),
+            angstrom,
+            pending_state,
+            pool_gate,
+            initial_state_config: config.global_config.initial_state_config()
+        }
     }
 
     /// deploys multiple pools (pool key, liquidity, sqrt price)

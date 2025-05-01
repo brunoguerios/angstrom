@@ -6,7 +6,7 @@ use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvi
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{StateMachineActionHookFn, config::DevnetConfig}
+    types::{StateMachineActionHookFn, config::DevnetConfig, initial_state::PartialConfigPoolKey}
 };
 
 pub trait WithAction<'a, C>
@@ -22,6 +22,8 @@ where
     type FunctionOutput;
 
     fn advance_block(&mut self);
+
+    async fn deploy_new_pool(&mut self, pool_key: PartialConfigPoolKey);
 }
 
 impl<'a, C> WithAction<'a, C> for DevnetStateMachine<'a, C>
@@ -41,6 +43,13 @@ where
             pin_action(testnet.all_peers_update_state(0))
         };
         self.add_action("advance block", f);
+    }
+
+    async fn deploy_new_pool(&mut self, pool_key: PartialConfigPoolKey) {
+        let f = move |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+            pin_action(testnet.deploy_new_pool(pool_key))
+        };
+        self.add_action("deploy new pool", f);
     }
 }
 

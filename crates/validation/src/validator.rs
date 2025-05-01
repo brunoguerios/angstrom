@@ -135,6 +135,11 @@ where
             }
         }
     }
+
+    #[cfg(feature = "testnet")]
+    pub fn token_price_generator(&self) -> crate::TokenPriceGenerator {
+        self.utils.token_pricing.clone()
+    }
 }
 
 impl<DB, Pools, Fetch> Future for Validator<DB, Pools, Fetch>

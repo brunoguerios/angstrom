@@ -10,8 +10,8 @@ use crate::{
 };
 
 pub struct DevnetStateMachine<'a, C: Unpin> {
-    pub(crate) testnet: AngstromTestnet<C, DevnetConfig, WalletProvider>,
-    pub(crate) hooks:   Vec<(&'static str, StateMachineHook<'a, C>)>
+    pub testnet:      AngstromTestnet<C, DevnetConfig, WalletProvider>,
+    pub(crate) hooks: Vec<(&'static str, StateMachineHook<'a, C>)>
 }
 
 impl<'a, C> DevnetStateMachine<'a, C>

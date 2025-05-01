@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use alloy_primitives::Address;
+use angstrom_types::primitive::PoolId;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 
@@ -20,6 +24,11 @@ where
     type FunctionOutput;
 
     fn check_block(&mut self, block_number: u64);
+
+    fn check_token_price_gen_has_pools(
+        &mut self,
+        pair_to_pool: HashMap<(Address, Address), PoolId>
+    );
 }
 
 impl<C> WithCheck<C> for DevnetStateMachine<'_, C>
@@ -39,5 +48,16 @@ where
             testnet.check_block_numbers(block_number)
         };
         self.add_check("check block", f);
+    }
+
+    fn check_token_price_gen_has_pools(
+        &mut self,
+        pair_to_pool: HashMap<(Address, Address), PoolId>
+    ) {
+        let f = move |testnet: &mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
+            Ok(testnet.check_token_price_gen_has_pools(pair_to_pool.clone()))
+        };
+
+        self.add_check("check token price gen has pools", f);
     }
 }

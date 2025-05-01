@@ -2,7 +2,7 @@ use std::{collections::HashSet, pin::Pin};
 
 use alloy::providers::ext::AnvilApi;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
-use futures::Future;
+use futures::{Future, FutureExt};
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::TaskExecutor;
@@ -76,7 +76,8 @@ where
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
                 let mut initializer = AnvilProvider::new(
-                    AnvilInitializer::new(node_config.clone(), node_addresses.clone()),
+                    AnvilInitializer::new(node_config.clone(), node_addresses.clone())
+                        .then(async |v| v.map(|i| (i.0, i.1, Some(i.2)))),
                     false,
                     block_sync.clone()
                 )
@@ -91,7 +92,8 @@ where
                 tracing::info!(?node_id, "default init");
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
                 let provider = AnvilProvider::new(
-                    WalletProvider::new(node_config.clone()),
+                    WalletProvider::new(node_config.clone())
+                        .then(async |v| v.map(|i| (i.0, i.1, None))),
                     false,
                     block_sync.clone()
                 )
