@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use angstrom_types::{matching::SqrtPriceX96, primitive::PoolId};
 use itertools::Itertools;
 use reth_provider::test_utils::NoopProvider;
@@ -8,8 +8,12 @@ use reth_tasks::TaskExecutor;
 use testing_tools::{
     controllers::enviroments::AngstromTestnet,
     types::{
-        GlobalTestingConfig, actions::WithAction, checked_actions::WithCheckedAction,
-        checks::WithCheck, config::DevnetConfig, initial_state::PartialConfigPoolKey
+        GlobalTestingConfig,
+        actions::WithAction,
+        checked_actions::WithCheckedAction,
+        checks::WithCheck,
+        config::DevnetConfig,
+        initial_state::{Erc20ToDeploy, PartialConfigPoolKey}
     }
 };
 use tracing::{debug, info};
@@ -22,36 +26,45 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
     let initial_state = config.initial_state_config();
 
     let mut testnet =
-        AngstromTestnet::spawn_devnet(NoopProvider::default(), config, executor.clone()).await?;
+        AngstromTestnet::spawn_devnet(NoopProvider::default(), config, executor.clone())
+            .await?
+            .as_state_machine();
 
     info!("deployed state machine");
 
-    let peer = testnet.random_peer();
-    peer.start_network_and_consensus_and_validation();
+    let peer = testnet.testnet.random_peer();
+    // peer.start_network_and_consensus_and_validation();
 
-    //
+    // //
 
     let token_gen = peer.strom_validation(|v| v.underlying.token_price_generator());
     let mut pairs_to_pools = token_gen.pairs_to_pools();
-    checked_pair_to_pool(pairs_to_pools.clone(), token_gen.clone());
+    //  checked_pair_to_pool(pairs_to_pools.clone(),
+    // token_gen.clone());
 
     let new_pool_key =
         PartialConfigPoolKey::new(50, 60, 34028236692, SqrtPriceX96::at_tick(0).unwrap());
 
-    testnet.deploy_new_pool(new_pool_key).await?;
-    peer.state_provider().mine_block().await?;
+    // testnet.deploy_new_pool(new_pool_key).await?;
+    // peer.state_provider().mine_block().await?;
 
-    checked_pair_to_pool(pairs_to_pools.clone(), token_gen.clone());
+    // checked_pair_to_pool(pairs_to_pools.clone(), token_gen.clone());
+
+    testnet.advance_block();
+    testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
+    testnet.deploy_new_pool(
+        new_pool_key,
+        Erc20ToDeploy::new("UNO", "1", None),
+        Erc20ToDeploy::new("DOS", "2", None),
+        U256::from(4u8)
+    );
+    testnet.advance_block();
 
     // testnet.advance_block();
-    // testnet.deploy_new_pool(new_pool_key);
-    // testnet.advance_block();
-    // testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
-    // // testnet.advance_block();
-    // // pairs_to_pools.in
-    // testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
+    // pairs_to_pools.in
+    testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
 
-    // testnet.run().await;
+    testnet.run().await;
 
     Ok(())
 }

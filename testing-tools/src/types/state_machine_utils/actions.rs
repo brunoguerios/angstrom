@@ -1,12 +1,17 @@
 use std::{future::Future, pin::Pin};
 
+use alloy_primitives::U256;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 
 use crate::{
     controllers::enviroments::{AngstromTestnet, DevnetStateMachine},
     providers::WalletProvider,
-    types::{StateMachineActionHookFn, config::DevnetConfig, initial_state::PartialConfigPoolKey}
+    types::{
+        StateMachineActionHookFn,
+        config::DevnetConfig,
+        initial_state::{Erc20ToDeploy, PartialConfigPoolKey}
+    }
 };
 
 pub trait WithAction<'a, C>
@@ -23,7 +28,13 @@ where
 
     fn advance_block(&mut self);
 
-    async fn deploy_new_pool(&mut self, pool_key: PartialConfigPoolKey);
+    fn deploy_new_pool(
+        &mut self,
+        pool_key: PartialConfigPoolKey,
+        token0: Erc20ToDeploy,
+        token1: Erc20ToDeploy,
+        store_index: U256
+    );
 }
 
 impl<'a, C> WithAction<'a, C> for DevnetStateMachine<'a, C>
@@ -45,9 +56,15 @@ where
         self.add_action("advance block", f);
     }
 
-    async fn deploy_new_pool(&mut self, pool_key: PartialConfigPoolKey) {
+    fn deploy_new_pool(
+        &mut self,
+        pool_key: PartialConfigPoolKey,
+        token0: Erc20ToDeploy,
+        token1: Erc20ToDeploy,
+        store_index: U256
+    ) {
         let f = move |testnet: &'a mut AngstromTestnet<C, DevnetConfig, WalletProvider>| {
-            pin_action(testnet.deploy_new_pool(pool_key))
+            pin_action(testnet.deploy_new_pool(pool_key, token0, token1, store_index))
         };
         self.add_action("deploy new pool", f);
     }

@@ -1,6 +1,7 @@
 use std::{collections::HashSet, pin::Pin};
 
 use alloy::providers::ext::AnvilApi;
+use alloy_primitives::U256;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, FutureExt};
 use itertools::Itertools;
@@ -16,7 +17,7 @@ use crate::{
     types::{
         GlobalTestingConfig,
         config::{DevnetConfig, TestingNodeConfig},
-        initial_state::PartialConfigPoolKey
+        initial_state::{Erc20ToDeploy, PartialConfigPoolKey}
     }
 };
 
@@ -134,7 +135,13 @@ where
     }
 
     /// deploys a new pool
-    pub async fn deploy_new_pool(&self, pool_key: PartialConfigPoolKey) -> eyre::Result<()> {
+    pub async fn deploy_new_pool(
+        &self,
+        pool_key: PartialConfigPoolKey,
+        token0: Erc20ToDeploy,
+        token1: Erc20ToDeploy,
+        store_index: U256
+    ) -> eyre::Result<()> {
         tracing::debug!("deploying new pool on state machine");
         let node = self.get_peer_with(|n| n.state_provider().deployed_addresses().is_some());
         node.start_network_and_consensus_and_validation();
@@ -142,7 +149,9 @@ where
         let config = node.testnet_node_config();
 
         let mut initializer = AnvilInitializer::new_existing(provider, config);
-        initializer.deploy_pool_fulls(vec![pool_key]).await?;
+        initializer
+            .deploy_extra_pool_full(pool_key, token0, token1, store_index)
+            .await?;
 
         node.stop_network_and_consensus_and_validation();
 

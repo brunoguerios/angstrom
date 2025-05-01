@@ -34,7 +34,8 @@ use crate::{
         GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
         initial_state::{
-            DeployedAddresses, InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools
+            DeployedAddresses, Erc20ToDeploy, InitialStateConfig, PartialConfigPoolKey,
+            PendingDeployedPools
         }
     }
 };
@@ -166,10 +167,39 @@ impl AnvilInitializer {
         Ok(())
     }
 
-    async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<Vec<(Address, Address)>> {
+    /// deploys single EXTRA pools (pool key, liquidity, sqrt price)
+    pub async fn deploy_extra_pool_full(
+        &mut self,
+        pool_key: PartialConfigPoolKey,
+        token0: Erc20ToDeploy,
+        token1: Erc20ToDeploy,
+        store_index: U256
+    ) -> eyre::Result<()> {
+        let mut nonce = self
+            .provider
+            .provider
+            .get_transaction_count(self.provider.controller())
+            .await?;
+        let (cur0, cur1) = self.deploy_tokens(&mut nonce, &[token0, token1]).await?[0];
+        self.deploy_pool_full(
+            pool_key.make_pool_key(*self.angstrom.address(), cur0, cur1),
+            pool_key.initial_liquidity(),
+            pool_key.sqrt_price(),
+            store_index
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn deploy_tokens(
+        &mut self,
+        nonce: &mut u64,
+        tokens_to_deploy: &[Erc20ToDeploy]
+    ) -> eyre::Result<Vec<(Address, Address)>> {
         // deploys the tokens
         let mut tokens_with_meta = Vec::new();
-        for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
+        for token_to_deploy in tokens_to_deploy {
             let token_addr = token_to_deploy
                 .deploy_token(&self.provider, nonce, &mut self.pending_state)
                 .await?;
@@ -225,7 +255,9 @@ impl AnvilInitializer {
             .get_transaction_count(self.provider.controller())
             .await?;
 
-        let cur = self.deploy_tokens(&mut nonce).await?;
+        let cur = self
+            .deploy_tokens(&mut nonce, &self.initial_state_config.tokens_to_deploy.clone())
+            .await?;
         for (currency0, currency1) in &cur {
             let pool_key = PoolKey {
                 currency0:   *currency0,
