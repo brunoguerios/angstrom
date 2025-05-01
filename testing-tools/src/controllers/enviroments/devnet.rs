@@ -3,6 +3,7 @@ use std::{collections::HashSet, pin::Pin};
 use alloy::providers::ext::AnvilApi;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
 use futures::{Future, FutureExt};
+use itertools::Itertools;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::TaskExecutor;
@@ -14,7 +15,8 @@ use crate::{
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
         GlobalTestingConfig,
-        config::{DevnetConfig, TestingNodeConfig}
+        config::{DevnetConfig, TestingNodeConfig},
+        initial_state::PartialConfigPoolKey
     }
 };
 
@@ -127,6 +129,25 @@ where
                 self.single_peer_update_state(0, node_id).await?;
             }
         }
+
+        Ok(())
+    }
+
+    /// deploys a new pool
+    pub(crate) async fn deploy_new_pool(
+        &mut self,
+        pool_key: PartialConfigPoolKey
+    ) -> eyre::Result<()> {
+        tracing::debug!("deploying new pool on state machine");
+        let node = self.get_peer_with(|n| n.state_provider().deployed_addresses().is_some());
+        node.start_network();
+        let provider = node.state_provider();
+        let config = node.testnet_node_config();
+
+        let mut initializer = AnvilInitializer::new_existing(provider, config);
+        initializer.deploy_pool_fulls(vec![pool_key]).await?;
+
+        node.stop_network();
 
         Ok(())
     }

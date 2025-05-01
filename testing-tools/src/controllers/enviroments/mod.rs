@@ -7,13 +7,11 @@ use std::{
 };
 
 use alloy::{node_bindings::AnvilInstance, providers::Provider};
-use alloy_primitives::Address;
 use angstrom_network::{
     NetworkOrderEvent, StromMessage, StromNetworkManager, manager::StromConsensusEvent
 };
-use angstrom_types::{primitive::PoolId, sol_bindings::grouped_orders::AllOrders};
+use angstrom_types::sol_bindings::grouped_orders::AllOrders;
 use futures::TryFutureExt;
-use itertools::Itertools;
 use rand::Rng;
 use reth_chainspec::Hardforks;
 use reth_metrics::common::mpsc::{
@@ -27,8 +25,8 @@ use tracing::{Instrument, Level, span};
 
 use crate::{
     controllers::strom::TestnetNode,
-    providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, utils::async_to_sync},
-    types::{GlobalTestingConfig, WithWalletProvider, initial_state::PartialConfigPoolKey}
+    providers::{AnvilProvider, TestnetBlockProvider, utils::async_to_sync},
+    types::{GlobalTestingConfig, WithWalletProvider}
 };
 
 pub struct AngstromTestnet<C: Unpin, G, P> {
@@ -85,9 +83,9 @@ where
             .unwrap_or_else(|| panic!("peer {id} not found"))
     }
 
-    pub fn get_peer_with(
+    pub fn get_peer_with<F: Fn(&TestnetNode<C, P, G>) -> bool + Send>(
         &self,
-        f: impl Fn(&TestnetNode<C, P, G>) -> bool
+        f: F
     ) -> &TestnetNode<C, P, G> {
         self.peers
             .iter()
@@ -327,36 +325,5 @@ where
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(blocks.into_iter().all(|(_, b)| b == expected_block_num))
-    }
-
-    /// deploys a new pool
-    pub(crate) async fn deploy_new_pool(&self, pool_key: PartialConfigPoolKey) -> eyre::Result<()> {
-        tracing::debug!("deploying new pool on state machine");
-        let node = self.get_peer_with(|n| n.state_provider().deployed_addresses().is_some());
-        let provider = node.state_provider();
-        let config = node.testnet_node_config();
-
-        let mut initializer = AnvilInitializer::new_existing(provider, config);
-        initializer.deploy_pool_fulls(vec![pool_key]).await?;
-
-        Ok(())
-    }
-
-    /// checks the [TokenPriceGenerator] has certains pairs/pools
-    pub(crate) fn check_token_price_gen_has_pools(
-        &self,
-        checked_pair_to_pool: HashMap<(Address, Address), PoolId>
-    ) -> bool {
-        let token_gen = self
-            .random_peer()
-            .strom_validation(|v| v.underlying.token_price_generator());
-
-        let pairs_to_pools = token_gen.pairs_to_pools();
-        let binding = token_gen.prev_prices();
-        let prev_prices = binding.keys().sorted().collect::<Vec<_>>();
-
-        let checked_pair_to_pool_ids = checked_pair_to_pool.values().sorted().collect::<Vec<_>>();
-
-        prev_prices == checked_pair_to_pool_ids && checked_pair_to_pool == pairs_to_pools
     }
 }
