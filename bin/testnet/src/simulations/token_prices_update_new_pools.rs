@@ -33,22 +33,12 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
     info!("deployed state machine");
 
     let peer = testnet.testnet.random_peer();
-    // peer.start_network_and_consensus_and_validation();
-
-    // //
 
     let token_gen = peer.strom_validation(|v| v.underlying.token_price_generator());
     let mut pairs_to_pools = token_gen.pairs_to_pools();
-    //  checked_pair_to_pool(pairs_to_pools.clone(),
-    // token_gen.clone());
 
     let new_pool_key =
         PartialConfigPoolKey::new(50, 60, 34028236692, SqrtPriceX96::at_tick(0).unwrap());
-
-    // testnet.deploy_new_pool(new_pool_key).await?;
-    // peer.state_provider().mine_block().await?;
-
-    // checked_pair_to_pool(pairs_to_pools.clone(), token_gen.clone());
 
     testnet.advance_block();
     testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
@@ -60,26 +50,9 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
     );
     testnet.advance_block();
 
-    // testnet.advance_block();
-    // pairs_to_pools.in
     testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
 
     testnet.run().await;
 
     Ok(())
-}
-
-fn checked_pair_to_pool(
-    checked_pair_to_pool: HashMap<(Address, Address), PoolId>,
-    token_gen: TokenPriceGenerator
-) {
-    let pairs_to_pools = token_gen.pairs_to_pools();
-    let binding = token_gen.prev_prices();
-    let prev_prices = binding.keys().sorted().collect::<Vec<_>>();
-
-    let checked_pair_to_pool_ids = checked_pair_to_pool.values().sorted().collect::<Vec<_>>();
-
-    assert_eq!(checked_pair_to_pool, pairs_to_pools);
-
-    assert_eq!(prev_prices, checked_pair_to_pool_ids);
 }
