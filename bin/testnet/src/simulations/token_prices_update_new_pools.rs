@@ -27,7 +27,7 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
         .testnet
         .random_peer()
         .strom_validation(|v| v.underlying.token_price_generator());
-    let pairs_to_pools = token_gen.pairs_to_pools();
+    let mut pairs_to_pools = token_gen.pairs_to_pools();
 
     let new_pool_key =
         PartialConfigPoolKey::new(50, 60, 34028236692, SqrtPriceX96::at_tick(0).unwrap());
@@ -36,6 +36,7 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
     testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
     testnet.deploy_new_pool(new_pool_key);
     // testnet.advance_block();
+    // pairs_to_pools.in
     testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
 
     testnet.run().await;
