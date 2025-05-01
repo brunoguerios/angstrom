@@ -346,7 +346,7 @@ where
         &self,
         checked_pair_to_pool: HashMap<(Address, Address), PoolId>
     ) -> bool {
-        tracing::info!("deploying new pool on state machine");
+        tracing::debug!("deploying new pool on state machine");
         let token_gen = self
             .random_peer()
             .strom_validation(|v| v.underlying.token_price_generator());
