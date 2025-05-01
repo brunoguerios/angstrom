@@ -1,5 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
+use alloy::providers::Provider;
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::{handle::Eth, manager::EthEvent};
@@ -110,15 +111,18 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         tracing::info!("made eth internals - getting state stream");
 
-        let b = state_provider
-            .state_provider()
-            .subscribe_to_canonical_state()
-            .recv()
-            .await
-            .expect("startup sequence failed");
+        let block_number = if node_config.is_devnet() {
+            state_provider.rpc_provider().get_block_number().await?
+        } else {
+            let b = state_provider
+                .state_provider()
+                .subscribe_to_canonical_state()
+                .recv()
+                .await?;
 
+            b.tip().number
+        };
         block_sync.clear();
-        let block_number = b.tip().number;
 
         tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
