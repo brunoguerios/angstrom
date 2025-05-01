@@ -35,8 +35,7 @@ pub(crate) trait HookResult: Sized {
     fn fmt_result(self, i: usize, name: &'static str) {
         if let Some(e) = self.error() {
             tracing::error!(target: "devnet::state-machine", hook = i, name, "{:?}", e);
-            // panic!("{:?}", e.root_cause());
-            //panic!();
+            panic!("{:?}", e.root_cause());
         }
 
         if self.is_pass() {

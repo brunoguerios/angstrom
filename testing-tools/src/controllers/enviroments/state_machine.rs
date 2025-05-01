@@ -32,7 +32,6 @@ where
         let hooks = std::mem::take(&mut self.hooks);
 
         for (i, (name, hook)) in hooks.into_iter().enumerate() {
-            tracing::error!(i, name);
             Self::run_hook(
                 unsafe {
                     std::mem::transmute::<
