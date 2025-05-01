@@ -134,7 +134,7 @@ where
     }
 
     /// deploys a new pool
-    pub async fn deploy_new_pool(&mut self, pool_key: PartialConfigPoolKey) -> eyre::Result<()> {
+    pub async fn deploy_new_pool(&self, pool_key: PartialConfigPoolKey) -> eyre::Result<()> {
         tracing::debug!("deploying new pool on state machine");
         let node = self.get_peer_with(|n| n.state_provider().deployed_addresses().is_some());
         node.start_network_and_consensus_and_validation();
