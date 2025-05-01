@@ -272,7 +272,7 @@ where
     pub fn start_network_and_consensus_and_validation(&self) {
         self.start_network();
         self.start_conensus();
-        self.start_validation();
+        // self.start_validation();
     }
 
     pub fn stop_network_and_consensus(&self) {
@@ -283,7 +283,7 @@ where
     pub fn stop_network_and_consensus_and_validation(&self) {
         self.stop_network();
         self.stop_consensus();
-        self.stop_validation();
+        // self.stop_validation();
     }
 
     /// Consensus
