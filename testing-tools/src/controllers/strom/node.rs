@@ -253,6 +253,14 @@ where
         self.state_lock.set_network(false);
     }
 
+    pub fn start_validation(&self) {
+        self.state_lock.set_validation(true);
+    }
+
+    pub fn stop_validation(&self) {
+        self.state_lock.set_validation(false);
+    }
+
     pub fn is_network_on(&self) -> bool {
         self.state_lock.network_state()
     }
@@ -264,12 +272,18 @@ where
     pub fn start_network_and_consensus_and_validation(&self) {
         self.start_network();
         self.start_conensus();
-        self.state_lock.set_validation(true);
+        self.start_validation();
     }
 
     pub fn stop_network_and_consensus(&self) {
         self.stop_network();
         self.stop_consensus();
+    }
+
+    pub fn stop_network_and_consensus_and_validation(&self) {
+        self.stop_network();
+        self.stop_consensus();
+        self.stop_validation();
     }
 
     /// Consensus

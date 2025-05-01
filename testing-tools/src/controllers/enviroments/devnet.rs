@@ -140,14 +140,14 @@ where
     ) -> eyre::Result<()> {
         tracing::debug!("deploying new pool on state machine");
         let node = self.get_peer_with(|n| n.state_provider().deployed_addresses().is_some());
-        node.start_network();
+        node.start_network_and_consensus_and_validation();
         let provider = node.state_provider();
         let config = node.testnet_node_config();
 
         let mut initializer = AnvilInitializer::new_existing(provider, config);
         initializer.deploy_pool_fulls(vec![pool_key]).await?;
 
-        node.stop_network();
+        node.stop_network_and_consensus_and_validation();
 
         Ok(())
     }
