@@ -94,6 +94,8 @@ where
         )
         .await;
 
+        tracing::info!("spawned node");
+
         let (strom, consensus, validation) = AngstromNodeInternals::new(
             node_config.clone(),
             state_provider,
