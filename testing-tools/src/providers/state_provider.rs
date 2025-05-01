@@ -43,6 +43,7 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
 
     pub(crate) fn update_canon_chain(&self, new_block: &Block) -> eyre::Result<()> {
         let state = self.canon_state.new_block(new_block);
+        self.block_sync.new_block(new_block.header.number);
         if self.canon_state_tx.receiver_count() == 0 {
             tracing::warn!("no canon state rx")
         } else {
