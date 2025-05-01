@@ -33,8 +33,8 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
         PartialConfigPoolKey::new(50, 60, 34028236692, SqrtPriceX96::at_tick(0).unwrap());
 
     testnet.advance_block();
-    testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
     testnet.deploy_new_pool(new_pool_key);
+    testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
     // testnet.advance_block();
     // pairs_to_pools.in
     testnet.check_token_price_gen_has_pools(pairs_to_pools.clone());
