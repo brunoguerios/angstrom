@@ -331,6 +331,7 @@ where
 
     /// deploys a new pool
     pub(crate) async fn deploy_new_pool(&self, pool_key: PartialConfigPoolKey) -> eyre::Result<()> {
+        tracing::debug!("deploying new pool on state machine");
         let node = self.get_peer_with(|n| n.state_provider().deployed_addresses().is_some());
         let provider = node.state_provider();
         let config = node.testnet_node_config();
@@ -346,7 +347,6 @@ where
         &self,
         checked_pair_to_pool: HashMap<(Address, Address), PoolId>
     ) -> bool {
-        tracing::debug!("deploying new pool on state machine");
         let token_gen = self
             .random_peer()
             .strom_validation(|v| v.underlying.token_price_generator());

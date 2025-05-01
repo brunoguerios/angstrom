@@ -32,7 +32,7 @@ where
         let hooks = std::mem::take(&mut self.hooks);
 
         for (i, (name, hook)) in hooks.into_iter().enumerate() {
-            if !Self::run_hook(
+            Self::run_hook(
                 unsafe {
                     std::mem::transmute::<
                         &mut AngstromTestnet<C, DevnetConfig, WalletProvider>,
@@ -43,10 +43,7 @@ where
                 name,
                 hook
             )
-            .await
-            {
-                return;
-            }
+            .await;
         }
     }
 
@@ -55,14 +52,14 @@ where
         i: usize,
         name: &'static str,
         hook: StateMachineHook<'a, C>
-    ) -> bool {
+    ) {
         match hook {
             StateMachineHook::Action(action) => action(testnet).await.fmt_result(i, name),
             StateMachineHook::Check(check) => check(testnet).fmt_result(i, name),
             StateMachineHook::CheckedAction(checked_action) => {
                 checked_action(testnet).await.fmt_result(i, name)
             }
-        }
+        };
     }
 
     pub(crate) fn add_check<F>(&mut self, check_name: &'static str, check: F)
