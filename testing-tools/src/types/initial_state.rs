@@ -187,7 +187,7 @@ impl Erc20ToDeploy {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct InitialStateConfig {
     pub addresses_with_tokens: Vec<Address>,
     pub tokens_to_deploy:      Vec<Erc20ToDeploy>,

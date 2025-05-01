@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Parser;
 use testing_tools::types::config::DevnetConfig;
 
@@ -7,7 +9,7 @@ pub struct DevnetCli {
     /// each node will have an rpc submission endpoint at this port + their
     /// node's number
     /// i.e. node 3/3 will have port 4202 if this value is set to 4200
-    #[clap(short = 'p', long, default_value_t = 42000)]
+    #[clap(long, default_value_t = 42000)]
     pub starting_port:           u16,
     /// the speed in which anvil will mine blocks.
     #[clap(short, long, default_value = "12")]
@@ -23,11 +25,21 @@ pub struct DevnetCli {
     pub fork_block:              Option<u64>,
     /// fork url
     #[clap(long, requires = "fork_block")]
-    pub fork_url:                Option<String>
+    pub fork_url:                Option<String>,
+    /// path to the toml file with the pool keys
+    #[clap(short, long, default_value = "./bin/testnet/testnet-config.toml")]
+    pub pool_key_config:         PathBuf
 }
 
 impl DevnetCli {
-    pub fn make_config(self) -> DevnetConfig {
-        DevnetConfig::new(self.nodes_in_network, self.starting_port, self.fork_block, self.fork_url)
+    pub fn make_config(self) -> eyre::Result<DevnetConfig> {
+        let initial_state_config = AllPoolKeyInners::load_toml_config(&self.pool_key_config)?;
+        Ok(DevnetConfig::new(
+            self.nodes_in_network,
+            self.starting_port,
+            self.fork_block,
+            self.fork_url,
+            initial_state_config
+        ))
     }
 }

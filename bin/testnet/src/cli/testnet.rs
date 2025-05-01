@@ -97,14 +97,14 @@ impl TryInto<InitialStateConfig> for AllPoolKeyInners {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct AllPoolKeyInners {
+pub(crate) struct AllPoolKeyInners {
     addresses_with_tokens: Vec<String>,
     tokens_to_deploy:      Vec<TokenToDeploy>,
     pool_keys:             Option<Vec<PoolKeyInner>>
 }
 
 impl AllPoolKeyInners {
-    fn load_toml_config(config_path: &PathBuf) -> eyre::Result<InitialStateConfig> {
+    pub(crate) fn load_toml_config(config_path: &PathBuf) -> eyre::Result<InitialStateConfig> {
         if !config_path.exists() {
             return Err(eyre::eyre!("pool key config file does not exist at {:?}", config_path));
         }
