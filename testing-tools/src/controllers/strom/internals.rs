@@ -104,10 +104,11 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             block_subscription,
             7,
             block_sync.clone()
-        )
-        .await?;
+        )?;
         // wait for new block then clear all proposals and init rest.
         // this gives us 12 seconds so we can ensure all nodes are on the same update
+
+        tracing::info!("made eth internals - getting state stream");
 
         let b = state_provider
             .state_provider()
