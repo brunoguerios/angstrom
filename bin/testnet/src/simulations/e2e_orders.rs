@@ -307,9 +307,13 @@ pub mod test {
             let provider = testnet.node_provider(Some(0)).rpc_provider();
             let addresses = testnet.get_random_peer(vec![]).get_init_state().clone();
 
+            let ex = ctx.task_executor.clone();
             let testnet_task = ctx.task_executor.spawn_critical(
                 "testnet",
-                testnet.run_to_completion(ctx.task_executor.clone()).boxed()
+                Box::pin(async move {
+                    testnet.run_to_completion(ex).await;
+                    tracing::info!("testnet run to completion");
+                })
             );
 
             tracing::info!("testnet configured");
@@ -356,6 +360,8 @@ pub mod test {
             testnet_task.abort();
             eyre::Ok(())
         });
+
+        tracing::info!("returning");
     }
 
     fn add_remove_agent<'a>(

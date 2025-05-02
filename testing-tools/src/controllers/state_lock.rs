@@ -167,19 +167,23 @@ where
         let span = span!(Level::ERROR, "node", id = this.eth_peer.node_id);
         let e = span.enter();
 
-        if this.eth_peer.fut.poll_unpin(cx).is_ready() {
+        if this.strom_network_manager.fut.poll_unpin(cx).is_ready() {
+            tracing::info!("strom network manager complete");
             return Poll::Ready(());
         }
 
-        if this.strom_network_manager.fut.poll_unpin(cx).is_ready() {
+        if this.eth_peer.fut.poll_unpin(cx).is_ready() {
+            tracing::info!("eth peer complete");
             return Poll::Ready(());
         }
 
         if this.strom_consensus.fut.poll_unpin(cx).is_ready() {
+            tracing::info!("strom consensus complete");
             return Poll::Ready(());
         }
 
         if this.validation.fut.poll_unpin(cx).is_ready() {
+            tracing::info!("strom validation complete");
             return Poll::Ready(());
         }
 
