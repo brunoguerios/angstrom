@@ -187,9 +187,19 @@ impl Erc20ToDeploy {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct InitialStateConfig {
     pub addresses_with_tokens: Vec<Address>,
     pub tokens_to_deploy:      Vec<Erc20ToDeploy>,
     pub pool_keys:             Vec<PartialConfigPoolKey>
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DeployedAddresses {
+    pub angstrom_address:         Address,
+    pub pool_gate_address:        Address,
+    pub controller_v1_address:    Address,
+    pub position_fetcher_address: Address,
+    pub pool_manager_address:     Address,
+    pub position_manager_address: Address
 }

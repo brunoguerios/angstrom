@@ -20,7 +20,7 @@ use itertools::Itertools;
 use reth_tasks::TaskExecutor;
 use uniswap_v3_math::tick_math::{MAX_TICK, MIN_TICK};
 
-use super::WalletProvider;
+use super::{AnvilProvider, WalletProvider};
 use crate::{
     contracts::{
         anvil::{SafeDeployPending, WalletProviderRpc},
@@ -33,7 +33,10 @@ use crate::{
     types::{
         GlobalTestingConfig, WithWalletProvider,
         config::TestingNodeConfig,
-        initial_state::{InitialStateConfig, PartialConfigPoolKey, PendingDeployedPools}
+        initial_state::{
+            DeployedAddresses, Erc20ToDeploy, InitialStateConfig, PartialConfigPoolKey,
+            PendingDeployedPools
+        }
     }
 };
 
@@ -51,7 +54,7 @@ impl AnvilInitializer {
     pub async fn new<G: GlobalTestingConfig>(
         config: TestingNodeConfig<G>,
         nodes: Vec<Address>
-    ) -> eyre::Result<(Self, Option<AnvilInstance>)> {
+    ) -> eyre::Result<(Self, Option<AnvilInstance>, DeployedAddresses)> {
         let (provider, anvil) = config.spawn_anvil_rpc().await?;
 
         tracing::debug!("deploying UniV4 enviroment");
@@ -74,6 +77,15 @@ impl AnvilInitializer {
             angstrom_env.provider().clone()
         );
 
+        let deployed_addresses = DeployedAddresses {
+            angstrom_address:         *angstrom.address(),
+            pool_gate_address:        *pool_gate.address(),
+            controller_v1_address:    angstrom_env.controller_v1(),
+            position_fetcher_address: angstrom_env.position_fetcher(),
+            pool_manager_address:     angstrom_env.pool_manager(),
+            position_manager_address: angstrom_env.position_manager()
+        };
+
         let pending_state = PendingDeployedPools::new();
 
         let this = Self {
@@ -86,7 +98,53 @@ impl AnvilInitializer {
             initial_state_config: config.global_config.initial_state_config()
         };
 
-        Ok((this, anvil))
+        Ok((this, anvil, deployed_addresses))
+    }
+
+    pub fn new_existing<G: GlobalTestingConfig, P: WithWalletProvider>(
+        provider: &AnvilProvider<P>,
+        config: TestingNodeConfig<G>
+    ) -> Self {
+        let deployed_addresses = provider
+            .deployed_addresses()
+            .expect("deployed_addresses not set");
+        let provider = provider.wallet_provider();
+        let angstrom =
+            AngstromInstance::new(deployed_addresses.angstrom_address, provider.provider().clone());
+
+        let pool_gate = PoolGateInstance::new(
+            deployed_addresses.pool_gate_address,
+            provider.provider().clone()
+        );
+
+        let controller_v1 = ControllerV1Instance::new(
+            deployed_addresses.controller_v1_address,
+            provider.provider().clone()
+        );
+
+        let pending_state = PendingDeployedPools::new();
+
+        let uniswap_env = UniswapEnv::new_existing(
+            provider.clone(),
+            deployed_addresses.pool_manager_address,
+            deployed_addresses.position_manager_address,
+            deployed_addresses.pool_gate_address
+        );
+
+        Self {
+            provider,
+            controller_v1,
+            angstrom_env: AngstromEnv::new_existing(
+                uniswap_env,
+                deployed_addresses.angstrom_address,
+                deployed_addresses.controller_v1_address,
+                deployed_addresses.position_fetcher_address
+            ),
+            angstrom,
+            pending_state,
+            pool_gate,
+            initial_state_config: config.global_config.initial_state_config()
+        }
     }
 
     /// deploys multiple pools (pool key, liquidity, sqrt price)
@@ -109,10 +167,39 @@ impl AnvilInitializer {
         Ok(())
     }
 
-    async fn deploy_tokens(&mut self, nonce: &mut u64) -> eyre::Result<Vec<(Address, Address)>> {
+    /// deploys single EXTRA pools (pool key, liquidity, sqrt price)
+    pub async fn deploy_extra_pool_full(
+        &mut self,
+        pool_key: PartialConfigPoolKey,
+        token0: Erc20ToDeploy,
+        token1: Erc20ToDeploy,
+        store_index: U256
+    ) -> eyre::Result<()> {
+        let mut nonce = self
+            .provider
+            .provider
+            .get_transaction_count(self.provider.controller())
+            .await?;
+        let (cur0, cur1) = self.deploy_tokens(&mut nonce, &[token0, token1]).await?[0];
+        self.deploy_pool_full(
+            pool_key.make_pool_key(*self.angstrom.address(), cur0, cur1),
+            pool_key.initial_liquidity(),
+            pool_key.sqrt_price(),
+            store_index
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn deploy_tokens(
+        &mut self,
+        nonce: &mut u64,
+        tokens_to_deploy: &[Erc20ToDeploy]
+    ) -> eyre::Result<Vec<(Address, Address)>> {
         // deploys the tokens
         let mut tokens_with_meta = Vec::new();
-        for token_to_deploy in &self.initial_state_config.tokens_to_deploy {
+        for token_to_deploy in tokens_to_deploy {
             let token_addr = token_to_deploy
                 .deploy_token(&self.provider, nonce, &mut self.pending_state)
                 .await?;
@@ -168,7 +255,9 @@ impl AnvilInitializer {
             .get_transaction_count(self.provider.controller())
             .await?;
 
-        let cur = self.deploy_tokens(&mut nonce).await?;
+        let cur = self
+            .deploy_tokens(&mut nonce, &self.initial_state_config.tokens_to_deploy.clone())
+            .await?;
         for (currency0, currency1) in &cur {
             let pool_key = PoolKey {
                 currency0:   *currency0,

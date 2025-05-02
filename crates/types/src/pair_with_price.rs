@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use alloy::{consensus::Transaction, primitives::Address};
 use futures::{Stream, StreamExt};
 use pade::PadeDecode;

@@ -1,8 +1,9 @@
 use std::{collections::HashSet, pin::Pin};
 
 use alloy::providers::ext::AnvilApi;
+use alloy_primitives::U256;
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
-use futures::Future;
+use futures::{Future, FutureExt};
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::TaskExecutor;
@@ -14,7 +15,8 @@ use crate::{
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
         GlobalTestingConfig,
-        config::{DevnetConfig, TestingNodeConfig}
+        config::{DevnetConfig, TestingNodeConfig},
+        initial_state::{Erc20ToDeploy, PartialConfigPoolKey}
     }
 };
 
@@ -76,7 +78,8 @@ where
             tracing::info!(node_id, "connecting to state provider");
             let provider = if self.config.is_leader(node_id) {
                 let mut initializer = AnvilProvider::new(
-                    AnvilInitializer::new(node_config.clone(), node_addresses.clone()),
+                    AnvilInitializer::new(node_config.clone(), node_addresses.clone())
+                        .then(async |v| v.map(|i| (i.0, i.1, Some(i.2)))),
                     false,
                     block_sync.clone()
                 )
@@ -91,7 +94,8 @@ where
                 tracing::info!(?node_id, "default init");
                 let state_bytes = initial_angstrom_state.clone().unwrap().state.unwrap();
                 let provider = AnvilProvider::new(
-                    WalletProvider::new(node_config.clone()),
+                    WalletProvider::new(node_config.clone())
+                        .then(async |v| v.map(|i| (i.0, i.1, None))),
                     false,
                     block_sync.clone()
                 )
@@ -125,6 +129,30 @@ where
                 self.single_peer_update_state(0, node_id).await?;
             }
         }
+
+        Ok(())
+    }
+
+    /// deploys a new pool
+    pub async fn deploy_new_pool(
+        &self,
+        pool_key: PartialConfigPoolKey,
+        token0: Erc20ToDeploy,
+        token1: Erc20ToDeploy,
+        store_index: U256
+    ) -> eyre::Result<()> {
+        tracing::debug!("deploying new pool on state machine");
+        let node = self.get_peer_with(|n| n.state_provider().deployed_addresses().is_some());
+        node.start_network_and_consensus_and_validation();
+        let provider = node.state_provider();
+        let config = node.testnet_node_config();
+
+        let mut initializer = AnvilInitializer::new_existing(provider, config);
+        initializer
+            .deploy_extra_pool_full(pool_key, token0, token1, store_index)
+            .await?;
+
+        node.stop_network_and_consensus_and_validation();
 
         Ok(())
     }

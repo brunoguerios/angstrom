@@ -5,7 +5,7 @@ use alloy::{
     providers::{WalletProvider as _, ext::AnvilApi}
 };
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
-use futures::{Future, StreamExt};
+use futures::{Future, FutureExt, StreamExt};
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::{TaskExecutor, TaskSpawner};
@@ -138,7 +138,8 @@ where
                     let provider = if node_id == 0 {
                         leader_provider.replace(
                             AnvilProvider::new(
-                                WalletProvider::new(node_config.clone()),
+                                WalletProvider::new(node_config.clone())
+                                    .then(async |v| v.map(|i| (i.0, i.1, None))),
                                 true,
                                 block_sync.clone()
                             )
@@ -147,7 +148,8 @@ where
                     } else {
                         tracing::info!(?node_id, "follower node init");
                         AnvilProvider::new(
-                            WalletProvider::new(node_config.clone()),
+                            WalletProvider::new(node_config.clone())
+                                .then(async |v| v.map(|i| (i.0, i.1, None))),
                             true,
                             block_sync.clone()
                         )
@@ -213,7 +215,8 @@ where
         ex: TaskExecutor
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
         let mut provider = AnvilProvider::new(
-            AnvilInitializer::new(config.clone(), node_addresses),
+            AnvilInitializer::new(config.clone(), node_addresses)
+                .then(async |v| v.map(|i| (i.0, i.1, Some(i.2)))),
             true,
             block_sync
         )
