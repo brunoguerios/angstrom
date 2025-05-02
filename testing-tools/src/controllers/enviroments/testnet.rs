@@ -112,7 +112,6 @@ where
 
         // initialize leader provider
         let front = configs.first().unwrap().clone();
-        let l_block_sync = GlobalBlockSync::new(0);
         let leader_provider = Rc::new(Cell::new(
             self.initalize_leader_provider(
                 front,
@@ -126,7 +125,6 @@ where
 
         let nodes = futures::stream::iter(configs.into_iter())
             .map(|node_config| {
-                let block_s = l_block_sync.clone();
                 let block_st = self.block_provider.subscribe_to_new_blocks();
                 let c = c.clone();
                 let initial_validators = initial_validators.clone();
@@ -137,7 +135,7 @@ where
 
                 async move {
                     let node_id = node_config.node_id;
-                    let block_sync = if node_id == 0 { block_s } else { GlobalBlockSync::new(0) };
+                    let block_sync = GlobalBlockSync::new(0);
 
                     tracing::info!(node_id, "connecting to state provider");
                     let provider = if node_id == 0 {
@@ -184,7 +182,7 @@ where
 
                     tracing::info!(node_id, "made angstrom node");
 
-                    eyre::Ok((node_id, node, block_sync.clone()))
+                    eyre::Ok((node_id, node))
                 }
             })
             .buffer_unordered(100)
@@ -192,9 +190,7 @@ where
             .await;
 
         for res in nodes {
-            let (node_id, mut node, bs) = res?;
-            bs.clear();
-            self.block_syncs.push(bs);
+            let (node_id, mut node) = res?;
 
             node.connect_to_all_peers(&mut self.peers).await;
             self.peers.insert(node_id, node);
