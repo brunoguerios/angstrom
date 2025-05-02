@@ -415,7 +415,7 @@ pub mod test {
             blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
             uniswap_pools:       SyncedUniswapPools::new(
                 Default::default(),
-                tokio::sync::mpsc::channel(0).0
+                tokio::sync::mpsc::channel(1).0
             )
         }
     }
@@ -619,7 +619,7 @@ pub mod test {
             blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
             uniswap_pools:       SyncedUniswapPools::new(
                 Default::default(),
-                tokio::sync::mpsc::channel(0).0
+                tokio::sync::mpsc::channel(1).0
             )
         };
 
