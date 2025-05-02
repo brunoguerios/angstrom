@@ -88,11 +88,6 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client.clone());
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
-        block_sync.set_block(block_number);
-
-        let sub = state_provider
-            .state_provider()
-            .subscribe_to_canonical_state();
 
         tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
@@ -118,6 +113,21 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let node_set = initial_validators.iter().map(|v| v.peer_id).collect();
 
+        if node_config.is_devnet() {
+            state_provider.mine_block().await?;
+        }
+        let b = state_provider
+            .state_provider()
+            .subscribe_to_canonical_state()
+            .recv()
+            .await
+            .expect("startup sequence failed");
+        tracing::debug!("got next block");
+
+        let sub = state_provider
+            .state_provider()
+            .subscribe_to_canonical_state();
+
         let eth_handle = EthDataCleanser::spawn(
             inital_angstrom_state.angstrom_addr,
             inital_angstrom_state.controller_addr,
@@ -135,19 +145,10 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         tracing::debug!("spawned data cleaner");
 
-        if node_config.is_devnet() {
-            state_provider.mine_block().await?;
-        }
-        let b = state_provider
-            .state_provider()
-            .subscribe_to_canonical_state()
-            .recv()
-            .await
-            .expect("startup sequence failed");
-        tracing::debug!("got next block");
+        let block_number = b.tip().number;
 
         block_sync.clear();
-        let block_number = b.tip().number;
+        block_sync.set_block(block_number);
 
         tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
