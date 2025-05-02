@@ -36,7 +36,6 @@ pub(crate) trait HookResult: Sized {
         if let Some(e) = self.error() {
             tracing::error!(target: "devnet::state-machine", hook = i, name, "{:?}", e);
             panic!("{:?}", e.root_cause());
-            //panic!();
         }
 
         if self.is_pass() {

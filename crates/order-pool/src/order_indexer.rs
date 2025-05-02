@@ -126,15 +126,19 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             request.order_id,
             &self.order_storage
         ) {
-            // grab all parked orders from this address and check if they are now valid.
+            // grab all parked orders and see if there valid now
             self.order_tracker
                 .pending_orders_for_address(
                     request.user_address,
                     &self.order_storage,
-                    |order_id, storage| storage.remove_order(order_id)
+                    // we only re validate parked orders.
+                    |order_id, storage| storage.remove_parked_order(order_id)
                 )
                 .into_iter()
                 .for_each(|order| {
+                    // otherwise we will have duplicate conflict
+                    self.validator
+                        .cancel_order(order.from(), order.order_hash());
                     self.validator
                         .validate_order(OrderOrigin::Local, order.order);
                 });

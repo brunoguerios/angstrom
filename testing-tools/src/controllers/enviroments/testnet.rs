@@ -5,7 +5,7 @@ use alloy::{
     providers::{WalletProvider as _, ext::AnvilApi}
 };
 use angstrom_types::{block_sync::GlobalBlockSync, testnet::InitialTestnetState};
-use futures::{Future, StreamExt};
+use futures::{Future, FutureExt, StreamExt};
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::{TaskExecutor, TaskSpawner};
@@ -140,11 +140,22 @@ where
                         // change so we don't spawn a new anvil instance
                         config.node_id = 69;
 
-                        leader_provider
-                            .replace(AnvilProvider::new(WalletProvider::new(config), true).await?)
+                        leader_provider.replace(
+                            AnvilProvider::new(
+                                WalletProvider::new(node_config.clone())
+                                    .then(async |v| v.map(|i| (i.0, i.1, None))),
+                                true
+                            )
+                            .await?
+                        )
                     } else {
                         tracing::info!(?node_id, "follower node init");
-                        AnvilProvider::new(WalletProvider::new(node_config.clone()), true).await?
+                        AnvilProvider::new(
+                            WalletProvider::new(node_config.clone())
+                                .then(async |v| v.map(|i| (i.0, i.1, None))),
+                            true
+                        )
+                        .await?
                     };
 
                     tracing::info!(node_id, "connected to state provider");
@@ -204,8 +215,12 @@ where
         node_addresses: Vec<Address>,
         ex: TaskExecutor
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
-        let mut provider =
-            AnvilProvider::new(AnvilInitializer::new(config.clone(), node_addresses), true).await?;
+        let mut provider = AnvilProvider::new(
+            AnvilInitializer::new(config.clone(), node_addresses)
+                .then(async |v| v.map(|i| (i.0, i.1, Some(i.2)))),
+            true
+        )
+        .await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());
 
         tracing::debug!(leader_address = ?provider.rpc_provider().default_signer_address());

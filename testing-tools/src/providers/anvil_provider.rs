@@ -13,12 +13,16 @@ use angstrom_types::CHAIN_ID;
 use futures::{Stream, StreamExt, stream::FuturesOrdered};
 
 use super::{AnvilStateProvider, WalletProvider};
-use crate::{contracts::anvil::WalletProviderRpc, types::WithWalletProvider};
+use crate::{
+    contracts::anvil::WalletProviderRpc,
+    types::{WithWalletProvider, initial_state::DeployedAddresses}
+};
 
 #[derive(Debug)]
 pub struct AnvilProvider<P> {
-    provider:      AnvilStateProvider<P>,
-    pub _instance: Option<AnvilInstance>
+    provider:           AnvilStateProvider<P>,
+    deployed_addresses: Option<DeployedAddresses>,
+    pub _instance:      Option<AnvilInstance>
 }
 impl<P> AnvilProvider<P>
 where
@@ -26,10 +30,14 @@ where
 {
     pub async fn new<F>(fut: F, testnet: bool) -> eyre::Result<Self>
     where
-        F: Future<Output = eyre::Result<(P, Option<AnvilInstance>)>>
+        F: Future<Output = eyre::Result<(P, Option<AnvilInstance>, Option<DeployedAddresses>)>>
     {
-        let (provider, anvil) = fut.await?;
-        let this = Self { provider: AnvilStateProvider::new(provider), _instance: anvil };
+        let (provider, anvil, deployed_addresses) = fut.await?;
+        let this = Self {
+            provider: AnvilStateProvider::new(provider),
+            _instance: anvil,
+            deployed_addresses
+        };
         if testnet {
             let handle = tokio::runtime::Handle::current().clone();
             let sp = this.provider.as_wallet_state_provider();
@@ -38,10 +46,15 @@ where
         Ok(this)
     }
 
+    pub fn deployed_addresses(&self) -> Option<DeployedAddresses> {
+        self.deployed_addresses
+    }
+
     pub fn into_state_provider(&mut self) -> AnvilProvider<WalletProvider> {
         AnvilProvider {
-            provider:  self.provider.as_wallet_state_provider(),
-            _instance: self._instance.take()
+            provider:           self.provider.as_wallet_state_provider(),
+            deployed_addresses: self.deployed_addresses,
+            _instance:          self._instance.take()
         }
     }
 
@@ -156,8 +169,9 @@ impl AnvilProvider<WalletProvider> {
         tracing::info!("connected to anvil");
 
         Ok(Self {
-            provider:  AnvilStateProvider::new(WalletProvider::new_with_provider(rpc, sk)),
-            _instance: Some(anvil)
+            provider:           AnvilStateProvider::new(WalletProvider::new_with_provider(rpc, sk)),
+            _instance:          Some(anvil),
+            deployed_addresses: None
         })
     }
 }

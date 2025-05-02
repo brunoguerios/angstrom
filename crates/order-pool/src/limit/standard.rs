@@ -89,6 +89,17 @@ impl LimitPool {
         Ok(())
     }
 
+    pub fn remove_parked_order(
+        &mut self,
+        pool_id: PoolId,
+        order_id: alloy::primitives::FixedBytes<32>
+    ) -> Option<OrderWithStorageData<AllOrders>> {
+        self.parked_orders.get_mut(&pool_id).and_then(|pool| {
+            pool.remove_order(order_id)
+                .owned_map(|| self.metrics.decr_parked_orders(pool_id, 1))
+        })
+    }
+
     pub fn remove_order(
         &mut self,
         pool_id: PoolId,

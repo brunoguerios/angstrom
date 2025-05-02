@@ -53,11 +53,14 @@ where
         validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>,
         ex: TaskExecutor
     ) -> Self {
+        let validation = StateLockInner::new(node_id, validation, ex.clone());
+        validation.lock.store(true, Ordering::Relaxed);
+
         Self {
-            eth_peer:              StateLockInner::new(node_id, eth_peer, ex.clone()),
+            eth_peer: StateLockInner::new(node_id, eth_peer, ex.clone()),
             strom_network_manager: StateLockInner::new(node_id, strom_network_manager, ex.clone()),
-            strom_consensus:       StateLockInner::new(node_id, consensus, ex.clone()),
-            validation:            StateLockInner::new(node_id, validation, ex.clone())
+            strom_consensus: StateLockInner::new(node_id, consensus, ex.clone()),
+            validation
         }
     }
 
@@ -101,6 +104,20 @@ where
         F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus.on_inner_mut(f)
+    }
+
+    pub(crate) fn strom_validation<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&TestOrderValidator<AnvilStateProvider<WalletProvider>>) -> R
+    {
+        self.validation.on_inner(f)
+    }
+
+    pub(crate) fn strom_validation_mut<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut TestOrderValidator<AnvilStateProvider<WalletProvider>>) -> R
+    {
+        self.validation.on_inner_mut(f)
     }
 
     pub(crate) fn set_validation(&self, running: bool) {

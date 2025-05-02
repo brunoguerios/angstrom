@@ -32,7 +32,7 @@ use crate::{
 pub struct AngstromTestnet<C: Unpin, G, P> {
     block_provider:      TestnetBlockProvider,
     _anvil_instance:     Option<AnvilInstance>,
-    peers:               HashMap<u64, TestnetNode<C, P>>,
+    peers:               HashMap<u64, TestnetNode<C, P, G>>,
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
     current_max_peer_id: u64,
@@ -58,7 +58,7 @@ where
             .state_provider()
     }
 
-    pub fn random_peer(&self) -> &TestnetNode<C, P> {
+    pub fn random_peer(&self) -> &TestnetNode<C, P, G> {
         let mut rng = rand::rng();
         let peer = rng.random_range(0..self.current_max_peer_id);
         self.get_peer(peer)
@@ -77,19 +77,29 @@ where
         ids[id_idx]
     }
 
-    pub fn get_peer(&self, id: u64) -> &TestnetNode<C, P> {
+    pub fn get_peer(&self, id: u64) -> &TestnetNode<C, P, G> {
         self.peers
             .get(&id)
             .unwrap_or_else(|| panic!("peer {id} not found"))
     }
 
-    fn get_peer_mut(&mut self, id: u64) -> &mut TestnetNode<C, P> {
+    pub fn get_peer_with<F: Fn(&TestnetNode<C, P, G>) -> bool + Send>(
+        &self,
+        f: F
+    ) -> &TestnetNode<C, P, G> {
+        self.peers
+            .iter()
+            .find_map(|(_, n)| f(n).then_some(n))
+            .expect("condition not met")
+    }
+
+    fn get_peer_mut(&mut self, id: u64) -> &mut TestnetNode<C, P, G> {
         self.peers
             .get_mut(&id)
             .unwrap_or_else(|| panic!("peer {id} not found"))
     }
 
-    pub fn get_random_peer(&self, not_allowed_ids: Vec<u64>) -> &TestnetNode<C, P> {
+    pub fn get_random_peer(&self, not_allowed_ids: Vec<u64>) -> &TestnetNode<C, P, G> {
         assert!(!self.peers.is_empty());
 
         let peer_ids = self
@@ -227,7 +237,7 @@ where
     /// if id is None, then a random id is used
     async fn run_event<'a, F, O>(&'a self, id: Option<u64>, f: F) -> O::Output
     where
-        F: FnOnce(&'a TestnetNode<C, P>) -> O,
+        F: FnOnce(&'a TestnetNode<C, P, G>) -> O,
         O: Future + Send + Sync
     {
         let id = if let Some(i) = id {
@@ -262,7 +272,7 @@ where
         ) -> Option<UnboundedMeteredSender<E>>
     ) -> R::Output
     where
-        F: FnOnce(&TestnetNode<C, P>) -> O,
+        F: FnOnce(&TestnetNode<C, P, G>) -> O,
         K: FnOnce(Vec<UnboundedMeteredReceiver<E>>, O::Output) -> R,
         O: Future + Send + Sync,
         R: Future + Send + Sync

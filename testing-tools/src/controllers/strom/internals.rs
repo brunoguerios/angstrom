@@ -134,6 +134,10 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         .unwrap();
 
         tracing::debug!("spawned data cleaner");
+
+        if node_config.is_devnet() {
+            state_provider.mine_block().await?;
+        }
         let b = state_provider
             .state_provider()
             .subscribe_to_canonical_state()
@@ -141,9 +145,6 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             .await
             .expect("startup sequence failed");
         tracing::debug!("got next block");
-
-        // wait for new block then clear all proposals and init rest.
-        // this gives us 12 seconds so we can ensure all nodes are on the same update
 
         block_sync.clear();
         let block_number = b.tip().number;

@@ -79,6 +79,12 @@ impl LimitOrderPool {
             .or_else(|| self.composable_orders.remove_order(id.pool_id, id.hash))
     }
 
+    pub fn remove_parked_order(&mut self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
+        self.limit_orders
+            .remove_parked_order(id.pool_id, id.hash)
+            .or_else(|| self.composable_orders.remove_order(id.pool_id, id.hash))
+    }
+
     pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<AllOrders>> {
         self.limit_orders.get_all_orders()
     }

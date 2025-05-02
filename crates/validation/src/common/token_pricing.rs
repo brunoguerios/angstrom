@@ -23,8 +23,9 @@ pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c75
 /// In the case of NON direct eth pairs. we assume that any token liquid enough
 /// to trade on angstrom not with eth will always have a eth pair 1 hop away.
 /// this allows for a simple lookup.
-#[derive(Debug, Default, Clone)]
+#[derive(Clone)]
 pub struct TokenPriceGenerator {
+    uniswap_pools:       SyncedUniswapPools,
     prev_prices:         HashMap<PoolId, VecDeque<PairsWithPrice>>,
     pair_to_pool:        HashMap<(Address, Address), PoolId>,
     /// the token that is the wrapped version of the gas token on the given
@@ -106,7 +107,8 @@ impl TokenPriceGenerator {
             base_gas_token,
             cur_block: current_block,
             pair_to_pool,
-            blocks_to_avg_price
+            blocks_to_avg_price,
+            uniswap_pools: uni
         })
     }
 
@@ -130,18 +132,51 @@ impl TokenPriceGenerator {
             // make sure we aren't replaying
             assert!(pool_update.block_num == self.cur_block + 1);
 
-            let pool_key = self
+            let pool_key = if let Some(p) = self
                 .pair_to_pool
                 .get(&(pool_update.token0, pool_update.token1))
-                .expect("got pool update that we don't have stored");
+            {
+                *p
+            } else {
+                let pk = self
+                    .uniswap_pools
+                    .iter()
+                    .find_map(|val| {
+                        let (pool_key, pool) = val.pair();
+                        let (t0, t1) = {
+                            let pool_read = pool.read().unwrap();
+                            let ts = (pool_read.token0, pool_read.token1);
+                            drop(pool_read);
+                            ts
+                        };
+                        (t0 == pool_update.token0 && t1 == pool_update.token1).then_some(*pool_key)
+                    })
+                    .expect("got pool update that we don't have stored");
+
+                self.pair_to_pool
+                    .insert((pool_update.token0, pool_update.token1), pk);
+                self.prev_prices.insert(pk, VecDeque::new());
+                pk
+            };
             let prev_prices = self
                 .prev_prices
-                .get_mut(pool_key)
+                .get_mut(&pool_key)
                 .expect("don't have prev_prices for update");
             prev_prices.pop_front();
             prev_prices.push_back(pool_update);
         }
         self.cur_block += 1;
+    }
+
+    pub fn new_pool_update(
+        &mut self,
+        pool_id: PoolId,
+        token_0: Address,
+        token_1: Address,
+        prev_prices: VecDeque<PairsWithPrice>
+    ) {
+        self.pair_to_pool.insert((token_0, token_1), pool_id);
+        self.prev_prices.insert(pool_id, prev_prices);
     }
 
     /// NOTE: assumes tokens are properly sorted.
@@ -257,6 +292,29 @@ impl TokenPriceGenerator {
             None
         }
     }
+
+    #[cfg(feature = "testnet")]
+    pub fn pairs_to_pools(&self) -> HashMap<(Address, Address), PoolId> {
+        self.pair_to_pool.clone()
+    }
+
+    #[cfg(feature = "testnet")]
+    pub fn prev_prices(&self) -> HashMap<PoolId, VecDeque<PairsWithPrice>> {
+        self.prev_prices.clone()
+    }
+}
+
+impl std::fmt::Debug for TokenPriceGenerator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenPriceGenerator")
+            .field("prev_prices", &self.prev_prices)
+            .field("pair_to_pool", &self.pair_to_pool)
+            .field("base_gas_token", &self.base_gas_token)
+            .field("cur_block", &self.cur_block)
+            .field("blocks_to_avg_price", &self.blocks_to_avg_price)
+            .field("base_gas_token", &self.base_gas_token)
+            .finish()
+    }
 }
 
 #[cfg(test)]
@@ -269,6 +327,7 @@ pub mod test {
     };
     use angstrom_types::{pair_with_price::PairsWithPrice, sol_bindings::Ray};
     use revm::primitives::address;
+    use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
     use super::{BLOCKS_TO_AVG_PRICE, TokenPriceGenerator, WETH_ADDRESS};
 
@@ -353,7 +412,11 @@ pub mod test {
             prev_prices:         prices,
             base_gas_token:      WETH_ADDRESS,
             pair_to_pool:        pairs_to_key,
-            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE
+            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
+            uniswap_pools:       SyncedUniswapPools::new(
+                Default::default(),
+                tokio::sync::mpsc::channel(1).0
+            )
         }
     }
 
@@ -553,7 +616,11 @@ pub mod test {
             prev_prices:         HashMap::default(),
             base_gas_token:      WETH_ADDRESS,
             pair_to_pool:        HashMap::default(),
-            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE
+            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
+            uniswap_pools:       SyncedUniswapPools::new(
+                Default::default(),
+                tokio::sync::mpsc::channel(1).0
+            )
         };
 
         // Test direct WETH case (should still work)

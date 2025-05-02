@@ -291,7 +291,17 @@ impl OrderStorage {
     }
 
     pub fn remove_parked_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
-        self.remove_order(id)
+        self.limit_orders
+            .lock()
+            .expect("poisoned")
+            .remove_parked_order(id)
+            .inspect(|order| {
+                if order.is_vanilla() {
+                    self.metrics.decr_vanilla_limit_orders(1);
+                } else {
+                    self.metrics.decr_composable_limit_orders(1);
+                }
+            })
     }
 
     pub fn remove_searcher_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {

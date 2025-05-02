@@ -35,6 +35,15 @@ where
         Ok(Self { inner, angstrom, controller_v1, position_fetcher })
     }
 
+    pub fn new_existing(
+        inner: E,
+        angstrom: Address,
+        controller_v1: Address,
+        position_fetcher: Address
+    ) -> Self {
+        Self { inner, angstrom, controller_v1, position_fetcher }
+    }
+
     async fn deploy_angstrom(inner: &E, nodes: Vec<Address>) -> eyre::Result<Address> {
         let provider = inner.provider();
         debug!("Deploying Angstrom...");

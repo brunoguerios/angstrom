@@ -11640,6 +11640,7 @@ dependencies = [
  "enr",
  "eyre",
  "futures",
+ "itertools 0.10.5",
  "jsonrpsee",
  "local-ip-address",
  "matching-engine",
