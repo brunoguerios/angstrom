@@ -108,7 +108,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
-                BlockId::latest(),
+                BlockId::number(block_number),
                 &state_provider.rpc_provider()
             )
             .await

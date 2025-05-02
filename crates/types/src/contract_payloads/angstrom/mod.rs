@@ -1014,6 +1014,7 @@ impl AngstromPoolConfigStore {
         // offset of 6 bytes
         let value = provider
             .get_storage_at(angstrom_contract, U256::from(CONFIG_STORE_SLOT))
+            .block_id(block_id)
             .await
             .map_err(|e| format!("Error getting storage: {}", e))?;
 

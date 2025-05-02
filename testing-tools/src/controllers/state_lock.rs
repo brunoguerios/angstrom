@@ -104,31 +104,31 @@ where
     }
 
     pub(crate) fn set_validation(&self, running: bool) {
-        self.validation.lock.store(running, Ordering::Relaxed);
+        self.validation.lock.store(running, Ordering::SeqCst);
     }
 
     pub(crate) fn set_network(&self, running: bool) {
-        self.eth_peer.lock.store(running, Ordering::Relaxed);
+        self.eth_peer.lock.store(running, Ordering::SeqCst);
         self.strom_network_manager
             .lock
             .store(running, Ordering::Relaxed);
     }
 
     pub(crate) fn set_consensus(&self, running: bool) {
-        self.strom_consensus.lock.store(running, Ordering::Relaxed);
+        self.strom_consensus.lock.store(running, Ordering::SeqCst);
     }
 
     /// false -> off
     /// true -> on
     pub(crate) fn network_state(&self) -> bool {
         self.eth_peer.lock.load(Ordering::Relaxed)
-            && self.strom_network_manager.lock.load(Ordering::Relaxed)
+            && self.strom_network_manager.lock.load(Ordering::SeqCst)
     }
 
     /// false -> off
     /// true -> on
     pub(crate) fn consensus_state(&self) -> bool {
-        self.strom_consensus.lock.load(Ordering::Relaxed)
+        self.strom_consensus.lock.load(Ordering::SeqCst)
     }
 
     pub(crate) fn poll_fut_to_initialize_network_connections(
@@ -253,11 +253,9 @@ where
 
         let span = span!(Level::ERROR, "node", id = this.node_id);
         span.in_scope(|| {
-            if this.lock.load(Ordering::Relaxed) && this.inner.lock_arc().poll_unpin(cx).is_ready()
-            {
+            if this.lock.load(Ordering::SeqCst) && this.inner.lock_arc().poll_unpin(cx).is_ready() {
                 return Poll::Ready(());
             }
-            cx.waker().wake_by_ref();
             Poll::Pending
         })
     }
