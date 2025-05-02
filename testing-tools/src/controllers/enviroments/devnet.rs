@@ -34,6 +34,7 @@ where
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
             peers: Default::default(),
+            block_syncs: vec![],
             _disconnected_peers: HashSet::new(),
             _dropped_peers: HashSet::new(),
             current_max_peer_id: 0,
@@ -112,7 +113,7 @@ where
                 initial_angstrom_state.clone().unwrap(),
                 self.block_provider.subscribe_to_new_blocks(),
                 vec![a],
-                block_sync,
+                block_sync.clone(),
                 ex.clone()
             )
             .await?;
@@ -120,6 +121,7 @@ where
 
             node.connect_to_all_peers(&mut self.peers).await;
             tracing::info!(node_id, "connected to all peers");
+            block_sync.clear();
 
             self.peers.insert(node_id, node);
 

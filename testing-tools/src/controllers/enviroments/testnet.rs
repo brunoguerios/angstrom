@@ -52,6 +52,7 @@ where
             current_max_peer_id: 0,
             config: config.clone(),
             block_provider,
+            block_syncs: vec![],
             _anvil_instance: None
         };
 
@@ -63,6 +64,11 @@ where
     }
 
     pub async fn run_to_completion<TP: TaskSpawner>(mut self, executor: TP) {
+        for s in self.block_syncs {
+            s.clear();
+        }
+        tracing::info!("cleared blocksyncs");
+
         let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
             executor.spawn_critical(
                 format!("testnet node {}", peer.testnet_node_id()).leak(),
@@ -188,6 +194,8 @@ where
         for res in nodes {
             let (node_id, mut node, bs) = res?;
             bs.clear();
+            self.block_syncs.push(bs);
+
             node.connect_to_all_peers(&mut self.peers).await;
             self.peers.insert(node_id, node);
         }
