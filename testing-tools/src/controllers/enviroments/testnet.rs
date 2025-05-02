@@ -142,7 +142,7 @@ where
 
                         leader_provider.replace(
                             AnvilProvider::new(
-                                WalletProvider::new(node_config.clone())
+                                WalletProvider::new(config)
                                     .then(async |v| v.map(|i| (i.0, i.1, None))),
                                 true
                             )
