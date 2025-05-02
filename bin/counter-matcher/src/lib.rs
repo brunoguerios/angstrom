@@ -144,6 +144,7 @@ fn init_tracing() {
             .with_target("angstrom_rpc", level)
             .with_target("angstrom", level)
             .with_target("testing_tools", level)
+            .with_target("counter_matcher", level)
             .with_target("angstrom_eth", level)
             .with_target("matching_engine", level)
             .with_target("uniswap_v4", level)
