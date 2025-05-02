@@ -338,6 +338,7 @@ pub mod test {
 
             // wait some time to ensure that we can properly index the node being removed
             tokio::time::sleep(Duration::from_secs(12 * 3)).await;
+            tracing::info!("slept, adding pool now");
 
             let _ = controller_instance
                 .configurePool(pk.currency0, pk.currency1, 60, pk.fee, U24::ZERO)
@@ -360,6 +361,7 @@ pub mod test {
             testnet_task.abort();
             eyre::Ok(())
         });
+        std::thread::sleep(Duration::from_secs(5));
 
         tracing::info!("returning");
     }
@@ -390,10 +392,11 @@ pub mod test {
                             higher = true;
                             break;
                         }
-                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        tokio::time::sleep(Duration::from_secs(6)).await;
                     }
 
                     WORKED.store(true, std::sync::atomic::Ordering::SeqCst);
+                    tracing::info!("add remove agent completed");
                 }
                 .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))
             );

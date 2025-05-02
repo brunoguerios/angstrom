@@ -64,7 +64,7 @@ where
 
     pub async fn run_to_completion<TP: TaskSpawner>(mut self, executor: TP) {
         let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
-            executor.spawn_critical_blocking(
+            executor.spawn_critical(
                 format!("testnet node {}", peer.testnet_node_id()).leak(),
                 Box::pin(peer.testnet_future())
             )

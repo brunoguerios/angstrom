@@ -104,6 +104,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             .flat_map(|(_, pool)| [pool.currency0, pool.currency1])
             .collect::<HashSet<_>>();
 
+        tracing::debug!("starting to load pool config store");
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
@@ -113,6 +114,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             .await
             .map_err(|e| eyre::eyre!("{e}"))?
         );
+        tracing::debug!("pool config loaded");
 
         let node_set = initial_validators.iter().map(|v| v.peer_id).collect();
 
@@ -130,12 +132,15 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             vec![]
         )
         .unwrap();
+
+        tracing::debug!("spawned data cleaner");
         let b = state_provider
             .state_provider()
             .subscribe_to_canonical_state()
             .recv()
             .await
             .expect("startup sequence failed");
+        tracing::debug!("got next block");
 
         // wait for new block then clear all proposals and init rest.
         // this gives us 12 seconds so we can ensure all nodes are on the same update
@@ -158,6 +163,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             network_stream
         )
         .await;
+        tracing::debug!("uniswap configured");
 
         let uniswap_pools = uniswap_pool_manager.pools();
         executor.spawn_critical(
