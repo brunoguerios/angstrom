@@ -56,9 +56,9 @@ where
             _anvil_instance: None
         };
 
-        tracing::info!("initializing testnet with {} nodes", config.node_count());
+        tracing::error!("initializing testnet with {} nodes", config.node_count());
         this.spawn_new_testnet_nodes(c, agents, ex).await?;
-        tracing::info!("initialized testnet with {} nodes", config.node_count());
+        tracing::error!("initialized testnet with {} nodes", config.node_count());
 
         Ok(this)
     }
@@ -67,7 +67,7 @@ where
         for s in self.block_syncs {
             s.clear();
         }
-        tracing::info!("cleared blocksyncs");
+        tracing::error!("cleared blocksyncs, run to cmp");
 
         let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
             executor.spawn_critical(
@@ -182,7 +182,7 @@ where
 
                     tracing::info!(node_id, "made angstrom node");
 
-                    eyre::Ok((node_id, node))
+                    eyre::Ok((node_id, node, block_sync))
                 }
             })
             .buffer_unordered(100)
@@ -190,7 +190,8 @@ where
             .await;
 
         for res in nodes {
-            let (node_id, mut node) = res?;
+            let (node_id, mut node, bs) = res?;
+            bs.clear();
 
             node.connect_to_all_peers(&mut self.peers).await;
             self.peers.insert(node_id, node);
