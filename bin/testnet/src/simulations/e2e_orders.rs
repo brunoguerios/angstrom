@@ -337,6 +337,7 @@ pub mod test {
             tracing::info!("removed pool \n\n\n\n\n\n");
 
             // wait some time to ensure that we can properly index the node being removed
+
             tokio::time::sleep(Duration::from_secs(12 * 3)).await;
             tracing::info!("slept, adding pool now");
 

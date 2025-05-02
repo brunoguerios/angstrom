@@ -56,9 +56,9 @@ where
             _anvil_instance: None
         };
 
-        tracing::error!("initializing testnet with {} nodes", config.node_count());
+        tracing::info!("initializing testnet with {} nodes", config.node_count());
         this.spawn_new_testnet_nodes(c, agents, ex).await?;
-        tracing::error!("initialized testnet with {} nodes", config.node_count());
+        tracing::info!("initialized testnet with {} nodes", config.node_count());
 
         Ok(this)
     }
@@ -67,7 +67,7 @@ where
         for s in self.block_syncs {
             s.clear();
         }
-        tracing::error!("cleared blocksyncs, run to cmp");
+        tracing::info!("cleared blocksyncs, run to cmp");
 
         let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
             executor.spawn_critical(
