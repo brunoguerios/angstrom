@@ -18,7 +18,8 @@ use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
 use crate::matching::{
-    MatchingPrice, SqrtPriceX96, const_1e6, const_1e27, const_1e54, const_2_192, uniswap::PoolPrice
+    MatchingPrice, SqrtPriceX96, const_1e6, const_1e27, const_1e54, const_2_192,
+    uniswap::{PoolPrice, Quantity}
 };
 
 fn max_tick_ray() -> &'static Ray {
@@ -395,6 +396,15 @@ impl Ray {
         let output = (t1 * const_1e27()).div_round(t0, rm).0;
         let inner = U256::from_limbs_slice(&output.into_limbs_asc());
         Self(inner)
+    }
+
+    /// Given a quantity, determine the cost of that quantity at the current
+    /// price
+    pub fn price_of(&self, q: Quantity, round_up: bool) -> u128 {
+        match q {
+            Quantity::Token0(t0) => self.quantity(t0, round_up),
+            Quantity::Token1(t1) => self.inverse_quantity(t1, round_up)
+        }
     }
 
     /// Given a price ratio t1/t0 calculates how much t1 would be needed to
