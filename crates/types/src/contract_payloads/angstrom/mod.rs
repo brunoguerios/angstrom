@@ -204,6 +204,17 @@ impl AngstromBundle {
         }
     }
 
+    pub fn get_accounts(&self, block_number: u64) -> impl Iterator<Item = Address> + '_ {
+        self.top_of_block_orders
+            .iter()
+            .map(move |order| order.user_address(&self.pairs, &self.assets, block_number))
+            .chain(
+                self.user_orders.iter().map(move |order| {
+                    order.recover_signer(&self.pairs, &self.assets, block_number)
+                })
+            )
+    }
+
     /// the block number is the block that this bundle was executed at.
     pub fn get_order_hashes(&self, block_number: u64) -> impl Iterator<Item = B256> + '_ {
         self.top_of_block_orders
