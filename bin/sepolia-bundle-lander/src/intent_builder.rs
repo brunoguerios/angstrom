@@ -194,7 +194,8 @@ where
         };
 
         let SwapResult { amount0, amount1, sqrt_price_x_96, .. } =
-            self.pool._simulate_swap(t_in, amount, Some(target_price))?;
+            self.pool
+                ._simulate_swap(t_in, amount, Some(target_price), false)?;
 
         let mut clearing_price = Ray::from(SqrtPriceX96::from(sqrt_price_x_96));
         // how much we want to reduce our price from as we don't need the exact.
