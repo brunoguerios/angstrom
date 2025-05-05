@@ -100,7 +100,7 @@ impl OrderBuilder {
         let amount_specified = if exact_in { I256::MAX - I256::ONE } else { I256::MIN + I256::ONE };
 
         let SwapResult { amount0, amount1, sqrt_price_x_96, .. } = pool
-            ._simulate_swap(t_in, amount_specified, Some(price))
+            ._simulate_swap(t_in, amount_specified, Some(price), false)
             .unwrap();
 
         let mut amount_in = u128::try_from(amount0.abs()).unwrap();
@@ -111,11 +111,12 @@ impl OrderBuilder {
             std::mem::swap(&mut amount_in, &mut amount_out);
             price.inv_ray_assign_round(true);
         }
+        let mut price = price.scale_to_fee(pool.book_fee as u128);
 
         let pct = Ray::generate_ray_decimal(95, 2);
         price.mul_ray_assign(pct);
 
-        let modifier = rng.random_range(1.0..1.5);
+        let modifier = rng.random_range(1.1..1.5);
 
         let amount = if exact_in { amount_in } else { amount_out };
         let amount = (amount as f64 * modifier) as u128;
