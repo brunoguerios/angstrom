@@ -70,13 +70,16 @@ pub struct UserOrder {
 }
 
 impl UserOrder {
+    pub fn recover_signer(&self, pair: &[Pair], asset: &[Asset], block: u64) -> Address {
+        self.signature
+            .recover_signer(self.signing_hash(pair, asset, block))
+    }
+
     pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
         // need so we can generate proper order hash.
-        let from = self
-            .signature
-            .recover_signer(self.signing_hash(pair, asset, block));
-
+        let from = self.recover_signer(pair, asset, block);
         let pair = &pair[self.pair_index as usize];
+
         match self.order_quantities {
             OrderQuantities::Exact { quantity } => {
                 if let Some(validation) = &self.standing_validation {

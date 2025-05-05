@@ -270,8 +270,25 @@ where
             .filter(|log| self.angstrom_tokens.contains(&log.address))
             .flat_map(|logs| {
                 Transfer::decode_log(logs)
-                    .map(|log| log._from)
-                    .or_else(|_| Approval::decode_log(logs).map(|log| log._owner))
+                    .map(|log| [log._from, log._to])
+                    .or_else(|_| Approval::decode_log(logs).map(|log| [log._owner, log._spender]))
+            })
+            .flatten()
+            .chain({
+                let tip_txs = chain.tip_transactions().cloned();
+                tip_txs
+                    .filter(|tx| tx.to() == Some(self.angstrom_address))
+                    .filter_map(|transaction| {
+                        let input: &[u8] = transaction.input();
+                        let call = executeCall::abi_decode(input).ok()?;
+
+                        let mut input = call.encoded.as_ref();
+                        AngstromBundle::pade_decode(&mut input, None).ok()
+                    })
+                    .flat_map(|bundle| {
+                        tracing::info!("found angstrom bundle that landed on chain!");
+                        bundle.get_accounts(chain.tip_number()).collect::<Vec<_>>()
+                    })
             })
             .unique()
             .collect()
