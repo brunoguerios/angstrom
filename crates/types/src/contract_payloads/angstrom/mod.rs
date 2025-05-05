@@ -478,7 +478,7 @@ impl AngstromBundle {
             .iter()
             .map(|order| (order, order_list.remove(&order.id)))
             .filter(|(outcome, o)| {
-                if o.is_none() {
+                if o.is_none() && outcome.is_filled() {
                     tracing::error!(?outcome, "lost a order");
                     return false;
                 }
@@ -496,6 +496,7 @@ impl AngstromBundle {
                 user_orders
             )?);
         }
+        tracing::info!(?solution.fee, total_user_fees, "fees for book");
 
         ///////////////////////////////
         //// handling donate merge ////
