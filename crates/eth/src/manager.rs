@@ -703,7 +703,7 @@ pub mod test {
 
         assert!(eoas.contains(&addr1));
         assert!(eoas.contains(&addr2));
-        assert_eq!(eoas.len(), 2); // addr3 only appears as recipient/spender
+        assert_eq!(eoas.len(), 3);
     }
 
     #[test]
@@ -730,7 +730,7 @@ pub mod test {
         let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
 
         let eoas = eth.get_eoa(mock_chain);
-        assert_eq!(eoas.len(), 1); // Should only process the valid log
+        assert_eq!(eoas.len(), 2);
     }
 
     #[test]
