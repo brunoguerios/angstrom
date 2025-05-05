@@ -293,12 +293,12 @@ impl TokenPriceGenerator {
         }
     }
 
-    #[cfg(any(feature = "testnet", feature = "sepolia-testnet"))]
+    #[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
     pub fn pairs_to_pools(&self) -> HashMap<(Address, Address), PoolId> {
         self.pair_to_pool.clone()
     }
 
-    #[cfg(any(feature = "testnet", feature = "sepolia-testnet"))]
+    #[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
     pub fn prev_prices(&self) -> HashMap<PoolId, VecDeque<PairsWithPrice>> {
         self.prev_prices.clone()
     }
