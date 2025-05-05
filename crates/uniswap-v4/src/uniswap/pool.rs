@@ -349,7 +349,8 @@ where
         &self,
         token_in: Address,
         amount_specified: I256,
-        sqrt_price_limit_x96: Option<U256>
+        sqrt_price_limit_x96: Option<U256>,
+        with_fee: bool
     ) -> Result<SwapResult, SwapSimulationError> {
         if amount_specified.is_zero() {
             return Err(SwapSimulationError::ZeroAmountSpecified);
@@ -379,6 +380,7 @@ where
         let mut sqrt_price_x_96 = self.sqrt_price;
         let mut tick = self.tick;
         let mut liquidity = self.liquidity;
+        let fee = with_fee.then_some(self.book_fee).unwrap_or_default();
 
         tracing::trace!(
             token_in = ?token_in,
@@ -424,7 +426,7 @@ where
                     target_sqrt_ratio,
                     liquidity,
                     amount_specified_remaining,
-                    self.book_fee
+                    fee
                 )?;
 
             sqrt_price_x_96 = new_sqrt_price_x_96;
@@ -493,7 +495,8 @@ where
         amount_specified: I256,
         sqrt_price_limit_x96: Option<U256>
     ) -> Result<(I256, I256), SwapSimulationError> {
-        let swap_result = self._simulate_swap(token_in, amount_specified, sqrt_price_limit_x96)?;
+        let swap_result =
+            self._simulate_swap(token_in, amount_specified, sqrt_price_limit_x96, false)?;
         Ok((swap_result.amount0, swap_result.amount1))
     }
 
