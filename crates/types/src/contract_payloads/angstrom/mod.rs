@@ -46,6 +46,8 @@ mod tob;
 pub use order::{OrderQuantities, StandingValidation, UserOrder};
 pub use tob::*;
 
+const LP_DONATION_SPLIT: f64 = 0.75;
+
 #[derive(Debug, PadeEncode, PadeDecode)]
 pub struct AngstromBundle {
     pub assets:              Vec<Asset>,
@@ -559,6 +561,10 @@ impl AngstromBundle {
             Some(book_swap_vec)
         };
 
+        // add user donation split
+        let total_lp_user_donate = (total_user_fees as f64 * LP_DONATION_SPLIT) as u128;
+        let save_amount = total_user_fees - total_lp_user_donate;
+
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
         // (`book_swap_vec`) to distribute any extra rewards from our book matching.
@@ -572,7 +578,7 @@ impl AngstromBundle {
         // book.  So let's do that
         let book_donation_vec = book_swap_vec
             .as_ref()
-            .map(|bsv| bsv.t0_donation_vec(solution.reward_t0));
+            .map(|bsv| bsv.t0_donation_vec(solution.reward_t0 + total_lp_user_donate));
 
         let tob_donation_vec = tob_swap_info
             .as_ref()
@@ -589,7 +595,7 @@ impl AngstromBundle {
         let total_donation = donation
             .as_ref()
             .map(|d| d.total_donated)
-            .unwrap_or(solution.reward_t0);
+            .unwrap_or(solution.reward_t0 + total_lp_user_donate);
 
         // Find our net AMM vec by combining T0s.  There's not a specific reason we use
         // T0 for this, we might want to make this a bit more robust or careful
@@ -657,11 +663,8 @@ impl AngstromBundle {
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_donation);
-        // We don't really have user fees right now but if some sneak in, let's save
-        // them.  We shouldn't call this gas fee, should overhaul this whole construct
-        // This is really wonky overall argh
-        asset_builder.allocate(AssetBuilderStage::Reward, t0, total_user_fees);
-        asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, total_user_fees);
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, save_amount);
+        asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, save_amount);
         // Account for our tribute
 
         let (rewards_update, optional_reward) = donation
