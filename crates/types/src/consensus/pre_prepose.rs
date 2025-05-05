@@ -23,9 +23,7 @@ use crate::{
 pub struct PreProposal {
     pub block_height: BlockNumber,
     pub source:       PeerId,
-    // TODO: this really should be HashMap<PoolId, GroupedVanillaOrder>
     pub limit:        Vec<B256>,
-    // TODO: this really should be another type with HashMap<PoolId, {order, tob_reward}>
     pub searcher:     Vec<B256>,
     /// The signature is over the ethereum height as well as the limit and
     /// searcher sets
@@ -100,19 +98,6 @@ impl PreProposal {
 
     fn payload(&self) -> Bytes {
         Bytes::from(Self::serialize_payload(&self.block_height, &self.limit, &self.searcher))
-    }
-
-    pub fn orders_by_pool_id(
-        preproposals: &[PreProposal]
-    ) -> HashMap<PoolId, HashSet<OrderWithStorageData<AllOrders>>> {
-        preproposals
-            .iter()
-            .flat_map(|p| p.limit.iter())
-            .cloned()
-            .fold(HashMap::new(), |mut acc, order| {
-                acc.entry(order.pool_id).or_default().insert(order);
-                acc
-            })
     }
 }
 
