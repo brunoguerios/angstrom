@@ -121,7 +121,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.validator
             .cancel_order(request.user_address, request.order_id);
 
-        if let Some(pool_id) = self.order_tracker.cancel_order(
+        if let Some((is_tob, pool_id)) = self.order_tracker.cancel_order(
             request.user_address,
             request.order_id,
             &self.order_storage
@@ -145,6 +145,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
             self.subscribers
                 .notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
+                    is_tob,
                     order_hash: request.order_id,
                     user: request.user_address,
                     pool_id
@@ -379,6 +380,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.subscribers.notify_expired_orders(&expired_orders);
 
         completed_orders.extend(expired_orders);
+
         self.validator.notify_validation_on_changes(
             block_number,
             completed_orders,

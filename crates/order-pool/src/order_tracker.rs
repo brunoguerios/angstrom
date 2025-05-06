@@ -205,7 +205,7 @@ impl OrderTracker {
         from: Address,
         hash: B256,
         storage: &OrderStorage
-    ) -> Option<PoolId> {
+    ) -> Option<(bool, PoolId)> {
         self.order_hash_to_order_id
             .remove(&hash)
             .and_then(|v| storage.cancel_order(&v))
@@ -214,7 +214,7 @@ impl OrderTracker {
                 self.order_hash_to_peer_id.remove(&order.order_hash());
                 self.insert_cancel_with_deadline(order.from(), &hash, order.deadline());
 
-                order.pool_id
+                (order.is_tob(), order.pool_id)
             })
             .or_else(|| {
                 // in the case we haven't index the order yet, we are going to add it

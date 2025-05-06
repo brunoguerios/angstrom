@@ -28,7 +28,12 @@ pub enum PoolManagerUpdate {
     NewOrder(OrderWithStorageData<AllOrders>),
     FilledOrder(u64, OrderWithStorageData<AllOrders>),
     UnfilledOrders(OrderWithStorageData<AllOrders>),
-    CancelledOrder { user: Address, pool_id: FixedBytes<32>, order_hash: B256 },
+    CancelledOrder {
+        is_tob:     bool,
+        user:       Address,
+        pool_id:    FixedBytes<32>,
+        order_hash: B256
+    },
     ExpiredOrder(B256)
 }
 
