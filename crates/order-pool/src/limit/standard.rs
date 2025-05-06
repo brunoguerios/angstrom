@@ -41,9 +41,11 @@ impl LimitPool {
             })
             .or_else(|| {
                 self.parked_orders.values().find_map(|pool| {
-                    let _ = pool.get_order(order_hash)?;
+                    let order = pool.get_order(order_hash)?;
                     // found order return some pending
-                    Some(OrderStatus::Blocked)
+                    Some(OrderStatus::Blocked(
+                        order.is_currently_valid.as_ref().unwrap().to_string()
+                    ))
                 })
             })
     }

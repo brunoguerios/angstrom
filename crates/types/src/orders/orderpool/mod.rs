@@ -13,7 +13,7 @@ use crate::{
 pub enum OrderStatus {
     Filled,
     Pending,
-    Blocked,
+    Blocked(String),
     OrderNotFound
 }
 
