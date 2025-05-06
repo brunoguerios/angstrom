@@ -198,15 +198,11 @@ impl OrderStorage {
         let searcher_orders = self.searcher_orders.lock().expect("lock poisoned");
 
         for pool_id in searcher_orders.get_all_pool_ids() {
-            if let Some(top_order) = searcher_orders
+            let orders = searcher_orders
                 .get_orders_for_pool(&pool_id)
-                .unwrap_or_else(|| panic!("pool {} does not exist", pool_id))
-                .iter()
-                .max_by_key(|order| order.tob_reward)
-                .cloned()
-            {
-                top_orders.push(top_order);
-            }
+                .unwrap_or_else(|| panic!("pool {} does not exist", pool_id));
+
+            top_orders.extend(orders);
         }
 
         top_orders
