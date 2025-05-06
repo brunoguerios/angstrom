@@ -52,6 +52,10 @@ pub enum OrderSubscriptionFilter {
     ByPair(FixedBytes<32>),
     /// only returns subscription updates related to a address
     ByAddress(Address),
+    /// only TOB orders
+    OnlyTOB,
+    /// only book orders
+    OnlyBook,
     /// returns all subscription updates
     #[default]
     None

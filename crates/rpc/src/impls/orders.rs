@@ -4,7 +4,7 @@ use alloy_primitives::{Address, B256, FixedBytes, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::PoolId,
-    sol_bindings::grouped_orders::AllOrders
+    sol_bindings::{RawPoolOrder, grouped_orders::AllOrders}
 };
 use futures::StreamExt;
 use jsonrpsee::{PendingSubscriptionSink, SubscriptionMessage, core::RpcResult};
@@ -185,6 +185,10 @@ impl OrderFilterMatching for PoolManagerUpdate {
                 if kind.contains(&OrderSubscriptionKind::NewOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
+                            && order.is_tob())
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
+                            && !order.is_tob())
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::NewOrder(order.order))
@@ -193,6 +197,10 @@ impl OrderFilterMatching for PoolManagerUpdate {
                 if kind.contains(&OrderSubscriptionKind::FilledOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
+                            && order.is_tob())
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
+                            && !order.is_tob())
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::FilledOrder(block, order.order))
@@ -201,14 +209,20 @@ impl OrderFilterMatching for PoolManagerUpdate {
                 if kind.contains(&OrderSubscriptionKind::UnfilledOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
+                            && order.is_tob())
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
+                            && !order.is_tob())
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::UnfilledOrder(order.order))
             }
-            PoolManagerUpdate::CancelledOrder { order_hash, user, pool_id }
+            PoolManagerUpdate::CancelledOrder { is_tob, order_hash, user, pool_id }
                 if kind.contains(&OrderSubscriptionKind::CancelledOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(user))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB) && is_tob)
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook) && !is_tob)
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::CancelledOrder(order_hash))
