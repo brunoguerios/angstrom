@@ -9,6 +9,7 @@ use crate::contract_bindings::angstrom::Angstrom::PoolKey;
 #[derive(Debug, Clone)]
 pub struct InitialTestnetState {
     pub angstrom_addr:     Address,
+    pub controller_addr:   Address,
     pub pool_manager_addr: Address,
     pub state:             Option<Bytes>,
     pub pool_keys:         Vec<PoolKey>,
@@ -18,12 +19,13 @@ pub struct InitialTestnetState {
 impl InitialTestnetState {
     pub fn new(
         angstrom_addr: Address,
+        controller_addr: Address,
         pool_manager_addr: Address,
         state: Option<Bytes>,
         pool_keys: Vec<PoolKey>,
         ex: TaskExecutor
     ) -> Self {
-        Self { angstrom_addr, state, pool_manager_addr, pool_keys, ex }
+        Self { angstrom_addr, controller_addr, state, pool_manager_addr, pool_keys, ex }
     }
 }
 

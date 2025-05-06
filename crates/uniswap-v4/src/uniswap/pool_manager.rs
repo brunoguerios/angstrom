@@ -19,8 +19,7 @@ use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_payloads::angstrom::TopOfBlockOrder as PayloadTopOfBlockOrder,
     primitive::PoolId,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
-    uni_structure::BaselinePoolState
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
 use dashmap::DashMap;
@@ -98,6 +97,10 @@ where
         Self { pools, tx }
     }
 
+    pub fn pool_count(&self) -> usize {
+        self.pools.len()
+    }
+
     /// Will calculate the tob rewards that this order specifies. More Notably,
     /// this function is async and will make sure that we always have the
     /// needed ticks loaded in order to ensure we can always properly
@@ -112,7 +115,10 @@ where
         let mut cnt = ATTEMPTS;
         loop {
             let market_snapshot = {
-                let p_lock = self.pools.get(&pool_id).unwrap();
+                let p_lock = self
+                    .pools
+                    .get(&pool_id)
+                    .expect("failed to get pool to calculate rewards");
                 let pool = p_lock.read().unwrap();
                 pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
             };
@@ -126,7 +132,10 @@ where
                 let not = Arc::new(Notify::new());
                 // scope for awaits
                 let start_tick = {
-                    let p_lock = self.pools.get(&pool_id).unwrap();
+                    let p_lock = self
+                        .pools
+                        .get(&pool_id)
+                        .expect("failed to get pool to calc rewards");
                     let pool = p_lock.read().unwrap();
                     if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() }
                 };
@@ -197,7 +206,7 @@ where
             .init(latest_synced_block)
             .await
             .into_iter()
-            .map(|pool| (pool.address(), Arc::new(RwLock::new(pool))))
+            .map(|pool| (pool.public_address(), Arc::new(RwLock::new(pool))))
             .collect();
 
         let block_stream = <P as Clone>::clone(&provider);
@@ -217,54 +226,12 @@ where
         }
     }
 
-    pub fn fetch_pool_snapshots(&self) -> HashMap<PoolId, BaselinePoolState> {
-        self.pools
-            .iter()
-            .filter_map(|refr| {
-                let key = refr.key();
-                let pool = refr.value();
-                // gotta
-                Some((
-                    self.convert_to_pub_id(key),
-                    pool.read().unwrap().fetch_pool_snapshot().ok()?.2
-                ))
-            })
-            .collect()
-    }
-
     pub fn pool_addresses(&self) -> impl Iterator<Item = PoolId> + '_ {
-        self.pools.iter().map(|k| self.convert_to_pub_id(k.key()))
+        self.pools.iter().map(|k| *k.key())
     }
 
     pub fn pools(&self) -> SyncedUniswapPools {
-        let mut c = self.pools.clone();
-        c.pools = Arc::new(
-            c.pools
-                .iter()
-                .map(|refr| {
-                    let k = refr.key();
-                    let v = refr.value();
-
-                    (self.convert_to_pub_id(k), v.clone())
-                })
-                .collect()
-        );
-
-        c
-    }
-
-    fn convert_to_pub_id(&self, key: &PoolId) -> PoolId {
-        self.factory
-            .conversion_map()
-            .iter()
-            .find_map(|(r, m)| {
-                if m == key {
-                    return Some(r);
-                }
-                None
-            })
-            .copied()
-            .unwrap()
+        self.pools.clone()
     }
 
     fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
@@ -293,8 +260,11 @@ where
         self.latest_synced_block = chain_head_block_number;
 
         if is_reorg {
-            self.block_sync
-                .sign_off_reorg(MODULE_NAME, block_range.unwrap(), None);
+            self.block_sync.sign_off_reorg(
+                MODULE_NAME,
+                block_range.expect("block range unwrap"),
+                None
+            );
         } else {
             self.block_sync
                 .sign_off_on_block(MODULE_NAME, self.latest_synced_block, None);
@@ -305,7 +275,7 @@ where
         tracing::info!("starting poll");
         for pool in pools.pools.iter() {
             let pool = pool.value();
-            let mut l = pool.write().unwrap();
+            let mut l = pool.write().expect("failed to write to pool");
             async_to_sync(l.update_to_block(Some(block_number), provider.provider())).unwrap();
         }
         tracing::info!("finished");
@@ -318,7 +288,7 @@ where
         tick_req: TickRangeToLoad
     ) {
         let node_provider = provider.provider();
-        let binding = pools.get(&tick_req.pool_id).unwrap();
+        let binding = pools.get(&tick_req.pool_id).expect("failed to get pool");
         let mut pool = binding.write().unwrap();
 
         // given we force this to resolve, should'nt be problematic
@@ -348,27 +318,28 @@ where
         while let Poll::Ready(Some(event)) = self.update_stream.poll_next_unpin(cx) {
             match event {
                 EthEvent::NewPool { pool } => {
+                    tracing::info!(?pool, "adding pool");
                     let block = self.latest_synced_block;
                     let pool =
                         async_to_sync(self.factory.create_new_angstrom_pool(pool.clone(), block));
-                    let key = pool.address();
+                    let key = pool.public_address();
                     self.pools.insert(key, Arc::new(RwLock::new(pool)));
+                    tracing::info!("configured new pool");
                 }
                 EthEvent::RemovedPool { pool } => {
+                    tracing::info!(?pool, "removed pool");
                     let id = self.factory.remove_pool(pool);
-                    self.pools.remove(&id);
+                    self.pools.remove(&id).expect("failed to remove pool");
                 }
                 _ => {}
             }
         }
 
-        while let Poll::Ready(Some((mut ticks, not))) = self.rx.poll_recv(cx) {
+        while let Poll::Ready(Some((ticks, not))) = self.rx.poll_recv(cx) {
             // hacky for now but only way to avoid lock problems
             let pools = self.pools.clone();
             let prov = self.provider.clone();
 
-            let addr = self.factory.conversion_map().get(&ticks.pool_id).unwrap();
-            ticks.pool_id = *addr;
             Self::load_more_ticks(not, pools, prov, ticks);
         }
 

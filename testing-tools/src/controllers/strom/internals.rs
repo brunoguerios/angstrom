@@ -1,8 +1,11 @@
-use std::{pin::Pin, sync::Arc};
+use std::{collections::HashSet, pin::Pin, sync::Arc};
 
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
-use angstrom_eth::{handle::Eth, manager::EthEvent};
+use angstrom_eth::{
+    handle::Eth,
+    manager::{EthDataCleanser, EthEvent}
+};
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
 use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::{
@@ -34,8 +37,8 @@ use crate::{
     agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
     providers::{
-        AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider,
-        WalletProvider, utils::StromContractInstance
+        AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider, WalletProvider,
+        utils::StromContractInstance
     },
     types::{
         GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig
@@ -84,67 +87,77 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client.clone());
 
-        let block_subscription: Pin<
-            Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>
-        > = if node_config.is_devnet() {
-            Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
-        } else {
-            Box::pin(state_provider.subscribe_blocks().await?)
-        };
-
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
-        block_sync.set_block(block_number);
-
-        let eth_handle = AnvilEthDataCleanser::spawn(
-            node_config.node_id,
-            executor.clone(),
-            inital_angstrom_state.angstrom_addr,
-            strom_handles.eth_tx,
-            strom_handles.eth_rx,
-            block_subscription,
-            7,
-            block_sync.clone()
-        )?;
-        // wait for new block then clear all proposals and init rest.
-        // this gives us 12 seconds so we can ensure all nodes are on the same update
-
-        tracing::info!("made eth internals - getting state");
-
-        let mut canon_state_stream = state_provider
-            .state_provider()
-            .subscribe_to_canonical_state();
-
-        if node_config.is_devnet() {
-            state_provider.mine_block().await?;
-        }
-
-        let b = canon_state_stream.recv().await?;
-
-        block_sync.clear();
-        let block_number = b.tip().number;
 
         tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.clone().into();
 
+        let angstrom_tokens = uniswap_registry
+            .pools()
+            .iter()
+            .flat_map(|(_, pool)| [pool.currency0, pool.currency1])
+            .collect::<HashSet<_>>();
+
+        tracing::debug!("starting to load pool config store");
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
-                BlockId::latest(),
+                BlockId::number(block_number),
                 &state_provider.rpc_provider()
             )
             .await
             .map_err(|e| eyre::eyre!("{e}"))?
         );
+        tracing::debug!("pool config loaded");
+
+        let node_set = initial_validators.iter().map(|v| v.peer_id).collect();
+
+        if node_config.is_devnet() {
+            state_provider.mine_block().await?;
+        }
+        let b = state_provider
+            .state_provider()
+            .subscribe_to_canonical_state()
+            .recv()
+            .await
+            .expect("startup sequence failed");
+        tracing::debug!("got next block");
+
+        let sub = state_provider
+            .state_provider()
+            .subscribe_to_canonical_state();
+
+        let eth_handle = EthDataCleanser::spawn(
+            inital_angstrom_state.angstrom_addr,
+            inital_angstrom_state.controller_addr,
+            sub,
+            executor.clone(),
+            strom_handles.eth_tx,
+            strom_handles.eth_rx,
+            angstrom_tokens,
+            pool_config_store.clone(),
+            block_sync.clone(),
+            node_set,
+            vec![]
+        )
+        .unwrap();
+
+        tracing::debug!("spawned data cleaner");
+
+        let block_number = b.tip().number;
+
+        block_sync.clear();
+        block_sync.set_block(block_number);
+
+        tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
         let network_stream = Box::pin(eth_handle.subscribe_network())
             as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
-            state_provider
-                .state_provider()
-                .subscribe_to_canonical_state(),
+            eth_handle.subscribe_cannon_state_notifications().await,
             uniswap_registry.clone(),
             block_number,
             block_sync.clone(),
@@ -152,6 +165,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             network_stream
         )
         .await;
+        tracing::debug!("uniswap configured");
 
         let uniswap_pools = uniswap_pool_manager.pools();
         executor.spawn_critical(
@@ -257,9 +271,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let consensus = ConsensusManager::new(
             ManagerNetworkDeps::new(
                 strom_network_handle.clone(),
-                state_provider
-                    .state_provider()
-                    .subscribe_to_canonical_state(),
+                eth_handle.subscribe_cannon_state_notifications().await,
                 strom_handles.consensus_rx_op
             ),
             node_config.angstrom_signer(),

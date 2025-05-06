@@ -10,7 +10,7 @@ use alloy::{node_bindings::AnvilInstance, providers::Provider};
 use angstrom_network::{
     NetworkOrderEvent, StromMessage, StromNetworkManager, manager::StromConsensusEvent
 };
-use angstrom_types::sol_bindings::grouped_orders::AllOrders;
+use angstrom_types::{block_sync::GlobalBlockSync, sol_bindings::grouped_orders::AllOrders};
 use futures::TryFutureExt;
 use rand::Rng;
 use reth_chainspec::Hardforks;
@@ -36,6 +36,7 @@ pub struct AngstromTestnet<C: Unpin, G, P> {
     _disconnected_peers: HashSet<u64>,
     _dropped_peers:      HashSet<u64>,
     current_max_peer_id: u64,
+    block_syncs:         Vec<GlobalBlockSync>,
     config:              G
 }
 

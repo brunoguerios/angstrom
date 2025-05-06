@@ -407,6 +407,7 @@ impl AnvilInitializer {
         let state_bytes = self.provider.provider_ref().anvil_dump_state().await?;
         let state = InitialTestnetState::new(
             self.angstrom_env.angstrom(),
+            self.angstrom_env.controller_v1(),
             self.angstrom_env.pool_manager(),
             Some(state_bytes),
             pool_keys.clone(),
@@ -439,6 +440,7 @@ impl AnvilInitializer {
 
         let state = InitialTestnetState::new(
             self.angstrom_env.angstrom(),
+            self.angstrom_env.controller_v1(),
             self.angstrom_env.pool_manager(),
             None,
             pool_keys.clone(),

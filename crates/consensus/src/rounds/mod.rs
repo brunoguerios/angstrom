@@ -210,15 +210,15 @@ where
     ) -> HashMap<FixedBytes<32>, (Address, Address, BaselinePoolState, u16)> {
         self.uniswap_pools
             .iter()
-            .map(|item| {
+            .filter_map(|item| {
                 let key = item.key();
                 let pool = item.value();
                 tracing::info!(?key, "getting snapshot");
                 let (token_a, token_b, snapshot) =
-                    pool.read().unwrap().fetch_pool_snapshot().unwrap();
-                let entry = self.pool_registry.get_ang_entry(key).unwrap();
+                    pool.read().unwrap().fetch_pool_snapshot().ok()?;
+                let entry = self.pool_registry.get_ang_entry(key)?;
 
-                (*key, (token_a, token_b, snapshot, entry.store_index as u16))
+                Some((*key, (token_a, token_b, snapshot, entry.store_index as u16)))
             })
             .collect::<HashMap<_, _>>()
     }

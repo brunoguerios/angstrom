@@ -104,17 +104,30 @@ fn end_to_end_agent<'a>(
 #[cfg(test)]
 pub mod test {
 
-    use std::time::Duration;
+    use std::{sync::atomic::AtomicBool, time::Duration};
 
-    use alloy::{consensus::BlockHeader, providers::Provider, sol_types::SolCall};
+    use alloy::{
+        consensus::BlockHeader,
+        providers::{Provider, WalletProvider},
+        sol_types::SolCall
+    };
+    use alloy_primitives::aliases::U24;
     use alloy_rpc_types::{BlockTransactionsKind, TransactionTrait};
     use angstrom_types::{
-        contract_payloads::angstrom::AngstromBundle, primitive::TESTNET_ANGSTROM_ADDRESS
+        contract_bindings::{
+            angstrom::Angstrom::configurePoolCall,
+            controller_v_1::{
+                self,
+                ControllerV1::{self, removePoolCall}
+            }
+        },
+        contract_payloads::angstrom::AngstromBundle,
+        primitive::TESTNET_ANGSTROM_ADDRESS
     };
     use futures::{FutureExt, StreamExt};
     use pade::PadeDecode;
     use reth_tasks::{TaskSpawner, TokioTaskExecutor};
-    use testing_tools::contracts::anvil::WalletProviderRpc;
+    use testing_tools::{contracts::anvil::WalletProviderRpc, utils::noop_agent};
     use tokio::time::timeout;
 
     use super::*;
@@ -179,6 +192,7 @@ pub mod test {
     }
 
     #[test]
+    #[serial_test::serial]
     fn testnet_lands_block() {
         init_tracing(4);
         let runner = reth::CliRunner::try_default_runtime().unwrap();
@@ -260,5 +274,134 @@ pub mod test {
                 break;
             }
         }
+    }
+
+    static WORKED: AtomicBool = AtomicBool::new(false);
+
+    #[test]
+    #[serial_test::serial]
+    fn test_remove_add_pool() {
+        init_tracing(4);
+        let runner = reth::CliRunner::try_default_runtime().unwrap();
+
+        runner.run_command_until_exit(|ctx| async move {
+            let config = TestnetCli {
+                eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
+                ..Default::default()
+            };
+
+            let config = config.make_config().unwrap();
+
+            let agents = vec![add_remove_agent];
+            tracing::info!("spinning up e2e nodes for angstrom");
+
+            // spawn testnet
+            let testnet = AngstromTestnet::spawn_testnet(
+                NoopProvider::default(),
+                config,
+                agents,
+                ctx.task_executor.clone()
+            )
+            .await
+            .expect("failed to start angstrom testnet");
+
+            // grab provider so we can query from the chain later.
+            let provider = testnet.node_provider(Some(0)).rpc_provider();
+            let addresses = testnet.get_random_peer(vec![]).get_init_state().clone();
+
+            let ex = ctx.task_executor.clone();
+            let testnet_task = ctx.task_executor.spawn_critical(
+                "testnet",
+                Box::pin(async move {
+                    testnet.run_to_completion(ex).await;
+                    tracing::info!("testnet run to completion");
+                })
+            );
+
+            tracing::info!("testnet configured");
+
+            // remove the first configured pool
+            let pk = addresses.pool_keys.first().unwrap();
+            let addr = provider.signer_addresses().collect::<Vec<_>>()[0];
+            let cnt = provider.get_transaction_count(addr).await.unwrap();
+
+            let controller_instance = ControllerV1::new(addresses.controller_addr, provider);
+
+            let _ = controller_instance
+                .removePool(pk.currency0, pk.currency1)
+                .nonce(cnt)
+                .send()
+                .await
+                .unwrap()
+                .watch()
+                .await
+                .unwrap();
+            tracing::info!("removed pool \n\n\n\n\n\n");
+
+            // wait some time to ensure that we can properly index the node being removed
+
+            tokio::time::sleep(Duration::from_secs(12 * 3)).await;
+            tracing::info!("slept, adding pool now \n\n\n\n\n\n\n\n\n\n");
+
+            let _ = controller_instance
+                .configurePool(pk.currency0, pk.currency1, 120, pk.fee, U24::ZERO)
+                .nonce(cnt + 1)
+                .send()
+                .await
+                .unwrap()
+                .watch()
+                .await
+                .unwrap();
+            tracing::info!("configured pool \n\n\n\n\n\n\n\n\n\n");
+            // wait for the pool to be re-indexed.
+            tokio::time::sleep(Duration::from_secs(12 * 3)).await;
+
+            assert!(
+                WORKED.load(std::sync::atomic::Ordering::SeqCst),
+                "failed to properly remove and add pool"
+            );
+
+            testnet_task.abort();
+            eyre::Ok(())
+        });
+    }
+
+    fn add_remove_agent<'a>(
+        init: &'a InitialTestnetState,
+        agent_config: AgentConfig
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            tracing::info!("starting add remove listener");
+            // what we want to do is remove and then add back a pool. from this we want to
+            // see the pools update to ensure that configure + remove
+            // functionality works.
+            tokio::spawn(
+                async move {
+                    let start_pool_len = agent_config.uniswap_pools.len();
+                    let mut lower = false;
+                    let mut higher = false;
+
+                    loop {
+                        let this_len = agent_config.uniswap_pools.len();
+
+                        if this_len + 1 == start_pool_len {
+                            tracing::info!("processed removed pool");
+                            lower = true;
+                        } else if lower && this_len == start_pool_len {
+                            tracing::info!("processed added pool");
+                            higher = true;
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_secs(6)).await;
+                    }
+
+                    WORKED.store(true, std::sync::atomic::Ordering::SeqCst);
+                    tracing::info!("add remove agent completed");
+                }
+                .instrument(span!(Level::ERROR, "order builder", ?agent_config.agent_id))
+            );
+
+            Ok(())
+        }) as Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>
     }
 }

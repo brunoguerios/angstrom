@@ -47,6 +47,7 @@ pub struct TestnetNode<C: Unpin, P, G> {
     testnet_node_id: u64,
     network:         TestnetNodeNetwork,
     strom:           AngstromNodeInternals<P>,
+    init_state:      InitialTestnetState,
     state_lock:      TestnetStateFutureLock<C, WalletProviderRpc, NetworkHandle>,
     config:          TestingNodeConfig<G>
 }
@@ -103,7 +104,7 @@ where
             strom_network.strom_handle.network_handle().clone(),
             initial_validators,
             block_provider,
-            inital_angstrom_state,
+            inital_angstrom_state.clone(),
             agents,
             block_sync,
             ex.clone()
@@ -126,8 +127,13 @@ where
             network: strom_network,
             strom,
             state_lock,
+            init_state: inital_angstrom_state,
             config: node_config
         })
+    }
+
+    pub fn get_init_state(&self) -> &InitialTestnetState {
+        &self.init_state
     }
 
     /// General
