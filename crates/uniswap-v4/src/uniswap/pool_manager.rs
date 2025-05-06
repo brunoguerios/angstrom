@@ -227,7 +227,7 @@ where
     }
 
     pub fn pool_addresses(&self) -> impl Iterator<Item = PoolId> + '_ {
-        self.pools.iter().map(|k| k.key().clone())
+        self.pools.iter().map(|k| *k.key())
     }
 
     pub fn pools(&self) -> SyncedUniswapPools {
@@ -329,10 +329,7 @@ where
                 EthEvent::RemovedPool { pool } => {
                     tracing::info!(?pool, "removed pool");
                     let id = self.factory.remove_pool(pool);
-                    let pool_cnt = self.pools.len();
                     self.pools.remove(&id).expect("failed to remove pool");
-                    let pool_cnt_post = self.pools.len();
-                    tracing::info!(?pool_cnt, ?pool_cnt_post, "removed pool \n\n\n\n\n\n\n\n\n");
                 }
                 _ => {}
             }

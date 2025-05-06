@@ -774,8 +774,12 @@ mod tests {
             unimplemented!()
         }
 
-        fn address(&self) -> PoolId {
-            unimplemented!()
+        fn private_address(&self) -> PoolId {
+            unreachable!()
+        }
+
+        fn public_address(&self) -> PoolId {
+            unreachable!()
         }
 
         fn group_logs(_: Vec<Log>) -> HashMap<PoolId, Vec<Log>> {

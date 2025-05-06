@@ -320,7 +320,7 @@ pub mod test {
 
             // remove the first configured pool
             let pk = addresses.pool_keys.first().unwrap();
-            let addr = provider.signer_addresses().collect::<Vec<_>>()[0].clone();
+            let addr = provider.signer_addresses().collect::<Vec<_>>()[0];
             let cnt = provider.get_transaction_count(addr).await.unwrap();
 
             let controller_instance = ControllerV1::new(addresses.controller_addr, provider);
@@ -383,7 +383,7 @@ pub mod test {
                         let this_len = agent_config.uniswap_pools.len();
 
                         if this_len + 1 == start_pool_len {
-                            tracing::info!("processed removed pool\n\n\n\n\n\n\n\n\n\n\n\n\n");
+                            tracing::info!("processed removed pool");
                             lower = true;
                         } else if lower && this_len == start_pool_len {
                             tracing::info!("processed added pool");
