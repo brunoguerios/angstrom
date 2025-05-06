@@ -117,7 +117,10 @@ where
         let mut cnt = ATTEMPTS;
         loop {
             let market_snapshot = {
-                let p_lock = self.pools.get(&pool_id).unwrap();
+                let p_lock = self
+                    .pools
+                    .get(&pool_id)
+                    .expect("failed to get pool to calculate rewards");
                 let pool = p_lock.read().unwrap();
                 pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
             };
@@ -131,7 +134,10 @@ where
                 let not = Arc::new(Notify::new());
                 // scope for awaits
                 let start_tick = {
-                    let p_lock = self.pools.get(&pool_id).unwrap();
+                    let p_lock = self
+                        .pools
+                        .get(&pool_id)
+                        .expect("failed to get pool to calc rewards");
                     let pool = p_lock.read().unwrap();
                     if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() }
                 };
@@ -231,7 +237,11 @@ where
                 // gotta
                 Some((
                     self.convert_to_pub_id(key),
-                    pool.read().unwrap().fetch_pool_snapshot().ok()?.2
+                    pool.read()
+                        .expect("lock busted")
+                        .fetch_pool_snapshot()
+                        .ok()?
+                        .2
                 ))
             })
             .collect()
@@ -269,7 +279,7 @@ where
                 None
             })
             .copied()
-            .unwrap()
+            .expect("failed to convert to pub id")
     }
 
     fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
@@ -298,8 +308,11 @@ where
         self.latest_synced_block = chain_head_block_number;
 
         if is_reorg {
-            self.block_sync
-                .sign_off_reorg(MODULE_NAME, block_range.unwrap(), None);
+            self.block_sync.sign_off_reorg(
+                MODULE_NAME,
+                block_range.expect("block range unwrap"),
+                None
+            );
         } else {
             self.block_sync
                 .sign_off_on_block(MODULE_NAME, self.latest_synced_block, None);
@@ -310,7 +323,7 @@ where
         tracing::info!("starting poll");
         for pool in pools.pools.iter() {
             let pool = pool.value();
-            let mut l = pool.write().unwrap();
+            let mut l = pool.write().expect("failed to write to pool");
             async_to_sync(l.update_to_block(Some(block_number), provider.provider())).unwrap();
         }
         tracing::info!("finished");
@@ -323,7 +336,7 @@ where
         tick_req: TickRangeToLoad
     ) {
         let node_provider = provider.provider();
-        let binding = pools.get(&tick_req.pool_id).unwrap();
+        let binding = pools.get(&tick_req.pool_id).expect("failed to get pool");
         let mut pool = binding.write().unwrap();
 
         // given we force this to resolve, should'nt be problematic
@@ -375,7 +388,11 @@ where
             let pools = self.pools.clone();
             let prov = self.provider.clone();
 
-            let addr = self.factory.conversion_map().get(&ticks.pool_id).unwrap();
+            let addr = self
+                .factory
+                .conversion_map()
+                .get(&ticks.pool_id)
+                .expect("failed to get pool id from conversion map");
             ticks.pool_id = *addr;
             Self::load_more_ticks(not, pools, prov, ticks);
         }
