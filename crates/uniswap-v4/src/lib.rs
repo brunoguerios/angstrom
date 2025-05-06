@@ -553,7 +553,7 @@ pub mod fuzz_uniswap {
 
         for (pool_priv_key, pub_key) in uniswap_registry
             .private_keys()
-            .chain(uniswap_registry.public_keys())
+            .zip(uniswap_registry.public_keys())
         {
             let data_loader = DataLoader::new_with_registry(
                 pool_priv_key,
