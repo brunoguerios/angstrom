@@ -5,7 +5,7 @@ use pade_macro::{PadeDecode, PadeEncode};
 use super::{Asset, Pair};
 use crate::matching::uniswap::{DonationResult, PoolPriceVec, PoolSnapshot};
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, PadeEncode, PadeDecode, Clone, PartialEq)]
 pub enum RewardsUpdate {
     MultiTick {
         start_tick:      I24,
@@ -97,7 +97,7 @@ impl RewardsUpdate {
     }
 }
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, PadeEncode, PadeDecode, Clone, PartialEq)]
 pub struct PoolUpdate {
     pub zero_for_one:     bool,
     pub pair_index:       u16,
