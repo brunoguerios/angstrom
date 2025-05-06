@@ -15,7 +15,7 @@ use crate::{
     }
 };
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode, PartialEq)]
 pub enum OrderQuantities {
     Exact { quantity: u128 },
     Partial { min_quantity_in: u128, max_quantity_in: u128, filled_quantity: u128 }
@@ -30,7 +30,7 @@ impl OrderQuantities {
     }
 }
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode, PartialEq)]
 pub struct StandingValidation {
     nonce:    u64,
     // 40 bits wide in reality
@@ -52,7 +52,7 @@ impl StandingValidation {
     }
 }
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode)]
+#[derive(Debug, Clone, PadeEncode, PadeDecode, PartialEq)]
 pub struct UserOrder {
     pub ref_id:               u32,
     pub use_internal:         bool,
