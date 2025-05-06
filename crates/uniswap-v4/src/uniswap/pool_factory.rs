@@ -30,10 +30,19 @@ where
     /// inits all uniswap pools found in [`UniswapPoolRegistry`]
     pub async fn init(&self, block: u64) -> Vec<EnhancedUniswapPool<DataLoader>> {
         join_all(self.registry.pools().keys().map(async |pool_id| {
-            let internal = self.registry.conversion_map.get(pool_id).unwrap();
+            let internal = self
+                .registry
+                .conversion_map
+                .get(pool_id)
+                .expect("factory conversion map failure");
 
             let mut pool = EnhancedUniswapPool::new(
-                DataLoader::new_with_registry(*internal, self.registry.clone(), self.pool_manager),
+                DataLoader::new_with_registry(
+                    *internal,
+                    *pool_id,
+                    self.registry.clone(),
+                    self.pool_manager
+                ),
                 TICKS
             );
             pool.initialize(Some(block), self.provider.clone())
@@ -51,7 +60,11 @@ where
     pub fn remove_pool(&mut self, pool_key: PoolKey) -> PoolId {
         let id = PoolId::from(pool_key);
         let _ = self.registry.pools.remove(&id);
-        self.registry.conversion_map.remove(&id).unwrap()
+        self.registry
+            .conversion_map
+            .remove(&id)
+            .expect("failed to remove pool id in factory");
+        id
     }
 
     pub async fn create_new_angstrom_pool(
@@ -71,10 +84,19 @@ where
         let priv_key = PoolId::from(pool_key.clone());
         self.registry.conversion_map.insert(pub_key, priv_key);
 
-        let internal = self.registry.conversion_map.get(&pub_key).unwrap();
+        let internal = self
+            .registry
+            .conversion_map
+            .get(&pub_key)
+            .expect("new angstrom pool not in conversion map");
 
         let mut pool = EnhancedUniswapPool::new(
-            DataLoader::new_with_registry(*internal, self.registry.clone(), self.pool_manager),
+            DataLoader::new_with_registry(
+                *internal,
+                pub_key,
+                self.registry.clone(),
+                self.pool_manager
+            ),
             TICKS
         );
         pool.initialize(Some(block), self.provider.clone())

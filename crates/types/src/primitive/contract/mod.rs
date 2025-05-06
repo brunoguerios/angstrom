@@ -101,6 +101,10 @@ impl UniswapPoolRegistry {
     pub fn private_keys(&self) -> impl Iterator<Item = PoolId> + '_ {
         self.conversion_map.values().copied()
     }
+
+    pub fn public_keys(&self) -> impl Iterator<Item = PoolId> + '_ {
+        self.conversion_map.keys().copied()
+    }
 }
 
 impl From<Vec<PoolKey>> for UniswapPoolRegistry {

@@ -14,14 +14,12 @@ use alloy::{
     rpc::types::Block,
     transports::{RpcError, TransportErrorKind}
 };
-use alloy_primitives::aliases::U24;
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_payloads::angstrom::TopOfBlockOrder as PayloadTopOfBlockOrder,
     primitive::PoolId,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
-    uni_structure::BaselinePoolState
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 use arraydeque::ArrayDeque;
 use dashmap::DashMap;
@@ -208,7 +206,7 @@ where
             .init(latest_synced_block)
             .await
             .into_iter()
-            .map(|pool| (pool.address(), Arc::new(RwLock::new(pool))))
+            .map(|pool| (pool.public_address(), Arc::new(RwLock::new(pool))))
             .collect();
 
         let block_stream = <P as Clone>::clone(&provider);
@@ -228,58 +226,12 @@ where
         }
     }
 
-    pub fn fetch_pool_snapshots(&self) -> HashMap<PoolId, BaselinePoolState> {
-        self.pools
-            .iter()
-            .filter_map(|refr| {
-                let key = refr.key();
-                let pool = refr.value();
-                // gotta
-                Some((
-                    self.convert_to_pub_id(key),
-                    pool.read()
-                        .expect("lock busted")
-                        .fetch_pool_snapshot()
-                        .ok()?
-                        .2
-                ))
-            })
-            .collect()
-    }
-
     pub fn pool_addresses(&self) -> impl Iterator<Item = PoolId> + '_ {
-        self.pools.iter().map(|k| self.convert_to_pub_id(k.key()))
+        self.pools.iter().map(|k| k.key().clone())
     }
 
     pub fn pools(&self) -> SyncedUniswapPools {
-        let mut c = self.pools.clone();
-        c.pools = Arc::new(
-            c.pools
-                .iter()
-                .map(|refr| {
-                    let k = refr.key();
-                    let v = refr.value();
-
-                    (self.convert_to_pub_id(k), v.clone())
-                })
-                .collect()
-        );
-
-        c
-    }
-
-    fn convert_to_pub_id(&self, key: &PoolId) -> PoolId {
-        self.factory
-            .conversion_map()
-            .iter()
-            .find_map(|(r, m)| {
-                if m == key {
-                    return Some(r);
-                }
-                None
-            })
-            .copied()
-            .expect("failed to convert to pub id")
+        self.pools.clone()
     }
 
     fn handle_new_block_info(&mut self, block_info: PoolMangerBlocks) {
@@ -370,30 +322,27 @@ where
                     let block = self.latest_synced_block;
                     let pool =
                         async_to_sync(self.factory.create_new_angstrom_pool(pool.clone(), block));
-                    let key = pool.address();
+                    let key = pool.public_address();
                     self.pools.insert(key, Arc::new(RwLock::new(pool)));
+                    tracing::info!("configured new pool");
                 }
-                EthEvent::RemovedPool { mut pool } => {
+                EthEvent::RemovedPool { pool } => {
                     tracing::info!(?pool, "removed pool");
-                    pool.fee = U24::from(0x800000);
                     let id = self.factory.remove_pool(pool);
-                    self.pools.remove(&id);
+                    let pool_cnt = self.pools.len();
+                    self.pools.remove(&id).expect("failed to remove pool");
+                    let pool_cnt_post = self.pools.len();
+                    tracing::info!(?pool_cnt, ?pool_cnt_post, "removed pool \n\n\n\n\n\n\n\n\n");
                 }
                 _ => {}
             }
         }
 
-        while let Poll::Ready(Some((mut ticks, not))) = self.rx.poll_recv(cx) {
+        while let Poll::Ready(Some((ticks, not))) = self.rx.poll_recv(cx) {
             // hacky for now but only way to avoid lock problems
             let pools = self.pools.clone();
             let prov = self.provider.clone();
 
-            let addr = self
-                .factory
-                .conversion_map()
-                .get(&ticks.pool_id)
-                .expect("failed to get pool id from conversion map");
-            ticks.pool_id = *addr;
             Self::load_more_ticks(not, pools, prov, ticks);
         }
 

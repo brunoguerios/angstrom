@@ -275,7 +275,7 @@ pub mod test {
         }
     }
 
-    const WORKED: AtomicBool = AtomicBool::new(false);
+    static WORKED: AtomicBool = AtomicBool::new(false);
 
     #[test]
     fn test_remove_add_pool() {
@@ -339,10 +339,10 @@ pub mod test {
             // wait some time to ensure that we can properly index the node being removed
 
             tokio::time::sleep(Duration::from_secs(12 * 3)).await;
-            tracing::info!("slept, adding pool now");
+            tracing::info!("slept, adding pool now \n\n\n\n\n\n\n\n\n\n");
 
             let _ = controller_instance
-                .configurePool(pk.currency0, pk.currency1, 60, pk.fee, U24::ZERO)
+                .configurePool(pk.currency0, pk.currency1, 120, pk.fee, U24::ZERO)
                 .nonce(cnt + 1)
                 .send()
                 .await
@@ -362,9 +362,6 @@ pub mod test {
             testnet_task.abort();
             eyre::Ok(())
         });
-        std::thread::sleep(Duration::from_secs(5));
-
-        tracing::info!("returning");
     }
 
     fn add_remove_agent<'a>(
@@ -386,7 +383,7 @@ pub mod test {
                         let this_len = agent_config.uniswap_pools.len();
 
                         if this_len + 1 == start_pool_len {
-                            tracing::info!("processed removed pool");
+                            tracing::info!("processed removed pool\n\n\n\n\n\n\n\n\n\n\n\n\n");
                             lower = true;
                         } else if lower && this_len == start_pool_len {
                             tracing::info!("processed added pool");

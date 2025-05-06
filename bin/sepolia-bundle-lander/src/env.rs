@@ -61,9 +61,13 @@ impl BundleWashTraderEnv {
 
         let mut ang_pools = Vec::new();
 
-        for pool_priv_key in uniswap_registry.private_keys() {
+        for (private, pub_k) in uniswap_registry
+            .private_keys()
+            .zip(uniswap_registry.public_keys())
+        {
             let data_loader = DataLoader::new_with_registry(
-                pool_priv_key,
+                private,
+                pub_k,
                 uniswap_registry.clone(),
                 cli.pool_manager_address
             );

@@ -96,11 +96,11 @@ where
     }
 
     pub fn fetch_lowest_tick(&self) -> i32 {
-        *self.ticks.keys().min().unwrap()
+        *self.ticks.keys().min().expect("no lowest tick")
     }
 
     pub fn fetch_highest_tick(&self) -> i32 {
-        *self.ticks.keys().max().unwrap()
+        *self.ticks.keys().max().expect("no highest tick")
     }
 
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, BaselinePoolState), PoolError> {
@@ -152,8 +152,12 @@ where
         self.sync_swap_with_sim = sync_swap_with_sim;
     }
 
-    pub fn address(&self) -> PoolId {
-        self.data_loader.address()
+    pub fn public_address(&self) -> PoolId {
+        self.data_loader.public_address()
+    }
+
+    pub fn private_address(&self) -> PoolId {
+        self.data_loader.private_address()
     }
 
     async fn get_tick_data_batch_request<P: Provider>(
