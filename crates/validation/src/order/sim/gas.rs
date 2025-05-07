@@ -2,6 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use alloy::primitives::Address;
 use angstrom_types::sol_bindings::{
+    ext::RawPoolOrder,
     grouped_orders::{AllOrders, OrderWithStorageData},
     rpc_orders::TopOfBlockOrder
 };
@@ -19,8 +20,10 @@ use super::GasUsed;
 // FixedBytes<32> =     fixed_bytes!("
 // 907ea7ad6d1fbded0236f040aea693e2c9711b62b065fc95c4262972aca03996");
 
-pub const BOOK_GAS: u64 = 40_000;
-pub const TOB_GAS: u64 = 100_000;
+pub const BOOK_GAS: u64 = 50_000;
+pub const BOOK_GAS_INTERNAL: u64 = 10_000;
+pub const TOB_GAS: u64 = 160_000;
+pub const TOB_GAS_INTERNAL: u64 = 150_000;
 /// deals with the calculation of gas for a given type of order.
 /// user orders and tob orders take different paths and are different size and
 /// as such, pay different amount of gas in order to execute.
@@ -73,7 +76,7 @@ where
 
     pub fn gas_of_tob_order(
         &self,
-        _tob: &OrderWithStorageData<TopOfBlockOrder>,
+        tob: &OrderWithStorageData<TopOfBlockOrder>,
         _block: u64
     ) -> eyre::Result<GasUsed> {
         // need to grab the order hash
@@ -106,12 +109,12 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("tob order err={} {:?}", e, tob.order_hash()))
-        Ok(TOB_GAS)
+        if tob.use_internal() { Ok(TOB_GAS_INTERNAL) } else { Ok(TOB_GAS) }
     }
 
     pub fn gas_of_book_order(
         &self,
-        _order: &OrderWithStorageData<AllOrders>,
+        order: &OrderWithStorageData<AllOrders>,
         _block: u64
     ) -> eyre::Result<GasUsed> {
         // let exact_in = order.exact_in();
@@ -159,7 +162,7 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("user order err={} {:?}", e, order.from()))
-        Ok(BOOK_GAS)
+        if order.use_internal() { Ok(BOOK_GAS_INTERNAL) } else { Ok(BOOK_GAS) }
     }
 
     // fn execute_with_db<D: DatabaseRef, F>(db: D, f: F) ->

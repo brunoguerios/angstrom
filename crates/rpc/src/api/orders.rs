@@ -39,6 +39,7 @@ pub trait OrderApi {
     async fn estimate_gas(
         &self,
         is_book: bool,
+        is_internal: bool,
         token_0: Address,
         token_1: Address
     ) -> RpcResult<Result<U256, String>>;
@@ -110,11 +111,12 @@ pub trait OrderApi {
     #[method(name = "estimateGasOfOrders")]
     async fn estimate_gas_of_orders(
         &self,
-        orders: Vec<(bool, Address, Address)>
+        orders: Vec<(bool, bool, Address, Address)>
     ) -> RpcResult<Vec<Result<U256, String>>> {
         futures::stream::iter(orders.into_iter())
-            .map(|(is_book, token_0, token_1)| async move {
-                self.estimate_gas(is_book, token_0, token_1).await
+            .map(|(is_book, is_internal, token_0, token_1)| async move {
+                self.estimate_gas(is_book, is_internal, token_0, token_1)
+                    .await
             })
             .buffered(3)
             .collect::<Vec<_>>()
