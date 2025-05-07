@@ -12,11 +12,9 @@ use angstrom_types::{
 pub struct PendingPool {
     /// all order hashes
     orders: HashMap<FixedBytes<32>, OrderWithStorageData<TopOfBlockOrder>>,
-    /// bids are sorted descending by price, TODO: This should be binned into
-    /// ticks based off of the underlying pools params
+    /// bids are sorted descending by price,
     bids:   BTreeMap<Reverse<OrderPriorityData>, FixedBytes<32>>,
-    /// asks are sorted ascending by price,  TODO: This should be binned into
-    /// ticks based off of the underlying pools params
+    /// asks are sorted ascending by price,  
     asks:   BTreeMap<OrderPriorityData, FixedBytes<32>>
 }
 
@@ -57,7 +55,6 @@ impl PendingPool {
     }
 
     pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
-        // TODO:  This should maybe only return the one best Searcher order we've seen?
         self.orders.values().cloned().collect()
     }
 }
