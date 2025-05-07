@@ -194,18 +194,16 @@ impl OrderStorage {
     }
 
     pub fn top_tob_orders(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
-        let mut top_orders = Vec::new();
         let searcher_orders = self.searcher_orders.lock().expect("lock poisoned");
 
-        for pool_id in searcher_orders.get_all_pool_ids() {
-            let orders = searcher_orders
-                .get_orders_for_pool(&pool_id)
-                .unwrap_or_else(|| panic!("pool {} does not exist", pool_id));
-
-            top_orders.extend(orders);
-        }
-
-        top_orders
+        searcher_orders
+            .get_all_pool_ids()
+            .flat_map(|pool_id| {
+                searcher_orders
+                    .get_orders_for_pool(&pool_id)
+                    .unwrap_or_else(|| panic!("pool {} does not exist", pool_id))
+            })
+            .collect()
     }
 
     pub fn add_new_limit_order(
