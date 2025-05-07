@@ -14,7 +14,7 @@ pub const CONFIG_STORE_SLOT: u32 = 3;
 pub const POOL_CONFIG_STORE_ENTRY_SIZE: usize = 32;
 
 sol! {
-    #[derive(Debug, Default, PartialEq, PadeEncode, PadeDecode)]
+    #[derive(Debug, Default, PartialEq, PadeEncode, PadeDecode, Eq,Ord, PartialOrd)]
     struct Asset {
         address addr;
         uint128 save;
@@ -22,7 +22,7 @@ sol! {
         uint128 settle;
     }
 
-    #[derive(Debug, Default, PartialEq, PadeEncode, PadeDecode)]
+    #[derive(Debug, Default, PartialEq, PadeEncode, PadeDecode,Eq, Ord, PartialOrd)]
     struct Pair {
         uint16 index0;
         uint16 index1;
@@ -31,7 +31,19 @@ sol! {
     }
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PadeEncode, PadeDecode, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    PadeEncode,
+    PadeDecode,
+    Serialize,
+    Deserialize,
+    Ord,
+    PartialOrd,
+)]
 pub enum Signature {
     Contract { from: Address, signature: Bytes },
     Ecdsa { v: u8, r: FixedBytes<32>, s: FixedBytes<32> }

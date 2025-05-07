@@ -22,7 +22,18 @@ use crate::{
 // This currently exists in types::sol_bindings as well, but that one is
 // outdated so I'm building a new one here for now and then migrating
 #[derive(
-    PadeEncode, PadeDecode, Clone, Default, Debug, Hash, PartialEq, Eq, Serialize, Deserialize,
+    PadeEncode,
+    PadeDecode,
+    Clone,
+    Default,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Ord,
+    PartialOrd,
 )]
 pub struct TopOfBlockOrder {
     pub use_internal:     bool,
