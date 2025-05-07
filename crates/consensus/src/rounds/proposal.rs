@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    sync::Arc,
     task::{Context, Poll, Waker},
     time::{Duration, Instant}
 };
@@ -13,7 +14,10 @@ use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    orders::PoolSolution
+    mev_boost::MevBoostProvider,
+    orders::PoolSolution,
+    primitive::AngstromSigner,
+    sol_bindings::rpc_orders::AttestAngstromBlockEmpty
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::MatchingEngineHandle;
@@ -69,6 +73,27 @@ impl ProposalState {
         }
     }
 
+    async fn submit_unlock<P>(
+        signer: AngstromSigner,
+        provider: Arc<MevBoostProvider<P>>,
+        target_block: u64
+    ) -> bool
+    where
+        P: Provider + 'static
+    {
+        tracing::info!("submitting unlock attestation");
+        let attestation = AttestAngstromBlockEmpty { block_number: target_block };
+        if let Err(e) = provider
+            .sign_and_send_unlock_data(signer, attestation)
+            .await
+        {
+            tracing::error!(%e, "failed to submit empty bundle attestation");
+            return false;
+        }
+
+        true
+    }
+
     fn try_build_proposal<P, Matching>(
         &mut self,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
@@ -82,13 +107,19 @@ impl ProposalState {
             time_to_complete: Instant::now().duration_since(self.trigger_time)
         });
 
+        let provider = handles.provider.clone();
+        let signer = handles.signer.clone();
+        let target_block = handles.block_height + 1;
+
         tracing::debug!("starting to build proposal");
         let Ok((pool_solution, gas_info)) = result.inspect_err(|e| {
             tracing::error!(err=%e,
                 "Failed to properly build proposal, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
             );
         }) else {
-            return false;
+            self.submission_future =
+                Some(tokio::spawn(Self::submit_unlock(signer, provider, target_block)).boxed());
+            return true;
         };
 
         let proposal = Proposal::generate_proposal(
@@ -108,7 +139,9 @@ impl ProposalState {
                 );
             })
         else {
-            return false;
+            self.submission_future =
+                Some(tokio::spawn(Self::submit_unlock(signer, provider, target_block)).boxed());
+            return true;
         };
 
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
@@ -117,10 +150,6 @@ impl ProposalState {
             .with_from(handles.signer.address())
             .with_kind(alloy::primitives::TxKind::Call(handles.angstrom_address))
             .with_input(encoded);
-
-        let provider = handles.provider.clone();
-        let signer = handles.signer.clone();
-        let target_block = handles.block_height + 1;
 
         let submission_future = async move {
             tracing::info!("building bundle");

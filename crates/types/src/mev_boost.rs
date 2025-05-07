@@ -18,12 +18,16 @@ use alloy::{
         json_rpc::{RequestPacket, ResponsePacket},
         types::{TransactionRequest, mev::PrivateTransactionRequest}
     },
-    signers::{Signer, local::PrivateKeySigner},
+    signers::{Signer, SignerSync, local::PrivateKeySigner},
+    sol_types::SolStruct,
     transports::{TransportError, TransportErrorKind, TransportFut, http::reqwest::Url}
 };
 use futures::{Future, FutureExt};
 
-use crate::primitive::AngstromSigner;
+use crate::{
+    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
+    sol_bindings::rpc_orders::AttestAngstromBlockEmpty
+};
 
 const EXTRA_GAS: u128 = (cfg!(feature = "testnet-sepolia") as u128) * (2e9 as u128);
 
@@ -95,7 +99,7 @@ impl<P: Provider> SubmitTx for P {
     }
 }
 
-pub struct MevBoostTransport {}
+// pub struct MevBoostTransport {}
 
 /// On sepolia, there is a low frequency of mev-boost. This is
 /// so that hopefully we can have bundles land frequently
@@ -194,6 +198,18 @@ where
         }
 
         (phash.expect("no mev boost endpoint was set"), submitted)
+    }
+
+    pub async fn sign_and_send_unlock_data(
+        &self,
+        signer: AngstromSigner,
+        attestation: AttestAngstromBlockEmpty
+    ) -> eyre::Result<()> {
+        let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let sig = signer.sign_hash_sync(&hash)?;
+        let signer_address = signer.address();
+
+        Ok(())
     }
 }
 
