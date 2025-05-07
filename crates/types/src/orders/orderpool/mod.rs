@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    primitive::PoolId,
+    primitive::{PoolId, UserAccountVerificationError},
     sol_bindings::{RawPoolOrder, ext::RespendAvoidanceMethod}
 };
 
@@ -13,8 +13,37 @@ use crate::{
 pub enum OrderStatus {
     Filled,
     Pending,
-    Blocked(String),
+    Blocked { token: Address, approval_needed: u128, balance_needed: u128 },
     OrderNotFound
+}
+
+impl OrderStatus {
+    pub fn try_from_err(error: &UserAccountVerificationError) -> eyre::Result<Self> {
+        match error {
+            UserAccountVerificationError::InsufficientBoth(_, token, balance, approval) => {
+                Ok(Self::Blocked {
+                    token:           *token,
+                    approval_needed: *approval,
+                    balance_needed:  *balance
+                })
+            }
+            UserAccountVerificationError::InsufficientBalance(_, token, balance) => {
+                Ok(Self::Blocked {
+                    token:           *token,
+                    approval_needed: 0,
+                    balance_needed:  *balance
+                })
+            }
+            UserAccountVerificationError::InsufficientApproval(_, token, approval) => {
+                Ok(Self::Blocked {
+                    token:           *token,
+                    approval_needed: *approval,
+                    balance_needed:  0
+                })
+            }
+            _ => eyre::bail!("cannot convert error to order status")
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
