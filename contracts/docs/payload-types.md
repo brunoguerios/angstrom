@@ -135,9 +135,7 @@ Note that to ensure pair uniqueness `.index0` **must** be less than `.index1`.
 
 #### `PoolUpdate`
 
-TODO: Update solidity link
-
-Solidity: [decoding implementation](../src/types/PoolUpdates.sol) | [reference
+Solidity: [decoding implementation](../src/modules/PoolUpdates.sol) | [reference
 encoding (`test/_reference/PoolUpdate.sol`)](../test/_reference/PoolUpdate.sol)
 
 
