@@ -48,7 +48,7 @@ pub use tob::*;
 
 const LP_DONATION_SPLIT: f64 = 0.75;
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+#[derive(Debug, PadeEncode, PadeDecode, Clone, PartialEq)]
 pub struct AngstromBundle {
     pub assets:              Vec<Asset>,
     pub pairs:               Vec<Pair>,
