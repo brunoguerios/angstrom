@@ -106,9 +106,10 @@ impl<P: Provider> SubmitTx for P {
 const SEND_NORMAL: bool = cfg!(feature = "testnet-sepolia");
 
 pub struct MevBoostProvider<P> {
-    mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>,
-    default_providers:   Vec<Arc<Box<dyn SubmitTx>>>,
-    node_provider:       Arc<P>
+    integration_providers: Vec<Arc<Box<dyn SubmitTx>>>,
+    mev_boost_providers:   Vec<Arc<Box<dyn SubmitTx>>>,
+    default_providers:     Vec<Arc<Box<dyn SubmitTx>>>,
+    node_provider:         Arc<P>
 }
 
 impl<P> MevBoostProvider<P>
@@ -120,7 +121,12 @@ where
         node_provider: Arc<P>,
         mev_boost_providers: Vec<Arc<Box<dyn SubmitTx>>>
     ) -> Self {
-        Self { node_provider, mev_boost_providers, default_providers: vec![] }
+        Self {
+            node_provider,
+            mev_boost_providers,
+            default_providers: vec![],
+            integration_providers: vec![]
+        }
     }
 
     pub fn new_from_urls(node_provider: Arc<P>, urls: &[Url], default_urls: &[String]) -> Self {
@@ -143,7 +149,12 @@ where
             })
             .collect::<Vec<_>>();
 
-        Self { mev_boost_providers, node_provider, default_providers: default }
+        Self {
+            mev_boost_providers,
+            node_provider,
+            default_providers: default,
+            integration_providers: vec![]
+        }
     }
 
     pub async fn populate_gas_nonce_chain_id(&self, tx_from: Address, tx: &mut TransactionRequest) {
