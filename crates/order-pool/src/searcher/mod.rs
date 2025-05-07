@@ -94,7 +94,7 @@ impl SearcherPool {
     }
 
     pub fn get_all_pool_ids(&self) -> impl Iterator<Item = PoolId> + '_ {
-        self.searcher_orders.keys().cloned()
+        self.searcher_orders.keys().copied()
     }
 
     pub fn get_orders_for_pool(
