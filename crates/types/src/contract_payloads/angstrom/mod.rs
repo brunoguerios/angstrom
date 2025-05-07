@@ -17,6 +17,7 @@ use base64::Engine;
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
+use serde::{Deserialize, Serialize};
 use tracing::{Level, debug, error, trace, warn};
 
 use super::{
@@ -48,7 +49,9 @@ pub use tob::*;
 
 const LP_DONATION_SPLIT: f64 = 0.75;
 
-#[derive(Debug, PadeEncode, PadeDecode, Clone, PartialEq)]
+#[derive(
+    Debug, PadeEncode, PadeDecode, Clone, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord,
+)]
 pub struct AngstromBundle {
     pub assets:              Vec<Asset>,
     pub pairs:               Vec<Pair>,

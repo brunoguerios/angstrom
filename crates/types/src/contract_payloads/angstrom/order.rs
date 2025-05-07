@@ -1,5 +1,6 @@
 use alloy::primitives::{Address, B256, Bytes, U256, aliases::U40};
 use pade_macro::{PadeDecode, PadeEncode};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
@@ -15,7 +16,9 @@ use crate::{
     }
 };
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(
+    Debug, Clone, PadeEncode, PadeDecode, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub enum OrderQuantities {
     Exact { quantity: u128 },
     Partial { min_quantity_in: u128, max_quantity_in: u128, filled_quantity: u128 }
@@ -30,7 +33,9 @@ impl OrderQuantities {
     }
 }
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(
+    Debug, Clone, PadeEncode, PadeDecode, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub struct StandingValidation {
     nonce:    u64,
     // 40 bits wide in reality
@@ -52,7 +57,9 @@ impl StandingValidation {
     }
 }
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(
+    Debug, Clone, PadeEncode, PadeDecode, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub struct UserOrder {
     pub ref_id:               u32,
     pub use_internal:         bool,

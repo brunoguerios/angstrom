@@ -1,11 +1,14 @@
 use alloy::primitives::{U160, aliases::I24};
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
+use serde::{Deserialize, Serialize};
 
 use super::{Asset, Pair};
 use crate::matching::uniswap::{DonationResult, PoolPriceVec, PoolSnapshot};
 
-#[derive(Debug, PadeEncode, PadeDecode, Clone, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(
+    Debug, PadeEncode, PadeDecode, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub enum RewardsUpdate {
     MultiTick {
         start_tick:      I24,
@@ -97,7 +100,9 @@ impl RewardsUpdate {
     }
 }
 
-#[derive(Debug, PadeEncode, PadeDecode, Clone, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(
+    Debug, PadeEncode, PadeDecode, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub struct PoolUpdate {
     pub zero_for_one:     bool,
     pub pair_index:       u16,
