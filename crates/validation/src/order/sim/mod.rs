@@ -15,7 +15,7 @@ use crate::common::TokenPriceGenerator;
 
 pub mod console_log;
 mod gas;
-pub use gas::{BOOK_GAS, TOB_GAS};
+pub use gas::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL};
 
 pub type GasUsed = u64;
 // needed for future use
