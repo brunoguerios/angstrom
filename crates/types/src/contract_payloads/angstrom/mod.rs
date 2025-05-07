@@ -829,12 +829,14 @@ impl AngstromBundle {
         // fetch gas used
         // Walk through our solutions to add them to the structure
         for solution in proposal.solutions.iter().sorted_unstable_by_key(|k| {
-            let Some((_, _, _, store_index)) = pools.get(&k.id) else {
+            let Some((t0, t1, ..)) = pools.get(&k.id) else {
                 // This should never happen but let's handle it as gracefully as possible -
                 // right now will skip the pool, not produce an error
-                return 0u16;
+                return 0usize;
             };
-            *store_index
+            let t0_idx = asset_builder.add_or_get_asset(*t0);
+            let t1_idx = asset_builder.add_or_get_asset(*t1);
+            (t0_idx << 16) | t1_idx
         }) {
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
