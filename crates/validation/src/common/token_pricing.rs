@@ -166,6 +166,22 @@ impl TokenPriceGenerator {
             prev_prices.push_back(pool_update);
         }
         self.cur_block += 1;
+
+        // look at all pools uniswap contains. we want to remove
+        self.uniswap_pools
+            .iter()
+            .map(|entry| {
+                let pool = entry.value().read().unwrap();
+
+                (*entry.key(), pool.token0, pool.token1)
+            })
+            .for_each(|(key, t0, t1)| {
+                if self.prev_prices.contains_key(&key) {
+                    return;
+                }
+                self.prev_prices.remove(&key);
+                self.pair_to_pool.remove(&(t0, t1));
+            });
     }
 
     pub fn new_pool_update(
