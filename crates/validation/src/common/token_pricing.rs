@@ -182,7 +182,7 @@ impl TokenPriceGenerator {
             .filter(|(k, _)| !updated_pool_keys.contains(k))
             .for_each(|(_, queue)| {
                 let Some(last) = queue.back() else { return };
-                let mut new_back = last.clone();
+                let mut new_back = *last;
                 new_back.block_num = self.cur_block;
 
                 queue.push_back(new_back);

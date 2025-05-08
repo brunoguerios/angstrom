@@ -270,11 +270,12 @@ where
         pre_proposal_agg: PreProposalAggregation,
         pre_proposal_agg_set: &mut HashSet<PreProposalAggregation>
     ) {
+        let two_thirds = self.two_thirds_of_validation_set();
         self.handle_proposal_verification(
             peer_id,
             pre_proposal_agg,
             pre_proposal_agg_set,
-            |proposal, block| proposal.is_valid(block)
+            |pre_proposal_agg, block| pre_proposal_agg.is_valid(block, two_thirds)
         )
     }
 
@@ -284,12 +285,14 @@ where
             return None;
         }
 
-        proposal.is_valid(&self.block_height).then(|| {
-            self.messages
-                .push_back(ConsensusMessage::PropagateProposal(proposal.clone()));
+        proposal
+            .is_valid(&self.block_height, self.two_thirds_of_validation_set())
+            .then(|| {
+                self.messages
+                    .push_back(ConsensusMessage::PropagateProposal(proposal.clone()));
 
-            proposal
-        })
+                proposal
+            })
     }
 
     fn handle_pre_proposal(
@@ -302,7 +305,7 @@ where
             peer_id,
             pre_proposal,
             pre_proposal_set,
-            |proposal, block| proposal.is_valid(block)
+            |pre_proposal, block| pre_proposal.is_valid(block)
         )
     }
 
