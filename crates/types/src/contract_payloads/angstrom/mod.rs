@@ -1062,7 +1062,16 @@ impl AngstromPoolConfigStore {
     pub fn remove_pair(&self, asset0: Address, asset1: Address) {
         let key = Self::derive_store_key(asset0, asset1);
 
-        self.entries.remove(&key);
+        let Some((_, entry)) = self.entries.remove(&key) else { return };
+        let index = entry.store_index;
+
+        // if we have any indexes that are GT the index we remove, we subtract 1 from it
+        self.entries.iter_mut().for_each(|mut f| {
+            let v = f.value_mut();
+            if v.store_index > index {
+                v.store_index -= 1;
+            }
+        })
     }
 
     pub fn new_pool(&self, asset0: Address, asset1: Address, pool: AngPoolConfigEntry) {
