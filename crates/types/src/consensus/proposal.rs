@@ -71,12 +71,12 @@ impl Proposal {
         &self.preproposals
     }
 
-    pub fn is_valid(&self, ethereum_height: &BlockNumber) -> bool {
+    pub fn is_valid(&self, ethereum_height: &BlockNumber, two_thrids: usize) -> bool {
         // All our preproposals have to be valid
         if !self
             .preproposals
             .iter()
-            .all(|i| i.is_valid(ethereum_height))
+            .all(|i| i.is_valid(ethereum_height, two_thrids))
         {
             return false;
         }
@@ -132,6 +132,6 @@ mod tests {
         let sk = AngstromSigner::random();
         let proposal = Proposal::generate_proposal(ethereum_height, &sk, preproposals, solutions);
 
-        assert!(proposal.is_valid(&ethereum_height), "Unable to validate self");
+        assert!(proposal.is_valid(&ethereum_height, 1), "Unable to validate self");
     }
 }
