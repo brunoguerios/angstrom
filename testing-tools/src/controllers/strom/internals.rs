@@ -1,5 +1,6 @@
-use std::{collections::HashSet, pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::Arc};
 
+use alloy::primitives::Address;
 use alloy_rpc_types::{BlockId, Transaction};
 use angstrom::components::StromHandles;
 use angstrom_eth::{
@@ -18,7 +19,7 @@ use angstrom_types::{
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use futures::{Future, Stream, StreamExt, TryStreamExt};
+use futures::{Future, Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
@@ -95,9 +96,12 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let angstrom_tokens = uniswap_registry
             .pools()
-            .iter()
-            .flat_map(|(_, pool)| [pool.currency0, pool.currency1])
-            .collect::<HashSet<_>>();
+            .values()
+            .flat_map(|pool| [pool.currency0, pool.currency1])
+            .fold(HashMap::<Address, usize>::new(), |mut acc, x| {
+                *acc.entry(x).or_default() += 1;
+                acc
+            });
 
         tracing::debug!("starting to load pool config store");
         let pool_config_store = Arc::new(

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     ops::RangeInclusive,
     sync::Arc,
     task::{Context, Poll}
@@ -48,7 +48,7 @@ pub struct EthDataCleanser<Sync> {
     cannon_sender:     tokio::sync::broadcast::Sender<CanonStateNotification>,
     /// Notifications for Canonical Block updates
     canonical_updates: BroadcastStream<CanonStateNotification>,
-    angstrom_tokens:   HashSet<Address>,
+    angstrom_tokens:   HashMap<Address, usize>,
     /// handles syncing of blocks.
     block_sync:        Sync,
     /// updated by periphery contract.
@@ -68,7 +68,7 @@ where
         tp: TP,
         tx: Sender<EthCommand>,
         rx: Receiver<EthCommand>,
-        angstrom_tokens: HashSet<Address>,
+        angstrom_tokens: HashMap<Address, usize>,
         pool_store: Arc<AngstromPoolConfigStore>,
         sync: Sync,
         node_set: HashSet<Address>,
@@ -204,6 +204,17 @@ where
                     self.pool_store
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
 
+                    let t0 = *self.angstrom_tokens.entry(removed_pool.asset0).or_default();
+                    let t1 = *self.angstrom_tokens.entry(removed_pool.asset1).or_default();
+
+                    if t0 == 1 {
+                        self.angstrom_tokens.remove_entry(&removed_pool.asset0);
+                    }
+
+                    if t1 == 1 {
+                        self.angstrom_tokens.remove_entry(&removed_pool.asset1);
+                    }
+
                     let pool_key = PoolKey {
                         currency0:   removed_pool.asset0,
                         currency1:   removed_pool.asset1,
@@ -234,8 +245,8 @@ where
                     };
 
                     self.pool_store.new_pool(asset0, asset1, entry);
-                    self.angstrom_tokens.insert(asset0);
-                    self.angstrom_tokens.insert(asset1);
+                    *self.angstrom_tokens.entry(asset0).or_default() += 1;
+                    *self.angstrom_tokens.entry(asset1).or_default() += 1;
 
                     self.send_events(EthEvent::NewPool { pool: pool_key });
                 }
@@ -272,7 +283,7 @@ where
             .unwrap_or_default()
             .into_iter()
             .flat_map(|receipt| &receipt.logs)
-            .filter(|log| self.angstrom_tokens.contains(&log.address))
+            .filter(|log| self.angstrom_tokens.contains_key(&log.address))
             .flat_map(|logs| {
                 Transfer::decode_log(logs)
                     .map(|log| [log._from, log._to])
@@ -421,7 +432,7 @@ pub mod test {
         EthDataCleanser {
             commander:         ReceiverStream::new(command_rx),
             event_listeners:   vec![],
-            angstrom_tokens:   HashSet::default(),
+            angstrom_tokens:   HashMap::default(),
             node_set:          HashSet::default(),
             angstrom_address:  angstrom_address.unwrap_or_default(),
             periphery_address: Address::default(),
@@ -573,16 +584,16 @@ pub mod test {
         let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
 
         // Verify initial state
-        assert!(!eth.angstrom_tokens.contains(&asset0));
-        assert!(!eth.angstrom_tokens.contains(&asset1));
+        assert!(!eth.angstrom_tokens.contains_key(&asset0));
+        assert!(!eth.angstrom_tokens.contains_key(&asset1));
         assert_eq!(eth.pool_store.length(), 0);
 
         // Process the logs
         eth.apply_periphery_logs(&*mock_chain);
 
         // Verify final state after add and remove
-        assert!(!eth.angstrom_tokens.contains(&asset0));
-        assert!(!eth.angstrom_tokens.contains(&asset1));
+        assert!(!eth.angstrom_tokens.contains_key(&asset0));
+        assert!(!eth.angstrom_tokens.contains_key(&asset1));
         assert_eq!(eth.pool_store.length(), 0); // Should be 0 after removal
     }
 
@@ -653,7 +664,7 @@ pub mod test {
         let ang_addr = Address::random();
         let transfer_addr = Address::random();
         let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
-        eth.angstrom_tokens = HashSet::from_iter(vec![transfer_addr]);
+        eth.angstrom_tokens = HashMap::from_iter(vec![(transfer_addr, 1)]);
 
         let changeset =
             vec![alloy::primitives::address!("ecc5a3c54f85ab375de921a40247d726bc8ed376")];
@@ -684,7 +695,7 @@ pub mod test {
         let ang_addr = Address::random();
         let token_addr = Address::random();
         let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
-        eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
+        eth.angstrom_tokens = HashMap::from_iter(vec![(token_addr, 1)]);
 
         let addr1 = Address::random();
         let addr2 = Address::random();
@@ -716,7 +727,7 @@ pub mod test {
         let ang_addr = Address::random();
         let token_addr = Address::random();
         let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
-        eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
+        eth.angstrom_tokens = HashMap::from_iter(vec![(token_addr, 1)]);
 
         // Create an invalid log
         let invalid_log = Log {
@@ -856,8 +867,8 @@ pub mod test {
         eth.apply_periphery_logs(&*mock_chain);
 
         // Verify final state
-        assert!(!eth.angstrom_tokens.contains(&asset0));
-        assert!(!eth.angstrom_tokens.contains(&asset1));
+        assert!(eth.angstrom_tokens.contains_key(&asset0));
+        assert!(eth.angstrom_tokens.contains_key(&asset1));
         assert_eq!(eth.pool_store.length(), 0); // Should be removed
     }
 
@@ -867,7 +878,7 @@ pub mod test {
         let token_addr = Address::random();
         let non_tracked_token = Address::random();
         let mut eth = setup_non_subscription_eth_manager(Some(ang_addr));
-        eth.angstrom_tokens = HashSet::from_iter(vec![token_addr]);
+        eth.angstrom_tokens = HashMap::from_iter(vec![(token_addr, 1)]);
 
         // Create transfer for non-tracked token
         let transfer = Transfer {
