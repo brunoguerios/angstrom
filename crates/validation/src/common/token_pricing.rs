@@ -14,7 +14,7 @@ use futures::StreamExt;
 use tracing::warn;
 use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
 
-const BLOCKS_TO_AVG_PRICE: u64 = 5;
+const BLOCKS_TO_AVG_PRICE: u64 = 15;
 pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
 
 // crazy that this is a thing
@@ -175,13 +175,15 @@ impl TokenPriceGenerator {
                 prev_prices.pop_front();
             }
         }
+        self.cur_block += 1;
 
         self.prev_prices
             .iter_mut()
             .filter(|(k, _)| !updated_pool_keys.contains(k))
             .for_each(|(_, queue)| {
                 let Some(last) = queue.back() else { return };
-                let new_back = last.clone();
+                let mut new_back = last.clone();
+                new_back.block_num = self.cur_block;
 
                 queue.push_back(new_back);
 
@@ -190,8 +192,6 @@ impl TokenPriceGenerator {
                     queue.pop_front();
                 }
             });
-
-        self.cur_block += 1;
 
         // given that we have added new pools that we got updates for,
         // we also want to make sure to add new pools that haven't been updated
