@@ -7,7 +7,9 @@ use alloy::{
     primitives::{Address, U256, address},
     providers::Provider
 };
-use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray};
+use angstrom_types::{
+    matching::SqrtPriceX96, pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray
+};
 use futures::StreamExt;
 use tracing::warn;
 use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
@@ -165,23 +167,46 @@ impl TokenPriceGenerator {
             prev_prices.pop_front();
             prev_prices.push_back(pool_update);
         }
+
         self.cur_block += 1;
 
-        // look at all pools uniswap contains. we want to remove
-        self.uniswap_pools
-            .iter()
-            .map(|entry| {
-                let pool = entry.value().read().unwrap();
+        // given that we have added new pools that we got updates for,
+        // we also want to make sure to add new pools that haven't been updated
+        // as trading is not eligible since there's no price. Kinda a catch 22
+        let remove_keys = self
+            .prev_prices
+            .keys()
+            .copied()
+            .filter(|f| !self.uniswap_pools.contains_key(f))
+            .collect::<Vec<_>>();
 
-                (*entry.key(), pool.token0, pool.token1)
-            })
-            .for_each(|(key, t0, t1)| {
-                if self.prev_prices.contains_key(&key) {
-                    return;
-                }
-                self.prev_prices.remove(&key);
-                self.pair_to_pool.remove(&(t0, t1));
+        for key in remove_keys {
+            self.prev_prices.remove(&key);
+            self.pair_to_pool.retain(|_, v| *v != key);
+        }
+
+        // look at all pools uniswap contains. we want to remove
+        self.uniswap_pools.iter().for_each(|entry| {
+            let (key, pool) = entry.pair();
+            // already have
+            if self.prev_prices.contains_key(key) {
+                return;
+            }
+            // new
+            let pool_r = pool.read().unwrap();
+            let price: Ray = SqrtPriceX96::from(pool_r.sqrt_price).into();
+
+            let mut queue = VecDeque::new();
+            queue.push_back(PairsWithPrice {
+                token0:         pool_r.token0,
+                token1:         pool_r.token1,
+                block_num:      self.cur_block,
+                price_1_over_0: price
             });
+            self.prev_prices.insert(*key, queue);
+            self.pair_to_pool
+                .insert((pool_r.token0, pool_r.token1), *key);
+        });
     }
 
     pub fn new_pool_update(
