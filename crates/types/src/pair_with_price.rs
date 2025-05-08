@@ -1,12 +1,15 @@
 use std::fmt::Debug;
 
-use alloy::{consensus::Transaction, primitives::Address};
+use alloy::{consensus::Transaction, primitives::Address, sol_types::SolCall};
 use futures::{Stream, StreamExt};
 use pade::PadeDecode;
 use reth_primitives_traits::BlockBody;
 use reth_provider::CanonStateNotificationStream;
 
-use crate::{contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray};
+use crate::{
+    contract_bindings::angstrom::Angstrom::executeCall,
+    contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray
+};
 
 /// represents the price settled on angstrom between two tokens
 #[derive(Debug, Clone, Copy)]
@@ -51,8 +54,11 @@ impl PairsWithPrice {
                 .into_iter()
                 .filter(|tx| tx.to() == Some(angstrom_address))
                 .filter_map(|transaction| {
-                    let mut input: &[u8] = transaction.input();
-                    AngstromBundle::pade_decode(&mut input, None).ok()
+                    let input: &[u8] = transaction.input();
+                    let b = executeCall::abi_decode(input).unwrap().encoded;
+                    let mut bytes = b.as_ref();
+
+                    AngstromBundle::pade_decode(&mut bytes, None).ok()
                 })
                 .take(1)
                 .flat_map(|bundle| Self::from_angstrom_bundle(block_num, &bundle))

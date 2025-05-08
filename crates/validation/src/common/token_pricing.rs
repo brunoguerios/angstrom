@@ -7,12 +7,14 @@ use alloy::{
     primitives::{Address, U256, address},
     providers::Provider
 };
-use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray};
+use angstrom_types::{
+    matching::SqrtPriceX96, pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray
+};
 use futures::StreamExt;
 use tracing::warn;
 use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
 
-const BLOCKS_TO_AVG_PRICE: u64 = 5;
+const BLOCKS_TO_AVG_PRICE: u64 = 15;
 pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
 
 // crazy that this is a thing
@@ -128,6 +130,9 @@ impl TokenPriceGenerator {
     }
 
     pub fn apply_update(&mut self, updates: Vec<PairsWithPrice>) {
+        // we will duplicate same price if no update for pool.
+        let mut updated_pool_keys = Vec::new();
+
         for pool_update in updates {
             // make sure we aren't replaying
             assert!(pool_update.block_num == self.cur_block + 1);
@@ -158,14 +163,73 @@ impl TokenPriceGenerator {
                 self.prev_prices.insert(pk, VecDeque::new());
                 pk
             };
+            updated_pool_keys.push(pool_key);
             let prev_prices = self
                 .prev_prices
                 .get_mut(&pool_key)
                 .expect("don't have prev_prices for update");
-            prev_prices.pop_front();
             prev_prices.push_back(pool_update);
+
+            // only pop front if we extend
+            if prev_prices.len() as u64 == self.blocks_to_avg_price + 1 {
+                prev_prices.pop_front();
+            }
         }
         self.cur_block += 1;
+
+        self.prev_prices
+            .iter_mut()
+            .filter(|(k, _)| !updated_pool_keys.contains(k))
+            .for_each(|(_, queue)| {
+                let Some(last) = queue.back() else { return };
+                let mut new_back = last.clone();
+                new_back.block_num = self.cur_block;
+
+                queue.push_back(new_back);
+
+                // only pop front if we extend
+                if queue.len() as u64 == self.blocks_to_avg_price + 1 {
+                    queue.pop_front();
+                }
+            });
+
+        // given that we have added new pools that we got updates for,
+        // we also want to make sure to add new pools that haven't been updated
+        // as trading is not eligible since there's no price. Kinda a catch 22
+        let remove_keys = self
+            .prev_prices
+            .keys()
+            .copied()
+            .filter(|f| !self.uniswap_pools.contains_key(f))
+            .collect::<Vec<_>>();
+
+        for key in remove_keys {
+            self.prev_prices.remove(&key);
+            self.pair_to_pool.retain(|_, v| *v != key);
+        }
+
+        // look at all pools uniswap contains. we want to remove
+        self.uniswap_pools.iter().for_each(|entry| {
+            let (key, pool) = entry.pair();
+            // already have
+            if self.prev_prices.contains_key(key) {
+                return;
+            }
+            // new
+            let pool_r = pool.read().unwrap();
+            let price: Ray = SqrtPriceX96::from(pool_r.sqrt_price).into();
+
+            let mut queue = VecDeque::new();
+            queue.push_back(PairsWithPrice {
+                token0:         pool_r.token0,
+                token1:         pool_r.token1,
+                block_num:      self.cur_block,
+                price_1_over_0: price
+            });
+            self.prev_prices.insert(*key, queue);
+            self.pair_to_pool
+                .insert((pool_r.token0, pool_r.token1), *key);
+        });
     }
 
     pub fn new_pool_update(
