@@ -130,6 +130,9 @@ impl TokenPriceGenerator {
     }
 
     pub fn apply_update(&mut self, updates: Vec<PairsWithPrice>) {
+        // we will duplicate same price if no update for pool.
+        let mut updated_pool_keys = Vec::new();
+
         for pool_update in updates {
             // make sure we aren't replaying
             assert!(pool_update.block_num == self.cur_block + 1);
@@ -160,13 +163,33 @@ impl TokenPriceGenerator {
                 self.prev_prices.insert(pk, VecDeque::new());
                 pk
             };
+            updated_pool_keys.push(pool_key);
             let prev_prices = self
                 .prev_prices
                 .get_mut(&pool_key)
                 .expect("don't have prev_prices for update");
-            prev_prices.pop_front();
             prev_prices.push_back(pool_update);
+
+            // only pop front if we extend
+            if prev_prices.len() as u64 == self.blocks_to_avg_price + 1 {
+                prev_prices.pop_front();
+            }
         }
+
+        self.prev_prices
+            .iter_mut()
+            .filter(|(k, _)| !updated_pool_keys.contains(k))
+            .for_each(|(_, queue)| {
+                let Some(last) = queue.back() else { return };
+                let new_back = last.clone();
+
+                queue.push_back(new_back);
+
+                // only pop front if we extend
+                if queue.len() as u64 == self.blocks_to_avg_price + 1 {
+                    queue.pop_front();
+                }
+            });
 
         self.cur_block += 1;
 
