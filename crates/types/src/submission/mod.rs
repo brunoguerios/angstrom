@@ -47,11 +47,11 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
         tx_features: &'a TxFeatureInfo
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>>;
 
-    fn build_tx<'a>(
-        &'a self,
-        signer: &'a AngstromSigner,
-        bundle: &'a AngstromBundle,
-        tx_features: &'a TxFeatureInfo
+    fn build_tx(
+        &self,
+        signer: &AngstromSigner,
+        bundle: &AngstromBundle,
+        tx_features: &TxFeatureInfo
     ) -> TransactionRequest {
         let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
         TransactionRequest::default()
