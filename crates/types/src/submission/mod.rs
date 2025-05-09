@@ -1,60 +1,82 @@
 pub mod angstrom;
 pub mod mempool;
 pub mod mev_boost;
+use std::{pin::Pin, sync::Arc};
 
-use std::{borrow::Cow, pin::Pin, sync::Arc};
-
-use alloy::{
-    providers::Provider,
-    rpc::{
-        client::RpcClient,
-        json_rpc::{RpcRecv, RpcSend}
-    }
-};
-use alloy_primitives::Bytes;
+use alloy::{eips::eip1559::Eip1559Estimation, providers::Provider};
+use alloy_primitives::TxHash;
+use futures::StreamExt;
 use reqwest::Url;
 
 use crate::{contract_payloads::angstrom::AngstromBundle, primitive::AngstromSigner};
 
+pub(super) const EXTRA_GAS: u128 = (cfg!(feature = "testnet-sepolia") as u128) * (2e9 as u128);
+
+pub struct TxFeatureInfo {
+    pub nonce:        u64,
+    pub fees:         Eip1559Estimation,
+    pub chain_id:     u64,
+    pub target_block: u64
+}
+
 /// a chain submitter is a trait that deals with submitting a bundle to the
 /// different configured endpoints.
-pub trait ChainSubmitter<P, R>: Send + Sync + 'static
-where
-    P: RpcSend,
-    R: RpcRecv
-{
-    fn client(&self) -> RpcClient;
-    fn rpc_method(&self) -> Cow<'static, str>;
+pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
     fn submit<'a>(
         &'a self,
         signer: &'a AngstromSigner,
-        bundle: Option<&'a AngstromBundle>
-    ) -> Pin<Box<dyn Future<Output = eyre::Result<R>> + Send + 'a>> {
-        Box::pin(async move {
-            let payload = self.encode(signer, bundle);
-            let client = self.client();
-            client
-                .request::<(P,), R>(self.rpc_method(), (payload,))
-                .await
-                .map_err(Into::into)
-        })
-    }
-    fn encode(&self, signer: &AngstromSigner, bundle: Option<&AngstromBundle>) -> P;
+        bundle: Option<&'a AngstromBundle>,
+        tx_features: &'a TxFeatureInfo
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<TxHash>> + Send + 'a>>;
 }
 
-pub struct SubmissionHandler<P, S>
+pub struct SubmissionHandler<P>
 where
-    P: Provider + 'static,
-    S: ChainSubmitter<Box<dyn RpcSend>, Box<dyn RpcRecv>>
+    P: Provider + 'static
 {
     node_provider: Arc<P>,
-    submitters:    Vec<S>
+    submitters:    Vec<Box<dyn ChainSubmitter>>
 }
 
-impl<P, S> SubmissionHandler<P, S>
+impl<P> SubmissionHandler<P>
 where
-    P: Provider + 'static,
-    S: ChainSubmitter<Box<dyn RpcSend>, Box<dyn RpcRecv>>
+    P: Provider + 'static
 {
-    pub async fn submit_tx(&mut self, signer: &AngstromSigner, bundle: Option<AngstromBundle>) {}
+    pub async fn new(
+        node_provider: Arc<P>,
+        mut angstrom: Vec<Url>,
+        mempool: Vec<Url>,
+        mev_boost: Vec<Url>
+    ) -> Self {
+        Self { node_provider, submitters: vec![] }
+    }
+
+    pub async fn submit_tx(
+        &self,
+        signer: &AngstromSigner,
+        bundle: Option<AngstromBundle>,
+
+        target_block: u64
+    ) -> eyre::Result<TxHash> {
+        let from = signer.address();
+        let nonce = self
+            .node_provider
+            .get_transaction_count(from)
+            .await
+            .unwrap();
+        let fees = self.node_provider.estimate_eip1559_fees().await.unwrap();
+        let chain_id = self.node_provider.get_chain_id().await.unwrap();
+
+        let tx_features = TxFeatureInfo { nonce, fees, chain_id, target_block };
+
+        futures::stream::iter(self.submitters.iter())
+            .map(|submitter| submitter.submit(signer, bundle.as_ref(), &tx_features))
+            .buffer_unordered(5)
+            .collect::<Vec<eyre::Result<TxHash>>>()
+            .await
+            .into_iter()
+            .collect::<eyre::Result<Vec<_>>>()?
+            .pop()
+            .ok_or_else(|| eyre::eyre!("nothing was submitted"))
+    }
 }
