@@ -6,7 +6,7 @@ use std::{pin::Pin, sync::Arc};
 
 use alloy::{
     consensus::{EthereumTxEnvelope, TxEip4844Variant},
-    eips::eip1559::Eip1559Estimation,
+    eips::eip1559::{ETHEREUM_BLOCK_GAS_LIMIT_30M, Eip1559Estimation},
     network::TransactionBuilder,
     primitives::Address,
     providers::Provider,
@@ -17,7 +17,6 @@ use alloy_primitives::TxHash;
 use futures::StreamExt;
 use pade::PadeEncode;
 use reqwest::Url;
-use reth::rpc::builder::constants::gas_oracle::RPC_DEFAULT_GAS_CAP;
 
 use crate::{
     contract_bindings::angstrom::Angstrom, contract_payloads::angstrom::AngstromBundle,
@@ -58,7 +57,7 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
             .with_input(encoded)
             .with_chain_id(tx_features.chain_id)
             .with_nonce(tx_features.nonce)
-            .with_gas_limit(RPC_DEFAULT_GAS_CAP)
+            .with_gas_limit(ETHEREUM_BLOCK_GAS_LIMIT_30M)
             .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas + EXTRA_GAS)
             .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas + EXTRA_GAS)
     }
