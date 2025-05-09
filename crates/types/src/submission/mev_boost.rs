@@ -5,14 +5,11 @@ use std::{
 };
 
 use alloy::{
-    eips::Encodable2718,
     hex,
-    network::TransactionBuilder,
     primitives::keccak256,
     rpc::{
         client::{ClientBuilder, RpcClient},
-        json_rpc::{RequestPacket, ResponsePacket},
-        types::TransactionRequest
+        json_rpc::{RequestPacket, ResponsePacket}
     },
     signers::{Signer, local::PrivateKeySigner},
     sol_types::SolCall,
@@ -20,7 +17,6 @@ use alloy::{
 };
 use alloy_primitives::{Address, TxHash};
 use itertools::Itertools;
-use pade::PadeEncode;
 use reth::rpc::types::mev::PrivateTransactionRequest;
 
 use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo, Url};

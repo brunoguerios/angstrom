@@ -1,30 +1,18 @@
-use std::{
-    fmt::Debug,
-    sync::Arc,
-    task::{Context, Poll}
-};
+use std::fmt::Debug;
 
 use alloy::{
     eips::Encodable2718,
-    hex,
     network::TransactionBuilder,
-    primitives::{Bytes, keccak256},
-    rpc::{
-        client::{ClientBuilder, RpcClient},
-        json_rpc::{RequestPacket, ResponsePacket},
-        types::TransactionRequest
-    },
-    signers::{Signer, SignerSync, local::PrivateKeySigner},
-    sol_types::{SolCall, SolStruct},
-    transports::{TransportError, TransportErrorKind, TransportFut}
+    primitives::Bytes,
+    rpc::client::RpcClient,
+    signers::{Signer, SignerSync},
+    sol_types::{SolCall, SolStruct}
 };
 use alloy_primitives::{Address, TxHash};
-use itertools::Itertools;
 use pade::PadeEncode;
-use reth::rpc::types::mev::PrivateTransactionRequest;
 use serde::{Deserialize, Serialize};
 
-use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo, Url};
+use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo};
 use crate::{
     contract_bindings::angstrom::Angstrom::unlockWithEmptyAttestationCall,
     primitive::ANGSTROM_DOMAIN, sol_bindings::rpc_orders::AttestAngstromBlockEmpty

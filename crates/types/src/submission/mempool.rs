@@ -1,24 +1,7 @@
-use alloy::{
-    eips::Encodable2718,
-    hex,
-    network::TransactionBuilder,
-    primitives::keccak256,
-    providers::Provider,
-    rpc::{
-        client::{ClientBuilder, RpcClient},
-        json_rpc::{RequestPacket, ResponsePacket},
-        types::TransactionRequest
-    },
-    signers::{Signer, local::PrivateKeySigner},
-    sol_types::SolCall,
-    transports::{TransportError, TransportErrorKind, TransportFut}
-};
+use alloy::{eips::Encodable2718, providers::Provider};
 use alloy_primitives::{Address, TxHash};
-use pade::PadeEncode;
-use reth::rpc::builder::constants::gas_oracle::RPC_DEFAULT_GAS_CAP;
 
-use super::{AngstromBundle, AngstromSigner, ChainSubmitter, EXTRA_GAS, TxFeatureInfo};
-use crate::contract_bindings::angstrom::Angstrom;
+use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo};
 
 /// handles submitting transaction to
 pub struct MempoolSubmitter<P> {

@@ -92,7 +92,7 @@ where
 {
     pub async fn new(
         node_provider: Arc<P>,
-        mut angstrom: Vec<Url>,
+        angstrom: Vec<Url>,
         mempool: Vec<Url>,
         mev_boost: Vec<Url>
     ) -> Self {
