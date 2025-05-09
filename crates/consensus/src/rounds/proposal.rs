@@ -5,14 +5,10 @@ use std::{
     time::{Duration, Instant}
 };
 
-use alloy::{
-    network::TransactionBuilder, providers::Provider, rpc::types::TransactionRequest,
-    sol_types::SolCall
-};
+use alloy::providers::Provider;
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
-    contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     mev_boost::MevBoostProvider,
     orders::PoolSolution,
@@ -21,7 +17,6 @@ use angstrom_types::{
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::MatchingEngineHandle;
-use pade::PadeEncode;
 
 use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{ConsensusMessage, preproposal_wait_trigger::LastRoundInfo};

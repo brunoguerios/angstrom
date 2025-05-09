@@ -137,11 +137,12 @@ where
         let chain_id = self.node_provider.get_chain_id().await?;
 
         let tx_features = TxFeatureInfo { nonce, fees, chain_id, target_block };
+        let bundle_ref = bundle.as_ref();
 
         futures::stream::iter(self.submitters.clone())
             .map(async |submitter| {
                 submitter
-                    .submit(&signer, bundle.as_ref(), &tx_features)
+                    .submit(&signer, bundle_ref.clone(), &tx_features)
                     .await
             })
             .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)

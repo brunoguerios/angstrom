@@ -35,7 +35,7 @@ pub struct MevBoostSubmitter {
 impl MevBoostSubmitter {
     pub fn new(urls: &[Url], angstrom_address: Address) -> Self {
         let clients = urls
-            .into_iter()
+            .iter()
             .map(|url| {
                 let transport = MevHttp::new_flashbots(url.clone());
                 ClientBuilder::default().transport(transport, false)

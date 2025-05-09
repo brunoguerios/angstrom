@@ -34,8 +34,8 @@ pub struct AngstromSubmitter {
 impl AngstromSubmitter {
     pub fn new(urls: &[Url], angstrom_address: Address) -> Self {
         let clients = urls
-            .into_iter()
-            .map(|url| ClientBuilder::default().http(url))
+            .iter()
+            .map(|url| ClientBuilder::default().http(url.clone()))
             .collect_vec();
 
         Self { clients, angstrom_address }
