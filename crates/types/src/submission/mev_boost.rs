@@ -19,30 +19,36 @@ use alloy::{
     transports::{TransportError, TransportErrorKind, TransportFut}
 };
 use alloy_primitives::{Address, TxHash};
+use itertools::Itertools;
 use pade::PadeEncode;
-use reth::rpc::{
-    builder::constants::gas_oracle::RPC_DEFAULT_GAS_CAP, server_types::eth::GasCap,
-    types::mev::PrivateTransactionRequest
-};
+use reth::rpc::types::mev::PrivateTransactionRequest;
 
-use super::{AngstromBundle, AngstromSigner, ChainSubmitter, EXTRA_GAS, TxFeatureInfo, Url};
-use crate::contract_bindings::angstrom::Angstrom;
+use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo, Url};
 
 pub struct MevBoostSubmitter {
-    client:           RpcClient,
+    clients:          Vec<RpcClient>,
     angstrom_address: Address
 }
 
 impl MevBoostSubmitter {
-    pub fn new(url: &Url, angstrom_address: Address) -> Self {
-        let transport = MevHttp::new_flashbots(url.clone());
-        let client = ClientBuilder::default().transport(transport, false);
+    pub fn new(urls: Vec<Url>, angstrom_address: Address) -> Self {
+        let clients = urls
+            .into_iter()
+            .map(|url| {
+                let transport = MevHttp::new_flashbots(url.clone());
+                ClientBuilder::default().transport(transport, false)
+            })
+            .collect_vec();
 
-        Self { client, angstrom_address }
+        Self { clients, angstrom_address }
     }
 }
 
 impl ChainSubmitter for MevBoostSubmitter {
+    fn angstrom_address(&self) -> Address {
+        self.angstrom_address
+    }
+
     fn submit<'a>(
         &'a self,
         signer: &'a AngstromSigner,
@@ -51,22 +57,8 @@ impl ChainSubmitter for MevBoostSubmitter {
     ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<TxHash>> + Send + 'a>> {
         Box::pin(async move {
             let Some(bundle) = bundle else { return Err(eyre::eyre!("no bundle was past in")) };
-
-            let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
-            let tx = TransactionRequest::default()
-                .with_from(signer.address())
-                .with_kind(revm_primitives::TxKind::Call(self.angstrom_address))
-                .with_input(encoded)
-                .with_chain_id(tx_features.chain_id)
-                .with_nonce(tx_features.nonce)
-                .with_gas_limit(RPC_DEFAULT_GAS_CAP)
-                .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas + EXTRA_GAS)
-                .with_max_priority_fee_per_gas(
-                    tx_features.fees.max_priority_fee_per_gas + EXTRA_GAS
-                )
-                .build(signer)
-                .await
-                .unwrap();
+            let tx = self.build_and_sign_tx(signer, bundle, tx_features).await;
+            let hash = *tx.tx_hash();
 
             let private_tx = PrivateTransactionRequest::new(&tx)
                 .max_block_number(tx_features.target_block)
@@ -74,13 +66,16 @@ impl ChainSubmitter for MevBoostSubmitter {
                     reth::rpc::types::mev::PrivateTransactionPreferences::default().into_fast()
                 );
 
-            self.client
-                .request::<(PrivateTransactionRequest,), TxHash>(
-                    "eth_sendPrivateTransaction",
-                    (private_tx,)
-                )
-                .await
-                .map_err(Into::into)
+            for client in &self.clients {
+                client
+                    .request::<(&PrivateTransactionRequest,), TxHash>(
+                        "eth_sendPrivateTransaction",
+                        (&private_tx,)
+                    )
+                    .await?;
+            }
+
+            Ok(hash)
         })
     }
 }
