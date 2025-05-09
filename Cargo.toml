@@ -90,7 +90,6 @@ revm-primitives = { version = "18.0.0", default-features = false }
 revm-interpreter = { version = "18.0.0", default-features = false }
 
 
-
 # reth
 reth = { git = "https://github.com/paradigmxyz/reth", version = "1.3.12", tag = "v1.3.12" }
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", version = "1.3.12", tag = "v1.3.12", default-features = false }
