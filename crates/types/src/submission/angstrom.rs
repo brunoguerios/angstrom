@@ -4,15 +4,23 @@ use alloy::{
     eips::Encodable2718,
     network::TransactionBuilder,
     primitives::Bytes,
-    rpc::client::RpcClient,
-    signers::{Signer, SignerSync},
+    rpc::client::{ClientBuilder, RpcClient},
+    signers::SignerSync,
     sol_types::{SolCall, SolStruct}
 };
 use alloy_primitives::{Address, TxHash};
+use futures::{
+    TryStreamExt,
+    stream::{StreamExt, iter}
+};
+use itertools::Itertools;
 use pade::PadeEncode;
 use serde::{Deserialize, Serialize};
 
-use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo};
+use super::{
+    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
+    Url
+};
 use crate::{
     contract_bindings::angstrom::Angstrom::unlockWithEmptyAttestationCall,
     primitive::ANGSTROM_DOMAIN, sol_bindings::rpc_orders::AttestAngstromBlockEmpty
@@ -21,6 +29,17 @@ use crate::{
 pub struct AngstromSubmitter {
     clients:          Vec<RpcClient>,
     angstrom_address: Address
+}
+
+impl AngstromSubmitter {
+    pub fn new(urls: Vec<Url>, angstrom_address: Address) -> Self {
+        let clients = urls
+            .into_iter()
+            .map(|url| ClientBuilder::default().http(url))
+            .collect_vec();
+
+        Self { clients, angstrom_address }
+    }
 }
 
 impl ChainSubmitter for AngstromSubmitter {
@@ -39,6 +58,7 @@ impl ChainSubmitter for AngstromSubmitter {
                 let tx = self.build_tx(signer, bundle, tx_features);
                 let gas = tx.max_priority_fee_per_gas.unwrap();
                 // TODO: manipulate gas before signing based of off defined rebate spec.
+                // This is pending with talks with titan so leaving it for now
 
                 let signed_tx = tx.build(signer).await.unwrap();
                 let tx_payload = Bytes::from(signed_tx.encoded_2718());
@@ -62,29 +82,30 @@ impl ChainSubmitter for AngstromSubmitter {
                 AngstromIntegrationSubmission {
                     tx: Bytes::new(),
                     unlock_data,
-                    max_priority_fee_per_gas: 0
+                    ..Default::default()
                 }
             };
 
-            let mut tx_hash = TxHash::default();
-            for client in &self.clients {
-                if let Some(this_tx_hash) = client
-                    .request::<(&AngstromIntegrationSubmission,), Option<TxHash>>(
-                        "angstrom_submitBundle",
-                        (&payload,)
-                    )
-                    .await?
-                {
-                    tx_hash = this_tx_hash;
-                }
-            }
-
-            Ok(tx_hash)
+            Ok(iter(self.clients.clone())
+                .map(async |client| {
+                    client
+                        .request::<(&AngstromIntegrationSubmission,), Option<TxHash>>(
+                            "angstrom_submitBundle",
+                            (&payload,)
+                        )
+                        .await
+                })
+                .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
+                .try_collect::<Vec<_>>()
+                .await?
+                .pop()
+                .flatten()
+                .unwrap_or_default())
         })
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AngstromIntegrationSubmission {
     pub tx: Bytes,

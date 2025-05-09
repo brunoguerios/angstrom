@@ -1,16 +1,24 @@
+use std::sync::Arc;
+
 use alloy::{eips::Encodable2718, providers::Provider};
 use alloy_primitives::{Address, TxHash};
+use futures::{
+    TryStreamExt,
+    stream::{StreamExt, iter}
+};
 
-use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo};
+use super::{
+    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo
+};
 
 /// handles submitting transaction to
 pub struct MempoolSubmitter<P> {
-    clients:          Vec<P>,
+    clients:          Vec<Arc<P>>,
     angstrom_address: Address
 }
 
 impl<P> MempoolSubmitter<P> {
-    pub fn new(clients: Vec<P>, angstrom_address: Address) -> Self {
+    pub fn new(clients: Vec<Arc<P>>, angstrom_address: Address) -> Self {
         Self { clients, angstrom_address }
     }
 }
@@ -36,9 +44,12 @@ where
             let encoded_tx = tx.encoded_2718();
             let tx_hash = *tx.tx_hash();
 
-            for client in &self.clients {
-                let _ = client.send_raw_transaction(&encoded_tx).await?;
-            }
+            // Clone here is fine as its in a Arc
+            let _: Vec<_> = iter(self.clients.clone())
+                .map(async |client| client.send_raw_transaction(&encoded_tx).await)
+                .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
+                .try_collect()
+                .await?;
 
             Ok(tx_hash)
         })

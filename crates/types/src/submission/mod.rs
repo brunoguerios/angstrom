@@ -14,7 +14,10 @@ use alloy::{
     sol_types::SolCall
 };
 use alloy_primitives::TxHash;
-use futures::StreamExt;
+use angstrom::AngstromSubmitter;
+use futures::{StreamExt, TryStreamExt};
+use mempool::MempoolSubmitter;
+use mev_boost::MevBoostSubmitter;
 use pade::PadeEncode;
 use reqwest::Url;
 
@@ -24,6 +27,7 @@ use crate::{
 };
 
 pub(super) const EXTRA_GAS: u128 = (cfg!(feature = "testnet-sepolia") as u128) * (2e9 as u128);
+const DEFAULT_SUBMISSION_CONCURRENCY: usize = 10;
 
 pub struct TxFeatureInfo {
     pub nonce:        u64,
@@ -88,15 +92,23 @@ where
 
 impl<P> SubmissionHandler<P>
 where
-    P: Provider + 'static
+    P: Provider + 'static + Unpin
 {
     pub async fn new(
         node_provider: Arc<P>,
+        mempool: Vec<Arc<P>>,
         angstrom: Vec<Url>,
-        mempool: Vec<Url>,
-        mev_boost: Vec<Url>
+        mev_boost: Vec<Url>,
+        angstom_address: Address
     ) -> Self {
-        Self { node_provider, submitters: vec![] }
+        let mempool =
+            Box::new(MempoolSubmitter::new(mempool, angstom_address)) as Box<dyn ChainSubmitter>;
+        let angstrom =
+            Box::new(AngstromSubmitter::new(angstrom, angstom_address)) as Box<dyn ChainSubmitter>;
+        let mev_boost =
+            Box::new(MevBoostSubmitter::new(mev_boost, angstom_address)) as Box<dyn ChainSubmitter>;
+
+        Self { node_provider, submitters: vec![mempool, angstrom, mev_boost] }
     }
 
     pub async fn submit_tx(
@@ -119,11 +131,9 @@ where
 
         futures::stream::iter(self.submitters.iter())
             .map(|submitter| submitter.submit(signer, bundle.as_ref(), &tx_features))
-            .buffer_unordered(5)
-            .collect::<Vec<eyre::Result<TxHash>>>()
-            .await
-            .into_iter()
-            .collect::<eyre::Result<Vec<_>>>()?
+            .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
+            .try_collect::<Vec<_>>()
+            .await?
             .pop()
             .ok_or_else(|| eyre::eyre!("nothing was submitted"))
     }

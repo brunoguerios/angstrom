@@ -16,10 +16,17 @@ use alloy::{
     transports::{TransportError, TransportErrorKind, TransportFut}
 };
 use alloy_primitives::{Address, TxHash};
+use futures::{
+    TryStreamExt,
+    stream::{StreamExt, iter}
+};
 use itertools::Itertools;
 use reth::rpc::types::mev::PrivateTransactionRequest;
 
-use super::{AngstromBundle, AngstromSigner, ChainSubmitter, TxFeatureInfo, Url};
+use super::{
+    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
+    Url
+};
 
 pub struct MevBoostSubmitter {
     clients:          Vec<RpcClient>,
@@ -62,14 +69,19 @@ impl ChainSubmitter for MevBoostSubmitter {
                     reth::rpc::types::mev::PrivateTransactionPreferences::default().into_fast()
                 );
 
-            for client in &self.clients {
-                client
-                    .request::<(&PrivateTransactionRequest,), TxHash>(
-                        "eth_sendPrivateTransaction",
-                        (&private_tx,)
-                    )
-                    .await?;
-            }
+            // Clone here is fine as its in a Arc
+            let _: Vec<_> = iter(self.clients.clone())
+                .map(async |client| {
+                    client
+                        .request::<(&PrivateTransactionRequest,), TxHash>(
+                            "eth_sendPrivateTransaction",
+                            (&private_tx,)
+                        )
+                        .await
+                })
+                .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
+                .try_collect()
+                .await?;
 
             Ok(hash)
         })
