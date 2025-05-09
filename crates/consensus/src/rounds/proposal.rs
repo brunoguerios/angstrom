@@ -172,7 +172,6 @@ impl ProposalState {
             tracing::info!(?included, "block tx result");
             included
         });
-        // .boxed();
 
         self.waker.wake_by_ref();
         self.submission_future = Some(Box::pin(tokio::spawn(submission_future)));
