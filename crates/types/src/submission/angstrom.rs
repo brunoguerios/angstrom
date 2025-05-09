@@ -32,7 +32,7 @@ pub struct AngstromSubmitter {
 }
 
 impl AngstromSubmitter {
-    pub fn new(urls: Vec<Url>, angstrom_address: Address) -> Self {
+    pub fn new(urls: &[Url], angstrom_address: Address) -> Self {
         let clients = urls
             .into_iter()
             .map(|url| ClientBuilder::default().http(url))

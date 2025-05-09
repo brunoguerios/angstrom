@@ -1,6 +1,7 @@
-use std::sync::Arc;
-
-use alloy::{eips::Encodable2718, providers::Provider};
+use alloy::{
+    eips::Encodable2718,
+    providers::{Provider, ProviderBuilder, RootProvider}
+};
 use alloy_primitives::{Address, TxHash};
 use futures::{
     TryStreamExt,
@@ -8,25 +9,27 @@ use futures::{
 };
 
 use super::{
-    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo
+    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
+    Url
 };
 
 /// handles submitting transaction to
-pub struct MempoolSubmitter<P> {
-    clients:          Vec<Arc<P>>,
+pub struct MempoolSubmitter {
+    clients:          Vec<RootProvider>,
     angstrom_address: Address
 }
 
-impl<P> MempoolSubmitter<P> {
-    pub fn new(clients: Vec<Arc<P>>, angstrom_address: Address) -> Self {
+impl MempoolSubmitter {
+    pub fn new(clients: &[Url], angstrom_address: Address) -> Self {
+        let clients = clients
+            .into_iter()
+            .map(|url| ProviderBuilder::<_, _, _>::default().on_http(url.clone()))
+            .collect::<Vec<_>>();
         Self { clients, angstrom_address }
     }
 }
 
-impl<P> ChainSubmitter for MempoolSubmitter<P>
-where
-    P: Provider + Unpin + 'static
-{
+impl ChainSubmitter for MempoolSubmitter {
     fn angstrom_address(&self) -> Address {
         self.angstrom_address
     }

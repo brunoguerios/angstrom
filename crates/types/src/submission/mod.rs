@@ -86,7 +86,7 @@ where
     P: Provider + 'static
 {
     node_provider: Arc<P>,
-    submitters:    Vec<Box<dyn ChainSubmitter>>
+    submitters:    Vec<Arc<Box<dyn ChainSubmitter>>>
 }
 
 impl<P> Deref for SubmissionHandler<P>
@@ -104,19 +104,22 @@ impl<P> SubmissionHandler<P>
 where
     P: Provider + 'static + Unpin
 {
-    pub async fn new(
+    pub fn new(
         node_provider: Arc<P>,
-        mempool: Vec<Arc<P>>,
-        angstrom: Vec<Url>,
-        mev_boost: Vec<Url>,
+        mempool: &[Url],
+        angstrom: &[Url],
+        mev_boost: &[Url],
         angstom_address: Address
     ) -> Self {
         let mempool =
-            Box::new(MempoolSubmitter::new(mempool, angstom_address)) as Box<dyn ChainSubmitter>;
+            Arc::new(Box::new(MempoolSubmitter::new(mempool, angstom_address))
+                as Box<dyn ChainSubmitter>);
         let angstrom =
-            Box::new(AngstromSubmitter::new(angstrom, angstom_address)) as Box<dyn ChainSubmitter>;
+            Arc::new(Box::new(AngstromSubmitter::new(angstrom, angstom_address))
+                as Box<dyn ChainSubmitter>);
         let mev_boost =
-            Box::new(MevBoostSubmitter::new(mev_boost, angstom_address)) as Box<dyn ChainSubmitter>;
+            Arc::new(Box::new(MevBoostSubmitter::new(mev_boost, angstom_address))
+                as Box<dyn ChainSubmitter>);
 
         Self { node_provider, submitters: vec![mempool, angstrom, mev_boost] }
     }
@@ -135,7 +138,7 @@ where
 
         let tx_features = TxFeatureInfo { nonce, fees, chain_id, target_block };
 
-        futures::stream::iter(self.submitters.iter())
+        futures::stream::iter(self.submitters.clone())
             .map(async |submitter| {
                 submitter
                     .submit(&signer, bundle.as_ref(), &tx_features)

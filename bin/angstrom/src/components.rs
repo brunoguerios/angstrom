@@ -194,10 +194,12 @@ where
         .unwrap()
         .into();
 
-    let mev_boost_provider = MevBoostProvider::new_from_urls(
+    let submission_handler = SubmissionHandler::new(
         querying_provider.clone(),
+        &config.normal_nodes,
+        &config.angstrom_submission_nodes,
         &config.mev_boost_endpoints,
-        &config.normal_nodes
+        node_config.angstrom_address
     );
 
     tracing::info!(target: "angstrom::startup-sequence", "waiting for the next block to continue startup sequence. \
@@ -377,7 +379,7 @@ where
         node_config.angstrom_address,
         uni_ang_registry,
         uniswap_pools.clone(),
-        mev_boost_provider,
+        submission_handler,
         matching_handle,
         global_block_sync.clone()
     );
