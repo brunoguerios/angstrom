@@ -1,6 +1,5 @@
 use std::{
     collections::HashSet,
-    sync::Arc,
     task::{Context, Poll, Waker},
     time::{Duration, Instant}
 };
@@ -10,9 +9,7 @@ use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    orders::PoolSolution,
-    primitive::AngstromSigner,
-    sol_bindings::rpc_orders::AttestAngstromBlockEmpty
+    orders::PoolSolution
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::MatchingEngineHandle;

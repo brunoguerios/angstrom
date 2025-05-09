@@ -146,18 +146,17 @@ where
 }
 
 pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching> {
-    block_height:     BlockNumber,
-    angstrom_address: Address,
-    matching_engine:  Matching,
-    signer:           AngstromSigner,
-    round_leader:     Address,
-    validators:       Vec<AngstromValidator>,
-    order_storage:    Arc<OrderStorage>,
-    _metrics:         ConsensusMetricsWrapper,
-    pool_registry:    UniswapAngstromRegistry,
-    uniswap_pools:    SyncedUniswapPools,
-    provider:         Arc<SubmissionHandler<P>>,
-    messages:         VecDeque<ConsensusMessage>
+    block_height:    BlockNumber,
+    matching_engine: Matching,
+    signer:          AngstromSigner,
+    round_leader:    Address,
+    validators:      Vec<AngstromValidator>,
+    order_storage:   Arc<OrderStorage>,
+    _metrics:        ConsensusMetricsWrapper,
+    pool_registry:   UniswapAngstromRegistry,
+    uniswap_pools:   SyncedUniswapPools,
+    provider:        Arc<SubmissionHandler<P>>,
+    messages:        VecDeque<ConsensusMessage>
 }
 
 // contains shared impls
@@ -169,7 +168,6 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         block_height: BlockNumber,
-        angstrom_address: Address,
         order_storage: Arc<OrderStorage>,
         signer: AngstromSigner,
         round_leader: Address,
@@ -182,7 +180,6 @@ where
     ) -> Self {
         Self {
             block_height,
-            angstrom_address,
             round_leader,
             validators,
             order_storage,
@@ -380,8 +377,8 @@ pub mod tests {
     use angstrom_network::manager::StromConsensusEvent;
     use angstrom_types::{
         contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-        mev_boost::MevBoostProvider,
-        primitive::{AngstromSigner, UniswapPoolRegistry}
+        primitive::{AngstromSigner, UniswapPoolRegistry},
+        submission::SubmissionHandler
     };
     use dashmap::DashMap;
     use futures::{Stream, pin_mut};
@@ -449,11 +446,11 @@ pub mod tests {
             .unwrap()
             .into();
 
-        let provider = MevBoostProvider::new_from_raw(querying_provider, vec![]);
+        let provider =
+            SubmissionHandler { node_provider: querying_provider, submitters: vec![] };
 
         let shared_state = SharedRoundState::new(
             1, // block height
-            Address::ZERO,
             order_storage,
             signer,
             leader_id,

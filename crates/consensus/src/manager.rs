@@ -6,11 +6,7 @@ use std::{
     task::{Context, Poll, Waker}
 };
 
-use alloy::{
-    consensus::BlockHeader,
-    primitives::{Address, BlockNumber},
-    providers::Provider
-};
+use alloy::{consensus::BlockHeader, primitives::BlockNumber, providers::Provider};
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensusEvent};
 use angstrom_types::{
@@ -66,7 +62,6 @@ where
         order_storage: Arc<OrderStorage>,
         deploy_block: BlockNumber,
         current_height: BlockNumber,
-        angstrom_address: Address,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
         provider: SubmissionHandler<P>,
@@ -86,7 +81,6 @@ where
             leader_selection,
             consensus_round_state: RoundStateMachine::new(SharedRoundState::new(
                 current_height,
-                angstrom_address,
                 order_storage,
                 signer,
                 leader,

@@ -2,7 +2,6 @@ use std::pin::Pin;
 
 use alloy::{
     eips::eip2718::Encodable2718,
-    network::TransactionBuilder,
     primitives::{Address, TxHash},
     providers::Provider
 };
@@ -11,7 +10,7 @@ use angstrom_types::{
     primitive::AngstromSigner,
     submission::{ChainSubmitter, TxFeatureInfo}
 };
-use futures::{Future, FutureExt};
+use futures::Future;
 
 use crate::contracts::anvil::WalletProviderRpc;
 
@@ -56,18 +55,14 @@ impl ChainSubmitter for AnvilSubmissionProvider {
             }
 
             let tx = self.build_and_sign_tx(signer, bundle, tx_features).await;
-
             let hash = *tx.tx_hash();
             let encoded = tx.encoded_2718();
 
-            let submitted = self.provider.send_raw_transaction(&encoded).await;
-            let submitted = submitted
-                .inspect_err(|e| {
-                    tracing::info!(?e, "failed to submit transaction");
-                })
-                .is_ok();
-
-            Ok(None)
+            self.provider
+                .send_raw_transaction(&encoded)
+                .await
+                .map(|_| Some(hash))
+                .map_err(Into::into)
         })
     }
 }
