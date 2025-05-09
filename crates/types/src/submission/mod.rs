@@ -1,8 +1,7 @@
 pub mod angstrom;
 pub mod mempool;
 pub mod mev_boost;
-
-use std::{pin::Pin, sync::Arc};
+use std::{ops::Deref, pin::Pin, sync::Arc};
 
 use alloy::{
     consensus::{EthereumTxEnvelope, TxEip4844Variant},
@@ -88,6 +87,17 @@ where
 {
     node_provider: Arc<P>,
     submitters:    Vec<Box<dyn ChainSubmitter>>
+}
+
+impl<P> Deref for SubmissionHandler<P>
+where
+    P: Provider + Unpin + 'static
+{
+    type Target = P;
+
+    fn deref(&self) -> &Self::Target {
+        &self.node_provider
+    }
 }
 
 impl<P> SubmissionHandler<P>

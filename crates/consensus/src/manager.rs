@@ -16,8 +16,8 @@ use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensus
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_payloads::angstrom::UniswapAngstromRegistry,
-    mev_boost::MevBoostProvider,
-    primitive::{AngstromSigner, ChainExt}
+    primitive::{AngstromSigner, ChainExt},
+    submission::SubmissionHandler
 };
 use futures::StreamExt;
 use matching_engine::MatchingEngineHandle;
@@ -36,7 +36,10 @@ use crate::{
 
 const MODULE_NAME: &str = "Consensus";
 
-pub struct ConsensusManager<P, Matching, BlockSync> {
+pub struct ConsensusManager<P, Matching, BlockSync>
+where
+    P: Provider + Unpin + 'static
+{
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
     consensus_round_state:  RoundStateMachine<P, Matching>,
@@ -51,7 +54,7 @@ pub struct ConsensusManager<P, Matching, BlockSync> {
 
 impl<P, Matching, BlockSync> ConsensusManager<P, Matching, BlockSync>
 where
-    P: Provider + 'static,
+    P: Provider + Unpin + 'static,
     BlockSync: BlockSyncConsumer,
     Matching: MatchingEngineHandle
 {
@@ -66,7 +69,7 @@ where
         angstrom_address: Address,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: MevBoostProvider<P>,
+        provider: SubmissionHandler<P>,
         matching_engine: Matching,
         block_sync: BlockSync
     ) -> Self {
@@ -185,7 +188,7 @@ where
 
 impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>
 where
-    P: Provider + 'static,
+    P: Provider + Unpin + 'static,
     Matching: MatchingEngineHandle,
     BlockSync: BlockSyncConsumer
 {

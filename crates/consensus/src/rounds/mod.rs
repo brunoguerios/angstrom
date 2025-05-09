@@ -19,6 +19,7 @@ use angstrom_types::{
     orders::PoolSolution,
     primitive::AngstromSigner,
     sol_bindings::grouped_orders::OrderWithStorageData,
+    submission::SubmissionHandler,
     uni_structure::BaselinePoolState
 };
 use bid_aggregation::BidAggregationState;
@@ -42,7 +43,7 @@ type PollTransition<P, Matching> = Poll<Option<Box<dyn ConsensusState<P, Matchin
 
 pub trait ConsensusState<P, Matching>: Send
 where
-    P: Provider,
+    P: Provider + Unpin + 'static,
     Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
@@ -65,7 +66,10 @@ where
 }
 
 /// Holds and progresses the consensus state machine
-pub struct RoundStateMachine<P, Matching> {
+pub struct RoundStateMachine<P, Matching>
+where
+    P: Provider + Unpin + 'static
+{
     current_state:           Box<dyn ConsensusState<P, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
@@ -75,7 +79,7 @@ pub struct RoundStateMachine<P, Matching> {
 
 impl<P, Matching> RoundStateMachine<P, Matching>
 where
-    P: Provider + 'static,
+    P: Provider + Unpin + 'static,
     Matching: MatchingEngineHandle
 {
     pub fn new(shared_state: SharedRoundState<P, Matching>) -> Self {
@@ -118,7 +122,7 @@ where
 
 impl<P, Matching> Stream for RoundStateMachine<P, Matching>
 where
-    P: Provider + 'static,
+    P: Provider + Unpin + 'static,
     Matching: MatchingEngineHandle
 {
     type Item = ConsensusMessage;
@@ -142,7 +146,7 @@ where
     }
 }
 
-pub struct SharedRoundState<P, Matching> {
+pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching> {
     block_height:     BlockNumber,
     angstrom_address: Address,
     matching_engine:  Matching,
@@ -153,14 +157,14 @@ pub struct SharedRoundState<P, Matching> {
     _metrics:         ConsensusMetricsWrapper,
     pool_registry:    UniswapAngstromRegistry,
     uniswap_pools:    SyncedUniswapPools,
-    provider:         Arc<MevBoostProvider<P>>,
+    provider:         Arc<SubmissionHandler<P>>,
     messages:         VecDeque<ConsensusMessage>
 }
 
 // contains shared impls
 impl<P, Matching> SharedRoundState<P, Matching>
 where
-    P: Provider + 'static,
+    P: Provider + Unpin + 'static,
     Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
@@ -174,7 +178,7 @@ where
         metrics: ConsensusMetricsWrapper,
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
-        provider: MevBoostProvider<P>,
+        provider: SubmissionHandler<P>,
         matching_engine: Matching
     ) -> Self {
         Self {
