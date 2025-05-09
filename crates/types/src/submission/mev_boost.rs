@@ -12,7 +12,6 @@ use alloy::{
         json_rpc::{RequestPacket, ResponsePacket}
     },
     signers::{Signer, local::PrivateKeySigner},
-    sol_types::SolCall,
     transports::{TransportError, TransportErrorKind, TransportFut}
 };
 use alloy_primitives::{Address, TxHash};
@@ -57,7 +56,7 @@ impl ChainSubmitter for MevBoostSubmitter {
         signer: &'a AngstromSigner,
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
-    ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<TxHash>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {
         Box::pin(async move {
             let Some(bundle) = bundle else { return Err(eyre::eyre!("no bundle was past in")) };
             let tx = self.build_and_sign_tx(signer, bundle, tx_features).await;
@@ -83,7 +82,7 @@ impl ChainSubmitter for MevBoostSubmitter {
                 .try_collect()
                 .await?;
 
-            Ok(hash)
+            Ok(Some(hash))
         })
     }
 }

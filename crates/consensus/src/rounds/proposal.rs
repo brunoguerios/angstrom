@@ -53,7 +53,7 @@ impl ProposalState {
         waker: Waker
     ) -> Self
     where
-        P: Provider + 'static,
+        P: Provider + Unpin + 'static,
         Matching: MatchingEngineHandle
     {
         // queue building future
@@ -108,7 +108,7 @@ impl ProposalState {
         });
 
         let provider = handles.provider.clone();
-        let signer = handles.signer;
+        let signer = handles.signer.clone();
         let target_block = handles.block_height + 1;
 
         tracing::debug!("starting to build proposal");
@@ -140,14 +140,20 @@ impl ProposalState {
                 return false;
             };
 
-        let submission_future = async move {
+        let submission_future = Box::pin(async move {
             let Ok(tx_hash) = provider
-                .submit_tx(&signer, possible_bundle, target_block)
+                .submit_tx(signer, possible_bundle, target_block)
                 .await
             else {
                 tracing::error!("submission failed");
                 return false;
             };
+
+            let Some(tx_hash) = tx_hash else {
+                tracing::info!("submitted unlock attestation");
+                return true;
+            };
+
             tracing::info!("submitted bundle");
             provider
                 .watch_blocks()
@@ -165,11 +171,11 @@ impl ProposalState {
                 .is_some();
             tracing::info!(?included, "block tx result");
             included
-        }
-        .boxed();
+        });
+        // .boxed();
 
         self.waker.wake_by_ref();
-        self.submission_future = Some(tokio::spawn(submission_future).boxed());
+        self.submission_future = Some(Box::pin(tokio::spawn(submission_future)));
 
         true
     }

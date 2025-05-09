@@ -36,7 +36,7 @@ where
         signer: &'a AngstromSigner,
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
-    ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<TxHash>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {
         Box::pin(async move {
             let Some(bundle) = bundle else { return Err(eyre::eyre!("no bundle was past in")) };
 
@@ -51,7 +51,7 @@ where
                 .try_collect()
                 .await?;
 
-            Ok(tx_hash)
+            Ok(Some(tx_hash))
         })
     }
 }

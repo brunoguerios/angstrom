@@ -52,7 +52,7 @@ impl ChainSubmitter for AngstromSubmitter {
         signer: &'a AngstromSigner,
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
-    ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<TxHash>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {
         Box::pin(async move {
             let payload = if let Some(bundle) = bundle {
                 let tx = self.build_tx(signer, bundle, tx_features);
@@ -99,7 +99,6 @@ impl ChainSubmitter for AngstromSubmitter {
                 .try_collect::<Vec<_>>()
                 .await?
                 .pop()
-                .flatten()
                 .unwrap_or_default())
         })
     }

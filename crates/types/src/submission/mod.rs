@@ -45,7 +45,7 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
         signer: &'a AngstromSigner,
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
-    ) -> Pin<Box<dyn Future<Output = eyre::Result<TxHash>> + Send + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>>;
 
     fn build_tx<'a>(
         &'a self,
@@ -123,24 +123,24 @@ where
 
     pub async fn submit_tx(
         &self,
-        signer: &AngstromSigner,
+        signer: AngstromSigner,
         bundle: Option<AngstromBundle>,
-
         target_block: u64
-    ) -> eyre::Result<TxHash> {
+    ) -> eyre::Result<Option<TxHash>> {
         let from = signer.address();
-        let nonce = self
-            .node_provider
-            .get_transaction_count(from)
-            .await
-            .unwrap();
-        let fees = self.node_provider.estimate_eip1559_fees().await.unwrap();
-        let chain_id = self.node_provider.get_chain_id().await.unwrap();
+        let nonce = self.node_provider.get_transaction_count(from).await?;
+
+        let fees = self.node_provider.estimate_eip1559_fees().await?;
+        let chain_id = self.node_provider.get_chain_id().await?;
 
         let tx_features = TxFeatureInfo { nonce, fees, chain_id, target_block };
 
         futures::stream::iter(self.submitters.iter())
-            .map(|submitter| submitter.submit(signer, bundle.as_ref(), &tx_features))
+            .map(async |submitter| {
+                submitter
+                    .submit(&signer, bundle.as_ref(), &tx_features)
+                    .await
+            })
             .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
             .try_collect::<Vec<_>>()
             .await?
