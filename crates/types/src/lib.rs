@@ -13,6 +13,7 @@ pub mod primitive;
 pub mod reth_db_provider;
 pub mod reth_db_wrapper;
 pub mod sol_bindings;
+pub mod submission;
 pub mod testnet;
 pub mod uni_structure;
 
