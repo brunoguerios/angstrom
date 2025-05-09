@@ -12,10 +12,11 @@ use angstrom_rpc::{OrderApi, api::OrderApiServer};
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-    mev_boost::{MevBoostProvider, SubmitTx},
+    // mev_boost::{MevBoostProvider, SubmitTx},
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
     sol_bindings::testnet::TestnetHub,
+    submission::SubmissionHandler,
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
@@ -263,12 +264,15 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         tracing::debug!("created testnet hub and uniswap registry");
 
-        let anvil = AnvilSubmissionProvider { provider: state_provider.rpc_provider() };
+        let anvil = AnvilSubmissionProvider {
+            provider:         state_provider.rpc_provider(),
+            angstrom_address: inital_angstrom_state.angstrom_addr
+        };
 
-        let mev_boost_provider = MevBoostProvider::new_from_raw(
-            Arc::new(state_provider.rpc_provider()),
-            vec![Arc::new(Box::new(anvil) as Box<dyn SubmitTx>)]
-        );
+        let mev_boost_provider = SubmissionHandler {
+            node_provider: Arc::new(state_provider.rpc_provider()),
+            submitters:    vec![Box::new(anvil)]
+        };
 
         tracing::debug!("created mev boost provider");
 

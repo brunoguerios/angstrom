@@ -10,7 +10,6 @@ use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    mev_boost::MevBoostProvider,
     orders::PoolSolution,
     primitive::AngstromSigner,
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty
@@ -66,27 +65,6 @@ impl ProposalState {
             trigger_time,
             waker
         }
-    }
-
-    async fn submit_unlock<P>(
-        signer: AngstromSigner,
-        provider: Arc<MevBoostProvider<P>>,
-        target_block: u64
-    ) -> bool
-    where
-        P: Provider + 'static
-    {
-        tracing::info!("submitting unlock attestation");
-        let attestation = AttestAngstromBlockEmpty { block_number: target_block };
-        if let Err(e) = provider
-            .sign_and_send_unlock_data(signer, attestation)
-            .await
-        {
-            tracing::error!(%e, "failed to submit empty bundle attestation");
-            return false;
-        }
-
-        true
     }
 
     fn try_build_proposal<P, Matching>(

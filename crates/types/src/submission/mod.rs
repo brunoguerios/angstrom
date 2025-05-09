@@ -14,7 +14,7 @@ use alloy::{
 };
 use alloy_primitives::TxHash;
 use angstrom::AngstromSubmitter;
-use futures::{StreamExt, TryStreamExt};
+use futures::StreamExt;
 use mempool::MempoolSubmitter;
 use mev_boost::MevBoostSubmitter;
 use pade::PadeEncode;
@@ -85,8 +85,8 @@ pub struct SubmissionHandler<P>
 where
     P: Provider + 'static
 {
-    node_provider: Arc<P>,
-    submitters:    Vec<Arc<Box<dyn ChainSubmitter>>>
+    pub node_provider: Arc<P>,
+    pub submitters:    Vec<Box<dyn ChainSubmitter>>
 }
 
 impl<P> Deref for SubmissionHandler<P>
@@ -112,14 +112,11 @@ where
         angstom_address: Address
     ) -> Self {
         let mempool =
-            Arc::new(Box::new(MempoolSubmitter::new(mempool, angstom_address))
-                as Box<dyn ChainSubmitter>);
+            Box::new(MempoolSubmitter::new(mempool, angstom_address)) as Box<dyn ChainSubmitter>;
         let angstrom =
-            Arc::new(Box::new(AngstromSubmitter::new(angstrom, angstom_address))
-                as Box<dyn ChainSubmitter>);
+            Box::new(AngstromSubmitter::new(angstrom, angstom_address)) as Box<dyn ChainSubmitter>;
         let mev_boost =
-            Arc::new(Box::new(MevBoostSubmitter::new(mev_boost, angstom_address))
-                as Box<dyn ChainSubmitter>);
+            Box::new(MevBoostSubmitter::new(mev_boost, angstom_address)) as Box<dyn ChainSubmitter>;
 
         Self { node_provider, submitters: vec![mempool, angstrom, mev_boost] }
     }
@@ -137,18 +134,18 @@ where
         let chain_id = self.node_provider.get_chain_id().await?;
 
         let tx_features = TxFeatureInfo { nonce, fees, chain_id, target_block };
-        let bundle_ref = bundle.as_ref();
 
-        futures::stream::iter(self.submitters.clone())
-            .map(async |submitter| {
-                submitter
-                    .submit(&signer, bundle_ref.clone(), &tx_features)
-                    .await
-            })
-            .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
-            .try_collect::<Vec<_>>()
-            .await?
-            .pop()
-            .ok_or_else(|| eyre::eyre!("nothing was submitted"))
+        let mut futs = Vec::new();
+        for submitter in &self.submitters {
+            futs.push(submitter.submit(&signer, bundle.as_ref(), &tx_features));
+        }
+        let mut buffered_futs = futures::stream::iter(futs).buffer_unordered(10);
+
+        let mut tx_hash = None;
+        while let Some(res) = buffered_futs.next().await {
+            tx_hash = res?;
+        }
+
+        Ok(tx_hash)
     }
 }
