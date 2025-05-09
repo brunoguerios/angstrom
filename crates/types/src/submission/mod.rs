@@ -45,6 +45,24 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
         tx_features: &'a TxFeatureInfo
     ) -> Pin<Box<dyn Future<Output = eyre::Result<TxHash>> + Send + 'a>>;
 
+    fn build_tx<'a>(
+        &'a self,
+        signer: &'a AngstromSigner,
+        bundle: &'a AngstromBundle,
+        tx_features: &'a TxFeatureInfo
+    ) -> TransactionRequest {
+        let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
+        TransactionRequest::default()
+            .with_from(signer.address())
+            .with_kind(revm_primitives::TxKind::Call(self.angstrom_address()))
+            .with_input(encoded)
+            .with_chain_id(tx_features.chain_id)
+            .with_nonce(tx_features.nonce)
+            .with_gas_limit(RPC_DEFAULT_GAS_CAP)
+            .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas + EXTRA_GAS)
+            .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas + EXTRA_GAS)
+    }
+
     fn build_and_sign_tx<'a>(
         &'a self,
         signer: &'a AngstromSigner,
@@ -53,18 +71,7 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
     ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + Sync + 'a>>
     {
         Box::pin(async move {
-            let encoded = Angstrom::executeCall::new((bundle.pade_encode().into(),)).abi_encode();
-            TransactionRequest::default()
-                .with_from(signer.address())
-                .with_kind(revm_primitives::TxKind::Call(self.angstrom_address()))
-                .with_input(encoded)
-                .with_chain_id(tx_features.chain_id)
-                .with_nonce(tx_features.nonce)
-                .with_gas_limit(RPC_DEFAULT_GAS_CAP)
-                .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas + EXTRA_GAS)
-                .with_max_priority_fee_per_gas(
-                    tx_features.fees.max_priority_fee_per_gas + EXTRA_GAS
-                )
+            self.build_tx(signer, bundle, tx_features)
                 .build(signer)
                 .await
                 .unwrap()
