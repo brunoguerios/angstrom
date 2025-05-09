@@ -829,12 +829,14 @@ impl AngstromBundle {
         // fetch gas used
         // Walk through our solutions to add them to the structure
         for solution in proposal.solutions.iter().sorted_unstable_by_key(|k| {
-            let Some((_, _, _, store_index)) = pools.get(&k.id) else {
+            let Some((t0, t1, ..)) = pools.get(&k.id) else {
                 // This should never happen but let's handle it as gracefully as possible -
                 // right now will skip the pool, not produce an error
-                return 0u16;
+                return 0usize;
             };
-            *store_index
+            let t0_idx = asset_builder.add_or_get_asset(*t0);
+            let t1_idx = asset_builder.add_or_get_asset(*t1);
+            (t0_idx << 16) | t1_idx
         }) {
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
@@ -865,8 +867,6 @@ impl AngstromBundle {
             )?;
         }
 
-        // shouldn't need
-        // pairs.sort_unstable_by_key(|k| k.store_index);
         Ok(Self::new(
             asset_builder.get_asset_array(),
             pairs,
@@ -917,12 +917,14 @@ impl AngstromBundle {
 
         // Walk through our solutions to add them to the structure
         for solution in solutions.iter().sorted_unstable_by_key(|k| {
-            let Some((_, _, _, store_index)) = pools.get(&k.id) else {
+            let Some((t0, t1, ..)) = pools.get(&k.id) else {
                 // This should never happen but let's handle it as gracefully as possible -
                 // right now will skip the pool, not produce an error
-                return 0u16;
+                return 0usize;
             };
-            *store_index
+            let t0_idx = asset_builder.add_or_get_asset(*t0);
+            let t1_idx = asset_builder.add_or_get_asset(*t1);
+            (t0_idx << 16) | t1_idx
         }) {
             println!("Processing solution");
             // Get the information for the pool or skip this solution if we can't find a
@@ -952,8 +954,7 @@ impl AngstromBundle {
                 None
             )?;
         }
-        // don't think this is needed as we sort before by this.
-        // pairs.sort_unstable_by_key(|k| k.store_index);
+
         Ok(Self::new(
             asset_builder.get_asset_array(),
             pairs,
@@ -1061,7 +1062,16 @@ impl AngstromPoolConfigStore {
     pub fn remove_pair(&self, asset0: Address, asset1: Address) {
         let key = Self::derive_store_key(asset0, asset1);
 
-        self.entries.remove(&key);
+        let Some((_, entry)) = self.entries.remove(&key) else { return };
+        let index = entry.store_index;
+
+        // if we have any indexes that are GT the index we remove, we subtract 1 from it
+        self.entries.iter_mut().for_each(|mut f| {
+            let v = f.value_mut();
+            if v.store_index > index {
+                v.store_index -= 1;
+            }
+        })
     }
 
     pub fn new_pool(&self, asset0: Address, asset1: Address, pool: AngPoolConfigEntry) {

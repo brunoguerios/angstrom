@@ -43,9 +43,10 @@ impl LimitPool {
                 self.parked_orders.values().find_map(|pool| {
                     let order = pool.get_order(order_hash)?;
                     // found order return some pending
-                    Some(OrderStatus::Blocked(
-                        order.is_currently_valid.as_ref().unwrap().to_string()
-                    ))
+                    Some(
+                        OrderStatus::try_from_err(order.is_currently_valid.as_ref().unwrap())
+                            .unwrap()
+                    )
                 })
             })
     }

@@ -63,10 +63,14 @@ where
     async fn estimate_gas(
         &self,
         is_book: bool,
+        is_internal: bool,
         token_0: Address,
         token_1: Address
     ) -> RpcResult<Result<U256, String>> {
-        let res = self.validator.estimate_gas(is_book, token_0, token_1).await;
+        let res = self
+            .validator
+            .estimate_gas(is_book, is_internal, token_0, token_1)
+            .await;
         Ok(res)
     }
 
@@ -395,6 +399,7 @@ mod tests {
         fn estimate_gas(
             &self,
             _is_book: bool,
+            _is_internal: bool,
             _token_0: Address,
             _token_1: Address
         ) -> GasEstimationFuture {

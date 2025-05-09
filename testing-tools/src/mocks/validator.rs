@@ -72,6 +72,7 @@ impl OrderValidatorHandle for MockValidator {
     fn estimate_gas(
         &self,
         _is_book: bool,
+        _is_internal: bool,
         _token_0: Address,
         _token_1: Address
     ) -> GasEstimationFuture {

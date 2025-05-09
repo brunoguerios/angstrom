@@ -1,6 +1,11 @@
 //! CLI definition and entrypoint to executable
 
-use std::{collections::HashSet, pin::Pin, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    pin::Pin,
+    sync::Arc,
+    time::Duration
+};
 
 use alloy::{
     self,
@@ -232,7 +237,10 @@ where
     let angstrom_tokens = pools
         .iter()
         .flat_map(|pool| [pool.currency0, pool.currency1])
-        .collect::<HashSet<_>>();
+        .fold(HashMap::<Address, usize>::new(), |mut acc, x| {
+            *acc.entry(x).or_default() += 1;
+            acc
+        });
 
     // re-fetch given the fetch pools takes awhile. given this, we do techincally
     // have a gap in which a pool is deployed durning startup. This isn't

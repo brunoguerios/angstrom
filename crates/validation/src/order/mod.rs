@@ -214,6 +214,7 @@ pub trait OrderValidatorHandle: Send + Sync + Clone + Debug + Unpin + 'static {
     fn estimate_gas(
         &self,
         is_book: bool,
+        is_internal: bool,
         token_0: Address,
         token_1: Address
     ) -> GasEstimationFuture;
@@ -267,14 +268,19 @@ impl OrderValidatorHandle for ValidationClient {
     fn estimate_gas(
         &self,
         is_book: bool,
+        is_internal: bool,
         token_0: Address,
         token_1: Address
     ) -> GasEstimationFuture {
         Box::pin(async move {
             let (sender, rx) = channel();
-            let _ =
-                self.0
-                    .send(ValidationRequest::GasEstimation { sender, is_book, token_0, token_1 });
+            let _ = self.0.send(ValidationRequest::GasEstimation {
+                sender,
+                is_book,
+                is_internal,
+                token_0,
+                token_1
+            });
 
             rx.await.unwrap().map_err(|e| e.to_string())
         })
