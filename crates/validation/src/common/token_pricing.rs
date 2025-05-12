@@ -133,7 +133,7 @@ impl TokenPriceGenerator {
         // we will duplicate same price if no update for pool.
         let mut updated_pool_keys = Vec::new();
 
-        for pool_update in updates {
+        for mut pool_update in updates {
             // make sure we aren't replaying
             assert!(pool_update.block_num == self.cur_block + 1);
 
@@ -163,12 +163,23 @@ impl TokenPriceGenerator {
                 self.prev_prices.insert(pk, VecDeque::new());
                 pk
             };
+
             updated_pool_keys.push(pool_key);
             let prev_prices = self
                 .prev_prices
                 .get_mut(&pool_key)
                 .expect("don't have prev_prices for update");
-            prev_prices.push_back(pool_update);
+
+            pool_update.replace_price_if_empty(|| {
+                self.uniswap_pools
+                    .get(&pool_key)
+                    .map(|pool| Ray::from(SqrtPriceX96::from(pool.read().unwrap().sqrt_price)))
+                    .unwrap_or_default()
+            });
+
+            if !pool_update.price_1_over_0.is_zero() {
+                prev_prices.push_back(pool_update);
+            }
 
             // only pop front if we extend
             if prev_prices.len() as u64 == self.blocks_to_avg_price + 1 {

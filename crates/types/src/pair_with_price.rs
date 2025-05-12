@@ -65,4 +65,10 @@ impl PairsWithPrice {
                 .collect::<Vec<_>>()
         })
     }
+
+    pub fn replace_price_if_empty(&mut self, pool_price_local: impl FnOnce() -> Ray) {
+        if self.price_1_over_0.is_zero() {
+            self.price_1_over_0 = pool_price_local();
+        }
+    }
 }
