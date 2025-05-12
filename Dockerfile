@@ -1,3 +1,5 @@
+# syntax=docker.io/docker/dockerfile:1.7-labs
+
 ARG TARGETOS=linux
 ARG TARGETARCH=x86_64
 
@@ -8,11 +10,11 @@ RUN apt-get update && apt-get -y upgrade && apt-get install -y libclang-dev pkg-
 
 # Stage 2: Foundry Image Setup
 FROM ghcr.io/foundry-rs/foundry:latest AS foundry
-COPY . .
+COPY --exclude=.git --exclude=dist . .
 
 # Stage 3: Prepare Recipe with Cargo Chef
 FROM chef AS planner
-COPY . .
+COPY --exclude=.git --exclude=dist . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 4: Build Stage
@@ -29,8 +31,9 @@ COPY --from=foundry /usr/local/bin/anvil /usr/local/bin/anvil
 COPY --from=planner /app/recipe.json recipe.json
 
 RUN cargo chef cook --profile $BUILD_PROFILE --features "$FEATURES" --recipe-path recipe.json
-COPY . . 
+COPY --exclude=.git --exclude=dist . .
 RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path /app/bin/angstrom/Cargo.toml
+
 
 COPY /app/target/$BUILD_PROFILE/angstrom /app/
 
