@@ -41,7 +41,7 @@ impl OrderStatus {
                     balance_needed:  0
                 })
             }
-            _ => eyre::bail!("cannot convert error to order status")
+            e @ _ => eyre::bail!("cannot convert error to order status {}", e)
         }
     }
 }
