@@ -1,10 +1,7 @@
 use angstrom_types::{
     matching::{CompositeOrder, Debt, Ray, uniswap::Direction},
     orders::{OrderFillState, OrderId, OrderPrice, OrderVolume},
-    sol_bindings::{
-        RawPoolOrder,
-        grouped_orders::{GroupedVanillaOrder, OrderWithStorageData}
-    }
+    sol_bindings::RawPoolOrder
 };
 use eyre::{OptionExt, eyre};
 
@@ -74,13 +71,13 @@ impl OrderContainer<'_> {
 
     /// Returns a Debt item covering the partially matched order at its current
     /// price
-    pub fn partial_debt(&self, matched_t0: u128) -> Option<Debt> {
+    pub fn partial_debt(&self, _: u128) -> Option<Debt> {
         None
     }
 
     /// Represents an applicable book order as a debt at its current price,
     /// taking partial fill into account
-    pub fn as_debt(&self, limit: Option<u128>, is_bid: bool) -> Option<Debt> {
+    pub fn as_debt(&self, _: Option<u128>, _: bool) -> Option<Debt> {
         None
     }
 
@@ -121,34 +118,6 @@ impl OrderContainer<'_> {
         }
     }
 
-    fn book_order_q_t1(
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
-        _debt: Option<&Debt>
-    ) -> Option<u128> {
-        // We only have a t1 quantity to report if or order is on the T1 side
-        if order.is_bid() == order.exact_in() {
-            // Let's short circuit this for now
-            Some(order.amount())
-            // If we have a debt and the debt has slack, we add it to what this
-            // order can offer
-            // if let Some(d) = debt {
-            //     if order.is_bid() == d.bid_side() {
-            //         return Some(order.max_q() + d.slack());
-            //     }
-            // }
-            // Some(order.max_q())
-        } else {
-            None
-        }
-    }
-
-    fn book_order_q_t0(
-        order: &OrderWithStorageData<GroupedVanillaOrder>,
-        debt: Option<&Debt>
-    ) -> u128 {
-        0
-    }
-
     /// Raw quantity of a book order
     pub fn raw_book_quantity(&self) -> u128 {
         if let Self::BookOrder { order: o, .. } = self { o.amount() } else { 0 }
@@ -159,20 +128,20 @@ impl OrderContainer<'_> {
     }
 
     /// Retrieve the quantity available within the bounds of a given order
-    pub fn quantity(&self, opposed_order: &OrderContainer, debt: Option<&Debt>) -> OrderVolume {
+    pub fn quantity(&self, _: &OrderContainer, _: Option<&Debt>) -> OrderVolume {
         0
     }
 
     /// Retrieve the quantity of direct t1 match available for this order.
     /// Right now this is only called when we're matching 2 T1 book orders
     /// against each other
-    pub fn quantity_t1(&self, debt: Option<&Debt>) -> Option<OrderVolume> {
+    pub fn quantity_t1(&self, _: Option<&Debt>) -> Option<OrderVolume> {
         None
     }
 
     /// Get back the maximum amount of T1 out of our bid we can match against
     /// our opposed order for a given amount of T0 matched
-    pub fn max_t1_for_t0(&self, t0: u128, debt: Option<&Debt>) -> Option<OrderVolume> {
+    pub fn max_t1_for_t0(&self, _: u128, _: Option<&Debt>) -> Option<OrderVolume> {
         None
     }
 
