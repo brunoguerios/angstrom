@@ -1,39 +1,36 @@
-# syntax=docker.io/docker/dockerfile:1.7-labs
 ARG TARGETOS=linux
 ARG TARGETARCH=x86_64
 
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
-RUN apt-get update && apt-get -y upgrade && apt-get install -y libclang-dev pkg-config
+RUN apt-get update && apt-get -y upgrade && apt-get install -y libclang-dev pkg-config cmake libclang-dev curl
 
+# Stage 2: Foundry Image Setup
 FROM ghcr.io/foundry-rs/foundry:latest AS foundry
 COPY . .
 
-# Builds a cargo-chef plan
+# Stage 3: Prepare Recipe with Cargo Chef
 FROM chef AS planner
-COPY --exclude=.git --exclude=dist . .
+COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
+# Stage 4: Build Stage
 FROM chef AS builder
-COPY --from=planner /app/recipe.json recipe.json
+ARG FEATURES=""
+ENV FEATURES $FEATURES
+
+ARG BUILD_PROFILE="release"
+ENV FEATURES $FEATURES
+
 COPY --from=foundry /usr/local/bin/forge /usr/local/bin/forge
 COPY --from=foundry /usr/local/bin/cast /usr/local/bin/cast
 COPY --from=foundry /usr/local/bin/anvil /usr/local/bin/anvil
-
-ARG BUILD_PROFILE=release
-ENV BUILD_PROFILE=$BUILD_PROFILE
-
-ARG RUSTFLAGS=""
-ENV RUSTFLAGS="$RUSTFLAGS"
-
-ARG FEATURES=""
-ENV FEATURES=$FEATURES
+COPY --from=planner /app/recipe.json recipe.json
 
 RUN cargo chef cook --profile $BUILD_PROFILE --features "$FEATURES" --recipe-path recipe.json
-
+COPY . . 
 RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path /app/bin/angstrom/Cargo.toml
-
 
 FROM ubuntu AS runtime
 WORKDIR /app
