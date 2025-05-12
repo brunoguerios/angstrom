@@ -18,10 +18,10 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Stage 4: Build Stage
 FROM chef AS builder
 ARG FEATURES=""
-ENV FEATURES $FEATURES
+ENV FEATURES=$FEATURES
 
-ARG BUILD_PROFILE="release"
-ENV FEATURES $FEATURES
+ARG BUILD_PROFILE=release
+ENV BUILD_PROFILE=$BUILD_PROFILE
 
 COPY --from=foundry /usr/local/bin/forge /usr/local/bin/forge
 COPY --from=foundry /usr/local/bin/cast /usr/local/bin/cast
@@ -31,11 +31,10 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --profile $BUILD_PROFILE --features "$FEATURES" --recipe-path recipe.json
 COPY . . 
 RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path /app/bin/angstrom/Cargo.toml
+COPY /app/target/$BUILD_PROFILE/angstrom /app/
 
 FROM ubuntu AS runtime
-WORKDIR /app
-
-COPY --from=builder /app/target/$BUILD_PROFILE/angstrom /app/
+COPY --from=builder /app/angstrom  /app/angstrom
 RUN chmod +x /app/angstrom
 
 EXPOSE 30303 30303/udp 9001 8545 8546 
