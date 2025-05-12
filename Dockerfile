@@ -19,6 +19,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 4: Build Stage
 FROM chef AS builder
+WORKDIR /app
 ARG FEATURES=""
 ENV FEATURES=$FEATURES
 
