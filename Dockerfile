@@ -31,6 +31,7 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --profile $BUILD_PROFILE --features "$FEATURES" --recipe-path recipe.json
 COPY . . 
 RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path /app/bin/angstrom/Cargo.toml
+
 COPY /app/target/$BUILD_PROFILE/angstrom /app/
 
 FROM ubuntu AS runtime
