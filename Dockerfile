@@ -13,7 +13,7 @@ RUN apt-get update && apt-get -y upgrade && apt-get install -y libclang-dev pkg-
 # Stage 2: Foundry Image Setup
 FROM ghcr.io/foundry-rs/foundry:stable AS foundry
 WORKDIR /app
-COPY . .
+COPY --exclude=.git --exclude=dist . .
 
 # Stage 3: Prepare Recipe with Cargo Chef
 FROM chef AS planner
@@ -38,6 +38,7 @@ ENV BUILD_PROFILE=$BUILD_PROFILE
 
 RUN cargo chef cook --profile $BUILD_PROFILE --features "$FEATURES" --recipe-path recipe.json
 COPY --exclude=.git --exclude=dist . .
+RUN git submodule update --init --recursive
 RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path /app/bin/angstrom/Cargo.toml
 
 FROM ubuntu:22.04 AS runtime
