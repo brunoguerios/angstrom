@@ -11,7 +11,7 @@ WORKDIR /app
 RUN apt-get update && apt-get -y upgrade && apt-get install -y libclang-dev pkg-config cmake libclang-dev curl
 
 # Stage 2: Foundry Image Setup
-FROM ghcr.io/foundry-rs/foundry:latest AS foundry
+FROM ghcr.io/foundry-rs/foundry:stable AS foundry
 WORKDIR /app
 COPY . .
 
