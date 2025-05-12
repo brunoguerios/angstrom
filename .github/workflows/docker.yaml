@@ -4,11 +4,10 @@ on:
   workflow_dispatch: {}
 
 env:
-  REPO_NAME: ${{ github.repository_owner }}/angstrom
-  IMAGE_NAME: ${{ github.repository_owner }}/angstrom
   CARGO_TERM_COLOR: always
-  DOCKER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/angstrom
+  DOCKER_IMAGE_NAME: ghcr.io/sorella-labs/angstrom
   DOCKER_USERNAME: ${{ github.actor }}
+  GIT_SHA: ${{ github.sha }}
 
 jobs:
   build:
@@ -22,11 +21,13 @@ jobs:
       matrix:
         build:
           - name: 'Build and push the git-sha-tagged angstrom image x86 sepolia'
-            command: 'BUILD_PROFILE=maxperf FEATURES="jemalloc,testnet-sepolia"  docker buildx build --file ./Dockerfile . --provenance=false --tag $(DOCKER_IMAGE_NAME):$(1) --push'
+            command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc,testnet-sepolia" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}-sepolia:${GIT_SHA} --push'
           - name: 'Build and push the git-sha-tagged angstrom image x86 mainnet'
-            command: 'BUILD_PROFILE=maxperf docker buildx build --file ./Dockerfile . --provenance=false --tag $(DOCKER_IMAGE_NAME):$(1) --push'
+            command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc,testnet-sepolia" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}-sepolia:${GIT_SHA} --push'
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: rui314/setup-mold@v1
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
