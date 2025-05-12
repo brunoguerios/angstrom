@@ -21,7 +21,7 @@ pub const MEV_RPC: [&str; 1] = ["https://relay-sepolia.flashbots.net"];
 pub const MEV_RPC: [&str; 1] = ["https://relay.flashbots.net"];
 
 #[cfg(feature = "testnet-sepolia")]
-pub const ANGSTROM_RPC: [&str; 0] = [""];
+pub const ANGSTROM_RPC: [&str; 0] = [];
 
 #[cfg(not(feature = "testnet-sepolia"))]
 pub const ANGSTROM_RPC: [&str; 1] = ["https://rpc.titanbuilder.xyz"];
