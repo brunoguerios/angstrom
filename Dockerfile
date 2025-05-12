@@ -1,4 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1.7-labs
+ARG TARGETOS=linux
+ARG TARGETARCH=x86_64
 
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
@@ -15,6 +17,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
+COPY --from=foundry /usr/local/bin/forge /usr/local/bin/forge
+COPY --from=foundry /usr/local/bin/cast /usr/local/bin/cast
+COPY --from=foundry /usr/local/bin/anvil /usr/local/bin/anvil
 
 ARG BUILD_PROFILE=release
 ENV BUILD_PROFILE=$BUILD_PROFILE
@@ -27,7 +32,7 @@ ENV FEATURES=$FEATURES
 
 RUN cargo chef cook --profile $BUILD_PROFILE --features "$FEATURES" --recipe-path recipe.json
 
-RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path ./bin/angstrom/Cargo.toml
+RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path /app/bin/angstrom/Cargo.toml
 
 
 FROM ubuntu AS runtime
@@ -37,4 +42,4 @@ COPY --from=builder /app/target/$BUILD_PROFILE/angstrom /app/
 RUN chmod +x /app/angstrom
 
 EXPOSE 30303 30303/udp 9001 8545 8546 
-ENTRYPOINT ["/usr/local/bin/angstrom"]
+ENTRYPOINT ["/app/angstrom"]
