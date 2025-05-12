@@ -13,7 +13,7 @@ RUN apt-get update && apt-get -y upgrade && apt-get install -y libclang-dev pkg-
 # Stage 2: Foundry Image Setup
 FROM ghcr.io/foundry-rs/foundry:latest AS foundry
 WORKDIR /app
-COPY --exclude=.git --exclude=dist . .
+COPY . .
 
 # Stage 3: Prepare Recipe with Cargo Chef
 FROM chef AS planner
