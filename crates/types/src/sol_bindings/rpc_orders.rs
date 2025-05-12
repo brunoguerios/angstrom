@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 sol! {
 
-    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
     struct OrderMeta {
         bool isEcdsa;
         address from;
@@ -82,7 +82,7 @@ sol! {
         OrderMeta meta;
     }
 
-    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
     struct TopOfBlockOrder {
         uint128 quantity_in;
         uint128 quantity_out;
