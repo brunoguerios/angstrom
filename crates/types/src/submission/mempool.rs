@@ -41,7 +41,7 @@ impl ChainSubmitter for MempoolSubmitter {
         tx_features: &'a TxFeatureInfo
     ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {
         Box::pin(async move {
-            let Some(bundle) = bundle else { return Err(eyre::eyre!("no bundle was past in")) };
+            let bundle = bundle.ok_or_else(|| eyre::eyre!("no bundle was past in"))?;
 
             let tx = self.build_and_sign_tx(signer, bundle, tx_features).await;
             let encoded_tx = tx.encoded_2718();
