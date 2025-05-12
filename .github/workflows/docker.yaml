@@ -26,6 +26,8 @@ jobs:
             command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc,testnet-sepolia" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}-sepolia:${GIT_SHA} --push'
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: rui314/setup-mold@v1
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2

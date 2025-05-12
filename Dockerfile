@@ -38,7 +38,6 @@ ENV BUILD_PROFILE=$BUILD_PROFILE
 
 RUN cargo chef cook --profile $BUILD_PROFILE --features "$FEATURES" --recipe-path recipe.json
 COPY --exclude=.git --exclude=dist . .
-RUN git submodule update --init --recursive
 RUN cargo build --profile $BUILD_PROFILE --features "$FEATURES" --locked --bin angstrom --manifest-path /app/bin/angstrom/Cargo.toml
 
 FROM ubuntu:22.04 AS runtime
