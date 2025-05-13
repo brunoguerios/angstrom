@@ -151,7 +151,10 @@ where
             }
             ConsensusMessage::PropagatePreProposalAgg(p) => self
                 .network
-                .broadcast_message(StromMessage::PreProposeAgg(p))
+                .broadcast_message(StromMessage::PreProposeAgg(p)),
+            ConsensusMessage::PropagateEmptyBlockAttestation(p) => self
+                .network
+                .broadcast_message(StromMessage::BundleUnlockAttestation(p))
         }
     }
 

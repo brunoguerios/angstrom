@@ -82,6 +82,7 @@ where
                     self.waker.as_ref().inspect(|w| w.wake_by_ref());
                 }
             }
+            _ => {}
         }
     }
 
