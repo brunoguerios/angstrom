@@ -4,9 +4,7 @@ use alloy::{
     eips::Encodable2718,
     network::TransactionBuilder,
     primitives::Bytes,
-    rpc::client::{ClientBuilder, RpcClient},
-    signers::SignerSync,
-    sol_types::{SolCall, SolStruct}
+    rpc::client::{ClientBuilder, RpcClient}
 };
 use alloy_primitives::{Address, TxHash};
 use futures::{
@@ -14,17 +12,13 @@ use futures::{
     stream::{StreamExt, iter}
 };
 use itertools::Itertools;
-use pade::PadeEncode;
 use serde::{Deserialize, Serialize};
 
 use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
     Url
 };
-use crate::{
-    contract_bindings::angstrom::Angstrom::unlockWithEmptyAttestationCall,
-    primitive::ANGSTROM_DOMAIN, sol_bindings::rpc_orders::AttestAngstromBlockEmpty
-};
+use crate::sol_bindings::rpc_orders::AttestAngstromBlockEmpty;
 
 pub struct AngstromSubmitter {
     clients:          Vec<RpcClient>,
@@ -68,17 +62,8 @@ impl ChainSubmitter for AngstromSubmitter {
                     max_priority_fee_per_gas: gas
                 }
             } else {
-                let attestation =
-                    AttestAngstromBlockEmpty { block_number: tx_features.target_block };
-
-                let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
-                // we pade encode here as we expect v, r, s which is not the standard currently
-                let sig = signer.sign_hash_sync(&hash)?.pade_encode();
-                let signer = signer.address();
-
-                let unlock_data = Bytes::from(
-                    unlockWithEmptyAttestationCall::new((signer, sig.into())).abi_encode()
-                );
+                let unlock_data =
+                    AttestAngstromBlockEmpty::sign_and_encode(tx_features.target_block, signer);
                 AngstromIntegrationSubmission {
                     tx: Bytes::new(),
                     unlock_data,

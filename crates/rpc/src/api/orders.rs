@@ -58,6 +58,13 @@ pub trait OrderApi {
     ) -> RpcResult<Vec<AllOrders>>;
 
     #[subscription(
+        name = "subscribeEmptyBlockAttestations",
+        unsubscribe = "unsubscribeEmptyBlockAttestations",
+        item = alloy_primitives::Bytes
+    )]
+    async fn subscribe_empty_block_attestation(&self) -> jsonrpsee::core::SubscriptionResult;
+
+    #[subscription(
         name = "subscribeOrders",
         unsubscribe = "unsubscribeOrders",
         item = crate::types::subscriptions::OrderSubscriptionResult
