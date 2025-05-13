@@ -307,7 +307,7 @@ pub mod tests {
         let Err(e) = processor.verify_order(order, pool_info, 420) else {
             panic!("verifying order should of failed")
         };
-        assert!(matches!(e, UserAccountVerificationError::DuplicateNonce(..)));
+        assert!(matches!(e, UserAccountVerificationError::DuplicateNonce { .. }));
     }
 
     #[test]
@@ -436,7 +436,7 @@ pub mod tests {
             .expect("order should be valid for next block");
 
         // Should fail for wrong current block
-        let Err(UserAccountVerificationError::BadBlock(..)) =
+        let Err(UserAccountVerificationError::BadBlock { .. }) =
             processor.verify_order(order.clone(), pool_info.clone(), 419)
         else {
             panic!("should fail for wrong block");
@@ -919,7 +919,7 @@ pub mod tests {
 
         // Assert we get the expected error
         assert!(
-            matches!(result, Err(UserAccountVerificationError::DuplicateNonce(..))),
+            matches!(result, Err(UserAccountVerificationError::DuplicateNonce { .. })),
             "Expected DuplicateNonce error, got {:?}",
             result
         );

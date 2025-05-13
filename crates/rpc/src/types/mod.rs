@@ -16,13 +16,17 @@ pub struct PendingOrder {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct CallResult {
-    is_success: bool,
-    data:       Value,
+    pub is_success: bool,
+    pub data:       Value,
     /// only will show up on error
-    msg:        String
+    pub msg:        String
 }
 
 impl CallResult {
+    pub fn is_ok(&self) -> bool {
+        self.is_success
+    }
+
     pub fn from_success<T>(return_value: T) -> Self
     where
         T: Serialize

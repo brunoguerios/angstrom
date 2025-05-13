@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, B256, FixedBytes, U256};
+use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::PoolId,
@@ -15,7 +15,8 @@ use validation::order::OrderValidatorHandle;
 use crate::{
     api::OrderApiServer,
     types::{
-        OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult, PendingOrder
+        CallResult, OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult,
+        PendingOrder
     }
 };
 
@@ -38,12 +39,11 @@ where
     Spawner: TaskSpawner + 'static,
     Validator: OrderValidatorHandle
 {
-    async fn send_order(&self, order: AllOrders) -> RpcResult<Result<FixedBytes<32>, String>> {
-        Ok(self
-            .pool
-            .new_order(OrderOrigin::External, order)
-            .await
-            .map_err(|e| e.to_string()))
+    async fn send_order(&self, order: AllOrders) -> RpcResult<CallResult> {
+        match self.pool.new_order(OrderOrigin::External, order).await {
+            Ok(v) => Ok(CallResult::from_success(v)),
+            Err(e) => Ok(e.into())
+        }
     }
 
     async fn pending_order(&self, from: Address) -> RpcResult<Vec<PendingOrder>> {
@@ -245,7 +245,7 @@ impl OrderFilterMatching for PoolManagerUpdate {
 mod tests {
     use std::{future, future::Future};
 
-    use alloy_primitives::{Address, B256, U256};
+    use alloy_primitives::{Address, B256, FixedBytes, U256};
     use angstrom_network::pool_manager::OrderCommand;
     use angstrom_types::{
         orders::{OrderOrigin, OrderStatus},
