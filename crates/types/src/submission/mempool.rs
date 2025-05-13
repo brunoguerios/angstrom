@@ -3,10 +3,7 @@ use alloy::{
     providers::{Provider, ProviderBuilder, RootProvider}
 };
 use alloy_primitives::{Address, TxHash};
-use futures::{
-    TryStreamExt,
-    stream::{StreamExt, iter}
-};
+use futures::stream::{StreamExt, iter};
 
 use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
@@ -51,8 +48,8 @@ impl ChainSubmitter for MempoolSubmitter {
             let _: Vec<_> = iter(self.clients.clone())
                 .map(async |client| client.send_raw_transaction(&encoded_tx).await)
                 .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
-                .try_collect()
-                .await?;
+                .collect::<Vec<_>>()
+                .await;
 
             Ok(Some(tx_hash))
         })

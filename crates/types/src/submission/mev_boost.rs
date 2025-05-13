@@ -15,10 +15,7 @@ use alloy::{
     transports::{TransportError, TransportErrorKind, TransportFut}
 };
 use alloy_primitives::{Address, TxHash};
-use futures::{
-    TryStreamExt,
-    stream::{StreamExt, iter}
-};
+use futures::stream::{StreamExt, iter};
 use itertools::Itertools;
 use reth::rpc::types::mev::PrivateTransactionRequest;
 
@@ -79,8 +76,8 @@ impl ChainSubmitter for MevBoostSubmitter {
                         .await
                 })
                 .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
-                .try_collect()
-                .await?;
+                .collect::<Vec<_>>()
+                .await;
 
             Ok(Some(hash))
         })

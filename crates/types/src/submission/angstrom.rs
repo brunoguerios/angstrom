@@ -9,10 +9,7 @@ use alloy::{
     sol_types::{SolCall, SolStruct}
 };
 use alloy_primitives::{Address, TxHash};
-use futures::{
-    TryStreamExt,
-    stream::{StreamExt, iter}
-};
+use futures::stream::{StreamExt, iter};
 use itertools::Itertools;
 use pade::PadeEncode;
 use serde::{Deserialize, Serialize};
@@ -96,9 +93,11 @@ impl ChainSubmitter for AngstromSubmitter {
                         .await
                 })
                 .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
-                .try_collect::<Vec<_>>()
-                .await?
-                .pop()
+                .collect::<Vec<_>>()
+                .await
+                .into_iter()
+                .flatten()
+                .next()
                 .unwrap_or_default())
         })
     }
