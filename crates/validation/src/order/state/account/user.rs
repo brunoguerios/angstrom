@@ -42,36 +42,36 @@ impl LiveState {
 
         let (angstrom_delta, token_delta) = if order.use_internal() {
             if self.angstrom_balance < amount_in {
-                return Err(UserAccountVerificationError::InsufficientBalance(
-                    hash,
-                    self.token,
-                    (amount_in - self.angstrom_balance).to()
-                ));
+                return Err(UserAccountVerificationError::InsufficientBalance {
+                    order_hash: hash,
+                    token_in:   self.token,
+                    amount:     (amount_in - self.angstrom_balance).to()
+                });
             }
             (amount_in, U256::ZERO)
         } else {
             match (self.approval < amount_in, self.balance < amount_in) {
                 (true, true) => {
-                    return Err(UserAccountVerificationError::InsufficientBoth(
-                        hash,
-                        self.token,
-                        (amount_in - self.balance).to(),
-                        (amount_in - self.approval).to()
-                    ));
+                    return Err(UserAccountVerificationError::InsufficientBoth {
+                        order_hash:      hash,
+                        token_in:        self.token,
+                        amount_balance:  (amount_in - self.balance).to(),
+                        amount_approval: (amount_in - self.approval).to()
+                    });
                 }
                 (true, false) => {
-                    return Err(UserAccountVerificationError::InsufficientApproval(
-                        hash,
-                        self.token,
-                        (amount_in - self.approval).to()
-                    ));
+                    return Err(UserAccountVerificationError::InsufficientApproval {
+                        order_hash: hash,
+                        token_in:   self.token,
+                        amount:     (amount_in - self.approval).to()
+                    });
                 }
                 (false, true) => {
-                    return Err(UserAccountVerificationError::InsufficientBalance(
-                        hash,
-                        self.token,
-                        (amount_in - self.balance).to()
-                    ));
+                    return Err(UserAccountVerificationError::InsufficientBalance {
+                        order_hash: hash,
+                        token_in:   self.token,
+                        amount:     (amount_in - self.balance).to()
+                    });
                 }
                 // is fine
                 (false, false) => {}

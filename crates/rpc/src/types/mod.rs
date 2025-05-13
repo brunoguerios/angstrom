@@ -22,6 +22,19 @@ pub struct CallResult {
     msg:        String
 }
 
+impl CallResult {
+    pub fn from_success<T>(return_value: T) -> Self
+    where
+        T: Serialize
+    {
+        Self {
+            is_success: true,
+            data:       serde_json::to_value(return_value).unwrap(),
+            msg:        String::default()
+        }
+    }
+}
+
 impl From<OrderValidationError> for CallResult {
     fn from(value: OrderValidationError) -> Self {
         let msg = value.to_string();

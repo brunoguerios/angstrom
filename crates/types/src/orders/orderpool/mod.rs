@@ -20,27 +20,34 @@ pub enum OrderStatus {
 impl OrderStatus {
     pub fn try_from_err(error: &UserAccountVerificationError) -> eyre::Result<Self> {
         match error {
-            UserAccountVerificationError::InsufficientBoth(_, token, balance, approval) => {
-                Ok(Self::Blocked {
-                    token:           *token,
-                    approval_needed: *approval,
-                    balance_needed:  *balance
-                })
-            }
-            UserAccountVerificationError::InsufficientBalance(_, token, balance) => {
-                Ok(Self::Blocked {
-                    token:           *token,
-                    approval_needed: 0,
-                    balance_needed:  *balance
-                })
-            }
-            UserAccountVerificationError::InsufficientApproval(_, token, approval) => {
-                Ok(Self::Blocked {
-                    token:           *token,
-                    approval_needed: *approval,
-                    balance_needed:  0
-                })
-            }
+            UserAccountVerificationError::InsufficientBoth {
+                order_hash: _,
+                token_in,
+                amount_balance,
+                amount_approval
+            } => Ok(Self::Blocked {
+                token:           *token_in,
+                approval_needed: *amount_approval,
+                balance_needed:  *amount_balance
+            }),
+            UserAccountVerificationError::InsufficientBalance {
+                order_hash: _,
+                token_in,
+                amount
+            } => Ok(Self::Blocked {
+                token:           *token_in,
+                approval_needed: 0,
+                balance_needed:  *amount
+            }),
+            UserAccountVerificationError::InsufficientApproval {
+                order_hash: _,
+                token_in,
+                amount
+            } => Ok(Self::Blocked {
+                token:           *token_in,
+                approval_needed: *amount,
+                balance_needed:  0
+            }),
             e @ _ => eyre::bail!("cannot convert error to order status {}", e)
         }
     }

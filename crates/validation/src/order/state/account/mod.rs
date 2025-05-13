@@ -50,19 +50,20 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         let respend = order.respend_avoidance_strategy();
         match respend {
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Nonce(nonce) => {
-                if !self
-                    .fetch_utils
-                    .is_valid_nonce(user, nonce)
-                    .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?
-                {
+                if !self.fetch_utils.is_valid_nonce(user, nonce).map_err(|e| {
+                    UserAccountVerificationError::CouldNotFetch { err: e.to_string() }
+                })? {
                     tracing::error!(order_hash=?order.order_hash(), ?nonce, "invalid nonce");
-                    return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
+                    return Err(UserAccountVerificationError::DuplicateNonce { order_hash });
                 }
             }
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(order_block) => {
                 // order should be for block + 1
                 if block + 1 != order_block {
-                    return Err(UserAccountVerificationError::BadBlock(block + 1, order_block));
+                    return Err(UserAccountVerificationError::BadBlock {
+                        next_block:      block + 1,
+                        requested_block: order_block
+                    });
                 }
             }
         }
@@ -88,7 +89,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 .map(|o| o.order_hash)
                 .collect::<Vec<_>>();
             tracing::error!(?order_hash, ?conflicting_order_hashes, "conflicting order hash");
-            return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
+            return Err(UserAccountVerificationError::DuplicateNonce { order_hash });
         }
         tracing::trace!(?conflicting_orders);
 
@@ -108,7 +109,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 order.validation_priority(),
                 &self.fetch_utils
             )
-            .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?;
+            .map_err(|e| UserAccountVerificationError::CouldNotFetch { err: e.to_string() })?;
 
         // ensure that the current live state is enough to satisfy the order
         match live_state

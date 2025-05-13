@@ -53,8 +53,8 @@ pub enum UserAccountVerificationError {
     BadBlock { next_block: u64, requested_block: u64 },
     #[error("currently hooks are not supported. this field should be empty bytes")]
     NonEmptyHook,
-    #[error("could not fetch, error - {error}")]
-    CouldNotFetch { error: String },
+    #[error("could not fetch, error - {err}")]
+    CouldNotFetch { err: String },
     #[error("{order_hash:?} insufficient approval amounts. token {token_in:?} needs {amount} more")]
     InsufficientApproval { order_hash: B256, token_in: Address, amount: u128 },
 

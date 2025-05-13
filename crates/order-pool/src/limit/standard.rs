@@ -131,8 +131,9 @@ impl LimitPool {
 
     pub fn park_order(&mut self, order_id: &OrderId) {
         let Some(mut order) = self.remove_order(order_id.pool_id, order_id.hash) else { return };
-        order.is_currently_valid =
-            Some(UserAccountVerificationError::Unknown("parked by other transaction".into()));
+        order.is_currently_valid = Some(UserAccountVerificationError::Unknown {
+            err: "parked by other transaction".into()
+        });
         self.add_order(order).unwrap();
     }
 
