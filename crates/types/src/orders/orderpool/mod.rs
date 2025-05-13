@@ -48,6 +48,12 @@ impl OrderStatus {
                 approval_needed: *amount,
                 balance_needed:  0
             }),
+            // this branch gets hit when a order parks another order that wasn't parked before
+            UserAccountVerificationError::Unknown { .. } => Ok(Self::Blocked {
+                token:           Address::default(),
+                approval_needed: 0,
+                balance_needed:  0
+            }),
             e => eyre::bail!("cannot convert error to order status {}", e)
         }
     }
