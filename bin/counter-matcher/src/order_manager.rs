@@ -248,8 +248,8 @@ impl OrderManager {
 
         let res = self.client.send_order(order).await.unwrap();
 
-        if let Err(e) = res {
-            tracing::error!(%e, "failed to place counter order");
+        if !res.is_success {
+            tracing::error!(?res, "failed to place counter order");
 
             self.active_orders.remove(&our_order_hash);
             self.user_orders.remove(&placed_user_order.order_hash());

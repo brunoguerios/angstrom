@@ -69,9 +69,9 @@ impl OrderPoolHandle for PoolHandle {
         let _ = self.send(OrderCommand::NewOrder(origin, order, tx));
         rx.map(move |res| {
             let Ok(result) = res else {
-                return Err(OrderValidationError::Unknown(
-                    "a channel failed on the backend".to_string()
-                ));
+                return Err(OrderValidationError::Unknown {
+                    err: "a channel failed on the backend".to_string()
+                });
             };
             match result {
                 OrderValidationResults::TransitionedToBlock | OrderValidationResults::Valid(_) => {

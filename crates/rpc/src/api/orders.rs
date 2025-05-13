@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, B256, FixedBytes, U256};
+use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderStatus},
     primitive::PoolId,
@@ -13,7 +13,7 @@ use jsonrpsee::{
 };
 use serde::Deserialize;
 
-use crate::types::{OrderSubscriptionFilter, OrderSubscriptionKind, PendingOrder};
+use crate::types::{CallResult, OrderSubscriptionFilter, OrderSubscriptionKind, PendingOrder};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GasEstimateResponse {
@@ -27,7 +27,7 @@ pub struct GasEstimateResponse {
 pub trait OrderApi {
     /// Submit any type of order
     #[method(name = "sendOrder")]
-    async fn send_order(&self, order: AllOrders) -> RpcResult<Result<FixedBytes<32>, String>>;
+    async fn send_order(&self, order: AllOrders) -> RpcResult<CallResult>;
 
     #[method(name = "pendingOrder")]
     async fn pending_order(&self, from: Address) -> RpcResult<Vec<PendingOrder>>;
@@ -70,10 +70,7 @@ pub trait OrderApi {
 
     // MULTI CALL
     #[method(name = "sendOrders")]
-    async fn send_orders(
-        &self,
-        orders: Vec<AllOrders>
-    ) -> RpcResult<Vec<Result<FixedBytes<32>, String>>> {
+    async fn send_orders(&self, orders: Vec<AllOrders>) -> RpcResult<Vec<CallResult>> {
         futures::stream::iter(orders.into_iter())
             .map(|order| async { self.send_order(order).await })
             .buffered(3)
