@@ -21,9 +21,9 @@ jobs:
       matrix:
         build:
           - name: 'Build and push the git-sha-tagged angstrom image x86 sepolia'
-            command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc,testnet-sepolia" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}-sepolia:${GIT_SHA} --push'
-          - name: 'Build and push the git-sha-tagged angstrom image x86 mainnet'
-            command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc,testnet-sepolia" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}-sepolia:${GIT_SHA} --push'
+            command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc,testnet-sepolia" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}:${GIT_SHA} --push'
+          # - name: 'Build and push the git-sha-tagged angstrom image x86 mainnet'
+          #   command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}:${GIT_SHA} --push'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,6 +33,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+
       - name: Log in to Docker
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username ${DOCKER_USERNAME} --password-stdin
