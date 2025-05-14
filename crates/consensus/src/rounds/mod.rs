@@ -94,6 +94,10 @@ where
         }
     }
 
+    pub fn current_leader(&self) -> Address {
+        self.shared_state.round_leader
+    }
+
     pub fn reset_round(&mut self, new_block: u64, new_leader: Address) {
         // grab the last round info if we were the leader.
         let info = self.current_state.last_round_info();

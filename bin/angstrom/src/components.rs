@@ -108,6 +108,9 @@ pub struct StromHandles {
     pub consensus_tx_op: UnboundedMeteredSender<StromConsensusEvent>,
     pub consensus_rx_op: UnboundedMeteredReceiver<StromConsensusEvent>,
 
+    pub consensus_tx_rpc: UnboundedSender<consensus::ConsensusRequest>,
+    pub consensus_rx_rpc: UnboundedReceiver<consensus::ConsensusRequest>,
+
     // only 1 set cur
     pub matching_tx: Sender<MatcherCommand>,
     pub matching_rx: Receiver<MatcherCommand>
@@ -130,6 +133,7 @@ pub fn initialize_strom_handles() -> StromHandles {
     let (orderpool_tx, orderpool_rx) = unbounded_channel();
     let (validator_tx, validator_rx) = unbounded_channel();
     let (eth_handle_tx, eth_handle_rx) = unbounded_channel();
+    let (consensus_tx_rpc, consensus_rx_rpc) = unbounded_channel();
     let (consensus_tx_op, consensus_rx_op) =
         reth_metrics::common::mpsc::metered_unbounded_channel("orderpool");
 
@@ -147,6 +151,8 @@ pub fn initialize_strom_handles() -> StromHandles {
         consensus_rx_op,
         matching_tx,
         matching_rx,
+        consensus_tx_rpc,
+        consensus_rx_rpc,
         eth_handle_tx: Some(eth_handle_tx),
         eth_handle_rx: Some(eth_handle_rx)
     }
@@ -379,7 +385,8 @@ where
         uniswap_pools.clone(),
         submission_handler,
         matching_handle,
-        global_block_sync.clone()
+        global_block_sync.clone(),
+        handles.consensus_rx_rpc
     );
 
     executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {

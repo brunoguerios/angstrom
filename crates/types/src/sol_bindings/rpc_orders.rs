@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, B256, Bytes, keccak256},
     signers::SignerSync,
     sol,
-    sol_types::{Eip712Domain, SolCall, SolStruct}
+    sol_types::{Eip712Domain, SolStruct}
 };
 use alloy_primitives::Signature;
 use pade::{PadeDecode, PadeEncode};
@@ -117,7 +117,7 @@ impl AttestAngstromBlockEmpty {
         Bytes::from_iter([signer.to_vec(), sig].concat())
     }
 
-    pub fn is_valid_attestation(target_block: u64, bytes: Bytes) -> bool {
+    pub fn is_valid_attestation(target_block: u64, bytes: &Bytes) -> bool {
         // size needs to be 65 + 20
         if bytes.len() != 85 {
             tracing::warn!(bytes=%bytes.len(),"attestation bytes doesn't match expected 85");

@@ -36,12 +36,13 @@ pub trait ConsensusHandle: Send + Sync + Clone + Unpin + 'static {
 }
 
 #[derive(Clone)]
-pub struct ConsensusHandler(tokio::sync::mpsc::Sender<ConsensusRequest>);
+pub struct ConsensusHandler(pub tokio::sync::mpsc::UnboundedSender<ConsensusRequest>);
 
 impl ConsensusHandle for ConsensusHandler {
     async fn get_current_leader(&self) -> eyre::Result<ConsensusDataWithBlock<Address>> {
         let (tx, rx) = oneshot::channel();
-        self.0.send(ConsensusRequest::CurrentLeader(tx)).await?;
+        self.0.send(ConsensusRequest::CurrentLeader(tx))?;
+
         rx.await.map_err(Into::into)
     }
 
@@ -49,9 +50,8 @@ impl ConsensusHandle for ConsensusHandler {
         &self
     ) -> eyre::Result<ConsensusDataWithBlock<HashSet<AngstromValidator>>> {
         let (tx, rx) = oneshot::channel();
-        self.0
-            .send(ConsensusRequest::CurrentConsensusState(tx))
-            .await?;
+        self.0.send(ConsensusRequest::CurrentConsensusState(tx))?;
+
         rx.await.map_err(Into::into)
     }
 
@@ -59,7 +59,7 @@ impl ConsensusHandle for ConsensusHandler {
         &self
     ) -> Pin<Box<dyn Stream<Item = ConsensusDataWithBlock<Bytes>> + Send>> {
         let (tx, rx) = channel(5);
-        let _ = self.0.try_send(ConsensusRequest::SubscribeAttestations(tx));
+        let _ = self.0.send(ConsensusRequest::SubscribeAttestations(tx));
 
         Box::pin(ReceiverStream::new(rx))
     }
