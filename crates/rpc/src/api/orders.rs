@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
-    orders::{CancelOrderRequest, OrderLocation, OrderStatus},
+    orders::{CancelOrderRequest, OrderLocation},
     primitive::PoolId,
     sol_bindings::grouped_orders::AllOrders
 };
@@ -45,7 +45,7 @@ pub trait OrderApi {
     ) -> RpcResult<Result<U256, String>>;
 
     #[method(name = "orderStatus")]
-    async fn order_status(&self, order_hash: B256) -> RpcResult<OrderStatus>;
+    async fn order_status(&self, order_hash: B256) -> RpcResult<CallResult>;
 
     #[method(name = "validNonce")]
     async fn valid_nonce(&self, user: Address) -> RpcResult<u64>;
@@ -123,7 +123,7 @@ pub trait OrderApi {
     }
 
     #[method(name = "orderStatuses")]
-    async fn status_of_orders(&self, order_hashes: Vec<B256>) -> RpcResult<Vec<OrderStatus>> {
+    async fn status_of_orders(&self, order_hashes: Vec<B256>) -> RpcResult<Vec<CallResult>> {
         futures::stream::iter(order_hashes.into_iter())
             .map(|order| async move { self.order_status(order).await })
             .buffered(3)
