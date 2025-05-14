@@ -123,7 +123,7 @@ pub trait OrderApi {
     }
 
     #[method(name = "orderStatuses")]
-    async fn status_of_orders(&self, order_hashes: Vec<B256>) -> RpcResult<Vec<OrderStatus>> {
+    async fn status_of_orders(&self, order_hashes: Vec<B256>) -> RpcResult<Vec<CallResult>> {
         futures::stream::iter(order_hashes.into_iter())
             .map(|order| async move { self.order_status(order).await })
             .buffered(3)
