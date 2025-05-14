@@ -3,14 +3,17 @@ mod manager;
 
 pub use manager::*;
 pub mod rounds;
-
 use std::{collections::HashSet, pin::Pin};
 
 use alloy::primitives::{Address, Bytes};
 use futures::Stream;
 pub use leader_selection::AngstromValidator;
 use serde::{Deserialize, Serialize};
-use tokio::sync::oneshot;
+use tokio::sync::{
+    mpsc::{self, channel},
+    oneshot
+};
+use tokio_stream::wrappers::ReceiverStream;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConsensusDataWithBlock<T> {
@@ -25,18 +28,45 @@ pub trait ConsensusHandle: Send + Sync + Clone + Unpin + 'static {
 
     fn get_current_leader(
         &self
-    ) -> Pin<Box<dyn Future<Output = ConsensusDataWithBlock<Address>> + Send>>;
+    ) -> impl Future<Output = eyre::Result<ConsensusDataWithBlock<Address>>> + Send;
 
     fn fetch_consensus_state(
         &self
-    ) -> Pin<Box<dyn Future<Output = ConsensusDataWithBlock<HashSet<AngstromValidator>>> + Send>>;
+    ) -> impl Future<Output = eyre::Result<ConsensusDataWithBlock<HashSet<AngstromValidator>>>> + Send;
 }
 
-pub struct ConsensusHandler {
-    tx: tokio::sync::mpsc::Sender<ConsensusRequest>
+#[derive(Clone)]
+pub struct ConsensusHandler(tokio::sync::mpsc::Sender<ConsensusRequest>);
+
+impl ConsensusHandle for ConsensusHandler {
+    async fn get_current_leader(&self) -> eyre::Result<ConsensusDataWithBlock<Address>> {
+        let (tx, rx) = oneshot::channel();
+        self.0.send(ConsensusRequest::CurrentLeader(tx)).await?;
+        rx.await.map_err(Into::into)
+    }
+
+    async fn fetch_consensus_state(
+        &self
+    ) -> eyre::Result<ConsensusDataWithBlock<HashSet<AngstromValidator>>> {
+        let (tx, rx) = oneshot::channel();
+        self.0
+            .send(ConsensusRequest::CurrentConsensusState(tx))
+            .await?;
+        rx.await.map_err(Into::into)
+    }
+
+    fn subscribe_empty_block_attestations(
+        &self
+    ) -> Pin<Box<dyn Stream<Item = ConsensusDataWithBlock<Bytes>> + Send>> {
+        let (tx, rx) = channel(5);
+        let _ = self.0.try_send(ConsensusRequest::SubscribeAttestations(tx));
+
+        Box::pin(ReceiverStream::new(rx))
+    }
 }
 
 pub enum ConsensusRequest {
-    CurrentLeader(oneshot::Sender<Address>),
-    CurrentConsensusState(oneshot::Sender<Address>)
+    CurrentLeader(oneshot::Sender<ConsensusDataWithBlock<Address>>),
+    CurrentConsensusState(oneshot::Sender<ConsensusDataWithBlock<HashSet<AngstromValidator>>>),
+    SubscribeAttestations(mpsc::Sender<ConsensusDataWithBlock<Bytes>>)
 }
