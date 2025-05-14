@@ -45,7 +45,7 @@ pub trait OrderApi {
     ) -> RpcResult<Result<U256, String>>;
 
     #[method(name = "orderStatus")]
-    async fn order_status(&self, order_hash: B256) -> RpcResult<OrderStatus>;
+    async fn order_status(&self, order_hash: B256) -> RpcResult<CallResult>;
 
     #[method(name = "validNonce")]
     async fn valid_nonce(&self, user: Address) -> RpcResult<u64>;

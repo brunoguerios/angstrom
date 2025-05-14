@@ -74,12 +74,13 @@ where
         Ok(res)
     }
 
-    async fn order_status(&self, order_hash: B256) -> RpcResult<OrderStatus> {
-        Ok(self
+    async fn order_status(&self, order_hash: B256) -> RpcResult<CallResult> {
+        let status = self
             .pool
             .fetch_order_status(order_hash)
             .await
-            .unwrap_or(OrderStatus::OrderNotFound))
+            .unwrap_or(OrderStatus::OrderNotFound);
+        Ok(CallResult::from_success(status))
     }
 
     async fn valid_nonce(&self, user: Address) -> RpcResult<u64> {
