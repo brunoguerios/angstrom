@@ -88,6 +88,7 @@ where
                     self.waker.wake_by_ref();
                 }
             }
+            _ => {}
         }
     }
 

@@ -1,7 +1,10 @@
 #![allow(missing_docs)]
 use std::{fmt::Debug, sync::Arc};
 
-use alloy::rlp::{Buf, BufMut, Decodable, Encodable};
+use alloy::{
+    primitives::Bytes,
+    rlp::{Buf, BufMut, Decodable, Encodable}
+};
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
     orders::CancelOrderRequest,
@@ -31,9 +34,10 @@ pub enum StromMessageID {
     PrePropose        = 1,
     PreProposeAgg     = 2,
     Propose           = 3,
+    BundleUnlockAttestation = 4,
     /// Propagation messages that broadcast new orders to all peers
-    PropagatePooledOrders = 4,
-    OrderCancellation = 5
+    PropagatePooledOrders = 5,
+    OrderCancellation = 6
 }
 
 impl Encodable for StromMessageID {
@@ -54,8 +58,9 @@ impl Decodable for StromMessageID {
             1 => StromMessageID::PrePropose,
             2 => StromMessageID::PreProposeAgg,
             3 => StromMessageID::PrePropose,
-            4 => StromMessageID::PropagatePooledOrders,
-            5 => StromMessageID::OrderCancellation,
+            4 => StromMessageID::BundleUnlockAttestation,
+            5 => StromMessageID::PropagatePooledOrders,
+            6 => StromMessageID::OrderCancellation,
             _ => return Err(alloy::rlp::Error::Custom("Invalid message ID"))
         };
         buf.advance(1);
@@ -118,6 +123,7 @@ pub enum StromMessage {
     PrePropose(PreProposal),
     PreProposeAgg(PreProposalAggregation),
     Propose(Proposal),
+    BundleUnlockAttestation(u64, Bytes),
 
     // Propagation messages that broadcast new orders to all peers
     PropagatePooledOrders(Vec<AllOrders>),
@@ -131,6 +137,7 @@ impl StromMessage {
             StromMessage::PrePropose(_) => StromMessageID::PrePropose,
             StromMessage::PreProposeAgg(_) => StromMessageID::PreProposeAgg,
             StromMessage::Propose(_) => StromMessageID::Propose,
+            StromMessage::BundleUnlockAttestation(..) => StromMessageID::BundleUnlockAttestation,
             StromMessage::PropagatePooledOrders(_) => StromMessageID::PropagatePooledOrders,
             StromMessage::OrderCancellation(_) => StromMessageID::OrderCancellation
         }
@@ -151,6 +158,7 @@ pub enum StromBroadcastMessage {
     PrePropose(Arc<PreProposal>),
     Propose(Arc<Proposal>),
     PreProposeAgg(Arc<PreProposalAggregation>),
+    BundleUnlockAttestation(Arc<Bytes>),
     // Order Broadcast
     PropagatePooledOrders(Arc<Vec<AllOrders>>),
     OrderCancellation(Arc<CancelOrderRequest>)
@@ -163,6 +171,9 @@ impl StromBroadcastMessage {
             StromBroadcastMessage::PrePropose(_) => StromMessageID::PrePropose,
             StromBroadcastMessage::PreProposeAgg(_) => StromMessageID::PreProposeAgg,
             StromBroadcastMessage::Propose(_) => StromMessageID::Propose,
+            StromBroadcastMessage::BundleUnlockAttestation(_) => {
+                StromMessageID::BundleUnlockAttestation
+            }
             StromBroadcastMessage::PropagatePooledOrders(_) => {
                 StromMessageID::PropagatePooledOrders
             }

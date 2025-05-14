@@ -8,7 +8,10 @@ use angstrom_eth::{
     manager::{EthDataCleanser, EthEvent}
 };
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
-use angstrom_rpc::{OrderApi, api::OrderApiServer};
+use angstrom_rpc::{
+    ConsensusApi, OrderApi,
+    api::{ConsensusApiServer, OrderApiServer}
+};
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
@@ -18,7 +21,7 @@ use angstrom_types::{
     submission::SubmissionHandler,
     testnet::InitialTestnetState
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
+use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
 use futures::{Future, Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{MatchingManager, manager::MatcherHandle};
@@ -83,7 +86,9 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let validation_client = ValidationClient(strom_handles.validator_tx);
         let matching_handle = MatchingManager::spawn(executor.clone(), validation_client.clone());
+        let consensus_client = ConsensusHandler(strom_handles.consensus_tx_rpc.clone());
 
+        let consensus_api = ConsensusApi::new(consensus_client.clone(), executor.clone());
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client.clone());
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
@@ -247,7 +252,9 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         executor.spawn_critical(
             "rpc",
             Box::pin(async move {
-                let server_handle = server.start(order_api.into_rpc());
+                let mut rpcs = order_api.into_rpc();
+                rpcs.merge(consensus_api.into_rpc()).unwrap();
+                let server_handle = server.start(rpcs);
                 tracing::info!("rpc server started on: {}", addr);
                 let _ = server_handle.stopped().await;
             })
@@ -288,7 +295,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             uniswap_pools.clone(),
             mev_boost_provider,
             matching_handle,
-            block_sync.clone()
+            block_sync.clone(),
+            strom_handles.consensus_rx_rpc
         );
 
         // init agents

@@ -10,13 +10,17 @@ use alloy::{
 };
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_network::AngstromNetworkBuilder;
-use angstrom_rpc::{OrderApi, api::OrderApiServer};
+use angstrom_rpc::{
+    ConsensusApi, OrderApi,
+    api::{ConsensusApiServer, OrderApiServer}
+};
 use angstrom_types::{
     contract_bindings::controller_v_1::ControllerV1,
     primitive::{ANGSTROM_DOMAIN, AngstromSigner}
 };
 use clap::Parser;
 use cli::AngstromConfig;
+use consensus::ConsensusHandler;
 use parking_lot::RwLock;
 use reth::{chainspec::EthereumChainSpecParser, cli::Cli};
 use reth_node_builder::{Node, NodeHandle};
@@ -55,6 +59,7 @@ pub fn run() -> eyre::Result<()> {
         let pool = channels.get_pool_handle();
         let executor_clone = executor.clone();
         let validation_client = ValidationClient(channels.validator_tx.clone());
+        let consensus_client = ConsensusHandler(channels.consensus_tx_rpc.clone());
 
         // get provider and node set for startup, we need this so when reth startup
         // happens, we directly can connect to the nodes.
@@ -93,8 +98,11 @@ pub fn run() -> eyre::Result<()> {
             )
             .with_add_ons::<EthereumAddOns<_>>(Default::default())
             .extend_rpc_modules(move |rpc_context| {
-                let order_api = OrderApi::new(pool.clone(), executor_clone, validation_client);
+                let order_api =
+                    OrderApi::new(pool.clone(), executor_clone.clone(), validation_client);
+                let consensus = ConsensusApi::new(consensus_client, executor_clone);
                 rpc_context.modules.merge_configured(order_api.into_rpc())?;
+                rpc_context.modules.merge_configured(consensus.into_rpc())?;
 
                 Ok(())
             })

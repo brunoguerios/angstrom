@@ -7,7 +7,7 @@ use std::{
     time::Duration
 };
 
-use alloy::primitives::{Address, BlockNumber, FixedBytes};
+use alloy::primitives::{Address, BlockNumber, Bytes, FixedBytes};
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
@@ -313,6 +313,13 @@ impl<DB: Unpin, P: Peers + Unpin> Future for StromNetworkManager<DB, P> {
                                     let _ = tx.send(StromConsensusEvent::PreProposal(address, p));
                                 });
                             }
+                            StromMessage::BundleUnlockAttestation(block, p) => {
+                                self.to_consensus_manager.as_ref().inspect(|tx| {
+                                    let _ = tx.send(StromConsensusEvent::BundleUnlockAttestation(
+                                        address, block, p
+                                    ));
+                                });
+                            }
                             StromMessage::PreProposeAgg(p) => {
                                 self.to_consensus_manager.as_ref().inspect(|tx| {
                                     let _ =
@@ -394,7 +401,8 @@ pub enum StromNetworkEvent {
 pub enum StromConsensusEvent {
     PreProposal(Address, PreProposal),
     PreProposalAgg(Address, PreProposalAggregation),
-    Proposal(Address, Proposal)
+    Proposal(Address, Proposal),
+    BundleUnlockAttestation(Address, u64, Bytes)
 }
 
 impl StromConsensusEvent {
@@ -402,7 +410,8 @@ impl StromConsensusEvent {
         match self {
             StromConsensusEvent::PreProposal(..) => "PreProposal",
             StromConsensusEvent::PreProposalAgg(..) => "PreProposalAggregation",
-            StromConsensusEvent::Proposal(..) => "Proposal"
+            StromConsensusEvent::Proposal(..) => "Proposal",
+            StromConsensusEvent::BundleUnlockAttestation(..) => "BundleUnlockAttestation"
         }
     }
 
@@ -410,15 +419,8 @@ impl StromConsensusEvent {
         match self {
             StromConsensusEvent::PreProposal(peer_id, _)
             | StromConsensusEvent::Proposal(peer_id, _)
-            | StromConsensusEvent::PreProposalAgg(peer_id, _) => *peer_id
-        }
-    }
-
-    pub fn payload_source(&self) -> PeerId {
-        match self {
-            StromConsensusEvent::PreProposal(_, pre_proposal) => pre_proposal.source,
-            StromConsensusEvent::PreProposalAgg(_, pre_proposal) => pre_proposal.source,
-            StromConsensusEvent::Proposal(_, proposal) => proposal.source
+            | StromConsensusEvent::PreProposalAgg(peer_id, _)
+            | StromConsensusEvent::BundleUnlockAttestation(peer_id, ..) => *peer_id
         }
     }
 
@@ -426,7 +428,8 @@ impl StromConsensusEvent {
         match self {
             StromConsensusEvent::PreProposal(_, PreProposal { block_height, .. }) => *block_height,
             StromConsensusEvent::PreProposalAgg(_, p) => p.block_height,
-            StromConsensusEvent::Proposal(_, Proposal { block_height, .. }) => *block_height
+            StromConsensusEvent::Proposal(_, Proposal { block_height, .. }) => *block_height,
+            StromConsensusEvent::BundleUnlockAttestation(_, block, _) => *block
         }
     }
 }
@@ -439,7 +442,10 @@ impl From<StromConsensusEvent> for StromMessage {
             }
             StromConsensusEvent::PreProposalAgg(_, agg) => StromMessage::PreProposeAgg(agg),
 
-            StromConsensusEvent::Proposal(_, proposal) => StromMessage::Propose(proposal)
+            StromConsensusEvent::Proposal(_, proposal) => StromMessage::Propose(proposal),
+            StromConsensusEvent::BundleUnlockAttestation(_, block, attestation) => {
+                StromMessage::BundleUnlockAttestation(block, attestation)
+            }
         }
     }
 }

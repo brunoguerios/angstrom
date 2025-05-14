@@ -9,7 +9,8 @@ use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    orders::PoolSolution
+    orders::PoolSolution,
+    sol_bindings::rpc_orders::AttestAngstromBlockEmpty
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::MatchingEngineHandle;
@@ -66,6 +67,7 @@ impl ProposalState {
 
     fn try_build_proposal<P, Matching>(
         &mut self,
+        cx: &mut Context<'_>,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
         handles: &mut SharedRoundState<P, Matching>
     ) -> bool
@@ -109,6 +111,15 @@ impl ProposalState {
             }) else {
                 return false;
             };
+
+        if possible_bundle.is_none() {
+            let signed_attestation =
+                AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer);
+            handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(
+                signed_attestation
+            ));
+            cx.waker().wake_by_ref();
+        }
 
         let submission_future = Box::pin(async move {
             let Ok(tx_hash) = provider
@@ -172,7 +183,7 @@ where
         if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(state) => {
-                    if !self.try_build_proposal(state, handles) {
+                    if !self.try_build_proposal(cx, state, handles) {
                         // failed to build. we end here.
                         return Poll::Ready(None);
                     }

@@ -7,7 +7,7 @@ use std::{
 };
 
 use alloy::{
-    primitives::{Address, BlockNumber, FixedBytes},
+    primitives::{Address, BlockNumber, Bytes, FixedBytes},
     providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
@@ -92,6 +92,10 @@ where
             consensus_wait_duration,
             shared_state
         }
+    }
+
+    pub fn current_leader(&self) -> Address {
+        self.shared_state.round_leader
     }
 
     pub fn reset_round(&mut self, new_block: u64, new_leader: Address) {
@@ -345,7 +349,8 @@ where
 pub enum ConsensusMessage {
     PropagatePreProposal(PreProposal),
     PropagatePreProposalAgg(PreProposalAggregation),
-    PropagateProposal(Proposal)
+    PropagateProposal(Proposal),
+    PropagateEmptyBlockAttestation(Bytes)
 }
 
 impl From<PreProposal> for ConsensusMessage {

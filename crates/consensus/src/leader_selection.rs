@@ -43,6 +43,10 @@ impl WeightedRoundRobin {
         }
     }
 
+    pub fn get_validator_state(&self) -> HashSet<AngstromValidator> {
+        self.validators.clone()
+    }
+
     fn proposer_selection(&mut self) -> Address {
         let total_voting_power: u64 = self.validators.iter().map(|v| v.voting_power).sum();
 
