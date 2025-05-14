@@ -1,18 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use alloy_primitives::{Address, B256, U256};
-use angstrom_types::{
-    orders::{CancelOrderRequest, OrderLocation, OrderStatus},
-    primitive::PoolId,
-    sol_bindings::grouped_orders::AllOrders
-};
-use consensus::AngstromValidator;
-use futures::StreamExt;
-use jsonrpsee::{
-    core::{RpcResult, Serialize},
-    proc_macros::rpc
-};
-use serde::Deserialize;
+use alloy_primitives::Address;
+use consensus::{AngstromValidator, ConsensusDataWithBlock};
+use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "consensus"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "consensus"))]
@@ -21,13 +11,15 @@ pub trait ConsensusApi {
     #[subscription(
         name = "subscribeEmptyBlockAttestations",
         unsubscribe = "unsubscribeEmptyBlockAttestations",
-        item = alloy_primitives::Bytes
+        item = ConsensusDataWithBlock<alloy_primitives::Bytes>
     )]
     async fn subscribe_empty_block_attestations(&self) -> jsonrpsee::core::SubscriptionResult;
 
     #[method(name = "getCurrentLeader")]
-    async fn get_current_leader(&self) -> RpcResult<Address>;
+    async fn get_current_leader(&self) -> RpcResult<ConsensusDataWithBlock<Address>>;
 
     #[method(name = "fetchConsensusState")]
-    async fn fetch_consensus_state(&self) -> RpcResult<HashSet<AngstromValidator>>;
+    async fn fetch_consensus_state(
+        &self
+    ) -> RpcResult<ConsensusDataWithBlock<HashSet<AngstromValidator>>>;
 }

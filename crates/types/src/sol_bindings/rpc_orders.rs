@@ -4,16 +4,13 @@ use alloy::{
     primitives::{Address, B256, Bytes, keccak256},
     signers::SignerSync,
     sol,
-    sol_types::{Eip712Domain, SolCall, SolStruct, SolValue}
+    sol_types::{Eip712Domain, SolCall, SolStruct}
 };
 use alloy_primitives::Signature;
 use pade::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    contract_bindings::angstrom::Angstrom::unlockWithEmptyAttestationCall,
-    primitive::{ANGSTROM_DOMAIN, AngstromSigner}
-};
+use crate::primitive::{ANGSTROM_DOMAIN, AngstromSigner};
 
 sol! {
 

@@ -7,24 +7,29 @@ pub mod rounds;
 use std::{collections::HashSet, pin::Pin};
 
 use alloy::primitives::{Address, Bytes};
-use angstrom_types::consensus::{PreProposal, Proposal};
 use futures::Stream;
 pub use leader_selection::AngstromValidator;
+use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConsensusDataWithBlock<T> {
-    data:  T,
-    block: u64
+    pub data:  T,
+    pub block: u64
 }
 
 pub trait ConsensusHandle: Send + Sync + Clone + Unpin + 'static {
-    fn subscribe_empty_block_attestations(&self) -> Pin<Box<dyn Stream<Item = Bytes>>>;
+    fn subscribe_empty_block_attestations(
+        &self
+    ) -> Pin<Box<dyn Stream<Item = ConsensusDataWithBlock<Bytes>> + Send>>;
 
-    fn get_current_leader(&self) -> Pin<Box<dyn Future<Output = Address> + Send>>;
+    fn get_current_leader(
+        &self
+    ) -> Pin<Box<dyn Future<Output = ConsensusDataWithBlock<Address>> + Send>>;
 
     fn fetch_consensus_state(
         &self
-    ) -> Pin<Box<dyn Future<Output = HashSet<AngstromValidator>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = ConsensusDataWithBlock<HashSet<AngstromValidator>>> + Send>>;
 }
 
 pub struct ConsensusHandler {

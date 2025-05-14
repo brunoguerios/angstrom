@@ -1,7 +1,8 @@
-use std::{collections::HashSet, pin::Pin};
+use std::collections::HashSet;
 
-use alloy_primitives::{Address, Bytes};
-use consensus::{AngstromValidator, ConsensusHandle};
+use alloy_primitives::Address;
+use consensus::{AngstromValidator, ConsensusDataWithBlock, ConsensusHandle};
+use futures::StreamExt;
 use jsonrpsee::{PendingSubscriptionSink, SubscriptionMessage, core::RpcResult};
 use reth_tasks::TaskSpawner;
 
@@ -24,13 +25,14 @@ where
     Consensus: ConsensusHandle,
     Spawner: TaskSpawner + 'static
 {
-    async fn get_current_leader(&self) -> RpcResult<Address> {
-        todo!()
+    async fn get_current_leader(&self) -> RpcResult<ConsensusDataWithBlock<Address>> {
+        Ok(self.consensus.get_current_leader().await)
     }
 
-    #[method(name = "fetchConsensusState")]
-    async fn fetch_consensus_state(&self) -> RpcResult<HashSet<AngstromValidator>> {
-        todo!()
+    async fn fetch_consensus_state(
+        &self
+    ) -> RpcResult<ConsensusDataWithBlock<HashSet<AngstromValidator>>> {
+        Ok(self.consensus.fetch_consensus_state().await)
     }
 
     async fn subscribe_empty_block_attestations(
@@ -38,27 +40,21 @@ where
         pending: PendingSubscriptionSink
     ) -> jsonrpsee::core::SubscriptionResult {
         let sink = pending.accept().await?;
-        let mut subscription = self
-            .pool
-            .subscribe_orders()
-            .map(move |update| update.map(|value| value.filter_out_order(&kind, &filter)));
-
+        let mut subscription = self.consensus.subscribe_empty_block_attestations();
         self.task_spawner.spawn(Box::pin(async move {
-            while let Some(Ok(order)) = subscription.next().await {
+            while let Some(result) = subscription.next().await {
                 if sink.is_closed() {
                     break;
                 }
 
-                if let Some(result) = order {
-                    match SubscriptionMessage::from_json(&result) {
-                        Ok(message) => {
-                            if sink.send(message).await.is_err() {
-                                break;
-                            }
+                match SubscriptionMessage::from_json(&result) {
+                    Ok(message) => {
+                        if sink.send(message).await.is_err() {
+                            break;
                         }
-                        Err(e) => {
-                            tracing::error!("Failed to serialize subscription message: {:?}", e);
-                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to serialize subscription message: {:?}", e);
                     }
                 }
             }
