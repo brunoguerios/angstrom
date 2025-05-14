@@ -3,7 +3,11 @@ use std::collections::HashSet;
 use alloy_primitives::Address;
 use consensus::{AngstromValidator, ConsensusDataWithBlock, ConsensusHandle};
 use futures::StreamExt;
-use jsonrpsee::{PendingSubscriptionSink, SubscriptionMessage, core::RpcResult};
+use jsonrpsee::{
+    PendingSubscriptionSink, SubscriptionMessage,
+    core::RpcResult,
+    types::{ErrorCode, ErrorObjectOwned}
+};
 use reth_tasks::TaskSpawner;
 
 use crate::api::ConsensusApiServer;
@@ -26,13 +30,21 @@ where
     Spawner: TaskSpawner + 'static
 {
     async fn get_current_leader(&self) -> RpcResult<ConsensusDataWithBlock<Address>> {
-        Ok(self.consensus.get_current_leader().await)
+        Ok(self
+            .consensus
+            .get_current_leader()
+            .await
+            .map_err(|_| ErrorObjectOwned::from(ErrorCode::from(-1)))?)
     }
 
     async fn fetch_consensus_state(
         &self
     ) -> RpcResult<ConsensusDataWithBlock<HashSet<AngstromValidator>>> {
-        Ok(self.consensus.fetch_consensus_state().await)
+        Ok(self
+            .consensus
+            .fetch_consensus_state()
+            .await
+            .map_err(|_| ErrorObjectOwned::from(ErrorCode::from(-1)))?)
     }
 
     async fn subscribe_empty_block_attestations(

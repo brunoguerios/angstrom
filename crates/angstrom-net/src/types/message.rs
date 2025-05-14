@@ -123,7 +123,7 @@ pub enum StromMessage {
     PrePropose(PreProposal),
     PreProposeAgg(PreProposalAggregation),
     Propose(Proposal),
-    BundleUnlockAttestation(Bytes),
+    BundleUnlockAttestation(u64, Bytes),
 
     // Propagation messages that broadcast new orders to all peers
     PropagatePooledOrders(Vec<AllOrders>),
@@ -137,7 +137,7 @@ impl StromMessage {
             StromMessage::PrePropose(_) => StromMessageID::PrePropose,
             StromMessage::PreProposeAgg(_) => StromMessageID::PreProposeAgg,
             StromMessage::Propose(_) => StromMessageID::Propose,
-            StromMessage::BundleUnlockAttestation(_) => StromMessageID::BundleUnlockAttestation,
+            StromMessage::BundleUnlockAttestation(..) => StromMessageID::BundleUnlockAttestation,
             StromMessage::PropagatePooledOrders(_) => StromMessageID::PropagatePooledOrders,
             StromMessage::OrderCancellation(_) => StromMessageID::OrderCancellation
         }
