@@ -67,14 +67,6 @@ pub struct StromNetworkManager<DB: Unpin, P: Peers + Unpin> {
     not_future:       Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>
 }
 
-impl<DB: Unpin, P: Peers + Unpin> Drop for StromNetworkManager<DB, P> {
-    fn drop(&mut self) {
-        let node_pubkey = self.node_pubkey();
-        tracing::info!("StromNetworkManager for node_id={} shutting down...", node_pubkey);
-        self.save_known_peers();
-    }
-}
-
 impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
     pub fn node_pubkey(&self) -> PublicKey {
         self.reth_network
@@ -268,6 +260,10 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
                 graceful_guard = Some(guard);
             },
         }
+        let node_pubkey = self.node_pubkey();
+        tracing::info!("StromNetworkManager for node_id={} shutting down...", node_pubkey);
+        self.save_known_peers();
+
         self.swarm_mut()
             .sessions_mut()
             .disconnect_all(Some(DisconnectReason::ClientQuitting));
