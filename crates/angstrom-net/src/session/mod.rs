@@ -29,7 +29,6 @@ pub use connection_handler::*;
 use futures::task::Poll;
 use reth_eth_wire::DisconnectReason;
 use reth_network::Direction;
-use tracing::warn;
 
 use crate::{StromMessage, StromProtocolMessage, errors::StromStreamError};
 
