@@ -115,6 +115,7 @@ impl StromSessionManager {
     // Removes the Session handle if it exists.
     fn remove_session(&mut self, id: &PeerId) -> Option<StromSessionHandle> {
         let session = self.active_sessions.remove(id)?;
+        session.disconnect(None);
         Some(session)
     }
 
