@@ -16,6 +16,7 @@ use angstrom_types::{
 use futures::{FutureExt, StreamExt};
 use itertools::Itertools;
 use once_cell::unsync::Lazy;
+use reth::tasks::shutdown::GracefulShutdown;
 use reth_eth_wire::DisconnectReason;
 use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use reth_network::Peers;
@@ -254,6 +255,24 @@ impl<DB: Unpin, P: Peers + Unpin> StromNetworkManager<DB, P> {
                 self.swarm_mut().sessions_mut().disconnect(id, reason);
             }
         }
+    }
+
+    /// this sometimes will race-condition with the network given they are on
+    /// two separate threads and there actually isn't much we can do about this
+    /// currently until reth fixes this.
+    pub async fn run_until_graceful_shutdown(mut self, shutdown: GracefulShutdown) {
+        let mut graceful_guard = None;
+        tokio::select! {
+            _ = &mut self => {},
+            guard = shutdown => {
+                graceful_guard = Some(guard);
+            },
+        }
+        self.swarm_mut()
+            .sessions_mut()
+            .disconnect_all(Some(DisconnectReason::ClientQuitting));
+
+        drop(graceful_guard);
     }
 
     fn notify_listeners(&mut self, event: StromNetworkEvent) {

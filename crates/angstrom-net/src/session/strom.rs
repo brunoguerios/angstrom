@@ -205,10 +205,15 @@ impl StromSession {
                         peer_id: self.remote_peer_id,
                         message: m
                     })
-                    .unwrap_or(StromSessionMessage::BadMessage { peer_id: self.remote_peer_id });
+                    .unwrap_or_else(|_| StromSessionMessage::BadMessage {
+                        peer_id: self.remote_peer_id
+                    });
                 self.outbound_buffer.push_back(msg);
             })
             .ok_or_else(|| {
+                // make sure that we tell the manager that we are disconnecting this peer.
+                let msg = StromSessionMessage::Disconnected { peer_id: self.remote_peer_id };
+                self.outbound_buffer.push_back(msg);
                 tracing::debug!("got a empty message, disconnecting");
                 self.emit_disconnect(cx)
             })
