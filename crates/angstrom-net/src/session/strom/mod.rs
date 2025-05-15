@@ -1,3 +1,7 @@
+pub mod regular;
+pub mod shutdown;
+pub mod startup;
+
 use std::{
     collections::VecDeque,
     fmt::Debug,
@@ -32,6 +36,16 @@ use crate::{
     }
 };
 
+/// this trait handles the transition and different functionality of
+/// a strom session at the different points in time
+pub trait StromSession {
+    /// Messages encoded that are meant for the peer
+    fn poll_outbound_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>>;
+    /// Marks when to transition to a new state. When
+    /// Poll::Ready(None) is returned. Means that this session should be closed.
+    fn poll_next_state(&mut self, cx: &mut Context<'_>) -> Poll<Option<Box<dyn StromSession>>>;
+}
+
 const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;
 
 /// holds the state we need to verify the new peer
@@ -63,7 +77,30 @@ impl Debug for VerificationSidecar {
     }
 }
 
-#[allow(dead_code)]
+/// there are 3 states that the strom session can be in
+/// 1) connecting. This is signified by the session sending the handle to the
+///    session manager.
+/// 2) active / normal processing
+/// 3) disconnecting. when we signal to
+pub enum StromSessionState {
+    Startup {
+        verification_sidecar: VerificationSidecar,
+        conn:                 ProtocolConnection,
+        remote_peer_id:       PeerId,
+        to_session_manager:   MeteredPollSender<StromSessionMessage>,
+        outbound_buffer:      VecDeque<StromSessionMessage>
+    },
+    Normal {
+        to_session_manager: MeteredPollSender<StromSessionMessage>,
+        outbound_buffer:    VecDeque<StromSessionMessage>
+    },
+    Shutdown {
+        conn:        ProtocolConnection,
+        sender:      PollSender<StromSessionMessage>,
+        closing_msg: StromSessionMessage
+    }
+}
+
 pub struct StromSession {
     /// The underlying connection.
     pub(crate) conn:               ProtocolConnection,
@@ -316,42 +353,42 @@ impl Stream for StromSession {
     type Item = BytesMut;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.pending_handle.is_some() && self.poll_init_connection(cx).is_some() {
-            return Poll::Pending;
-        }
-
-        if !self.verification_sidecar.is_verified() {
-            return self.poll_verification(cx);
-        }
-
-        // if the session is terminate we have to send the termination message before we
-        // can close
-        if let Some(terminate) = self.poll_terminate_message(cx) {
-            return terminate;
-        }
-
-        // progress manager commands
-        if let Some(msg) = self.poll_commands(cx) {
-            return msg;
-        }
-
-        // processes messages from the wire
-        if let Some(msg) = self.poll_incoming(cx) {
-            return msg;
-        }
-
-        if let Poll::Ready(possible_ping) = self.timeout.poll_next_unpin(cx) {
-            match possible_ping {
-                Some(ping) => {
-                    return Poll::Ready(Some(BytesMut::from(&ping as &[u8])));
-                }
-                None => {
-                    return self.emit_disconnect(cx);
-                }
-            }
-        }
-
-        self.try_send_outbound(cx);
+        // if self.pending_handle.is_some() && self.poll_init_connection(cx).is_some() {
+        //     return Poll::Pending;
+        // }
+        //
+        // if !self.verification_sidecar.is_verified() {
+        //     return self.poll_verification(cx);
+        // }
+        //
+        // // if the session is terminate we have to send the termination message before
+        // we // can close
+        // if let Some(terminate) = self.poll_terminate_message(cx) {
+        //     return terminate;
+        // }
+        //
+        // // progress manager commands
+        // if let Some(msg) = self.poll_commands(cx) {
+        //     return msg;
+        // }
+        //
+        // // processes messages from the wire
+        // if let Some(msg) = self.poll_incoming(cx) {
+        //     return msg;
+        // }
+        //
+        // if let Poll::Ready(possible_ping) = self.timeout.poll_next_unpin(cx) {
+        //     match possible_ping {
+        //         Some(ping) => {
+        //             return Poll::Ready(Some(BytesMut::from(&ping as &[u8])));
+        //         }
+        //         None => {
+        //             return self.emit_disconnect(cx);
+        //         }
+        //     }
+        // }
+        //
+        // self.try_send_outbound(cx);
 
         Poll::Pending
     }

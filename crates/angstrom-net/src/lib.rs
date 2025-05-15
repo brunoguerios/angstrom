@@ -23,9 +23,6 @@ pub use builder::*;
 pub mod network;
 pub use network::*;
 
-pub mod config;
-pub use config::*;
-
 pub mod cache;
 pub use cache::*;
 

@@ -9,7 +9,6 @@ pub mod protocol_handler;
 pub use protocol_handler::*;
 
 pub mod strom;
-use futures::Stream;
 pub use strom::*;
 pub mod config;
 pub use config::*;
@@ -26,7 +25,7 @@ use std::{
 
 use angstrom_types::primitive::PeerId;
 pub use connection_handler::*;
-use futures::task::Poll;
+use futures::{Stream, task::Poll};
 use reth_eth_wire::DisconnectReason;
 use reth_network::Direction;
 
@@ -45,7 +44,7 @@ impl CachedPeer {
 
     pub fn enr(&self) -> String {
         format!(
-            "enode://{:?}@{}:{}?discport=30303", // TODO: get discport?
+            "enode://{:?}@{}:{}?discport=30303",
             self.peer_id,
             self.addr.ip(),
             30303 // self.addr.port()
