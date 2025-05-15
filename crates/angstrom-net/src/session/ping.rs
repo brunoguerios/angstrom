@@ -44,13 +44,12 @@ impl Stream for Ping {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Option<Self::Item>> {
-        while let Poll::Ready(Some(_)) = self.ping_interval.poll_next_unpin(cx) {
+        if let Poll::Ready(Some(_)) = self.ping_interval.poll_next_unpin(cx) {
             return Poll::Ready(Some(PING));
         }
 
-        if self
-            .last_received_ping
-            .duration_since(SystemTime::now())
+        if SystemTime::now()
+            .duration_since(self.last_received_ping)
             .unwrap()
             > self.max_recv_ping_interval
         {

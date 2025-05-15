@@ -201,7 +201,7 @@ impl StromSession {
         // processes incoming messages until there are none left or the stream closes
         while let Poll::Ready(msg) = self.conn.poll_next_unpin(cx).map(|data| {
             data.map(|bytes| {
-                if bytes.as_ref() == &PING {
+                if bytes.as_ref() == PING {
                     self.timeout.got_ping();
                     return;
                 }
@@ -340,7 +340,7 @@ impl Stream for StromSession {
             return msg;
         }
 
-        while let Poll::Ready(possible_ping) = self.timeout.poll_next_unpin(cx) {
+        if let Poll::Ready(possible_ping) = self.timeout.poll_next_unpin(cx) {
             match possible_ping {
                 Some(ping) => {
                     return Poll::Ready(Some(BytesMut::from(&ping as &[u8])));
