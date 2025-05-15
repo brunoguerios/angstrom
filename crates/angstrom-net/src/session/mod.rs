@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 pub mod handle;
+pub mod ping;
 pub use handle::*;
 
 pub mod protocol_handler;
