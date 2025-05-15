@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -14,7 +15,7 @@ pub use config::*;
 use futures::task::Context;
 pub mod connection_handler;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::Debug,
     net::SocketAddr,
     ops::Deref,
@@ -84,12 +85,13 @@ pub struct StromSessionManager {
     /// Channel to receive the session handle upon initialization from the
     /// connection handler This channel is also used to receive messages
     /// from the session
-    pub(crate) from_sessions: mpsc::Receiver<StromSessionMessage>
+    pub(crate) from_sessions: mpsc::Receiver<StromSessionMessage>,
+    msg_buf:                  VecDeque<SessionEvent>
 }
 
 impl StromSessionManager {
     pub fn new(from_sessions: mpsc::Receiver<StromSessionMessage>) -> Self {
-        Self { from_sessions, active_sessions: HashMap::default() }
+        Self { from_sessions, active_sessions: HashMap::default(), msg_buf: VecDeque::new() }
     }
 
     /// Sends a message to the peer's session
@@ -129,13 +131,41 @@ impl StromSessionManager {
     }
 
     fn poll_session_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<SessionEvent>> {
+        // before we process any data, lets ensure we haven't had any disconnects.
+        // we have to do this as we don't get any notifications of closing
+        // when our objects get dropped from reth so we just check
+        // to ensure all the handles channels are still open
+        let dead_peers = self
+            .active_sessions
+            .iter()
+            .filter_map(|(peer, session)| session.commands_to_session.is_closed().then_some(peer))
+            .copied()
+            .collect_vec();
+
+        for dead_peer in dead_peers {
+            let _ = self.active_sessions.remove(&dead_peer);
+            self.msg_buf
+                .push_back(SessionEvent::Disconnected { peer_id: dead_peer });
+        }
+
+        if let Some(next) = self.msg_buf.pop_front() {
+            cx.waker().wake_by_ref();
+            return Poll::Ready(Some(next));
+        }
+
         self.from_sessions.poll_recv(cx).map(|msg| {
-            msg.map(|msg_inner| match msg_inner {
+            msg.and_then(|msg_inner| match msg_inner {
                 StromSessionMessage::Disconnected { peer_id } => {
                     self.remove_session(&peer_id);
-                    SessionEvent::Disconnected { peer_id }
+                    Some(SessionEvent::Disconnected { peer_id })
                 }
                 StromSessionMessage::Established { handle } => {
+                    if self.active_sessions.contains_key(&handle.remote_id) {
+                        tracing:: warn!(peer_id=?handle.remote_id, "got duplicate connection");
+                        handle.disconnect(None);
+                        return None;
+                    }
+
                     let event = SessionEvent::SessionEstablished {
                         peer_id:   handle.remote_id,
                         direction: handle.direction,
@@ -145,18 +175,20 @@ impl StromSessionManager {
                     // we don't need to worry about duplicate sessions as
                     // underlying reth-node handles this
                     self.active_sessions.insert(handle.remote_id, handle);
-                    event
+                    Some(event)
                 }
                 StromSessionMessage::ClosedOnConnectionError { peer_id, error } => {
                     self.remove_session(&peer_id);
-                    SessionEvent::OutgoingConnectionError { peer_id, error }
+                    Some(SessionEvent::OutgoingConnectionError { peer_id, error })
                 }
                 StromSessionMessage::ValidMessage { peer_id, message } => {
-                    SessionEvent::ValidMessage { peer_id, message }
+                    Some(SessionEvent::ValidMessage { peer_id, message })
                 }
-                StromSessionMessage::BadMessage { peer_id } => SessionEvent::BadMessage { peer_id },
+                StromSessionMessage::BadMessage { peer_id } => {
+                    Some(SessionEvent::BadMessage { peer_id })
+                }
                 StromSessionMessage::ProtocolBreach { peer_id } => {
-                    SessionEvent::ProtocolBreach { peer_id }
+                    Some(SessionEvent::ProtocolBreach { peer_id })
                 }
             })
         })
