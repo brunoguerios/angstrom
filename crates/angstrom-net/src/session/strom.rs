@@ -20,7 +20,10 @@ use tokio::time::Duration;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::PollSender;
 
-use super::handle::SessionCommand;
+use super::{
+    handle::SessionCommand,
+    ping::{PING, Ping}
+};
 use crate::{
     StatusBuilder, StromMessage, StromSessionHandle, StromSessionMessage,
     types::{
@@ -74,7 +77,7 @@ pub struct StromSession {
     /// If an [ActiveSession] does not receive a response at all within this
     /// duration then it is considered a protocol violation and the session
     /// will initiate a drop.
-    pub(crate) protocol_breach_request_timeout: Duration,
+    pub(crate) timeout:           Ping,
     /// Used to reserve a slot to guarantee that the termination message is
     /// delivered
     pub(crate) terminate_message: Option<(PollSender<StromSessionMessage>, StromSessionMessage)>,
@@ -112,7 +115,7 @@ impl StromSession {
             remote_peer_id: peer_id,
             commands_rx,
             to_session_manager,
-            protocol_breach_request_timeout,
+            timeout: Ping::new(protocol_breach_request_timeout),
             terminate_message: None,
             pending_handle: Some(handle),
             outbound_buffer: VecDeque::default()
@@ -198,6 +201,11 @@ impl StromSession {
         // processes incoming messages until there are none left or the stream closes
         while let Poll::Ready(msg) = self.conn.poll_next_unpin(cx).map(|data| {
             data.map(|bytes| {
+                if bytes.as_ref() == &PING {
+                    self.timeout.got_ping();
+                    return;
+                }
+
                 let msg = StromProtocolMessage::decode_message(&mut bytes.deref());
 
                 let msg = msg
@@ -330,6 +338,17 @@ impl Stream for StromSession {
         // processes messages from the wire
         if let Some(msg) = self.poll_incoming(cx) {
             return msg;
+        }
+
+        while let Poll::Ready(possible_ping) = self.timeout.poll_next_unpin(cx) {
+            match possible_ping {
+                Some(ping) => {
+                    return Poll::Ready(Some(BytesMut::from(&ping as &[u8])));
+                }
+                None => {
+                    return self.emit_disconnect(cx);
+                }
+            }
         }
 
         self.try_send_outbound(cx);
