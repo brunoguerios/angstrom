@@ -26,11 +26,9 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::error;
 
 use crate::{
-    CachedPeer, CachedPeers, NetworkOrderEvent, StromMessage, StromNetworkHandleMsg, Swarm,
-    SwarmEvent
+    CachedPeer, CachedPeers, NetworkOrderEvent, StromMessage, StromNetworkHandle,
+    StromNetworkHandleMsg, Swarm, SwarmEvent
 };
-#[allow(unused_imports)]
-use crate::{StromNetworkConfig, StromNetworkHandle, StromSessionManager};
 
 // use a thread local lazy to avoid synchronization overhead since path is
 // always the same
