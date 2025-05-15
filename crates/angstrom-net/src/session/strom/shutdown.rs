@@ -9,7 +9,7 @@ use reth_metrics::common::mpsc::MeteredPollSender;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::PollSender;
 
-use super::{super::handle::SessionCommand, StromSession};
+use super::{super::handle::SessionCommand, StromSession, StromSessionStates};
 use crate::StromSessionMessage;
 
 pub struct Shutdown {
@@ -39,7 +39,7 @@ impl Shutdown {
 impl StromSession for Shutdown {
     fn poll_outbound_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>> {
         if let Some(mut inner) = self.to_session_manager.take() {
-            if let Poll::Ready(_) = inner.poll_reserve(cx) {
+            if inner.poll_reserve(cx).is_ready() {
                 inner
                     .send_item(StromSessionMessage::Disconnected { peer_id: self.remote_peer_id })
                     .unwrap();
@@ -61,7 +61,7 @@ impl StromSession for Shutdown {
         Poll::Pending
     }
 
-    fn poll_next_state(self, _: &mut Context<'_>) -> Option<Box<dyn StromSession>> {
+    fn poll_next_state(self, _: &mut Context<'_>) -> Option<StromSessionStates> {
         None
     }
 }

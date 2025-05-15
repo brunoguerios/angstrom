@@ -14,8 +14,8 @@ use reth_metrics::common::mpsc::MeteredPollSender;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::{
-    super::handle::SessionCommand, StromSession, VerificationSidecar, regular::RegularProcessing,
-    shutdown::Shutdown
+    super::handle::SessionCommand, StromSession, StromSessionStates, VerificationSidecar,
+    regular::RegularProcessing, shutdown::Shutdown
 };
 use crate::{
     StromMessage, StromSessionHandle, StromSessionMessage,
@@ -147,19 +147,19 @@ impl StromSession for StromStartup {
         self.handle_verification(cx)
     }
 
-    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<Box<dyn StromSession>> {
+    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates> {
         // going to register a waker so that the new state will be registered
         cx.waker().wake_by_ref();
 
         if self.shutdown {
-            Some(Box::new(Shutdown::new(
+            Some(StromSessionStates::Shutdown(Shutdown::new(
                 self.conn,
                 self.remote_peer_id,
                 self.to_session_manager,
                 self.commands_rx
             )))
         } else {
-            Some(Box::new(RegularProcessing::new(
+            Some(StromSessionStates::Regular(RegularProcessing::new(
                 self.conn,
                 self.remote_peer_id,
                 self.to_session_manager,

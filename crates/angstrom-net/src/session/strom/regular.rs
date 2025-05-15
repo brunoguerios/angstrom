@@ -10,7 +10,7 @@ use reth_eth_wire::multiplex::ProtocolConnection;
 use reth_metrics::common::mpsc::MeteredPollSender;
 use tokio_stream::wrappers::ReceiverStream;
 
-use super::{super::handle::SessionCommand, StromSession, shutdown::Shutdown};
+use super::{super::handle::SessionCommand, StromSession, StromSessionStates, shutdown::Shutdown};
 use crate::{StromSessionMessage, types::message::StromProtocolMessage};
 
 pub struct RegularProcessing {
@@ -95,10 +95,10 @@ impl StromSession for RegularProcessing {
         Poll::Pending
     }
 
-    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<Box<dyn StromSession>> {
+    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates> {
         cx.waker().wake_by_ref();
 
-        Some(Box::new(Shutdown::new(
+        Some(StromSessionStates::Shutdown(Shutdown::new(
             self.conn,
             self.remote_peer_id,
             self.to_session_manager,
