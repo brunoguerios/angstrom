@@ -115,7 +115,6 @@ impl StromSessionManager {
     // Removes the Session handle if it exists.
     fn remove_session(&mut self, id: &PeerId) -> Option<StromSessionHandle> {
         let session = self.active_sessions.remove(id)?;
-        session.disconnect(None);
         Some(session)
     }
 
@@ -140,18 +139,14 @@ impl StromSessionManager {
                     Some(SessionEvent::Disconnected { peer_id })
                 }
                 StromSessionMessage::Established { handle } => {
-                    if self.active_sessions.contains_key(&handle.remote_id) {
-                        warn!(peer_id=?handle.remote_id, "got duplicate connection");
-                        handle.disconnect(None);
-                        return None;
-                    }
-
                     let event = SessionEvent::SessionEstablished {
                         peer_id:   handle.remote_id,
                         direction: handle.direction,
                         timeout:   Arc::new(AtomicU64::new(40))
                     };
 
+                    // we don't need to worry about duplicate sessions as
+                    // underlying reth-node handles this
                     self.active_sessions.insert(handle.remote_id, handle);
                     Some(event)
                 }
