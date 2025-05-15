@@ -1,38 +1,25 @@
 use std::{
-    collections::VecDeque,
-    fmt::Debug,
-    net::SocketAddr,
     ops::Deref,
-    pin::Pin,
     time::{SystemTime, UNIX_EPOCH}
 };
 
 use alloy::rlp::{BytesMut, Encodable};
-use angstrom_types::primitive::{AngstromSigner, PeerId};
-use angstrom_utils::{GenericExt, PollFlatten};
+use angstrom_types::primitive::PeerId;
 use futures::{
-    Stream, StreamExt,
+    StreamExt,
     task::{Context, Poll}
 };
 use reth_eth_wire::multiplex::ProtocolConnection;
 use reth_metrics::common::mpsc::MeteredPollSender;
-use tokio::time::Duration;
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_util::sync::PollSender;
 
 use super::{
-    super::{
-        handle::SessionCommand,
-        ping::{PING, Ping}
-    },
-    StromSession, VerificationSidecar
+    super::handle::SessionCommand, StromSession, VerificationSidecar, regular::RegularProcessing,
+    shutdown::Shutdown
 };
 use crate::{
-    StatusBuilder, StromMessage, StromSessionHandle, StromSessionMessage,
-    types::{
-        message::StromProtocolMessage,
-        status::{Status, StatusState}
-    }
+    StromMessage, StromSessionHandle, StromSessionMessage,
+    types::{message::StromProtocolMessage, status::Status}
 };
 
 const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;
@@ -43,7 +30,7 @@ pub struct StromStartup {
     conn:                 ProtocolConnection,
     remote_peer_id:       PeerId,
     to_session_manager:   MeteredPollSender<StromSessionMessage>,
-    completed:            bool,
+    commands_rx:          ReceiverStream<SessionCommand>,
     shutdown:             bool
 }
 
@@ -53,7 +40,8 @@ impl StromStartup {
         handle: Option<StromSessionHandle>,
         conn: ProtocolConnection,
         remote_peer_id: PeerId,
-        to_session_manager: MeteredPollSender<StromSessionMessage>
+        to_session_manager: MeteredPollSender<StromSessionMessage>,
+        commands_rx: ReceiverStream<SessionCommand>
     ) -> Self {
         Self {
             verification_sidecar,
@@ -61,8 +49,8 @@ impl StromStartup {
             conn,
             remote_peer_id,
             to_session_manager,
-            shutdown: false,
-            completed: false
+            commands_rx,
+            shutdown: false
         }
     }
 
@@ -85,7 +73,7 @@ impl StromStartup {
             }
             Poll::Pending => {}
         }
-        return false;
+        false
     }
 
     fn handle_verification(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>> {
@@ -119,11 +107,9 @@ impl StromStartup {
                             false
                         }
                     });
-                    self.completed = true;
                     self.shutdown = !valid_verification;
                 }
                 None => {
-                    self.completed = true;
                     self.shutdown = true;
                     cx.waker().wake_by_ref();
                 }
@@ -133,7 +119,7 @@ impl StromStartup {
         }
 
         // we are ready to transition
-        return Poll::Ready(None);
+        Poll::Ready(None)
     }
 
     fn verify_incoming_status(&self, status: Status) -> bool {
@@ -161,9 +147,24 @@ impl StromSession for StromStartup {
         self.handle_verification(cx)
     }
 
-    fn poll_next_state(&mut self, cx: &mut Context<'_>) -> Poll<Option<Box<dyn StromSession>>> {
-        if self.completed {}
+    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<Box<dyn StromSession>> {
+        // going to register a waker so that the new state will be registered
+        cx.waker().wake_by_ref();
 
-        Poll::Pending
+        if self.shutdown {
+            Some(Box::new(Shutdown::new(
+                self.conn,
+                self.remote_peer_id,
+                self.to_session_manager,
+                self.commands_rx
+            )))
+        } else {
+            Some(Box::new(RegularProcessing::new(
+                self.conn,
+                self.remote_peer_id,
+                self.to_session_manager,
+                self.commands_rx
+            )))
+        }
     }
 }

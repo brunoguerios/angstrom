@@ -21,16 +21,16 @@ use tokio::{
 };
 use tokio_stream::wrappers::ReceiverStream;
 
-use super::CachedPeer;
+use super::{CachedPeer, StromSessionHandler};
 use crate::{
-    StromSession, VerificationSidecar,
+    VerificationSidecar,
     errors::StromStreamError,
     session::handle::StromSessionHandle,
     types::message::{StromMessage, StromProtocolMessage}
 };
 
 pub enum PossibleStromSession {
-    Session(StromSession),
+    Session(StromSessionHandler),
     /// this will instantly terminate when first polled
     Invalid(Empty<BytesMut>)
 }
@@ -102,11 +102,9 @@ impl ConnectionHandler for StromConnectionHandler {
 
         let cached_peer = CachedPeer { peer_id, addr: remote_addr };
 
-        PossibleStromSession::Session(StromSession::new(
+        PossibleStromSession::Session(StromSessionHandler::new(
             conn,
             peer_id,
-            remote_addr,
-            Some(cached_peer.enr()),
             ReceiverStream::new(rx),
             self.to_session_manager,
             self.protocol_breach_request_timeout,

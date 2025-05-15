@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 pub mod handle;
-pub mod ping;
 pub use handle::*;
 
 pub mod protocol_handler;
@@ -131,10 +130,10 @@ impl StromSessionManager {
 
     fn poll_session_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<SessionEvent>> {
         self.from_sessions.poll_recv(cx).map(|msg| {
-            msg.and_then(|msg_inner| match msg_inner {
+            msg.map(|msg_inner| match msg_inner {
                 StromSessionMessage::Disconnected { peer_id } => {
                     self.remove_session(&peer_id);
-                    Some(SessionEvent::Disconnected { peer_id })
+                    SessionEvent::Disconnected { peer_id }
                 }
                 StromSessionMessage::Established { handle } => {
                     let event = SessionEvent::SessionEstablished {
@@ -146,20 +145,18 @@ impl StromSessionManager {
                     // we don't need to worry about duplicate sessions as
                     // underlying reth-node handles this
                     self.active_sessions.insert(handle.remote_id, handle);
-                    Some(event)
+                    event
                 }
                 StromSessionMessage::ClosedOnConnectionError { peer_id, error } => {
                     self.remove_session(&peer_id);
-                    Some(SessionEvent::OutgoingConnectionError { peer_id, error })
+                    SessionEvent::OutgoingConnectionError { peer_id, error }
                 }
                 StromSessionMessage::ValidMessage { peer_id, message } => {
-                    Some(SessionEvent::ValidMessage { peer_id, message })
+                    SessionEvent::ValidMessage { peer_id, message }
                 }
-                StromSessionMessage::BadMessage { peer_id } => {
-                    Some(SessionEvent::BadMessage { peer_id })
-                }
+                StromSessionMessage::BadMessage { peer_id } => SessionEvent::BadMessage { peer_id },
                 StromSessionMessage::ProtocolBreach { peer_id } => {
-                    Some(SessionEvent::ProtocolBreach { peer_id })
+                    SessionEvent::ProtocolBreach { peer_id }
                 }
             })
         })
