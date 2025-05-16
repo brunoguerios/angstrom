@@ -117,6 +117,10 @@ impl UserOrderBuilder {
     }
 
     pub fn max_gas(self, gas: u128) -> Self {
+        if gas == 0 {
+            return self;
+        }
+
         Self { gas_0: Some(gas), ..self }
     }
 

@@ -23,6 +23,9 @@ impl ToBOrderBuilder {
     }
 
     pub fn max_gas(self, gas: u128) -> Self {
+        if gas == 0 {
+            return self;
+        }
         Self { max_gas: Some(gas), ..self }
     }
 

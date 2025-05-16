@@ -141,9 +141,13 @@ pub mod test {
     ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             tracing::info!("starting e2e agent");
+
+            let rpc_address = format!("http://{}", agent_config.rpc_address);
+            let client = Arc::new(HttpClient::builder().build(rpc_address).unwrap());
             let mut generator = OrderGenerator::new(
                 agent_config.uniswap_pools.clone(),
                 agent_config.current_block,
+                client.clone(),
                 10..20,
                 0.8..0.9
             );
@@ -167,7 +171,7 @@ pub mod test {
                         tokio::select! {
                             Some(block_number) = stream.next() => {
                                 generator.new_block(block_number);
-                                let new_orders = generator.generate_orders();
+                                let new_orders = generator.generate_orders().await;
                                 tracing::info!("generated new orders. submitting to rpc");
 
                                 for orders in new_orders {

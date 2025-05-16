@@ -19,7 +19,7 @@ pub struct PoolOrderGenerator {
     price_distribution: PriceDistribution,
     builder:            OrderBuilder,
     pub pool_id:        PoolId,
-    client:             Arc<HttpClient>
+    client:             Option<Arc<HttpClient>>
 }
 
 impl PoolOrderGenerator {
@@ -36,15 +36,14 @@ impl PoolOrderGenerator {
         let cur_price = price_distribution.generate_price();
         let builder = OrderBuilder::new(pool_data);
 
-        Self { block_number, price_distribution, cur_price, builder, pool_id, client }
+        Self { block_number, price_distribution, cur_price, builder, pool_id, client: Some(client) }
     }
 
     pub fn new_with_cfg_distro(
         pool_id: PoolId,
         pool_data: SyncedUniswapPool,
         block_number: u64,
-        sd_pct: f64,
-        client: Arc<HttpClient>
+        sd_pct: f64
     ) -> Self {
         let price = pool_data.read().unwrap().calculate_price();
 
@@ -53,7 +52,7 @@ impl PoolOrderGenerator {
         let cur_price = price_distribution.generate_price();
         let builder = OrderBuilder::new(pool_data);
 
-        Self { block_number, price_distribution, cur_price, builder, pool_id, client }
+        Self { block_number, price_distribution, cur_price, builder, pool_id, client: None }
     }
 
     /// updates the block number and samples a new true price.
@@ -66,20 +65,27 @@ impl PoolOrderGenerator {
 
     pub async fn generate_set(&self, amount: usize, partial_pct: f64) -> GeneratedPoolOrders {
         let (t0, t1) = self.builder.get_token0_token1();
-        let gas_book = self
-            .client
-            .estimate_gas(true, false, t0, t1)
-            .await
-            .unwrap()
-            .unwrap()
-            .to::<u128>();
-        let gas_tob = self
-            .client
-            .estimate_gas(false, false, t0, t1)
-            .await
-            .unwrap()
-            .unwrap()
-            .to::<u128>();
+        let gas_book = if let Some(client) = self.client.as_ref() {
+            client
+                .estimate_gas(true, false, t0, t1)
+                .await
+                .unwrap()
+                .unwrap()
+                .to::<u128>()
+        } else {
+            0
+        };
+
+        let gas_tob = if let Some(client) = self.client.as_ref() {
+            client
+                .estimate_gas(false, false, t0, t1)
+                .await
+                .unwrap()
+                .unwrap()
+                .to::<u128>()
+        } else {
+            0
+        };
 
         let tob = self
             .builder
