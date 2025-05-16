@@ -39,10 +39,14 @@ impl OrderSubscriptionTracker {
     pub fn notify_order_subscribers(&mut self, update: PoolManagerUpdate) {
         // if we insert the order and its not a new one, and this isn't the
         // last notification for a order, return
-        if !(self.order_notification_tracker.insert(update.order_id())
-            || update.last_notification_for_order())
-        {
+        let id = update.order_id();
+        if self.order_notification_tracker.contains(&id) && !update.last_notification_for_order() {
             return;
+        }
+
+        // will never be seen again
+        if update.last_notification_for_order() {
+            self.order_notification_tracker.remove(&id);
         }
 
         let _ = self.orders_subscriber_tx.send(update);
