@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use alloy::primitives::B256;
 use tokio::sync::oneshot::Sender;
@@ -8,14 +8,21 @@ use crate::PoolManagerUpdate;
 
 pub struct OrderSubscriptionTracker {
     /// List of subscribers for order validation result
-    order_validation_subs: HashMap<B256, Vec<Sender<OrderValidationResults>>>,
+    order_validation_subs:      HashMap<B256, Vec<Sender<OrderValidationResults>>>,
     /// List of subscribers for order state change notifications
-    orders_subscriber_tx:  tokio::sync::broadcast::Sender<PoolManagerUpdate>
+    orders_subscriber_tx:       tokio::sync::broadcast::Sender<PoolManagerUpdate>,
+    /// tracks updates for order hashes to ensure we only send out the
+    /// appropriate updates once
+    order_notification_tracker: HashSet<B256>
 }
 
 impl OrderSubscriptionTracker {
     pub fn new(orders_subscriber_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>) -> Self {
-        Self { order_validation_subs: Default::default(), orders_subscriber_tx }
+        Self {
+            order_validation_subs: Default::default(),
+            orders_subscriber_tx,
+            order_notification_tracker: HashSet::new()
+        }
     }
 
     pub fn subscribe_to_order(
@@ -30,11 +37,20 @@ impl OrderSubscriptionTracker {
     }
 
     pub fn notify_order_subscribers(&mut self, update: PoolManagerUpdate) {
+        // if we insert the order and its not a new one, and this isn't the
+        // last notification for a order, return
+        if !(self.order_notification_tracker.insert(update.order_id())
+            || update.last_notification_for_order())
+        {
+            return;
+        }
+
         let _ = self.orders_subscriber_tx.send(update);
     }
 
     pub fn notify_expired_orders(&mut self, orders: &[B256]) {
         for order in orders {
+            self.order_notification_tracker.remove(order);
             let _ = self
                 .orders_subscriber_tx
                 .send(PoolManagerUpdate::ExpiredOrder(*order));
