@@ -123,6 +123,26 @@ impl OrderStorage {
         }
     }
 
+    pub fn remove_order_from_id(
+        &self,
+        order_id: &OrderId
+    ) -> Option<OrderWithStorageData<AllOrders>> {
+        match order_id.location {
+            OrderLocation::Limit => self
+                .limit_orders
+                .lock()
+                .expect("lock poisoned")
+                .remove_order(order_id)
+                .and_then(|order| order.try_map_inner(Ok).ok()),
+            OrderLocation::Searcher => self
+                .searcher_orders
+                .lock()
+                .expect("lock poisoned")
+                .remove_order(order_id)
+                .and_then(|order| order.try_map_inner(|inner| Ok(AllOrders::TOB(inner))).ok())
+        }
+    }
+
     pub fn get_order_from_id(&self, order_id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
         match order_id.location {
             OrderLocation::Limit => self
