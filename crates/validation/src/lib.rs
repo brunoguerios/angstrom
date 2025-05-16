@@ -5,6 +5,7 @@ pub mod validator;
 
 use std::{
     fmt::Debug,
+    pin::Pin,
     sync::{Arc, atomic::AtomicU64}
 };
 
@@ -14,7 +15,7 @@ use angstrom_types::{
 };
 use bundle::BundleValidator;
 use common::SharedTools;
-use reth_provider::CanonStateNotificationStream;
+use futures::Stream;
 use tokio::sync::mpsc::UnboundedReceiver;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 use validator::Validator;
@@ -42,7 +43,7 @@ pub fn init_validation<
     current_block: u64,
     angstrom_address: Address,
     node_address: Address,
-    state_notification: CanonStateNotificationStream,
+    update_stream: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + 'static>>,
     uniswap_pools: SyncedUniswapPools,
     price_generator: TokenPriceGenerator,
     pool_store: Arc<AngstromPoolConfigStore>,
@@ -68,15 +69,18 @@ pub fn init_validation<
         let sim = SimValidation::new(revm_lru.clone(), angstrom_address, node_address);
 
         // load price update stream;
-        let update_stream =
-            PairsWithPrice::into_price_update_stream(angstrom_address, state_notification);
+        // let update_stream = PairsWithPrice::into_price_update_stream(
+        //     angstrom_address,
+        //     state_notification,
+        //     revm_lru.clone(),
+        // );
 
         let order_validator =
             rt.block_on(OrderValidator::new(sim, current_block, pools, fetch, uniswap_pools));
 
         let bundle_validator =
             BundleValidator::new(revm_lru.clone(), angstrom_address, node_address);
-        let shared_utils = SharedTools::new(price_generator, Box::pin(update_stream), thread_pool);
+        let shared_utils = SharedTools::new(price_generator, update_stream, thread_pool);
 
         rt.block_on(async {
             Validator::new(validator_rx, order_validator, bundle_validator, shared_utils).await

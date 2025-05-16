@@ -59,7 +59,7 @@ where
         node_address: Address,
         uniswap_pools: SyncedUniswapPools,
         token_conversion: TokenPriceGenerator,
-        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + Sync + 'static>>,
+        token_updates: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + 'static>>,
         pool_storage: AngstromPoolsTracker,
         node_id: u64
     ) -> eyre::Result<Self> {
