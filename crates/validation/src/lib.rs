@@ -43,7 +43,7 @@ pub fn init_validation<
     current_block: u64,
     angstrom_address: Address,
     node_address: Address,
-    update_stream: Pin<Box<dyn Stream<Item = Vec<PairsWithPrice>> + Send + 'static>>,
+    update_stream: Pin<Box<dyn Stream<Item = (u128, Vec<PairsWithPrice>)> + Send + 'static>>,
     uniswap_pools: SyncedUniswapPools,
     price_generator: TokenPriceGenerator,
     pool_store: Arc<AngstromPoolConfigStore>,

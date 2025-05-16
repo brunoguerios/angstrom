@@ -89,11 +89,10 @@ impl TokenPriceGenerator {
                         let price = pool_data.get_raw_price();
 
                         queue.push_back(PairsWithPrice {
-                            token0: pool_data.tokenA,
-                            token1: pool_data.tokenB,
-                            block_num: block_number,
-                            price_1_over_0: price,
-                            new_gas_wei
+                            token0:         pool_data.tokenA,
+                            token1:         pool_data.tokenB,
+                            block_num:      block_number,
+                            price_1_over_0: price
                         });
                     }
 
@@ -133,12 +132,12 @@ impl TokenPriceGenerator {
             .collect()
     }
 
-    pub fn apply_update(&mut self, updates: Vec<PairsWithPrice>) {
+    pub fn apply_update(&mut self, new_gas_wei: u128, updates: Vec<PairsWithPrice>) {
         // we will duplicate same price if no update for pool.
         let mut updated_pool_keys = Vec::new();
+        self.base_wei = new_gas_wei;
 
         for mut pool_update in updates {
-            self.base_wei = pool_update.new_gas_wei;
             // make sure we aren't replaying
             assert!(pool_update.block_num == self.cur_block + 1);
 
@@ -240,8 +239,7 @@ impl TokenPriceGenerator {
                 token0:         pool_r.token0,
                 token1:         pool_r.token1,
                 block_num:      self.cur_block,
-                price_1_over_0: price,
-                new_gas_wei:    0
+                price_1_over_0: price
             });
             self.prev_prices.insert(*key, queue);
             self.pair_to_pool
@@ -450,8 +448,7 @@ pub mod test {
             token0:         TOKEN2,
             token1:         TOKEN0,
             block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair1_rate),
-            new_gas_wei:    0
+            price_1_over_0: Ray::scale_to_ray(pair1_rate)
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(1), queue);
@@ -464,8 +461,7 @@ pub mod test {
             token0:         TOKEN0,
             token1:         TOKEN1,
             block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair2_rate),
-            new_gas_wei:    0
+            price_1_over_0: Ray::scale_to_ray(pair2_rate)
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(2), queue);
@@ -477,8 +473,7 @@ pub mod test {
             token0:         TOKEN2,
             token1:         TOKEN3,
             block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair3_rate),
-            new_gas_wei:    0
+            price_1_over_0: Ray::scale_to_ray(pair3_rate)
         };
         let queue = VecDeque::from([pair; 5]);
         prices.insert(FixedBytes::<32>::with_last_byte(3), queue);
@@ -490,8 +485,7 @@ pub mod test {
             token0:         TOKEN4,
             token1:         TOKEN1,
             block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(pair4_rate),
-            new_gas_wei:    0
+            price_1_over_0: Ray::scale_to_ray(pair4_rate)
         };
 
         let queue = VecDeque::from([pair; 5]);
@@ -609,14 +603,13 @@ pub mod test {
                 token0:         TOKEN2,
                 token1:         TOKEN0,
                 block_num:      i,
-                price_1_over_0: Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER),
-                new_gas_wei:    0
+                price_1_over_0: Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER)
             });
         }
 
         // Apply the updates
         for update in updates {
-            token_conversion.apply_update(vec![update]);
+            token_conversion.apply_update(0, vec![update]);
         }
 
         // Average should be (1 + 2 + 3 + 4 + 5) / 5 = 3
@@ -653,13 +646,15 @@ pub mod test {
         let mut token_conversion = setup();
 
         // Should panic on non-sequential block updates
-        token_conversion.apply_update(vec![PairsWithPrice {
-            token0:         TOKEN2,
-            token1:         TOKEN0,
-            block_num:      5, // Non-sequential block
-            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER),
-            new_gas_wei:    0
-        }]);
+        token_conversion.apply_update(
+            0,
+            vec![PairsWithPrice {
+                token0:         TOKEN2,
+                token1:         TOKEN0,
+                block_num:      5, // Non-sequential block
+                price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
+            }]
+        );
     }
 
     #[test]
@@ -690,8 +685,7 @@ pub mod test {
             token0:         TOKEN5,
             token1:         WETH_ADDRESS,
             block_num:      0,
-            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER),
-            new_gas_wei:    0
+            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
         });
         token_conversion.prev_prices.insert(pool_id, queue);
 

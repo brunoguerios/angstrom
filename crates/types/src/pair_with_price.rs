@@ -17,20 +17,14 @@ pub struct PairsWithPrice {
     pub token0:         Address,
     pub token1:         Address,
     pub price_1_over_0: Ray,
-    pub block_num:      u64,
-    // total estimated gas for the next block
-    pub new_gas_wei:    u128
+    pub block_num:      u64
 }
 
 impl PairsWithPrice {
     /// Decodes the AngstromPayload bundle and allows us to checkout
     /// the prices that the pools settled at. We then can use this for things
     /// such as our eth -> erc-20 gas price calculator
-    pub fn from_angstrom_bundle(
-        block_num: u64,
-        bundle: &AngstromBundle,
-        gas_wei: u128
-    ) -> Vec<Self> {
+    pub fn from_angstrom_bundle(block_num: u64, bundle: &AngstromBundle) -> Vec<Self> {
         bundle
             .pairs
             .iter()
@@ -38,8 +32,7 @@ impl PairsWithPrice {
                 token0: bundle.assets[pair.index0 as usize].addr,
                 token1: bundle.assets[pair.index1 as usize].addr,
                 price_1_over_0: Ray::from(pair.price_1over0),
-                block_num,
-                new_gas_wei: gas_wei
+                block_num
             })
             .collect::<Vec<_>>()
     }
@@ -48,7 +41,7 @@ impl PairsWithPrice {
         angstrom_address: Address,
         stream: CanonStateNotificationStream,
         provider: Arc<P>
-    ) -> impl Stream<Item = Vec<Self>> + Send {
+    ) -> impl Stream<Item = (u128, Vec<Self>)> + Send {
         stream.then(move |notification| {
             let provider = provider.clone();
             async move {
@@ -58,22 +51,25 @@ impl PairsWithPrice {
                 };
                 let gas_wei = provider.get_gas_price().await.unwrap_or_default();
                 let block_num = new_cannon_chain.tip().number;
-                new_cannon_chain
-                    .tip()
-                    .body()
-                    .clone_transactions()
-                    .into_iter()
-                    .filter(|tx| tx.to() == Some(angstrom_address))
-                    .filter_map(|transaction| {
-                        let input: &[u8] = transaction.input();
-                        let b = executeCall::abi_decode(input).unwrap().encoded;
-                        let mut bytes = b.as_ref();
+                (
+                    gas_wei,
+                    new_cannon_chain
+                        .tip()
+                        .body()
+                        .clone_transactions()
+                        .into_iter()
+                        .filter(|tx| tx.to() == Some(angstrom_address))
+                        .filter_map(|transaction| {
+                            let input: &[u8] = transaction.input();
+                            let b = executeCall::abi_decode(input).unwrap().encoded;
+                            let mut bytes = b.as_ref();
 
-                        AngstromBundle::pade_decode(&mut bytes, None).ok()
-                    })
-                    .take(1)
-                    .flat_map(|bundle| Self::from_angstrom_bundle(block_num, &bundle, gas_wei))
-                    .collect::<Vec<_>>()
+                            AngstromBundle::pade_decode(&mut bytes, None).ok()
+                        })
+                        .take(1)
+                        .flat_map(|bundle| Self::from_angstrom_bundle(block_num, &bundle))
+                        .collect::<Vec<_>>()
+                )
             }
         })
     }
