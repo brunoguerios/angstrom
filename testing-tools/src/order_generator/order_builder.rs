@@ -30,6 +30,7 @@ impl OrderBuilder {
         let t0 = lock.token0;
         let t1 = lock.token1;
         drop(lock);
+
         Self { keys: vec![AngstromSigner::random(); 10], pool_data, t0, t1 }
     }
 
@@ -72,6 +73,12 @@ impl OrderBuilder {
 
         let range = (amount_in / 100).max(101);
         amount_in += rng.random_range(100..range);
+
+        if zfo {
+            amount_in += gas;
+        } else {
+            amount_out += gas;
+        }
 
         ToBOrderBuilder::new()
             .signing_key(self.keys.get(rng.random_range(0..10)).cloned())
