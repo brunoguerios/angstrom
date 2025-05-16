@@ -167,6 +167,8 @@ where
         if gas.is_zero() {
             gas += U256::from(1);
         }
+        gas = gas * 2;
+
         let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
 
         let mut exact_in: bool = self.random_time_bool();
