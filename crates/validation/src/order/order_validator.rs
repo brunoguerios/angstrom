@@ -79,7 +79,7 @@ where
         address_changes: Vec<Address>
     ) {
         self.block_number
-            .store(block_number, std::sync::atomic::Ordering::SeqCst);
+            .store(block_number, std::sync::atomic::Ordering::Relaxed);
         self.state.new_block(completed_orders, address_changes);
     }
 
@@ -95,7 +95,7 @@ where
         >,
         metrics: ValidationMetrics
     ) {
-        let block_number = self.block_number.load(std::sync::atomic::Ordering::SeqCst);
+        let block_number = self.block_number.load(std::sync::atomic::Ordering::Relaxed);
         let order_validation: OrderValidation = order.into();
         let user = order_validation.user();
         let cloned_state = self.state.clone();

@@ -116,6 +116,14 @@ impl UserOrderBuilder {
         Self { exact_in, ..self }
     }
 
+    pub fn max_gas(self, gas: u128) -> Self {
+        if gas == 0 {
+            return self;
+        }
+
+        Self { gas_0: Some(gas), ..self }
+    }
+
     pub fn min_price(self, min_price: Ray) -> Self {
         Self { min_price, ..self }
     }
@@ -188,7 +196,7 @@ impl UserOrderBuilder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     amount: self.amount,
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     nonce: self.nonce,
@@ -213,7 +221,7 @@ impl UserOrderBuilder {
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
                     min_amount_in: self.valid_min_qty(),
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     nonce: self.nonce,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -236,8 +244,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
-
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     amount: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -260,7 +267,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     max_amount_in: self.amount,
                     min_amount_in: self.valid_min_qty(),
                     min_price: *self.min_price,

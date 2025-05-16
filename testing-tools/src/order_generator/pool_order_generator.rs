@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
+use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::primitive::PoolId;
+use jsonrpsee::http_client::HttpClient;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
 
 use super::{GeneratedPoolOrders, PriceDistribution, order_builder::OrderBuilder};
@@ -14,11 +18,17 @@ pub struct PoolOrderGenerator {
     cur_price:          f64,
     price_distribution: PriceDistribution,
     builder:            OrderBuilder,
-    pub pool_id:        PoolId
+    pub pool_id:        PoolId,
+    client:             Option<Arc<HttpClient>>
 }
 
 impl PoolOrderGenerator {
-    pub fn new(pool_id: PoolId, pool_data: SyncedUniswapPool, block_number: u64) -> Self {
+    pub fn new(
+        pool_id: PoolId,
+        pool_data: SyncedUniswapPool,
+        block_number: u64,
+        client: Arc<HttpClient>
+    ) -> Self {
         let price = pool_data.read().unwrap().calculate_price();
 
         // bounds of 50% from start with a std of 5%
@@ -26,7 +36,7 @@ impl PoolOrderGenerator {
         let cur_price = price_distribution.generate_price();
         let builder = OrderBuilder::new(pool_data);
 
-        Self { block_number, price_distribution, cur_price, builder, pool_id }
+        Self { block_number, price_distribution, cur_price, builder, pool_id, client: Some(client) }
     }
 
     pub fn new_with_cfg_distro(
@@ -42,7 +52,7 @@ impl PoolOrderGenerator {
         let cur_price = price_distribution.generate_price();
         let builder = OrderBuilder::new(pool_data);
 
-        Self { block_number, price_distribution, cur_price, builder, pool_id }
+        Self { block_number, price_distribution, cur_price, builder, pool_id, client: None }
     }
 
     /// updates the block number and samples a new true price.
@@ -53,19 +63,44 @@ impl PoolOrderGenerator {
         self.cur_price = cur_price;
     }
 
-    pub fn generate_set(&self, amount: usize, partial_pct: f64) -> GeneratedPoolOrders {
+    pub async fn generate_set(&self, amount: usize, partial_pct: f64) -> GeneratedPoolOrders {
+        let (t0, t1) = self.builder.get_token0_token1();
+        let gas_book = if let Some(client) = self.client.as_ref() {
+            client
+                .estimate_gas(true, false, t0, t1)
+                .await
+                .unwrap()
+                .unwrap()
+                .to::<u128>()
+        } else {
+            0
+        };
+
+        let gas_tob = if let Some(client) = self.client.as_ref() {
+            client
+                .estimate_gas(false, false, t0, t1)
+                .await
+                .unwrap()
+                .unwrap()
+                .to::<u128>()
+        } else {
+            0
+        };
+
         let tob = self
             .builder
-            .build_tob_order(self.cur_price, self.block_number + 1);
+            .build_tob_order(self.cur_price, self.block_number + 1, gas_tob);
 
         let price_samples = self.price_distribution.sample_around_price(amount);
         let mut book = vec![];
 
         for price in price_samples.into_iter().take(amount) {
-            book.push(
-                self.builder
-                    .build_user_order(price, self.block_number + 1, partial_pct)
-            );
+            book.push(self.builder.build_user_order(
+                price,
+                self.block_number + 1,
+                partial_pct,
+                gas_book
+            ));
         }
 
         GeneratedPoolOrders { tob, book, pool_id: self.pool_id }

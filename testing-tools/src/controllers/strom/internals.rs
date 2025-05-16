@@ -197,7 +197,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let token_price_update_stream = state_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
             inital_angstrom_state.angstrom_addr,
-            token_price_update_stream
+            token_price_update_stream,
+            Arc::new(state_provider.rpc_provider())
         ));
 
         let pool_storage = AngstromPoolsTracker::new(

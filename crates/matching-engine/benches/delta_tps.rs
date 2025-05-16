@@ -235,7 +235,7 @@ pub fn tps(c: &mut Criterion) {
         group.throughput(criterion::Throughput::Elements(bucket));
         // updates the random prices
         generator.new_block(1);
-        let set = generator.generate_set(bucket as usize, 0.5);
+        let set = rt.block_on(generator.generate_set(bucket as usize, 0.5));
         let (book, tob) = setup_inputs(set, &pool);
 
         group.bench_function(BenchmarkId::from_parameter(bucket), |bench| {

@@ -313,7 +313,7 @@ impl UserOrder {
     pub fn from_internal_order(
         order: &OrderWithStorageData<AllOrders>,
         outcome: &OrderOutcome,
-        shared_gas: U256,
+        _: U256,
         pair_index: u16
     ) -> eyre::Result<Self> {
         let (order_quantities, standing_validation, recipient) = match &order.order {
@@ -355,7 +355,7 @@ impl UserOrder {
         let hook_data = if hook_bytes.is_empty() { None } else { Some(hook_bytes) };
 
         let recipient = (!recipient.is_zero()).then_some(recipient);
-        let gas_used: u128 = (order.priority_data.gas + shared_gas).to();
+        let gas_used: u128 = (order.priority_data.gas).to();
         if gas_used > order.max_gas_token_0() {
             return Err(eyre::eyre!("order used more gas than allocated"));
         }

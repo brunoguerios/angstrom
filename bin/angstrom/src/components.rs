@@ -26,6 +26,7 @@ use angstrom_network::{
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
+    pair_with_price::PairsWithPrice,
     primitive::{AngstromSigner, UniswapPoolRegistry},
     reth_db_provider::RethDbLayer,
     reth_db_wrapper::RethDbWrapper,
@@ -315,6 +316,12 @@ where
     .await
     .expect("failed to start token price generator");
 
+    let update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
+        node_config.angstrom_address,
+        node.provider.canonical_state_stream(),
+        querying_provider.clone()
+    ));
+
     let block_height = node.provider.best_block_number().unwrap();
 
     init_validation(
@@ -322,9 +329,7 @@ where
         block_height,
         node_config.angstrom_address,
         node_address,
-        // Because this is incapsulated under the orderpool syncer. this is the only case
-        // we can use the raw stream.
-        node.provider.canonical_state_stream(),
+        update_stream,
         uniswap_pools.clone(),
         price_generator,
         pool_config_store.clone(),
