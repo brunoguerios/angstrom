@@ -209,7 +209,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             &self.order_storage,
             &mut self.validator,
             |id, storage, validator| {
-                if let Some(order) = storage.get_order_from_id(id) {
+                if let Some(order) = storage.remove_order_from_id(id) {
                     validator.validate_order(OrderOrigin::Local, order.order);
                 }
             }
