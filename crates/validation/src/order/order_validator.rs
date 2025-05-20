@@ -105,13 +105,14 @@ where
             user,
             Box::pin(async move {
                 match order_validation {
-                    OrderValidation::Limit(tx, order, _) => {
+                    OrderValidation::Limit(tx, order, loc) => {
                         metrics
                             .new_order(false, || async {
                                 let mut results = cloned_state.handle_regular_order(
                                     order,
                                     block_number,
-                                    metrics.clone()
+                                    metrics.clone(),
+                                    loc.is_revalidating()
                                 );
                                 results.add_gas_cost_or_invalidate(
                                     &cloned_sim,
