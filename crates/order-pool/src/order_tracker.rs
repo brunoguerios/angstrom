@@ -26,7 +26,7 @@ const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 /// validation orders.
 #[derive(Default)]
 pub struct OrderTracker {
-    pub(super) address_to_orders:      HashMap<Address, Vec<OrderId>>,
+    pub(super) address_to_orders:      HashMap<Address, HashSet<OrderId>>,
     /// current block_number
     /// Order hash to order id, used for order inclusion lookups
     pub(super) order_hash_to_order_id: HashMap<B256, OrderId>,
@@ -165,7 +165,7 @@ impl OrderTracker {
         self.order_hash_to_order_id.insert(*hash, id);
         // nonce overlap is checked during validation so its ok we
         // don't check for duplicates
-        self.address_to_orders.entry(user).or_default().push(id);
+        self.address_to_orders.entry(user).or_default().insert(id);
     }
 
     fn cancel_with_next_block_deadline(&mut self, from: Address, order_hash: &B256) {

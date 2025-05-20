@@ -36,6 +36,26 @@ pub enum PoolManagerUpdate {
     },
     ExpiredOrder(B256)
 }
+impl PoolManagerUpdate {
+    pub fn order_id(&self) -> B256 {
+        match self {
+            Self::NewOrder(o) => o.order_id.hash,
+            Self::FilledOrder(_, o) => o.order_id.hash,
+            Self::UnfilledOrders(o) => o.order_id.hash,
+            Self::CancelledOrder { order_hash, .. } => *order_hash,
+            Self::ExpiredOrder(o) => *o
+        }
+    }
+
+    pub fn last_notification_for_order(&self) -> bool {
+        matches!(
+            self,
+            PoolManagerUpdate::FilledOrder(..)
+                | PoolManagerUpdate::ExpiredOrder(..)
+                | PoolManagerUpdate::CancelledOrder { .. }
+        )
+    }
+}
 
 /// The OrderPool Trait is how other processes can interact with the orderpool
 /// asyncly. This allows for requesting data and providing data from different
