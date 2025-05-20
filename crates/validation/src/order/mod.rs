@@ -159,10 +159,17 @@ impl OrderValidationResults {
 
         let (gas, possible_error) = (calculate_function)(sim, &order, token_price, block)?;
         // ensure that gas used is less than the max gas specified
-        let (gas_used, gas_units) = gas.unwrap();
+        let (gas_units, gas_used) = gas.unwrap();
 
         order.priority_data.gas += gas_used;
         order.priority_data.gas_units = gas_units;
+
+        // we only apply the error if there isn't one already as other parked reasons
+        // for orders (balances and approvals) take priority as its more actions
+        // needed and thus more pressing
+        if order.is_currently_valid.is_none() {
+            order.is_currently_valid = possible_error;
+        }
 
         order.try_map_inner(move |new_order| Ok(map_old(new_order)))
     }
