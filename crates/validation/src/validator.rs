@@ -37,7 +37,6 @@ pub enum ValidationRequest {
     },
     /// NOTE: this cancel order should already be verified
     CancelOrder {
-        sender:     tokio::sync::oneshot::Sender<Vec<B256>>,
         user:       Address,
         order_hash: B256
     },
