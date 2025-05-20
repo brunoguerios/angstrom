@@ -1,9 +1,15 @@
 use std::{fmt::Debug, task::Poll};
 
 use alloy::primitives::{Address, B256, U256};
-use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
+use angstrom_types::{
+    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    sol_bindings::grouped_orders::AllOrders
+};
 use futures_util::{Future, FutureExt};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender},
+    oneshot::Sender
+};
 
 use crate::{
     bundle::BundleValidator,
@@ -18,6 +24,9 @@ use crate::{
 
 pub enum ValidationRequest {
     Order(OrderValidationRequest),
+    /// signals that we have seen the order before and to no panic + double
+    /// count when doing accounting.
+    RevalidateOrder(Sender<OrderValidationResults>, AllOrders),
     /// does two sims, One to fetch total gas used. Second is once
     /// gas cost has be delegated to each user order. ensures we won't have a
     /// failure.
@@ -79,6 +88,9 @@ where
         match req {
             ValidationRequest::CancelOrder { user, order_hash } => {
                 self.order_validator.cancel_order(user, order_hash);
+            }
+            ValidationRequest::RevalidateOrder(sender, order) => {
+                todo!()
             }
             ValidationRequest::Order(order) => self.order_validator.validate_order(
                 order,
