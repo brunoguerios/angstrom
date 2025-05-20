@@ -141,6 +141,9 @@ impl UserOrderBuilder {
     }
 
     pub fn ensure_scaled_for_price(&mut self) {
+        if self.gas_0.is_none() {
+            return;
+        }
         if self.asset_in < self.asset_out {
             if self.exact_in {
                 self.amount += self.gas_0.unwrap_or_default();
