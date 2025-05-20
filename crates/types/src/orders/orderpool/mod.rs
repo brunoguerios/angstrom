@@ -4,8 +4,11 @@ use alloy::primitives::{Address, B256, U256};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+mod updated_gas;
+pub use updated_gas::*;
+
 use crate::{
-    primitive::PoolId,
+    primitive::{PoolId, UserAccountVerificationError},
     sol_bindings::{RawPoolOrder, ext::RespendAvoidanceMethod}
 };
 
@@ -13,8 +16,54 @@ use crate::{
 pub enum OrderStatus {
     Filled,
     Pending,
-    Blocked,
+    Blocked { token: Address, approval_needed: u128, balance_needed: u128 },
+    MissingGas { needed: u128, max_set: u128 },
     OrderNotFound
+}
+
+impl OrderStatus {
+    pub fn try_from_err(error: &UserAccountVerificationError) -> eyre::Result<Self> {
+        match error {
+            UserAccountVerificationError::InsufficientBoth {
+                order_hash: _,
+                token_in,
+                amount_balance,
+                amount_approval
+            } => Ok(Self::Blocked {
+                token:           *token_in,
+                approval_needed: *amount_approval,
+                balance_needed:  *amount_balance
+            }),
+            UserAccountVerificationError::InsufficientBalance {
+                order_hash: _,
+                token_in,
+                amount
+            } => Ok(Self::Blocked {
+                token:           *token_in,
+                approval_needed: 0,
+                balance_needed:  *amount
+            }),
+            UserAccountVerificationError::InsufficientApproval {
+                order_hash: _,
+                token_in,
+                amount
+            } => Ok(Self::Blocked {
+                token:           *token_in,
+                approval_needed: *amount,
+                balance_needed:  0
+            }),
+            UserAccountVerificationError::NotEnoughGas { needed_gas, set_gas } => {
+                Ok(Self::MissingGas { needed: *needed_gas, max_set: *set_gas })
+            }
+            // this branch gets hit when a order parks another order that wasn't parked before
+            UserAccountVerificationError::Unknown { .. } => Ok(Self::Blocked {
+                token:           Address::default(),
+                approval_needed: 0,
+                balance_needed:  0
+            }),
+            e => eyre::bail!("cannot convert error to order status {}", e)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

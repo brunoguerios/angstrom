@@ -1,6 +1,10 @@
 //! CLI definition and entrypoint to executable
-
-use std::{collections::HashSet, pin::Pin, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    pin::Pin,
+    sync::Arc,
+    time::Duration
+};
 
 use alloy::{
     self,
@@ -22,10 +26,11 @@ use angstrom_network::{
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-    mev_boost::MevBoostProvider,
+    pair_with_price::PairsWithPrice,
     primitive::{AngstromSigner, UniswapPoolRegistry},
     reth_db_provider::RethDbLayer,
-    reth_db_wrapper::RethDbWrapper
+    reth_db_wrapper::RethDbWrapper,
+    submission::SubmissionHandler
 };
 use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use futures::Stream;
@@ -104,6 +109,9 @@ pub struct StromHandles {
     pub consensus_tx_op: UnboundedMeteredSender<StromConsensusEvent>,
     pub consensus_rx_op: UnboundedMeteredReceiver<StromConsensusEvent>,
 
+    pub consensus_tx_rpc: UnboundedSender<consensus::ConsensusRequest>,
+    pub consensus_rx_rpc: UnboundedReceiver<consensus::ConsensusRequest>,
+
     // only 1 set cur
     pub matching_tx: Sender<MatcherCommand>,
     pub matching_rx: Receiver<MatcherCommand>
@@ -126,6 +134,7 @@ pub fn initialize_strom_handles() -> StromHandles {
     let (orderpool_tx, orderpool_rx) = unbounded_channel();
     let (validator_tx, validator_rx) = unbounded_channel();
     let (eth_handle_tx, eth_handle_rx) = unbounded_channel();
+    let (consensus_tx_rpc, consensus_rx_rpc) = unbounded_channel();
     let (consensus_tx_op, consensus_rx_op) =
         reth_metrics::common::mpsc::metered_unbounded_channel("orderpool");
 
@@ -143,6 +152,8 @@ pub fn initialize_strom_handles() -> StromHandles {
         consensus_rx_op,
         matching_tx,
         matching_rx,
+        consensus_tx_rpc,
+        consensus_rx_rpc,
         eth_handle_tx: Some(eth_handle_tx),
         eth_handle_rx: Some(eth_handle_rx)
     }
@@ -189,10 +200,12 @@ where
         .unwrap()
         .into();
 
-    let mev_boost_provider = MevBoostProvider::new_from_urls(
+    let submission_handler = SubmissionHandler::new(
         querying_provider.clone(),
+        &config.normal_nodes,
+        &config.angstrom_submission_nodes,
         &config.mev_boost_endpoints,
-        &config.normal_nodes
+        node_config.angstrom_address
     );
 
     tracing::info!(target: "angstrom::startup-sequence", "waiting for the next block to continue startup sequence. \
@@ -232,7 +245,10 @@ where
     let angstrom_tokens = pools
         .iter()
         .flat_map(|pool| [pool.currency0, pool.currency1])
-        .collect::<HashSet<_>>();
+        .fold(HashMap::<Address, usize>::new(), |mut acc, x| {
+            *acc.entry(x).or_default() += 1;
+            acc
+        });
 
     // re-fetch given the fetch pools takes awhile. given this, we do techincally
     // have a gap in which a pool is deployed durning startup. This isn't
@@ -300,6 +316,12 @@ where
     .await
     .expect("failed to start token price generator");
 
+    let update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
+        node_config.angstrom_address,
+        node.provider.canonical_state_stream(),
+        querying_provider.clone()
+    ));
+
     let block_height = node.provider.best_block_number().unwrap();
 
     init_validation(
@@ -307,9 +329,7 @@ where
         block_height,
         node_config.angstrom_address,
         node_address,
-        // Because this is incapsulated under the orderpool syncer. this is the only case
-        // we can use the raw stream.
-        node.provider.canonical_state_stream(),
+        update_stream,
         uniswap_pools.clone(),
         price_generator,
         pool_config_store.clone(),
@@ -366,12 +386,12 @@ where
         order_storage.clone(),
         node_config.angstrom_deploy_block,
         block_height,
-        node_config.angstrom_address,
         uni_ang_registry,
         uniswap_pools.clone(),
-        mev_boost_provider,
+        submission_handler,
         matching_handle,
-        global_block_sync.clone()
+        global_block_sync.clone(),
+        handles.consensus_rx_rpc
     );
 
     executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {

@@ -79,7 +79,7 @@ where
         address_changes: Vec<Address>
     ) {
         self.block_number
-            .store(block_number, std::sync::atomic::Ordering::SeqCst);
+            .store(block_number, std::sync::atomic::Ordering::Relaxed);
         self.state.new_block(completed_orders, address_changes);
     }
 
@@ -95,7 +95,7 @@ where
         >,
         metrics: ValidationMetrics
     ) {
-        let block_number = self.block_number.load(std::sync::atomic::Ordering::SeqCst);
+        let block_number = self.block_number.load(std::sync::atomic::Ordering::Relaxed);
         let order_validation: OrderValidation = order.into();
         let user = order_validation.user();
         let cloned_state = self.state.clone();
@@ -105,13 +105,14 @@ where
             user,
             Box::pin(async move {
                 match order_validation {
-                    OrderValidation::Limit(tx, order, _) => {
+                    OrderValidation::Limit(tx, order, loc) => {
                         metrics
                             .new_order(false, || async {
                                 let mut results = cloned_state.handle_regular_order(
                                     order,
                                     block_number,
-                                    metrics.clone()
+                                    metrics.clone(),
+                                    loc.is_revalidating()
                                 );
                                 results.add_gas_cost_or_invalidate(
                                     &cloned_sim,

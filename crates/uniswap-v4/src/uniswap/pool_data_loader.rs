@@ -113,9 +113,10 @@ pub struct ModifyPositionEvent {
 
 #[derive(Debug, Default, Clone)]
 pub struct DataLoader {
-    address:       AngstromPoolId,
-    pool_registry: Option<UniswapPoolRegistry>,
-    pool_manager:  Option<Address>
+    private_address: AngstromPoolId,
+    public_address:  AngstromPoolId,
+    pool_registry:   Option<UniswapPoolRegistry>,
+    pool_manager:    Option<Address>
 }
 
 impl DataLoader {
@@ -145,7 +146,8 @@ pub trait PoolDataLoader: Clone {
         provider: Arc<P>
     ) -> impl Future<Output = Result<PoolData, PoolError>> + Send;
 
-    fn address(&self) -> AngstromPoolId;
+    fn private_address(&self) -> AngstromPoolId;
+    fn public_address(&self) -> AngstromPoolId;
     fn pool_fee(&self) -> u32;
 
     fn group_logs(logs: Vec<Log>) -> HashMap<AngstromPoolId, Vec<Log>>;
@@ -162,35 +164,29 @@ impl DataLoader {
     }
 
     pub fn new_with_registry(
-        address: AngstromPoolId,
+        private_address: AngstromPoolId,
+        public_address: AngstromPoolId,
         registry: UniswapPoolRegistry,
         pool_manager: Address
     ) -> Self {
-        Self { address, pool_registry: Some(registry), pool_manager: Some(pool_manager) }
+        Self {
+            private_address,
+            public_address,
+            pool_registry: Some(registry),
+            pool_manager: Some(pool_manager)
+        }
     }
 }
 
 impl PoolDataLoader for DataLoader {
     fn pool_fee(&self) -> u32 {
-        let id = self
-            .pool_registry
-            .as_ref()
-            .unwrap()
-            .conversion_map
-            .iter()
-            .find_map(|(pubic, priva)| {
-                if priva == &self.address() {
-                    return Some(pubic);
-                }
-                None
-            })
-            .unwrap();
+        let id = self.public_address();
 
         let pool_key = self
             .pool_registry
             .as_ref()
             .unwrap()
-            .get(id)
+            .get(&id)
             .unwrap()
             .clone();
 
@@ -202,25 +198,13 @@ impl PoolDataLoader for DataLoader {
         block_number: Option<BlockNumber>,
         provider: Arc<P>
     ) -> Result<PoolData, PoolError> {
-        let id = self
-            .pool_registry
-            .as_ref()
-            .unwrap()
-            .conversion_map
-            .iter()
-            .find_map(|(pubic, priva)| {
-                if priva == &self.address() {
-                    return Some(pubic);
-                }
-                None
-            })
-            .unwrap();
+        let id = self.public_address();
 
         let pool_key = self
             .pool_registry
             .as_ref()
             .unwrap()
-            .get(id)
+            .get(&id)
             .unwrap()
             .clone();
 
@@ -228,7 +212,7 @@ impl PoolDataLoader for DataLoader {
 
         let deployer = GetUniswapV4PoolData::deploy_builder(
             provider,
-            self.address(),
+            self.private_address(),
             self.pool_manager(),
             pool_key.currency0,
             pool_key.currency1
@@ -266,7 +250,7 @@ impl PoolDataLoader for DataLoader {
     ) -> Result<(Vec<TickData>, U256), PoolError> {
         let deployer = GetUniswapV4TickData::deploy_builder(
             provider.clone(),
-            self.address(),
+            self.private_address(),
             self.pool_manager(),
             zero_for_one,
             current_tick,
@@ -291,8 +275,12 @@ impl PoolDataLoader for DataLoader {
         ))
     }
 
-    fn address(&self) -> AngstromPoolId {
-        self.address
+    fn public_address(&self) -> AngstromPoolId {
+        self.public_address
+    }
+
+    fn private_address(&self) -> AngstromPoolId {
+        self.private_address
     }
 
     fn group_logs(logs: Vec<Log>) -> HashMap<AngstromPoolId, Vec<Log>> {

@@ -346,6 +346,20 @@ impl Ray {
         if round_up { self.invert(RoundingMode::Ceiling) } else { self.invert(RoundingMode::Floor) }
     }
 
+    pub fn mul_wad<T: Into<Natural>>(&self, mul: T, decimals: u8) -> Self {
+        let mul_val: Natural = mul.into();
+        let decimals = Natural::from(10u128).pow(decimals as u64);
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs());
+
+        let num = numerator * mul_val;
+        let res = Rational::from_naturals(num, decimals);
+        let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
+
+        let this = U256::from_limbs_slice(&n.to_limbs_asc());
+
+        Ray::from(this)
+    }
+
     /// 1e54 / self
     pub fn inv_ray_assign(&mut self) {
         *self = self.invert(RoundingMode::Floor);

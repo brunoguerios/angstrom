@@ -633,19 +633,26 @@ impl<'a> DeltaMatcher<'a> {
 
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
-        let ep = Ray::from(U256_1);
-        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
-        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
+        // p_max is (highest bid || (MAX_PRICE - 1)) + 1
+        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(U256_1));
+        // p_min is (lowest ask || (MIN_PRICE + 1)) - 1
+        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(U256_1));
 
         let two = U256::from(2);
         let four = U256::from(4);
         let mut killed = HashSet::new();
         let mut dust: Option<(U256, UcpSolution)> = None;
-        while (p_max - p_min) > ep {
+
+        // Loop on a checked sub, if our prices ever overlap we'll terminate the loop
+        while let Some(diff) = p_max.checked_sub(*p_min) {
+            //Break if !((p_max - p_min) > 1)
+            if diff <= U256_1 {
+                break;
+            }
             // We're willing to kill orders if and only if we're at the end of our
             // iteration.  I believe that a distance of four will capture the last 2 cycles
             // of iteration
-            let can_kill = (p_max - p_min) <= four;
+            let can_kill = diff <= four;
             // Find the midpoint that we'll be testing
             let p_mid = (p_max + p_min) / two;
 
@@ -702,8 +709,8 @@ impl<'a> DeltaMatcher<'a> {
                     // Add our killed order to the set of orders we're skipping
                     killed.extend(ko);
                     // Reset our price bounds so we start our match over
-                    p_max = Ray::from(self.book.highest_clearing_price().saturating_add(*ep));
-                    p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(*ep));
+                    p_max = Ray::from(self.book.highest_clearing_price().saturating_add(U256_1));
+                    p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(U256_1));
                 }
                 // If there's too much supply of T0 or too much demand of T1, we want to look at a
                 // lower price

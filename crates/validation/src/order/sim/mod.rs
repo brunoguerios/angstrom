@@ -2,10 +2,13 @@ use std::{fmt::Debug, sync::Arc};
 
 use alloy::primitives::Address;
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::sol_bindings::{
-    RawPoolOrder,
-    grouped_orders::{AllOrders, OrderWithStorageData},
-    rpc_orders::TopOfBlockOrder
+use angstrom_types::{
+    primitive::UserAccountVerificationError,
+    sol_bindings::{
+        RawPoolOrder,
+        grouped_orders::{AllOrders, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use gas::OrderGasCalculations;
 use revm::primitives::ruint::aliases::U256;
@@ -15,11 +18,13 @@ use crate::common::TokenPriceGenerator;
 
 pub mod console_log;
 mod gas;
-pub use gas::{BOOK_GAS, TOB_GAS};
+pub use gas::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL};
 
 pub type GasUsed = u64;
 // needed for future use
 // mod gas_inspector;
+//
+pub type GasReturn = (Option<(GasUsed, GasInToken0)>, Option<UserAccountVerificationError>);
 
 pub type GasInToken0 = U256;
 /// validation relating to simulations.
@@ -48,7 +53,7 @@ where
         order: &OrderWithStorageData<TopOfBlockOrder>,
         conversion: &TokenPriceGenerator,
         block: u64
-    ) -> eyre::Result<(GasUsed, GasInToken0)> {
+    ) -> eyre::Result<GasReturn> {
         let hash = order.order_hash();
         let user = order.from();
         let span = error_span!("tob", ?hash, ?user);
@@ -69,10 +74,14 @@ where
 
                 // convert to u256 for overflow cases.
                 if gas_token_0 > max_gas {
-                    eyre::bail!("gas_needed_token0 > max_gas");
+                    let err = UserAccountVerificationError::NotEnoughGas {
+                        needed_gas: gas_token_0,
+                        set_gas:    max_gas
+                    };
+                    return Ok((Some((gas_in_wei, U256::from(gas_token_0))), Some(err)));
                 }
 
-                Ok((gas_in_wei, U256::from(gas_token_0)))
+                Ok((Some((gas_in_wei, U256::from(gas_token_0))), None))
             })
         })
     }
@@ -84,7 +93,7 @@ where
         order: &OrderWithStorageData<AllOrders>,
         conversion: &TokenPriceGenerator,
         block: u64
-    ) -> eyre::Result<(GasUsed, GasInToken0)> {
+    ) -> eyre::Result<GasReturn> {
         let hash = order.order_hash();
         let user = order.from();
         let span = error_span!("user", ?hash, ?user);
@@ -106,10 +115,14 @@ where
 
                 // convert to u256 for overflow cases.
                 if gas_token_0 > max_gas {
-                    eyre::bail!("gas_needed_token0 > max_gas");
+                    let err = UserAccountVerificationError::NotEnoughGas {
+                        needed_gas: gas_token_0,
+                        set_gas:    max_gas
+                    };
+                    return Ok((Some((gas_in_wei, U256::from(gas_token_0))), Some(err)));
                 }
 
-                Ok((gas_in_wei, U256::from(gas_token_0)))
+                Ok((Some((gas_in_wei, U256::from(gas_token_0))), None))
             })
         })
     }

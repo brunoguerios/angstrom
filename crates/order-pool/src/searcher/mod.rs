@@ -93,8 +93,8 @@ impl SearcherPool {
             .owned_map(|| self.metrics.decr_all_orders(id.pool_id, 1))
     }
 
-    pub fn get_all_pool_ids(&self) -> Vec<PoolId> {
-        self.searcher_orders.keys().cloned().collect()
+    pub fn get_all_pool_ids(&self) -> impl Iterator<Item = PoolId> + '_ {
+        self.searcher_orders.keys().copied()
     }
 
     pub fn get_orders_for_pool(

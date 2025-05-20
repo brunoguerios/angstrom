@@ -15,22 +15,19 @@ use reth_network::{
     Direction,
     protocol::{ConnectionHandler, OnNotSupported}
 };
-use tokio::{
-    sync::mpsc,
-    time::{Duration, Instant}
-};
+use tokio::{sync::mpsc, time::Instant};
 use tokio_stream::wrappers::ReceiverStream;
 
-use super::CachedPeer;
+use super::StromSessionHandler;
 use crate::{
-    StromSession, VerificationSidecar,
+    VerificationSidecar,
     errors::StromStreamError,
     session::handle::StromSessionHandle,
     types::message::{StromMessage, StromProtocolMessage}
 };
 
 pub enum PossibleStromSession {
-    Session(StromSession),
+    Session(StromSessionHandler),
     /// this will instantly terminate when first polled
     Invalid(Empty<BytesMut>)
 }
@@ -51,12 +48,11 @@ impl Stream for PossibleStromSession {
 
 //TODO: Add bandwith meter to be
 pub struct StromConnectionHandler {
-    pub to_session_manager: MeteredPollSender<StromSessionMessage>,
-    pub protocol_breach_request_timeout: Duration,
+    pub to_session_manager:     MeteredPollSender<StromSessionMessage>,
     pub session_command_buffer: usize,
-    pub socket_addr: SocketAddr,
-    pub side_car: VerificationSidecar,
-    pub validator_set: HashSet<Address>
+    pub socket_addr:            SocketAddr,
+    pub side_car:               VerificationSidecar,
+    pub validator_set:          HashSet<Address>
 }
 
 impl ConnectionHandler for StromConnectionHandler {
@@ -82,7 +78,6 @@ impl ConnectionHandler for StromConnectionHandler {
         peer_id: PeerId,
         conn: ProtocolConnection
     ) -> Self::Connection {
-        let remote_addr = self.socket_addr;
         let hash = keccak256(peer_id);
         let validator_address = Address::from_slice(&hash[12..]);
         if !self.validator_set.contains(&validator_address) {
@@ -100,16 +95,11 @@ impl ConnectionHandler for StromConnectionHandler {
             socket_addr: self.socket_addr
         };
 
-        let cached_peer = CachedPeer { peer_id, addr: remote_addr };
-
-        PossibleStromSession::Session(StromSession::new(
+        PossibleStromSession::Session(StromSessionHandler::new(
             conn,
             peer_id,
-            remote_addr,
-            Some(cached_peer.enr()),
             ReceiverStream::new(rx),
             self.to_session_manager,
-            self.protocol_breach_request_timeout,
             self.side_car,
             handle
         ))

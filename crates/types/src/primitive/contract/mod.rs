@@ -38,7 +38,7 @@ pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
 // sepolia testnet
 #[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
 pub const TESTNET_ANGSTROM_ADDRESS: Address =
-    alloy::primitives::address!("9D0ce8B3DF426008c4a4E74E7845B1bffF346a90");
+    alloy::primitives::address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90");
 
 #[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
 pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
@@ -50,7 +50,7 @@ pub const TESTNET_POSITION_MANAGER_ADDRESS: Address =
 
 #[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
 pub const TESTNET_CONTROLLER_V1_ADDRESS: Address =
-    alloy::primitives::address!("4De4326613020a00F5545074bC578C87761295c7");
+    alloy::primitives::address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674");
 
 #[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
 pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
@@ -100,6 +100,10 @@ impl UniswapPoolRegistry {
 
     pub fn private_keys(&self) -> impl Iterator<Item = PoolId> + '_ {
         self.conversion_map.values().copied()
+    }
+
+    pub fn public_keys(&self) -> impl Iterator<Item = PoolId> + '_ {
+        self.conversion_map.keys().copied()
     }
 }
 

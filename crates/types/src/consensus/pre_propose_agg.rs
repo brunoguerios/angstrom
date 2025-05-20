@@ -55,7 +55,7 @@ impl PreProposalAggregation {
         Bytes::from(Self::serialize_payload(&self.block_height, &self.pre_proposals))
     }
 
-    pub fn is_valid(&self, block_height: &BlockNumber) -> bool {
+    pub fn is_valid(&self, block_height: &BlockNumber, two_thrids_th: usize) -> bool {
         if !self
             .pre_proposals
             .iter()
@@ -63,6 +63,12 @@ impl PreProposalAggregation {
         {
             return false;
         }
+
+        if self.pre_proposals.len() < two_thrids_th {
+            tracing::info!("got a pre_proposal aggregation with less than 2/3 of pre proposals");
+            return false;
+        }
+
         let hash = keccak256(self.payload());
         let Ok(source) = self.signature.recover_from_prehash(&hash) else {
             return false;

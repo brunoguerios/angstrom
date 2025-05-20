@@ -82,7 +82,8 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         &self,
         order: O,
         block: u64,
-        metrics: ValidationMetrics
+        metrics: ValidationMetrics,
+        is_revalidating: bool
     ) -> OrderValidationResults {
         metrics.applying_state_transitions(|| {
             let order_hash = order.order_hash();
@@ -108,7 +109,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             };
 
             self.user_account_tracker
-                .verify_order::<O>(order, pool_info, block)
+                .verify_order::<O>(order, pool_info, block, is_revalidating)
                 .map(|o: _| {
                     OrderValidationResults::Valid(
                         o.try_map_inner(|inner| Ok(inner.into())).unwrap()
@@ -131,7 +132,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         metrics: ValidationMetrics
     ) -> OrderValidationResults {
         let order_hash = order.order_hash();
-        let mut results = self.handle_regular_order(order, block, metrics);
+        let mut results = self.handle_regular_order(order, block, metrics, false);
         let mut invalidate = false;
 
         if let OrderValidationResults::Valid(ref mut tob_order) = results {

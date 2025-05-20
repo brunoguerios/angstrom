@@ -7,12 +7,17 @@ use alloy::{
     primitives::{Address, U256, address},
     providers::Provider
 };
-use angstrom_types::{pair_with_price::PairsWithPrice, primitive::PoolId, sol_bindings::Ray};
+use angstrom_types::{
+    matching::SqrtPriceX96, orders::UpdatedGas, pair_with_price::PairsWithPrice, primitive::PoolId,
+    sol_bindings::Ray
+};
 use futures::StreamExt;
 use tracing::warn;
 use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
 
-const BLOCKS_TO_AVG_PRICE: u64 = 5;
+use crate::order::sim::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL};
+
+const BLOCKS_TO_AVG_PRICE: u64 = 15;
 pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
 
 // crazy that this is a thing
@@ -32,7 +37,8 @@ pub struct TokenPriceGenerator {
     /// chain
     base_gas_token:      Address,
     cur_block:           u64,
-    blocks_to_avg_price: u64
+    blocks_to_avg_price: u64,
+    base_wei:            u128
 }
 
 impl TokenPriceGenerator {
@@ -52,6 +58,7 @@ impl TokenPriceGenerator {
             let pool = pool.read().unwrap();
             pair_to_pool.insert((pool.token0, pool.token1), *key);
         }
+        let new_gas_wei = provider.get_gas_price().await.unwrap_or_default();
 
         let blocks_to_avg_price = blocks_to_avg_price_override.unwrap_or(BLOCKS_TO_AVG_PRICE);
         // for each pool, we want to load the last 5 blocks and get the sqrt_price_96
@@ -108,8 +115,36 @@ impl TokenPriceGenerator {
             cur_block: current_block,
             pair_to_pool,
             blocks_to_avg_price,
-            uniswap_pools: uni
+            uniswap_pools: uni,
+            base_wei: new_gas_wei
         })
+    }
+
+    pub fn generate_gas_updates(&self) -> Vec<UpdatedGas> {
+        self.pair_to_pool
+            .iter()
+            .filter_map(|(&(mut token0, mut token1), pool_id)| {
+                if token1 < token0 {
+                    std::mem::swap(&mut token0, &mut token1)
+                };
+
+                let price = self.get_eth_conversion_price(token0, token1)?;
+
+                let book_internal = price.inverse_quantity(BOOK_GAS_INTERNAL as u128, false);
+                let book_external = price.inverse_quantity(BOOK_GAS as u128, false);
+                let tob_internal = price.inverse_quantity(TOB_GAS_INTERNAL as u128, false);
+                let tob_external = price.inverse_quantity(TOB_GAS as u128, false);
+
+                Some(UpdatedGas {
+                    pool_id:           *pool_id,
+                    gas_internal_book: book_internal,
+                    gas_internal_tob:  tob_internal,
+                    gas_external_tob:  tob_external,
+                    gas_external_book: book_external,
+                    block_number:      self.cur_block
+                })
+            })
+            .collect()
     }
 
     pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), Ray> {
@@ -127,8 +162,12 @@ impl TokenPriceGenerator {
             .collect()
     }
 
-    pub fn apply_update(&mut self, updates: Vec<PairsWithPrice>) {
-        for pool_update in updates {
+    pub fn apply_update(&mut self, new_gas_wei: u128, updates: Vec<PairsWithPrice>) {
+        // we will duplicate same price if no update for pool.
+        let mut updated_pool_keys = Vec::new();
+        self.base_wei = new_gas_wei;
+
+        for mut pool_update in updates {
             // make sure we aren't replaying
             assert!(pool_update.block_num == self.cur_block + 1);
 
@@ -158,14 +197,84 @@ impl TokenPriceGenerator {
                 self.prev_prices.insert(pk, VecDeque::new());
                 pk
             };
+
+            updated_pool_keys.push(pool_key);
             let prev_prices = self
                 .prev_prices
                 .get_mut(&pool_key)
                 .expect("don't have prev_prices for update");
-            prev_prices.pop_front();
-            prev_prices.push_back(pool_update);
+
+            pool_update.replace_price_if_empty(|| {
+                self.uniswap_pools
+                    .get(&pool_key)
+                    .map(|pool| Ray::from(SqrtPriceX96::from(pool.read().unwrap().sqrt_price)))
+                    .unwrap_or_default()
+            });
+
+            if !pool_update.price_1_over_0.is_zero() {
+                prev_prices.push_back(pool_update);
+            }
+
+            // only pop front if we extend
+            if prev_prices.len() as u64 == self.blocks_to_avg_price + 1 {
+                prev_prices.pop_front();
+            }
         }
         self.cur_block += 1;
+
+        self.prev_prices
+            .iter_mut()
+            .filter(|(k, _)| !updated_pool_keys.contains(k))
+            .for_each(|(_, queue)| {
+                let Some(last) = queue.back() else { return };
+                let mut new_back = *last;
+                new_back.block_num = self.cur_block;
+
+                queue.push_back(new_back);
+
+                // only pop front if we extend
+                if queue.len() as u64 == self.blocks_to_avg_price + 1 {
+                    queue.pop_front();
+                }
+            });
+
+        // given that we have added new pools that we got updates for,
+        // we also want to make sure to add new pools that haven't been updated
+        // as trading is not eligible since there's no price. Kinda a catch 22
+        let remove_keys = self
+            .prev_prices
+            .keys()
+            .copied()
+            .filter(|f| !self.uniswap_pools.contains_key(f))
+            .collect::<Vec<_>>();
+
+        for key in remove_keys {
+            self.prev_prices.remove(&key);
+            self.pair_to_pool.retain(|_, v| *v != key);
+        }
+
+        // look at all pools uniswap contains. we want to remove
+        self.uniswap_pools.iter().for_each(|entry| {
+            let (key, pool) = entry.pair();
+            // already have
+            if self.prev_prices.contains_key(key) {
+                return;
+            }
+            // new
+            let pool_r = pool.read().unwrap();
+            let price: Ray = SqrtPriceX96::from(pool_r.sqrt_price).into();
+
+            let mut queue = VecDeque::new();
+            queue.push_back(PairsWithPrice {
+                token0:         pool_r.token0,
+                token1:         pool_r.token1,
+                block_num:      self.cur_block,
+                price_1_over_0: price
+            });
+            self.prev_prices.insert(*key, queue);
+            self.pair_to_pool
+                .insert((pool_r.token0, pool_r.token1), *key);
+        });
     }
 
     pub fn new_pool_update(
@@ -183,9 +292,10 @@ impl TokenPriceGenerator {
     /// the previous prices are stored in RAY (1e27).
     /// returns price in GAS / t0
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
+        let wei = if self.base_wei == 0 { 1e18 as u128 } else { self.base_wei };
         // if token zero is weth, then we mul by 1
         if token_0 == self.base_gas_token {
-            return Some(Ray::scale_to_ray(U256::from(1)));
+            return Some(Ray::scale_to_ray(U256::from(1)).mul_wad(wei, 18));
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
@@ -201,7 +311,10 @@ impl TokenPriceGenerator {
             }
 
             // if t1 == gas, then t0am  * t1 / t0 = am t1
-            return Some(prices.iter().map(|p| p.price_1_over_0).sum::<Ray>() / U256::from(size));
+            return Some(
+                (prices.iter().map(|p| p.price_1_over_0).sum::<Ray>() / U256::from(size))
+                    .mul_wad(wei, 18)
+            );
         }
 
         // need to pass through a pair.
@@ -233,7 +346,7 @@ impl TokenPriceGenerator {
             // thus gas_am t0 * price = gas.
 
             Some(
-                prices
+                (prices
                     .iter()
                     .map(|price| {
                         // if true, means gas is token zero
@@ -244,7 +357,8 @@ impl TokenPriceGenerator {
                         }
                     })
                     .sum::<Ray>()
-                    / U256::from(size)
+                    / U256::from(size))
+                .mul_wad(wei, 18)
             )
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
             // because we are going through token1 here and we want token zero, we need to
@@ -286,7 +400,7 @@ impl TokenPriceGenerator {
                 / U256::from(size);
 
             // t1 / t0 *  gas / t1 = gas / t0
-            Some(first_hop_price.mul_ray(second_hop_price))
+            Some(first_hop_price.mul_ray(second_hop_price).mul_wad(wei, 18))
         } else {
             tracing::error!("found a token that doesn't have a 1 hop to WETH");
             None
@@ -408,6 +522,7 @@ pub mod test {
         prices.insert(FixedBytes::<32>::with_last_byte(4), queue);
 
         TokenPriceGenerator {
+            base_wei:            0,
             cur_block:           0,
             prev_prices:         prices,
             base_gas_token:      WETH_ADDRESS,
@@ -524,7 +639,7 @@ pub mod test {
 
         // Apply the updates
         for update in updates {
-            token_conversion.apply_update(vec![update]);
+            token_conversion.apply_update(0, vec![update]);
         }
 
         // Average should be (1 + 2 + 3 + 4 + 5) / 5 = 3
@@ -561,12 +676,15 @@ pub mod test {
         let mut token_conversion = setup();
 
         // Should panic on non-sequential block updates
-        token_conversion.apply_update(vec![PairsWithPrice {
-            token0:         TOKEN2,
-            token1:         TOKEN0,
-            block_num:      5, // Non-sequential block
-            price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
-        }]);
+        token_conversion.apply_update(
+            0,
+            vec![PairsWithPrice {
+                token0:         TOKEN2,
+                token1:         TOKEN0,
+                block_num:      5, // Non-sequential block
+                price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
+            }]
+        );
     }
 
     #[test]
@@ -612,6 +730,7 @@ pub mod test {
     fn test_empty_pool_gas_price() {
         // Create a TokenPriceGenerator with no pools
         let token_conversion = TokenPriceGenerator {
+            base_wei:            0,
             cur_block:           0,
             prev_prices:         HashMap::default(),
             base_gas_token:      WETH_ADDRESS,

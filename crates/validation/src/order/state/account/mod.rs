@@ -40,29 +40,35 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         &self,
         order: O,
         pool_info: UserOrderPoolInfo,
-        block: u64
+        block: u64,
+        is_revalidating: bool
     ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError> {
         let user = order.from();
         let order_hash = order.order_hash();
 
+        // if we are re-validating, we want to remove the orders previous
+        // effects
+        if is_revalidating {
+            self.cancel_order(order.from(), order_hash);
+        }
+
         // very nonce hasn't been used historically
-        //
         let respend = order.respend_avoidance_strategy();
         match respend {
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Nonce(nonce) => {
-                if !self
-                    .fetch_utils
-                    .is_valid_nonce(user, nonce)
-                    .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?
-                {
-                    tracing::error!(order_hash=?order.order_hash(), ?nonce, "invalid nonce");
-                    return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
+                if !self.fetch_utils.is_valid_nonce(user, nonce).map_err(|e| {
+                    UserAccountVerificationError::CouldNotFetch { err: e.to_string() }
+                })? {
+                    return Err(UserAccountVerificationError::DuplicateNonce { order_hash });
                 }
             }
             angstrom_types::sol_bindings::RespendAvoidanceMethod::Block(order_block) => {
                 // order should be for block + 1
                 if block + 1 != order_block {
-                    return Err(UserAccountVerificationError::BadBlock(block + 1, order_block));
+                    return Err(UserAccountVerificationError::BadBlock {
+                        next_block:      block + 1,
+                        requested_block: order_block
+                    });
                 }
             }
         }
@@ -88,7 +94,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 .map(|o| o.order_hash)
                 .collect::<Vec<_>>();
             tracing::error!(?order_hash, ?conflicting_order_hashes, "conflicting order hash");
-            return Err(UserAccountVerificationError::DuplicateNonce(order_hash));
+            return Err(UserAccountVerificationError::DuplicateNonce { order_hash });
         }
         tracing::trace!(?conflicting_orders);
 
@@ -108,7 +114,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 order.validation_priority(),
                 &self.fetch_utils
             )
-            .map_err(|e| UserAccountVerificationError::CouldNotFetch(e.to_string()))?;
+            .map_err(|e| UserAccountVerificationError::CouldNotFetch { err: e.to_string() })?;
 
         // ensure that the current live state is enough to satisfy the order
         match live_state
@@ -251,7 +257,7 @@ pub mod tests {
 
         println!("verifying orders");
         processor
-            .verify_order(order, pool_info, 420)
+            .verify_order(order, pool_info, 420, false)
             .expect("order should be valid");
     }
 
@@ -298,15 +304,15 @@ pub mod tests {
         println!("finished first order config");
         // first time verifying should pass
         processor
-            .verify_order(order.clone(), pool_info.clone(), 420)
+            .verify_order(order.clone(), pool_info.clone(), 420, false)
             .expect("order should be valid");
 
         println!("first order has been set valid");
         // second time should fail
-        let Err(e) = processor.verify_order(order, pool_info, 420) else {
+        let Err(e) = processor.verify_order(order, pool_info, 420, false) else {
             panic!("verifying order should of failed")
         };
-        assert!(matches!(e, UserAccountVerificationError::DuplicateNonce(..)));
+        assert!(matches!(e, UserAccountVerificationError::DuplicateNonce { .. }));
     }
 
     #[test]
@@ -374,13 +380,13 @@ pub mod tests {
 
         // first time verifying should pass
         let verify_result0 = processor
-            .verify_order(order0, pool_info0, 420)
+            .verify_order(order0, pool_info0, 420, false)
             .expect("order should be valid");
         info!(?verify_result0, "Verified order0");
 
         // verify second order and check that order0 hash is in the invalid_orders
         let res = processor
-            .verify_order(order1, pool_info1, 420)
+            .verify_order(order1, pool_info1, 420, false)
             .expect("should be valid");
         info!(?res, "Verified order1");
 
@@ -431,12 +437,12 @@ pub mod tests {
 
         // Should succeed for current block 420 (order block is 421)
         processor
-            .verify_order(order.clone(), pool_info.clone(), 420)
+            .verify_order(order.clone(), pool_info.clone(), 420, false)
             .expect("order should be valid for next block");
 
         // Should fail for wrong current block
-        let Err(UserAccountVerificationError::BadBlock(..)) =
-            processor.verify_order(order.clone(), pool_info.clone(), 419)
+        let Err(UserAccountVerificationError::BadBlock { .. }) =
+            processor.verify_order(order.clone(), pool_info.clone(), 419, false)
         else {
             panic!("should fail for wrong block");
         };
@@ -478,7 +484,7 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(1000));
 
         let result = processor
-            .verify_order(order, pool_info, 420)
+            .verify_order(order, pool_info, 420, false)
             .expect("verification should complete");
 
         assert!(
@@ -522,7 +528,7 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(500));
 
         let result = processor
-            .verify_order(order, pool_info, 420)
+            .verify_order(order, pool_info, 420, false)
             .expect("verification should complete");
 
         assert!(
@@ -577,10 +583,10 @@ pub mod tests {
 
         // Both orders should be valid
         processor
-            .verify_order(order1, pool_info.clone(), 420)
+            .verify_order(order1, pool_info.clone(), 420, false)
             .expect("first order should be valid");
         processor
-            .verify_order(order2, pool_info, 420)
+            .verify_order(order2, pool_info, 420, false)
             .expect("second order should be valid");
     }
 
@@ -617,7 +623,7 @@ pub mod tests {
 
         // Add order
         processor
-            .verify_order(order.clone(), pool_info.clone(), 420)
+            .verify_order(order.clone(), pool_info.clone(), 420, false)
             .expect("order should be valid");
 
         // Prepare for new block
@@ -625,7 +631,7 @@ pub mod tests {
 
         // Try to add same order again - should succeed because state was cleared
         let result = processor
-            .verify_order(order, pool_info, 420)
+            .verify_order(order, pool_info, 420, false)
             .expect("order should be valid after state clear");
 
         assert!(result.is_currently_valid(), "Order should be valid after state clear");
@@ -686,14 +692,14 @@ pub mod tests {
 
         // Submit orders in sequence
         let _result1 = processor
-            .verify_order(order1.clone(), pool_info.clone(), 420)
+            .verify_order(order1.clone(), pool_info.clone(), 420, false)
             .expect("first order should be valid");
         let result2 = processor
-            .verify_order(order2.clone(), pool_info.clone(), 420)
+            .verify_order(order2.clone(), pool_info.clone(), 420, false)
             .expect("second order should be valid");
 
         let result3 = processor
-            .verify_order(order3, pool_info, 420)
+            .verify_order(order3, pool_info, 420, false)
             .expect("third order should be valid");
 
         // Verify that each order invalidates all previous orders
@@ -747,11 +753,11 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(1500));
 
         let result1 = processor
-            .verify_order(order1, pool_info.clone(), 420)
+            .verify_order(order1, pool_info.clone(), 420, false)
             .expect("first order should be valid");
 
         let result2 = processor
-            .verify_order(order2, pool_info, 420)
+            .verify_order(order2, pool_info, 420, false)
             .expect("second order should complete verification");
 
         assert!(result1.is_currently_valid(), "First order should be valid");
@@ -807,10 +813,10 @@ pub mod tests {
 
         // Verify orders for their respective blocks
         let result1 = processor
-            .verify_order(order1, pool_info.clone(), 420)
+            .verify_order(order1, pool_info.clone(), 420, false)
             .expect("first order should be valid");
         let result2 = processor
-            .verify_order(order2, pool_info, 421)
+            .verify_order(order2, pool_info, 421, false)
             .expect("second order should be valid");
 
         assert!(result1.is_currently_valid(), "First flash order should be valid");
@@ -861,10 +867,10 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(1000));
 
         let standing_result = processor
-            .verify_order(standing_order, pool_info.clone(), 420)
+            .verify_order(standing_order, pool_info.clone(), 420, false)
             .expect("standing order should be valid");
         let flash_result = processor
-            .verify_order(flash_order, pool_info, 420)
+            .verify_order(flash_order, pool_info, 420, false)
             .expect("flash order should be valid");
 
         assert!(standing_result.is_currently_valid(), "Standing order should be valid");
@@ -914,11 +920,11 @@ pub mod tests {
             .set_used_nonces(user, HashSet::from([420]));
 
         // Verify the order fails due to duplicate nonce
-        let result = processor.verify_order(order, pool_info, 420);
+        let result = processor.verify_order(order, pool_info, 420, false);
 
         // Assert we get the expected error
         assert!(
-            matches!(result, Err(UserAccountVerificationError::DuplicateNonce(..))),
+            matches!(result, Err(UserAccountVerificationError::DuplicateNonce { .. })),
             "Expected DuplicateNonce error, got {:?}",
             result
         );

@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use alloy::primitives::B256;
+use alloy::primitives::{B256, U256};
 use angstrom_metrics::VanillaLimitOrderPoolMetricsWrapper;
 use angstrom_types::{
-    orders::{OrderId, OrderStatus},
+    orders::{OrderId, OrderStatus, UpdatedGas},
     primitive::{NewInitializedPool, PoolId, UserAccountVerificationError},
-    sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData}
+    sol_bindings::{
+        RawPoolOrder,
+        grouped_orders::{AllOrders, OrderWithStorageData}
+    }
 };
 use angstrom_utils::map::OwnedMap;
 
@@ -31,6 +34,37 @@ impl LimitPool {
         }
     }
 
+    pub fn update_gas(&mut self, id: &PoolId, gas: &UpdatedGas) -> Vec<AllOrders> {
+        self.pending_orders
+            .get_mut(id)
+            .map(|pool| {
+                let mut bad_orders = vec![];
+                pool.orders.retain(|k, v| {
+                    if v.use_internal() {
+                        // cannot support
+                        if v.max_gas_token_0() < gas.gas_internal_book {
+                            bad_orders.push(*k);
+                            return false;
+                        }
+                        v.priority_data.gas = U256::from(gas.gas_internal_book);
+                        true
+                    } else {
+                        if v.max_gas_token_0() < gas.gas_external_book {
+                            bad_orders.push(*k);
+                            return false;
+                        }
+                        v.priority_data.gas = U256::from(gas.gas_external_book);
+                        true
+                    }
+                });
+                bad_orders
+                    .into_iter()
+                    .map(|order| pool.remove_order(&order).unwrap().order)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    }
+
     pub fn get_order_status(&self, order_hash: B256) -> Option<OrderStatus> {
         self.pending_orders
             .values()
@@ -41,9 +75,12 @@ impl LimitPool {
             })
             .or_else(|| {
                 self.parked_orders.values().find_map(|pool| {
-                    let _ = pool.get_order(order_hash)?;
+                    let order = pool.get_order(order_hash)?;
                     // found order return some pending
-                    Some(OrderStatus::Blocked)
+                    Some(
+                        OrderStatus::try_from_err(order.is_currently_valid.as_ref().unwrap())
+                            .unwrap()
+                    )
                 })
             })
     }
@@ -108,7 +145,7 @@ impl LimitPool {
         self.pending_orders
             .get_mut(&pool_id)
             .and_then(|pool| {
-                pool.remove_order(order_id)
+                pool.remove_order(&order_id)
                     .owned_map(|| self.metrics.decr_pending_orders(pool_id, 1))
             })
             .or_else(|| {
@@ -136,8 +173,9 @@ impl LimitPool {
 
     pub fn park_order(&mut self, order_id: &OrderId) {
         let Some(mut order) = self.remove_order(order_id.pool_id, order_id.hash) else { return };
-        order.is_currently_valid =
-            Some(UserAccountVerificationError::Unknown("parked by other transaction".into()));
+        order.is_currently_valid = Some(UserAccountVerificationError::Unknown {
+            err: "parked by other transaction".into()
+        });
         self.add_order(order).unwrap();
     }
 
@@ -156,7 +194,7 @@ impl LimitPool {
 
     pub fn remove_invalid_order(&mut self, order_hash: B256) {
         self.pending_orders.iter_mut().for_each(|(pool_id, pool)| {
-            if pool.remove_order(order_hash).is_some() {
+            if pool.remove_order(&order_hash).is_some() {
                 self.metrics.decr_pending_orders(*pool_id, 1);
             }
         });

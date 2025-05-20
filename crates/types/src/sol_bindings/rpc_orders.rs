@@ -1,15 +1,20 @@
 use std::borrow::Cow;
 
 use alloy::{
-    primitives::{Address, B256, keccak256},
+    primitives::{Address, B256, Bytes, keccak256},
+    signers::SignerSync,
     sol,
     sol_types::{Eip712Domain, SolStruct}
 };
+use alloy_primitives::Signature;
+use pade::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
+
+use crate::primitive::{ANGSTROM_DOMAIN, AngstromSigner};
 
 sol! {
 
-    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
     struct OrderMeta {
         bool isEcdsa;
         address from;
@@ -82,7 +87,7 @@ sol! {
         OrderMeta meta;
     }
 
-    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
     struct TopOfBlockOrder {
         uint128 quantity_in;
         uint128 quantity_out;
@@ -93,6 +98,39 @@ sol! {
         address recipient;
         uint64 valid_for_block;
         OrderMeta meta;
+    }
+
+    #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    struct AttestAngstromBlockEmpty {
+        uint64 block_number;
+    }
+}
+
+impl AttestAngstromBlockEmpty {
+    pub fn sign_and_encode(target_block: u64, signer: &AngstromSigner) -> Bytes {
+        let attestation = AttestAngstromBlockEmpty { block_number: target_block };
+
+        let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
+        // we pade encode here as we expect v, r, s which is not the standard
+        let sig = signer.sign_hash_sync(&hash).unwrap().pade_encode();
+        let signer = signer.address();
+        Bytes::from_iter([signer.to_vec(), sig].concat())
+    }
+
+    pub fn is_valid_attestation(target_block: u64, bytes: &Bytes) -> bool {
+        // size needs to be 65 + 20
+        if bytes.len() != 85 {
+            tracing::warn!(bytes=%bytes.len(),"attestation bytes doesn't match expected 85");
+            return false;
+        }
+        let node_address = Address::from_slice(&bytes[0..20]);
+        let mut sig = &bytes[20..];
+
+        let Ok(sig) = Signature::pade_decode(&mut sig, None) else { return false };
+        let attestation = AttestAngstromBlockEmpty { block_number: target_block };
+        let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let Ok(recovered_addr) = sig.recover_address_from_prehash(&hash) else { return false };
+        node_address == recovered_addr
     }
 }
 
@@ -211,6 +249,8 @@ impl OmitOrderMeta for TopOfBlockOrder {}
 
 #[cfg(test)]
 pub mod test {
+    use alloy_primitives::fixed_bytes;
+
     use super::*;
 
     const TEST_DOMAIN: Eip712Domain = alloy::sol_types::eip712_domain! {
@@ -261,5 +301,16 @@ pub mod test {
         let expected = default_omit.eip712_signing_hash(&TEST_DOMAIN);
 
         assert_eq!(expected, result)
+    }
+
+    #[test]
+    fn ensure_block_type_hash_matches() {
+        let expected_type_hash =
+            fixed_bytes!("0x3f25e551746414ff93f076a7dd83828ff53735b39366c74015637e004fcb0223");
+
+        let test_attestation = AttestAngstromBlockEmpty { block_number: 6123 };
+        let type_hash = test_attestation.eip712_type_hash();
+
+        assert_eq!(expected_type_hash, type_hash)
     }
 }

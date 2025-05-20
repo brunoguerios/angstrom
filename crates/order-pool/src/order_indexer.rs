@@ -121,7 +121,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.validator
             .cancel_order(request.user_address, request.order_id);
 
-        if let Some(pool_id) = self.order_tracker.cancel_order(
+        if let Some((is_tob, pool_id)) = self.order_tracker.cancel_order(
             request.user_address,
             request.order_id,
             &self.order_storage
@@ -136,15 +136,13 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 )
                 .into_iter()
                 .for_each(|order| {
-                    // otherwise we will have duplicate conflict
                     self.validator
-                        .cancel_order(order.from(), order.order_hash());
-                    self.validator
-                        .validate_order(OrderOrigin::Local, order.order);
+                        .validate_order(OrderOrigin::ReValidation, order.order);
                 });
 
             self.subscribers
                 .notify_order_subscribers(PoolManagerUpdate::CancelledOrder {
+                    is_tob,
                     order_hash: request.order_id,
                     user: request.user_address,
                     pool_id
@@ -208,8 +206,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             &self.order_storage,
             &mut self.validator,
             |id, storage, validator| {
-                if let Some(order) = storage.get_order_from_id(id) {
-                    validator.validate_order(OrderOrigin::Local, order.order);
+                if let Some(order) = storage.remove_order_from_id(id) {
+                    validator.validate_order(OrderOrigin::ReValidation, order.order);
                 }
             }
         );
@@ -301,8 +299,28 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let to_propagate = valid.order.clone();
                 self.order_tracker
                     .new_valid_order(&hash, valid.from(), valid.order_id);
-                self.order_tracker
-                    .park_orders(&valid.invalidates, &self.order_storage);
+
+                // for all the orders that get invalided, we will re-validate
+                // to calculate the proper amount of funding to
+                // unblock them.
+                let invalided_orders = valid
+                    .invalidates
+                    .iter()
+                    .flat_map(|order| {
+                        let id = self
+                            .order_tracker
+                            .order_hash_to_order_id
+                            .get(order)
+                            .unwrap();
+                        self.order_storage.remove_order_from_id(id)
+                    })
+                    .collect::<Vec<_>>();
+
+                for order in invalided_orders {
+                    self.order_tracker.start_validating(order.order_hash());
+                    self.validator
+                        .validate_order(OrderOrigin::ReValidation, order.order);
+                }
 
                 if let Err(e) = self.insert_order(valid) {
                     tracing::error!(%e, "failed to insert valid order");
@@ -317,7 +335,17 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let peers = self.order_tracker.invalid_verification(hash);
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
-            OrderValidationResults::TransitionedToBlock => Ok(PoolInnerEvent::None)
+            OrderValidationResults::TransitionedToBlock(new_gas_updates) => {
+                let parked_orders = self
+                    .order_storage
+                    .apply_new_gas_and_return_blocked_orders(new_gas_updates);
+
+                for order in parked_orders {
+                    self.validator
+                        .validate_order(OrderOrigin::ReValidation, order);
+                }
+                Ok(PoolInnerEvent::None)
+            }
         }
     }
 
@@ -379,6 +407,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.subscribers.notify_expired_orders(&expired_orders);
 
         completed_orders.extend(expired_orders);
+
         self.validator.notify_validation_on_changes(
             block_number,
             completed_orders,

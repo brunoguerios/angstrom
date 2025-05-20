@@ -2,11 +2,8 @@ use std::{future::IntoFuture, time::Duration};
 
 use alloy::{providers::Provider, rpc::types::Block};
 use alloy_primitives::{Address, B256, BlockNumber, U256};
-use alloy_rpc_types::BlockId;
-use angstrom_types::{
-    block_sync::{BlockSyncProducer, GlobalBlockSync},
-    reth_db_wrapper::DBError
-};
+use alloy_rpc_types::{BlockId, TransactionReceipt};
+use angstrom_types::reth_db_wrapper::DBError;
 use futures::stream::StreamExt;
 use reth_primitives::EthPrimitives;
 use reth_provider::{
@@ -27,23 +24,24 @@ use crate::{
 pub struct AnvilStateProvider<P> {
     provider:       P,
     canon_state:    AnvilConsensusCanonStateNotification,
-    canon_state_tx: broadcast::Sender<CanonStateNotification>,
-    block_sync:     GlobalBlockSync
+    canon_state_tx: broadcast::Sender<CanonStateNotification>
 }
 
 impl<P: WithWalletProvider> AnvilStateProvider<P> {
-    pub(crate) fn new(provider: P, block_sync: GlobalBlockSync) -> Self {
+    pub(crate) fn new(provider: P) -> Self {
         Self {
             provider,
             canon_state: AnvilConsensusCanonStateNotification::new(),
-            canon_state_tx: broadcast::channel(1000).0,
-            block_sync
+            canon_state_tx: broadcast::channel(1000).0
         }
     }
 
-    pub(crate) fn update_canon_chain(&self, new_block: &Block) -> eyre::Result<()> {
-        let state = self.canon_state.new_block(new_block);
-        self.block_sync.new_block(new_block.header.number);
+    pub(crate) fn update_canon_chain(
+        &self,
+        new_block: &Block,
+        receipts: Vec<TransactionReceipt>
+    ) -> eyre::Result<()> {
+        let state = self.canon_state.new_block(new_block, receipts);
         if self.canon_state_tx.receiver_count() == 0 {
             tracing::warn!("no canon state rx")
         } else {
@@ -67,8 +65,7 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
         AnvilStateProvider {
             provider:       self.provider.wallet_provider(),
             canon_state:    self.canon_state.clone(),
-            canon_state_tx: self.canon_state_tx.clone(),
-            block_sync:     self.block_sync.clone()
+            canon_state_tx: self.canon_state_tx.clone()
         }
     }
 
@@ -93,14 +90,24 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
                         block_hash:        *block_hash,
                         require_canonical: None
                     }))
+                    .full()
                     .await
                     .unwrap()
                     .unwrap();
-                tracing::info!("updating block sync");
-                self.block_sync.new_block(block.header.number);
+
+                let recipts = self
+                    .provider()
+                    .rpc_provider()
+                    .get_block_receipts(BlockId::Hash(alloy_rpc_types::RpcBlockHash {
+                        block_hash:        *block_hash,
+                        require_canonical: None
+                    }))
+                    .await
+                    .unwrap()
+                    .unwrap();
                 tracing::info!("updating cannon chain");
 
-                self.update_canon_chain(&block).unwrap();
+                self.update_canon_chain(&block, recipts).unwrap();
             }
         }
     }

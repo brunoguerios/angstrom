@@ -3,6 +3,7 @@ use std::sync::Arc;
 use alloy_primitives::{Address, B256, FixedBytes};
 use angstrom_types::{consensus::*, sol_bindings::grouped_orders::AllOrders};
 use serde::{Deserialize, Serialize};
+use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -26,7 +27,9 @@ pub enum ConsensusSubscriptionResult {
     Proposal(Arc<Proposal>)
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter,
+)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub enum OrderSubscriptionKind {
@@ -42,6 +45,12 @@ pub enum OrderSubscriptionKind {
     ExpiredOrders
 }
 
+impl OrderSubscriptionKind {
+    pub fn all() -> OrderSubscriptionKindIter {
+        Self::iter()
+    }
+}
+
 #[derive(
     Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash,
 )]
@@ -52,6 +61,10 @@ pub enum OrderSubscriptionFilter {
     ByPair(FixedBytes<32>),
     /// only returns subscription updates related to a address
     ByAddress(Address),
+    /// only TOB orders
+    OnlyTOB,
+    /// only book orders
+    OnlyBook,
     /// returns all subscription updates
     #[default]
     None

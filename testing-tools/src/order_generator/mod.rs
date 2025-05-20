@@ -1,10 +1,12 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
+use futures::stream::StreamExt;
 use itertools::Itertools;
+use jsonrpsee::http_client::HttpClient;
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -24,6 +26,7 @@ impl OrderGenerator {
     pub fn new(
         pool_data: SyncedUniswapPools,
         block_number: u64,
+        client: Arc<HttpClient>,
         order_amt_range: Range<usize>,
         partial_pct_range: Range<f64>
     ) -> Self {
@@ -32,7 +35,7 @@ impl OrderGenerator {
             .map(|item| {
                 let pool_id = item.key();
                 let pool_data = item.value();
-                PoolOrderGenerator::new(*pool_id, pool_data.clone(), block_number)
+                PoolOrderGenerator::new(*pool_id, pool_data.clone(), block_number, client.clone())
             })
             .sorted_by_key(|k| k.pool_id)
             .collect::<Vec<_>>();
@@ -46,17 +49,14 @@ impl OrderGenerator {
             .for_each(|pool| pool.new_block(block_number));
     }
 
-    pub fn generate_orders(&self) -> Vec<GeneratedPoolOrders> {
+    pub fn generate_orders(&self) -> impl Future<Output = Vec<GeneratedPoolOrders>> + '_ {
         let mut rng = rand::rng();
-        self.pools
-            .iter()
-            .map(|pool| {
-                pool.generate_set(
-                    rng.random_range(self.order_amt_range.clone()),
-                    rng.random_range(self.partial_pct_range.clone())
-                )
-            })
-            .collect::<Vec<_>>()
+        let first = rng.random_range(self.order_amt_range.clone());
+        let second = rng.random_range(self.partial_pct_range.clone());
+
+        futures::stream::iter(self.pools.iter())
+            .then(move |pool| async move { pool.generate_set(first, second).await })
+            .collect()
     }
 }
 

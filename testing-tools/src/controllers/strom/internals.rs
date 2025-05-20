@@ -1,27 +1,33 @@
-use std::{pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::Arc};
 
-use alloy_rpc_types::{BlockId, Transaction};
+use alloy::primitives::Address;
+use alloy_rpc_types::BlockId;
 use angstrom::components::StromHandles;
-use angstrom_eth::{handle::Eth, manager::EthEvent};
+use angstrom_eth::{
+    handle::Eth,
+    manager::{EthDataCleanser, EthEvent}
+};
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
-use angstrom_rpc::{OrderApi, api::OrderApiServer};
+use angstrom_rpc::{
+    ConsensusApi, OrderApi,
+    api::{ConsensusApiServer, OrderApiServer}
+};
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
-    mev_boost::{MevBoostProvider, SubmitTx},
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
     sol_bindings::testnet::TestnetHub,
+    submission::SubmissionHandler,
     testnet::InitialTestnetState
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
-use futures::{Future, Stream, StreamExt, TryStreamExt};
+use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
+use futures::{Future, Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TaskExecutor;
-use tokio_stream::wrappers::BroadcastStream;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
 use validation::{
@@ -34,8 +40,8 @@ use crate::{
     agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
     providers::{
-        AnvilEthDataCleanser, AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider,
-        WalletProvider, utils::StromContractInstance
+        AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider, WalletProvider,
+        utils::StromContractInstance
     },
     types::{
         GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig
@@ -59,7 +65,6 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         strom_handles: StromHandles,
         strom_network_handle: StromNetworkHandle,
         initial_validators: Vec<AngstromValidator>,
-        block_rx: BroadcastStream<(u64, Vec<Transaction>)>,
         inital_angstrom_state: InitialTestnetState,
         agents: Vec<F>,
         block_sync: GlobalBlockSync,
@@ -81,70 +86,85 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let validation_client = ValidationClient(strom_handles.validator_tx);
         let matching_handle = MatchingManager::spawn(executor.clone(), validation_client.clone());
+        let consensus_client = ConsensusHandler(strom_handles.consensus_tx_rpc.clone());
 
+        let consensus_api = ConsensusApi::new(consensus_client.clone(), executor.clone());
         let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client.clone());
 
-        let block_subscription: Pin<
-            Box<dyn Stream<Item = (u64, Vec<Transaction>)> + Unpin + Send>
-        > = if node_config.is_devnet() {
-            Box::pin(block_rx.into_stream().map(|v| v.unwrap()))
-        } else {
-            Box::pin(state_provider.subscribe_blocks().await?)
-        };
-
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
-        block_sync.set_block(block_number);
-
-        let eth_handle = AnvilEthDataCleanser::spawn(
-            node_config.node_id,
-            executor.clone(),
-            inital_angstrom_state.angstrom_addr,
-            strom_handles.eth_tx,
-            strom_handles.eth_rx,
-            block_subscription,
-            7,
-            block_sync.clone()
-        )?;
-        // wait for new block then clear all proposals and init rest.
-        // this gives us 12 seconds so we can ensure all nodes are on the same update
-
-        tracing::info!("made eth internals - getting state");
-
-        let mut canon_state_stream = state_provider
-            .state_provider()
-            .subscribe_to_canonical_state();
-
-        if node_config.is_devnet() {
-            state_provider.mine_block().await?;
-        }
-
-        let b = canon_state_stream.recv().await?;
-
-        block_sync.clear();
-        let block_number = b.tip().number;
 
         tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
         let uniswap_registry: UniswapPoolRegistry = inital_angstrom_state.pool_keys.clone().into();
 
+        let angstrom_tokens = uniswap_registry
+            .pools()
+            .values()
+            .flat_map(|pool| [pool.currency0, pool.currency1])
+            .fold(HashMap::<Address, usize>::new(), |mut acc, x| {
+                *acc.entry(x).or_default() += 1;
+                acc
+            });
+
+        tracing::debug!("starting to load pool config store");
         let pool_config_store = Arc::new(
             AngstromPoolConfigStore::load_from_chain(
                 inital_angstrom_state.angstrom_addr,
-                BlockId::latest(),
+                BlockId::number(block_number),
                 &state_provider.rpc_provider()
             )
             .await
             .map_err(|e| eyre::eyre!("{e}"))?
         );
+        tracing::debug!("pool config loaded");
+
+        let node_set = initial_validators.iter().map(|v| v.peer_id).collect();
+
+        if node_config.is_devnet() {
+            state_provider.mine_block().await?;
+        }
+        let b = state_provider
+            .state_provider()
+            .subscribe_to_canonical_state()
+            .recv()
+            .await
+            .expect("startup sequence failed");
+        tracing::debug!("got next block");
+
+        let sub = state_provider
+            .state_provider()
+            .subscribe_to_canonical_state();
+
+        let eth_handle = EthDataCleanser::spawn(
+            inital_angstrom_state.angstrom_addr,
+            inital_angstrom_state.controller_addr,
+            sub,
+            executor.clone(),
+            strom_handles.eth_tx,
+            strom_handles.eth_rx,
+            angstrom_tokens,
+            pool_config_store.clone(),
+            block_sync.clone(),
+            node_set,
+            vec![]
+        )
+        .unwrap();
+
+        tracing::debug!("spawned data cleaner");
+
+        let block_number = b.tip().number;
+
+        block_sync.clear();
+        block_sync.set_block(block_number);
+
+        tracing::debug!(node_id = node_config.node_id, block_number, "creating strom internals");
 
         let network_stream = Box::pin(eth_handle.subscribe_network())
             as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
-            state_provider
-                .state_provider()
-                .subscribe_to_canonical_state(),
+            eth_handle.subscribe_cannon_state_notifications().await,
             uniswap_registry.clone(),
             block_number,
             block_sync.clone(),
@@ -152,6 +172,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             network_stream
         )
         .await;
+        tracing::debug!("uniswap configured");
 
         let uniswap_pools = uniswap_pool_manager.pools();
         executor.spawn_critical(
@@ -176,7 +197,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let token_price_update_stream = state_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
             inital_angstrom_state.angstrom_addr,
-            token_price_update_stream
+            token_price_update_stream,
+            Arc::new(state_provider.rpc_provider())
         ));
 
         let pool_storage = AngstromPoolsTracker::new(
@@ -231,7 +253,9 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         executor.spawn_critical(
             "rpc",
             Box::pin(async move {
-                let server_handle = server.start(order_api.into_rpc());
+                let mut rpcs = order_api.into_rpc();
+                rpcs.merge(consensus_api.into_rpc()).unwrap();
+                let server_handle = server.start(rpcs);
                 tracing::info!("rpc server started on: {}", addr);
                 let _ = server_handle.stopped().await;
             })
@@ -245,21 +269,22 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         tracing::debug!("created testnet hub and uniswap registry");
 
-        let anvil = AnvilSubmissionProvider { provider: state_provider.rpc_provider() };
+        let anvil = AnvilSubmissionProvider {
+            provider:         state_provider.rpc_provider(),
+            angstrom_address: inital_angstrom_state.angstrom_addr
+        };
 
-        let mev_boost_provider = MevBoostProvider::new_from_raw(
-            Arc::new(state_provider.rpc_provider()),
-            vec![Arc::new(Box::new(anvil) as Box<dyn SubmitTx>)]
-        );
+        let mev_boost_provider = SubmissionHandler {
+            node_provider: Arc::new(state_provider.rpc_provider()),
+            submitters:    vec![Box::new(anvil)]
+        };
 
         tracing::debug!("created mev boost provider");
 
         let consensus = ConsensusManager::new(
             ManagerNetworkDeps::new(
                 strom_network_handle.clone(),
-                state_provider
-                    .state_provider()
-                    .subscribe_to_canonical_state(),
+                eth_handle.subscribe_cannon_state_notifications().await,
                 strom_handles.consensus_rx_op
             ),
             node_config.angstrom_signer(),
@@ -267,12 +292,12 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             order_storage.clone(),
             block_number,
             block_number,
-            inital_angstrom_state.angstrom_addr,
             pool_registry,
             uniswap_pools.clone(),
             mev_boost_provider,
             matching_handle,
-            block_sync.clone()
+            block_sync.clone(),
+            strom_handles.consensus_rx_rpc
         );
 
         // init agents

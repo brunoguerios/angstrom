@@ -2,14 +2,14 @@ use std::{fmt::Debug, future::Future, pin::Pin};
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    orders::OrderOrigin,
+    orders::{OrderOrigin, UpdatedGas},
     primitive::OrderValidationError,
     sol_bindings::{
         ext::RawPoolOrder,
         grouped_orders::{AllOrders, GroupedComposableOrder, OrderWithStorageData}
     }
 };
-use sim::SimValidation;
+use sim::{GasReturn, SimValidation};
 use tokio::sync::oneshot::{Sender, channel};
 
 use crate::{common::TokenPriceGenerator, validator::ValidationRequest};
@@ -59,7 +59,7 @@ pub enum OrderValidationResults {
     Valid(OrderWithStorageData<AllOrders>),
     // the raw hash to be removed
     Invalid { hash: B256, error: OrderValidationError },
-    TransitionedToBlock
+    TransitionedToBlock(Vec<UpdatedGas>)
 }
 
 impl OrderValidationResults {
@@ -147,7 +147,7 @@ impl OrderValidationResults {
             &OrderWithStorageData<New>,
             &TokenPriceGenerator,
             u64
-        ) -> eyre::Result<(u64, U256)>
+        ) -> eyre::Result<GasReturn>
     ) -> eyre::Result<OrderWithStorageData<Old>>
     where
         DB: Unpin + Clone + 'static + revm::DatabaseRef + Send + Sync,
@@ -157,11 +157,19 @@ impl OrderValidationResults {
             .try_map_inner(move |order| Ok(map_new(order)))
             .unwrap();
 
-        let (gas_units, gas_used) = (calculate_function)(sim, &order, token_price, block)?;
+        let (gas, possible_error) = (calculate_function)(sim, &order, token_price, block)?;
         // ensure that gas used is less than the max gas specified
+        let (gas_units, gas_used) = gas.unwrap();
 
         order.priority_data.gas += gas_used;
         order.priority_data.gas_units = gas_units;
+
+        // we only apply the error if there isn't one already as other parked reasons
+        // for orders (balances and approvals) take priority as its more actions
+        // needed and thus more pressing
+        if order.is_currently_valid.is_none() {
+            order.is_currently_valid = possible_error;
+        }
 
         order.try_map_inner(move |new_order| Ok(map_old(new_order)))
     }
@@ -214,6 +222,7 @@ pub trait OrderValidatorHandle: Send + Sync + Clone + Debug + Unpin + 'static {
     fn estimate_gas(
         &self,
         is_book: bool,
+        is_internal: bool,
         token_0: Address,
         token_1: Address
     ) -> GasEstimationFuture;
@@ -267,14 +276,19 @@ impl OrderValidatorHandle for ValidationClient {
     fn estimate_gas(
         &self,
         is_book: bool,
+        is_internal: bool,
         token_0: Address,
         token_1: Address
     ) -> GasEstimationFuture {
         Box::pin(async move {
             let (sender, rx) = channel();
-            let _ =
-                self.0
-                    .send(ValidationRequest::GasEstimation { sender, is_book, token_0, token_1 });
+            let _ = self.0.send(ValidationRequest::GasEstimation {
+                sender,
+                is_book,
+                is_internal,
+                token_0,
+                token_1
+            });
 
             rx.await.unwrap().map_err(|e| e.to_string())
         })

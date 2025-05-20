@@ -5,7 +5,6 @@ use angstrom_types::primitive::PeerId;
 use parking_lot::RwLock;
 use reth_metrics::common::mpsc::MeteredPollSender;
 use reth_network::protocol::ProtocolHandler;
-use tokio::time::Duration;
 
 use crate::{StromConnectionHandler, StromSessionMessage, VerificationSidecar};
 
@@ -31,7 +30,6 @@ impl ProtocolHandler for StromProtocolHandler {
         Some(StromConnectionHandler {
             to_session_manager: self.to_session_manager.clone(),
             side_car: self.sidecar.clone(),
-            protocol_breach_request_timeout: Duration::from_secs(15),
             session_command_buffer: SESSION_COMMAND_BUFFER,
             socket_addr,
             validator_set: self.validators.read().clone()
@@ -47,7 +45,6 @@ impl ProtocolHandler for StromProtocolHandler {
     ) -> Option<Self::ConnectionHandler> {
         Some(StromConnectionHandler {
             to_session_manager: self.to_session_manager.clone(),
-            protocol_breach_request_timeout: Duration::from_secs(15),
             session_command_buffer: SESSION_COMMAND_BUFFER,
             socket_addr,
             side_car: self.sidecar.clone(),

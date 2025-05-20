@@ -3,25 +3,70 @@ mod manager;
 
 pub use manager::*;
 pub mod rounds;
+use std::{collections::HashSet, pin::Pin};
 
-use std::pin::Pin;
-
-use angstrom_types::consensus::{PreProposal, Proposal};
+use alloy::primitives::{Address, Bytes};
 use futures::Stream;
 pub use leader_selection::AngstromValidator;
+use serde::{Deserialize, Serialize};
+use tokio::sync::{
+    mpsc::{self, channel},
+    oneshot
+};
+use tokio_stream::wrappers::ReceiverStream;
 
-#[derive(Debug, Clone)]
-pub enum ConsensusMessage {
-    /// Start/Cycle the consensus process as a new block has begun
-    NewBlock(u64),
-    /// All angstrom nodes broadcast their signed order pools to the network
-    PrePropose(PreProposal),
-    /// The Proposer broadcasts its signed proposal for validation.  This might
-    /// be after execution-time but all nodes need to review this information
-    Proposal(Proposal)
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConsensusDataWithBlock<T> {
+    pub data:  T,
+    pub block: u64
 }
-/// Listener for consensus data
-pub trait ConsensusListener: Send + Sync + 'static {
-    /// subscribes to new messages from our consensus
-    fn subscribe_messages(&self) -> Pin<Box<dyn Stream<Item = ConsensusMessage>>>;
+
+pub trait ConsensusHandle: Send + Sync + Clone + Unpin + 'static {
+    fn subscribe_empty_block_attestations(
+        &self
+    ) -> Pin<Box<dyn Stream<Item = ConsensusDataWithBlock<Bytes>> + Send>>;
+
+    fn get_current_leader(
+        &self
+    ) -> impl Future<Output = eyre::Result<ConsensusDataWithBlock<Address>>> + Send;
+
+    fn fetch_consensus_state(
+        &self
+    ) -> impl Future<Output = eyre::Result<ConsensusDataWithBlock<HashSet<AngstromValidator>>>> + Send;
+}
+
+#[derive(Clone)]
+pub struct ConsensusHandler(pub tokio::sync::mpsc::UnboundedSender<ConsensusRequest>);
+
+impl ConsensusHandle for ConsensusHandler {
+    async fn get_current_leader(&self) -> eyre::Result<ConsensusDataWithBlock<Address>> {
+        let (tx, rx) = oneshot::channel();
+        self.0.send(ConsensusRequest::CurrentLeader(tx))?;
+
+        rx.await.map_err(Into::into)
+    }
+
+    async fn fetch_consensus_state(
+        &self
+    ) -> eyre::Result<ConsensusDataWithBlock<HashSet<AngstromValidator>>> {
+        let (tx, rx) = oneshot::channel();
+        self.0.send(ConsensusRequest::CurrentConsensusState(tx))?;
+
+        rx.await.map_err(Into::into)
+    }
+
+    fn subscribe_empty_block_attestations(
+        &self
+    ) -> Pin<Box<dyn Stream<Item = ConsensusDataWithBlock<Bytes>> + Send>> {
+        let (tx, rx) = channel(5);
+        let _ = self.0.send(ConsensusRequest::SubscribeAttestations(tx));
+
+        Box::pin(ReceiverStream::new(rx))
+    }
+}
+
+pub enum ConsensusRequest {
+    CurrentLeader(oneshot::Sender<ConsensusDataWithBlock<Address>>),
+    CurrentConsensusState(oneshot::Sender<ConsensusDataWithBlock<HashSet<AngstromValidator>>>),
+    SubscribeAttestations(mpsc::Sender<ConsensusDataWithBlock<Bytes>>)
 }

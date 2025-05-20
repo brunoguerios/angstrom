@@ -22,7 +22,18 @@ use crate::{
 // This currently exists in types::sol_bindings as well, but that one is
 // outdated so I'm building a new one here for now and then migrating
 #[derive(
-    PadeEncode, PadeDecode, Clone, Default, Debug, Hash, PartialEq, Eq, Serialize, Deserialize,
+    PadeEncode,
+    PadeDecode,
+    Clone,
+    Default,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Ord,
+    PartialOrd,
 )]
 pub struct TopOfBlockOrder {
     pub use_internal:     bool,
@@ -59,6 +70,11 @@ impl TopOfBlockOrder {
             valid_for_block: block,
             meta:            Default::default()
         }
+    }
+
+    pub fn user_address(&self, pair: &[Pair], asset: &[Asset], block: u64) -> Address {
+        self.signature
+            .recover_signer(self.signing_hash(pair, asset, block))
     }
 
     pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {

@@ -55,15 +55,19 @@ impl BundleWashTraderEnv {
         let block = provider.get_block_number().await.unwrap();
 
         let pools =
-            fetch_angstrom_pools(7838402, block as usize, cli.angstrom_address, &provider).await;
+            fetch_angstrom_pools(8276506, block as usize, cli.angstrom_address, &provider).await;
 
         let uniswap_registry: UniswapPoolRegistry = pools.into();
 
         let mut ang_pools = Vec::new();
 
-        for pool_priv_key in uniswap_registry.private_keys() {
+        for (private, pub_k) in uniswap_registry
+            .private_keys()
+            .zip(uniswap_registry.public_keys())
+        {
             let data_loader = DataLoader::new_with_registry(
-                pool_priv_key,
+                private,
+                pub_k,
                 uniswap_registry.clone(),
                 cli.pool_manager_address
             );
@@ -163,7 +167,7 @@ where
     P: Provider
 {
     let mut filters = vec![];
-    let controller_address = address!("0x4De4326613020a00F5545074bC578C87761295c7");
+    let controller_address = address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674");
 
     loop {
         let this_end_block = std::cmp::min(deploy_block + 99_999, end_block);

@@ -11,7 +11,7 @@ use crate::{
     order::{
         OrderValidationRequest, OrderValidationResults,
         order_validator::OrderValidator,
-        sim::{BOOK_GAS, TOB_GAS},
+        sim::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL},
         state::{db_state_utils::StateFetchUtils, pools::PoolsTracker}
     }
 };
@@ -41,10 +41,11 @@ pub enum ValidationRequest {
         order_hash: B256
     },
     GasEstimation {
-        sender:  tokio::sync::oneshot::Sender<eyre::Result<U256>>,
-        is_book: bool,
-        token_0: Address,
-        token_1: Address
+        sender:      tokio::sync::oneshot::Sender<eyre::Result<U256>>,
+        is_book:     bool,
+        is_internal: bool,
+        token_0:     Address,
+        token_1:     Address
     }
 }
 
@@ -86,7 +87,6 @@ where
                 self.utils.metrics.clone()
             ),
             ValidationRequest::Bundle { sender, bundle } => {
-                println!("{:#?}", bundle);
                 tracing::debug!("simulating bundle");
                 let bn = self
                     .order_validator
@@ -107,15 +107,23 @@ where
                     self.order_validator
                         .on_new_block(block_number, orders, addresses);
                 });
+
+                let gas_updates = self.utils.token_pricing_ref().generate_gas_updates();
                 sender
-                    .send(OrderValidationResults::TransitionedToBlock)
+                    .send(OrderValidationResults::TransitionedToBlock(gas_updates))
                     .unwrap();
             }
             ValidationRequest::Nonce { sender, user_address } => {
                 let nonce = self.order_validator.fetch_nonce(user_address);
                 let _ = sender.send(nonce);
             }
-            ValidationRequest::GasEstimation { sender, is_book, mut token_0, mut token_1 } => {
+            ValidationRequest::GasEstimation {
+                sender,
+                is_book,
+                is_internal,
+                mut token_0,
+                mut token_1
+            } => {
                 if token_0 > token_1 {
                     std::mem::swap(&mut token_0, &mut token_1);
                 }
@@ -128,7 +136,13 @@ where
                     let _ = sender.send(Err(eyre::eyre!("not valid token pair")));
                     return;
                 };
-                let gas_in_wei = if is_book { BOOK_GAS } else { TOB_GAS };
+                let gas_in_wei = match (is_book, is_internal) {
+                    (true, true) => BOOK_GAS_INTERNAL,
+                    (false, true) => TOB_GAS_INTERNAL,
+                    (true, false) => BOOK_GAS,
+                    (false, false) => TOB_GAS
+                };
+
                 let amount = cvrt.inverse_quantity(gas_in_wei as u128, false);
 
                 let _ = sender.send(Ok(U256::from(amount)));

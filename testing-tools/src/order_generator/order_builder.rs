@@ -1,6 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use alloy::primitives::{I256, U256};
+use alloy_primitives::Address;
 use angstrom_types::{
     matching::{Ray, SqrtPriceX96},
     primitive::AngstromSigner,
@@ -17,16 +18,27 @@ use crate::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
 pub struct OrderBuilder {
     keys:      Vec<AngstromSigner>,
+    t0:        Address,
+    t1:        Address,
     /// pools to based orders off of
     pool_data: SyncedUniswapPool
 }
 
 impl OrderBuilder {
     pub fn new(pool_data: SyncedUniswapPool) -> Self {
-        Self { keys: vec![AngstromSigner::random(); 10], pool_data }
+        let lock = pool_data.read().unwrap();
+        let t0 = lock.token0;
+        let t1 = lock.token1;
+        drop(lock);
+
+        Self { keys: vec![AngstromSigner::random(); 10], pool_data, t0, t1 }
     }
 
-    pub fn build_tob_order(&self, cur_price: f64, block_number: u64) -> TopOfBlockOrder {
+    pub fn get_token0_token1(&self) -> (Address, Address) {
+        (self.t0, self.t1)
+    }
+
+    pub fn build_tob_order(&self, cur_price: f64, block_number: u64, gas: u128) -> TopOfBlockOrder {
         let pool = self.pool_data.read().unwrap();
 
         // convert price to sqrtx96
@@ -62,6 +74,12 @@ impl OrderBuilder {
         let range = (amount_in / 100).max(101);
         amount_in += rng.random_range(100..range);
 
+        if zfo {
+            amount_in += gas;
+        } else {
+            amount_out += gas;
+        }
+
         ToBOrderBuilder::new()
             .signing_key(self.keys.get(rng.random_range(0..10)).cloned())
             .asset_in(if zfo { token0 } else { token1 })
@@ -69,6 +87,7 @@ impl OrderBuilder {
             .quantity_in(amount_in)
             .quantity_out(amount_out)
             .valid_block(block_number)
+            .max_gas(gas * 2)
             .build()
     }
 
@@ -76,7 +95,8 @@ impl OrderBuilder {
         &self,
         cur_price: f64,
         block_number: u64,
-        partial_pct: f64
+        partial_pct: f64,
+        gas: u128
     ) -> AllOrders {
         let mut rng = rand::rng();
         let is_partial = rng.random_bool(partial_pct);
@@ -133,6 +153,7 @@ impl OrderBuilder {
             .is_standing(rng.random_bool(0.5))
             .deadline(U256::from(deadline))
             .nonce(rng.random())
+            .max_gas(gas)
             .exact_in(exact_in)
             .min_price(price)
             .block(block_number)

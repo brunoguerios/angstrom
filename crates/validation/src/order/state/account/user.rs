@@ -42,36 +42,36 @@ impl LiveState {
 
         let (angstrom_delta, token_delta) = if order.use_internal() {
             if self.angstrom_balance < amount_in {
-                return Err(UserAccountVerificationError::InsufficientBalance(
-                    hash,
-                    self.token,
-                    (amount_in - self.angstrom_balance).to()
-                ));
+                return Err(UserAccountVerificationError::InsufficientBalance {
+                    order_hash: hash,
+                    token_in:   self.token,
+                    amount:     (amount_in - self.angstrom_balance).to()
+                });
             }
             (amount_in, U256::ZERO)
         } else {
             match (self.approval < amount_in, self.balance < amount_in) {
                 (true, true) => {
-                    return Err(UserAccountVerificationError::InsufficientBoth(
-                        hash,
-                        self.token,
-                        (amount_in - self.balance).to(),
-                        (amount_in - self.approval).to()
-                    ));
+                    return Err(UserAccountVerificationError::InsufficientBoth {
+                        order_hash:      hash,
+                        token_in:        self.token,
+                        amount_balance:  (amount_in - self.balance).to(),
+                        amount_approval: (amount_in - self.approval).to()
+                    });
                 }
                 (true, false) => {
-                    return Err(UserAccountVerificationError::InsufficientApproval(
-                        hash,
-                        self.token,
-                        (amount_in - self.approval).to()
-                    ));
+                    return Err(UserAccountVerificationError::InsufficientApproval {
+                        order_hash: hash,
+                        token_in:   self.token,
+                        amount:     (amount_in - self.approval).to()
+                    });
                 }
                 (false, true) => {
-                    return Err(UserAccountVerificationError::InsufficientBalance(
-                        hash,
-                        self.token,
-                        (amount_in - self.balance).to()
-                    ));
+                    return Err(UserAccountVerificationError::InsufficientBalance {
+                        order_hash: hash,
+                        token_in:   self.token,
+                        amount:     (amount_in - self.balance).to()
+                    });
                 }
                 // is fine
                 (false, false) => {}
@@ -104,14 +104,14 @@ impl LiveState {
     /// one is a zero for 1 swap with an exact out specified
     fn fetch_amount_in<O: RawPoolOrder>(&self, order: &O) -> U256 {
         let ray_price = Ray::from(order.limit_price());
-        U256::from(if order.is_bid() && !order.exact_in() {
-            ray_price
-                .inv_ray()
-                .inverse_quantity(order.amount() + order.max_gas_token_0(), true)
-        } else if !order.is_bid() && !order.exact_in() {
-            ray_price.inverse_quantity(order.amount(), true) + order.max_gas_token_0()
-        } else {
-            order.amount()
+        U256::from(match (order.is_bid(), order.exact_in()) {
+            (true, false) => {
+                ray_price.inverse_quantity(order.amount() + order.max_gas_token_0(), true)
+            }
+            (false, false) => {
+                ray_price.inverse_quantity(order.amount(), true) + order.max_gas_token_0()
+            }
+            _ => order.amount()
         })
     }
 }

@@ -12,5 +12,13 @@ pub enum OrderOrigin {
     /// This type of Order should not be propagated to the network. It's
     /// meant for private usage within the local node, or other composable
     /// mev-angstroms.
-    Private
+    Private,
+    /// when we already have validated this order in the past
+    ReValidation
+}
+
+impl OrderOrigin {
+    pub fn is_revalidating(&self) -> bool {
+        matches!(self, OrderOrigin::ReValidation)
+    }
 }

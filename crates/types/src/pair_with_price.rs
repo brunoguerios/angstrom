@@ -1,12 +1,15 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
-use alloy::{consensus::Transaction, primitives::Address};
+use alloy::{consensus::Transaction, primitives::Address, providers::Provider, sol_types::SolCall};
 use futures::{Stream, StreamExt};
 use pade::PadeDecode;
 use reth_primitives_traits::BlockBody;
 use reth_provider::CanonStateNotificationStream;
 
-use crate::{contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray};
+use crate::{
+    contract_bindings::angstrom::Angstrom::executeCall,
+    contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray
+};
 
 /// represents the price settled on angstrom between two tokens
 #[derive(Debug, Clone, Copy)]
@@ -34,29 +37,46 @@ impl PairsWithPrice {
             .collect::<Vec<_>>()
     }
 
-    pub fn into_price_update_stream(
+    pub fn into_price_update_stream<P: Provider + 'static>(
         angstrom_address: Address,
-        stream: CanonStateNotificationStream
-    ) -> impl Stream<Item = Vec<Self>> + Send + Sync {
-        stream.map(move |notification| {
-            let new_cannon_chain = match notification {
-                reth_provider::CanonStateNotification::Reorg { new, .. } => new,
-                reth_provider::CanonStateNotification::Commit { new } => new
-            };
-            let block_num = new_cannon_chain.tip().number;
-            new_cannon_chain
-                .tip()
-                .body()
-                .clone_transactions()
-                .into_iter()
-                .filter(|tx| tx.to() == Some(angstrom_address))
-                .filter_map(|transaction| {
-                    let mut input: &[u8] = transaction.input();
-                    AngstromBundle::pade_decode(&mut input, None).ok()
-                })
-                .take(1)
-                .flat_map(|bundle| Self::from_angstrom_bundle(block_num, &bundle))
-                .collect::<Vec<_>>()
+        stream: CanonStateNotificationStream,
+        provider: Arc<P>
+    ) -> impl Stream<Item = (u128, Vec<Self>)> + Send {
+        stream.then(move |notification| {
+            let provider = provider.clone();
+            async move {
+                let new_cannon_chain = match notification {
+                    reth_provider::CanonStateNotification::Reorg { new, .. } => new,
+                    reth_provider::CanonStateNotification::Commit { new } => new
+                };
+                let gas_wei = provider.get_gas_price().await.unwrap_or_default();
+                let block_num = new_cannon_chain.tip().number;
+                (
+                    gas_wei,
+                    new_cannon_chain
+                        .tip()
+                        .body()
+                        .clone_transactions()
+                        .into_iter()
+                        .filter(|tx| tx.to() == Some(angstrom_address))
+                        .filter_map(|transaction| {
+                            let input: &[u8] = transaction.input();
+                            let b = executeCall::abi_decode(input).unwrap().encoded;
+                            let mut bytes = b.as_ref();
+
+                            AngstromBundle::pade_decode(&mut bytes, None).ok()
+                        })
+                        .take(1)
+                        .flat_map(|bundle| Self::from_angstrom_bundle(block_num, &bundle))
+                        .collect::<Vec<_>>()
+                )
+            }
         })
+    }
+
+    pub fn replace_price_if_empty(&mut self, pool_price_local: impl FnOnce() -> Ray) {
+        if self.price_1_over_0.is_zero() {
+            self.price_1_over_0 = pool_price_local();
+        }
     }
 }

@@ -17,6 +17,7 @@ use base64::Engine;
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
+use serde::{Deserialize, Serialize};
 use tracing::{Level, debug, error, trace, warn};
 
 use super::{
@@ -46,7 +47,11 @@ mod tob;
 pub use order::{OrderQuantities, StandingValidation, UserOrder};
 pub use tob::*;
 
-#[derive(Debug, PadeEncode, PadeDecode)]
+const LP_DONATION_SPLIT: f64 = 0.75;
+
+#[derive(
+    Debug, PadeEncode, PadeDecode, Clone, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord,
+)]
 pub struct AngstromBundle {
     pub assets:              Vec<Asset>,
     pub pairs:               Vec<Pair>,
@@ -200,6 +205,17 @@ impl AngstromBundle {
                 tracing::info!(?address, "solid delta");
             }
         }
+    }
+
+    pub fn get_accounts(&self, block_number: u64) -> impl Iterator<Item = Address> + '_ {
+        self.top_of_block_orders
+            .iter()
+            .map(move |order| order.user_address(&self.pairs, &self.assets, block_number))
+            .chain(
+                self.user_orders.iter().map(move |order| {
+                    order.recover_signer(&self.pairs, &self.assets, block_number)
+                })
+            )
     }
 
     /// the block number is the block that this bundle was executed at.
@@ -559,6 +575,10 @@ impl AngstromBundle {
             Some(book_swap_vec)
         };
 
+        // add user donation split
+        let total_lp_user_donate = (total_user_fees as f64 * LP_DONATION_SPLIT) as u128;
+        let save_amount = total_user_fees - total_lp_user_donate;
+
         // We then use `post_tob_price` as the start price for our book swap, just as
         // our matcher did.  We want to use the representation of the book swap
         // (`book_swap_vec`) to distribute any extra rewards from our book matching.
@@ -572,7 +592,7 @@ impl AngstromBundle {
         // book.  So let's do that
         let book_donation_vec = book_swap_vec
             .as_ref()
-            .map(|bsv| bsv.t0_donation_vec(solution.reward_t0));
+            .map(|bsv| bsv.t0_donation_vec(solution.reward_t0 + total_lp_user_donate));
 
         let tob_donation_vec = tob_swap_info
             .as_ref()
@@ -589,7 +609,7 @@ impl AngstromBundle {
         let total_donation = donation
             .as_ref()
             .map(|d| d.total_donated)
-            .unwrap_or(solution.reward_t0);
+            .unwrap_or(solution.reward_t0 + total_lp_user_donate);
 
         // Find our net AMM vec by combining T0s.  There's not a specific reason we use
         // T0 for this, we might want to make this a bit more robust or careful
@@ -657,11 +677,8 @@ impl AngstromBundle {
 
         // Allocate the reward quantity
         asset_builder.allocate(AssetBuilderStage::Reward, t0, total_donation);
-        // We don't really have user fees right now but if some sneak in, let's save
-        // them.  We shouldn't call this gas fee, should overhaul this whole construct
-        // This is really wonky overall argh
-        asset_builder.allocate(AssetBuilderStage::Reward, t0, total_user_fees);
-        asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, total_user_fees);
+        asset_builder.allocate(AssetBuilderStage::Reward, t0, save_amount);
+        asset_builder.add_gas_fee(AssetBuilderStage::Reward, t0, save_amount);
         // Account for our tribute
 
         let (rewards_update, optional_reward) = donation
@@ -813,12 +830,14 @@ impl AngstromBundle {
         // fetch gas used
         // Walk through our solutions to add them to the structure
         for solution in proposal.solutions.iter().sorted_unstable_by_key(|k| {
-            let Some((_, _, _, store_index)) = pools.get(&k.id) else {
+            let Some((t0, t1, ..)) = pools.get(&k.id) else {
                 // This should never happen but let's handle it as gracefully as possible -
                 // right now will skip the pool, not produce an error
-                return 0u16;
+                return 0usize;
             };
-            *store_index
+            let t0_idx = asset_builder.add_or_get_asset(*t0);
+            let t1_idx = asset_builder.add_or_get_asset(*t1);
+            (t0_idx << 16) | t1_idx
         }) {
             // Get the information for the pool or skip this solution if we can't find a
             // pool for it
@@ -849,8 +868,6 @@ impl AngstromBundle {
             )?;
         }
 
-        // shouldn't need
-        // pairs.sort_unstable_by_key(|k| k.store_index);
         Ok(Self::new(
             asset_builder.get_asset_array(),
             pairs,
@@ -901,12 +918,14 @@ impl AngstromBundle {
 
         // Walk through our solutions to add them to the structure
         for solution in solutions.iter().sorted_unstable_by_key(|k| {
-            let Some((_, _, _, store_index)) = pools.get(&k.id) else {
+            let Some((t0, t1, ..)) = pools.get(&k.id) else {
                 // This should never happen but let's handle it as gracefully as possible -
                 // right now will skip the pool, not produce an error
-                return 0u16;
+                return 0usize;
             };
-            *store_index
+            let t0_idx = asset_builder.add_or_get_asset(*t0);
+            let t1_idx = asset_builder.add_or_get_asset(*t1);
+            (t0_idx << 16) | t1_idx
         }) {
             println!("Processing solution");
             // Get the information for the pool or skip this solution if we can't find a
@@ -936,8 +955,7 @@ impl AngstromBundle {
                 None
             )?;
         }
-        // don't think this is needed as we sort before by this.
-        // pairs.sort_unstable_by_key(|k| k.store_index);
+
         Ok(Self::new(
             asset_builder.get_asset_array(),
             pairs,
@@ -1016,6 +1034,7 @@ impl AngstromPoolConfigStore {
         // offset of 6 bytes
         let value = provider
             .get_storage_at(angstrom_contract, U256::from(CONFIG_STORE_SLOT))
+            .block_id(block_id)
             .await
             .map_err(|e| format!("Error getting storage: {}", e))?;
 
@@ -1044,7 +1063,16 @@ impl AngstromPoolConfigStore {
     pub fn remove_pair(&self, asset0: Address, asset1: Address) {
         let key = Self::derive_store_key(asset0, asset1);
 
-        self.entries.remove(&key);
+        let Some((_, entry)) = self.entries.remove(&key) else { return };
+        let index = entry.store_index;
+
+        // if we have any indexes that are GT the index we remove, we subtract 1 from it
+        self.entries.iter_mut().for_each(|mut f| {
+            let v = f.value_mut();
+            if v.store_index > index {
+                v.store_index -= 1;
+            }
+        })
     }
 
     pub fn new_pool(&self, asset0: Address, asset1: Address, pool: AngPoolConfigEntry) {

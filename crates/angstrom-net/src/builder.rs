@@ -104,7 +104,9 @@ impl<P: Peers + Unpin + 'static> NetworkBuilder<P> {
 
         let handle = network.get_handle();
 
-        tp.spawn_critical("network", Box::pin(network));
+        tp.spawn_critical_with_graceful_shutdown_signal("network", async |shutdown| {
+            network.run_until_graceful_shutdown(shutdown).await
+        });
 
         handle
     }

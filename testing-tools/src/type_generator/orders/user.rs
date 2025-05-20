@@ -116,6 +116,14 @@ impl UserOrderBuilder {
         Self { exact_in, ..self }
     }
 
+    pub fn max_gas(self, gas: u128) -> Self {
+        if gas == 0 {
+            return self;
+        }
+
+        Self { gas_0: Some(gas), ..self }
+    }
+
     pub fn min_price(self, min_price: Ray) -> Self {
         Self { min_price, ..self }
     }
@@ -132,6 +140,35 @@ impl UserOrderBuilder {
         Self { gas_0: Some(gas), ..self }
     }
 
+    pub fn ensure_scaled_for_price(&mut self) {
+        if self.gas_0.is_none() {
+            return;
+        }
+        if self.asset_in < self.asset_out {
+            if self.exact_in {
+                self.amount += self.gas_0.unwrap_or_default();
+            } else {
+                if self.min_price.is_zero() {
+                    return;
+                }
+                // if zero for 1, t1 / t0
+                self.amount += self
+                    .min_price
+                    .mul_quantity(U256::from(self.gas_0.unwrap_or(1)))
+                    .to::<u128>();
+            }
+        } else if self.exact_in {
+            if self.min_price.is_zero() {
+                return;
+            }
+            self.amount += self
+                .min_price
+                .inverse_quantity(self.gas_0.unwrap_or(1), true);
+        } else {
+            self.amount += self.gas_0.unwrap_or_default();
+        };
+    }
+
     // returns at zero
     pub fn get_max_fee_zero(&mut self) -> u128 {
         // partials are always exact in
@@ -143,7 +180,7 @@ impl UserOrderBuilder {
         }
 
         // zero for 1
-        if self.asset_in < self.asset_out {
+        let backup_gas = if self.asset_in < self.asset_out {
             if self.exact_in {
                 self.amount / 5
             } else {
@@ -163,7 +200,10 @@ impl UserOrderBuilder {
                 / 5
         } else {
             self.amount / 5
-        }
+        };
+
+        self.gas_0 = Some(backup_gas);
+        backup_gas
     }
 
     pub fn valid_min_qty(&mut self) -> u128 {
@@ -182,13 +222,14 @@ impl UserOrderBuilder {
     }
 
     pub fn build(mut self) -> AllOrders {
+        self.ensure_scaled_for_price();
         match (self.is_standing, self.is_exact) {
             (true, true) => {
                 let mut order = ExactStandingOrder {
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
                     amount: self.amount,
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     nonce: self.nonce,
@@ -213,7 +254,7 @@ impl UserOrderBuilder {
                     asset_out: self.asset_out,
                     max_amount_in: self.amount,
                     min_amount_in: self.valid_min_qty(),
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     nonce: self.nonce,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -236,8 +277,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
-
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     amount: self.amount,
                     min_price: *self.min_price,
                     recipient: self.recipient,
@@ -260,7 +300,7 @@ impl UserOrderBuilder {
                     valid_for_block: self.block,
                     asset_in: self.asset_in,
                     asset_out: self.asset_out,
-                    max_extra_fee_asset0: self.get_max_fee_zero(),
+                    max_extra_fee_asset0: self.gas_0.unwrap_or_else(|| self.get_max_fee_zero()),
                     max_amount_in: self.amount,
                     min_amount_in: self.valid_min_qty(),
                     min_price: *self.min_price,

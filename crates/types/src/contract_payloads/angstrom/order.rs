@@ -1,5 +1,6 @@
 use alloy::primitives::{Address, B256, Bytes, U256, aliases::U40};
 use pade_macro::{PadeDecode, PadeEncode};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
@@ -15,7 +16,9 @@ use crate::{
     }
 };
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode)]
+#[derive(
+    Debug, Clone, PadeEncode, PadeDecode, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub enum OrderQuantities {
     Exact { quantity: u128 },
     Partial { min_quantity_in: u128, max_quantity_in: u128, filled_quantity: u128 }
@@ -30,7 +33,9 @@ impl OrderQuantities {
     }
 }
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode)]
+#[derive(
+    Debug, Clone, PadeEncode, PadeDecode, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub struct StandingValidation {
     nonce:    u64,
     // 40 bits wide in reality
@@ -52,12 +57,14 @@ impl StandingValidation {
     }
 }
 
-#[derive(Debug, Clone, PadeEncode, PadeDecode)]
+#[derive(
+    Debug, Clone, PadeEncode, PadeDecode, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub struct UserOrder {
     pub ref_id:               u32,
     pub use_internal:         bool,
     pub pair_index:           u16,
-    pub min_price:            alloy::primitives::U256,
+    pub min_price:            U256,
     pub recipient:            Option<Address>,
     pub hook_data:            Option<Bytes>,
     pub zero_for_one:         bool,
@@ -70,13 +77,16 @@ pub struct UserOrder {
 }
 
 impl UserOrder {
+    pub fn recover_signer(&self, pair: &[Pair], asset: &[Asset], block: u64) -> Address {
+        self.signature
+            .recover_signer(self.signing_hash(pair, asset, block))
+    }
+
     pub fn order_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
         // need so we can generate proper order hash.
-        let from = self
-            .signature
-            .recover_signer(self.signing_hash(pair, asset, block));
-
+        let from = self.recover_signer(pair, asset, block);
         let pair = &pair[self.pair_index as usize];
+
         match self.order_quantities {
             OrderQuantities::Exact { quantity } => {
                 if let Some(validation) = &self.standing_validation {
@@ -303,7 +313,7 @@ impl UserOrder {
     pub fn from_internal_order(
         order: &OrderWithStorageData<AllOrders>,
         outcome: &OrderOutcome,
-        shared_gas: U256,
+        _: U256,
         pair_index: u16
     ) -> eyre::Result<Self> {
         let (order_quantities, standing_validation, recipient) = match &order.order {
@@ -345,7 +355,7 @@ impl UserOrder {
         let hook_data = if hook_bytes.is_empty() { None } else { Some(hook_bytes) };
 
         let recipient = (!recipient.is_zero()).then_some(recipient);
-        let gas_used: u128 = (order.priority_data.gas + shared_gas).to();
+        let gas_used: u128 = (order.priority_data.gas).to();
         if gas_used > order.max_gas_token_0() {
             return Err(eyre::eyre!("order used more gas than allocated"));
         }

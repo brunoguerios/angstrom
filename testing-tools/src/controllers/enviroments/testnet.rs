@@ -52,6 +52,7 @@ where
             current_max_peer_id: 0,
             config: config.clone(),
             block_provider,
+            block_syncs: vec![],
             _anvil_instance: None
         };
 
@@ -63,8 +64,13 @@ where
     }
 
     pub async fn run_to_completion<TP: TaskSpawner>(mut self, executor: TP) {
+        for s in self.block_syncs {
+            s.clear();
+        }
+        tracing::info!("cleared blocksyncs, run to cmp");
+
         let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
-            executor.spawn_critical_blocking(
+            executor.spawn_critical(
                 format!("testnet node {}", peer.testnet_node_id()).leak(),
                 Box::pin(peer.testnet_future())
             )
@@ -88,7 +94,7 @@ where
     {
         let mut initial_angstrom_state = None;
 
-        let mut configs = (0..self.config.node_count())
+        let configs = (0..self.config.node_count())
             .map(|_| {
                 let node_id = self.incr_peer_id();
                 TestingNodeConfig::new(node_id, self.config.clone(), 100)
@@ -105,11 +111,9 @@ where
             .collect::<Vec<_>>();
 
         // initialize leader provider
-        let front = configs.remove(0);
-        let l_block_sync = GlobalBlockSync::new(0);
+        let front = configs.first().unwrap().clone();
         let leader_provider = Rc::new(Cell::new(
             self.initalize_leader_provider(
-                l_block_sync.clone(),
                 front,
                 &mut initial_angstrom_state,
                 node_addresses,
@@ -121,8 +125,6 @@ where
 
         let nodes = futures::stream::iter(configs.into_iter())
             .map(|node_config| {
-                let block_s = l_block_sync.clone();
-                let block_st = self.block_provider.subscribe_to_new_blocks();
                 let c = c.clone();
                 let initial_validators = initial_validators.clone();
                 let initial_angstrom_state = initial_angstrom_state.clone().unwrap();
@@ -132,16 +134,20 @@ where
 
                 async move {
                     let node_id = node_config.node_id;
-                    let block_sync = if node_id == 0 { block_s } else { GlobalBlockSync::new(0) };
+                    let block_sync = GlobalBlockSync::new(0);
 
                     tracing::info!(node_id, "connecting to state provider");
                     let provider = if node_id == 0 {
+                        tracing::info!("replaced leader provider");
+                        let mut config = node_config.clone();
+                        // change so we don't spawn a new anvil instance
+                        config.node_id = 69;
+
                         leader_provider.replace(
                             AnvilProvider::new(
-                                WalletProvider::new(node_config.clone())
+                                WalletProvider::new(config)
                                     .then(async |v| v.map(|i| (i.0, i.1, None))),
-                                true,
-                                block_sync.clone()
+                                true
                             )
                             .await?
                         )
@@ -150,8 +156,7 @@ where
                         AnvilProvider::new(
                             WalletProvider::new(node_config.clone())
                                 .then(async |v| v.map(|i| (i.0, i.1, None))),
-                            true,
-                            block_sync.clone()
+                            true
                         )
                         .await?
                     };
@@ -166,9 +171,8 @@ where
                         provider,
                         initial_validators,
                         initial_angstrom_state,
-                        block_st,
                         agents.clone(),
-                        block_sync,
+                        block_sync.clone(),
                         ex.clone()
                     )
                     .await?;
@@ -176,7 +180,7 @@ where
 
                     tracing::info!(node_id, "made angstrom node");
 
-                    eyre::Ok((node_id, node))
+                    eyre::Ok((node_id, node, block_sync))
                 }
             })
             .buffer_unordered(100)
@@ -184,7 +188,9 @@ where
             .await;
 
         for res in nodes {
-            let (node_id, mut node) = res?;
+            let (node_id, mut node, bs) = res?;
+            bs.clear();
+
             node.connect_to_all_peers(&mut self.peers).await;
             self.peers.insert(node_id, node);
         }
@@ -194,14 +200,13 @@ where
 
     async fn initalize_leader_provider(
         &mut self,
-        block_sync: GlobalBlockSync,
         node_config: TestingNodeConfig<TestnetConfig>,
         initial_angstrom_state: &mut Option<InitialTestnetState>,
         node_addresses: Vec<Address>,
         ex: TaskExecutor
     ) -> eyre::Result<AnvilProvider<WalletProvider>> {
         let (p, initial_state) = self
-            .leader_initialization(node_config.clone(), block_sync.clone(), node_addresses, ex)
+            .leader_initialization(node_config.clone(), node_addresses, ex)
             .await?;
         *initial_angstrom_state = Some(initial_state);
         Ok(p)
@@ -210,15 +215,13 @@ where
     async fn leader_initialization(
         &mut self,
         config: TestingNodeConfig<TestnetConfig>,
-        block_sync: GlobalBlockSync,
         node_addresses: Vec<Address>,
         ex: TaskExecutor
     ) -> eyre::Result<(AnvilProvider<WalletProvider>, InitialTestnetState)> {
         let mut provider = AnvilProvider::new(
             AnvilInitializer::new(config.clone(), node_addresses)
                 .then(async |v| v.map(|i| (i.0, i.1, Some(i.2)))),
-            true,
-            block_sync
+            true
         )
         .await?;
         self._anvil_instance = Some(provider._instance.take().unwrap());

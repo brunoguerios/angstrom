@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -8,14 +9,13 @@ pub mod protocol_handler;
 pub use protocol_handler::*;
 
 pub mod strom;
-use futures::Stream;
 pub use strom::*;
 pub mod config;
 pub use config::*;
 use futures::task::Context;
 pub mod connection_handler;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::Debug,
     net::SocketAddr,
     ops::Deref,
@@ -25,10 +25,9 @@ use std::{
 
 use angstrom_types::primitive::PeerId;
 pub use connection_handler::*;
-use futures::task::Poll;
+use futures::{Stream, task::Poll};
 use reth_eth_wire::DisconnectReason;
 use reth_network::Direction;
-use tracing::warn;
 
 use crate::{StromMessage, StromProtocolMessage, errors::StromStreamError};
 
@@ -45,7 +44,7 @@ impl CachedPeer {
 
     pub fn enr(&self) -> String {
         format!(
-            "enode://{:?}@{}:{}?discport=30303", // TODO: get discport?
+            "enode://{:?}@{}:{}?discport=30303",
             self.peer_id,
             self.addr.ip(),
             30303 // self.addr.port()
@@ -86,12 +85,13 @@ pub struct StromSessionManager {
     /// Channel to receive the session handle upon initialization from the
     /// connection handler This channel is also used to receive messages
     /// from the session
-    pub(crate) from_sessions: mpsc::Receiver<StromSessionMessage>
+    pub(crate) from_sessions: mpsc::Receiver<StromSessionMessage>,
+    msg_buf:                  VecDeque<SessionEvent>
 }
 
 impl StromSessionManager {
     pub fn new(from_sessions: mpsc::Receiver<StromSessionMessage>) -> Self {
-        Self { from_sessions, active_sessions: HashMap::default() }
+        Self { from_sessions, active_sessions: HashMap::default(), msg_buf: VecDeque::new() }
     }
 
     /// Sends a message to the peer's session
@@ -131,6 +131,28 @@ impl StromSessionManager {
     }
 
     fn poll_session_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<SessionEvent>> {
+        // before we process any data, lets ensure we haven't had any disconnects.
+        // we have to do this as we don't get any notifications of closing
+        // when our objects get dropped from reth so we just check
+        // to ensure all the handles channels are still open
+        let dead_peers = self
+            .active_sessions
+            .iter()
+            .filter_map(|(peer, session)| session.commands_to_session.is_closed().then_some(peer))
+            .copied()
+            .collect_vec();
+
+        for dead_peer in dead_peers {
+            let _ = self.active_sessions.remove(&dead_peer);
+            self.msg_buf
+                .push_back(SessionEvent::Disconnected { peer_id: dead_peer });
+        }
+
+        if let Some(next) = self.msg_buf.pop_front() {
+            cx.waker().wake_by_ref();
+            return Poll::Ready(Some(next));
+        }
+
         self.from_sessions.poll_recv(cx).map(|msg| {
             msg.and_then(|msg_inner| match msg_inner {
                 StromSessionMessage::Disconnected { peer_id } => {
@@ -139,7 +161,7 @@ impl StromSessionManager {
                 }
                 StromSessionMessage::Established { handle } => {
                     if self.active_sessions.contains_key(&handle.remote_id) {
-                        warn!(peer_id=?handle.remote_id, "got duplicate connection");
+                        tracing:: warn!(peer_id=?handle.remote_id, "got duplicate connection");
                         handle.disconnect(None);
                         return None;
                     }
@@ -150,6 +172,8 @@ impl StromSessionManager {
                         timeout:   Arc::new(AtomicU64::new(40))
                     };
 
+                    // we don't need to worry about duplicate sessions as
+                    // underlying reth-node handles this
                     self.active_sessions.insert(handle.remote_id, handle);
                     Some(event)
                 }

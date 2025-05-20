@@ -31,6 +31,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[serial_test::serial]
     fn testnet_deploy() {
         init_tracing(4);
         let runner = reth::CliRunner::try_default_runtime().unwrap();

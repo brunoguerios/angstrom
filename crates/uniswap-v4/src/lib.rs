@@ -551,9 +551,13 @@ pub mod fuzz_uniswap {
         let mut ang_pools = Vec::new();
         let mut tokens = HashSet::new();
 
-        for pool_priv_key in uniswap_registry.private_keys() {
+        for (pool_priv_key, pub_key) in uniswap_registry
+            .private_keys()
+            .zip(uniswap_registry.public_keys())
+        {
             let data_loader = DataLoader::new_with_registry(
                 pool_priv_key,
+                pub_key,
                 uniswap_registry.clone(),
                 TESTNET_POOL_MANAGER_ADDRESS
             );

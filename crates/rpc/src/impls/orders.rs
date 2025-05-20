@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use alloy_primitives::{Address, B256, FixedBytes, U256};
+use alloy_primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::PoolId,
-    sol_bindings::grouped_orders::AllOrders
+    sol_bindings::{RawPoolOrder, grouped_orders::AllOrders}
 };
 use futures::StreamExt;
 use jsonrpsee::{PendingSubscriptionSink, SubscriptionMessage, core::RpcResult};
@@ -15,7 +15,8 @@ use validation::order::OrderValidatorHandle;
 use crate::{
     api::OrderApiServer,
     types::{
-        OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult, PendingOrder
+        CallResult, OrderSubscriptionFilter, OrderSubscriptionKind, OrderSubscriptionResult,
+        PendingOrder
     }
 };
 
@@ -38,12 +39,11 @@ where
     Spawner: TaskSpawner + 'static,
     Validator: OrderValidatorHandle
 {
-    async fn send_order(&self, order: AllOrders) -> RpcResult<Result<FixedBytes<32>, String>> {
-        Ok(self
-            .pool
-            .new_order(OrderOrigin::External, order)
-            .await
-            .map_err(|e| e.to_string()))
+    async fn send_order(&self, order: AllOrders) -> RpcResult<CallResult> {
+        match self.pool.new_order(OrderOrigin::External, order).await {
+            Ok(v) => Ok(CallResult::from_success(v)),
+            Err(e) => Ok(e.into())
+        }
     }
 
     async fn pending_order(&self, from: Address) -> RpcResult<Vec<PendingOrder>> {
@@ -63,19 +63,24 @@ where
     async fn estimate_gas(
         &self,
         is_book: bool,
+        is_internal: bool,
         token_0: Address,
         token_1: Address
     ) -> RpcResult<Result<U256, String>> {
-        let res = self.validator.estimate_gas(is_book, token_0, token_1).await;
+        let res = self
+            .validator
+            .estimate_gas(is_book, is_internal, token_0, token_1)
+            .await;
         Ok(res)
     }
 
-    async fn order_status(&self, order_hash: B256) -> RpcResult<OrderStatus> {
-        Ok(self
+    async fn order_status(&self, order_hash: B256) -> RpcResult<CallResult> {
+        let status = self
             .pool
             .fetch_order_status(order_hash)
             .await
-            .unwrap_or(OrderStatus::OrderNotFound))
+            .unwrap_or(OrderStatus::OrderNotFound);
+        Ok(CallResult::from_success(status))
     }
 
     async fn valid_nonce(&self, user: Address) -> RpcResult<u64> {
@@ -185,6 +190,10 @@ impl OrderFilterMatching for PoolManagerUpdate {
                 if kind.contains(&OrderSubscriptionKind::NewOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
+                            && order.is_tob())
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
+                            && !order.is_tob())
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::NewOrder(order.order))
@@ -193,6 +202,10 @@ impl OrderFilterMatching for PoolManagerUpdate {
                 if kind.contains(&OrderSubscriptionKind::FilledOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
+                            && order.is_tob())
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
+                            && !order.is_tob())
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::FilledOrder(block, order.order))
@@ -201,14 +214,20 @@ impl OrderFilterMatching for PoolManagerUpdate {
                 if kind.contains(&OrderSubscriptionKind::UnfilledOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
+                            && order.is_tob())
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
+                            && !order.is_tob())
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::UnfilledOrder(order.order))
             }
-            PoolManagerUpdate::CancelledOrder { order_hash, user, pool_id }
+            PoolManagerUpdate::CancelledOrder { is_tob, order_hash, user, pool_id }
                 if kind.contains(&OrderSubscriptionKind::CancelledOrders)
                     && (filter.contains(&OrderSubscriptionFilter::ByPair(pool_id))
                         || filter.contains(&OrderSubscriptionFilter::ByAddress(user))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB) && is_tob)
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook) && !is_tob)
                         || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
                 Some(OrderSubscriptionResult::CancelledOrder(order_hash))
@@ -227,7 +246,7 @@ impl OrderFilterMatching for PoolManagerUpdate {
 mod tests {
     use std::{future, future::Future};
 
-    use alloy_primitives::{Address, B256, U256};
+    use alloy_primitives::{Address, B256, FixedBytes, U256};
     use angstrom_network::pool_manager::OrderCommand;
     use angstrom_types::{
         orders::{OrderOrigin, OrderStatus},
@@ -381,6 +400,7 @@ mod tests {
         fn estimate_gas(
             &self,
             _is_book: bool,
+            _is_internal: bool,
             _token_0: Address,
             _token_1: Address
         ) -> GasEstimationFuture {

@@ -28,8 +28,33 @@ pub enum PoolManagerUpdate {
     NewOrder(OrderWithStorageData<AllOrders>),
     FilledOrder(u64, OrderWithStorageData<AllOrders>),
     UnfilledOrders(OrderWithStorageData<AllOrders>),
-    CancelledOrder { user: Address, pool_id: FixedBytes<32>, order_hash: B256 },
+    CancelledOrder {
+        is_tob:     bool,
+        user:       Address,
+        pool_id:    FixedBytes<32>,
+        order_hash: B256
+    },
     ExpiredOrder(B256)
+}
+impl PoolManagerUpdate {
+    pub fn order_id(&self) -> B256 {
+        match self {
+            Self::NewOrder(o) => o.order_id.hash,
+            Self::FilledOrder(_, o) => o.order_id.hash,
+            Self::UnfilledOrders(o) => o.order_id.hash,
+            Self::CancelledOrder { order_hash, .. } => *order_hash,
+            Self::ExpiredOrder(o) => *o
+        }
+    }
+
+    pub fn last_notification_for_order(&self) -> bool {
+        matches!(
+            self,
+            PoolManagerUpdate::FilledOrder(..)
+                | PoolManagerUpdate::ExpiredOrder(..)
+                | PoolManagerUpdate::CancelledOrder { .. }
+        )
+    }
 }
 
 /// The OrderPool Trait is how other processes can interact with the orderpool
