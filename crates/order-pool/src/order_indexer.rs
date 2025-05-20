@@ -136,9 +136,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 )
                 .into_iter()
                 .for_each(|order| {
-                    // otherwise we will have duplicate conflict
-                    self.validator
-                        .cancel_order(order.from(), order.order_hash());
                     self.validator
                         .validate_order(OrderOrigin::ReValidation, order.order);
                 });
