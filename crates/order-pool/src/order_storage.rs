@@ -9,7 +9,7 @@ use std::{
 use alloy::primitives::{B256, BlockNumber, FixedBytes};
 use angstrom_metrics::OrderStorageMetricsWrapper;
 use angstrom_types::{
-    orders::{OrderId, OrderLocation, OrderSet, OrderStatus},
+    orders::{OrderId, OrderLocation, OrderSet, OrderStatus, UpdatedGas},
     primitive::{NewInitializedPool, PoolId},
     sol_bindings::{
         grouped_orders::{AllOrders, OrderWithStorageData},
@@ -66,6 +66,18 @@ impl OrderStorage {
     pub fn remove_pool(&self, key: PoolId) {
         self.searcher_orders.lock().unwrap().remove_pool(&key);
         self.limit_orders.lock().unwrap().remove_pool(&key);
+    }
+
+    pub fn apply_new_gas_and_return_blocked_orders(
+        &self,
+        gas_updates: Vec<UpdatedGas>
+    ) -> Vec<AllOrders> {
+        let mut limit_lock = self.limit_orders.lock().unwrap();
+
+        gas_updates
+            .iter()
+            .flat_map(|gas_update| limit_lock.update_gas(gas_update))
+            .collect()
     }
 
     pub fn fetch_status_of_order(&self, order: B256) -> Option<OrderStatus> {

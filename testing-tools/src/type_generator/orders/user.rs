@@ -140,6 +140,35 @@ impl UserOrderBuilder {
         Self { gas_0: Some(gas), ..self }
     }
 
+    pub fn ensure_scaled_for_price(&mut self) {
+        if self.gas_0.is_none() {
+            return;
+        }
+        if self.asset_in < self.asset_out {
+            if self.exact_in {
+                self.amount += self.gas_0.unwrap_or_default();
+            } else {
+                if self.min_price.is_zero() {
+                    return;
+                }
+                // if zero for 1, t1 / t0
+                self.amount += self
+                    .min_price
+                    .mul_quantity(U256::from(self.gas_0.unwrap_or(1)))
+                    .to::<u128>();
+            }
+        } else if self.exact_in {
+            if self.min_price.is_zero() {
+                return;
+            }
+            self.amount += self
+                .min_price
+                .inverse_quantity(self.gas_0.unwrap_or(1), true);
+        } else {
+            self.amount += self.gas_0.unwrap_or_default();
+        };
+    }
+
     // returns at zero
     pub fn get_max_fee_zero(&mut self) -> u128 {
         // partials are always exact in
@@ -151,7 +180,7 @@ impl UserOrderBuilder {
         }
 
         // zero for 1
-        if self.asset_in < self.asset_out {
+        let backup_gas = if self.asset_in < self.asset_out {
             if self.exact_in {
                 self.amount / 5
             } else {
@@ -171,7 +200,10 @@ impl UserOrderBuilder {
                 / 5
         } else {
             self.amount / 5
-        }
+        };
+
+        self.gas_0 = Some(backup_gas);
+        backup_gas
     }
 
     pub fn valid_min_qty(&mut self) -> u128 {
@@ -190,6 +222,7 @@ impl UserOrderBuilder {
     }
 
     pub fn build(mut self) -> AllOrders {
+        self.ensure_scaled_for_price();
         match (self.is_standing, self.is_exact) {
             (true, true) => {
                 let mut order = ExactStandingOrder {
