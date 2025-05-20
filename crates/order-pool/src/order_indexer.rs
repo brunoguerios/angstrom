@@ -140,7 +140,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     self.validator
                         .cancel_order(order.from(), order.order_hash());
                     self.validator
-                        .validate_order(OrderOrigin::Local, order.order);
+                        .validate_order(OrderOrigin::ReValidation, order.order);
                 });
 
             self.subscribers
@@ -210,7 +210,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             &mut self.validator,
             |id, storage, validator| {
                 if let Some(order) = storage.remove_order_from_id(id) {
-                    validator.validate_order(OrderOrigin::Local, order.order);
+                    validator.validate_order(OrderOrigin::ReValidation, order.order);
                 }
             }
         );
@@ -324,7 +324,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     .apply_new_gas_and_return_blocked_orders(new_gas_updates);
 
                 for order in parked_orders {
-                    self.validator.validate_order(OrderOrigin::Local, order);
+                    self.validator
+                        .validate_order(OrderOrigin::ReValidation, order);
                 }
                 Ok(PoolInnerEvent::None)
             }
