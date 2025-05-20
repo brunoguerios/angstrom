@@ -9,7 +9,7 @@ use angstrom_types::{
         grouped_orders::{AllOrders, GroupedComposableOrder, OrderWithStorageData}
     }
 };
-use sim::SimValidation;
+use sim::{GasReturn, SimValidation};
 use tokio::sync::oneshot::{Sender, channel};
 
 use crate::{common::TokenPriceGenerator, validator::ValidationRequest};
@@ -147,7 +147,7 @@ impl OrderValidationResults {
             &OrderWithStorageData<New>,
             &TokenPriceGenerator,
             u64
-        ) -> eyre::Result<(u64, U256)>
+        ) -> eyre::Result<GasReturn>
     ) -> eyre::Result<OrderWithStorageData<Old>>
     where
         DB: Unpin + Clone + 'static + revm::DatabaseRef + Send + Sync,
@@ -157,8 +157,9 @@ impl OrderValidationResults {
             .try_map_inner(move |order| Ok(map_new(order)))
             .unwrap();
 
-        let (gas_units, gas_used) = (calculate_function)(sim, &order, token_price, block)?;
+        let (gas, possible_error) = (calculate_function)(sim, &order, token_price, block)?;
         // ensure that gas used is less than the max gas specified
+        let (gas_used, gas_units) = gas.unwrap();
 
         order.priority_data.gas += gas_used;
         order.priority_data.gas_units = gas_units;
