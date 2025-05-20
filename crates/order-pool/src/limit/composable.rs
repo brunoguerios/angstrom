@@ -54,7 +54,7 @@ impl ComposableLimitPool {
     ) -> Option<OrderWithStorageData<AllOrders>> {
         self.map
             .get_mut(&pool_id)?
-            .remove_order(tx_id)
+            .remove_order(&tx_id)
             .owned_map(|| self.metrics.decr_all_orders(pool_id, 1))
     }
 
@@ -65,7 +65,7 @@ impl ComposableLimitPool {
 
     pub fn remove_invalid_order(&mut self, order_hash: B256) {
         self.map.iter_mut().for_each(|(pool_id, pool)| {
-            if pool.remove_order(order_hash).is_some() {
+            if pool.remove_order(&order_hash).is_some() {
                 self.metrics.decr_all_orders(*pool_id, 1);
             }
         });

@@ -74,9 +74,8 @@ impl OrderPoolHandle for PoolHandle {
                 });
             };
             match result {
-                OrderValidationResults::TransitionedToBlock | OrderValidationResults::Valid(_) => {
-                    Ok(order_hash)
-                }
+                OrderValidationResults::TransitionedToBlock(_)
+                | OrderValidationResults::Valid(_) => Ok(order_hash),
                 OrderValidationResults::Invalid { error, .. } => Err(error)
             }
         })

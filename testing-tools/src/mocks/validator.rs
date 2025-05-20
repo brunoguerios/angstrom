@@ -50,7 +50,7 @@ impl OrderValidatorHandle for MockValidator {
         _: Vec<alloy_primitives::B256>,
         _: Vec<Address>
     ) -> validation::order::ValidationFuture {
-        Box::pin(async move { OrderValidationResults::TransitionedToBlock })
+        Box::pin(async move { OrderValidationResults::TransitionedToBlock(vec![]) })
     }
 
     fn validate_order(

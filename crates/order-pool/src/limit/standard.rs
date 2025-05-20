@@ -47,14 +47,14 @@ impl LimitPool {
                             return false;
                         }
                         v.priority_data.gas = U256::from(gas.gas_internal_book);
-                        return true;
+                        true
                     } else {
                         if v.max_gas_token_0() < gas.gas_external_book {
                             bad_orders.push(*k);
                             return false;
                         }
                         v.priority_data.gas = U256::from(gas.gas_external_book);
-                        return true;
+                        true
                     }
                 });
                 bad_orders
@@ -186,7 +186,7 @@ impl LimitPool {
 
     pub fn remove_invalid_order(&mut self, order_hash: B256) {
         self.pending_orders.iter_mut().for_each(|(pool_id, pool)| {
-            if pool.remove_order(order_hash).is_some() {
+            if pool.remove_order(&order_hash).is_some() {
                 self.metrics.decr_pending_orders(*pool_id, 1);
             }
         });

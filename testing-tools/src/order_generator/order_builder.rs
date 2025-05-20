@@ -87,7 +87,7 @@ impl OrderBuilder {
             .quantity_in(amount_in)
             .quantity_out(amount_out)
             .valid_block(block_number)
-            .max_gas(gas)
+            .max_gas(gas * 2)
             .build()
     }
 

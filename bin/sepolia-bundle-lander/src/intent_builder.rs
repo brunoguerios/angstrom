@@ -167,7 +167,7 @@ where
         if gas.is_zero() {
             gas += U256::from(1);
         }
-        gas = gas * U256::from(2);
+        gas *= U256::from(2);
 
         let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
 

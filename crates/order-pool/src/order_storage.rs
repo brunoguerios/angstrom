@@ -72,12 +72,12 @@ impl OrderStorage {
         &self,
         gas_updates: Vec<UpdatedGas>
     ) -> Vec<AllOrders> {
-        let limit_lock = self.limit_orders.lock().unwrap();
-        let searcher_lock = self.searcher_orders.lock().unwrap();
+        let mut limit_lock = self.limit_orders.lock().unwrap();
 
-        for gas_update in gas_updates {
-            let limit_pool = limit_lock.update_gas(&gas_update);
-        }
+        gas_updates
+            .iter()
+            .flat_map(|gas_update| limit_lock.update_gas(gas_update))
+            .collect()
     }
 
     pub fn fetch_status_of_order(&self, order: B256) -> Option<OrderStatus> {

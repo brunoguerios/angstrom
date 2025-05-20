@@ -319,9 +319,13 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
             }
             OrderValidationResults::TransitionedToBlock(new_gas_updates) => {
-                let parked = self
+                let parked_orders = self
                     .order_storage
                     .apply_new_gas_and_return_blocked_orders(new_gas_updates);
+
+                for order in parked_orders {
+                    self.validator.validate_order(OrderOrigin::Local, order);
+                }
                 Ok(PoolInnerEvent::None)
             }
         }

@@ -10,7 +10,7 @@ use angstrom_types::{
 
 pub struct PendingPool<Order: Clone> {
     /// all order hashes
-    pub(super) orders: HashMap<FixedBytes<32>, OrderWithStorageData<Order>>,
+    pub(crate) orders: HashMap<FixedBytes<32>, OrderWithStorageData<Order>>,
     /// bids are sorted descending by price, TODO: This should be binned into
     /// ticks based off of the underlying pools params
     bids:              BTreeMap<Reverse<OrderPriorityData>, FixedBytes<32>>,
