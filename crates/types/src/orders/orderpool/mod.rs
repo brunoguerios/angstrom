@@ -17,6 +17,7 @@ pub enum OrderStatus {
     Filled,
     Pending,
     Blocked { token: Address, approval_needed: u128, balance_needed: u128 },
+    MissingGas { needed: u128, max_set: u128 },
     OrderNotFound
 }
 
@@ -51,6 +52,9 @@ impl OrderStatus {
                 approval_needed: *amount,
                 balance_needed:  0
             }),
+            UserAccountVerificationError::NotEnoughGas { needed_gas, set_gas } => {
+                Ok(Self::MissingGas { needed: *needed_gas, max_set: *set_gas })
+            }
             // this branch gets hit when a order parks another order that wasn't parked before
             UserAccountVerificationError::Unknown { .. } => Ok(Self::Blocked {
                 token:           Address::default(),
