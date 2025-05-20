@@ -1,15 +1,9 @@
 use std::{fmt::Debug, task::Poll};
 
 use alloy::primitives::{Address, B256, U256};
-use angstrom_types::{
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
-    sol_bindings::grouped_orders::AllOrders
-};
+use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
 use futures_util::{Future, FutureExt};
-use tokio::sync::{
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    oneshot::Sender
-};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{
     bundle::BundleValidator,
@@ -24,9 +18,6 @@ use crate::{
 
 pub enum ValidationRequest {
     Order(OrderValidationRequest),
-    /// signals that we have seen the order before and to no panic + double
-    /// count when doing accounting.
-    RevalidateOrder(Sender<OrderValidationResults>, AllOrders),
     /// does two sims, One to fetch total gas used. Second is once
     /// gas cost has be delegated to each user order. ensures we won't have a
     /// failure.
@@ -89,9 +80,6 @@ where
             ValidationRequest::CancelOrder { user, order_hash } => {
                 self.order_validator.cancel_order(user, order_hash);
             }
-            ValidationRequest::RevalidateOrder(sender, order) => {
-                todo!()
-            }
             ValidationRequest::Order(order) => self.order_validator.validate_order(
                 order,
                 self.utils.token_pricing_snapshot(),
@@ -99,7 +87,6 @@ where
                 self.utils.metrics.clone()
             ),
             ValidationRequest::Bundle { sender, bundle } => {
-                println!("{:#?}", bundle);
                 tracing::debug!("simulating bundle");
                 let bn = self
                     .order_validator
