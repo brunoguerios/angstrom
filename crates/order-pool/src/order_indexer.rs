@@ -303,9 +303,9 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 self.order_tracker
                     .new_valid_order(&hash, valid.from(), valid.order_id);
 
-                /// for all the orders that get invalided, we will re-validate
-                /// to calculate the proper amount of funding to
-                /// unblock them.
+                // for all the orders that get invalided, we will re-validate
+                // to calculate the proper amount of funding to
+                // unblock them.
                 let invalided_orders = valid
                     .invalidates
                     .iter()
