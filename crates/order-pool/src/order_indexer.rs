@@ -302,8 +302,28 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 let to_propagate = valid.order.clone();
                 self.order_tracker
                     .new_valid_order(&hash, valid.from(), valid.order_id);
-                self.order_tracker
-                    .park_orders(&valid.invalidates, &self.order_storage);
+
+                /// for all the orders that get invalided, we will re-validate
+                /// to calculate the proper amount of funding to
+                /// unblock them.
+                let invalided_orders = valid
+                    .invalidates
+                    .iter()
+                    .flat_map(|order| {
+                        let id = self
+                            .order_tracker
+                            .order_hash_to_order_id
+                            .get(order)
+                            .unwrap();
+                        self.order_storage.remove_order_from_id(id)
+                    })
+                    .collect::<Vec<_>>();
+
+                for order in invalided_orders {
+                    self.order_tracker.start_validating(order.order_hash());
+                    self.validator
+                        .validate_order(OrderOrigin::ReValidation, order.order);
+                }
 
                 if let Err(e) = self.insert_order(valid) {
                     tracing::error!(%e, "failed to insert valid order");
