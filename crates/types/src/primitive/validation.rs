@@ -70,6 +70,9 @@ pub enum UserAccountVerificationError {
         amount_balance:  u128,
         amount_approval: u128
     },
+
+    #[error("not enough gas nneeded: {needed_gas} max_set {set_gas}")]
+    NotEnoughGas { needed_gas: u128, set_gas: u128 },
     #[error("{err}")]
     Unknown { err: String }
 }
