@@ -331,22 +331,20 @@ impl UserAccounts {
         let mut baseline_balance = *baseline.token_balance.get(&token).unwrap();
         let mut baseline_angstrom_balance = *baseline.angstrom_balance.get(&token).unwrap();
         let mut has_overflowed = false;
-        let default = vec![];
 
         let mut bad = vec![];
         for pending_state in self
             .pending_tob_actions
             .get(&user)
-            .and_then(|a| a.get(&token))
-            .unwrap_or_else(|| &default)
+            .and_then(|a| a.get(&token).cloned())
+            .unwrap_or_default()
             .into_iter()
             .chain(
                 self.pending_book_actions
                     .get(&user)
-                    .map(|a| a.value())
-                    .unwrap_or_else(|| &default)
-                    .iter()
-                    .filter(|state| state.token_address == token)
+                    .map(|a| a.value().clone())
+                    .unwrap_or_default()
+                    .into_iter()
             )
         {
             let (baseline, overflowed) =
