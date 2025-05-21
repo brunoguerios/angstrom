@@ -4,7 +4,6 @@ use crate::primitive::PoolId;
 /// gas
 #[derive(Debug, Clone, Copy)]
 pub struct UpdatedGas {
-    pub block_number:      u64,
     pub pool_id:           PoolId,
     pub gas_internal_book: u128,
     pub gas_external_book: u128,

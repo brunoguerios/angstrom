@@ -15,23 +15,21 @@ use crate::{
 pub struct PairsWithPrice {
     pub token0:         Address,
     pub token1:         Address,
-    pub price_1_over_0: Ray,
-    pub block_num:      u64
+    pub price_1_over_0: Ray
 }
 
 impl PairsWithPrice {
     /// Decodes the AngstromPayload bundle and allows us to checkout
     /// the prices that the pools settled at. We then can use this for things
     /// such as our eth -> erc-20 gas price calculator
-    pub fn from_angstrom_bundle(block_num: u64, bundle: &AngstromBundle) -> Vec<Self> {
+    pub fn from_angstrom_bundle(bundle: &AngstromBundle) -> Vec<Self> {
         bundle
             .pairs
             .iter()
             .map(|pair| Self {
-                token0: bundle.assets[pair.index0 as usize].addr,
-                token1: bundle.assets[pair.index1 as usize].addr,
-                price_1_over_0: Ray::from(pair.price_1over0),
-                block_num
+                token0:         bundle.assets[pair.index0 as usize].addr,
+                token1:         bundle.assets[pair.index1 as usize].addr,
+                price_1_over_0: Ray::from(pair.price_1over0)
             })
             .collect::<Vec<_>>()
     }
@@ -49,14 +47,12 @@ impl PairsWithPrice {
                     reth_provider::CanonStateNotification::Commit { new } => new
                 };
                 let gas_wei = provider.get_gas_price().await.unwrap_or_default();
-                let block_num = new_cannon_chain.tip().number;
                 (
                     gas_wei,
                     new_cannon_chain
                         .successful_tip_transactions()
-                        // gotta clone cuz rust skill issuing
+                        .filter(move |&tx| tx.to() == Some(angstrom_address))
                         .cloned()
-                        .filter(move |tx| tx.to() == Some(angstrom_address))
                         .filter_map(|transaction| {
                             let input: &[u8] = transaction.input();
                             let b = executeCall::abi_decode(input).unwrap().encoded;
@@ -64,7 +60,7 @@ impl PairsWithPrice {
 
                             AngstromBundle::pade_decode(&mut bytes, None).ok()
                         })
-                        .flat_map(|bundle| Self::from_angstrom_bundle(block_num, &bundle))
+                        .flat_map(|bundle| Self::from_angstrom_bundle(&bundle))
                         .collect::<Vec<_>>()
                 )
             }
