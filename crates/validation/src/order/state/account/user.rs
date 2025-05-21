@@ -146,6 +146,7 @@ impl Deref for PendingUserAction {
     }
 }
 
+/// NB: tob actions have priority over non-tob
 pub struct UserAccounts {
     /// all of a user addresses pending book orders.
     pending_book_actions: Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,
@@ -290,6 +291,7 @@ impl UserAccounts {
         // override as fresh query
         entry.token_balance.insert(token, balances);
         entry.token_approval.insert(token, approvals);
+
         entry.angstrom_balance.insert(token, balances);
 
         Ok(())
@@ -300,20 +302,26 @@ impl UserAccounts {
     /// available.
     pub fn insert_pending_user_action(
         &self,
+        is_tob: bool,
         user: UserAddress,
         action: PendingUserAction
     ) -> Vec<B256> {
-        let token = action.token_address;
-        let mut entry = self.pending_actions.entry(user).or_default();
-        let value = entry.value_mut();
+        if is_tob {
+            // tob can invalidate all user orders.
+            vec![]
+        } else {
+            let token = action.token_address;
+            let mut entry = self.pending_book_actions.entry(user).or_default();
+            let value = entry.value_mut();
 
-        value.push(action);
-        // sorts them descending by priority
-        value.sort_unstable_by(|f, s| s.is_higher_priority(f));
-        drop(entry);
+            value.push(action);
+            // sorts them descending by priority
+            value.sort_unstable_by(|f, s| s.is_higher_priority(f));
+            drop(entry);
 
-        // iterate through all vales collected the orders that
-        self.fetch_all_invalidated_orders(user, token)
+            // iterate through all vales collected the orders that
+            self.fetch_all_invalidated_orders(user, token)
+        }
     }
 
     fn fetch_all_invalidated_orders(&self, user: UserAddress, token: TokenAddress) -> Vec<B256> {
@@ -323,14 +331,23 @@ impl UserAccounts {
         let mut baseline_balance = *baseline.token_balance.get(&token).unwrap();
         let mut baseline_angstrom_balance = *baseline.angstrom_balance.get(&token).unwrap();
         let mut has_overflowed = false;
+        let default = vec![];
 
         let mut bad = vec![];
         for pending_state in self
-            .pending_actions
+            .pending_tob_actions
             .get(&user)
-            .unwrap()
-            .iter()
-            .filter(|state| state.token_address == token)
+            .and_then(|a| a.get(&token))
+            .unwrap_or_else(|| &default)
+            .into_iter()
+            .chain(
+                self.pending_book_actions
+                    .get(&user)
+                    .map(|a| a.value())
+                    .unwrap_or_else(|| &default)
+                    .iter()
+                    .filter(|state| state.token_address == token)
+            )
         {
             let (baseline, overflowed) =
                 baseline_approval.overflowing_sub(pending_state.token_approval);
@@ -371,7 +388,7 @@ impl UserAccounts {
 
         // the values returned here are the negative delta compaired to baseline.
         let (pending_approvals_spend, pending_balance_spend, pending_angstrom_balance_spend) = self
-            .pending_actions
+            .pending_book_actions
             .get(&user)
             .map(|val| {
                 val.iter()

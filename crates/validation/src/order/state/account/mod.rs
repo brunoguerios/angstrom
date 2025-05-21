@@ -120,8 +120,11 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         match live_state
             .can_support_order(&order, &pool_info)
             .map(|pending_user_action| {
-                self.user_accounts
-                    .insert_pending_user_action(order.from(), pending_user_action)
+                self.user_accounts.insert_pending_user_action(
+                    order.is_tob(),
+                    order.from(),
+                    pending_user_action
+                )
             }) {
             Ok(mut invalid_orders) => {
                 invalid_orders.extend(conflicting_orders.into_iter().map(|o| o.order_hash));
