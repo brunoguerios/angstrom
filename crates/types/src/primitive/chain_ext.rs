@@ -16,6 +16,8 @@ pub trait ChainExt {
     fn tip_hash(&self) -> BlockHash;
     fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>>;
     fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_;
+    fn successful_tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_;
+
     fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>>;
     fn blocks_iter(&self) -> impl Iterator<Item = &RecoveredBlock<Block>> + '_;
 }
@@ -31,6 +33,14 @@ impl ChainExt for Chain {
 
     fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>> {
         self.receipts_by_block_hash(block_hash)
+    }
+
+    fn successful_tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
+        self.receipts_by_block_hash(self.tip_hash())
+            .unwrap()
+            .into_iter()
+            .zip(self.tip_transactions())
+            .filter_map(|(receipt, tx)| receipt.success.then_some(tx))
     }
 
     fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {

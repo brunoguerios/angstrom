@@ -282,16 +282,17 @@ where
             .receipts_by_block_hash(chain.tip_hash())
             .unwrap_or_default()
             .into_iter()
+            .filter(|receipt| receipt.success)
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| self.angstrom_tokens.contains_key(&log.address))
-            .flat_map(|logs| {
-                Transfer::decode_log(logs)
+            .flat_map(|log| {
+                Transfer::decode_log(log)
                     .map(|log| [log._from, log._to])
-                    .or_else(|_| Approval::decode_log(logs).map(|log| [log._owner, log._spender]))
+                    .or_else(|_| Approval::decode_log(log).map(|log| [log._owner, log._spender]))
             })
             .flatten()
             .chain({
-                let tip_txs = chain.tip_transactions().cloned();
+                let tip_txs = chain.successful_tip_transactions().cloned();
                 tip_txs
                     .filter(|tx| tx.to() == Some(self.angstrom_address))
                     .filter_map(|transaction| {
@@ -400,6 +401,10 @@ pub mod test {
     impl ChainExt for MockChain<'_> {
         fn tip_number(&self) -> BlockNumber {
             self.number
+        }
+
+        fn successful_tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
+            self.tip_transactions()
         }
 
         fn tip_hash(&self) -> BlockHash {

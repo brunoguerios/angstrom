@@ -123,11 +123,7 @@ impl TokenPriceGenerator {
     pub fn generate_gas_updates(&self) -> Vec<UpdatedGas> {
         self.pair_to_pool
             .iter()
-            .filter_map(|(&(mut token0, mut token1), pool_id)| {
-                if token1 < token0 {
-                    std::mem::swap(&mut token0, &mut token1)
-                };
-
+            .filter_map(|(&(token0, token1), pool_id)| {
                 let price = self.get_eth_conversion_price(token0, token1)?;
 
                 let book_internal = price.inverse_quantity(BOOK_GAS_INTERNAL as u128, false);
@@ -150,11 +146,7 @@ impl TokenPriceGenerator {
     pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), Ray> {
         self.pair_to_pool
             .keys()
-            .filter_map(|&(mut token0, mut token1)| {
-                if token1 < token0 {
-                    std::mem::swap(&mut token0, &mut token1)
-                };
-
+            .filter_map(|&(token0, token1)| {
                 let price = self.get_eth_conversion_price(token0, token1)?;
 
                 Some(((token0, token1), price))

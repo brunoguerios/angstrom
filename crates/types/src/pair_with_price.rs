@@ -3,12 +3,11 @@ use std::{fmt::Debug, sync::Arc};
 use alloy::{consensus::Transaction, primitives::Address, providers::Provider, sol_types::SolCall};
 use futures::{Stream, StreamExt};
 use pade::PadeDecode;
-use reth_primitives_traits::BlockBody;
 use reth_provider::CanonStateNotificationStream;
 
 use crate::{
     contract_bindings::angstrom::Angstrom::executeCall,
-    contract_payloads::angstrom::AngstromBundle, sol_bindings::Ray
+    contract_payloads::angstrom::AngstromBundle, primitive::ChainExt, sol_bindings::Ray
 };
 
 /// represents the price settled on angstrom between two tokens
@@ -54,11 +53,10 @@ impl PairsWithPrice {
                 (
                     gas_wei,
                     new_cannon_chain
-                        .tip()
-                        .body()
-                        .clone_transactions()
-                        .into_iter()
-                        .filter(|tx| tx.to() == Some(angstrom_address))
+                        .successful_tip_transactions()
+                        // gotta clone cuz rust skill issuing
+                        .cloned()
+                        .filter(move |tx| tx.to() == Some(angstrom_address))
                         .filter_map(|transaction| {
                             let input: &[u8] = transaction.input();
                             let b = executeCall::abi_decode(input).unwrap().encoded;
@@ -66,7 +64,6 @@ impl PairsWithPrice {
 
                             AngstromBundle::pade_decode(&mut bytes, None).ok()
                         })
-                        .take(1)
                         .flat_map(|bundle| Self::from_angstrom_bundle(block_num, &bundle))
                         .collect::<Vec<_>>()
                 )
