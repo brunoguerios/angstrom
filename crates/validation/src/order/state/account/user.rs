@@ -136,6 +136,8 @@ pub struct PendingUserAction {
     pub pool_info: UserOrderPoolInfo
 }
 
+impl PendingUserAction {}
+
 impl Deref for PendingUserAction {
     type Target = OrderValidationPriority;
 
@@ -146,7 +148,8 @@ impl Deref for PendingUserAction {
 
 pub struct UserAccounts {
     /// all of a user addresses pending orders.
-    pending_actions: Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,
+    pending_book_actions: Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,
+    pending_tob_actions:  Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,
 
     /// the last updated state of a given user.
     last_known_state: Arc<DashMap<UserAddress, BaselineState>>
@@ -161,8 +164,9 @@ impl Default for UserAccounts {
 impl UserAccounts {
     pub fn new() -> Self {
         Self {
-            pending_actions:  Arc::new(DashMap::default()),
-            last_known_state: Arc::new(DashMap::default())
+            pending_tob_actions: Arc::new(DashMap::default()),
+            pending_actions:     Arc::new(DashMap::default()),
+            last_known_state:    Arc::new(DashMap::default())
         }
     }
 
