@@ -147,9 +147,11 @@ impl Deref for PendingUserAction {
 }
 
 pub struct UserAccounts {
-    /// all of a user addresses pending orders.
+    /// all of a user addresses pending book orders.
     pending_book_actions: Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,
-    pending_tob_actions:  Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,
+    /// all of a users tob orders. This is tracked separately given
+    /// that only 1 order per pool can be valid
+    pending_tob_actions:  Arc<DashMap<UserAddress, HashMap<TokenAddress, Vec<PendingUserAction>>>>,
 
     /// the last updated state of a given user.
     last_known_state: Arc<DashMap<UserAddress, BaselineState>>
@@ -164,21 +166,25 @@ impl Default for UserAccounts {
 impl UserAccounts {
     pub fn new() -> Self {
         Self {
-            pending_tob_actions: Arc::new(DashMap::default()),
-            pending_actions:     Arc::new(DashMap::default()),
-            last_known_state:    Arc::new(DashMap::default())
+            pending_tob_actions:  Arc::new(DashMap::default()),
+            pending_book_actions: Arc::new(DashMap::default()),
+            last_known_state:     Arc::new(DashMap::default())
         }
     }
 
     pub fn new_block(&self, users: Vec<Address>, orders: Vec<B256>) {
+        // because tob orders are only valid for 1 block.
+        // we can always clear
+        self.pending_tob_actions.clear();
+
         // remove all user specific orders
         users.iter().for_each(|user| {
-            self.pending_actions.remove(user);
+            self.pending_book_actions.remove(user);
             self.last_known_state.remove(user);
         });
 
         // remove all singular orders
-        self.pending_actions.retain(|_, pending_orders| {
+        self.pending_book_actions.retain(|_, pending_orders| {
             pending_orders.retain(|p| !orders.contains(&p.order_hash));
             !pending_orders.is_empty()
         });
@@ -186,7 +192,18 @@ impl UserAccounts {
 
     /// returns true if the order cancel has been processed successfully
     pub fn cancel_order(&self, user: &UserAddress, order_hash: &B256) -> bool {
-        let Some(mut inner_orders) = self.pending_actions.get_mut(user) else { return false };
+        let mut res = false;
+        res |= self.try_cancel_book_order(user, order_hash);
+
+        if !res {
+            res |= self.try_cancel_tob_order(user, order_hash)
+        }
+
+        res
+    }
+
+    fn try_cancel_book_order(&self, user: &UserAddress, order_hash: &B256) -> bool {
+        let Some(mut inner_orders) = self.pending_book_actions.get_mut(user) else { return false };
         let mut res = false;
 
         inner_orders.retain(|o| {
@@ -198,14 +215,32 @@ impl UserAccounts {
         res
     }
 
+    fn try_cancel_tob_order(&self, user: &UserAddress, order_hash: &B256) -> bool {
+        let Some(mut inner_orders) = self.pending_tob_actions.get_mut(user) else { return false };
+        let mut res = false;
+
+        inner_orders.retain(|_, v| {
+            v.retain(|o| {
+                let matches = &o.order_hash != order_hash;
+                res |= !matches;
+                matches
+            });
+
+            !v.is_empty()
+        });
+
+        res
+    }
+
     pub fn respend_conflicts(
         &self,
         user: UserAddress,
         avoidance: RespendAvoidanceMethod
     ) -> Vec<PendingUserAction> {
+        // no respend on tob
         match avoidance {
             nonce @ RespendAvoidanceMethod::Nonce(_) => self
-                .pending_actions
+                .pending_book_actions
                 .get(&user)
                 .map(|v| {
                     v.value()
