@@ -338,7 +338,9 @@ impl UserAccounts {
         let mut has_overflowed = false;
 
         let mut bad = vec![];
-        for pending_state in self.iter_of_tob_and_book(user, token) {
+
+        // this will optimi
+        for pending_state in self.iter_of_tob_and_book_unique_tob(user, token) {
             let (baseline, overflowed) =
                 baseline_approval.overflowing_sub(pending_state.token_approval);
             has_overflowed |= overflowed;
@@ -375,10 +377,11 @@ impl UserAccounts {
         let baseline_approval = *baseline.token_approval.get(&token)?;
         let baseline_balance = *baseline.token_balance.get(&token)?;
         let baseline_angstrom_balance = *baseline.angstrom_balance.get(&token)?;
+        // TODO: we need a way to know if this tob will be higher or not
 
         // the values returned here are the negative delta compaired to baseline.
         let (pending_approvals_spend, pending_balance_spend, pending_angstrom_balance_spend) = self
-            .iter_of_tob_and_book(user, token)
+            .iter_of_tob_and_book_unique_tob(user, token)
             .take_while(|state| state.is_higher_priority(&order_priority) == Ordering::Greater)
             .fold(
                 (Amount::default(), Amount::default(), Amount::default()),
@@ -403,13 +406,23 @@ impl UserAccounts {
         })
     }
 
+    fn iter_of_tob_and_book_unique_tob(
+        &self,
+        user: Address,
+        token: TokenAddress
+    ) -> impl Iterator<Item = PendingUserAction> + '_ {
+        UniqueByPoolId {
+            seen_pool_id: Default::default(),
+            iter:         self.iter_of_tob_and_book(user, token)
+        }
+    }
+
     fn iter_of_tob_and_book(
         &self,
         user: Address,
         token: TokenAddress
     ) -> impl Iterator<Item = PendingUserAction> + '_ {
-        let iter = self
-            .pending_tob_actions
+        self.pending_tob_actions
             .get(&user)
             .and_then(|a| a.get(&token).cloned())
             .unwrap_or_default()
@@ -420,9 +433,7 @@ impl UserAccounts {
                     .map(|a| a.value().clone())
                     .unwrap_or_default()
                     .into_iter()
-            );
-
-        UniqueByPoolId { seen_pool_id: Default::default(), iter }
+            )
     }
 }
 
