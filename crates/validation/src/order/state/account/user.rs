@@ -343,20 +343,7 @@ impl UserAccounts {
         let mut has_overflowed = false;
 
         let mut bad = vec![];
-        for pending_state in self
-            .pending_tob_actions
-            .get(&user)
-            .and_then(|a| a.get(&token).cloned())
-            .unwrap_or_default()
-            .into_iter()
-            .chain(
-                self.pending_book_actions
-                    .get(&user)
-                    .map(|a| a.value().clone())
-                    .unwrap_or_default()
-                    .into_iter()
-            )
-        {
+        for pending_state in self.iter_of_tob_and_book(user, token) {
             let (baseline, overflowed) =
                 baseline_approval.overflowing_sub(pending_state.token_approval);
             has_overflowed |= overflowed;
@@ -396,26 +383,17 @@ impl UserAccounts {
 
         // the values returned here are the negative delta compaired to baseline.
         let (pending_approvals_spend, pending_balance_spend, pending_angstrom_balance_spend) = self
-            .pending_book_actions
-            .get(&user)
-            .map(|val| {
-                val.iter()
-                    .filter(|state| state.token_address == token)
-                    .take_while(|state| {
-                        // needs to be greater
-                        state.is_higher_priority(&order_priority) == Ordering::Greater
-                    })
-                    .fold(
-                        (Amount::default(), Amount::default(), Amount::default()),
-                        |(mut approvals_spend, mut balance_spend, mut angstrom_spend), x| {
-                            approvals_spend += x.token_approval;
-                            balance_spend += x.token_delta;
-                            angstrom_spend += x.angstrom_delta;
-                            (approvals_spend, balance_spend, angstrom_spend)
-                        }
-                    )
-            })
-            .unwrap_or_default();
+            .iter_of_tob_and_book(user, token)
+            .take_while(|state| state.is_higher_priority(&order_priority) == Ordering::Greater)
+            .fold(
+                (Amount::default(), Amount::default(), Amount::default()),
+                |(mut approvals_spend, mut balance_spend, mut angstrom_spend), x| {
+                    approvals_spend += x.token_approval;
+                    balance_spend += x.token_delta;
+                    angstrom_spend += x.angstrom_delta;
+                    (approvals_spend, balance_spend, angstrom_spend)
+                }
+            );
 
         let live_approval = baseline_approval.saturating_sub(pending_approvals_spend);
         let live_balance = baseline_balance.saturating_sub(pending_balance_spend);
@@ -428,6 +406,25 @@ impl UserAccounts {
             approval: live_approval,
             angstrom_balance: live_angstrom_balance
         })
+    }
+
+    fn iter_of_tob_and_book(
+        &self,
+        user: Address,
+        token: TokenAddress
+    ) -> impl Iterator<Item = PendingUserAction> + '_ {
+        self.pending_tob_actions
+            .get(&user)
+            .and_then(|a| a.get(&token).cloned())
+            .unwrap_or_default()
+            .into_iter()
+            .chain(
+                self.pending_book_actions
+                    .get(&user)
+                    .map(|a| a.value().clone())
+                    .unwrap_or_default()
+                    .into_iter()
+            )
     }
 }
 
