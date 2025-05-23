@@ -153,7 +153,7 @@ impl OrderValidationPriority {
     pub fn is_higher_priority(&self, other: &Self) -> Ordering {
         self.is_tob
             .cmp(&other.is_tob)
-            .then_with(|| other.tob_bid_amount.cmp(&self.tob_bid_amount))
+            .then_with(|| self.tob_bid_amount.cmp(&other.tob_bid_amount))
             .then_with(|| {
                 self.is_partial.cmp(&other.is_partial).then_with(|| {
                     other

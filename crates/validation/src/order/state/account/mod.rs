@@ -108,6 +108,12 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             self.user_accounts.cancel_order(&user, &order.order_hash);
         });
 
+        let tob_reward = if let Some(tob_rewards_fn) = tob_rewards {
+            tob_rewards_fn(&mut order, &pool_info).await?
+        } else {
+            0
+        };
+
         // get the live state sorted up to the nonce, level, doesn't check orders above
         // that
         let live_state = self
@@ -115,20 +121,14 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             .get_live_state_for_order(
                 user,
                 pool_info.token,
-                order.validation_priority(),
+                order.validation_priority(Some(tob_reward)),
                 &self.fetch_utils
             )
             .map_err(|e| UserAccountVerificationError::CouldNotFetch { err: e.to_string() })?;
 
-        let tob_reward = if let Some(tob_rewards_fn) = tob_rewards {
-            U256::from(tob_rewards_fn(&mut order, &pool_info).await?)
-        } else {
-            U256::ZERO
-        };
-
         // ensure that the current live state is enough to satisfy the order
         match live_state
-            .can_support_order(&order, &pool_info)
+            .can_support_order(&order, &pool_info, Some(tob_reward))
             .map(|pending_user_action| {
                 self.user_accounts.insert_pending_user_action(
                     order.is_tob(),
@@ -145,7 +145,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                     true,
                     pool_info,
                     invalid_orders,
-                    tob_reward
+                    U256::from(tob_reward)
                 ))
             }
             Err(e) => {
@@ -160,7 +160,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                     true,
                     pool_info,
                     invalid_orders,
-                    tob_reward
+                    U256::from(tob_reward)
                 ))
             }
         }
@@ -186,6 +186,7 @@ pub trait StorageWithData: RawPoolOrder {
                 // bid and ask, thus when compairing, these will all be
                 // on the same side
                 volume:    self.amount(),
+                // set later
                 gas:       U256::ZERO,
                 gas_units: 0
             },
