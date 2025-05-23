@@ -106,7 +106,7 @@ impl LiveState {
     fn fetch_amount_in<O: RawPoolOrder>(&self, order: &O) -> U256 {
         // if we have a tob that is an ask, we need to add the amounts
         if order.is_tob() && !order.is_bid() {
-            return order.amount() + order.max_gas_token_0();
+            return U256::from(order.amount() + order.max_gas_token_0());
         }
 
         let ray_price = Ray::from(order.limit_price());
