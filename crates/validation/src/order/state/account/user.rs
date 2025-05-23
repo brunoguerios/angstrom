@@ -104,6 +104,11 @@ impl LiveState {
     ///
     /// one is a zero for 1 swap with an exact out specified
     fn fetch_amount_in<O: RawPoolOrder>(&self, order: &O) -> U256 {
+        // if we have a tob that is an ask, we need to add the amounts
+        if order.is_tob() && !order.is_bid() {
+            return order.amount() + order.max_gas_token_0();
+        }
+
         let ray_price = Ray::from(order.limit_price());
         U256::from(match (order.is_bid(), order.exact_in()) {
             (true, false) => {
