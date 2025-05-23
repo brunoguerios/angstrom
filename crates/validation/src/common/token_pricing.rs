@@ -270,9 +270,9 @@ impl TokenPriceGenerator {
         self.prev_prices.insert(pool_id, prev_prices);
     }
 
-    /// returns they conversion ratio in the format t1 / t0
-    /// in order to properly achieve this, we get the price,
-    /// remove the wei
+    /// returns they conversion ratio in the format t0 / t1
+    /// this is because rewards are in t0 and the only time
+    /// we will need to convert these is if they are a bid
     pub fn conversion_rate_of_pair(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         // because we know all pairs MUST have a conversion with the gas token,
         // we can source a routed swap thorugh it

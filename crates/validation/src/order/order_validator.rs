@@ -6,7 +6,7 @@ use std::{
 
 use alloy::primitives::{Address, B256, BlockNumber};
 use angstrom_metrics::validation::ValidationMetrics;
-use angstrom_types::sol_bindings::grouped_orders::AllOrders;
+use angstrom_types::sol_bindings::{RawPoolOrder, grouped_orders::AllOrders};
 use futures::Future;
 use rand::random;
 use tokio::runtime::Handle;
@@ -114,7 +114,7 @@ where
                                         block_number,
                                         metrics.clone(),
                                         loc.is_revalidating(),
-                                        async |_, _| Ok(0u128)
+                                        async |_, _| Ok((0u128, 0u128))
                                     )
                                     .await;
 
@@ -133,8 +133,24 @@ where
                         metrics
                             .new_order(true, || async {
                                 let AllOrders::TOB(order) = order else { panic!() };
+                                let (mut t0, mut t1) = (order.token_in(), order.token_out());
+
+                                // ensure we are in order as it does matter here
+                                if t0 < t1 {
+                                    std::mem::swap(&mut t0, &mut t1);
+                                }
+
+                                let conversion_rate = token_conversion
+                                    .conversion_rate_of_pair(t0, t1)
+                                    .expect("no pair to convert");
+
                                 let mut results = cloned_state
-                                    .handle_tob_order(order, block_number, metrics.clone())
+                                    .handle_tob_order(
+                                        order,
+                                        block_number,
+                                        conversion_rate,
+                                        metrics.clone()
+                                    )
                                     .await;
                                 results.add_gas_cost_or_invalidate(
                                     &cloned_sim,

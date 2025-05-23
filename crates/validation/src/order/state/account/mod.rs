@@ -108,7 +108,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             self.user_accounts.cancel_order(&user, &order.order_hash);
         });
 
-        let tob_reward = tob_rewards(&mut order, &pool_info).await?;
+        let (tob_reward_t0, tob_reward_token_in) = tob_rewards(&mut order, &pool_info).await?;
 
         // get the live state sorted up to the nonce, level, doesn't check orders above
         // that
@@ -117,14 +117,14 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             .get_live_state_for_order(
                 user,
                 pool_info.token,
-                order.validation_priority(Some(tob_reward)),
+                order.validation_priority(Some(tob_reward_token_in)),
                 &self.fetch_utils
             )
             .map_err(|e| UserAccountVerificationError::CouldNotFetch { err: e.to_string() })?;
 
         // ensure that the current live state is enough to satisfy the order
         match live_state
-            .can_support_order(&order, &pool_info, Some(tob_reward))
+            .can_support_order(&order, &pool_info, Some(tob_reward_token_in))
             .map(|pending_user_action| {
                 self.user_accounts.insert_pending_user_action(
                     order.is_tob(),
@@ -141,7 +141,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                     true,
                     pool_info,
                     invalid_orders,
-                    U256::from(tob_reward)
+                    U256::from(tob_reward_t0)
                 ))
             }
             Err(e) => {
@@ -156,7 +156,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                     true,
                     pool_info,
                     invalid_orders,
-                    U256::from(tob_reward)
+                    U256::from(tob_reward_t0)
                 ))
             }
         }

@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use account::UserAccountProcessor;
-use alloy::primitives::{Address, B256, U256};
+use alloy::primitives::{Address, B256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::{
     primitive::{OrderValidationError, UserAccountVerificationError, UserOrderPoolInfo},
     sol_bindings::{
+        Ray,
         ext::RawPoolOrder,
         grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
@@ -141,6 +142,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         &self,
         order: TopOfBlockOrder,
         block: u64,
+        conversion_rate: Ray,
         metrics: ValidationMetrics
     ) -> OrderValidationResults {
         self.handle_orders(order, block, metrics, false, async |order, pool_info| {
@@ -152,8 +154,14 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 .calculate_rewards(pool_address, &with_storage)
                 .await
                 .map_err(|_| UserAccountVerificationError::InvalidToBSwap)?;
+            // given the price is always t1 / t0,
+            let rewards_in_token_in = if order.is_bid() {
+                conversion_rate.quantity(total_reward, false)
+            } else {
+                total_reward
+            };
 
-            Ok(total_reward)
+            Ok((total_reward, rewards_in_token_in))
         })
         .await
     }
