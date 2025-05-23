@@ -270,14 +270,35 @@ impl TokenPriceGenerator {
         self.prev_prices.insert(pool_id, prev_prices);
     }
 
+    /// returns they conversion ratio in the format t1 / t0
+    /// in order to properly achieve this, we get the price,
+    /// remove the wei
+    pub fn conversion_rate_of_pair(&self, token_0: Address, token_1: Address) -> Option<Ray> {
+        // because we know all pairs MUST have a conversion with the gas token,
+        // we can source a routed swap thorugh it
+
+        // returns GAS /t0
+        let pair_1 = self.get_conversion_rate(token_0, token_1)?;
+        // returns GAS / t1
+        let pair_2 = self.get_conversion_rate(token_1, token_0)?;
+
+        Some(pair_2.inv_ray().mul_ray(pair_1))
+    }
+
     /// NOTE: assumes tokens are properly sorted.
     /// the previous prices are stored in RAY (1e27).
     /// returns price in GAS / t0
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         let wei = if self.base_wei == 0 { 1e18 as u128 } else { self.base_wei };
+
+        self.get_conversion_rate(token_0, token_1)
+            .map(|val| val.mul_wad(wei, 18))
+    }
+
+    fn get_conversion_rate(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         // if token zero is weth, then we mul by 1
         if token_0 == self.base_gas_token {
-            return Some(Ray::scale_to_ray(U256::from(1)).mul_wad(wei, 18));
+            return Some(Ray::scale_to_ray(U256::from(1)));
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
@@ -293,10 +314,7 @@ impl TokenPriceGenerator {
             }
 
             // if t1 == gas, then t0am  * t1 / t0 = am t1
-            return Some(
-                (prices.iter().map(|p| p.price_1_over_0).sum::<Ray>() / U256::from(size))
-                    .mul_wad(wei, 18)
-            );
+            return Some(prices.iter().map(|p| p.price_1_over_0).sum::<Ray>() / U256::from(size));
         }
 
         // need to pass through a pair.
@@ -328,7 +346,7 @@ impl TokenPriceGenerator {
             // thus gas_am t0 * price = gas.
 
             Some(
-                (prices
+                prices
                     .iter()
                     .map(|price| {
                         // if true, means gas is token zero
@@ -339,8 +357,7 @@ impl TokenPriceGenerator {
                         }
                     })
                     .sum::<Ray>()
-                    / U256::from(size))
-                .mul_wad(wei, 18)
+                    / U256::from(size)
             )
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
             // because we are going through token1 here and we want token zero, we need to
@@ -382,7 +399,7 @@ impl TokenPriceGenerator {
                 / U256::from(size);
 
             // t1 / t0 *  gas / t1 = gas / t0
-            Some(first_hop_price.mul_ray(second_hop_price).mul_wad(wei, 18))
+            Some(first_hop_price.mul_ray(second_hop_price))
         } else {
             tracing::error!("found a token that doesn't have a 1 hop to WETH");
             None

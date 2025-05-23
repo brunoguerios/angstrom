@@ -91,7 +91,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         tob_rewards: impl AsyncFnOnce(
             &mut O,
             &UserOrderPoolInfo
-        ) -> Result<u128, UserAccountVerificationError>
+        ) -> Result<(u128, u128), UserAccountVerificationError>
     ) -> OrderValidationResults {
         metrics
             .applying_state_transitions(async || {

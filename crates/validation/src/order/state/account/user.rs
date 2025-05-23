@@ -12,7 +12,6 @@ use angstrom_types::{
 };
 use angstrom_utils::FnResultOption;
 use dashmap::DashMap;
-use rand::seq::IteratorRandom;
 
 use crate::order::state::db_state_utils::StateFetchUtils;
 
@@ -36,12 +35,11 @@ pub struct LiveState {
 }
 
 impl LiveState {
-    // TODO: handle tob
     pub fn can_support_order<O: RawPoolOrder>(
         &self,
         order: &O,
         pool_info: &UserOrderPoolInfo,
-        bid: Option<u128>
+        bid_in_token_in: Option<u128>
     ) -> Result<PendingUserAction, UserAccountVerificationError> {
         assert_eq!(order.token_in(), self.token, "incorrect lives state for order");
         let hash = order.order_hash();
@@ -339,7 +337,7 @@ impl UserAccounts {
 
         let mut bad = vec![];
 
-        // this will optimi
+        // we want this as
         for pending_state in self.iter_of_tob_and_book_unique_tob(user, token) {
             let (baseline, overflowed) =
                 baseline_approval.overflowing_sub(pending_state.token_approval);

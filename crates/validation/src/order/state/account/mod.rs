@@ -45,7 +45,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         tob_rewards: impl AsyncFnOnce(
             &mut O,
             &UserOrderPoolInfo
-        ) -> Result<u128, UserAccountVerificationError>
+        ) -> Result<(u128, u128), UserAccountVerificationError>
     ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError> {
         let user = order.from();
         let order_hash = order.order_hash();
