@@ -238,8 +238,8 @@ pub mod tests {
         }
     }
 
-    #[test]
-    fn test_baseline_order_verification_for_single_order() {
+    #[tokio::test]
+    async fn test_baseline_order_verification_for_single_order() {
         let processor = setup_test_account_processor();
 
         let sk = AngstromSigner::random();
@@ -278,12 +278,13 @@ pub mod tests {
 
         println!("verifying orders");
         processor
-            .verify_order(order, pool_info, 420, false)
+            .verify_order(order, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("order should be valid");
     }
 
-    #[test]
-    fn test_failure_on_duplicate_pending_nonce() {
+    #[tokio::test]
+    async fn test_failure_on_duplicate_pending_nonce() {
         let processor = setup_test_account_processor();
 
         let sk = AngstromSigner::random();
@@ -325,19 +326,23 @@ pub mod tests {
         println!("finished first order config");
         // first time verifying should pass
         processor
-            .verify_order(order.clone(), pool_info.clone(), 420, false)
+            .verify_order(order.clone(), pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("order should be valid");
 
         println!("first order has been set valid");
         // second time should fail
-        let Err(e) = processor.verify_order(order, pool_info, 420, false) else {
+        let Err(e) = processor
+            .verify_order(order, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
+        else {
             panic!("verifying order should of failed")
         };
         assert!(matches!(e, UserAccountVerificationError::DuplicateNonce { .. }));
     }
 
-    #[test]
-    fn proper_nonce_invalidation_with_lower_nonce_order() {
+    #[tokio::test]
+    async fn proper_nonce_invalidation_with_lower_nonce_order() {
         let processor = setup_test_account_processor();
 
         let sk = AngstromSigner::random();
@@ -401,13 +406,15 @@ pub mod tests {
 
         // first time verifying should pass
         let verify_result0 = processor
-            .verify_order(order0, pool_info0, 420, false)
+            .verify_order(order0, pool_info0, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("order should be valid");
         info!(?verify_result0, "Verified order0");
 
         // verify second order and check that order0 hash is in the invalid_orders
         let res = processor
-            .verify_order(order1, pool_info1, 420, false)
+            .verify_order(order1, pool_info1, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("should be valid");
         info!(?res, "Verified order1");
 
@@ -424,8 +431,8 @@ pub mod tests {
         );
     }
 
-    #[test]
-    fn test_flash_order_block_validation() {
+    #[tokio::test]
+    async fn test_flash_order_block_validation() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -458,19 +465,21 @@ pub mod tests {
 
         // Should succeed for current block 420 (order block is 421)
         processor
-            .verify_order(order.clone(), pool_info.clone(), 420, false)
+            .verify_order(order.clone(), pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("order should be valid for next block");
 
         // Should fail for wrong current block
-        let Err(UserAccountVerificationError::BadBlock { .. }) =
-            processor.verify_order(order.clone(), pool_info.clone(), 419, false)
+        let Err(UserAccountVerificationError::BadBlock { .. }) = processor
+            .verify_order(order.clone(), pool_info.clone(), 419, false, async |_, _| Ok((0, 0)))
+            .await
         else {
             panic!("should fail for wrong block");
         };
     }
 
-    #[test]
-    fn test_insufficient_balance_invalidation() {
+    #[tokio::test]
+    async fn test_insufficient_balance_invalidation() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -505,7 +514,8 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(1000));
 
         let result = processor
-            .verify_order(order, pool_info, 420, false)
+            .verify_order(order, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("verification should complete");
 
         assert!(
@@ -515,8 +525,8 @@ pub mod tests {
         );
     }
 
-    #[test]
-    fn test_insufficient_approval_invalidation() {
+    #[tokio::test]
+    async fn test_insufficient_approval_invalidation() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -549,7 +559,8 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(500));
 
         let result = processor
-            .verify_order(order, pool_info, 420, false)
+            .verify_order(order, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("verification should complete");
 
         assert!(
@@ -558,8 +569,8 @@ pub mod tests {
         );
     }
 
-    #[test]
-    fn test_multiple_orders_same_block() {
+    #[tokio::test]
+    async fn test_multiple_orders_same_block() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -604,15 +615,17 @@ pub mod tests {
 
         // Both orders should be valid
         processor
-            .verify_order(order1, pool_info.clone(), 420, false)
+            .verify_order(order1, pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("first order should be valid");
         processor
-            .verify_order(order2, pool_info, 420, false)
+            .verify_order(order2, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("second order should be valid");
     }
 
-    #[test]
-    fn test_prepare_for_new_block() {
+    #[tokio::test]
+    async fn test_prepare_for_new_block() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -644,7 +657,8 @@ pub mod tests {
 
         // Add order
         processor
-            .verify_order(order.clone(), pool_info.clone(), 420, false)
+            .verify_order(order.clone(), pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("order should be valid");
 
         // Prepare for new block
@@ -652,14 +666,15 @@ pub mod tests {
 
         // Try to add same order again - should succeed because state was cleared
         let result = processor
-            .verify_order(order, pool_info, 420, false)
+            .verify_order(order, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("order should be valid after state clear");
 
         assert!(result.is_currently_valid(), "Order should be valid after state clear");
     }
 
-    #[test]
-    fn test_order_invalidation_chain() {
+    #[tokio::test]
+    async fn test_order_invalidation_chain() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -713,14 +728,17 @@ pub mod tests {
 
         // Submit orders in sequence
         let _result1 = processor
-            .verify_order(order1.clone(), pool_info.clone(), 420, false)
+            .verify_order(order1.clone(), pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("first order should be valid");
         let result2 = processor
-            .verify_order(order2.clone(), pool_info.clone(), 420, false)
+            .verify_order(order2.clone(), pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("second order should be valid");
 
         let result3 = processor
-            .verify_order(order3, pool_info, 420, false)
+            .verify_order(order3, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("third order should be valid");
 
         // Verify that each order invalidates all previous orders
@@ -729,8 +747,8 @@ pub mod tests {
         assert!(result3.invalidates.contains(&order1.order_hash()));
     }
 
-    #[test]
-    fn test_balance_sharing_between_orders() {
+    #[tokio::test]
+    async fn test_balance_sharing_between_orders() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -774,11 +792,13 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(1500));
 
         let result1 = processor
-            .verify_order(order1, pool_info.clone(), 420, false)
+            .verify_order(order1, pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("first order should be valid");
 
         let result2 = processor
-            .verify_order(order2, pool_info, 420, false)
+            .verify_order(order2, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("second order should complete verification");
 
         assert!(result1.is_currently_valid(), "First order should be valid");
@@ -789,8 +809,8 @@ pub mod tests {
         );
     }
 
-    #[test]
-    fn test_flash_order_sequence() {
+    #[tokio::test]
+    async fn test_flash_order_sequence() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -834,18 +854,20 @@ pub mod tests {
 
         // Verify orders for their respective blocks
         let result1 = processor
-            .verify_order(order1, pool_info.clone(), 420, false)
+            .verify_order(order1, pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("first order should be valid");
         let result2 = processor
-            .verify_order(order2, pool_info, 421, false)
+            .verify_order(order2, pool_info, 421, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("second order should be valid");
 
         assert!(result1.is_currently_valid(), "First flash order should be valid");
         assert!(result2.is_currently_valid(), "Second flash order should be valid");
     }
 
-    #[test]
-    fn test_mixed_order_types() {
+    #[tokio::test]
+    async fn test_mixed_order_types() {
         let processor = setup_test_account_processor();
         let sk = AngstromSigner::random();
         let user = sk.address();
@@ -888,18 +910,20 @@ pub mod tests {
             .set_approval_for_user(user, token0, U256::from(1000));
 
         let standing_result = processor
-            .verify_order(standing_order, pool_info.clone(), 420, false)
+            .verify_order(standing_order, pool_info.clone(), 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("standing order should be valid");
         let flash_result = processor
-            .verify_order(flash_order, pool_info, 420, false)
+            .verify_order(flash_order, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await
             .expect("flash order should be valid");
 
         assert!(standing_result.is_currently_valid(), "Standing order should be valid");
         assert!(flash_result.is_currently_valid(), "Flash order should be valid");
     }
 
-    #[test]
-    fn test_nonce_rejection() {
+    #[tokio::test]
+    async fn test_nonce_rejection() {
         let processor = setup_test_account_processor();
         let token0 = Address::random();
         let token1 = Address::random();
@@ -941,7 +965,9 @@ pub mod tests {
             .set_used_nonces(user, HashSet::from([420]));
 
         // Verify the order fails due to duplicate nonce
-        let result = processor.verify_order(order, pool_info, 420, false);
+        let result = processor
+            .verify_order(order, pool_info, 420, false, async |_, _| Ok((0, 0)))
+            .await;
 
         // Assert we get the expected error
         assert!(

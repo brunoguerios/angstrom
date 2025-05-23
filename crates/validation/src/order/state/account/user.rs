@@ -441,7 +441,6 @@ impl UserAccounts {
                     .get(&user)
                     .map(|a| a.value().clone())
                     .unwrap_or_default()
-                    .into_iter()
             )
     }
 }
@@ -464,7 +463,7 @@ where
     type Item = PendingUserAction;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(next) = self.iter.next() {
+        for next in self.iter.by_ref() {
             // if we have a tob but have already seen it
             if next.is_tob && !self.seen_pool_id.insert(next.pool_info.pool_id) {
                 continue;
@@ -549,11 +548,11 @@ mod tests {
         accounts.new_block(vec![user1], vec![action2.order_hash]);
 
         // Verify user1's actions are cleared
-        assert!(!accounts.pending_actions.contains_key(&user1));
+        assert!(!accounts.pending_book_actions.contains_key(&user1));
         // Verify user2's actions with matching order_hash are cleared
         assert!(
             accounts
-                .pending_actions
+                .pending_book_actions
                 .get(&user2)
                 .is_none_or(|actions| actions.is_empty())
         );
@@ -576,7 +575,7 @@ mod tests {
         );
         let order_hash = action.order_hash;
 
-        accounts.insert_pending_user_action(user, action);
+        accounts.insert_pending_user_action(false, user, action);
 
         // Test canceling non-existent order
         assert!(!accounts.cancel_order(&user, &B256::random()));
@@ -587,7 +586,7 @@ mod tests {
         // Verify order was removed
         assert!(
             accounts
-                .pending_actions
+                .pending_book_actions
                 .get(&user)
                 .is_none_or(|actions| actions.is_empty())
         );
@@ -633,15 +632,15 @@ mod tests {
         );
 
         // Insert actions one by one and verify
-        accounts.insert_pending_user_action(user, action1.clone());
+        accounts.insert_pending_user_action(false, user, action1.clone());
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Nonce(1));
         assert_eq!(conflicts.len(), 1, "Should find one conflict for nonce 1");
 
-        accounts.insert_pending_user_action(user, action2.clone());
+        accounts.insert_pending_user_action(false, user, action2.clone());
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Nonce(1));
         assert_eq!(conflicts.len(), 2, "Should find two conflicts for nonce 1");
 
-        accounts.insert_pending_user_action(user, action3.clone());
+        accounts.insert_pending_user_action(false, user, action3.clone());
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Nonce(2));
         assert_eq!(conflicts.len(), 1, "Should find one conflict for nonce 2");
 
@@ -683,19 +682,21 @@ mod tests {
             true
         );
 
-        accounts.insert_pending_user_action(user, action1);
-        accounts.insert_pending_user_action(user, action2);
+        accounts.insert_pending_user_action(false, user, action1);
+        accounts.insert_pending_user_action(false, user, action2);
 
         // Test live state for different nonces
         let live_state = accounts
             .try_fetch_live_pending_state(
                 user,
                 token,
+                PoolId::default(),
                 OrderValidationPriority {
-                    order_hash: B256::random(),
-                    is_tob:     true,
-                    is_partial: true,
-                    respend:    RespendAvoidanceMethod::Nonce(2)
+                    order_hash:     B256::random(),
+                    is_tob:         true,
+                    is_partial:     true,
+                    tob_bid_amount: 0,
+                    respend:        RespendAvoidanceMethod::Nonce(2)
                 }
             )
             .unwrap();
@@ -708,11 +709,13 @@ mod tests {
             .try_fetch_live_pending_state(
                 user,
                 token,
+                PoolId::default(),
                 OrderValidationPriority {
-                    order_hash: B256::random(),
-                    is_tob:     true,
-                    is_partial: true,
-                    respend:    RespendAvoidanceMethod::Nonce(4)
+                    order_hash:     B256::random(),
+                    is_tob:         true,
+                    is_partial:     true,
+                    tob_bid_amount: 0,
+                    respend:        RespendAvoidanceMethod::Nonce(4)
                 }
             )
             .unwrap();
@@ -746,7 +749,7 @@ mod tests {
             true,
             true
         );
-        accounts.insert_pending_user_action(user, action1);
+        accounts.insert_pending_user_action(false, user, action1);
 
         // Add action that would overflow the balance
         let action2 = create_test_pending_action(
@@ -758,7 +761,7 @@ mod tests {
             true,
             true
         );
-        let invalidated = accounts.insert_pending_user_action(user, action2.clone());
+        let invalidated = accounts.insert_pending_user_action(false, user, action2.clone());
 
         // The second action should be invalidated due to insufficient balance
         assert!(invalidated.contains(&action2.order_hash));
@@ -768,7 +771,7 @@ mod tests {
     fn test_new_block_with_empty_state() {
         let accounts = setup_test_accounts();
         accounts.new_block(vec![], vec![]);
-        assert!(accounts.pending_actions.is_empty());
+        assert!(accounts.pending_book_actions.is_empty());
         assert!(accounts.last_known_state.is_empty());
     }
 
@@ -794,7 +797,7 @@ mod tests {
             true,
             true
         );
-        accounts.insert_pending_user_action(user, action);
+        accounts.insert_pending_user_action(false, user, action);
 
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Block(1));
         assert!(conflicts.is_empty());
@@ -837,18 +840,20 @@ mod tests {
             true
         );
 
-        accounts.insert_pending_user_action(user, action1);
-        accounts.insert_pending_user_action(user, action2);
+        accounts.insert_pending_user_action(false, user, action1);
+        accounts.insert_pending_user_action(false, user, action2);
 
         let live_state = accounts
             .try_fetch_live_pending_state(
                 user,
                 token1,
+                PoolId::default(),
                 OrderValidationPriority {
-                    order_hash: B256::random(),
-                    is_tob:     false,
-                    is_partial: false,
-                    respend:    RespendAvoidanceMethod::Nonce(1)
+                    order_hash:     B256::random(),
+                    is_tob:         false,
+                    is_partial:     false,
+                    tob_bid_amount: 0,
+                    respend:        RespendAvoidanceMethod::Nonce(1)
                 }
             )
             .unwrap();
@@ -861,11 +866,13 @@ mod tests {
             .try_fetch_live_pending_state(
                 user,
                 token2,
+                PoolId::default(),
                 OrderValidationPriority {
-                    order_hash: B256::random(),
-                    is_tob:     false,
-                    is_partial: false,
-                    respend:    RespendAvoidanceMethod::Nonce(1)
+                    order_hash:     B256::random(),
+                    is_tob:         false,
+                    tob_bid_amount: 0,
+                    is_partial:     false,
+                    respend:        RespendAvoidanceMethod::Nonce(1)
                 }
             )
             .unwrap();
@@ -890,7 +897,7 @@ mod tests {
         // Add action that would cause overflow
         let action =
             create_test_pending_action(token, U256::MAX, U256::MAX, U256::MAX, 1, true, true);
-        accounts.insert_pending_user_action(user, action.clone());
+        accounts.insert_pending_user_action(false, user, action.clone());
 
         // Add another action that should be invalidated
         let action2 = create_test_pending_action(
@@ -902,7 +909,7 @@ mod tests {
             true,
             true
         );
-        accounts.insert_pending_user_action(user, action2.clone());
+        accounts.insert_pending_user_action(false, user, action2.clone());
 
         let invalidated = accounts.fetch_all_invalidated_orders(user, token);
         assert!(invalidated.contains(&action2.order_hash));

@@ -10,8 +10,6 @@ use crate::{orders::OrderLocation, sol_bindings::Ray};
 pub mod flips;
 pub mod grouped_orders;
 
-/// The capability of all default orders.
-#[auto_impl::auto_impl(&, &mut)]
 pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     fn max_gas_token_0(&self) -> u128;
     /// defines  
