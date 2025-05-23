@@ -87,7 +87,7 @@ impl LiveState {
         };
 
         Ok(PendingUserAction {
-            order_priority: order.validation_priority(bid),
+            order_priority: order.validation_priority(bid_in_token_in),
             token_address: pool_info.token,
             token_delta,
             angstrom_delta,
@@ -258,13 +258,14 @@ impl UserAccounts {
         user: UserAddress,
         token: TokenAddress,
         order_priority: OrderValidationPriority,
+        pool_id: B256,
         utils: &S
     ) -> eyre::Result<LiveState> {
         let out = self
-            .try_fetch_live_pending_state(user, token, order_priority)
+            .try_fetch_live_pending_state(user, token, pool_id, order_priority)
             .invert_map_or_else(|| {
                 self.load_state_for(user, token, utils)?;
-                self.try_fetch_live_pending_state(user, token, order_priority)
+                self.try_fetch_live_pending_state(user, token, pool_id, order_priority)
                     .ok_or(eyre::eyre!(
                         "after loading state for a address, the state wasn't found. this should \
                          be impossible"
@@ -306,8 +307,13 @@ impl UserAccounts {
     ) -> Vec<B256> {
         let token = action.token_address;
         if is_tob {
+            // we only want ot insert this if we are the highest tob order for the given
+            // pool. when we did the accounting, we verified that we had enough
+            // funds
+
             let mut user_entry = self.pending_tob_actions.entry(user).or_default();
             let token_entry = user_entry.entry(token).or_default();
+
             token_entry.push(action);
             token_entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
 
@@ -369,17 +375,22 @@ impl UserAccounts {
         &self,
         user: UserAddress,
         token: TokenAddress,
+        pool_id: B256,
         order_priority: OrderValidationPriority
     ) -> Option<LiveState> {
         let baseline = self.last_known_state.get(&user)?;
         let baseline_approval = *baseline.token_approval.get(&token)?;
         let baseline_balance = *baseline.token_balance.get(&token)?;
         let baseline_angstrom_balance = *baseline.angstrom_balance.get(&token)?;
-        // TODO: we need a way to know if this tob will be higher or not
 
         // the values returned here are the negative delta compaired to baseline.
         let (pending_approvals_spend, pending_balance_spend, pending_angstrom_balance_spend) = self
             .iter_of_tob_and_book_unique_tob(user, token)
+            .filter(|action| {
+                // we want to filter out all other tob orders that are on the same pool
+                // given that there can only be 1 valid tob per pool.
+                !(action.is_tob && order_priority.is_tob && action.pool_info.pool_id == pool_id)
+            })
             .take_while(|state| state.is_higher_priority(&order_priority) == Ordering::Greater)
             .fold(
                 (Amount::default(), Amount::default(), Amount::default()),

@@ -118,6 +118,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 user,
                 pool_info.token,
                 order.validation_priority(Some(tob_reward_token_in)),
+                pool_info.pool_id,
                 &self.fetch_utils
             )
             .map_err(|e| UserAccountVerificationError::CouldNotFetch { err: e.to_string() })?;
