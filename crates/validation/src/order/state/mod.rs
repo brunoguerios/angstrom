@@ -4,8 +4,12 @@ use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256, U256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::{
-    primitive::OrderValidationError,
-    sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
+    primitive::{OrderValidationError, UserOrderPoolInfo},
+    sol_bindings::{
+        ext::RawPoolOrder,
+        grouped_orders::{AllOrders, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use db_state_utils::StateFetchUtils;
 use order_validators::{ORDER_VALIDATORS, OrderValidation, OrderValidationState};
@@ -78,12 +82,15 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         Ok(())
     }
 
-    pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
+    pub async fn handle_orders<O: RawPoolOrder + Into<AllOrders>>(
         &self,
         order: O,
         block: u64,
         metrics: ValidationMetrics,
-        is_revalidating: bool
+        is_revalidating: bool,
+        tob_rewards: Option<
+            impl AsyncFnOnce(&mut O, &UserOrderPoolInfo) -> Result<u128, OrderValidationError>
+        >
     ) -> OrderValidationResults {
         metrics.applying_state_transitions(|| {
             let order_hash = order.order_hash();
@@ -109,7 +116,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             };
 
             self.user_account_tracker
-                .verify_order::<O>(order, pool_info, block, is_revalidating)
+                .verify_order::<O>(order, pool_info, block, is_revalidating, tob_rewards)
                 .map(|o: _| {
                     OrderValidationResults::Valid(
                         o.try_map_inner(|inner| Ok(inner.into())).unwrap()
@@ -132,37 +139,27 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         metrics: ValidationMetrics
     ) -> OrderValidationResults {
         let order_hash = order.order_hash();
-        let mut results = self.handle_regular_order(order, block, metrics, false);
-        let mut invalidate = false;
 
-        if let OrderValidationResults::Valid(ref mut tob_order) = results {
-            let tob_orders = tob_order
-                .clone()
-                .try_map_inner(|inner| {
-                    let AllOrders::TOB(order) = inner else { eyre::bail!("unreachable") };
-                    Ok(order)
-                })
-                .expect("should be unreachable");
-            let pool_address = tob_orders.pool_id;
-            if let Ok(total_reward) = self
-                .uniswap_pools
-                .calculate_rewards(pool_address, &tob_orders)
-                .await
-            {
-                tob_order.tob_reward = U256::from(total_reward);
-            } else {
-                invalidate = true;
-            }
-        }
+        self.handle_orders(
+            order,
+            block,
+            metrics,
+            false,
+            Some(async |order, pool_info| {
+                let pool_address = pool_info.pool_id;
+                let total_reward = self
+                    .uniswap_pools
+                    .calculate_rewards_ref(
+                        pool_address,
+                        OrderWithStorageData::with_default(&*order)
+                    )
+                    .await
+                    .map_err(|_| OrderValidationError::InvalidToBSwap)?;
 
-        if invalidate {
-            return OrderValidationResults::Invalid {
-                hash:  order_hash,
-                error: OrderValidationError::InvalidToBSwap
-            };
-        }
-
-        results
+                Ok(total_reward)
+            })
+        )
+        .await
     }
 }
 #[cfg(test)]

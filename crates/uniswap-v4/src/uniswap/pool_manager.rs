@@ -167,6 +167,70 @@ where
             return outcome;
         }
     }
+
+    pub async fn calculate_rewards_ref(
+        &self,
+        pool_id: PoolId,
+        tob: OrderWithStorageData<&TopOfBlockOrder>
+    ) -> eyre::Result<u128> {
+        tracing::info!("calculate_rewards function");
+
+        let mut cnt = ATTEMPTS;
+        let is_bid = tob.is_bid;
+        loop {
+            let market_snapshot = {
+                let p_lock = self
+                    .pools
+                    .get(&pool_id)
+                    .expect("failed to get pool to calculate rewards");
+                let pool = p_lock.read().unwrap();
+                pool.fetch_pool_snapshot().map(|v| v.2).unwrap()
+            };
+
+            let outcome = PayloadTopOfBlockOrder::calc_vec_and_reward_ref(&tob, &market_snapshot)
+                .map(|(_, r)| r);
+            tracing::info!(?outcome);
+
+            if outcome.is_err() {
+                let zfo = is_bid;
+                let not = Arc::new(Notify::new());
+                // scope for awaits
+                let start_tick = {
+                    let p_lock = self
+                        .pools
+                        .get(&pool_id)
+                        .expect("failed to get pool to calc rewards");
+                    let pool = p_lock.read().unwrap();
+                    if zfo { pool.fetch_lowest_tick() } else { pool.fetch_highest_tick() }
+                };
+
+                let _ = self
+                    .tx
+                    .send((
+                        // load 50 more ticks on the side of the order and try again
+                        TickRangeToLoad {
+                            pool_id,
+                            start_tick,
+                            zfo,
+                            tick_count: OUT_OF_SCOPE_TICKS
+                        },
+                        not.clone()
+                    ))
+                    .await;
+
+                not.notified().await;
+
+                // don't loop forever
+                cnt -= 1;
+                if cnt == 0 {
+                    return outcome;
+                }
+
+                continue;
+            }
+            return outcome;
+        }
+    }
 }
 
 pub struct UniswapPoolManager<P, PP, BlockSync>

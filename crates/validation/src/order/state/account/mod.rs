@@ -9,6 +9,7 @@ use angstrom_types::{
 use user::UserAccounts;
 
 use super::db_state_utils::StateFetchUtils;
+use crate::order::OrderValidationError;
 
 pub mod user;
 
@@ -36,12 +37,15 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         self.user_accounts.cancel_order(&user, &hash);
     }
 
-    pub fn verify_order<O: RawPoolOrder>(
+    pub async fn verify_order<O: RawPoolOrder>(
         &self,
-        order: O,
+        mut order: O,
         pool_info: UserOrderPoolInfo,
         block: u64,
-        is_revalidating: bool
+        is_revalidating: bool,
+        tob_rewards: Option<
+            impl AsyncFnOnce(&mut O, &UserOrderPoolInfo) -> Result<u128, UserAccountVerificationError>
+        >
     ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError> {
         let user = order.from();
         let order_hash = order.order_hash();
@@ -116,6 +120,12 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             )
             .map_err(|e| UserAccountVerificationError::CouldNotFetch { err: e.to_string() })?;
 
+        let tob_reward = if let Some(tob_rewards_fn) = tob_rewards {
+            U256::from(tob_rewards_fn(&mut order, &pool_info).await?)
+        } else {
+            U256::ZERO
+        };
+
         // ensure that the current live state is enough to satisfy the order
         match live_state
             .can_support_order(&order, &pool_info)
@@ -129,19 +139,28 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             Ok(mut invalid_orders) => {
                 invalid_orders.extend(conflicting_orders.into_iter().map(|o| o.order_hash));
 
-                Ok(order.into_order_storage_with_data(block, None, true, pool_info, invalid_orders))
+                Ok(order.into_order_storage_with_data(
+                    block,
+                    None,
+                    true,
+                    pool_info,
+                    invalid_orders,
+                    tob_reward
+                ))
             }
             Err(e) => {
                 let invalid_orders = conflicting_orders
                     .into_iter()
                     .map(|o| o.order_hash)
                     .collect();
+
                 Ok(order.into_order_storage_with_data(
                     block,
                     Some(e),
                     true,
                     pool_info,
-                    invalid_orders
+                    invalid_orders,
+                    tob_reward
                 ))
             }
         }
@@ -157,7 +176,8 @@ pub trait StorageWithData: RawPoolOrder {
         is_cur_valid: Option<UserAccountVerificationError>,
         is_valid: bool,
         pool_info: UserOrderPoolInfo,
-        invalidates: Vec<B256>
+        invalidates: Vec<B256>,
+        tob_reward: U256
     ) -> OrderWithStorageData<Self> {
         OrderWithStorageData {
             priority_data: angstrom_types::orders::OrderPriorityData {
@@ -177,7 +197,7 @@ pub trait StorageWithData: RawPoolOrder {
             order_id: OrderId::from_all_orders(&self, pool_info.pool_id),
             invalidates,
             order: self,
-            tob_reward: U256::ZERO
+            tob_reward
         }
     }
 }

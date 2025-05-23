@@ -34,7 +34,8 @@ impl LiveState {
     pub fn can_support_order<O: RawPoolOrder>(
         &self,
         order: &O,
-        pool_info: &UserOrderPoolInfo
+        pool_info: &UserOrderPoolInfo,
+        bid: Option<u128>
     ) -> Result<PendingUserAction, UserAccountVerificationError> {
         assert_eq!(order.token_in(), self.token, "incorrect lives state for order");
         let hash = order.order_hash();
@@ -82,12 +83,7 @@ impl LiveState {
         };
 
         Ok(PendingUserAction {
-            order_priority: OrderValidationPriority {
-                order_hash: order.order_hash(),
-                is_partial: order.is_partial(),
-                is_tob:     order.is_tob(),
-                respend:    order.respend_avoidance_strategy()
-            },
+            order_priority: order.validation_priority(bid),
             token_address: pool_info.token,
             token_delta,
             angstrom_delta,
@@ -133,11 +129,8 @@ pub struct PendingUserAction {
     pub token_approval: Amount,
     // balance spent from angstrom
     pub angstrom_delta: Amount,
-
-    pub pool_info: UserOrderPoolInfo
+    pub pool_info:      UserOrderPoolInfo
 }
-
-impl PendingUserAction {}
 
 impl Deref for PendingUserAction {
     type Target = OrderValidationPriority;
@@ -309,14 +302,10 @@ impl UserAccounts {
     ) -> Vec<B256> {
         let token = action.token_address;
         if is_tob {
-            let entry = self
-                .pending_tob_actions
-                .entry(user)
-                .or_default()
-                .entry(token)
-                .or_default();
-            entry.push(action);
-            entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
+            let mut user_entry = self.pending_tob_actions.entry(user).or_default();
+            let token_entry = user_entry.entry(token).or_default();
+            token_entry.push(action);
+            token_entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
 
             // tob can invalidate all user orders.
             self.fetch_all_invalidated_orders(user, token)
@@ -452,7 +441,8 @@ mod tests {
                 order_hash: B256::random(),
                 is_tob,
                 is_partial,
-                respend: RespendAvoidanceMethod::Nonce(nonce)
+                respend: RespendAvoidanceMethod::Nonce(nonce),
+                tob_bid_amount: 0
             },
             token_address: token,
             token_delta,
@@ -489,12 +479,12 @@ mod tests {
             true
         );
 
-        accounts.insert_pending_user_action(user1, action1.clone());
-        accounts.insert_pending_user_action(user2, action2.clone());
+        accounts.insert_pending_user_action(false, user1, action1.clone());
+        accounts.insert_pending_user_action(false, user2, action2.clone());
 
         // Verify actions are present
-        assert!(accounts.pending_actions.contains_key(&user1));
-        assert!(accounts.pending_actions.contains_key(&user2));
+        assert!(accounts.pending_book_actions.contains_key(&user1));
+        assert!(accounts.pending_book_actions.contains_key(&user2));
 
         // Call new_block to clear specific users and orders
         accounts.new_block(vec![user1], vec![action2.order_hash]);

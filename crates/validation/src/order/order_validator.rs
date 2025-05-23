@@ -108,11 +108,12 @@ where
                     OrderValidation::Limit(tx, order, loc) => {
                         metrics
                             .new_order(false, || async {
-                                let mut results = cloned_state.handle_regular_order(
+                                let mut results = cloned_state.handle_orders(
                                     order,
                                     block_number,
                                     metrics.clone(),
-                                    loc.is_revalidating()
+                                    loc.is_revalidating(),
+                                    None
                                 );
                                 results.add_gas_cost_or_invalidate(
                                     &cloned_sim,

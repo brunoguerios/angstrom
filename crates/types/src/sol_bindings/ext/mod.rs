@@ -11,6 +11,7 @@ pub mod flips;
 pub mod grouped_orders;
 
 /// The capability of all default orders.
+#[auto_impl::auto_impl(&, &mut)]
 pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     fn max_gas_token_0(&self) -> u128;
     /// defines  
@@ -73,13 +74,14 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod;
 
     /// when validating, the priority in which we sort orders to allocate
-    /// the total balance and approval.
-    fn validation_priority(&self) -> OrderValidationPriority {
+    /// the total balance and approval. won't set tob amount
+    fn validation_priority(&self, bid: Option<u128>) -> OrderValidationPriority {
         OrderValidationPriority {
-            order_hash: self.order_hash(),
-            is_tob:     self.is_tob(),
-            is_partial: self.is_partial(),
-            respend:    self.respend_avoidance_strategy()
+            order_hash:     self.order_hash(),
+            is_tob:         self.is_tob(),
+            is_partial:     self.is_partial(),
+            respend:        self.respend_avoidance_strategy(),
+            tob_bid_amount: bid.unwrap_or_default()
         }
     }
 
@@ -136,23 +138,31 @@ impl RespendAvoidanceMethod {
 
 #[derive(Clone, Debug, Copy)]
 pub struct OrderValidationPriority {
-    pub order_hash: FixedBytes<32>,
-    pub is_tob:     bool,
-    pub is_partial: bool,
-    pub respend:    RespendAvoidanceMethod
+    pub order_hash:     FixedBytes<32>,
+    pub is_tob:         bool,
+    pub is_partial:     bool,
+    pub respend:        RespendAvoidanceMethod,
+    pub tob_bid_amount: u128
 }
 
 impl OrderValidationPriority {
+    pub fn set_tob_bid(&mut self, bid: u128) {
+        self.tob_bid_amount = bid;
+    }
+
     pub fn is_higher_priority(&self, other: &Self) -> Ordering {
-        self.is_tob.cmp(&other.is_tob).then_with(|| {
-            self.is_partial.cmp(&other.is_partial).then_with(|| {
-                other
-                    .respend
-                    .get_ord_for_pending_orders()
-                    .cmp(&self.respend.get_ord_for_pending_orders())
-                    .then_with(|| other.order_hash.cmp(&self.order_hash))
+        self.is_tob
+            .cmp(&other.is_tob)
+            .then_with(|| other.tob_bid_amount.cmp(&self.tob_bid_amount))
+            .then_with(|| {
+                self.is_partial.cmp(&other.is_partial).then_with(|| {
+                    other
+                        .respend
+                        .get_ord_for_pending_orders()
+                        .cmp(&self.respend.get_ord_for_pending_orders())
+                        .then_with(|| other.order_hash.cmp(&self.order_hash))
+                })
             })
-        })
     }
 }
 
@@ -167,6 +177,7 @@ mod order_validation_priority_tests {
             order_hash: B256::random(),
             is_tob,
             is_partial,
+            tob_bid_amount: 0,
             respend: RespendAvoidanceMethod::Nonce(nonce)
         }
     }
