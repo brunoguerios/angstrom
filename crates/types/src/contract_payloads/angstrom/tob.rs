@@ -153,55 +153,6 @@ impl TopOfBlockOrder {
         })
     }
 
-    pub fn calc_vec_and_reward_ref<'a>(
-        tob: &OrderWithStorageData<&RpcTopOfBlockOrder>,
-        snapshot: &'a BaselinePoolState
-    ) -> eyre::Result<(PoolSwapResult<'a>, u128)> {
-        // First let's simulate the actual ToB swap and use that to determine what our
-        // leftover T0 is for rewards
-        if tob.is_bid {
-            // If ToB is a bid, it's buying T0.  To reward, it will offer in more T1
-            // than needed, but the entire input will be swapped through the AMM.
-            // Therefore, our input quantity is simple - the entire input amount from
-            // the order.
-            let res = snapshot.swap_current_with_amount(
-                I256::unchecked_from(tob.quantity_in),
-                Direction::BuyingT0
-            )?;
-            let leftover = res
-                .total_d_t0
-                .checked_sub(tob.quantity_out)
-                .ok_or_else(|| eyre!("Not enough output to cover the transaction"))?;
-
-            Ok((res, leftover))
-        } else {
-            // If ToB is an Ask, it's inputting T0.  We will take the reward T0 first
-            // before swapping the remaining T0 with the AMM, so we need to determine
-            // how much T0 will actually get to the AMM.  To do this, we determine how
-            // much T0 is required to produce the quantity of T1 the order expects to
-            // receive as output.  This quantity is our input which moves the AMM.
-
-            // First we find the amount of T0 in it would take to at least hit our quantity
-            // out
-
-            let cost = snapshot
-                .swap_current_with_amount(
-                    -I256::unchecked_from(tob.quantity_out),
-                    Direction::SellingT0
-                )?
-                .total_d_t0;
-
-            let leftover = tob
-                .quantity_in
-                .checked_sub(cost)
-                .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
-
-            let price_vec = snapshot
-                .swap_current_with_amount(I256::unchecked_from(cost), Direction::SellingT0)?;
-            Ok((price_vec, leftover))
-        }
-    }
-
     pub fn calc_vec_and_reward<'a>(
         tob: &OrderWithStorageData<RpcTopOfBlockOrder>,
         snapshot: &'a BaselinePoolState

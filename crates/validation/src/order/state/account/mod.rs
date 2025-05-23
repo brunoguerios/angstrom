@@ -9,7 +9,6 @@ use angstrom_types::{
 use user::UserAccounts;
 
 use super::db_state_utils::StateFetchUtils;
-use crate::order::OrderValidationError;
 
 pub mod user;
 
@@ -43,9 +42,10 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         pool_info: UserOrderPoolInfo,
         block: u64,
         is_revalidating: bool,
-        tob_rewards: Option<
-            impl AsyncFnOnce(&mut O, &UserOrderPoolInfo) -> Result<u128, UserAccountVerificationError>
-        >
+        tob_rewards: impl AsyncFnOnce(
+            &mut O,
+            &UserOrderPoolInfo
+        ) -> Result<u128, UserAccountVerificationError>
     ) -> Result<OrderWithStorageData<O>, UserAccountVerificationError> {
         let user = order.from();
         let order_hash = order.order_hash();
@@ -108,11 +108,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
             self.user_accounts.cancel_order(&user, &order.order_hash);
         });
 
-        let tob_reward = if let Some(tob_rewards_fn) = tob_rewards {
-            tob_rewards_fn(&mut order, &pool_info).await?
-        } else {
-            0
-        };
+        let tob_reward = tob_rewards(&mut order, &pool_info).await?;
 
         // get the live state sorted up to the nonce, level, doesn't check orders above
         // that

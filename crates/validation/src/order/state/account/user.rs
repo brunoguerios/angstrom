@@ -1,12 +1,18 @@
-use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    ops::Deref,
+    sync::Arc
+};
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    primitive::{UserAccountVerificationError, UserOrderPoolInfo},
+    primitive::{PoolId, UserAccountVerificationError, UserOrderPoolInfo},
     sol_bindings::{OrderValidationPriority, Ray, RespendAvoidanceMethod, ext::RawPoolOrder}
 };
 use angstrom_utils::FnResultOption;
 use dashmap::DashMap;
+use rand::seq::IteratorRandom;
 
 use crate::order::state::db_state_utils::StateFetchUtils;
 
@@ -402,7 +408,8 @@ impl UserAccounts {
         user: Address,
         token: TokenAddress
     ) -> impl Iterator<Item = PendingUserAction> + '_ {
-        self.pending_tob_actions
+        let iter = self
+            .pending_tob_actions
             .get(&user)
             .and_then(|a| a.get(&token).cloned())
             .unwrap_or_default()
@@ -413,7 +420,39 @@ impl UserAccounts {
                     .map(|a| a.value().clone())
                     .unwrap_or_default()
                     .into_iter()
-            )
+            );
+
+        UniqueByPoolId { seen_pool_id: Default::default(), iter }
+    }
+}
+
+/// is a iter that will only accept the first pool id that we have tracked that
+/// is valid. this is because you can have multiple tob orders that are "valid"
+/// but we only actually care about the one with this highest amount of bribe.
+struct UniqueByPoolId<I>
+where
+    I: Iterator<Item = PendingUserAction>
+{
+    seen_pool_id: HashSet<PoolId>,
+    iter:         I
+}
+
+impl<I> Iterator for UniqueByPoolId<I>
+where
+    I: Iterator<Item = PendingUserAction>
+{
+    type Item = PendingUserAction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(next) = self.iter.next() {
+            // if we have a tob but have already seen it
+            if next.is_tob && !self.seen_pool_id.insert(next.pool_info.pool_id) {
+                continue;
+            }
+            return Some(next);
+        }
+
+        None
     }
 }
 

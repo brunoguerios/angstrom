@@ -216,17 +216,19 @@ mod order_validation_priority_tests {
     fn test_order_hash_tiebreaker() {
         // Create two orders with identical properties except hash
         let order1 = OrderValidationPriority {
-            order_hash: B256::with_last_byte(1),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Nonce(1)
+            order_hash:     B256::with_last_byte(1),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Nonce(1)
         };
 
         let order2 = OrderValidationPriority {
-            order_hash: B256::with_last_byte(2),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Nonce(1)
+            order_hash:     B256::with_last_byte(2),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Nonce(1)
         };
 
         // The order with the smaller hash should have higher priority
@@ -255,17 +257,19 @@ mod order_validation_priority_tests {
     fn test_block_respend_avoidance() {
         // Create orders with Block respend avoidance method
         let order1 = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Block(100)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Block(100)
         };
 
         let order2 = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Block(200)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Block(200)
         };
 
         // Block respend avoidance should return 0 for ordering
@@ -278,17 +282,19 @@ mod order_validation_priority_tests {
     fn test_mixed_respend_avoidance_methods() {
         // Create orders with different respend avoidance methods
         let nonce_order = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Nonce(1)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Nonce(1)
         };
 
         let block_order = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Block(100)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Block(100)
         };
 
         // Nonce(1) should return 1, Block should return 0
