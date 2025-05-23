@@ -30,6 +30,7 @@ pub struct LiveState {
 }
 
 impl LiveState {
+    // TODO: handle tob
     pub fn can_support_order<O: RawPoolOrder>(
         &self,
         order: &O,
@@ -306,11 +307,20 @@ impl UserAccounts {
         user: UserAddress,
         action: PendingUserAction
     ) -> Vec<B256> {
+        let token = action.token_address;
         if is_tob {
+            let entry = self
+                .pending_tob_actions
+                .entry(user)
+                .or_default()
+                .entry(token)
+                .or_default();
+            entry.push(action);
+            entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
+
             // tob can invalidate all user orders.
-            vec![]
+            self.fetch_all_invalidated_orders(user, token)
         } else {
-            let token = action.token_address;
             let mut entry = self.pending_book_actions.entry(user).or_default();
             let value = entry.value_mut();
 
