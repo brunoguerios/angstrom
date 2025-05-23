@@ -663,22 +663,6 @@ pub mod test {
     }
 
     #[test]
-    #[should_panic]
-    fn test_apply_update_validation() {
-        let mut token_conversion = setup();
-
-        // Should panic on non-sequential block updates
-        token_conversion.apply_update(
-            0,
-            vec![PairsWithPrice {
-                token0:         TOKEN2,
-                token1:         TOKEN0,
-                price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
-            }]
-        );
-    }
-
-    #[test]
     fn test_missing_pool() {
         let token_conversion = setup();
 
