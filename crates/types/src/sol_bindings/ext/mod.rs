@@ -26,7 +26,7 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     fn amount(&self) -> u128;
 
     /// the min qty of t0 specified by the user
-    default fn min_qty_t0(&self) -> Option<u128> {
+    fn min_qty_t0(&self) -> Option<u128> {
         if self.amount() == 0 || self.limit_price() == U256::ZERO {
             return None;
         }
