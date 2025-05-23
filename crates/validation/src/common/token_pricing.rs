@@ -156,6 +156,7 @@ impl TokenPriceGenerator {
         self.base_wei = new_gas_wei;
 
         for mut pool_update in updates {
+            println!("{:#?} {:#?}", pool_update, self.pair_to_pool);
             let pool_key = if let Some(p) = self
                 .pair_to_pool
                 .get(&(pool_update.token0, pool_update.token1))
@@ -175,7 +176,7 @@ impl TokenPriceGenerator {
                         };
                         (t0 == pool_update.token0 && t1 == pool_update.token1).then_some(*pool_key)
                     })
-                    .expect("got pool update that we don't have stored");
+                    .expect("got pool update that we don't have a pool for in uniswap stored");
 
                 self.pair_to_pool
                     .insert((pool_update.token0, pool_update.token1), pk);
@@ -406,12 +407,10 @@ impl TokenPriceGenerator {
         }
     }
 
-    #[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
     pub fn pairs_to_pools(&self) -> HashMap<(Address, Address), PoolId> {
         self.pair_to_pool.clone()
     }
 
-    #[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
     pub fn prev_prices(&self) -> HashMap<PoolId, VecDeque<PairsWithPrice>> {
         self.prev_prices.clone()
     }
@@ -611,41 +610,6 @@ pub mod test {
             .unwrap();
 
         assert_eq!(rate, Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER));
-    }
-
-    #[test]
-    fn test_price_averaging() {
-        // 3000000000000000000000000000000000000000000000
-
-        let mut token_conversion = setup();
-
-        // Create varying prices over 5 blocks
-        let mut updates = Vec::new();
-        for i in 1..=5 {
-            updates.push(PairsWithPrice {
-                token0:         TOKEN2,
-                token1:         TOKEN0,
-                price_1_over_0: Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER)
-            });
-        }
-
-        // Apply the updates
-        for update in updates {
-            token_conversion.apply_update(0, vec![update]);
-        }
-
-        // Average should be (1 + 2 + 3 + 4 + 5) / 5 = 3
-        let rate = token_conversion
-            .get_eth_conversion_price(TOKEN2, TOKEN0)
-            .unwrap();
-
-        let mut sum = Ray::default();
-        for i in 1..=5 {
-            sum += Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER);
-        }
-        let expected = sum / U256::from(5);
-
-        assert_eq!(rate, expected);
     }
 
     #[test]

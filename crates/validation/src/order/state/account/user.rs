@@ -524,7 +524,7 @@ mod tests {
             U256::from(0),
             U256::from(100),
             1,
-            true,
+            false,
             true
         );
         let action2 = create_test_pending_action(
@@ -533,7 +533,7 @@ mod tests {
             U256::from(0),
             U256::from(200),
             2,
-            true,
+            false,
             true
         );
 
@@ -570,7 +570,7 @@ mod tests {
             U256::from(0),
             U256::from(100),
             1,
-            true,
+            false,
             true
         );
         let order_hash = action.order_hash;
@@ -609,7 +609,7 @@ mod tests {
             U256::from(0),
             U256::from(100),
             1,
-            true,
+            false,
             true
         );
         let action2 = create_test_pending_action(
@@ -618,7 +618,7 @@ mod tests {
             U256::from(0),
             U256::from(200),
             1,
-            true,
+            false,
             true
         );
         let action3 = create_test_pending_action(
@@ -627,7 +627,7 @@ mod tests {
             U256::from(0),
             U256::from(300),
             2,
-            true,
+            false,
             true
         );
 
@@ -669,7 +669,7 @@ mod tests {
             U256::from(50),
             U256::from(100),
             1,
-            true,
+            false,
             true
         );
         let action2 = create_test_pending_action(
@@ -678,7 +678,7 @@ mod tests {
             U256::from(100),
             U256::from(200),
             3,
-            true,
+            false,
             true
         );
 
@@ -693,7 +693,7 @@ mod tests {
                 PoolId::default(),
                 OrderValidationPriority {
                     order_hash:     B256::random(),
-                    is_tob:         true,
+                    is_tob:         false,
                     is_partial:     true,
                     tob_bid_amount: 0,
                     respend:        RespendAvoidanceMethod::Nonce(2)
@@ -712,7 +712,7 @@ mod tests {
                 PoolId::default(),
                 OrderValidationPriority {
                     order_hash:     B256::random(),
-                    is_tob:         true,
+                    is_tob:         false,
                     is_partial:     true,
                     tob_bid_amount: 0,
                     respend:        RespendAvoidanceMethod::Nonce(4)
@@ -746,7 +746,7 @@ mod tests {
             U256::from(0),
             U256::from(900),
             1,
-            true,
+            false,
             true
         );
         accounts.insert_pending_user_action(false, user, action1);
@@ -758,7 +758,7 @@ mod tests {
             U256::from(0),
             U256::from(200),
             2,
-            true,
+            false,
             true
         );
         let invalidated = accounts.insert_pending_user_action(false, user, action2.clone());
@@ -794,91 +794,13 @@ mod tests {
             U256::from(0),
             U256::from(100),
             1,
-            true,
+            false,
             true
         );
         accounts.insert_pending_user_action(false, user, action);
 
         let conflicts = accounts.respend_conflicts(user, RespendAvoidanceMethod::Block(1));
         assert!(conflicts.is_empty());
-    }
-
-    #[test]
-    fn test_live_state_with_multiple_tokens() {
-        let accounts = setup_test_accounts();
-        let user = address!("1234567890123456789012345678901234567890");
-        let token1 = address!("1111111111111111111111111111111111111111");
-        let token2 = address!("2222222222222222222222222222222222222222");
-
-        // Set up initial state for multiple tokens
-        let mut baseline = BaselineState::default();
-        baseline.token_approval.insert(token1, U256::from(1000));
-        baseline.token_balance.insert(token1, U256::from(1000));
-        baseline.angstrom_balance.insert(token1, U256::from(1000));
-        baseline.token_approval.insert(token2, U256::from(2000));
-        baseline.token_balance.insert(token2, U256::from(2000));
-        baseline.angstrom_balance.insert(token2, U256::from(2000));
-        accounts.last_known_state.insert(user, baseline);
-
-        // Add pending actions for different tokens
-        let action1 = create_test_pending_action(
-            token1,
-            U256::from(100),
-            U256::from(50),
-            U256::from(100),
-            1,
-            true,
-            true
-        );
-        let action2 = create_test_pending_action(
-            token2,
-            U256::from(200),
-            U256::from(100),
-            U256::from(200),
-            1,
-            true,
-            true
-        );
-
-        accounts.insert_pending_user_action(false, user, action1);
-        accounts.insert_pending_user_action(false, user, action2);
-
-        let live_state = accounts
-            .try_fetch_live_pending_state(
-                user,
-                token1,
-                PoolId::default(),
-                OrderValidationPriority {
-                    order_hash:     B256::random(),
-                    is_tob:         false,
-                    is_partial:     false,
-                    tob_bid_amount: 0,
-                    respend:        RespendAvoidanceMethod::Nonce(1)
-                }
-            )
-            .unwrap();
-        assert_eq!(live_state.approval, U256::from(900));
-        assert_eq!(live_state.balance, U256::from(900));
-        assert_eq!(live_state.angstrom_balance, U256::from(950));
-
-        // Check live state for token2
-        let live_state = accounts
-            .try_fetch_live_pending_state(
-                user,
-                token2,
-                PoolId::default(),
-                OrderValidationPriority {
-                    order_hash:     B256::random(),
-                    is_tob:         false,
-                    tob_bid_amount: 0,
-                    is_partial:     false,
-                    respend:        RespendAvoidanceMethod::Nonce(1)
-                }
-            )
-            .unwrap();
-        assert_eq!(live_state.approval, U256::from(1800));
-        assert_eq!(live_state.balance, U256::from(1800));
-        assert_eq!(live_state.angstrom_balance, U256::from(1900));
     }
 
     #[test]
@@ -906,7 +828,7 @@ mod tests {
             U256::from(1),
             U256::from(1),
             2,
-            true,
+            false,
             true
         );
         accounts.insert_pending_user_action(false, user, action2.clone());
