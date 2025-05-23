@@ -285,13 +285,13 @@ impl UserAccounts {
             .fetch_approval_balance_for_token(user, token)?
             .ok_or_else(|| eyre::eyre!("could not properly find approvals"))?;
         let balances = utils.fetch_balance_for_token(user, token)?;
+        let angstrom_balance = utils.fetch_token_balance_in_angstrom(user, token)?;
 
         let mut entry = self.last_known_state.entry(user).or_default();
         // override as fresh query
         entry.token_balance.insert(token, balances);
         entry.token_approval.insert(token, approvals);
-
-        entry.angstrom_balance.insert(token, balances);
+        entry.angstrom_balance.insert(token, angstrom_balance);
 
         Ok(())
     }
