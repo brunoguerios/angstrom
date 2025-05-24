@@ -150,7 +150,6 @@ where
         }
     }
 
-    #[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
     pub fn token_price_generator(&self) -> crate::TokenPriceGenerator {
         self.utils.token_pricing.clone()
     }

@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
 use account::UserAccountProcessor;
-use alloy::primitives::{Address, B256, U256};
+use alloy::primitives::{Address, B256};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::{
-    primitive::OrderValidationError,
-    sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
+    primitive::{OrderValidationError, UserAccountVerificationError, UserOrderPoolInfo},
+    sol_bindings::{
+        Ray,
+        ext::RawPoolOrder,
+        grouped_orders::{AllOrders, OrderWithStorageData},
+        rpc_orders::TopOfBlockOrder
+    }
 };
 use db_state_utils::StateFetchUtils;
 use order_validators::{ORDER_VALIDATORS, OrderValidation, OrderValidationState};
@@ -78,91 +83,87 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
         Ok(())
     }
 
-    pub fn handle_regular_order<O: RawPoolOrder + Into<AllOrders>>(
+    pub async fn handle_orders<O: RawPoolOrder + Into<AllOrders>>(
         &self,
         order: O,
         block: u64,
         metrics: ValidationMetrics,
-        is_revalidating: bool
+        is_revalidating: bool,
+        tob_rewards: impl AsyncFnOnce(
+            &mut O,
+            &UserOrderPoolInfo
+        ) -> Result<(u128, u128), UserAccountVerificationError>
     ) -> OrderValidationResults {
-        metrics.applying_state_transitions(|| {
-            let order_hash = order.order_hash();
-            if !order.is_valid_signature() {
-                tracing::debug!("order had invalid hash");
-                return OrderValidationResults::Invalid {
-                    hash:  order_hash,
-                    error: OrderValidationError::InvalidSignature
-                };
-            }
-
-            if let Err(e) = self.validate(&order) {
-                tracing::warn!(?order, "invalid order");
-                return OrderValidationResults::Invalid { hash: order_hash, error: e };
-            };
-
-            let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order) else {
-                tracing::debug!("order requested a invalid pool");
-                return OrderValidationResults::Invalid {
-                    hash:  order_hash,
-                    error: OrderValidationError::InvalidPool
-                };
-            };
-
-            self.user_account_tracker
-                .verify_order::<O>(order, pool_info, block, is_revalidating)
-                .map(|o: _| {
-                    OrderValidationResults::Valid(
-                        o.try_map_inner(|inner| Ok(inner.into())).unwrap()
-                    )
-                })
-                .unwrap_or_else(|e| {
-                    tracing::debug!(%e,"user account tracker failed to validate order");
-                    OrderValidationResults::Invalid {
+        metrics
+            .applying_state_transitions(async || {
+                let order_hash = order.order_hash();
+                if !order.is_valid_signature() {
+                    tracing::debug!("order had invalid hash");
+                    return OrderValidationResults::Invalid {
                         hash:  order_hash,
-                        error: OrderValidationError::StateError(e)
-                    }
-                })
-        })
+                        error: OrderValidationError::InvalidSignature
+                    };
+                }
+
+                if let Err(e) = self.validate(&order) {
+                    tracing::warn!(?order, "invalid order");
+                    return OrderValidationResults::Invalid { hash: order_hash, error: e };
+                };
+
+                let Some(pool_info) = self.pool_tacker.read().fetch_pool_info_for_order(&order)
+                else {
+                    tracing::debug!("order requested a invalid pool");
+                    return OrderValidationResults::Invalid {
+                        hash:  order_hash,
+                        error: OrderValidationError::InvalidPool
+                    };
+                };
+
+                self.user_account_tracker
+                    .verify_order::<O>(order, pool_info, block, is_revalidating, tob_rewards)
+                    .await
+                    .map(|o: _| {
+                        OrderValidationResults::Valid(
+                            o.try_map_inner(|inner| Ok(inner.into())).unwrap()
+                        )
+                    })
+                    .unwrap_or_else(|e| {
+                        tracing::debug!(%e,"user account tracker failed to validate order");
+                        OrderValidationResults::Invalid {
+                            hash:  order_hash,
+                            error: OrderValidationError::StateError(e)
+                        }
+                    })
+            })
+            .await
     }
 
     pub async fn handle_tob_order(
         &self,
         order: TopOfBlockOrder,
         block: u64,
+        conversion_rate: Ray,
         metrics: ValidationMetrics
     ) -> OrderValidationResults {
-        let order_hash = order.order_hash();
-        let mut results = self.handle_regular_order(order, block, metrics, false);
-        let mut invalidate = false;
-
-        if let OrderValidationResults::Valid(ref mut tob_order) = results {
-            let tob_orders = tob_order
-                .clone()
-                .try_map_inner(|inner| {
-                    let AllOrders::TOB(order) = inner else { eyre::bail!("unreachable") };
-                    Ok(order)
-                })
-                .expect("should be unreachable");
-            let pool_address = tob_orders.pool_id;
-            if let Ok(total_reward) = self
+        self.handle_orders(order, block, metrics, false, async |order, pool_info| {
+            let pool_address = pool_info.pool_id;
+            // lifetimes :(
+            let with_storage = OrderWithStorageData::with_default(order.clone());
+            let total_reward = self
                 .uniswap_pools
-                .calculate_rewards(pool_address, &tob_orders)
+                .calculate_rewards(pool_address, &with_storage)
                 .await
-            {
-                tob_order.tob_reward = U256::from(total_reward);
+                .map_err(|_| UserAccountVerificationError::InvalidToBSwap)?;
+            // given the price is always t1 / t0,
+            let rewards_in_token_in = if order.is_bid() {
+                conversion_rate.quantity(total_reward, false)
             } else {
-                invalidate = true;
-            }
-        }
-
-        if invalidate {
-            return OrderValidationResults::Invalid {
-                hash:  order_hash,
-                error: OrderValidationError::InvalidToBSwap
+                total_reward
             };
-        }
 
-        results
+            Ok((total_reward, rewards_in_token_in))
+        })
+        .await
     }
 }
 #[cfg(test)]
