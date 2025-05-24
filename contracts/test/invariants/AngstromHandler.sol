@@ -147,16 +147,14 @@ contract AngstromHandler is BaseTest {
         asset1Index = bound(asset1Index, 0, e.assets.length - 1);
         bundleFee = boundE6(bundleFee);
         unlockedFee = boundE6(unlockedFee);
-        startSqrtPriceX96 =
-            uint160(bound(startSqrtPriceX96, TickMath.MIN_SQRT_PRICE, TickMath.MAX_SQRT_PRICE));
+        startSqrtPriceX96 = uint160(bound(startSqrtPriceX96, TickMath.MIN_SQRT_PRICE, TickMath.MAX_SQRT_PRICE));
         if (asset0Index == asset1Index) {
             unchecked {
                 asset1Index = (asset0Index + 1) % e.assets.length;
             }
         }
         if (asset0Index > asset1Index) (asset0Index, asset1Index) = (asset1Index, asset0Index);
-        tickSpacing =
-            int24(bound(tickSpacing, TickMath.MIN_TICK_SPACING, TickMath.MAX_TICK_SPACING));
+        tickSpacing = int24(bound(tickSpacing, TickMath.MIN_TICK_SPACING, TickMath.MAX_TICK_SPACING));
 
         assertFalse(_ghost_poolInitialized[asset0Index][asset1Index]);
         _ghost_poolInitialized[asset0Index][asset1Index] = true;
@@ -168,9 +166,7 @@ contract AngstromHandler is BaseTest {
         address mirror1 = address(e.mirrors[asset1Index]);
 
         vm.prank(e.controller);
-        e.angstrom.configurePool(
-            asset0, asset1, uint16(uint24(tickSpacing)), bundleFee, unlockedFee
-        );
+        e.angstrom.configurePool(asset0, asset1, uint16(uint24(tickSpacing)), bundleFee, unlockedFee);
 
         _enabledAssets.add(asset0);
         _enabledAssets.add(asset1);
@@ -182,32 +178,24 @@ contract AngstromHandler is BaseTest {
         _ghost_createdPools.push(PoolInfo(asset0Index, asset1Index, tickSpacing));
     }
 
-    function addLiquidity(
-        uint256 poolIndex,
-        uint256 routerIndex,
-        int24 lowerTick,
-        int24 upperTick,
-        uint256 liquidity
-    ) public routerWithNew(routerIndex) {
+    function addLiquidity(uint256 poolIndex, uint256 routerIndex, int24 lowerTick, int24 upperTick, uint256 liquidity)
+        public
+        routerWithNew(routerIndex)
+    {
         if (DEBUG) console.log("\n[BIG ADD BLOCK]");
         poolIndex = bound(poolIndex, 0, _ghost_createdPools.length - 1);
         PoolInfo storage pool = _ghost_createdPools[poolIndex];
         {
             (int24 minTick, int24 maxTick) = _getBounds(pool.tickSpacing);
-            lowerTick =
-                int24(bound(lowerTick, minTick, maxTick)).normalizeUnchecked(pool.tickSpacing);
-            upperTick =
-                int24(bound(upperTick, minTick, maxTick)).normalizeUnchecked(pool.tickSpacing);
+            lowerTick = int24(bound(lowerTick, minTick, maxTick)).normalizeUnchecked(pool.tickSpacing);
+            upperTick = int24(bound(upperTick, minTick, maxTick)).normalizeUnchecked(pool.tickSpacing);
             vm.assume(lowerTick != upperTick);
             if (upperTick < lowerTick) (lowerTick, upperTick) = (upperTick, lowerTick);
         }
 
         {
             PoolKey memory actualKey = poolKey(
-                e.angstrom,
-                address(e.assets[pool.asset0Index]),
-                address(e.assets[pool.asset1Index]),
-                pool.tickSpacing
+                e.angstrom, address(e.assets[pool.asset0Index]), address(e.assets[pool.asset1Index]), pool.tickSpacing
             );
             PoolId id = actualKey.toId();
 
@@ -244,9 +232,7 @@ contract AngstromHandler is BaseTest {
                 MockERC20 asset1 = e.assets[pool.asset1Index];
                 asset0.transfer(ra, amount0);
                 asset1.transfer(ra, amount1);
-                router.modifyLiquidity(
-                    actualKey, lowerTick, upperTick, int256(liquidity), DEFAULT_SALT
-                );
+                router.modifyLiquidity(actualKey, lowerTick, upperTick, int256(liquidity), DEFAULT_SALT);
             }
         }
 
@@ -267,23 +253,15 @@ contract AngstromHandler is BaseTest {
             position.owner = router;
         }
         position.totalLiquidity += liquidity;
-        position.adds.push(
-            LiquidityAdd(liquidity, _tickRewards[poolIndex].length, type(uint256).max)
-        );
+        position.adds.push(LiquidityAdd(liquidity, _tickRewards[poolIndex].length, type(uint256).max));
     }
 
-    function removeLiquidity(
-        uint256 poolIndex,
-        uint256 liquidityRelativeIndex,
-        uint256 liquidityToRemove
-    ) public {
+    function removeLiquidity(uint256 poolIndex, uint256 liquidityRelativeIndex, uint256 liquidityToRemove) public {
         if (DEBUG) console.log("\n[BIG REMOVE BLOCK]");
         poolIndex = bound(poolIndex, 0, _ghost_createdPools.length - 1);
         uint256 totalActive = _activeKeys[poolIndex].length();
         vm.assume(totalActive > 0);
-        PositionKey key = PositionKey.wrap(
-            _activeKeys[poolIndex].at(bound(liquidityRelativeIndex, 0, totalActive - 1))
-        );
+        PositionKey key = PositionKey.wrap(_activeKeys[poolIndex].at(bound(liquidityRelativeIndex, 0, totalActive - 1)));
 
         LiquidityPosition storage position = _positions[poolIndex][key];
         liquidityToRemove = bound(liquidityToRemove, 0, position.totalLiquidity);
@@ -299,27 +277,16 @@ contract AngstromHandler is BaseTest {
         {
             PoolInfo storage pool = _ghost_createdPools[poolIndex];
             PoolKey memory actualKey = poolKey(
-                e.angstrom,
-                address(e.assets[pool.asset0Index]),
-                address(e.assets[pool.asset1Index]),
-                pool.tickSpacing
+                e.angstrom, address(e.assets[pool.asset0Index]), address(e.assets[pool.asset1Index]), pool.tickSpacing
             );
             uint256 newRewards = e.angstrom.getPositionRewards(
-                actualKey.toId(),
-                address(position.owner),
-                position.lowerTick,
-                position.upperTick,
-                DEFAULT_SALT
+                actualKey.toId(), address(position.owner), position.lowerTick, position.upperTick, DEFAULT_SALT
             );
 
             ghost_claimedLpRewards[address(e.assets[pool.asset0Index])] += newRewards;
             position.claimedRewards += newRewards;
             position.owner.modifyLiquidity(
-                actualKey,
-                position.lowerTick,
-                position.upperTick,
-                -int256(liquidityToRemove),
-                DEFAULT_SALT
+                actualKey, position.lowerTick, position.upperTick, -int256(liquidityToRemove), DEFAULT_SALT
             );
             position.owner.recycle(address(e.assets[pool.asset0Index]));
             position.owner.recycle(address(e.assets[pool.asset1Index]));
@@ -362,9 +329,7 @@ contract AngstromHandler is BaseTest {
         position.activeAddsOffset = adds.length;
 
         if (position.totalLiquidity > 0) {
-            position.adds.push(
-                LiquidityAdd(position.totalLiquidity, rewardsOffset, type(uint256).max)
-            );
+            position.adds.push(LiquidityAdd(position.totalLiquidity, rewardsOffset, type(uint256).max));
         } else {
             _activeKeys[poolIndex].remove(PositionKey.unwrap(key));
         }
@@ -378,10 +343,7 @@ contract AngstromHandler is BaseTest {
         savedPoolIndex = poolIndex = bound(poolIndex, 0, _ghost_createdPools.length - 1);
         PoolInfo storage pool = _ghost_createdPools[poolIndex];
         PoolId id = poolKey(
-            e.angstrom,
-            address(e.assets[pool.asset0Index]),
-            address(e.assets[pool.asset1Index]),
-            pool.tickSpacing
+            e.angstrom, address(e.assets[pool.asset0Index]), address(e.assets[pool.asset1Index]), pool.tickSpacing
         ).toId();
 
         int24[] memory rewardableTicks = _getRewardableTicks(id, pool.tickSpacing);
@@ -394,8 +356,7 @@ contract AngstromHandler is BaseTest {
         uint256 total = 0;
         for (uint256 i = 0; i < ticksToReward; i++) {
             int24 tick = int24(rewardableTicks[rng.useRandIndex(map)]);
-            uint128 amount =
-                u128(rng.randuint(1.0e18) <= 0.1e18 ? 0 : rng.randmag(1, type(uint104).max));
+            uint128 amount = u128(rng.randuint(1.0e18) <= 0.1e18 ? 0 : rng.randmag(1, type(uint104).max));
             rewards[i] = TickReward({tick: tick, amount: amount});
             total += amount;
             if (DEBUG) {
@@ -427,14 +388,12 @@ contract AngstromHandler is BaseTest {
             for (uint256 j = 0; j < totalKeys; j++) {
                 PositionKey key = keysToReward[j];
                 LiquidityPosition storage pos = _positions[savedPoolIndex][key];
-                pos.totalRewardsX128 += (uint256(amount) * (1 << 128)).fullMulDiv(
-                    pos.totalLiquidity, liquidityClaimingReward
-                );
+                pos.totalRewardsX128 +=
+                    (uint256(amount) * (1 << 128)).fullMulDiv(pos.totalLiquidity, liquidityClaimingReward);
             }
         }
 
-        RewardsUpdate[] memory rewardUpdates =
-            RewardLib.toUpdates(rewards, e.uniV4, id, pool.tickSpacing);
+        RewardsUpdate[] memory rewardUpdates = RewardLib.toUpdates(rewards, e.uniV4, id, pool.tickSpacing);
 
         address asset0 = address(e.assets[pool.asset0Index]);
         address asset1 = address(e.assets[pool.asset1Index]);
@@ -485,11 +444,7 @@ contract AngstromHandler is BaseTest {
         _saveDeltas();
     }
 
-    function getPosition(uint256 poolIndex, PositionKey key)
-        public
-        view
-        returns (LiquidityPosition memory)
-    {
+    function getPosition(uint256 poolIndex, PositionKey key) public view returns (LiquidityPosition memory) {
         return _positions[poolIndex][key];
     }
 
@@ -519,10 +474,7 @@ contract AngstromHandler is BaseTest {
     function poolIndexToId(uint256 poolIndex) public view returns (PoolId) {
         PoolInfo storage pool = _ghost_createdPools[poolIndex];
         return poolKey(
-            e.angstrom,
-            address(e.assets[pool.asset0Index]),
-            address(e.assets[pool.asset1Index]),
-            pool.tickSpacing
+            e.angstrom, address(e.assets[pool.asset0Index]), address(e.assets[pool.asset1Index]), pool.tickSpacing
         ).toId();
     }
 
@@ -530,11 +482,7 @@ contract AngstromHandler is BaseTest {
         return _ghost_createdPools.length;
     }
 
-    function getPool(uint256 poolIndex)
-        public
-        view
-        returns (address asset0, address asset1, int24 tickSpacing)
-    {
+    function getPool(uint256 poolIndex) public view returns (address asset0, address asset1, int24 tickSpacing) {
         PoolInfo storage pool = _ghost_createdPools[poolIndex];
         asset0 = address(e.assets[pool.asset0Index]);
         asset1 = address(e.assets[pool.asset1Index]);
@@ -572,11 +520,7 @@ contract AngstromHandler is BaseTest {
         maxTick = TickMath.MAX_TICK / tickSpacing * tickSpacing;
     }
 
-    function _getRewardableTicks(PoolId id, int24 tickSpacing)
-        internal
-        view
-        returns (int24[] memory ticks)
-    {
+    function _getRewardableTicks(PoolId id, int24 tickSpacing) internal view returns (int24[] memory ticks) {
         int24 current = e.uniV4.getSlot0(id).tick().normalizeUnchecked(tickSpacing);
         int24 distance = MAX_TICK_WORDS_TRAVERSAL * 256 * tickSpacing;
         int24 lowest = current - distance;
@@ -618,15 +562,13 @@ contract AngstromHandler is BaseTest {
             uint128 maxLiquidityPerTick = Pool.tickSpacingToMaxLiquidityPerTick(pool.tickSpacing);
             (uint128 liquidityGrossLower,) = e.uniV4.getTickLiquidity(id, lowerTick);
             (uint128 liquidityGrossUpper,) = e.uniV4.getTickLiquidity(id, upperTick);
-            maxNetLiquidity =
-                maxLiquidityPerTick - uint128(max(liquidityGrossLower, liquidityGrossUpper));
+            maxNetLiquidity = maxLiquidityPerTick - uint128(max(liquidityGrossLower, liquidityGrossUpper));
         }
 
         Slot0 slot0 = e.uniV4.getSlot0(id);
         (int24 tick, uint160 sqrtPriceX96) = (slot0.tick(), slot0.sqrtPriceX96());
 
-        (amount0, amount1) =
-            getAddLiquidityDelta(tick, sqrtPriceX96, lowerTick, upperTick, maxNetLiquidity);
+        (amount0, amount1) = getAddLiquidityDelta(tick, sqrtPriceX96, lowerTick, upperTick, maxNetLiquidity);
 
         uint256 maxAmount0 = e.assets[pool.asset0Index].balanceOf(address(this));
         uint256 maxAmount1 = e.assets[pool.asset1Index].balanceOf(address(this));
@@ -634,48 +576,33 @@ contract AngstromHandler is BaseTest {
         maxNetLiquidity = u128(
             min(
                 min(
-                    maxAmount0 < amount0
-                        ? maxNetLiquidity.fullMulDiv(maxAmount0, amount0)
-                        : maxNetLiquidity,
-                    maxAmount1 < amount1
-                        ? maxNetLiquidity.fullMulDiv(maxAmount1, amount1)
-                        : maxNetLiquidity
+                    maxAmount0 < amount0 ? maxNetLiquidity.fullMulDiv(maxAmount0, amount0) : maxNetLiquidity,
+                    maxAmount1 < amount1 ? maxNetLiquidity.fullMulDiv(maxAmount1, amount1) : maxNetLiquidity
                 ),
                 maxNetLiquidity
             )
         );
 
-        (amount0, amount1) =
-            getAddLiquidityDelta(tick, sqrtPriceX96, lowerTick, upperTick, maxNetLiquidity);
+        (amount0, amount1) = getAddLiquidityDelta(tick, sqrtPriceX96, lowerTick, upperTick, maxNetLiquidity);
     }
 
-    function getAddLiquidityDelta(
-        int24 tick,
-        uint160 sqrtPriceX96,
-        int24 lowerTick,
-        int24 upperTick,
-        uint128 liquidity
-    ) internal pure returns (uint256 amount0, uint256 amount1) {
+    function getAddLiquidityDelta(int24 tick, uint160 sqrtPriceX96, int24 lowerTick, int24 upperTick, uint128 liquidity)
+        internal
+        pure
+        returns (uint256 amount0, uint256 amount1)
+    {
         if (tick < lowerTick) {
             amount0 = SqrtPriceMath.getAmount0Delta(
-                TickMath.getSqrtPriceAtTick(lowerTick),
-                TickMath.getSqrtPriceAtTick(upperTick),
-                liquidity,
-                true
+                TickMath.getSqrtPriceAtTick(lowerTick), TickMath.getSqrtPriceAtTick(upperTick), liquidity, true
             );
         } else if (tick < upperTick) {
-            amount0 = SqrtPriceMath.getAmount0Delta(
-                sqrtPriceX96, TickMath.getSqrtPriceAtTick(upperTick), liquidity, true
-            );
-            amount1 = SqrtPriceMath.getAmount1Delta(
-                TickMath.getSqrtPriceAtTick(lowerTick), sqrtPriceX96, liquidity, true
-            );
+            amount0 =
+                SqrtPriceMath.getAmount0Delta(sqrtPriceX96, TickMath.getSqrtPriceAtTick(upperTick), liquidity, true);
+            amount1 =
+                SqrtPriceMath.getAmount1Delta(TickMath.getSqrtPriceAtTick(lowerTick), sqrtPriceX96, liquidity, true);
         } else {
             amount1 = SqrtPriceMath.getAmount1Delta(
-                TickMath.getSqrtPriceAtTick(lowerTick),
-                TickMath.getSqrtPriceAtTick(upperTick),
-                liquidity,
-                true
+                TickMath.getSqrtPriceAtTick(lowerTick), TickMath.getSqrtPriceAtTick(upperTick), liquidity, true
             );
         }
     }

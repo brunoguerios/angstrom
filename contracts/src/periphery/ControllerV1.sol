@@ -33,18 +33,12 @@ contract ControllerV1 is Ownable {
     event NewControllerAccepted(address indexed newController);
 
     event PoolConfigured(
-        address indexed asset0,
-        address indexed asset1,
-        uint16 tickSpacing,
-        uint24 bundleFee,
-        uint24 unlockedFee
+        address indexed asset0, address indexed asset1, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee
     );
 
     event OpaqueBatchPoolUpdate();
 
-    event PoolRemoved(
-        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
-    );
+    event PoolRemoved(address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6);
 
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
@@ -98,13 +92,9 @@ contract ControllerV1 is Ownable {
         ANGSTROM.setController(msg.sender);
     }
 
-    function configurePool(
-        address asset0,
-        address asset1,
-        uint16 tickSpacing,
-        uint24 bundleFee,
-        uint24 unlockedFee
-    ) external {
+    function configurePool(address asset0, address asset1, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee)
+        external
+    {
         _checkOwner();
         if (bundleFee > MAX_FEE_BPS) revert FeeAboveMax();
         if (unlockedFee > MAX_FEE_BPS) revert FeeAboveMax();
@@ -138,8 +128,7 @@ contract ControllerV1 is Ownable {
             uint256 length = _pools.length;
             if (index_plus_one < length) {
                 Pool memory last_pool = _pools[length - 1];
-                StoreKey last_key =
-                    StoreKeyLib.keyFromAssetsUnchecked(last_pool.asset0, last_pool.asset1);
+                StoreKey last_key = StoreKeyLib.keyFromAssetsUnchecked(last_pool.asset0, last_pool.asset1);
                 _pools[index] = last_pool;
                 _poolIndices[last_key] = index_plus_one;
             }

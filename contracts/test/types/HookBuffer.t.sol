@@ -4,10 +4,7 @@ pragma solidity ^0.8.0;
 import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {CalldataReader, CalldataReaderLib} from "src/types/CalldataReader.sol";
 import {HookBuffer, HookBufferLib} from "src/types/HookBuffer.sol";
-import {
-    IAngstromComposable,
-    EXPECTED_HOOK_RETURN_MAGIC
-} from "../../src/interfaces/IAngstromComposable.sol";
+import {IAngstromComposable, EXPECTED_HOOK_RETURN_MAGIC} from "../../src/interfaces/IAngstromComposable.sol";
 import {Recorder} from "../_mocks/composable/Recorder.sol";
 import {SmolReturn} from "../_mocks/composable/SmolReturn.sol";
 import {PRNG} from "super-sol/collections/PRNG.sol";
@@ -30,8 +27,7 @@ contract HookBufferTest is BaseTest {
 
     function test_fuzzing_readFrom_noHookIsEmpty(bytes calldata data, address from) public {
         CalldataReader reader = CalldataReaderLib.from(data);
-        (CalldataReader outReader, HookBuffer hook, bytes32 hash) =
-            HookBufferLib.readFrom(reader, true);
+        (CalldataReader outReader, HookBuffer hook, bytes32 hash) = HookBufferLib.readFrom(reader, true);
         assertEq(hash, keccak256(""));
         assertEq(HookBuffer.unwrap(hook), 0);
         assertEq(reader.offset(), outReader.offset());
@@ -48,9 +44,7 @@ contract HookBufferTest is BaseTest {
     ) public {
         vm.assume(hookPayload.length <= type(uint24).max - 20);
         this._test_fuzzing_readFrom_executeNormalCall(
-            abi.encodePacked(
-                uint24(hookPayload.length + 20), address(recorder), hookPayload, garbage
-            ),
+            abi.encodePacked(uint24(hookPayload.length + 20), address(recorder), hookPayload, garbage),
             from,
             hookPayload,
             brutalizeSeed
@@ -66,8 +60,7 @@ contract HookBufferTest is BaseTest {
         CalldataReader reader = CalldataReaderLib.from(data);
 
         brutalizeSeed = _brutalize(brutalizeSeed, 20);
-        (CalldataReader outReader, HookBuffer hookBuffer, bytes32 hash) =
-            HookBufferLib.readFrom(reader, false);
+        (CalldataReader outReader, HookBuffer hookBuffer, bytes32 hash) = HookBufferLib.readFrom(reader, false);
         assertEq(hash, keccak256(abi.encodePacked(address(recorder), hookPayload)), "wrong hash");
         assertEq(reader.offset() + 23 + hookPayload.length, outReader.offset());
 
@@ -76,11 +69,7 @@ contract HookBufferTest is BaseTest {
         vm.expectCall(
             address(recorder),
             abi.encodePacked(
-                IAngstromComposable.compose.selector,
-                abi.encode(from),
-                uint256(0x40),
-                hookPayload.length,
-                hookPayload
+                IAngstromComposable.compose.selector, abi.encode(from), uint256(0x40), hookPayload.length, hookPayload
             )
         );
         brutalizeSeed = _brutalize(brutalizeSeed, 20);
@@ -142,19 +131,14 @@ contract HookBufferTest is BaseTest {
     ) external {
         CalldataReader reader = CalldataReaderLib.from(data);
         brutalizeSeed = _brutalize(brutalizeSeed, 20);
-        (CalldataReader outReader, HookBuffer hookBuffer, bytes32 hash) =
-            HookBufferLib.readFrom(reader, false);
+        (CalldataReader outReader, HookBuffer hookBuffer, bytes32 hash) = HookBufferLib.readFrom(reader, false);
         assertEq(hash, keccak256(abi.encodePacked(address(smol), hookPayload)), "wrong hash");
         assertEq(reader.offset() + 23 + hookPayload.length, outReader.offset());
 
         vm.expectCall(
             address(smol),
             abi.encodePacked(
-                IAngstromComposable.compose.selector,
-                abi.encode(from),
-                uint256(0x40),
-                hookPayload.length,
-                hookPayload
+                IAngstromComposable.compose.selector, abi.encode(from), uint256(0x40), hookPayload.length, hookPayload
             )
         );
 

@@ -11,10 +11,7 @@ abstract contract BaseScript is BaseTest {
 interface IVanityMarket {
     function mint(address to, uint256 id, uint8 nonce) external;
 
-    function deploy(uint256 id, bytes calldata initcode)
-        external
-        payable
-        returns (address deployed);
+    function deploy(uint256 id, bytes calldata initcode) external payable returns (address deployed);
 
     function addressOf(uint256 id) external view returns (address vanity);
 

@@ -61,13 +61,9 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
 
     /// @dev Configure an existing pool or allow the creation of a new pool. Permissioned, only
     /// controller should be allowed to configure.
-    function configurePool(
-        address asset0,
-        address asset1,
-        uint16 tickSpacing,
-        uint24 bundleFee,
-        uint24 unlockedFee
-    ) external {
+    function configurePool(address asset0, address asset1, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee)
+        external
+    {
         _onlyController();
 
         if (asset0 >= asset1) revert AssetsUnordered();
@@ -82,8 +78,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         for (; i < entry_count; i++) {
             ConfigEntry entry = buffer.entries[i];
             if (entry.key() == key) {
-                buffer.entries[i] =
-                    buffer.entries[i].setTickSpacing(tickSpacing).setBundleFee(bundleFee);
+                buffer.entries[i] = buffer.entries[i].setTickSpacing(tickSpacing).setBundleFee(bundleFee);
                 break;
             }
         }
@@ -99,24 +94,16 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         _setUnlockedFee(key, unlockedFee);
     }
 
-    function initializePool(
-        address assetA,
-        address assetB,
-        uint256 storeIndex,
-        uint160 sqrtPriceX96
-    ) public {
+    function initializePool(address assetA, address assetB, uint256 storeIndex, uint160 sqrtPriceX96) public {
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
         StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(assetA, assetB);
         (int24 tickSpacing,) = _configStore.get(key, storeIndex);
         UNI_V4.initialize(
-            PoolKey(_c(assetA), _c(assetB), INIT_HOOK_FEE, tickSpacing, IHooks(address(this))),
-            sqrtPriceX96
+            PoolKey(_c(assetA), _c(assetB), INIT_HOOK_FEE, tickSpacing, IHooks(address(this))), sqrtPriceX96
         );
     }
 
-    function removePool(StoreKey key, PoolConfigStore expected_store, uint256 store_index)
-        external
-    {
+    function removePool(StoreKey key, PoolConfigStore expected_store, uint256 store_index) external {
         _onlyController();
 
         PoolConfigStore store = _configStore;
@@ -129,9 +116,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         _unsetUnlockedFee(key);
     }
 
-    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates)
-        external
-    {
+    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates) external {
         _onlyController();
 
         PoolConfigStore store = _configStore;
@@ -141,8 +126,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
 
         for (uint256 i = 0; i < updates.length; i++) {
             ConfigEntryUpdate calldata update = updates[i];
-            buffer.entries[update.index] =
-                buffer.get(update.key, update.index).setBundleFee(update.bundleFee);
+            buffer.entries[update.index] = buffer.get(update.key, update.index).setBundleFee(update.bundleFee);
             _setUnlockedFee(update.key, update.unlockedFee);
         }
 

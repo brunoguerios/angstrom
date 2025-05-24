@@ -28,11 +28,7 @@ library AssetLib {
     uint256 internal constant LENGTH_MASK = 0xffffffff;
     uint256 internal constant CALLDATA_PTR_OFFSET = 32;
 
-    function readFromAndValidate(CalldataReader reader)
-        internal
-        pure
-        returns (CalldataReader, AssetArray assets)
-    {
+    function readFromAndValidate(CalldataReader reader) internal pure returns (CalldataReader, AssetArray assets) {
         CalldataReader end;
         (reader, end) = reader.readU24End();
 

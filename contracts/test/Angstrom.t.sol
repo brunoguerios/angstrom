@@ -156,9 +156,7 @@ contract AngstromTest is BaseTest {
 
         bytes32 digest = erc712Hash(
             computeDomainSeparator(address(angstrom)),
-            keccak256(
-                abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), unlock_block)
-            )
+            keccak256(abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), unlock_block))
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(node.key, digest);
@@ -197,8 +195,7 @@ contract AngstromTest is BaseTest {
 
         vm.prank(node.addr);
         angstrom.execute("");
-        int128 withFeeOut =
-            actor.swap(pk, true, -int256(swapAmount1), 4295128740, unlockData).amount1();
+        int128 withFeeOut = actor.swap(pk, true, -int256(swapAmount1), 4295128740, unlockData).amount1();
 
         assertGe(withFeeOut, 0);
         assertEq(angstrom.lastBlockUpdated(), bn);
@@ -217,9 +214,7 @@ contract AngstromTest is BaseTest {
         int24 spacing = int24(uint24(tickSpacing));
         pk = poolKey(angstrom, asset0, asset1, spacing);
         if (startLiquidity > 0) {
-            actor.modifyLiquidity(
-                pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0)
-            );
+            actor.modifyLiquidity(pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0));
         }
 
         return pk;

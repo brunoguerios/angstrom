@@ -64,9 +64,7 @@ contract UnlookHookTest is BaseTest {
         actor.swap(pk, true, 1e18, 4295128740);
     }
 
-    function test_fuzzing_swapAfterUnlock(uint32 bn, uint24 unlockedFee, uint256 swapAmount)
-        public
-    {
+    function test_fuzzing_swapAfterUnlock(uint32 bn, uint24 unlockedFee, uint256 swapAmount) public {
         vm.roll(boundBlock(bn));
 
         unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_BPS));
@@ -107,9 +105,7 @@ contract UnlookHookTest is BaseTest {
         int24 spacing = int24(uint24(tickSpacing));
         pk = poolKey(angstrom, asset0, asset1, spacing);
         if (startLiquidity > 0) {
-            actor.modifyLiquidity(
-                pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0)
-            );
+            actor.modifyLiquidity(pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0));
         }
 
         return pk;

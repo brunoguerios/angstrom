@@ -21,11 +21,7 @@ function StoreKey_neq(StoreKey a, StoreKey b) pure returns (bool) {
 library StoreKeyLib {
     /// @dev Computes the `StoreKey` from the inputs. WARN: Does not check that the assets are
     /// sorted and in unique order.
-    function keyFromAssetsUnchecked(address asset0, address asset1)
-        internal
-        pure
-        returns (StoreKey key)
-    {
+    function keyFromAssetsUnchecked(address asset0, address asset1) internal pure returns (StoreKey key) {
         assembly ("memory-safe") {
             mstore(0x00, asset0)
             mstore(0x20, asset1)

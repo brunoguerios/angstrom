@@ -26,11 +26,7 @@ library TraderLib {
     uint256 internal constant _NEXT_NONCE_CACHE_SLOT =
         0x4ef60bdb50c7c20e080f0dbe0c461b46fed86729a8fde2574c4a51e10dac62ad;
 
-    function sign(Trader memory self, bytes32 hash)
-        internal
-        pure
-        returns (bytes32 r, bytes32 s, uint8 v)
-    {
+    function sign(Trader memory self, bytes32 hash) internal pure returns (bytes32 r, bytes32 s, uint8 v) {
         (v, r, s) = vm.sign(self.key, hash);
     }
 

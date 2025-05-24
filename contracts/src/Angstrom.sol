@@ -18,9 +18,7 @@ import {PairArray, PairLib} from "./types/Pair.sol";
 import {TypedDataHasher, TypedDataHasherLib} from "./types/TypedDataHasher.sol";
 import {HookBuffer, HookBufferLib} from "./types/HookBuffer.sol";
 import {SignatureLib} from "./libraries/SignatureLib.sol";
-import {
-    PriceAB as PriceOutVsIn, AmountA as AmountOut, AmountB as AmountIn
-} from "./types/Price.sol";
+import {PriceAB as PriceOutVsIn, AmountA as AmountOut, AmountB as AmountIn} from "./types/Price.sol";
 import {ToBOrderBuffer} from "./types/ToBOrderBuffer.sol";
 import {ToBOrderVariantMap} from "./types/ToBOrderVariantMap.sol";
 import {UserOrderBuffer} from "./types/UserOrderBuffer.sol";
@@ -39,10 +37,7 @@ contract Angstrom is
     error LimitViolated();
     error ToBGasUsedAboveMax();
 
-    constructor(IPoolManager uniV4, address controller)
-        UniConsumer(uniV4)
-        TopLevelAuth(controller)
-    {
+    constructor(IPoolManager uniV4, address controller) UniConsumer(uniV4) TopLevelAuth(controller) {
         _checkAngstromHookFlags();
     }
 
@@ -88,10 +83,7 @@ contract Angstrom is
         }
     }
 
-    function _validateAndExecuteToBOrders(CalldataReader reader, PairArray pairs)
-        internal
-        returns (CalldataReader)
-    {
+    function _validateAndExecuteToBOrders(CalldataReader reader, PairArray pairs) internal returns (CalldataReader) {
         CalldataReader end;
         (reader, end) = reader.readU24End();
 
@@ -135,12 +127,10 @@ contract Angstrom is
         {
             uint16 pairIndex;
             (reader, pairIndex) = reader.readU16();
-            (buffer.assetIn, buffer.assetOut) =
-                pairs.get(pairIndex).getAssets(variantMap.zeroForOne());
+            (buffer.assetIn, buffer.assetOut) = pairs.get(pairIndex).getAssets(variantMap.zeroForOne());
         }
 
-        (reader, buffer.recipient) =
-            variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));
+        (reader, buffer.recipient) = variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));
 
         bytes32 orderHash = typedHasher.hashTypedData(buffer.hash());
 
@@ -167,10 +157,7 @@ contract Angstrom is
         return reader;
     }
 
-    function _validateAndExecuteUserOrders(CalldataReader reader, PairArray pairs)
-        internal
-        returns (CalldataReader)
-    {
+    function _validateAndExecuteUserOrders(CalldataReader reader, PairArray pairs) internal returns (CalldataReader) {
         TypedDataHasher typedHasher = _erc712Hasher();
         UserOrderBuffer memory buffer;
 
@@ -202,16 +189,14 @@ contract Angstrom is
             uint256 priceOutVsIn;
             uint16 pairIndex;
             (reader, pairIndex) = reader.readU16();
-            (buffer.assetIn, buffer.assetOut, priceOutVsIn) =
-                pairs.get(pairIndex).getSwapInfo(variantMap.zeroForOne());
+            (buffer.assetIn, buffer.assetOut, priceOutVsIn) = pairs.get(pairIndex).getSwapInfo(variantMap.zeroForOne());
             price = PriceOutVsIn.wrap(priceOutVsIn);
         }
 
         (reader, buffer.minPrice) = reader.readU256();
         if (price.into() < buffer.minPrice) revert LimitViolated();
 
-        (reader, buffer.recipient) =
-            variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));
+        (reader, buffer.recipient) = variantMap.recipientIsSome() ? reader.readAddr() : (reader, address(0));
 
         HookBuffer hook;
         (reader, hook, buffer.hookDataHash) = HookBufferLib.readFrom(reader, variantMap.noHook());
@@ -251,12 +236,7 @@ contract Angstrom is
         return reader;
     }
 
-    function _domainNameAndVersion()
-        internal
-        pure
-        override
-        returns (string memory, string memory)
-    {
+    function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
         return ("Angstrom", "v1");
     }
 

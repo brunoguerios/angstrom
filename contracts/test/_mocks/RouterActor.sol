@@ -28,18 +28,14 @@ contract RouterActor is IUnlockCallback {
         uniV4 = uniV4_;
     }
 
-    function swap(
-        PoolKey calldata key,
-        bool zeroForOne,
-        int256 amountSpecified,
-        uint160 sqrtPriceLimitX96
-    ) external returns (BalanceDelta) {
+    function swap(PoolKey calldata key, bool zeroForOne, int256 amountSpecified, uint160 sqrtPriceLimitX96)
+        external
+        returns (BalanceDelta)
+    {
         bytes memory ret = uniV4.unlock(
             bytes.concat(
                 bytes1(uint8(Action.Swap)),
-                abi.encode(
-                    key, IPoolManager.SwapParams(zeroForOne, amountSpecified, sqrtPriceLimitX96)
-                )
+                abi.encode(key, IPoolManager.SwapParams(zeroForOne, amountSpecified, sqrtPriceLimitX96))
             )
         );
         return abi.decode(ret, (BalanceDelta));
@@ -55,11 +51,7 @@ contract RouterActor is IUnlockCallback {
         bytes memory ret = uniV4.unlock(
             bytes.concat(
                 bytes1(uint8(Action.SwapWithData)),
-                abi.encode(
-                    key,
-                    IPoolManager.SwapParams(zeroForOne, amountSpecified, sqrtPriceLimitX96),
-                    hookData
-                )
+                abi.encode(key, IPoolManager.SwapParams(zeroForOne, amountSpecified, sqrtPriceLimitX96), hookData)
             )
         );
         return abi.decode(ret, (BalanceDelta));
@@ -75,10 +67,7 @@ contract RouterActor is IUnlockCallback {
         bytes memory ret = uniV4.unlock(
             bytes.concat(
                 bytes1(uint8(Action.Liquidity)),
-                abi.encode(
-                    key,
-                    IPoolManager.ModifyLiquidityParams(lowerTick, upperTick, liquidityDelta, salt)
-                )
+                abi.encode(key, IPoolManager.ModifyLiquidityParams(lowerTick, upperTick, liquidityDelta, salt))
             )
         );
         return abi.decode(ret, (BalanceDelta, BalanceDelta));
@@ -127,13 +116,11 @@ contract RouterActor is IUnlockCallback {
         internal
         returns (bytes memory)
     {
-        (BalanceDelta callerDelta, BalanceDelta feesAccrued) =
-            uniV4.modifyLiquidity(key, params, "");
+        (BalanceDelta callerDelta, BalanceDelta feesAccrued) = uniV4.modifyLiquidity(key, params, "");
 
         _settle(key, callerDelta + feesAccrued);
         if (params.liquidityDelta <= 0) {
-            int128 rewardDelta =
-                int128(uniV4.getDelta(address(this), Currency.unwrap(key.currency0)));
+            int128 rewardDelta = int128(uniV4.getDelta(address(this), Currency.unwrap(key.currency0)));
             _settle(key.currency0, rewardDelta);
         }
         return abi.encode(callerDelta, feesAccrued);

@@ -8,14 +8,7 @@ import {UniV4Inspector} from "test/_view-ext/UniV4Inspector.sol";
 import {RouterActor} from "test/_mocks/RouterActor.sol";
 import {OpenAngstrom} from "test/_mocks/OpenAngstrom.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
-import {
-    AngstromHandler,
-    Env,
-    LiquidityPosition,
-    LiquidityAdd,
-    PositionKey,
-    TickReward
-} from "./AngstromHandler.sol";
+import {AngstromHandler, Env, LiquidityPosition, LiquidityAdd, PositionKey, TickReward} from "./AngstromHandler.sol";
 import {tuint256} from "transient-goodies/TransientPrimitives.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {IUniV4, IPoolManager} from "src/interfaces/IUniV4.sol";
@@ -49,8 +42,7 @@ contract AngstromInvariantsTest is BaseTest {
 
         vm.prank(e.owner);
         e.uniV4 = new UniV4Inspector();
-        e.angstrom =
-            OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, e.uniV4, e.controller));
+        e.angstrom = OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, e.uniV4, e.controller));
         e.assets = _fillAssets(new MockERC20[](TOTAL_ASSETS));
         e.mirrors = _fillAssets(new MockERC20[](TOTAL_ASSETS));
 
@@ -120,9 +112,7 @@ contract AngstromInvariantsTest is BaseTest {
             );
             if (DEBUG) {
                 console.log("%s:", i);
-                console.log(
-                    "  pos.range: (%s, %s)", position.lowerTick.toStr(), position.upperTick.toStr()
-                );
+                console.log("  pos.range: (%s, %s)", position.lowerTick.toStr(), position.upperTick.toStr());
                 console.log("  pos.liquidity: %s", position.totalLiquidity);
                 console.log("  positionRewards: %s", positionRewards);
                 console.log("  expectedRewards: %s", expectedRewards);
@@ -133,9 +123,7 @@ contract AngstromInvariantsTest is BaseTest {
                     console.log("      liquidity: %s", add.liquidity);
                     add.rewardEndIndex == type(uint256).max
                         ? console.log("      rewards: (%s..)", add.rewardStartIndex)
-                        : console.log(
-                            "      rewards: (%s..%s)", add.rewardStartIndex, add.rewardEndIndex
-                        );
+                        : console.log("      rewards: (%s..%s)", add.rewardStartIndex, add.rewardEndIndex);
                 }
             }
             assertLe(positionRewards, expectedRewards, "Rewards should never exceed expected");
@@ -157,9 +145,7 @@ contract AngstromInvariantsTest is BaseTest {
         }
 
         assertLe(totalRewards + claimed + unclaimable, total);
-        assertApproxEqAbs(
-            totalRewards + claimed, total - unclaimable, REWARD_DISCREP_THRESHOLD * keys.length
-        );
+        assertApproxEqAbs(totalRewards + claimed, total - unclaimable, REWARD_DISCREP_THRESHOLD * keys.length);
     }
 
     // function invariant_ghost_totalDepositsConsistency() public view {
