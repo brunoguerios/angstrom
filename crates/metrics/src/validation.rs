@@ -122,9 +122,17 @@ impl ValidationMetricsInner {
         eth_transition_updates,
         simulate_bundle,
         loading_approvals,
-        loading_balances,
-        applying_state_transitions
+        loading_balances
     );
+
+    async fn applying_state_transitions<T>(&self, f: impl AsyncFnOnce() -> T) -> T {
+        let start = Instant::now();
+        let r = f().await;
+        let elapsed = start.elapsed().as_nanos() as f64;
+        self.applying_state_transitions.observe(elapsed);
+
+        r
+    }
 
     fn inc_pending(&self) {
         self.pending_verification.inc();
@@ -199,13 +207,7 @@ impl Default for ValidationMetrics {
 }
 
 impl ValidationMetrics {
-    delegate_metric!(
-        eth_transition_updates,
-        simulate_bundle,
-        loading_approvals,
-        loading_balances,
-        applying_state_transitions
-    );
+    delegate_metric!(eth_transition_updates, simulate_bundle, loading_approvals, loading_balances);
 
     pub fn new() -> Self {
         Self(
@@ -215,6 +217,14 @@ impl ValidationMetrics {
                 .unwrap_or_default()
                 .then(ValidationMetricsInner::default)
         )
+    }
+
+    pub async fn applying_state_transitions<T>(&self, f: impl AsyncFnOnce() -> T) -> T {
+        if let Some(inner) = self.0.as_ref() {
+            return inner.applying_state_transitions(f).await;
+        }
+
+        f().await
     }
 
     pub async fn measure_wait_time<'a, T>(

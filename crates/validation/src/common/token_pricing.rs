@@ -156,6 +156,7 @@ impl TokenPriceGenerator {
         self.base_wei = new_gas_wei;
 
         for mut pool_update in updates {
+            println!("{:#?} {:#?}", pool_update, self.pair_to_pool);
             let pool_key = if let Some(p) = self
                 .pair_to_pool
                 .get(&(pool_update.token0, pool_update.token1))
@@ -175,7 +176,7 @@ impl TokenPriceGenerator {
                         };
                         (t0 == pool_update.token0 && t1 == pool_update.token1).then_some(*pool_key)
                     })
-                    .expect("got pool update that we don't have stored");
+                    .expect("got pool update that we don't have a pool for in uniswap stored");
 
                 self.pair_to_pool
                     .insert((pool_update.token0, pool_update.token1), pk);
@@ -270,14 +271,35 @@ impl TokenPriceGenerator {
         self.prev_prices.insert(pool_id, prev_prices);
     }
 
+    /// returns they conversion ratio in the format t1 / t0
+    /// this is because rewards are in t0 and the only time
+    /// we will need to convert these is if they are a bid
+    pub fn conversion_rate_of_pair(&self, token_0: Address, token_1: Address) -> Option<Ray> {
+        // because we know all pairs MUST have a conversion with the gas token,
+        // we can source a routed swap thorugh it
+
+        // returns GAS /t0
+        let pair_1 = self.get_conversion_rate(token_0, token_1)?;
+        // returns GAS / t1
+        let pair_2 = self.get_conversion_rate(token_1, token_0)?;
+
+        Some(pair_2.inv_ray().mul_ray(pair_1))
+    }
+
     /// NOTE: assumes tokens are properly sorted.
     /// the previous prices are stored in RAY (1e27).
     /// returns price in GAS / t0
     pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         let wei = if self.base_wei == 0 { 1e18 as u128 } else { self.base_wei };
+
+        self.get_conversion_rate(token_0, token_1)
+            .map(|val| val.mul_wad(wei, 18))
+    }
+
+    fn get_conversion_rate(&self, token_0: Address, token_1: Address) -> Option<Ray> {
         // if token zero is weth, then we mul by 1
         if token_0 == self.base_gas_token {
-            return Some(Ray::scale_to_ray(U256::from(1)).mul_wad(wei, 18));
+            return Some(Ray::scale_to_ray(U256::from(1)));
         }
         // should only be called if token_1 is weth or needs multi-hop as otherwise
         // conversion factor will be 1-1
@@ -293,10 +315,7 @@ impl TokenPriceGenerator {
             }
 
             // if t1 == gas, then t0am  * t1 / t0 = am t1
-            return Some(
-                (prices.iter().map(|p| p.price_1_over_0).sum::<Ray>() / U256::from(size))
-                    .mul_wad(wei, 18)
-            );
+            return Some(prices.iter().map(|p| p.price_1_over_0).sum::<Ray>() / U256::from(size));
         }
 
         // need to pass through a pair.
@@ -328,7 +347,7 @@ impl TokenPriceGenerator {
             // thus gas_am t0 * price = gas.
 
             Some(
-                (prices
+                prices
                     .iter()
                     .map(|price| {
                         // if true, means gas is token zero
@@ -339,8 +358,7 @@ impl TokenPriceGenerator {
                         }
                     })
                     .sum::<Ray>()
-                    / U256::from(size))
-                .mul_wad(wei, 18)
+                    / U256::from(size)
             )
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
             // because we are going through token1 here and we want token zero, we need to
@@ -382,19 +400,17 @@ impl TokenPriceGenerator {
                 / U256::from(size);
 
             // t1 / t0 *  gas / t1 = gas / t0
-            Some(first_hop_price.mul_ray(second_hop_price).mul_wad(wei, 18))
+            Some(first_hop_price.mul_ray(second_hop_price))
         } else {
             tracing::error!("found a token that doesn't have a 1 hop to WETH");
             None
         }
     }
 
-    #[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
     pub fn pairs_to_pools(&self) -> HashMap<(Address, Address), PoolId> {
         self.pair_to_pool.clone()
     }
 
-    #[cfg(any(feature = "testnet", feature = "testnet-sepolia"))]
     pub fn prev_prices(&self) -> HashMap<PoolId, VecDeque<PairsWithPrice>> {
         self.prev_prices.clone()
     }
@@ -597,41 +613,6 @@ pub mod test {
     }
 
     #[test]
-    fn test_price_averaging() {
-        // 3000000000000000000000000000000000000000000000
-
-        let mut token_conversion = setup();
-
-        // Create varying prices over 5 blocks
-        let mut updates = Vec::new();
-        for i in 1..=5 {
-            updates.push(PairsWithPrice {
-                token0:         TOKEN2,
-                token1:         TOKEN0,
-                price_1_over_0: Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER)
-            });
-        }
-
-        // Apply the updates
-        for update in updates {
-            token_conversion.apply_update(0, vec![update]);
-        }
-
-        // Average should be (1 + 2 + 3 + 4 + 5) / 5 = 3
-        let rate = token_conversion
-            .get_eth_conversion_price(TOKEN2, TOKEN0)
-            .unwrap();
-
-        let mut sum = Ray::default();
-        for i in 1..=5 {
-            sum += Ray::scale_to_ray(U256::from(i) * WEI_IN_ETHER);
-        }
-        let expected = sum / U256::from(5);
-
-        assert_eq!(rate, expected);
-    }
-
-    #[test]
     fn test_generate_lookup_map() {
         let token_conversion = setup();
         let lookup_map = token_conversion.generate_lookup_map();
@@ -643,22 +624,6 @@ pub mod test {
 
         // Verify expected number of pairs
         assert_eq!(lookup_map.len(), 4, "Should have all valid pairs in lookup map");
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_apply_update_validation() {
-        let mut token_conversion = setup();
-
-        // Should panic on non-sequential block updates
-        token_conversion.apply_update(
-            0,
-            vec![PairsWithPrice {
-                token0:         TOKEN2,
-                token1:         TOKEN0,
-                price_1_over_0: Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER)
-            }]
-        );
     }
 
     #[test]

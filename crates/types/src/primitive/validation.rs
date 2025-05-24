@@ -8,8 +8,6 @@ use crate::primitive::PoolId;
 pub enum OrderValidationError {
     #[error(transparent)]
     StateError(#[from] UserAccountVerificationError),
-    #[error("the input or output generates a invalid tob swap")]
-    InvalidToBSwap,
     #[error("min qty on partial < max gas amount")]
     InvalidPartialOrder,
     #[error("invalid signature")]
@@ -40,6 +38,8 @@ pub enum OrderValidationError {
 
 #[derive(Debug, Error, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum UserAccountVerificationError {
+    #[error("the input or output generates a invalid tob swap")]
+    InvalidToBSwap,
     #[error("tried to verify for block {} where current is {}", requested, current)]
     BlockMissMatch { requested: u64, current: u64, pool_info: UserOrderPoolInfo },
     #[error("order hash has been cancelled {order_hash:?}")]

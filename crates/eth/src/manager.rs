@@ -685,7 +685,7 @@ pub mod test {
         )
         .unwrap();
 
-        let mock_recip = Receipt { logs: vec![transfer_log], ..Default::default() };
+        let mock_recip = Receipt { logs: vec![transfer_log], success: true, ..Default::default() };
 
         let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
         let filled_set = eth.get_eoa(mock_chain);
@@ -717,7 +717,7 @@ pub mod test {
             Log { address: token_addr, data: approval.encode_log_data() },
         ];
 
-        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_recip = Receipt { logs, success: true, ..Default::default() };
         let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
 
         let eoas = eth.get_eoa(mock_chain);
@@ -747,10 +747,12 @@ pub mod test {
         };
         let valid_log = Log { address: token_addr, data: valid_transfer.encode_log_data() };
 
-        let mock_recip = Receipt { logs: vec![invalid_log, valid_log], ..Default::default() };
+        let mock_recip =
+            Receipt { logs: vec![invalid_log, valid_log], success: true, ..Default::default() };
         let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
 
         let eoas = eth.get_eoa(mock_chain);
+        // fix this
         assert_eq!(eoas.len(), 2);
     }
 
@@ -815,7 +817,7 @@ pub mod test {
             })
             .collect();
 
-        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_recip = Receipt { logs, success: true, ..Default::default() };
         let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
 
         eth.apply_periphery_logs(&*mock_chain);
@@ -866,7 +868,7 @@ pub mod test {
             Log { address: periphery_addr, data: remove.encode_log_data() },
         ];
 
-        let mock_recip = Receipt { logs, ..Default::default() };
+        let mock_recip = Receipt { logs, success: true, ..Default::default() };
         let mock_chain = Arc::new(MockChain { receipts: vec![&mock_recip], ..Default::default() });
 
         eth.apply_periphery_logs(&*mock_chain);

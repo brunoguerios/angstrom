@@ -223,6 +223,21 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
         self.is_currently_valid.is_none()
     }
 
+    pub fn with_default(order: O) -> Self {
+        Self {
+            is_bid: order.is_bid(),
+            order,
+            priority_data: OrderPriorityData::default(),
+            pool_id: Default::default(),
+            invalidates: vec![],
+            is_currently_valid: None,
+            is_valid: true,
+            valid_block: 0,
+            order_id: OrderId::default(),
+            tob_reward: U256::default()
+        }
+    }
+
     pub fn fetch_supply_or_demand_contribution_with_fee_partial(
         &self,
         price: Ray,

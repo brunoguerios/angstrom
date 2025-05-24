@@ -33,7 +33,7 @@ use crate::{
     validator::{ValidationClient, ValidationRequest}
 };
 
-const MAX_VALIDATION_PER_ADDR: usize = 2;
+const MAX_VALIDATION_PER_ADDR: usize = 1;
 
 #[allow(clippy::too_many_arguments)]
 pub fn init_validation<
@@ -67,13 +67,6 @@ pub fn init_validation<
         // load storage slot state + pools
         let thread_pool = KeySplitThreadpool::new(handle, MAX_VALIDATION_PER_ADDR);
         let sim = SimValidation::new(revm_lru.clone(), angstrom_address, node_address);
-
-        // load price update stream;
-        // let update_stream = PairsWithPrice::into_price_update_stream(
-        //     angstrom_address,
-        //     state_notification,
-        //     revm_lru.clone(),
-        // );
 
         let order_validator =
             rt.block_on(OrderValidator::new(sim, current_block, pools, fetch, uniswap_pools));
