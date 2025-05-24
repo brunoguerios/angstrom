@@ -13,10 +13,16 @@ struct ConfigEntryUpdate {
 
 interface IAngstromAuth {
     function setController(address newController) external;
-    function configurePool(address assetA, address assetB, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee)
-        external;
+    function configurePool(
+        address assetA,
+        address assetB,
+        uint16 tickSpacing,
+        uint24 bundleFee,
+        uint24 unlockedFee
+    ) external;
     function removePool(StoreKey key, PoolConfigStore expectedStore, uint256 storeIndex) external;
-    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates) external;
+    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates)
+        external;
     function pullFee(address asset, uint256 amount) external;
     function toggleNodes(address[] calldata nodes) external;
     function extsload(uint256 slot) external view returns (uint256);

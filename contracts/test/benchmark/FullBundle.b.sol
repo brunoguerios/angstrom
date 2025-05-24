@@ -144,7 +144,11 @@ contract FullBundleBenchmark is BaseTest {
             order.maxExtraFeeAsset0 = fee0;
             order.extraFeeAsset0 = fee0;
             order.validForBlock = u64(block.number);
-            sign(user, order.meta, erc712Hash(computeDomainSeparator(address(angstrom)), order.hash()));
+            sign(
+                user,
+                order.meta,
+                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+            );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
         }
@@ -188,7 +192,9 @@ contract FullBundleBenchmark is BaseTest {
             tob.validForBlock = uint64(block.number);
             tob.gasUsedAsset0 = tobFee0;
 
-            sign(mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash()));
+            sign(
+                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+            );
 
             bundle.addToB(tob);
 
@@ -258,7 +264,11 @@ contract FullBundleBenchmark is BaseTest {
             order.extraFeeAsset0 = fee0;
             order.nonce = 1;
             order.deadline = uint40(vm.unixTime()) / 1000 + 60 minutes;
-            sign(user, order.meta, erc712Hash(computeDomainSeparator(address(angstrom)), order.hash()));
+            sign(
+                user,
+                order.meta,
+                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+            );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
         }
@@ -302,7 +312,9 @@ contract FullBundleBenchmark is BaseTest {
             tob.validForBlock = uint64(block.number);
             tob.gasUsedAsset0 = tobFee0;
 
-            sign(mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash()));
+            sign(
+                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+            );
 
             bundle.addToB(tob);
         }
@@ -364,7 +376,11 @@ contract FullBundleBenchmark is BaseTest {
             order.maxExtraFeeAsset0 = fee0;
             order.extraFeeAsset0 = fee0;
             order.validForBlock = u64(block.number);
-            sign(user, order.meta, erc712Hash(computeDomainSeparator(address(angstrom)), order.hash()));
+            sign(
+                user,
+                order.meta,
+                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+            );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
         }
@@ -408,7 +424,9 @@ contract FullBundleBenchmark is BaseTest {
             tob.validForBlock = uint64(block.number);
             tob.gasUsedAsset0 = tobFee0;
 
-            sign(mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash()));
+            sign(
+                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+            );
 
             bundle.addToB(tob);
 
@@ -469,7 +487,11 @@ contract FullBundleBenchmark is BaseTest {
             order.extraFeeAsset0 = fee0;
             order.nonce = 1;
             order.deadline = uint40(vm.unixTime()) / 1000 + 60 minutes;
-            sign(user, order.meta, erc712Hash(computeDomainSeparator(address(angstrom)), order.hash()));
+            sign(
+                user,
+                order.meta,
+                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+            );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
         }
@@ -513,7 +535,9 @@ contract FullBundleBenchmark is BaseTest {
             tob.validForBlock = uint64(block.number);
             tob.gasUsedAsset0 = tobFee0;
 
-            sign(mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash()));
+            sign(
+                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+            );
 
             bundle.addToB(tob);
 

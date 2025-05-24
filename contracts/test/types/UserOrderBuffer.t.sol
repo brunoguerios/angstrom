@@ -19,15 +19,23 @@ import {console} from "forge-std/console.sol";
 contract UserOrderBufferTest is BaseTest {
     function setUp() public {}
 
-    function test_fuzzing_referenceEqBuffer_PartialStandingOrder(PartialStandingOrder memory order) public view {
+    function test_fuzzing_referenceEqBuffer_PartialStandingOrder(PartialStandingOrder memory order)
+        public
+        view
+    {
         assertEq(bufferHash(order), order.hash());
     }
 
-    function test_fuzzing_referenceEqBuffer_ExactStandingOrder(ExactStandingOrder memory order) public view {
+    function test_fuzzing_referenceEqBuffer_ExactStandingOrder(ExactStandingOrder memory order)
+        public
+        view
+    {
         assertEq(bufferHash(order), order.hash());
     }
 
-    function test_fuzzing_referenceEqBuffer_PartialFlashOrder(PartialFlashOrder memory order) public {
+    function test_fuzzing_referenceEqBuffer_PartialFlashOrder(PartialFlashOrder memory order)
+        public
+    {
         assertEq(bufferHash(order), order.hash());
     }
 
@@ -35,19 +43,27 @@ contract UserOrderBufferTest is BaseTest {
         assertEq(bufferHash(order), order.hash());
     }
 
-    function test_ffi_fuzzing_bufferPythonEquivalence_PartialStandingOrder(PartialStandingOrder memory order) public {
+    function test_ffi_fuzzing_bufferPythonEquivalence_PartialStandingOrder(
+        PartialStandingOrder memory order
+    ) public {
         assertEq(bufferHash(order), ffiPythonEIP712Hash(order));
     }
 
-    function test_ffi_fuzzing_bufferPythonEquivalence_ExactStandingOrder(ExactStandingOrder memory order) public {
+    function test_ffi_fuzzing_bufferPythonEquivalence_ExactStandingOrder(
+        ExactStandingOrder memory order
+    ) public {
         assertEq(bufferHash(order), ffiPythonEIP712Hash(order));
     }
 
-    function test_ffi_fuzzing_bufferPythonEquivalence_PartialFlashOrder(PartialFlashOrder memory order) public {
+    function test_ffi_fuzzing_bufferPythonEquivalence_PartialFlashOrder(
+        PartialFlashOrder memory order
+    ) public {
         assertEq(bufferHash(order), ffiPythonEIP712Hash(order));
     }
 
-    function test_ffi_fuzzing_bufferPythonEquivalence_ExactFlashOrder(ExactFlashOrder memory order) public {
+    function test_ffi_fuzzing_bufferPythonEquivalence_ExactFlashOrder(ExactFlashOrder memory order)
+        public
+    {
         assertEq(bufferHash(order), ffiPythonEIP712Hash(order));
     }
 
@@ -73,11 +89,10 @@ contract UserOrderBufferTest is BaseTest {
         );
     }
 
-    function _bufferHashPartialStandingOrder(PartialStandingOrder memory order, bytes calldata dataStart)
-        external
-        view
-        returns (bytes32)
-    {
+    function _bufferHashPartialStandingOrder(
+        PartialStandingOrder memory order,
+        bytes calldata dataStart
+    ) external view returns (bytes32) {
         CalldataReader reader = CalldataReaderLib.from(dataStart);
         UserOrderBuffer memory buffer;
         UserOrderVariantMap varMap;
@@ -91,8 +106,11 @@ contract UserOrderBufferTest is BaseTest {
         buffer.assetIn = order.assetIn;
         buffer.assetOut = order.assetOut;
         buffer.recipient = order.recipient;
-        buffer.hookDataHash =
-            keccak256(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        buffer.hookDataHash = keccak256(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         buffer.readOrderValidation(reader, varMap);
 
         return buffer.structHash(varMap);
@@ -112,8 +130,11 @@ contract UserOrderBufferTest is BaseTest {
         args[i++] = vm.toString(order.assetIn);
         args[i++] = vm.toString(order.assetOut);
         args[i++] = vm.toString(order.recipient);
-        args[i++] =
-            vm.toString(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        args[i++] = vm.toString(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         args[i++] = vm.toString(order.nonce);
         args[i++] = vm.toString(order.deadline);
         return bytes32(ffiPython(args));
@@ -141,11 +162,10 @@ contract UserOrderBufferTest is BaseTest {
         );
     }
 
-    function _bufferHashExactStandingOrder(ExactStandingOrder memory order, bytes calldata dataStart)
-        external
-        view
-        returns (bytes32)
-    {
+    function _bufferHashExactStandingOrder(
+        ExactStandingOrder memory order,
+        bytes calldata dataStart
+    ) external view returns (bytes32) {
         CalldataReader reader = CalldataReaderLib.from(dataStart);
         UserOrderBuffer memory buffer;
         UserOrderVariantMap varMap;
@@ -159,8 +179,11 @@ contract UserOrderBufferTest is BaseTest {
         buffer.assetIn = order.assetIn;
         buffer.assetOut = order.assetOut;
         buffer.recipient = order.recipient;
-        buffer.hookDataHash =
-            keccak256(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        buffer.hookDataHash = keccak256(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         buffer.readOrderValidation(reader, varMap);
 
         return buffer.structHash(varMap);
@@ -180,8 +203,11 @@ contract UserOrderBufferTest is BaseTest {
         args[i++] = vm.toString(order.assetIn);
         args[i++] = vm.toString(order.assetOut);
         args[i++] = vm.toString(order.recipient);
-        args[i++] =
-            vm.toString(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        args[i++] = vm.toString(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         args[i++] = vm.toString(order.nonce);
         args[i++] = vm.toString(order.deadline);
         return bytes32(ffiPython(args));
@@ -222,8 +248,11 @@ contract UserOrderBufferTest is BaseTest {
         buffer.assetIn = order.assetIn;
         buffer.assetOut = order.assetOut;
         buffer.recipient = order.recipient;
-        buffer.hookDataHash =
-            keccak256(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        buffer.hookDataHash = keccak256(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         buffer.readOrderValidation(reader, varMap);
 
         return buffer.structHash(varMap);
@@ -243,8 +272,11 @@ contract UserOrderBufferTest is BaseTest {
         args[i++] = vm.toString(order.assetIn);
         args[i++] = vm.toString(order.assetOut);
         args[i++] = vm.toString(order.recipient);
-        args[i++] =
-            vm.toString(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        args[i++] = vm.toString(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         args[i++] = vm.toString(order.validForBlock);
         return bytes32(ffiPython(args));
     }
@@ -284,8 +316,11 @@ contract UserOrderBufferTest is BaseTest {
         buffer.assetIn = order.assetIn;
         buffer.assetOut = order.assetOut;
         buffer.recipient = order.recipient;
-        buffer.hookDataHash =
-            keccak256(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        buffer.hookDataHash = keccak256(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         buffer.readOrderValidation(reader, varMap);
 
         return buffer.structHash(varMap);
@@ -305,8 +340,11 @@ contract UserOrderBufferTest is BaseTest {
         args[i++] = vm.toString(order.assetIn);
         args[i++] = vm.toString(order.assetOut);
         args[i++] = vm.toString(order.recipient);
-        args[i++] =
-            vm.toString(order.hook == address(0) ? new bytes(0) : bytes.concat(bytes20(order.hook), order.hookPayload));
+        args[i++] = vm.toString(
+            order.hook == address(0)
+                ? new bytes(0)
+                : bytes.concat(bytes20(order.hook), order.hookPayload)
+        );
         args[i++] = vm.toString(order.validForBlock);
         return bytes32(ffiPython(args));
     }

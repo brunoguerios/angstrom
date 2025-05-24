@@ -76,7 +76,10 @@ contract PoolRewardsTest is BaseTest {
 
         gate.tickSpacing(tickSpacing = 60);
         angstrom.initializePool(
-            asset0, asset1, PairLib.getStoreIndex(configStore, asset0, asset1), int24(4).getSqrtPriceAtTick()
+            asset0,
+            asset1,
+            PairLib.getStoreIndex(configStore, asset0, asset1),
+            int24(4).getSqrtPriceAtTick()
         );
         id = poolId(angstrom, asset0, asset1);
 
@@ -131,15 +134,17 @@ contract PoolRewardsTest is BaseTest {
     }
 
     function test_bench_rewardMultiOneWord_swapWithin() public reportTickChange {
-        RewardsUpdate[] memory updates =
-            RewardLib.toUpdates(RewardLib.re(TickReward(60, 1.0e18), TickReward(0, 1.0e18)), uni, id, tickSpacing);
+        RewardsUpdate[] memory updates = RewardLib.toUpdates(
+            RewardLib.re(TickReward(60, 1.0e18), TickReward(0, 1.0e18)), uni, id, tickSpacing
+        );
         assertEq(updates.length, 1);
         updatePoolOneToZero(3.33e14, updates[0]);
     }
 
     function test_bench_rewardMultiMultiWord_swapAcross() public {
-        RewardsUpdate[] memory updates =
-            RewardLib.toUpdates(RewardLib.re(TickReward(-60, 1.0e18), TickReward(0, 1.0e18)), uni, id, tickSpacing, -60);
+        RewardsUpdate[] memory updates = RewardLib.toUpdates(
+            RewardLib.re(TickReward(-60, 1.0e18), TickReward(0, 1.0e18)), uni, id, tickSpacing, -60
+        );
         assertEq(updates.length, 1);
         updatePoolZeroToOne(1.7e18, updates[0]);
     }

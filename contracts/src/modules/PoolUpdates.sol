@@ -72,17 +72,20 @@ abstract contract PoolUpdates is
                 // Following Uniswap's convention, if tick is below and uninitialized initialize growth
                 // outside to global accumulator.
                 if (!UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickLower)] = lowerGrowth = rewards.globalGrowth;
+                    rewards.rewardGrowthOutside[uint24(params.tickLower)] =
+                        lowerGrowth = rewards.globalGrowth;
                 }
                 if (!UNI_V4.isInitialized(id, params.tickUpper, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickUpper)] = upperGrowth = rewards.globalGrowth;
+                    rewards.rewardGrowthOutside[uint24(params.tickUpper)] =
+                        upperGrowth = rewards.globalGrowth;
                 }
                 unchecked {
                     growthInside = upperGrowth - lowerGrowth;
                 }
             } else {
                 if (!UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickLower)] = lowerGrowth = rewards.globalGrowth;
+                    rewards.rewardGrowthOutside[uint24(params.tickLower)] =
+                        lowerGrowth = rewards.globalGrowth;
                 }
                 unchecked {
                     growthInside = rewards.globalGrowth - lowerGrowth - upperGrowth;
@@ -107,8 +110,9 @@ abstract contract PoolUpdates is
             //  growth_inside - last' = (growth_inside - last) * L / L'
             // last' = growth_inside - (growth_inside - last) * L / L'
             unchecked {
-                uint256 lastGrowthAdjustment =
-                    FixedPointMathLib.fullMulDiv(growthInside - position.lastGrowthInside, lastLiquidity, newLiquidity);
+                uint256 lastGrowthAdjustment = FixedPointMathLib.fullMulDiv(
+                    growthInside - position.lastGrowthInside, lastLiquidity, newLiquidity
+                );
                 position.lastGrowthInside = growthInside - lastGrowthAdjustment;
             }
         }
@@ -129,10 +133,13 @@ abstract contract PoolUpdates is
             (Position storage position, bytes32 positionKey) =
                 positions.get(id, sender, params.tickLower, params.tickUpper, params.salt);
             int24 currentTick = UNI_V4.getSlot0(id).tick();
-            uint256 growthInside = poolRewards[id].getGrowthInside(currentTick, params.tickLower, params.tickUpper);
+            uint256 growthInside =
+                poolRewards[id].getGrowthInside(currentTick, params.tickLower, params.tickUpper);
 
             uint128 positionTotalLiquidity = UNI_V4.getPositionLiquidity(id, positionKey);
-            uint256 rewards = X128MathLib.fullMulX128(growthInside - position.lastGrowthInside, positionTotalLiquidity);
+            uint256 rewards = X128MathLib.fullMulX128(
+                growthInside - position.lastGrowthInside, positionTotalLiquidity
+            );
 
             if (rewards > 0) {
                 // Pay rewards to owner via uniswap delta => assumes that router is not malicious.
@@ -147,7 +154,10 @@ abstract contract PoolUpdates is
         return this.beforeRemoveLiquidity.selector;
     }
 
-    function _updatePools(CalldataReader reader, PairArray pairs) internal returns (CalldataReader) {
+    function _updatePools(CalldataReader reader, PairArray pairs)
+        internal
+        returns (CalldataReader)
+    {
         CalldataReader end;
         (reader, end) = reader.readU24End();
         SwapCall memory swapCall = SwapCallLib.newSwapCall(address(this));
@@ -171,7 +181,8 @@ abstract contract PoolUpdates is
         swapCall.setZeroForOne(variantMap.zeroForOne());
         uint16 pairIndex;
         (reader, pairIndex) = reader.readU16();
-        (swapCall.asset0, swapCall.asset1, swapCall.tickSpacing) = pairs.get(pairIndex).getPoolInfo();
+        (swapCall.asset0, swapCall.asset1, swapCall.tickSpacing) =
+            pairs.get(pairIndex).getPoolInfo();
 
         PoolId id = swapCall.getId();
 
@@ -188,14 +199,17 @@ abstract contract PoolUpdates is
 
             currentTick = UNI_V4.getSlot0(id).tick();
 
-            poolRewards[id].updateAfterTickMove(id, UNI_V4, tickBefore, currentTick, swapCall.tickSpacing);
+            poolRewards[id].updateAfterTickMove(
+                id, UNI_V4, tickBefore, currentTick, swapCall.tickSpacing
+            );
         } else {
             currentTick = UNI_V4.getSlot0(id).tick();
         }
 
         uint256 rewardTotal;
-        (reader, rewardTotal) =
-            _decodeAndReward(variantMap.currentOnly(), reader, poolRewards[id], id, swapCall.tickSpacing, currentTick);
+        (reader, rewardTotal) = _decodeAndReward(
+            variantMap.currentOnly(), reader, poolRewards[id], id, swapCall.tickSpacing, currentTick
+        );
         bundleDeltas.sub(swapCall.asset0, rewardTotal);
 
         return reader;

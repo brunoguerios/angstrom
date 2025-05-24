@@ -43,7 +43,11 @@ contract X128MathLibTest is BaseTest {
         }
     }
 
-    function naive_fullMulDiv128(uint256 x, uint256 y) internal pure returns (bool success, uint256 z) {
+    function naive_fullMulDiv128(uint256 x, uint256 y)
+        internal
+        pure
+        returns (bool success, uint256 z)
+    {
         // x * y = (x0 * 2**128 + x1) * (y0 * 2**128 + y1)
         //       = x0 * y0 * 2**256 + x1 * y0 * 2**128 + x0 * y1 * 2**128 + y1 * x1
         // floor((x * y) / 2**128) = floor(x0 * y0 * 2**128 + x1 * y0 + x0 * y1 + y1 * x1 / 2**128)

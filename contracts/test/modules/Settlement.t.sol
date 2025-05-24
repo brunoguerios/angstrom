@@ -10,7 +10,12 @@ import {Angstrom} from "src/Angstrom.sol";
 import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {LibSort} from "solady/src/utils/LibSort.sol";
-import {NoReturnToken, RevertsTrueToken, ReturnStatusToken, RevertsEmptyToken} from "../_mocks/NonStandardERC20s.sol";
+import {
+    NoReturnToken,
+    RevertsTrueToken,
+    ReturnStatusToken,
+    RevertsEmptyToken
+} from "../_mocks/NonStandardERC20s.sol";
 
 import {console} from "forge-std/console.sol";
 
@@ -52,7 +57,11 @@ contract SettlementTest is BaseTest {
         angstrom.toggleNodes(addrs(abi.encode(validator)));
     }
 
-    function test_fuzzing_prevents_depositingUndeployedToken(address user, address asset, uint256 amount) public {
+    function test_fuzzing_prevents_depositingUndeployedToken(
+        address user,
+        address asset,
+        uint256 amount
+    ) public {
         vm.assume(user != address(angstrom));
         vm.assume(asset.code.length == 0);
 
@@ -61,7 +70,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(asset, amount);
     }
 
-    function test_fuzzing_prevents_depositingWhenNoReturnRevert(address user, uint256 amount) public {
+    function test_fuzzing_prevents_depositingWhenNoReturnRevert(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -78,7 +89,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenNoRevertsWithTrue(address user, uint256 amount) public {
+    function test_fuzzing_prevents_depositingWhenNoRevertsWithTrue(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -95,7 +108,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenReturnsFalse(address user, uint256 amount) public {
+    function test_fuzzing_prevents_depositingWhenReturnsFalse(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -112,7 +127,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenReturnsEmpty(address user, uint256 amount) public {
+    function test_fuzzing_prevents_depositingWhenReturnsEmpty(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -147,7 +164,12 @@ contract SettlementTest is BaseTest {
         assertEq(rawGetBalance(address(angstrom), asset, user), amount);
     }
 
-    function test_fuzzing_depositTo(address user, address recipient, uint256 assetIndex, uint256 amount) public {
+    function test_fuzzing_depositTo(
+        address user,
+        address recipient,
+        uint256 assetIndex,
+        uint256 amount
+    ) public {
         vm.assume(user != address(angstrom));
         vm.assume(recipient != address(angstrom));
 
@@ -301,7 +323,10 @@ contract SettlementTest is BaseTest {
         bytes memory payload = bundle.encode(rawGetConfigStore(address(angstrom)));
         vm.expectEmitAnonymous(address(angstrom));
         bytes32 feeSummary = bundle.feeSummary();
-        assertEq(feeSummary, keccak256(abi.encodePacked(asset2, amount2, asset1, amount1, otherAsset, uint128(0))));
+        assertEq(
+            feeSummary,
+            keccak256(abi.encodePacked(asset2, amount2, asset1, amount1, otherAsset, uint128(0)))
+        );
         emit AngstromFeeSummary(feeSummary);
         vm.prank(validator);
         angstrom.execute(payload);
@@ -319,7 +344,11 @@ contract SettlementTest is BaseTest {
         assertEq(MockERC20(asset2).balanceOf(controller), amount2);
     }
 
-    function test_fuzzing_prevents_nonFeeMasterPull(address puller, uint256 assetIndex, uint128 amount) public {
+    function test_fuzzing_prevents_nonFeeMasterPull(
+        address puller,
+        uint256 assetIndex,
+        uint128 amount
+    ) public {
         vm.assume(puller != controller);
         address asset = assets[bound(assetIndex, 0, assets.length - 1)];
 

@@ -35,7 +35,8 @@ abstract contract UnlockHook is UniConsumer, TopLevelAuth, IBeforeSwapHook {
             }
         }
 
-        swapFee = _unlockedFee(_addr(key.currency0), _addr(key.currency1)) | LPFeeLibrary.OVERRIDE_FEE_FLAG;
+        swapFee = _unlockedFee(_addr(key.currency0), _addr(key.currency1))
+            | LPFeeLibrary.OVERRIDE_FEE_FLAG;
         return (IBeforeSwapHook.beforeSwap.selector, delta, swapFee);
     }
 }

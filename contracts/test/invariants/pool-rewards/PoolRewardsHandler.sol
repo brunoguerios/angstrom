@@ -112,16 +112,22 @@ contract PoolRewardsHandler is BaseTest {
         return _ghost_postitions;
     }
 
-    function addLiquidity(address sender, int24 lowerTick, int24 upperTick, uint256 liquidity) public {
+    function addLiquidity(address sender, int24 lowerTick, int24 upperTick, uint256 liquidity)
+        public
+    {
         assertGt(liquidity, 0, "Liquidity zero");
         assertLt(lowerTick, upperTick, "Upper tick below or equal to lower tick");
         assertEq(lowerTick % TICK_SPACING, 0, "Lower tick incorrectly spaced");
         assertEq(upperTick % TICK_SPACING, 0, "Lower tick incorrectly spaced");
         vm.startPrank(sender);
         gate.setHook(address(angstrom));
-        gate.addLiquidity(address(asset0), address(asset1), lowerTick, upperTick, liquidity, bytes32(0));
+        gate.addLiquidity(
+            address(asset0), address(asset1), lowerTick, upperTick, liquidity, bytes32(0)
+        );
         gate.setHook(address(0));
-        gate.addLiquidity(address(asset0), address(asset1), lowerTick, upperTick, liquidity, bytes32(0));
+        gate.addLiquidity(
+            address(asset0), address(asset1), lowerTick, upperTick, liquidity, bytes32(0)
+        );
         vm.stopPrank();
         _initializeTick(lowerTick);
         _initializeTick(upperTick);
@@ -154,8 +160,13 @@ contract PoolRewardsHandler is BaseTest {
         int24 lowest = ghost_lowestTick;
         int24 highest = ghost_highestTick;
         assertGt(highest, lowest, "Less than 2 unique ticks initialized");
-        targetSqrtPrice =
-            uint160(bound(targetSqrtPrice, TickMath.getSqrtPriceAtTick(lowest), TickMath.getSqrtPriceAtTick(highest)));
+        targetSqrtPrice = uint160(
+            bound(
+                targetSqrtPrice,
+                TickMath.getSqrtPriceAtTick(lowest),
+                TickMath.getSqrtPriceAtTick(highest)
+            )
+        );
 
         _swapTo(targetSqrtPrice);
     }
@@ -178,7 +189,8 @@ contract PoolRewardsHandler is BaseTest {
         gate.setHook(address(0));
         // Do initial swap to price to get delta.
         uint256 snapshot = vm.snapshotState();
-        BalanceDelta delta = gate.swap(address(assetIn), address(assetOut), type(int256).min, targetSqrtPrice);
+        BalanceDelta delta =
+            gate.swap(address(assetIn), address(assetOut), type(int256).min, targetSqrtPrice);
         if (delta.amount0() == 0 && delta.amount1() == 0) {
             require(vm.revertToState(snapshot), "failed to revert");
             return;
@@ -192,8 +204,9 @@ contract PoolRewardsHandler is BaseTest {
             zeroForOne ? MIN_SQRT_RATIO : MAX_SQRT_RATIO
         );
 
-        Bundle memory bundle =
-            zeroForOne ? _newBundle(uint128(-delta.amount0()), 0) : _newBundle(0, uint128(-delta.amount1()));
+        Bundle memory bundle = zeroForOne
+            ? _newBundle(uint128(-delta.amount0()), 0)
+            : _newBundle(0, uint128(-delta.amount1()));
 
         bundle.poolUpdates = new PoolUpdate[](1);
         PoolUpdate memory poolUpdate = bundle.poolUpdates[0];

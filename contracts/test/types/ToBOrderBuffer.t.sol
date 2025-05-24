@@ -24,7 +24,9 @@ contract ToBOrderBufferTest is BaseTest {
         assertEq(gap, ToBOrderBufferLib.BUFFER_BYTES);
     }
 
-    function test_fuzzing_bufferTypeHashEqualReference(SignedTopOfBlockOrder calldata order) public {
+    function test_fuzzing_bufferTypeHashEqualReference(SignedTopOfBlockOrder calldata order)
+        public
+    {
         TopOfBlockOrder memory refOrder;
         refOrder.quantityIn = order.quantity_in;
         refOrder.quantityOut = order.quantity_out;

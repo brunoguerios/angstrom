@@ -46,7 +46,11 @@ library ConfigEntryLib {
     uint256 internal constant MIN_TICK_SPACING = uint24(TickMath.MIN_TICK_SPACING);
     uint256 internal constant MAX_TICK_SPACING = uint24(TickMath.MAX_TICK_SPACING);
 
-    function setTickSpacing(ConfigEntry self, uint16 spacing) internal pure returns (ConfigEntry updated) {
+    function setTickSpacing(ConfigEntry self, uint16 spacing)
+        internal
+        pure
+        returns (ConfigEntry updated)
+    {
         _checkTickSpacing(spacing);
         uint256 backing = ConfigEntry.unwrap(self);
         uint256 xoredSpacing = spacing ^ uint24(self.tickSpacing());
@@ -60,7 +64,11 @@ library ConfigEntryLib {
         }
     }
 
-    function setBundleFee(ConfigEntry self, uint24 fee) internal pure returns (ConfigEntry updated) {
+    function setBundleFee(ConfigEntry self, uint24 fee)
+        internal
+        pure
+        returns (ConfigEntry updated)
+    {
         _checkBundleFee(fee);
         uint256 backing = ConfigEntry.unwrap(self);
         uint256 xoredFee = fee ^ self.bundleFee();
