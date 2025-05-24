@@ -168,7 +168,7 @@ pub mod fuzz_uniswap {
     use rand::Rng;
     use revm::{
         Context, DatabaseRef, ExecuteEvm, Journal, MainBuilder,
-        context::{BlockEnv, CfgEnv, JournalTr, TxEnv},
+        context::{BlockEnv, CfgEnv, JournalTr, LocalContext, TxEnv},
         database::CacheDB,
         primitives::{TxKind, hardfork::SpecId}
     };
@@ -305,7 +305,8 @@ pub mod fuzz_uniswap {
             cfg:             CfgEnv::<SpecId>::default().with_chain_id(CHAIN_ID),
             journaled_state: Journal::<CacheDB<Arc<DB>>>::new(db.clone()),
             chain:           (),
-            error:           Ok(())
+            error:           Ok(()),
+            local:           LocalContext::default()
         }
         .modify_cfg_chained(|cfg| {
             cfg.disable_nonce_check = true;

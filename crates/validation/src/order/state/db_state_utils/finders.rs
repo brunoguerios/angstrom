@@ -11,7 +11,7 @@ use angstrom_types::{
     CHAIN_ID,
     contract_bindings::mintable_mock_erc_20::MintableMockERC20::{allowanceCall, balanceOfCall}
 };
-use revm::context::JournalTr;
+use revm::context::{JournalTr, LocalContext};
 // use revm::{
 //     db::CacheDB,
 //     primitives::{EnvWithHandlerCfg, TxKind}
@@ -49,7 +49,8 @@ where
             cfg:             CfgEnv::<SpecId>::default(),
             journaled_state: Journal::<CacheDB<&DB>>::new(db.clone()),
             chain:           (),
-            error:           Ok(())
+            error:           Ok(()),
+            local:           LocalContext::default()
         }
         .with_ref_db(db.clone())
         .modify_cfg_chained(|cfg| {
@@ -112,7 +113,8 @@ where
             cfg:             CfgEnv::<SpecId>::default(),
             journaled_state: Journal::<CacheDB<&DB>>::new(db.clone()),
             chain:           (),
-            error:           Ok(())
+            error:           Ok(()),
+            local:           LocalContext::default()
         }
         .with_ref_db(db.clone())
         .modify_cfg_chained(|cfg| {
