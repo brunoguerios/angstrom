@@ -114,7 +114,11 @@ where
                 }
 
                 if let Some(result) = order {
-                    match SubscriptionMessage::from_json(&result) {
+                    match SubscriptionMessage::new(
+                        sink.method_name(),
+                        sink.subscription_id(),
+                        &result
+                    ) {
                         Ok(message) => {
                             if sink.send(message).await.is_err() {
                                 break;

@@ -30,7 +30,7 @@ where
         > + Unpin
         + 'static
 {
-    type Primitives = EthNetworkPrimitives;
+    type Network = NetworkHandle<EthNetworkPrimitives>;
 
     async fn build_network(
         self,
