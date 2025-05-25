@@ -58,6 +58,16 @@ pub trait OrderApi {
     ) -> RpcResult<Vec<AllOrders>>;
 
     #[subscription(
+        name = "subscribeEndAmm",
+        unsubscribe = "unsubscribeEndAmm",
+        item = crate::types::Slot0Update
+    )]
+    async fn subscribe_end_amm(
+        &self,
+        pools: HashSet<PoolId>
+    ) -> jsonrpsee::core::SubscriptionResult;
+
+    #[subscription(
         name = "subscribeOrders",
         unsubscribe = "unsubscribeOrders",
         item = crate::types::subscriptions::OrderSubscriptionResult

@@ -8,6 +8,11 @@ use serde_json::Value;
 pub use subscriptions::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+pub struct Slot0Update {
+    pool_id: PoolId
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct PendingOrder {
     /// the order id
     pub order_id: FixedBytes<32>,
