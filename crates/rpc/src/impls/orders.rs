@@ -95,6 +95,14 @@ where
         Ok(self.pool.fetch_orders_from_pool(pool_id, location).await)
     }
 
+    async fn subscribe_end_amm(
+        &self,
+        pending: PendingSubscriptionSink,
+        pools: HashSet<PoolId>
+    ) -> jsonrpsee::core::SubscriptionResult {
+        Ok(())
+    }
+
     async fn subscribe_orders(
         &self,
         pending: PendingSubscriptionSink,

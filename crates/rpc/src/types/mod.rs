@@ -1,6 +1,7 @@
 pub mod quoting;
+use angstrom_types::primitive::PoolId;
 pub mod subscriptions;
-use alloy_primitives::FixedBytes;
+use alloy_primitives::{FixedBytes, U256};
 use angstrom_types::{primitive::OrderValidationError, sol_bindings::grouped_orders::AllOrders};
 pub use quoting::*;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,15 @@ pub use subscriptions::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Slot0Update {
-    pool_id: PoolId
+    /// there will be 120 updates per block or per 100ms
+    pub seq_id:        u8,
+    /// incase of block lag on node
+    pub current_block: u64,
+    /// basic identifier
+    pub pool_id:       PoolId,
+
+    pub sqrt_price_x96: U256,
+    pub tick:           i32
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]

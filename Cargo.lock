@@ -1416,6 +1416,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "angstrom-amm-quoter"
+version = "0.1.0"
+dependencies = [
+ "alloy 1.0.6",
+ "angstrom-types",
+ "eyre",
+ "futures",
+ "matching-engine",
+ "order-pool",
+ "serde",
+ "uniswap-v4",
+]
+
+[[package]]
 name = "angstrom-eth"
 version = "0.1.0"
 dependencies = [
