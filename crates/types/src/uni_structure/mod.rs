@@ -17,11 +17,12 @@ pub mod pool_swap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaselinePoolState {
     liquidity: BaselineLiquidity,
+    block:     u64,
     fee:       u32
 }
 
 impl BaselinePoolState {
-    pub fn new(liquidity: BaselineLiquidity, fee: u32) -> Self {
+    pub fn new(liquidity: BaselineLiquidity, block: u64, fee: u32) -> Self {
         Self { liquidity, fee }
     }
 

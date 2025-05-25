@@ -1425,7 +1425,9 @@ dependencies = [
  "futures",
  "matching-engine",
  "order-pool",
+ "rayon",
  "serde",
+ "tokio",
  "uniswap-v4",
 ]
 
