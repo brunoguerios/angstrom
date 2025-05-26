@@ -227,7 +227,7 @@ pub fn build_non_proposal_books(
     book_sources
         .into_iter()
         .map(|(id, orders)| {
-            let amm = pool_snapshots.get(&id).map(|value| value.clone());
+            let amm = pool_snapshots.get(&id).cloned();
             build_book(id, amm, orders)
         })
         .collect()

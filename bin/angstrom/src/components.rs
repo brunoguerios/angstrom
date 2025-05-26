@@ -38,7 +38,6 @@ use futures::Stream;
 use matching_engine::{MatchingManager, manager::MatcherCommand};
 use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
 use parking_lot::RwLock;
-use rayon::ThreadBuilder;
 use reth::{
     api::NodeAddOns,
     builder::FullNodeComponents,

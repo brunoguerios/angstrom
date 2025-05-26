@@ -358,7 +358,7 @@ mod tests {
         let (to_pool, pool_rx) = unbounded_channel();
         let pool_handle = MockOrderPoolHandle::new(to_pool);
         let task_executor = TokioTaskExecutor::default();
-        let (tx, rx) = tokio::sync::mpsc::channel(5);
+        let (tx, _) = tokio::sync::mpsc::channel(5);
         let q_handle = QuoterHandle(tx);
         let api = OrderApi::new(pool_handle.clone(), task_executor, MockValidator, q_handle);
         let handle = OrderApiTestHandle { _from_api: pool_rx };
