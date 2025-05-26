@@ -996,7 +996,7 @@ impl AngstromBundle {
     }
 }
 
-#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct AngstromPoolPartialKey([u8; 27]);
 
 impl Deref for AngstromPoolPartialKey {
@@ -1007,7 +1007,7 @@ impl Deref for AngstromPoolPartialKey {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct AngPoolConfigEntry {
     pub pool_partial_key: AngstromPoolPartialKey,
     pub tick_spacing:     u16,
