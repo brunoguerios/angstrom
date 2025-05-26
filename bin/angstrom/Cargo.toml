@@ -36,6 +36,7 @@ reth-provider.workspace = true
 
 # Angstrom components
 angstrom-rpc.workspace = true
+angstrom-amm-quoter.workspace =true
 angstrom-types.workspace = true
 angstrom-eth.workspace = true
 angstrom-metrics.workspace = true

@@ -9,19 +9,6 @@ use serde_json::Value;
 pub use subscriptions::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub struct Slot0Update {
-    /// there will be 120 updates per block or per 100ms
-    pub seq_id:        u8,
-    /// incase of block lag on node
-    pub current_block: u64,
-    /// basic identifier
-    pub pool_id:       PoolId,
-
-    pub sqrt_price_x96: U256,
-    pub tick:           i32
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct PendingOrder {
     /// the order id
     pub order_id: FixedBytes<32>,

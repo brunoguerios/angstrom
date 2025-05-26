@@ -16,6 +16,8 @@ serde.workspace = true
 alloy.workspace = true
 tokio.workspace = true
 rayon.workspace = true
+tokio-stream.workspace = true
+
 matching-engine.workspace = true 
 eyre.workspace = true
 futures.workspace = true

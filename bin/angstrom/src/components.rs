@@ -13,6 +13,7 @@ use alloy::{
     providers::{Provider, ProviderBuilder, network::Ethereum}
 };
 use alloy_chains::Chain;
+use angstrom_amm_quoter::{QuoterManager, Slot0Update};
 use angstrom_eth::{
     handle::{Eth, EthCommand},
     manager::{EthDataCleanser, EthEvent}
@@ -27,7 +28,7 @@ use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
-    primitive::{AngstromSigner, UniswapPoolRegistry},
+    primitive::{AngstromSigner, PoolId, UniswapPoolRegistry},
     reth_db_provider::RethDbLayer,
     reth_db_wrapper::RethDbWrapper,
     submission::SubmissionHandler
@@ -37,6 +38,7 @@ use futures::Stream;
 use matching_engine::{MatchingManager, manager::MatcherCommand};
 use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
 use parking_lot::RwLock;
+use rayon::ThreadBuilder;
 use reth::{
     api::NodeAddOns,
     builder::FullNodeComponents,
@@ -52,8 +54,9 @@ use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAd
 use reth_provider::{
     BlockReader, DatabaseProviderFactory, ReceiptProvider, TryIntoHistoricalStateProvider
 };
-use tokio::sync::mpsc::{
-    Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel
+use tokio::sync::{
+    mpsc,
+    mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel}
 };
 use uniswap_v4::{configure_uniswap_manager, fetch_angstrom_pools};
 use validation::{
@@ -98,6 +101,9 @@ pub struct StromHandles {
     pub orderpool_tx: UnboundedSender<DefaultOrderCommand>,
     pub orderpool_rx: UnboundedReceiver<DefaultOrderCommand>,
 
+    pub quoter_tx: mpsc::Sender<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
+    pub quoter_rx: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
+
     pub validator_tx: UnboundedSender<ValidationRequest>,
     pub validator_rx: UnboundedReceiver<ValidationRequest>,
 
@@ -134,12 +140,15 @@ pub fn initialize_strom_handles() -> StromHandles {
     let (orderpool_tx, orderpool_rx) = unbounded_channel();
     let (validator_tx, validator_rx) = unbounded_channel();
     let (eth_handle_tx, eth_handle_rx) = unbounded_channel();
+    let (quoter_tx, quoter_rx) = channel(100);
     let (consensus_tx_rpc, consensus_rx_rpc) = unbounded_channel();
     let (consensus_tx_op, consensus_rx_op) =
         reth_metrics::common::mpsc::metered_unbounded_channel("orderpool");
 
     StromHandles {
         eth_tx,
+        quoter_tx,
+        quoter_rx,
         eth_rx,
         pool_tx,
         pool_rx,
@@ -374,6 +383,21 @@ where
 
     // spinup matching engine
     let matching_handle = MatchingManager::spawn(executor.clone(), validation_handle.clone());
+
+    // spin up amm quoter
+    let amm = QuoterManager::new(
+        global_block_sync.clone(),
+        order_storage.clone(),
+        handles.quoter_rx,
+        uniswap_pools.clone(),
+        rayon::ThreadPoolBuilder::default()
+            .num_threads(6)
+            .build()
+            .expect("failed to build rayon thread pool"),
+        Duration::from_millis(100)
+    );
+
+    executor.spawn_critical("amm quoting service", amm);
 
     let manager = ConsensusManager::new(
         ManagerNetworkDeps::new(

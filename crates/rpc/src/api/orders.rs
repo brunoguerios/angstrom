@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use alloy_primitives::{Address, B256, U256};
+use angstrom_amm_quoter::Slot0Update;
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation},
     primitive::PoolId,
@@ -60,7 +61,7 @@ pub trait OrderApi {
     #[subscription(
         name = "subscribeEndAmm",
         unsubscribe = "unsubscribeEndAmm",
-        item = crate::types::Slot0Update
+        item = Slot0Update
     )]
     async fn subscribe_end_amm(
         &self,

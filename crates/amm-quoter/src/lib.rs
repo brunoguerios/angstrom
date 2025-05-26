@@ -27,6 +27,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::{Interval, interval}
 };
+use tokio_stream::wrappers::ReceiverStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
@@ -42,19 +43,32 @@ pub struct Slot0Update {
     pub tick:           i32
 }
 
-pub trait AngstromBookQuoter {
+pub trait AngstromBookQuoter: Send + Sync + Unpin + 'static {
     /// will configure this stream to receieve updates of the given pool
     fn subscribe_to_updates(
         &self,
         pool_id: HashSet<PoolId>
-    ) -> Pin<Box<dyn Stream<Item = Slot0Update> + Send + Sync + 'static>>;
+    ) -> impl Future<Output = Pin<Box<dyn Stream<Item = Slot0Update> + Send + 'static>>> + Send + Sync;
+}
+
+pub struct QuoterHandle(pub mpsc::Sender<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>);
+
+impl AngstromBookQuoter for QuoterHandle {
+    async fn subscribe_to_updates(
+        &self,
+        pool_ids: HashSet<PoolId>
+    ) -> Pin<Box<dyn Stream<Item = Slot0Update> + Send + 'static>> {
+        let (tx, rx) = mpsc::channel(5);
+        let _ = self.0.send((pool_ids, tx)).await;
+
+        ReceiverStream::new(rx).boxed()
+    }
 }
 
 pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
-    cur_block:  u64,
-    seq_id:     u8,
-    block_sync: BlockSync,
-
+    cur_block:           u64,
+    seq_id:              u8,
+    block_sync:          BlockSync,
     orders:              Arc<OrderStorage>,
     amms:                SyncedUniswapPools,
     threadpool:          ThreadPool,

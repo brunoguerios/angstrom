@@ -8,6 +8,7 @@ use alloy::{
     providers::{ProviderBuilder, network::Ethereum},
     signers::local::PrivateKeySigner
 };
+use angstrom_amm_quoter::QuoterHandle;
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_network::AngstromNetworkBuilder;
 use angstrom_rpc::{
@@ -54,6 +55,7 @@ pub fn run() -> eyre::Result<()> {
         let secret_key = get_secret_key(&args.secret_key_location)?;
 
         let mut channels = initialize_strom_handles();
+        let quoter_handle = QuoterHandle(channels.quoter_tx.clone());
 
         // for rpc
         let pool = channels.get_pool_handle();
@@ -98,8 +100,12 @@ pub fn run() -> eyre::Result<()> {
             )
             .with_add_ons::<EthereumAddOns<_>>(Default::default())
             .extend_rpc_modules(move |rpc_context| {
-                let order_api =
-                    OrderApi::new(pool.clone(), executor_clone.clone(), validation_client);
+                let order_api = OrderApi::new(
+                    pool.clone(),
+                    executor_clone.clone(),
+                    validation_client,
+                    quoter_handle
+                );
                 let consensus = ConsensusApi::new(consensus_client, executor_clone);
                 rpc_context.modules.merge_configured(order_api.into_rpc())?;
                 rpc_context.modules.merge_configured(consensus.into_rpc())?;
