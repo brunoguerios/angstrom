@@ -23,7 +23,7 @@ pub struct BaselinePoolState {
 
 impl BaselinePoolState {
     pub fn new(liquidity: BaselineLiquidity, block: u64, fee: u32) -> Self {
-        Self { liquidity, fee }
+        Self { liquidity, fee, block }
     }
 
     pub fn fee(&self) -> u32 {
