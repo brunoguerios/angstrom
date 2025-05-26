@@ -1,12 +1,12 @@
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
+use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::{
     primitive::PoolId,
     sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 use futures::stream::StreamExt;
 use itertools::Itertools;
-use jsonrpsee::http_client::HttpClient;
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -15,18 +15,18 @@ mod order_builder;
 mod pool_order_generator;
 pub use pool_order_generator::PoolOrderGenerator;
 
-pub struct OrderGenerator {
-    pools:             Vec<PoolOrderGenerator>,
+pub struct OrderGenerator<T: OrderApiClient> {
+    pools:             Vec<PoolOrderGenerator<T>>,
     /// lower and upper bounds for the amount of book orders to generate
     order_amt_range:   Range<usize>,
     partial_pct_range: Range<f64>
 }
 
-impl OrderGenerator {
+impl<T: OrderApiClient + Clone> OrderGenerator<T> {
     pub fn new(
         pool_data: SyncedUniswapPools,
         block_number: u64,
-        client: Arc<HttpClient>,
+        client: T,
         order_amt_range: Range<usize>,
         partial_pct_range: Range<f64>
     ) -> Self {

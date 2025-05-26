@@ -5979,6 +5979,7 @@ dependencies = [
  "futures",
  "futures-util",
  "itertools 0.14.0",
+ "jsonrpsee",
  "malachite",
  "malachite-q",
  "num-bigfloat",

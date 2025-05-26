@@ -194,6 +194,10 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
             self.handle_new_subscription(pools, subscriber);
         }
 
+        while let Poll::Ready(Some(Ok(slot_update))) = self.pending_tasks.poll_next_unpin(cx) {
+            self.send_out_result(slot_update);
+        }
+
         while self.execution_interval.poll_tick(cx).is_ready() {
             // cycle through if we can't do any processing
             if !self.block_sync.can_operate() {
@@ -217,10 +221,6 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
             self.seq_id += 1;
 
             self.spawn_book_solvers(seq_id);
-        }
-
-        while let Poll::Ready(Some(Ok(slot_update))) = self.pending_tasks.poll_next_unpin(cx) {
-            self.send_out_result(slot_update);
         }
 
         Poll::Pending

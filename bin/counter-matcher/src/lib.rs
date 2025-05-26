@@ -92,9 +92,7 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
             subscriptions.insert(OrderSubscriptionKind::NewOrders);
             subscriptions.insert(OrderSubscriptionKind::FilledOrders);
             subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
-            // this will be added once this branch is deployed on the remote. For now we
-            // leave commented out.
-            // subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
+            subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
 
             let pool_ids =
                 HashSet::<B256>::from_iter(vec![pools.first().unwrap().public_address()]);
@@ -112,7 +110,7 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
                         break;
                     }
                     Some(Ok(slot_0)) = slot0_sub.next() => {
-                        tracing::info!(?slot_0);
+                        tracing::info!(?slot_0, "got slot0");
                     }
                      Some(Ok(event)) = sub.next() => {
                          order_manager.handle_event(event).await;

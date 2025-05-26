@@ -15,6 +15,7 @@ use angstrom_types::{
     }
 };
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use jsonrpsee::http_client::HttpClient;
 use matching_engine::{
     book::{BookOrder, OrderBook, sort::SortStrategy},
     strategy::BinarySearchStrategy
@@ -229,8 +230,12 @@ pub fn tps(c: &mut Criterion) {
     let pool = rt.block_on(setup_synced_pool_for_order_generation());
 
     let mut group = c.benchmark_group("Matching Engine TPS");
-    let mut generator =
-        PoolOrderGenerator::new_with_cfg_distro(PoolId::default(), pool.clone(), 0, 0.2);
+    let mut generator = PoolOrderGenerator::<HttpClient>::new_with_cfg_distro(
+        PoolId::default(),
+        pool.clone(),
+        0,
+        0.2
+    );
     for bucket in TPS_BUCKETS {
         group.throughput(criterion::Throughput::Elements(bucket));
         // updates the random prices

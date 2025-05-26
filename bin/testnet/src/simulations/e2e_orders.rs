@@ -50,7 +50,7 @@ fn end_to_end_agent<'a>(
         tracing::info!("starting e2e agent");
 
         let rpc_address = format!("http://{}", agent_config.rpc_address);
-        let client = Arc::new(HttpClient::builder().build(rpc_address).unwrap());
+        let client = HttpClient::builder().build(rpc_address).unwrap();
         let mut generator = OrderGenerator::new(
             agent_config.uniswap_pools.clone(),
             agent_config.current_block,
@@ -143,7 +143,7 @@ pub mod test {
             tracing::info!("starting e2e agent");
 
             let rpc_address = format!("http://{}", agent_config.rpc_address);
-            let client = Arc::new(HttpClient::builder().build(rpc_address).unwrap());
+            let client = HttpClient::builder().build(rpc_address).unwrap();
             let mut generator = OrderGenerator::new(
                 agent_config.uniswap_pools.clone(),
                 agent_config.current_block,
