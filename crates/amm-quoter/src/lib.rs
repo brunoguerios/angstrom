@@ -7,16 +7,17 @@ use std::{
     time::Duration
 };
 
-use alloy::primitives::{Address, FixedBytes, U256};
+use alloy::primitives::U160;
 use angstrom_types::{
     block_sync::BlockSyncConsumer, orders::OrderSet, primitive::PoolId,
     uni_structure::BaselinePoolState
 };
-use futures::{Stream, future::BoxFuture, stream::FuturesUnordered};
+use futures::{
+    FutureExt, Stream, StreamExt, TryFutureExt, future::BoxFuture, stream::FuturesUnordered
+};
 use matching_engine::{
     book::{BookOrder, OrderBook},
     build_book,
-    matcher::delta::DeltaMatcher,
     strategy::BinarySearchStrategy
 };
 use order_pool::order_storage::OrderStorage;
@@ -37,7 +38,7 @@ pub struct Slot0Update {
     /// basic identifier
     pub pool_id:       PoolId,
 
-    pub sqrt_price_x96: U256,
+    pub sqrt_price_x96: U160,
     pub tick:           i32
 }
 
@@ -51,9 +52,7 @@ pub trait AngstromBookQuoter {
 
 pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
     cur_block:  u64,
-    seq_id:     u64,
-    // we don't register, we just listen for new blocks and when processing
-    // is good so that we can register new block and update sequence id
+    seq_id:     u8,
     block_sync: BlockSync,
 
     orders:              Arc<OrderStorage>,
@@ -61,13 +60,15 @@ pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
     threadpool:          ThreadPool,
     recv:                mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
     book_snapshots:      HashMap<PoolId, BaselinePoolState>,
-    pending_tasks:       FuturesUnordered<BoxFuture<'static, Slot0Update>>,
+    pending_tasks:       FuturesUnordered<BoxFuture<'static, eyre::Result<Slot0Update>>>,
     pool_to_subscribers: HashMap<PoolId, Vec<mpsc::Sender<Slot0Update>>>,
 
     execution_interval: Interval
 }
 
 impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
+    /// ensure that we haven't registered on the BlockSync.
+    /// We just want to ensure that we don't access during a update period
     pub fn new(
         block_sync: BlockSync,
         orders: Arc<OrderStorage>,
@@ -109,6 +110,58 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
                 .push(chan.clone());
         }
     }
+
+    fn spawn_book_solvers(&mut self, seq_id: u8) {
+        let OrderSet { limit, searcher } = self.orders.get_all_orders();
+        let books = build_non_proposal_books(limit, &self.book_snapshots);
+
+        let searcher_orders: HashMap<PoolId, _> =
+            searcher.into_iter().fold(HashMap::new(), |mut acc, order| {
+                acc.entry(order.pool_id).or_insert(order);
+                acc
+            });
+
+        for book in books {
+            let searcher = searcher_orders.get(&book.id()).cloned();
+            let (tx, rx) = oneshot::channel();
+            let block = self.cur_block;
+
+            self.threadpool.spawn(move || {
+                let b = book;
+                let (sqrt_price, tick) = BinarySearchStrategy::give_end_amm_state(&b, searcher);
+                let update = Slot0Update {
+                    current_block: block,
+                    seq_id,
+                    pool_id: b.id(),
+                    sqrt_price_x96: sqrt_price,
+                    tick
+                };
+
+                tx.send(update).unwrap()
+            });
+            self.pending_tasks.push(rx.map_err(Into::into).boxed())
+        }
+    }
+
+    fn update_book_state(&mut self) {
+        self.book_snapshots = self
+            .amms
+            .iter()
+            .map(|entry| {
+                let pool_lock = entry.value().read().unwrap();
+                let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
+                (*entry.key(), snapshot_data)
+            })
+            .collect();
+    }
+
+    fn send_out_result(&mut self, slot_update: Slot0Update) {
+        let Some(pool_subs) = self.pool_to_subscribers.get_mut(&slot_update.pool_id) else {
+            return;
+        };
+
+        pool_subs.retain(|subscriber| subscriber.try_send(slot_update.clone()).is_ok());
+    }
 }
 
 impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
@@ -131,41 +184,20 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
 
             // update block number, amm snapshot and reset seq id
             if self.cur_block != self.block_sync.current_block_number() {
-                self.book_snapshots = self
-                    .amms
-                    .iter()
-                    .map(|entry| {
-                        let pool_lock = entry.value().read().unwrap();
-                        let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
-                        (*entry.key(), snapshot_data)
-                    })
-                    .collect();
-
+                self.update_book_state();
                 self.cur_block = self.block_sync.current_block_number();
                 self.seq_id = 0;
             }
+
             // inc seq_id
             let seq_id = self.seq_id;
             self.seq_id += 1;
 
-            let OrderSet { limit, searcher } = self.orders.get_all_orders();
-            let book = build_non_proposal_books(limit, &self.book_snapshots);
-            let searcher_orders: HashMap<PoolId, _> =
-                searcher.into_iter().fold(HashMap::new(), |mut acc, order| {
-                    acc.entry(order.pool_id).or_insert(order);
-                    acc
-                });
+            self.spawn_book_solvers(seq_id);
+        }
 
-            // for (pool_id, snapshot) in &self.book_snapshots {
-            //     let order_book =
-            //     BinarySearchStrategy::run(book, searcher)
-            //
-            //     DeltaMatcher::new(book, tob, false)
-            // }
-
-            self.threadpool.spawn(op);
-
-            // queue up new tasks on threadpool
+        while let Poll::Ready(Some(Ok(slot_update))) = self.pending_tasks.poll_next_unpin(cx) {
+            self.send_out_result(slot_update);
         }
 
         Poll::Pending
