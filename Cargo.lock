@@ -1381,6 +1381,7 @@ dependencies = [
  "alloy-chains",
  "alloy-primitives",
  "alloy-rpc-types 1.0.6",
+ "angstrom-amm-quoter",
  "angstrom-eth",
  "angstrom-metrics",
  "angstrom-network",
@@ -1413,6 +1414,23 @@ dependencies = [
  "uniswap-v4",
  "url",
  "validation",
+]
+
+[[package]]
+name = "angstrom-amm-quoter"
+version = "0.1.0"
+dependencies = [
+ "alloy 1.0.6",
+ "angstrom-types",
+ "eyre",
+ "futures",
+ "matching-engine",
+ "order-pool",
+ "rayon",
+ "serde",
+ "tokio",
+ "tokio-stream",
+ "uniswap-v4",
 ]
 
 [[package]]
@@ -1536,6 +1554,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
+ "angstrom-amm-quoter",
  "angstrom-network",
  "angstrom-types",
  "angstrom-utils",
@@ -11795,6 +11814,7 @@ dependencies = [
  "alloy-rpc-types 1.0.6",
  "alloy-sol-types",
  "angstrom",
+ "angstrom-amm-quoter",
  "angstrom-eth",
  "angstrom-network",
  "angstrom-rpc",
@@ -11815,6 +11835,7 @@ dependencies = [
  "rand 0.9.1",
  "rand_chacha 0.3.1",
  "rand_distr",
+ "rayon",
  "reth-chainspec",
  "reth-codecs",
  "reth-db",

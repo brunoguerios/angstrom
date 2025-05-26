@@ -1,0 +1,23 @@
+[package]
+name = "angstrom-amm-quoter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+angstrom-types.workspace = true
+uniswap-v4.workspace = true 
+order-pool.workspace = true
+serde.workspace = true
+alloy.workspace = true
+tokio.workspace = true
+rayon.workspace = true
+tokio-stream.workspace = true
+
+matching-engine.workspace = true 
+eyre.workspace = true
+futures.workspace = true
