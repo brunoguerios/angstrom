@@ -33,7 +33,7 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Slot0Update {
     /// there will be 120 updates per block or per 100ms
-    pub seq_id:        u8,
+    pub seq_id:        u16,
     /// in case of block lag on node
     pub current_block: u64,
     /// basic identifier
@@ -67,7 +67,7 @@ impl AngstromBookQuoter for QuoterHandle {
 
 pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
     cur_block:           u64,
-    seq_id:              u8,
+    seq_id:              u16,
     block_sync:          BlockSync,
     orders:              Arc<OrderStorage>,
     amms:                SyncedUniswapPools,
@@ -101,6 +101,11 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             })
             .collect();
 
+        assert!(
+            update_interval > Duration::from_millis(10),
+            "cannot update quicker than every 10ms"
+        );
+
         Self {
             seq_id: 0,
             block_sync,
@@ -125,7 +130,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
         }
     }
 
-    fn spawn_book_solvers(&mut self, seq_id: u8) {
+    fn spawn_book_solvers(&mut self, seq_id: u16) {
         let OrderSet { limit, searcher } = self.orders.get_all_orders();
         let books = build_non_proposal_books(limit, &self.book_snapshots);
 
@@ -205,6 +210,10 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
 
             // inc seq_id
             let seq_id = self.seq_id;
+            // given that we have a max update speed of 10ms, the max
+            // this should reach is 1200 before a new block update
+            // occurs. Becuase of this, there is no need to check for overflow
+            // as 65535 is more than enough
             self.seq_id += 1;
 
             self.spawn_book_solvers(seq_id);
@@ -227,7 +236,7 @@ pub fn build_non_proposal_books(
     book_sources
         .into_iter()
         .map(|(id, orders)| {
-            let amm = pool_snapshots.get(&id).cloned();
+            let amm = pool_snapshots.get(&id).map(|value| value.clone());
             build_book(id, amm, orders)
         })
         .collect()
