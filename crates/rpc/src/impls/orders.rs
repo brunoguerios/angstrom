@@ -104,7 +104,7 @@ where
         Ok(self.pool.fetch_orders_from_pool(pool_id, location).await)
     }
 
-    async fn subscribe_end_amm(
+    async fn subscribe_amm(
         &self,
         pending: PendingSubscriptionSink,
         pools: HashSet<PoolId>
