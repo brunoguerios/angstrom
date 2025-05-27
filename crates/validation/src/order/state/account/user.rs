@@ -377,6 +377,7 @@ impl UserAccounts {
                 bad.push(pending_state.order_hash);
             }
         }
+        tracing::info!("past iter");
 
         bad
     }
@@ -435,6 +436,7 @@ impl UserAccounts {
     ) -> impl Iterator<Item = PendingUserAction> + '_ {
         let mut seen_pools = HashSet::new();
         self.iter_of_tob_and_book(user, token)
+            .inspect(|f| tracing::info!(?f, "in iter"))
             .filter(move |f| !(f.is_tob && !seen_pools.insert(f.pool_info.pool_id)))
     }
 
