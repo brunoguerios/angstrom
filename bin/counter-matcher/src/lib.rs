@@ -1,7 +1,7 @@
 use std::{collections::HashSet, pin::pin, sync::Arc, time::Duration};
 
 use accounting::WalletAccounting;
-use alloy::{primitives::B256, providers::Provider};
+use alloy::providers::Provider;
 use angstrom_rpc::{
     api::OrderApiClient,
     types::{OrderSubscriptionFilter, OrderSubscriptionKind}

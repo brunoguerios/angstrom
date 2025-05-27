@@ -7,7 +7,7 @@ use std::{
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    primitive::{PoolId, UserAccountVerificationError, UserOrderPoolInfo},
+    primitive::{UserAccountVerificationError, UserOrderPoolInfo},
     sol_bindings::{OrderValidationPriority, Ray, RespendAvoidanceMethod, ext::RawPoolOrder}
 };
 use angstrom_utils::FnResultOption;
@@ -315,20 +315,15 @@ impl UserAccounts {
             // we only want ot insert this if we are the highest tob order for the given
             // pool. when we did the accounting, we verified that we had enough
             // funds
-
             let mut user_entry = self.pending_tob_actions.entry(user).or_default();
             let token_entry = user_entry.entry(token).or_default();
 
-            tracing::info!(?action);
             token_entry.push(action);
             token_entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
-            tracing::info!("fetching invalidated orders as tob");
 
             // tob can invalidate all user orders.
             drop(user_entry);
-            let i = self.fetch_all_invalidated_orders(user, token);
-            tracing::info!("got invalidated orders tob\n\n\n\n\n\n yeeer");
-            i
+            self.fetch_all_invalidated_orders(user, token)
         } else {
             let mut entry = self.pending_book_actions.entry(user).or_default();
             let value = entry.value_mut();
@@ -344,7 +339,6 @@ impl UserAccounts {
     }
 
     fn fetch_all_invalidated_orders(&self, user: UserAddress, token: TokenAddress) -> Vec<B256> {
-        tracing::info!("fetch all invalidated orders");
         let Some(baseline) = self.last_known_state.get(&user) else { return vec![] };
 
         let mut baseline_approval = *baseline.token_approval.get(&token).unwrap();
@@ -353,16 +347,9 @@ impl UserAccounts {
         let mut has_overflowed = false;
 
         let mut bad = vec![];
-        tracing::info!("itering over fetch all invalid");
 
-        let iterator = self
-            .iter_of_tob_and_book_unique_tob(user, token)
-            .collect::<Vec<_>>();
-
-        tracing::info!("collected iterator");
         // we want this as
-        for pending_state in iterator {
-            tracing::info!(?pending_state);
+        for pending_state in self.iter_of_tob_and_book_unique_tob(user, token) {
             let (baseline, overflowed) =
                 baseline_approval.overflowing_sub(pending_state.token_approval);
             has_overflowed |= overflowed;
@@ -383,7 +370,6 @@ impl UserAccounts {
                 bad.push(pending_state.order_hash);
             }
         }
-        tracing::info!("past iter");
 
         bad
     }
@@ -442,7 +428,7 @@ impl UserAccounts {
     ) -> impl Iterator<Item = PendingUserAction> + '_ {
         let mut seen_pools = HashSet::new();
         self.iter_of_tob_and_book(user, token)
-            .filter(move |f| !(f.is_tob && !seen_pools.insert(f.pool_info.pool_id)))
+            .filter(move |f| !f.is_tob || seen_pools.insert(f.pool_info.pool_id))
     }
 
     fn iter_of_tob_and_book(
@@ -467,6 +453,7 @@ impl UserAccounts {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::address;
+    use angstrom_types::primitive::PoolId;
 
     use super::*;
 

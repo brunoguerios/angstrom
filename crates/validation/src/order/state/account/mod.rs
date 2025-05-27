@@ -109,7 +109,6 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         });
 
         let (tob_reward_t0, tob_reward_token_in) = tob_rewards(&mut order, &pool_info).await?;
-        tracing::info!(tob=?order.is_tob(),"got tob rewards" );
 
         // get the live state sorted up to the nonce, level, doesn't check orders above
         // that
@@ -123,13 +122,11 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 &self.fetch_utils
             )
             .map_err(|e| UserAccountVerificationError::CouldNotFetch { err: e.to_string() })?;
-        tracing::info!(tob=?order.is_tob(),"got live state" );
 
         // ensure that the current live state is enough to satisfy the order
         match live_state
             .can_support_order(&order, &pool_info, Some(tob_reward_token_in))
             .map(|pending_user_action| {
-                tracing::info!(tob=?order.is_tob(),"inserting pending user action" );
                 self.user_accounts.insert_pending_user_action(
                     order.is_tob(),
                     order.from(),
@@ -137,7 +134,6 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 )
             }) {
             Ok(mut invalid_orders) => {
-                tracing::info!(tob=?order.is_tob(),"got invalidated  orders, returning" );
                 invalid_orders.extend(conflicting_orders.into_iter().map(|o| o.order_hash));
 
                 Ok(order.into_order_storage_with_data(
@@ -150,7 +146,6 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 ))
             }
             Err(e) => {
-                tracing::info!(tob=?order.is_tob(),"parked tob, returning" );
                 let invalid_orders = conflicting_orders
                     .into_iter()
                     .map(|o| o.order_hash)
