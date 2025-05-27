@@ -96,8 +96,10 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             .iter()
             .map(|entry| {
                 let pool_lock = entry.value().read().unwrap();
+
+                let pk = pool_lock.public_address();
                 let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
-                (*entry.key(), snapshot_data)
+                (pk, snapshot_data)
             })
             .collect();
 
@@ -141,6 +143,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             });
 
         for book in books {
+            tracing::info!(?book);
             let searcher = searcher_orders.get(&book.id()).cloned();
             let (tx, rx) = oneshot::channel();
             let block = self.cur_block;
@@ -175,6 +178,8 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn send_out_result(&mut self, slot_update: Slot0Update) {
+        let keys = self.pool_to_subscribers.keys().collect::<Vec<_>>();
+        tracing::info!(?keys, ?slot_update);
         let Some(pool_subs) = self.pool_to_subscribers.get_mut(&slot_update.pool_id) else {
             return;
         };
