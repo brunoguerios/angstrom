@@ -124,6 +124,14 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn handle_new_subscription(&mut self, pools: HashSet<PoolId>, chan: mpsc::Sender<Slot0Update>) {
+        let keys = self.book_snapshots.keys().copied().collect::<HashSet<_>>();
+        for pool in &pools {
+            if !keys.contains(pool) {
+                // invalid subscription
+                return;
+            }
+        }
+
         for pool in pools {
             self.pool_to_subscribers
                 .entry(pool)
@@ -179,12 +187,10 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
 
     fn send_out_result(&mut self, slot_update: Slot0Update) {
         let keys = self.pool_to_subscribers.keys().collect::<Vec<_>>();
-        tracing::info!(?keys, ?slot_update);
         let Some(pool_subs) = self.pool_to_subscribers.get_mut(&slot_update.pool_id) else {
             return;
         };
 
-        tracing::info!("sending out pool update");
         pool_subs.retain(|subscriber| subscriber.try_send(slot_update.clone()).is_ok());
     }
 }
