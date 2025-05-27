@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use alloy_primitives::{Address, B256, U256};
+use angstrom_amm_quoter::Slot0Update;
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation},
     primitive::PoolId,
@@ -56,6 +57,13 @@ pub trait OrderApi {
         pool_id: PoolId,
         location: OrderLocation
     ) -> RpcResult<Vec<AllOrders>>;
+
+    #[subscription(
+        name = "subscribeAmm",
+        unsubscribe = "unsubscribeAmm",
+        item = Slot0Update
+    )]
+    async fn subscribe_amm(&self, pools: HashSet<PoolId>) -> jsonrpsee::core::SubscriptionResult;
 
     #[subscription(
         name = "subscribeOrders",

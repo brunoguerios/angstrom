@@ -1,7 +1,7 @@
 use std::{collections::HashSet, pin::pin, sync::Arc, time::Duration};
 
 use accounting::WalletAccounting;
-use alloy::providers::Provider;
+use alloy::{primitives::B256, providers::Provider};
 use angstrom_rpc::{
     api::OrderApiClient,
     types::{OrderSubscriptionFilter, OrderSubscriptionKind}
@@ -92,9 +92,11 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
             subscriptions.insert(OrderSubscriptionKind::NewOrders);
             subscriptions.insert(OrderSubscriptionKind::FilledOrders);
             subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
-            // this will be added once this branch is deployed on the remote. For now we
-            // leave commented out.
-            // subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
+            subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
+
+            let pool_ids =
+                HashSet::<B256>::from_iter(vec![pools.first().unwrap().public_address()]);
+            let mut slot0_sub = ws.subscribe_amm(pool_ids).await.unwrap().into_stream();
 
             let mut sub = ws
                 .subscribe_orders(subscriptions, filters)
@@ -106,6 +108,9 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
                     _ = &mut signal => {
                         tracing::info!("got shutdown");
                         break;
+                    }
+                    Some(Ok(slot_0)) = slot0_sub.next() => {
+                        tracing::info!(?slot_0, "got slot0");
                     }
                      Some(Ok(event)) = sub.next() => {
                          order_manager.handle_event(event).await;
@@ -139,6 +144,7 @@ fn init_tracing() {
     } else {
         let filter = filter::Targets::new()
             .with_target("sepolia_bundle_lander", level)
+            .with_target("angstrom_amm_quoter", level)
             .with_target("testnet", level)
             .with_target("devnet", level)
             .with_target("angstrom_rpc", level)

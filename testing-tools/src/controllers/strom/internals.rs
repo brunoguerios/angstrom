@@ -1,8 +1,9 @@
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::Arc, time::Duration};
 
 use alloy::primitives::Address;
 use alloy_rpc_types::BlockId;
 use angstrom::components::StromHandles;
+use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
 use angstrom_eth::{
     handle::Eth,
     manager::{EthDataCleanser, EthEvent}
@@ -89,7 +90,10 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let consensus_client = ConsensusHandler(strom_handles.consensus_tx_rpc.clone());
 
         let consensus_api = ConsensusApi::new(consensus_client.clone(), executor.clone());
-        let order_api = OrderApi::new(pool.clone(), executor.clone(), validation_client.clone());
+
+        let amm_quoter = QuoterHandle(strom_handles.quoter_tx.clone());
+        let order_api =
+            OrderApi::new(pool.clone(), executor.clone(), validation_client.clone(), amm_quoter);
 
         let block_number = BlockNumReader::best_block_number(&state_provider.state_provider())?;
 
@@ -299,6 +303,21 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             block_sync.clone(),
             strom_handles.consensus_rx_rpc
         );
+
+        // spin up amm quoter
+        let amm = QuoterManager::new(
+            block_sync.clone(),
+            order_storage.clone(),
+            strom_handles.quoter_rx,
+            uniswap_pools.clone(),
+            rayon::ThreadPoolBuilder::default()
+                .num_threads(2)
+                .build()
+                .expect("failed to build rayon thread pool"),
+            Duration::from_millis(100)
+        );
+
+        executor.spawn_critical("amm quoting service", amm);
 
         // init agents
         let agent_config = AgentConfig {

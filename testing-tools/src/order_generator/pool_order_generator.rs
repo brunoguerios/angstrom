@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
 use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::primitive::PoolId;
-use jsonrpsee::http_client::HttpClient;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
 
 use super::{GeneratedPoolOrders, PriceDistribution, order_builder::OrderBuilder};
@@ -13,21 +10,21 @@ use super::{GeneratedPoolOrders, PriceDistribution, order_builder::OrderBuilder}
 /// will be chosen based off of a sample of a normal distribution.
 /// We will then generate orders around this sample point and stream
 /// them out of the order generator.
-pub struct PoolOrderGenerator {
+pub struct PoolOrderGenerator<T: OrderApiClient> {
     block_number:       u64,
     cur_price:          f64,
     price_distribution: PriceDistribution,
     builder:            OrderBuilder,
     pub pool_id:        PoolId,
-    client:             Option<Arc<HttpClient>>
+    client:             Option<T>
 }
 
-impl PoolOrderGenerator {
+impl<T: OrderApiClient + Clone> PoolOrderGenerator<T> {
     pub fn new(
         pool_id: PoolId,
         pool_data: SyncedUniswapPool,
         block_number: u64,
-        client: Arc<HttpClient>
+        client: T
     ) -> Self {
         let price = pool_data.read().unwrap().calculate_price();
 

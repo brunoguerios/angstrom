@@ -9,6 +9,8 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
+rayon = "1"
+angstrom-amm-quoter.workspace = true
 consensus.workspace = true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true

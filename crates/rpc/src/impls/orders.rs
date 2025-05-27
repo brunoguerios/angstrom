@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use alloy_primitives::{Address, B256, U256};
+use angstrom_amm_quoter::AngstromBookQuoter;
 use angstrom_types::{
     orders::{CancelOrderRequest, OrderLocation, OrderOrigin, OrderStatus},
     primitive::PoolId,
@@ -20,22 +21,30 @@ use crate::{
     }
 };
 
-pub struct OrderApi<OrderPool, Spawner, Validator> {
+pub struct OrderApi<OrderPool, Spawner, Validator, Quoter> {
     pool:         OrderPool,
     task_spawner: Spawner,
-    validator:    Validator
+    validator:    Validator,
+    amm_quoter:   Quoter
 }
 
-impl<OrderPool, Spawner, Validator> OrderApi<OrderPool, Spawner, Validator> {
-    pub fn new(pool: OrderPool, task_spawner: Spawner, validator: Validator) -> Self {
-        Self { pool, task_spawner, validator }
+impl<OrderPool, Spawner, Validator, Quoter> OrderApi<OrderPool, Spawner, Validator, Quoter> {
+    pub fn new(
+        pool: OrderPool,
+        task_spawner: Spawner,
+        validator: Validator,
+        amm_quoter: Quoter
+    ) -> Self {
+        Self { pool, task_spawner, validator, amm_quoter }
     }
 }
 
 #[async_trait::async_trait]
-impl<OrderPool, Spawner, Validator> OrderApiServer for OrderApi<OrderPool, Spawner, Validator>
+impl<OrderPool, Spawner, Validator, Quoter> OrderApiServer
+    for OrderApi<OrderPool, Spawner, Validator, Quoter>
 where
     OrderPool: OrderPoolHandle,
+    Quoter: AngstromBookQuoter,
     Spawner: TaskSpawner + 'static,
     Validator: OrderValidatorHandle
 {
@@ -95,6 +104,36 @@ where
         Ok(self.pool.fetch_orders_from_pool(pool_id, location).await)
     }
 
+    async fn subscribe_amm(
+        &self,
+        pending: PendingSubscriptionSink,
+        pools: HashSet<PoolId>
+    ) -> jsonrpsee::core::SubscriptionResult {
+        let sink = pending.accept().await?;
+        let mut subscription = self.amm_quoter.subscribe_to_updates(pools).await;
+
+        self.task_spawner.spawn(Box::pin(async move {
+            while let Some(slot0) = subscription.next().await {
+                if sink.is_closed() {
+                    break;
+                }
+
+                match SubscriptionMessage::new(sink.method_name(), sink.subscription_id(), &slot0) {
+                    Ok(message) => {
+                        if sink.send(message).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to serialize subscription message: {:?}", e);
+                    }
+                }
+            }
+        }));
+
+        Ok(())
+    }
+
     async fn subscribe_orders(
         &self,
         pending: PendingSubscriptionSink,
@@ -114,7 +153,11 @@ where
                 }
 
                 if let Some(result) = order {
-                    match SubscriptionMessage::from_json(&result) {
+                    match SubscriptionMessage::new(
+                        sink.method_name(),
+                        sink.subscription_id(),
+                        &result
+                    ) {
                         Ok(message) => {
                             if sink.send(message).await.is_err() {
                                 break;
@@ -247,6 +290,7 @@ mod tests {
     use std::{future, future::Future};
 
     use alloy_primitives::{Address, B256, FixedBytes, U256};
+    use angstrom_amm_quoter::QuoterHandle;
     use angstrom_network::pool_manager::OrderCommand;
     use angstrom_types::{
         orders::{OrderOrigin, OrderStatus},
@@ -307,12 +351,16 @@ mod tests {
         );
     }
 
-    fn setup_order_api()
-    -> (OrderApiTestHandle, OrderApi<MockOrderPoolHandle, TokioTaskExecutor, MockValidator>) {
+    fn setup_order_api() -> (
+        OrderApiTestHandle,
+        OrderApi<MockOrderPoolHandle, TokioTaskExecutor, MockValidator, QuoterHandle>
+    ) {
         let (to_pool, pool_rx) = unbounded_channel();
         let pool_handle = MockOrderPoolHandle::new(to_pool);
         let task_executor = TokioTaskExecutor::default();
-        let api = OrderApi::new(pool_handle.clone(), task_executor, MockValidator);
+        let (tx, _) = tokio::sync::mpsc::channel(5);
+        let q_handle = QuoterHandle(tx);
+        let api = OrderApi::new(pool_handle.clone(), task_executor, MockValidator, q_handle);
         let handle = OrderApiTestHandle { _from_api: pool_rx };
         (handle, api)
     }

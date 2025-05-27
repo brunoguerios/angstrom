@@ -13,7 +13,7 @@ use futures::Future;
 use pade::PadeEncode;
 use revm::{
     Context, InspectEvm, Journal, MainBuilder,
-    context::{BlockEnv, CfgEnv, JournalTr, TxEnv},
+    context::{BlockEnv, CfgEnv, JournalTr, LocalContext, TxEnv},
     database::CacheDB,
     primitives::{TxKind, hardfork::SpecId}
 };
@@ -128,6 +128,7 @@ where
                         journaled_state: Journal::<CacheDB<Arc<DB>>>::new(db.clone()),
                         chain: (),
                         error: Ok(()),
+                        local:           LocalContext::default()
                     }
                     .modify_cfg_chained(|cfg| {
                         cfg.disable_nonce_check = true;

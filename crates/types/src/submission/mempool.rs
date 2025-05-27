@@ -20,7 +20,7 @@ impl MempoolSubmitter {
     pub fn new(clients: &[Url], angstrom_address: Address) -> Self {
         let clients = clients
             .iter()
-            .map(|url| ProviderBuilder::<_, _, _>::default().on_http(url.clone()))
+            .map(|url| ProviderBuilder::<_, _, _>::default().connect_http(url.clone()))
             .collect::<Vec<_>>();
         Self { clients, angstrom_address }
     }

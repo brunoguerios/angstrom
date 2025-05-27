@@ -10,7 +10,6 @@ use crate::{orders::OrderLocation, sol_bindings::Ray};
 pub mod flips;
 pub mod grouped_orders;
 
-/// The capability of all default orders.
 pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     fn max_gas_token_0(&self) -> u128;
     /// defines  
@@ -73,13 +72,14 @@ pub trait RawPoolOrder: fmt::Debug + Send + Sync + Clone + Unpin + 'static {
     fn respend_avoidance_strategy(&self) -> RespendAvoidanceMethod;
 
     /// when validating, the priority in which we sort orders to allocate
-    /// the total balance and approval.
-    fn validation_priority(&self) -> OrderValidationPriority {
+    /// the total balance and approval. won't set tob amount
+    fn validation_priority(&self, bid: Option<u128>) -> OrderValidationPriority {
         OrderValidationPriority {
-            order_hash: self.order_hash(),
-            is_tob:     self.is_tob(),
-            is_partial: self.is_partial(),
-            respend:    self.respend_avoidance_strategy()
+            order_hash:     self.order_hash(),
+            is_tob:         self.is_tob(),
+            is_partial:     self.is_partial(),
+            respend:        self.respend_avoidance_strategy(),
+            tob_bid_amount: bid.unwrap_or_default()
         }
     }
 
@@ -136,23 +136,31 @@ impl RespendAvoidanceMethod {
 
 #[derive(Clone, Debug, Copy)]
 pub struct OrderValidationPriority {
-    pub order_hash: FixedBytes<32>,
-    pub is_tob:     bool,
-    pub is_partial: bool,
-    pub respend:    RespendAvoidanceMethod
+    pub order_hash:     FixedBytes<32>,
+    pub is_tob:         bool,
+    pub is_partial:     bool,
+    pub respend:        RespendAvoidanceMethod,
+    pub tob_bid_amount: u128
 }
 
 impl OrderValidationPriority {
+    pub fn set_tob_bid(&mut self, bid: u128) {
+        self.tob_bid_amount = bid;
+    }
+
     pub fn is_higher_priority(&self, other: &Self) -> Ordering {
-        self.is_tob.cmp(&other.is_tob).then_with(|| {
-            self.is_partial.cmp(&other.is_partial).then_with(|| {
-                other
-                    .respend
-                    .get_ord_for_pending_orders()
-                    .cmp(&self.respend.get_ord_for_pending_orders())
-                    .then_with(|| other.order_hash.cmp(&self.order_hash))
+        self.is_tob
+            .cmp(&other.is_tob)
+            .then_with(|| self.tob_bid_amount.cmp(&other.tob_bid_amount))
+            .then_with(|| {
+                self.is_partial.cmp(&other.is_partial).then_with(|| {
+                    other
+                        .respend
+                        .get_ord_for_pending_orders()
+                        .cmp(&self.respend.get_ord_for_pending_orders())
+                        .then_with(|| other.order_hash.cmp(&self.order_hash))
+                })
             })
-        })
     }
 }
 
@@ -167,6 +175,7 @@ mod order_validation_priority_tests {
             order_hash: B256::random(),
             is_tob,
             is_partial,
+            tob_bid_amount: 0,
             respend: RespendAvoidanceMethod::Nonce(nonce)
         }
     }
@@ -205,17 +214,19 @@ mod order_validation_priority_tests {
     fn test_order_hash_tiebreaker() {
         // Create two orders with identical properties except hash
         let order1 = OrderValidationPriority {
-            order_hash: B256::with_last_byte(1),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Nonce(1)
+            order_hash:     B256::with_last_byte(1),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Nonce(1)
         };
 
         let order2 = OrderValidationPriority {
-            order_hash: B256::with_last_byte(2),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Nonce(1)
+            order_hash:     B256::with_last_byte(2),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Nonce(1)
         };
 
         // The order with the smaller hash should have higher priority
@@ -244,17 +255,19 @@ mod order_validation_priority_tests {
     fn test_block_respend_avoidance() {
         // Create orders with Block respend avoidance method
         let order1 = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Block(100)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Block(100)
         };
 
         let order2 = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Block(200)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Block(200)
         };
 
         // Block respend avoidance should return 0 for ordering
@@ -267,17 +280,19 @@ mod order_validation_priority_tests {
     fn test_mixed_respend_avoidance_methods() {
         // Create orders with different respend avoidance methods
         let nonce_order = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Nonce(1)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Nonce(1)
         };
 
         let block_order = OrderValidationPriority {
-            order_hash: B256::random(),
-            is_tob:     true,
-            is_partial: false,
-            respend:    RespendAvoidanceMethod::Block(100)
+            order_hash:     B256::random(),
+            is_tob:         true,
+            is_partial:     false,
+            tob_bid_amount: 0,
+            respend:        RespendAvoidanceMethod::Block(100)
         };
 
         // Nonce(1) should return 1, Block should return 0

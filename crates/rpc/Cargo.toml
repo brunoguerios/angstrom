@@ -13,6 +13,7 @@ exclude.workspace = true
 
 [dependencies]
 angstrom-types.workspace = true
+angstrom-amm-quoter.workspace = true
 angstrom-utils.workspace = true
 angstrom-network.workspace = true
 consensus.workspace = true

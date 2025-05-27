@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, Selector},
     sol_types::SolInterface
 };
-use revm::{Inspector, primitives::address};
+use revm::{Inspector, context::ContextTr, primitives::address};
 
 #[rustfmt::skip]
 #[allow(clippy::module_inception)]
@@ -24,14 +24,14 @@ const CONSOLE_LOG_ADDR: Address = address!("000000000000000000636F6e736F6c652e6c
 /// Inspector that monitors and prints calldata for specific address calls
 pub struct CallDataInspector;
 
-impl<CTX> Inspector<CTX> for CallDataInspector {
+impl<CTX: ContextTr> Inspector<CTX> for CallDataInspector {
     fn call(
         &mut self,
-        _context: &mut CTX,
+        context: &mut CTX,
         inputs: &mut revm::interpreter::CallInputs
     ) -> Option<revm::interpreter::CallOutcome> {
         if inputs.target_address == CONSOLE_LOG_ADDR {
-            let mut input = inputs.input.to_vec();
+            let mut input = inputs.input.bytes(context).to_vec();
             patch_hh_console_selector(&mut input);
 
             let out = console_log::ConsoleLog::ConsoleLogCalls::abi_decode(&input);

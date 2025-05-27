@@ -328,6 +328,7 @@ impl OrderStorage {
                     self.metrics.decr_composable_limit_orders(1);
                 }
             })
+            .or_else(|| self.remove_searcher_order(id))
     }
 
     pub fn remove_searcher_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {

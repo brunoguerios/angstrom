@@ -50,6 +50,7 @@ pub struct EnhancedUniswapPool<Loader: PoolDataLoader = DataLoader> {
     pub token0_decimals:    u8,
     pub token1:             Address,
     pub token1_decimals:    u8,
+    pub block_number:       u64,
     pub liquidity:          u128,
     pub liquidity_net:      i128,
     pub sqrt_price:         U256,
@@ -103,6 +104,10 @@ where
         *self.ticks.keys().max().expect("no highest tick")
     }
 
+    pub fn block_number(&self) -> u64 {
+        self.block_number
+    }
+
     pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, BaselinePoolState), PoolError> {
         if !self.data_is_populated() {
             return Err(PoolError::PoolNotInitialized);
@@ -120,6 +125,7 @@ where
                     self.ticks.clone(),
                     self.tick_bitmap.clone()
                 ),
+                self.block_number,
                 self.book_fee
             )
         ))

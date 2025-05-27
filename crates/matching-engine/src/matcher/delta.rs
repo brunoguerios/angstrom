@@ -99,6 +99,11 @@ impl<'a> DeltaMatcher<'a> {
         Self { book, amm_start_location, fee, solve_for_t0 }
     }
 
+    /// panics if there is no amm swap
+    pub fn try_get_amm_location(&self) -> &PoolSwapResult<'_> {
+        self.amm_start_location.as_ref().unwrap()
+    }
+
     fn fetch_concentrated_liquidity(&self, price: Ray) -> (I256, I256) {
         let end_sqrt = if price.within_sqrt_price_bounds() {
             SqrtPriceX96::from(price)

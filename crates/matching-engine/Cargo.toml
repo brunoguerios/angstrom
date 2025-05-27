@@ -52,6 +52,7 @@ clap.workspace = true
 
 [dev-dependencies]
 pade.workspace = true
+jsonrpsee.workspace =true
 pade-macro.workspace = true
 testing-tools.workspace = true
 criterion = { version = "0.5.1", features = ['csv', 'csv_output'] }
