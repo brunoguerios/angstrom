@@ -472,6 +472,7 @@ where
         for next in self.iter.by_ref() {
             // if we have a tob but have already seen it
             if next.is_tob && !self.seen_pool_id.insert(next.pool_info.pool_id) {
+                tracing::info!("cnt");
                 continue;
             }
             return Some(next);
