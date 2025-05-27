@@ -131,6 +131,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn spawn_book_solvers(&mut self, seq_id: u16) {
+        tracing::info!("solving book");
         let OrderSet { limit, searcher } = self.orders.get_all_orders();
         let books = build_non_proposal_books(limit, &self.book_snapshots);
 
@@ -191,10 +192,12 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some((pools, subscriber))) = self.recv.poll_recv(cx) {
+            tracing::info!("new subscription");
             self.handle_new_subscription(pools, subscriber);
         }
 
         while let Poll::Ready(Some(Ok(slot_update))) = self.pending_tasks.poll_next_unpin(cx) {
+            tracing::info!(?slot_update, "got slot update");
             self.send_out_result(slot_update);
         }
 

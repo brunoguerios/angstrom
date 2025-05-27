@@ -144,6 +144,7 @@ fn init_tracing() {
     } else {
         let filter = filter::Targets::new()
             .with_target("sepolia_bundle_lander", level)
+            .with_target("angstrom_amm_quoter", level)
             .with_target("testnet", level)
             .with_target("devnet", level)
             .with_target("angstrom_rpc", level)

@@ -18,6 +18,7 @@ tokio.workspace = true
 rayon.workspace = true
 tokio-stream.workspace = true
 
+tracing.workspace =true
 matching-engine.workspace = true 
 eyre.workspace = true
 futures.workspace = true
