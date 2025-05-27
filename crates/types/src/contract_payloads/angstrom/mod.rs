@@ -781,6 +781,13 @@ impl AngstromBundle {
         Ok(t0_fee)
     }
 
+    fn orders_by_pool_from_pre_proposals(
+        pre_proposals: &[PreProposal],
+        orders: OrderSet<OrderWithStorageData<AllOrders>, OrderWithStorageData<RpcTopOfBlockOrder>>
+    ) -> HashMap<PoolId, HashSet<OrderWithStorageData<AllOrders>>> {
+        todo!()
+    }
+
     pub fn from_proposal(
         proposal: &Proposal,
         orders: OrderSet<OrderWithStorageData<AllOrders>, OrderWithStorageData<RpcTopOfBlockOrder>>,
@@ -796,7 +803,7 @@ impl AngstromBundle {
 
         // Break out our input orders into lists of orders by pool
         let preproposals = proposal.flattened_pre_proposals();
-        let orders_by_pool = PreProposal::orders_by_pool_id(&preproposals);
+        let orders_by_pool = Self::orders_by_pool_from_pre_proposals(&preproposals, orders);
 
         // fetch the accumulated amount of gas delegated to the users
         let (total_swaps, _) = Self::fetch_total_orders_and_gas_delegated_to_orders(
