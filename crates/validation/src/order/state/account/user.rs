@@ -357,6 +357,7 @@ impl UserAccounts {
         let iterator = self
             .iter_of_tob_and_book_unique_tob(user, token)
             .collect::<Vec<_>>();
+
         tracing::info!("collected iterator");
         // we want this as
         for pending_state in iterator {
