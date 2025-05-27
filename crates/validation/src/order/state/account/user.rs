@@ -521,6 +521,42 @@ mod tests {
     }
 
     #[test]
+    fn test_iterator_returns() {
+        let accounts = setup_test_accounts();
+        let user1 = address!("1234567890123456789012345678901234567890");
+        let user2 = address!("2234567890123456789012345678901234567890");
+        let token = address!("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
+
+        // Add some pending actions
+        let action1 = create_test_pending_action(
+            token,
+            U256::from(100),
+            U256::from(0),
+            U256::from(100),
+            1,
+            true,
+            true
+        );
+        let action2 = create_test_pending_action(
+            token,
+            U256::from(200),
+            U256::from(0),
+            U256::from(200),
+            2,
+            false,
+            true
+        );
+        let actions = vec![action1, action2];
+
+        let iterator =
+            UniqueByPoolId { seen_pool_id: Default::default(), iter: actions.into_iter() };
+
+        for i in iterator {
+            println!("i");
+        }
+    }
+
+    #[test]
     fn test_new_block_handling() {
         let accounts = setup_test_accounts();
         let user1 = address!("1234567890123456789012345678901234567890");
