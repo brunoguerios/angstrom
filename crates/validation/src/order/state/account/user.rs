@@ -354,8 +354,9 @@ impl UserAccounts {
         let mut bad = vec![];
         tracing::info!("itering over fetch all invalid");
 
+        let iterator = self.iter_of_tob_and_book_unique_tob(user, token).collect();
         // we want this as
-        for pending_state in self.iter_of_tob_and_book_unique_tob(user, token) {
+        for pending_state in iterator {
             tracing::info!(?pending_state);
             let (baseline, overflowed) =
                 baseline_approval.overflowing_sub(pending_state.token_approval);
