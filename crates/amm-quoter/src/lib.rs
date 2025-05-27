@@ -131,7 +131,6 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn spawn_book_solvers(&mut self, seq_id: u16) {
-        tracing::info!("solving book");
         let OrderSet { limit, searcher } = self.orders.get_all_orders();
         let books = build_non_proposal_books(limit, &self.book_snapshots);
 
@@ -180,6 +179,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             return;
         };
 
+        tracing::info!("sending out pool update");
         pool_subs.retain(|subscriber| subscriber.try_send(slot_update.clone()).is_ok());
     }
 }

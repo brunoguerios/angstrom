@@ -117,6 +117,7 @@ where
                 if sink.is_closed() {
                     break;
                 }
+                tracing::info!("sending slot0 to subscriber");
 
                 match SubscriptionMessage::new(sink.method_name(), sink.subscription_id(), &slot0) {
                     Ok(message) => {
