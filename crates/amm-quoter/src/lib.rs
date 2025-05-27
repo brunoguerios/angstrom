@@ -151,7 +151,6 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             });
 
         for book in books {
-            tracing::info!(?book);
             let searcher = searcher_orders.get(&book.id()).cloned();
             let (tx, rx) = oneshot::channel();
             let block = self.cur_block;
@@ -186,7 +185,6 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn send_out_result(&mut self, slot_update: Slot0Update) {
-        let keys = self.pool_to_subscribers.keys().collect::<Vec<_>>();
         let Some(pool_subs) = self.pool_to_subscribers.get_mut(&slot_update.pool_id) else {
             return;
         };
@@ -203,12 +201,10 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some((pools, subscriber))) = self.recv.poll_recv(cx) {
-            tracing::info!("new subscription");
             self.handle_new_subscription(pools, subscriber);
         }
 
         while let Poll::Ready(Some(Ok(slot_update))) = self.pending_tasks.poll_next_unpin(cx) {
-            tracing::info!(?slot_update, "got slot update");
             self.send_out_result(slot_update);
         }
 
