@@ -343,6 +343,7 @@ impl UserAccounts {
     }
 
     fn fetch_all_invalidated_orders(&self, user: UserAddress, token: TokenAddress) -> Vec<B256> {
+        tracing::info!("fetch all invalidated orders");
         let Some(baseline) = self.last_known_state.get(&user) else { return vec![] };
 
         let mut baseline_approval = *baseline.token_approval.get(&token).unwrap();
@@ -351,6 +352,7 @@ impl UserAccounts {
         let mut has_overflowed = false;
 
         let mut bad = vec![];
+        tracing::info!("itering over fetch all invalid");
 
         // we want this as
         for pending_state in self.iter_of_tob_and_book_unique_tob(user, token) {
@@ -524,9 +526,6 @@ mod tests {
 
     #[test]
     fn test_iterator_returns() {
-        let accounts = setup_test_accounts();
-        let user1 = address!("1234567890123456789012345678901234567890");
-        let user2 = address!("2234567890123456789012345678901234567890");
         let token = address!("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
 
         // Add some pending actions
@@ -548,13 +547,13 @@ mod tests {
             false,
             true
         );
-        let actions = vec![action1, action2];
+        let actions = vec![action1];
 
         let iterator =
             UniqueByPoolId { seen_pool_id: Default::default(), iter: actions.into_iter() };
 
         for i in iterator {
-            println!("i");
+            println!("{i:#?}");
         }
     }
 
