@@ -326,7 +326,7 @@ impl UserAccounts {
 
             // tob can invalidate all user orders.
             let i = self.fetch_all_invalidated_orders(user, token);
-            tracing::info!("got invalidated orders tob");
+            tracing::info!("got invalidated orders tob\n\n\n\n\n\n yeeer");
             i
         } else {
             let mut entry = self.pending_book_actions.entry(user).or_default();
@@ -457,39 +457,6 @@ impl UserAccounts {
     }
 }
 
-/// is a iter that will only accept the first pool id that we have tracked that
-/// is valid. this is because you can have multiple tob orders that are "valid"
-/// but we only actually care about the one with this highest amount of bribe.
-struct UniqueByPoolId<I>
-where
-    I: Iterator<Item = PendingUserAction>
-{
-    seen_pool_id: HashSet<PoolId>,
-    iter:         I
-}
-
-impl<I> Iterator for UniqueByPoolId<I>
-where
-    I: Iterator<Item = PendingUserAction>
-{
-    type Item = PendingUserAction;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        tracing::info!("iter call");
-        for next in self.iter.by_ref() {
-            // if we have a tob but have already seen it
-            if next.is_tob && !self.seen_pool_id.insert(next.pool_info.pool_id) {
-                tracing::info!("cnt");
-                continue;
-            }
-            tracing::info!("next");
-            return Some(next);
-        }
-
-        None
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use alloy::primitives::address;
@@ -522,39 +489,6 @@ mod tests {
             token_approval,
             angstrom_delta,
             pool_info: UserOrderPoolInfo { token, ..Default::default() }
-        }
-    }
-
-    #[test]
-    fn test_iterator_returns() {
-        let token = address!("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
-
-        // Add some pending actions
-        let action1 = create_test_pending_action(
-            token,
-            U256::from(100),
-            U256::from(0),
-            U256::from(100),
-            1,
-            true,
-            true
-        );
-        let action2 = create_test_pending_action(
-            token,
-            U256::from(200),
-            U256::from(0),
-            U256::from(200),
-            2,
-            false,
-            true
-        );
-        let actions = vec![action1];
-
-        let iterator =
-            UniqueByPoolId { seen_pool_id: Default::default(), iter: actions.into_iter() };
-
-        for i in iterator {
-            println!("{i:#?}");
         }
     }
 
