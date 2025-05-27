@@ -354,7 +354,9 @@ impl UserAccounts {
         let mut bad = vec![];
         tracing::info!("itering over fetch all invalid");
 
-        let iterator = self.iter_of_tob_and_book_unique_tob(user, token).collect();
+        let iterator = self
+            .iter_of_tob_and_book_unique_tob(user, token)
+            .collect::<Vec<_>>();
         // we want this as
         for pending_state in iterator {
             tracing::info!(?pending_state);
