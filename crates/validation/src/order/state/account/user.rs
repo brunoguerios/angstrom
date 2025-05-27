@@ -325,6 +325,8 @@ impl UserAccounts {
             tracing::info!("fetching invalidated orders as tob");
 
             // tob can invalidate all user orders.
+            drop(token_entry);
+            drop(user_entry);
             let i = self.fetch_all_invalidated_orders(user, token);
             tracing::info!("got invalidated orders tob\n\n\n\n\n\n yeeer");
             i
@@ -441,7 +443,6 @@ impl UserAccounts {
     ) -> impl Iterator<Item = PendingUserAction> + '_ {
         let mut seen_pools = HashSet::new();
         self.iter_of_tob_and_book(user, token)
-            .inspect(|f| tracing::info!(?f, "in iter"))
             .filter(move |f| !(f.is_tob && !seen_pools.insert(f.pool_info.pool_id)))
     }
 
