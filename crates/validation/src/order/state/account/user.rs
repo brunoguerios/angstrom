@@ -319,6 +319,7 @@ impl UserAccounts {
             let mut user_entry = self.pending_tob_actions.entry(user).or_default();
             let token_entry = user_entry.entry(token).or_default();
 
+            tracing::info!(?action);
             token_entry.push(action);
             token_entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
             tracing::info!("fetching invalidated orders as tob");
