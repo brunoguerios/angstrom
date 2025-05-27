@@ -377,6 +377,7 @@ impl UserAccounts {
                 bad.push(pending_state.order_hash);
             }
         }
+
         bad
     }
 
@@ -432,10 +433,9 @@ impl UserAccounts {
         user: Address,
         token: TokenAddress
     ) -> impl Iterator<Item = PendingUserAction> + '_ {
-        UniqueByPoolId {
-            seen_pool_id: Default::default(),
-            iter:         self.iter_of_tob_and_book(user, token)
-        }
+        let mut seen_pools = HashSet::new();
+        self.iter_of_tob_and_book(user, token)
+            .filter(move |f| !(f.is_tob && !seen_pools.insert(f.pool_info.pool_id)))
     }
 
     fn iter_of_tob_and_book(
@@ -475,6 +475,7 @@ where
     type Item = PendingUserAction;
 
     fn next(&mut self) -> Option<Self::Item> {
+        tracing::info!("iter call");
         for next in self.iter.by_ref() {
             // if we have a tob but have already seen it
             if next.is_tob && !self.seen_pool_id.insert(next.pool_info.pool_id) {
