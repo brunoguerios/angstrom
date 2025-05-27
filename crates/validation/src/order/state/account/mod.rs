@@ -129,6 +129,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         match live_state
             .can_support_order(&order, &pool_info, Some(tob_reward_token_in))
             .map(|pending_user_action| {
+                tracing::info!(tob=?order.is_tob(),"inserting pending user action" );
                 self.user_accounts.insert_pending_user_action(
                     order.is_tob(),
                     order.from(),

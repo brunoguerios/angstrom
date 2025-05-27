@@ -321,6 +321,7 @@ impl UserAccounts {
 
             token_entry.push(action);
             token_entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
+            tracing::info!("fetching invalidated orders as tob");
 
             // tob can invalidate all user orders.
             self.fetch_all_invalidated_orders(user, token)
