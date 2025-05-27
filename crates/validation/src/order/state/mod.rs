@@ -149,13 +149,11 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             let pool_address = pool_info.pool_id;
             // lifetimes :(
             let with_storage = OrderWithStorageData::with_default(order.clone());
-            tracing::info!("starting reward calc");
             let total_reward = self
                 .uniswap_pools
                 .calculate_rewards(pool_address, &with_storage)
                 .await
                 .map_err(|_| UserAccountVerificationError::InvalidToBSwap)?;
-            tracing::info!("finished reward_cal");
             // given the price is always t1 / t0,
             let rewards_in_token_in = if order.is_bid() {
                 conversion_rate.quantity(total_reward, false)

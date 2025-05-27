@@ -158,7 +158,6 @@ where
                                     false,
                                     block_number
                                 );
-                                tracing::info!("validated searcher order");
                                 let _ = tx.send(results);
                             })
                             .await;
