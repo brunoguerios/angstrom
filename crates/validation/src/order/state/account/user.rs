@@ -325,7 +325,6 @@ impl UserAccounts {
             tracing::info!("fetching invalidated orders as tob");
 
             // tob can invalidate all user orders.
-            drop(token_entry);
             drop(user_entry);
             let i = self.fetch_all_invalidated_orders(user, token);
             tracing::info!("got invalidated orders tob\n\n\n\n\n\n yeeer");
