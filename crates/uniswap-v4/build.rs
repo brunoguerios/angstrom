@@ -25,7 +25,7 @@ fn main() {
     src_dir.push(SRC_DIRECTORY);
     if let Some(src_dir_str) = src_dir.to_str() {
         for contract in WANTED_CONTRACTS {
-            println!("cargo:rerun-if-changed={}{}", src_dir_str, contract);
+            println!("cargo::rerun-if-changed={}{}", src_dir_str, contract);
         }
     }
 
