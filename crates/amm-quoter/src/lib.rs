@@ -96,8 +96,10 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             .iter()
             .map(|entry| {
                 let pool_lock = entry.value().read().unwrap();
+
+                let pk = pool_lock.public_address();
                 let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
-                (*entry.key(), snapshot_data)
+                (pk, snapshot_data)
             })
             .collect();
 
@@ -122,6 +124,14 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn handle_new_subscription(&mut self, pools: HashSet<PoolId>, chan: mpsc::Sender<Slot0Update>) {
+        let keys = self.book_snapshots.keys().copied().collect::<HashSet<_>>();
+        for pool in &pools {
+            if !keys.contains(pool) {
+                // invalid subscription
+                return;
+            }
+        }
+
         for pool in pools {
             self.pool_to_subscribers
                 .entry(pool)
@@ -179,7 +189,6 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             return;
         };
 
-        tracing::info!("sending out pool update");
         pool_subs.retain(|subscriber| subscriber.try_send(slot_update.clone()).is_ok());
     }
 }
@@ -192,12 +201,10 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some((pools, subscriber))) = self.recv.poll_recv(cx) {
-            tracing::info!("new subscription");
             self.handle_new_subscription(pools, subscriber);
         }
 
         while let Poll::Ready(Some(Ok(slot_update))) = self.pending_tasks.poll_next_unpin(cx) {
-            tracing::info!(?slot_update, "got slot update");
             self.send_out_result(slot_update);
         }
 
