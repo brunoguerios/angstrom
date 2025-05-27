@@ -324,7 +324,9 @@ impl UserAccounts {
             tracing::info!("fetching invalidated orders as tob");
 
             // tob can invalidate all user orders.
-            self.fetch_all_invalidated_orders(user, token)
+            let i = self.fetch_all_invalidated_orders(user, token);
+            tracing::info!("got invalidated orders tob");
+            i
         } else {
             let mut entry = self.pending_book_actions.entry(user).or_default();
             let value = entry.value_mut();
@@ -475,6 +477,7 @@ where
                 tracing::info!("cnt");
                 continue;
             }
+            tracing::info!("next");
             return Some(next);
         }
 
