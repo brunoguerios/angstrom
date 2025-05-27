@@ -109,6 +109,7 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         });
 
         let (tob_reward_t0, tob_reward_token_in) = tob_rewards(&mut order, &pool_info).await?;
+        tracing::info!("got tob orders");
 
         // get the live state sorted up to the nonce, level, doesn't check orders above
         // that
