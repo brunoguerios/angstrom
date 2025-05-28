@@ -76,7 +76,7 @@ impl PreproposalBuilder {
                     .price_params(bid_dist)
                     .volume_params(bid_quant)
                     .signing_key(Some(sk.clone()))
-                    .build()
+                    .build_hashes()
                     .unwrap();
                 let asks = OrderDistributionBuilder::new()
                     .ask()
@@ -86,7 +86,7 @@ impl PreproposalBuilder {
                     .price_params(ask_dist)
                     .volume_params(ask_quant)
                     .signing_key(Some(sk.clone()))
-                    .build()
+                    .build_hashes()
                     .unwrap();
                 [bids, asks].concat()
             })
@@ -96,7 +96,7 @@ impl PreproposalBuilder {
             .iter()
             .map(|pool_id| {
                 let mut rng = rng();
-                let order = ToBOrderBuilder::new()
+                ToBOrderBuilder::new()
                     .recipient(pool_id.tob_recipient())
                     .asset_in(pool_id.token1())
                     .asset_out(pool_id.token0())
@@ -104,63 +104,11 @@ impl PreproposalBuilder {
                     .quantity_out(100000000_u128)
                     .signing_key(Some(sk.clone()))
                     .valid_block(block)
-                    .build();
-                let order_id = OrderIdBuilder::new()
-                    .pool_id(pool_id.id())
-                    .order_hash(order.order_hash())
-                    .build();
-                let price: u128 = Rng::random(&mut rng);
-                let priority_data = OrderPriorityData {
-                    price:     U256::from(price),
-                    volume:    1,
-                    gas:       Randomizer::generate(&mut rng),
-                    gas_units: Randomizer::generate(&mut rng)
-                };
-                OrderWithStorageData {
-                    invalidates: vec![],
-                    order,
-                    priority_data,
-                    is_bid: true,
-                    is_currently_valid: None,
-                    is_valid: true,
-                    order_id,
-                    pool_id: pool_id.id(),
-                    valid_block: block,
-                    tob_reward: U256::ZERO
-                }
+                    .build()
+                    .order_hash()
             })
             .collect();
 
         PreProposal::generate_pre_proposal(block, &sk, limit, searcher)
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::PreproposalBuilder;
-//
-//     #[test]
-//     fn generates_order_spread_that_crosses() {
-//         // It is MAYBE statistically possible that this will fail due to
-// probability one         // day?
-//         let pre_proposal = PreproposalBuilder::new()
-//             .order_count(100)
-//             .for_random_pools(1)
-//             .build();
-//         let (high_price, low_price) =
-//             pre_proposal
-//                 .limit
-//                 .iter()
-//                 .fold((f64::MIN, f64::MAX), |mut acc, order| {
-//                     let price = order.float_price();
-//                     if order.is_bid && price > acc.0 {
-//                         acc.0 = price;
-//                     }
-//                     if !order.is_bid && price < acc.1 {
-//                         acc.1 = price;
-//                     }
-//                     acc
-//                 });
-//         assert!(high_price > low_price, "Prices do not cross");
-//     }
-// }

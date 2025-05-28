@@ -1,4 +1,5 @@
 use alloy::primitives::Uint;
+use alloy_primitives::B256;
 use angstrom_types::{
     matching::Ray,
     primitive::{AngstromSigner, PoolId},
@@ -59,6 +60,46 @@ impl OrderDistributionBuilder {
 
     pub fn signing_key(self, signing_key: Option<AngstromSigner>) -> Self {
         Self { signing_key, ..self }
+    }
+
+    pub fn build_hashes(self) -> eyre::Result<Vec<B256>> {
+        let order_count = self.order_count.unwrap_or_default();
+        let pool_id = self.pool_id.unwrap_or_default();
+        let valid_block = self.valid_block.unwrap_or_default();
+        let DistributionParameters {
+            location: price_location,
+            scale: price_scale,
+            shape: price_shape
+        } = self.priceparams.unwrap_or_default();
+        let DistributionParameters { location: v_location, scale: v_scale, shape: v_shape } =
+            self.volumeparams.unwrap_or_default();
+
+        // We need two RNG handles because we hand them out as a mutable
+        let mut rng = rand::rng();
+        let mut rng2 = rand::rng();
+
+        let price_gen = SkewNormal::new(price_location, price_scale, price_shape)
+            .map_err(|e| eyre!("Error creating price distribution: {}", e))?;
+        let volume_gen = SkewNormal::new(v_location, v_scale, v_shape)
+            .map_err(|e| eyre!("Error creating price distribution: {}", e))?;
+        Ok(price_gen
+            .sample_iter(&mut rng)
+            .zip(volume_gen.sample_iter(&mut rng2))
+            .map(|(p, v)| {
+                UserOrderBuilder::new()
+                    .is_standing(false)
+                    .block(valid_block)
+                    .amount(v.to_u128().unwrap_or_default())
+                    .min_price(Ray::from(Uint::from(p.to_u128().unwrap_or(1_u128))))
+                    .signing_key(self.signing_key.clone())
+                    .with_storage()
+                    .pool_id(pool_id)
+                    .is_bid(self.is_bid)
+                    .build()
+                    .order_hash()
+            })
+            .take(order_count)
+            .collect())
     }
 
     pub fn build(self) -> eyre::Result<Vec<OrderWithStorageData<AllOrders>>> {

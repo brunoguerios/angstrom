@@ -72,7 +72,7 @@ impl PreProposalAggregationBuilder {
                     .price_params(bid_dist)
                     .volume_params(bid_quant)
                     .signing_key(Some(sk.clone()))
-                    .build()
+                    .build_hashes()
                     .unwrap();
                 let asks = OrderDistributionBuilder::new()
                     .ask()
@@ -82,7 +82,7 @@ impl PreProposalAggregationBuilder {
                     .price_params(ask_dist)
                     .volume_params(ask_quant)
                     .signing_key(Some(sk.clone()))
-                    .build()
+                    .build_hashes()
                     .unwrap();
                 [bids, asks].concat()
             })
@@ -92,7 +92,7 @@ impl PreProposalAggregationBuilder {
             .iter()
             .map(|pool_id| {
                 let mut rng = rng();
-                let order = ToBOrderBuilder::new()
+                ToBOrderBuilder::new()
                     .recipient(pool_id.tob_recipient())
                     .asset_in(pool_id.token1())
                     .asset_out(pool_id.token0())
@@ -100,30 +100,8 @@ impl PreProposalAggregationBuilder {
                     .quantity_out(100000000_u128)
                     .signing_key(Some(sk.clone()))
                     .valid_block(block)
-                    .build();
-                let order_id = OrderIdBuilder::new()
-                    .pool_id(pool_id.id())
-                    .order_hash(order.order_hash())
-                    .build();
-                let price: u128 = Rng::random(&mut rng);
-                let priority_data = OrderPriorityData {
-                    price:     U256::from(price),
-                    volume:    1,
-                    gas:       Randomizer::generate(&mut rng),
-                    gas_units: Randomizer::generate(&mut rng)
-                };
-                OrderWithStorageData {
-                    invalidates: vec![],
-                    order,
-                    priority_data,
-                    is_bid: true,
-                    is_currently_valid: None,
-                    is_valid: true,
-                    order_id,
-                    pool_id: pool_id.id(),
-                    valid_block: block,
-                    tob_reward: U256::ZERO
-                }
+                    .build()
+                    .order_hash()
             })
             .collect();
 
