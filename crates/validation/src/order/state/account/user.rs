@@ -7,7 +7,7 @@ use std::{
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    primitive::{PoolId, UserAccountVerificationError, UserOrderPoolInfo},
+    primitive::{UserAccountVerificationError, UserOrderPoolInfo},
     sol_bindings::{OrderValidationPriority, Ray, RespendAvoidanceMethod, ext::RawPoolOrder}
 };
 use angstrom_utils::FnResultOption;
@@ -315,7 +315,6 @@ impl UserAccounts {
             // we only want ot insert this if we are the highest tob order for the given
             // pool. when we did the accounting, we verified that we had enough
             // funds
-
             let mut user_entry = self.pending_tob_actions.entry(user).or_default();
             let token_entry = user_entry.entry(token).or_default();
 
@@ -323,6 +322,7 @@ impl UserAccounts {
             token_entry.sort_unstable_by(|f, s| s.is_higher_priority(f));
 
             // tob can invalidate all user orders.
+            drop(user_entry);
             self.fetch_all_invalidated_orders(user, token)
         } else {
             let mut entry = self.pending_book_actions.entry(user).or_default();
@@ -370,6 +370,7 @@ impl UserAccounts {
                 bad.push(pending_state.order_hash);
             }
         }
+
         bad
     }
 
@@ -425,10 +426,9 @@ impl UserAccounts {
         user: Address,
         token: TokenAddress
     ) -> impl Iterator<Item = PendingUserAction> + '_ {
-        UniqueByPoolId {
-            seen_pool_id: Default::default(),
-            iter:         self.iter_of_tob_and_book(user, token)
-        }
+        let mut seen_pools = HashSet::new();
+        self.iter_of_tob_and_book(user, token)
+            .filter(move |f| !f.is_tob || seen_pools.insert(f.pool_info.pool_id))
     }
 
     fn iter_of_tob_and_book(
@@ -450,39 +450,10 @@ impl UserAccounts {
     }
 }
 
-/// is a iter that will only accept the first pool id that we have tracked that
-/// is valid. this is because you can have multiple tob orders that are "valid"
-/// but we only actually care about the one with this highest amount of bribe.
-struct UniqueByPoolId<I>
-where
-    I: Iterator<Item = PendingUserAction>
-{
-    seen_pool_id: HashSet<PoolId>,
-    iter:         I
-}
-
-impl<I> Iterator for UniqueByPoolId<I>
-where
-    I: Iterator<Item = PendingUserAction>
-{
-    type Item = PendingUserAction;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for next in self.iter.by_ref() {
-            // if we have a tob but have already seen it
-            if next.is_tob && !self.seen_pool_id.insert(next.pool_info.pool_id) {
-                continue;
-            }
-            return Some(next);
-        }
-
-        None
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use alloy::primitives::address;
+    use angstrom_types::primitive::PoolId;
 
     use super::*;
 

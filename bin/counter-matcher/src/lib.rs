@@ -1,7 +1,7 @@
 use std::{collections::HashSet, pin::pin, sync::Arc, time::Duration};
 
 use accounting::WalletAccounting;
-use alloy::{primitives::B256, providers::Provider};
+use alloy::providers::Provider;
 use angstrom_rpc::{
     api::OrderApiClient,
     types::{OrderSubscriptionFilter, OrderSubscriptionKind}
@@ -94,8 +94,10 @@ pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()
             subscriptions.insert(OrderSubscriptionKind::CancelledOrders);
             subscriptions.insert(OrderSubscriptionKind::ExpiredOrders);
 
-            let pool_ids =
-                HashSet::<B256>::from_iter(vec![pools.first().unwrap().public_address()]);
+            let pool_ids = pools
+                .iter()
+                .map(|f| f.public_address())
+                .collect::<HashSet<_>>();
             let mut slot0_sub = ws.subscribe_amm(pool_ids).await.unwrap().into_stream();
 
             let mut sub = ws
