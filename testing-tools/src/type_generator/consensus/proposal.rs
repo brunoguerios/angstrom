@@ -1,31 +1,26 @@
-use std::collections::HashMap;
-
 use alloy_primitives::{
     Address,
     aliases::{I24, U24}
 };
 use angstrom_types::{
-    consensus::{PreProposalAggregation, Proposal},
+    consensus::PreProposalAggregation,
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{SqrtPriceX96, uniswap::LiqRange},
-    primitive::{AngstromSigner, PoolId},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    primitive::AngstromSigner
 };
-use matching_engine::{MatchingManager, strategy::BinarySearchStrategy};
-use reth_tasks::TokioTaskExecutor;
 
-use super::{pool::Pool, pre_proposal_agg::PreProposalAggregationBuilder};
-use crate::{mocks::validator::MockValidator, type_generator::amm::AMMSnapshotBuilder};
+use super::pool::Pool;
+use crate::type_generator::amm::AMMSnapshotBuilder;
 
 #[derive(Debug, Default)]
 pub struct ProposalBuilder {
-    ethereum_height:   Option<u64>,
-    order_count:       Option<usize>,
-    preproposals:      Option<Vec<PreProposalAggregation>>,
-    preproposal_count: Option<usize>,
-    block:             Option<u64>,
-    pools:             Option<Vec<Pool>>,
-    sk:                Option<AngstromSigner>
+    pub ethereum_height:   Option<u64>,
+    pub order_count:       Option<usize>,
+    pub preproposals:      Option<Vec<PreProposalAggregation>>,
+    pub preproposal_count: Option<usize>,
+    pub block:             Option<u64>,
+    pub pools:             Option<Vec<Pool>>,
+    pub sk:                Option<AngstromSigner>
 }
 
 impl ProposalBuilder {
@@ -81,75 +76,5 @@ impl ProposalBuilder {
 
     pub fn with_secret_key(self, sk: AngstromSigner) -> Self {
         Self { sk: Some(sk), ..self }
-    }
-
-    pub fn build(self) -> Proposal {
-        // Extract values from our struct
-        let ethereum_height = self.ethereum_height.unwrap_or_default();
-        let preproposal_count = self.preproposal_count.unwrap_or_default();
-        let pools = self.pools.unwrap_or_default();
-        let count = self.order_count.unwrap_or_default();
-        let block = self.block.unwrap_or_default();
-        let sk = self.sk.unwrap_or_else(AngstromSigner::random);
-        // Build the source ID from the secret/public keypair
-
-        let preproposals = self.preproposals.unwrap_or_else(|| {
-            (0..preproposal_count)
-                .map(|_| {
-                    PreProposalAggregationBuilder::new()
-                        .for_block(block)
-                        .order_count(count)
-                        .for_pools(pools.clone())
-                        .with_secret_key(sk.clone())
-                        .build()
-                })
-                .collect::<Vec<_>>()
-        });
-
-        let books = MatchingManager::<TokioTaskExecutor, MockValidator>::build_books(
-            &preproposals[0].pre_proposals,
-            HashMap::default()
-        );
-        let searcher_orders: HashMap<PoolId, OrderWithStorageData<TopOfBlockOrder>> = preproposals
-            .iter()
-            .flat_map(|p| p.pre_proposals.iter())
-            .flat_map(|p| p.searcher.iter())
-            .fold(HashMap::new(), |mut acc, order| {
-                acc.entry(order.pool_id).or_insert(order.clone());
-                acc
-            });
-        let solutions = books
-            .into_iter()
-            .map(|b| {
-                let searcher = searcher_orders.get(&b.id()).cloned();
-                BinarySearchStrategy::run(&b, searcher)
-            })
-            .collect::<Vec<_>>();
-        Proposal::generate_proposal(ethereum_height, &sk, preproposals, solutions)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use alloy::signers::local::PrivateKeySigner;
-    use angstrom_types::primitive::AngstromSigner;
-
-    use super::ProposalBuilder;
-    use crate::type_generator::consensus::pool::PoolBuilder;
-
-    #[test]
-    fn builds_generic_preproposal() {
-        let random_key = PrivateKeySigner::random();
-        let controller_signing_key = AngstromSigner::new(random_key);
-        let pool = PoolBuilder::new().build();
-        let pools = vec![pool.clone()];
-        let current_block = 10;
-        let _proposal = ProposalBuilder::new()
-            .for_pools(pools)
-            .order_count(10)
-            .preproposal_count(1)
-            .with_secret_key(controller_signing_key)
-            .for_block(current_block + 2)
-            .build();
     }
 }

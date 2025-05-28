@@ -32,7 +32,7 @@ use crate::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::rewards::RewardsUpdate,
     matching::{Ray, SqrtPriceX96, get_quantities_at_price, uniswap::Direction},
-    orders::{OrderFillState, OrderId, OrderOutcome, PoolSolution},
+    orders::{OrderFillState, OrderId, OrderOutcome, OrderSet, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
         RawPoolOrder,
@@ -781,8 +781,25 @@ impl AngstromBundle {
         Ok(t0_fee)
     }
 
+    fn orders_by_pool_from_pre_proposals(
+        pre_proposals: &[PreProposal],
+        orders: OrderSet<AllOrders, RpcTopOfBlockOrder>
+    ) -> HashMap<PoolId, HashSet<OrderWithStorageData<AllOrders>>> {
+        let valid_limit = pre_proposals
+            .iter()
+            .flat_map(|pre| pre.limit.clone())
+            .collect();
+        let (limit_orders, _) = orders.into_book_and_searcher(valid_limit, vec![]);
+
+        limit_orders.into_iter().fold(HashMap::new(), |mut acc, x| {
+            acc.entry(x.pool_id).or_default().insert(x);
+            acc
+        })
+    }
+
     pub fn from_proposal(
         proposal: &Proposal,
+        orders: OrderSet<AllOrders, RpcTopOfBlockOrder>,
         _gas_details: BundleGasDetails,
         pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
     ) -> eyre::Result<Self> {
@@ -795,7 +812,7 @@ impl AngstromBundle {
 
         // Break out our input orders into lists of orders by pool
         let preproposals = proposal.flattened_pre_proposals();
-        let orders_by_pool = PreProposal::orders_by_pool_id(&preproposals);
+        let orders_by_pool = Self::orders_by_pool_from_pre_proposals(&preproposals, orders);
 
         // fetch the accumulated amount of gas delegated to the users
         let (total_swaps, _) = Self::fetch_total_orders_and_gas_delegated_to_orders(
