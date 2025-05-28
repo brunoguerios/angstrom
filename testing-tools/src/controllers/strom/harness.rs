@@ -6,7 +6,7 @@ use std::{
 
 use alloy::{self, eips::BlockId, network::Network, primitives::Address, providers::Provider};
 use alloy_primitives::U256;
-use angstrom::components::{StromHandles, init_network_builder};
+use angstrom::components::StromHandles;
 use angstrom_eth::manager::EthEvent;
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
 use angstrom_types::{
@@ -29,7 +29,6 @@ use eyre::eyre;
 use futures::{Stream, StreamExt};
 use matching_engine::MatchingManager;
 use order_pool::{PoolConfig, order_storage::OrderStorage};
-use parking_lot::RwLock;
 use reth::{providers::CanonStateSubscriptions, tasks::TaskExecutor};
 use reth_metrics::common::mpsc::metered_unbounded_channel;
 use reth_provider::test_utils::TestCanonStateSubscriptions;
@@ -105,7 +104,7 @@ where
 }
 
 pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
-    mut handles: StromHandles,
+    handles: StromHandles,
     telemetry_constants: NodeConstants,
     provider: AnvilProvider<Provider>,
     executor: TaskExecutor,
@@ -136,12 +135,6 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         "Constants recorded"
     );
 
-    let network_builder = init_network_builder(
-        signer.clone(),
-        handles.eth_handle_rx.take().unwrap(),
-        Arc::new(RwLock::new(node_set.clone()))
-    )
-    .unwrap();
     // Create our provider
     let submission_handler =
         SubmissionHandler::new(provider.rpc_provider().into(), &[], &[], &[], angstrom_contract);
@@ -238,12 +231,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     let validation_handle = ValidationClient(handles.validator_tx.clone());
     tracing::info!("validation manager start");
 
-    // let network_handle = network_builder
-    //     .with_pool_manager(handles.pool_tx)
-    //     .with_consensus_manager(handles.consensus_tx_op)
-    //     .build_handle(executor.clone(), provider.rpc_provider());
-
-    let (sn_tx, sn_rx) = metered_unbounded_channel("replay");
+    let (sn_tx, _sn_rx) = metered_unbounded_channel("replay");
     let network_handle = StromNetworkHandle::new(Arc::new(AtomicUsize::new(1)), sn_tx);
 
     // fetch pool ids

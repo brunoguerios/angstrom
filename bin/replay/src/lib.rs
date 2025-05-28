@@ -141,17 +141,29 @@ pub async fn build_log_and_provider(
         tracing::info!("Starting testnet replay");
         let keys = node_config.global_config.initial_state_config().pool_keys;
         tracing::info!(?keys, "Pool keys");
-        // If we're replaying from testnet, we want to do local initialization
-        let (mut init, anvil, deployed) =
-            AnvilInitializer::new(node_config.clone(), vec![]).await?;
-        init.deploy_pool_fulls(keys).await?;
-        let initial_state = init.initialize_state_no_bytes(ex).await?;
-        init.rpc_provider().anvil_mine(Some(10), None).await?;
+
+        // Make our Initializer
+        let (init, anvil, deployed) = AnvilInitializer::new(node_config.clone(), vec![]).await?;
+
+        // Make our wrapped state provider
         let state_provider = AnvilStateProvider::new(init);
-        let blocknum = state_provider.last_block_number()?;
-        let provider =
-            AnvilProvider::new(state_provider, anvil, Some(deployed)).into_state_provider();
-        Ok((raw_log.at_block(blocknum), provider, Some(initial_state)))
+        let swp = state_provider.as_wallet_state_provider();
+
+        // Make our wrapped provider
+        let mut provider = AnvilProvider::new(state_provider, anvil, Some(deployed));
+
+        // Setup our thread for doing things
+        let handle = tokio::runtime::Handle::current().clone();
+        std::thread::spawn(move || handle.block_on(swp.listen_to_new_blocks()));
+
+        let new_init = provider.provider_mut().provider_mut();
+
+        new_init.deploy_pool_fulls(keys).await?;
+        let initial_state = new_init.initialize_state_no_bytes(ex).await?;
+        new_init.rpc_provider().anvil_mine(Some(10), None).await?;
+
+        let blocknum = provider.state_provider().last_block_number()?;
+        Ok((raw_log.at_block(blocknum), provider.into_state_provider(), Some(initial_state)))
     } else {
         // Otherwise we want to just fork the current chain as specified on the command
         // line

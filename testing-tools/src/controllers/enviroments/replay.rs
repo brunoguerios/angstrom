@@ -1,6 +1,7 @@
 use angstrom::components::initialize_strom_handles;
 use angstrom_types::testnet::InitialTestnetState;
 use order_pool::OrderPoolHandle;
+use reth_provider::BlockNumReader;
 use reth_tasks::TaskExecutor;
 use telemetry::{NodeConstants, TelemetryMessage, blocklog::BlockLog};
 use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};
@@ -18,7 +19,8 @@ pub async fn replay_stuff<Provider: WithWalletProvider>(
 ) -> eyre::Result<()> {
     // The target block is the one in our replay
     let block_id = replay_log.blocknum();
-    tracing::info!(block_id, "Starting replay");
+    let newest_block = provider.state_provider().last_block_number().unwrap();
+    tracing::info!(block_id, newest_block, "Starting replay");
     let telemetry_constants = if let Some(i) = initial_state {
         let log_constants = replay_log.constants().unwrap();
         NodeConstants::new(

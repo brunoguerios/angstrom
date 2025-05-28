@@ -57,11 +57,11 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
         &self.provider
     }
 
-    pub(crate) fn provider_mut(&mut self) -> &mut P {
+    pub fn provider_mut(&mut self) -> &mut P {
         &mut self.provider
     }
 
-    pub(crate) fn as_wallet_state_provider(&self) -> AnvilStateProvider<WalletProvider> {
+    pub fn as_wallet_state_provider(&self) -> AnvilStateProvider<WalletProvider> {
         AnvilStateProvider {
             provider:       self.provider.wallet_provider(),
             canon_state:    self.canon_state.clone(),
