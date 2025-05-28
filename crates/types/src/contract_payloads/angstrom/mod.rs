@@ -785,7 +785,16 @@ impl AngstromBundle {
         pre_proposals: &[PreProposal],
         orders: OrderSet<AllOrders, RpcTopOfBlockOrder>
     ) -> HashMap<PoolId, HashSet<OrderWithStorageData<AllOrders>>> {
-        todo!()
+        let valid_limit = pre_proposals
+            .iter()
+            .flat_map(|pre| pre.limit.clone())
+            .collect();
+        let (limit_orders, _) = orders.into_book_and_searcher(valid_limit, vec![]);
+
+        limit_orders.into_iter().fold(HashMap::new(), |mut acc, x| {
+            acc.entry(x.pool_id).or_default().insert(x);
+            acc
+        })
     }
 
     pub fn from_proposal(

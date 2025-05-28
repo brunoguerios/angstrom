@@ -14,13 +14,13 @@ use crate::type_generator::amm::AMMSnapshotBuilder;
 
 #[derive(Debug, Default)]
 pub struct ProposalBuilder {
-    ethereum_height:   Option<u64>,
-    order_count:       Option<usize>,
-    preproposals:      Option<Vec<PreProposalAggregation>>,
-    preproposal_count: Option<usize>,
-    block:             Option<u64>,
-    pools:             Option<Vec<Pool>>,
-    sk:                Option<AngstromSigner>
+    pub ethereum_height:   Option<u64>,
+    pub order_count:       Option<usize>,
+    pub preproposals:      Option<Vec<PreProposalAggregation>>,
+    pub preproposal_count: Option<usize>,
+    pub block:             Option<u64>,
+    pub pools:             Option<Vec<Pool>>,
+    pub sk:                Option<AngstromSigner>
 }
 
 impl ProposalBuilder {

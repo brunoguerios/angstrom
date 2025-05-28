@@ -1,7 +1,6 @@
 use angstrom_types::{
     consensus::PreProposal, primitive::AngstromSigner, sol_bindings::RawPoolOrder
 };
-use rand::{Rng, rng};
 
 use super::pool::{Pool, PoolBuilder};
 use crate::type_generator::orders::{
@@ -89,7 +88,6 @@ impl PreproposalBuilder {
         let searcher = pools
             .iter()
             .map(|pool_id| {
-                let rng = rng();
                 ToBOrderBuilder::new()
                     .recipient(pool_id.tob_recipient())
                     .asset_in(pool_id.token1())
