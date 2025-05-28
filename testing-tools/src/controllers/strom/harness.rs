@@ -1,10 +1,14 @@
-use std::{collections::HashSet, pin::Pin, sync::Arc};
+use std::{
+    collections::HashSet,
+    pin::Pin,
+    sync::{Arc, atomic::AtomicUsize}
+};
 
 use alloy::{self, eips::BlockId, network::Network, primitives::Address, providers::Provider};
 use alloy_primitives::U256;
 use angstrom::components::{StromHandles, init_network_builder};
 use angstrom_eth::manager::EthEvent;
-use angstrom_network::{PoolManagerBuilder, pool_manager::PoolHandle};
+use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     consensus::ConsensusRoundName,
@@ -27,6 +31,7 @@ use matching_engine::MatchingManager;
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use parking_lot::RwLock;
 use reth::{providers::CanonStateSubscriptions, tasks::TaskExecutor};
+use reth_metrics::common::mpsc::metered_unbounded_channel;
 use reth_provider::test_utils::TestCanonStateSubscriptions;
 use telemetry::{NodeConstants, client::TelemetryClient};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -106,7 +111,11 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     executor: TaskExecutor,
     pools: Vec<PoolKey>,
     block_id: u64
-) -> eyre::Result<(PoolHandle, tokio::sync::mpsc::UnboundedReceiver<ConsensusRoundName>)> {
+) -> eyre::Result<(
+    PoolHandle,
+    tokio::sync::mpsc::UnboundedReceiver<ConsensusRoundName>,
+    TestCanonStateSubscriptions
+)> {
     // Get our URL
 
     // Constants that we want to work with
@@ -117,6 +126,14 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     let gas_token = telemetry_constants.gas_token_address();
     let node_set = HashSet::from([telemetry_constants.node_address()]);
     let mock_canon = TestCanonStateSubscriptions::default();
+
+    tracing::info!(
+        ?angstrom_contract,
+        ?pool_manager,
+        ?deploy_block,
+        ?gas_token,
+        "Constants recorded"
+    );
 
     let network_builder = init_network_builder(
         signer.clone(),
@@ -220,10 +237,13 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     let validation_handle = ValidationClient(handles.validator_tx.clone());
     tracing::info!("validation manager start");
 
-    let network_handle = network_builder
-        .with_pool_manager(handles.pool_tx)
-        .with_consensus_manager(handles.consensus_tx_op)
-        .build_handle(executor.clone(), provider.rpc_provider());
+    // let network_handle = network_builder
+    //     .with_pool_manager(handles.pool_tx)
+    //     .with_consensus_manager(handles.consensus_tx_op)
+    //     .build_handle(executor.clone(), provider.rpc_provider());
+
+    let (sn_tx, sn_rx) = metered_unbounded_channel("replay");
+    let network_handle = StromNetworkHandle::new(Arc::new(AtomicUsize::new(1)), sn_tx);
 
     // fetch pool ids
 
@@ -286,5 +306,5 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     global_block_sync.finalize_modules();
     tracing::info!("started angstrom");
 
-    Ok((pool_handle, state_rx))
+    Ok((pool_handle, state_rx, mock_canon))
 }

@@ -27,7 +27,7 @@ use order_pool::order_storage::OrderStorage;
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_provider::{CanonStateNotification, CanonStateNotifications};
 use reth_tasks::shutdown::GracefulShutdown;
-use telemetry::client::TelemetryHandle;
+use telemetry::client::{TelemetryClient, TelemetryHandle};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -40,13 +40,14 @@ use crate::{
 
 const MODULE_NAME: &str = "Consensus";
 
-pub struct ConsensusManager<P, Matching, BlockSync, Telemetry>
+pub struct ConsensusManager<P, Matching, BlockSync, Telemetry = TelemetryClient>
 where
-    P: Provider + Unpin + 'static
+    P: Provider + Unpin + 'static,
+    Telemetry: TelemetryHandle
 {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    consensus_round_state:  RoundStateMachine<P, Matching>,
+    consensus_round_state:  RoundStateMachine<P, Matching, Telemetry>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
@@ -95,18 +96,21 @@ where
             strom_consensus_event,
             current_height,
             leader_selection,
-            consensus_round_state: RoundStateMachine::new(SharedRoundState::new(
-                current_height,
-                order_storage,
-                signer,
-                leader,
-                validators.clone(),
-                ConsensusMetricsWrapper::new(),
-                pool_registry,
-                uniswap_pools,
-                provider,
-                matching_engine
-            )),
+            consensus_round_state: RoundStateMachine::new(
+                SharedRoundState::<_, _, Telemetry>::new(
+                    current_height,
+                    order_storage,
+                    signer,
+                    leader,
+                    validators.clone(),
+                    ConsensusMetricsWrapper::new(),
+                    pool_registry,
+                    uniswap_pools,
+                    provider,
+                    matching_engine,
+                    telemetry.clone()
+                )
+            ),
             rpc_rx,
             telemetry,
             state_updates,

@@ -12,7 +12,7 @@ use k256::{
     elliptic_curve::sec1::ToEncodedPoint
 };
 use reth_network_peers::PeerId;
-use revm_primitives::FixedBytes;
+use secp256k1::rand::rngs::OsRng;
 
 /// Wrapper around key and signing to allow for a uniform type across codebase
 #[derive(Debug, Clone)]
@@ -32,8 +32,7 @@ impl AngstromSigner {
     /// Make a dummy signer that targets a specified address, this is used only
     /// for snapshot replay at the moment
     pub fn for_address(address: Address) -> Self {
-        let bytes: FixedBytes<64> = FixedBytes::random();
-        let credential = SigningKey::from_slice(bytes.as_slice()).unwrap();
+        let credential = SigningKey::random(&mut OsRng);
         let key = PrivateKeySigner::new_with_credential(credential, address, None);
         Self::new(key)
     }

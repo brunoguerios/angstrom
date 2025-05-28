@@ -9,6 +9,7 @@ use angstrom_types::consensus::{
     ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal, StromConsensusEvent
 };
 use matching_engine::MatchingEngineHandle;
+use telemetry::client::TelemetryHandle;
 
 use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{
@@ -32,17 +33,18 @@ pub struct PreProposalState {
 }
 
 impl PreProposalState {
-    pub fn new<P, Matching>(
+    pub fn new<P, Matching, Telemetry>(
         block_height: BlockNumber,
         mut pre_proposals: HashSet<PreProposal>,
         pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, Telemetry>,
         trigger_time: Instant,
         waker: Waker
     ) -> Self
     where
         P: Provider + Unpin + 'static,
-        Matching: MatchingEngineHandle
+        Matching: MatchingEngineHandle,
+        Telemetry: TelemetryHandle
     {
         // generate my pre_proposal
         let my_preproposal =
@@ -62,14 +64,15 @@ impl PreProposalState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for PreProposalState
+impl<P, Matching, Telemetry> ConsensusState<P, Matching, Telemetry> for PreProposalState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    Telemetry: TelemetryHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, Telemetry>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -99,9 +102,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, Telemetry>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>> {
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization
             return Poll::Ready(Some(Box::new(FinalizationState::new(

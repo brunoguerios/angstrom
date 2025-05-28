@@ -1,7 +1,8 @@
 use angstrom::components::initialize_strom_handles;
+use angstrom_types::testnet::InitialTestnetState;
 use order_pool::OrderPoolHandle;
 use reth_tasks::TaskExecutor;
-use telemetry::{TelemetryMessage, blocklog::BlockLog};
+use telemetry::{NodeConstants, TelemetryMessage, blocklog::BlockLog};
 use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};
 
 use crate::{
@@ -12,17 +13,30 @@ use crate::{
 pub async fn replay_stuff<Provider: WithWalletProvider>(
     provider: AnvilProvider<Provider>,
     executor: TaskExecutor,
-    replay_log: BlockLog
+    replay_log: BlockLog,
+    initial_state: Option<InitialTestnetState>
 ) -> eyre::Result<()> {
     // The target block is the one in our replay
     let block_id = replay_log.blocknum();
+    tracing::info!(block_id, "Starting replay");
+    let telemetry_constants = if let Some(i) = initial_state {
+        let log_constants = replay_log.constants().unwrap();
+        NodeConstants::new(
+            log_constants.node_address(),
+            i.angstrom_addr,
+            i.pool_manager_addr,
+            log_constants.angstrom_deploy_block(),
+            log_constants.gas_token_address()
+        )
+    } else {
+        replay_log.constants().unwrap().clone()
+    };
 
-    let telemetry_constants = replay_log.constants().unwrap().clone();
     let pools = replay_log.pool_keys().unwrap().clone();
     let strom_handles = initialize_strom_handles();
     let consensus_sender = strom_handles.consensus_tx_op.clone();
 
-    let (pool_handle, state) = initialize_strom_components_at_block(
+    let (pool_handle, state, canon) = initialize_strom_components_at_block(
         strom_handles,
         telemetry_constants,
         provider,
@@ -37,6 +51,7 @@ pub async fn replay_stuff<Provider: WithWalletProvider>(
 
     // Playback our events in order
     for event in replay_log.events() {
+        tracing::info!(?event, "Event playback");
         match event {
             TelemetryMessage::NewBlock { .. } => (),
             TelemetryMessage::NewOrder { origin, order, .. } => {

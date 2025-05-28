@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{NodeConstants, TelemetryMessage};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockLog {
     blocknum:       u64,
     constants:      Option<NodeConstants>,
@@ -33,6 +33,12 @@ impl BlockLog {
             events: Vec::new(),
             error: None
         }
+    }
+
+    /// Produce a copy of this log targetting another block number.  This is for
+    /// replay on a local chain
+    pub fn at_block(&self, blocknum: u64) -> Self {
+        Self { blocknum, ..self.clone() }
     }
 
     pub fn blocknum(&self) -> u64 {

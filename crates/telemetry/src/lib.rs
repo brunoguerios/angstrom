@@ -71,7 +71,7 @@ impl NodeConstants {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TelemetryMessage {
     /// Message indicating that a new block has begun.  Sent by the pool manager
     /// with the updated pool snapshot for that block

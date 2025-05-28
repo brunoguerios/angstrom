@@ -10,6 +10,7 @@ use angstrom_types::consensus::{
 };
 use futures::FutureExt;
 use matching_engine::MatchingEngineHandle;
+use telemetry::client::TelemetryHandle;
 
 use super::{
     ConsensusState, SharedRoundState, finalization::FinalizationState,
@@ -51,14 +52,15 @@ impl BidAggregationState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for BidAggregationState
+impl<P, Matching, Telemetry> ConsensusState<P, Matching, Telemetry> for BidAggregationState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    Telemetry: TelemetryHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, Telemetry>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -89,9 +91,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, Telemetry>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>> {
         self.waker = Some(cx.waker().clone());
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization

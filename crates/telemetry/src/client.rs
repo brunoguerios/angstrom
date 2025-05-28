@@ -23,6 +23,7 @@ pub trait TelemetryHandle: Send + Sync + Clone + Debug + Unpin + 'static {
     fn cancel_order(&self, blocknum: u64, cancel: CancelOrderRequest);
     fn consensus_event(&self, event: StromConsensusEvent);
     fn consensus_state(&self, blocknum: u64, state: ConsensusRoundName);
+    fn error(&self, blocknum: u64, message: String);
 }
 
 #[derive(Clone, Debug)]
@@ -71,5 +72,9 @@ impl TelemetryHandle for TelemetryClient {
         let _ = self
             .tx
             .send(TelemetryMessage::ConsensusStateChange { blocknum, state });
+    }
+
+    fn error(&self, blocknum: u64, message: String) {
+        let _ = self.tx.send(TelemetryMessage::Error { blocknum, message });
     }
 }
