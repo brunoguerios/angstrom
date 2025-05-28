@@ -17,7 +17,6 @@ use angstrom_types::{
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     orders::PoolSolution,
     primitive::AngstromSigner,
-    sol_bindings::grouped_orders::OrderWithStorageData,
     submission::SubmissionHandler,
     uni_structure::BaselinePoolState
 };
@@ -242,19 +241,18 @@ where
             });
         }
 
-        let limit = self.filter_quorum_orders(limit);
-        let searcher = self.filter_quorum_orders(searcher);
+        let valid_limit = self.filter_quorum_orders(limit);
+        let valid_searcher = self.filter_quorum_orders(searcher);
+        let orders = self.order_storage.get_all_orders();
+
+        let (limit, searcher) = orders.into_book_and_searcher(valid_limit, valid_searcher);
+
         let pool_snapshots = self.fetch_pool_snapshot();
-
         let matcher = self.matching_engine.clone();
-
         async move { matcher.solve_pools(limit, searcher, pool_snapshots).await }.boxed()
     }
 
-    fn filter_quorum_orders<O: Hash + Eq + Clone>(
-        &self,
-        input: Vec<OrderWithStorageData<O>>
-    ) -> Vec<OrderWithStorageData<O>> {
+    fn filter_quorum_orders<O: Hash + Eq + Clone>(&self, input: Vec<O>) -> Vec<O> {
         let two_thirds = self.two_thirds_of_validation_set();
         input
             .into_iter()

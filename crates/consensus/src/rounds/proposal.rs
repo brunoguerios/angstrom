@@ -100,8 +100,9 @@ impl ProposalState {
 
                 self.proposal = Some(proposal.clone());
                 let snapshot = handles.fetch_pool_snapshot();
+                let all_orders = handles.order_storage.get_all_orders();
 
-                     AngstromBundle::from_proposal(&proposal, gas_info, &snapshot).inspect_err(|e| {
+                     AngstromBundle::from_proposal(&proposal,all_orders, gas_info, &snapshot).inspect_err(|e| {
                         tracing::error!(err=%e,
                             "failed to encode angstrom bundle, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
                         );

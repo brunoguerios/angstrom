@@ -6,7 +6,6 @@ use std::{
 
 use alloy_primitives::Address;
 use angstrom_types::{
-    consensus::PreProposal,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     matching::match_estimate_response::BundleEstimate,
     orders::PoolSolution,
@@ -105,17 +104,6 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         MatcherHandle { sender: tx }
     }
 
-    pub fn orders_by_pool_id(preproposals: &[PreProposal]) -> HashMap<PoolId, HashSet<BookOrder>> {
-        preproposals
-            .iter()
-            .flat_map(|p| p.limit.iter())
-            .cloned()
-            .fold(HashMap::new(), |mut acc, order| {
-                acc.entry(order.pool_id).or_default().insert(order);
-                acc
-            })
-    }
-
     pub fn build_non_proposal_books(
         limit: Vec<BookOrder>,
         pool_snapshots: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
@@ -126,23 +114,6 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
             .into_iter()
             .map(|(id, orders)| {
                 let amm = pool_snapshots.get(&id).map(|value| value.2.clone());
-                build_book(id, amm, orders)
-            })
-            .collect()
-    }
-
-    pub fn build_books(
-        preproposals: &[PreProposal],
-        pool_snapshots: HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
-    ) -> Vec<OrderBook> {
-        // Pull all the orders out of all the preproposals and build OrderPools out of
-        // them.  This is ugly and inefficient right now
-        let book_sources = Self::orders_by_pool_id(preproposals);
-
-        book_sources
-            .into_iter()
-            .map(|(id, orders)| {
-                let amm = pool_snapshots.get(&id).map(|v| v.2.clone());
                 build_book(id, amm, orders)
             })
             .collect()

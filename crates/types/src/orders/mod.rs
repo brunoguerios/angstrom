@@ -51,6 +51,23 @@ where
             .chain(self.searcher.clone().into_iter().map(|o| o.order.into()))
             .collect()
     }
+
+    pub fn into_book_and_searcher(
+        self,
+        valid_limit: Vec<B256>,
+        valid_searcher: Vec<B256>
+    ) -> (Vec<OrderWithStorageData<Limit>>, Vec<OrderWithStorageData<Searcher>>) {
+        (
+            self.limit
+                .into_iter()
+                .filter(|order| valid_limit.contains(&order.order_id.hash))
+                .collect(),
+            self.searcher
+                .into_iter()
+                .filter(|order| valid_searcher.contains(&order.order_id.hash))
+                .collect()
+        )
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]

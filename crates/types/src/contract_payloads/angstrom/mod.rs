@@ -783,14 +783,14 @@ impl AngstromBundle {
 
     fn orders_by_pool_from_pre_proposals(
         pre_proposals: &[PreProposal],
-        orders: OrderSet<OrderWithStorageData<AllOrders>, OrderWithStorageData<RpcTopOfBlockOrder>>
+        orders: OrderSet<AllOrders, RpcTopOfBlockOrder>
     ) -> HashMap<PoolId, HashSet<OrderWithStorageData<AllOrders>>> {
         todo!()
     }
 
     pub fn from_proposal(
         proposal: &Proposal,
-        orders: OrderSet<OrderWithStorageData<AllOrders>, OrderWithStorageData<RpcTopOfBlockOrder>>,
+        orders: OrderSet<AllOrders, RpcTopOfBlockOrder>,
         _gas_details: BundleGasDetails,
         pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
     ) -> eyre::Result<Self> {
