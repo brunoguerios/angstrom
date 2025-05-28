@@ -24,7 +24,7 @@ alloy-primitives.workspace = true
 reth-primitives.workspace = true
 
 # metrics
-metrics-exporter-prometheus = "=0.12.1"
+metrics-exporter-prometheus = "0.12.2"
 metrics-util = "0.15.0"
 metrics-process = "1"
 metrics.workspace = true
