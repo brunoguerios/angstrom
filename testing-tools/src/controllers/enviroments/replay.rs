@@ -36,7 +36,7 @@ pub async fn replay_stuff<Provider: WithWalletProvider>(
     let strom_handles = initialize_strom_handles();
     let consensus_sender = strom_handles.consensus_tx_op.clone();
 
-    let (pool_handle, state, canon) = initialize_strom_components_at_block(
+    let (_provider, pool_handle, state, canon) = initialize_strom_components_at_block(
         strom_handles,
         telemetry_constants,
         provider,
@@ -74,5 +74,7 @@ pub async fn replay_stuff<Provider: WithWalletProvider>(
             }
         }
     }
+    println!("Made it to after");
+    tracing::error!("Done with everything");
     Ok(())
 }

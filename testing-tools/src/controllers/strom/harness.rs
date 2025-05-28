@@ -112,6 +112,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     pools: Vec<PoolKey>,
     block_id: u64
 ) -> eyre::Result<(
+    AnvilProvider<Provider>,
     PoolHandle,
     tokio::sync::mpsc::UnboundedReceiver<ConsensusRoundName>,
     TestCanonStateSubscriptions
@@ -306,5 +307,5 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     global_block_sync.finalize_modules();
     tracing::info!("started angstrom");
 
-    Ok((pool_handle, state_rx, mock_canon))
+    Ok((provider, pool_handle, state_rx, mock_canon))
 }
