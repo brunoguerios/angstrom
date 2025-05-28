@@ -1,17 +1,13 @@
-use alloy_primitives::U256;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation},
-    orders::OrderPriorityData,
     primitive::AngstromSigner,
-    sol_bindings::{
-        RawPoolOrder, grouped_orders::OrderWithStorageData, testnet::random::Randomizer
-    }
+    sol_bindings::RawPoolOrder
 };
 use rand::{Rng, rng};
 
 use super::pool::{Pool, PoolBuilder};
 use crate::type_generator::orders::{
-    DistributionParameters, OrderDistributionBuilder, OrderIdBuilder, ToBOrderBuilder
+    DistributionParameters, OrderDistributionBuilder, ToBOrderBuilder
 };
 
 #[derive(Debug, Default)]
@@ -91,7 +87,7 @@ impl PreProposalAggregationBuilder {
         let searcher = pools
             .iter()
             .map(|pool_id| {
-                let mut rng = rng();
+                let rng = rng();
                 ToBOrderBuilder::new()
                     .recipient(pool_id.tob_recipient())
                     .asset_in(pool_id.token1())

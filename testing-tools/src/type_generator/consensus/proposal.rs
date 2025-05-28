@@ -1,21 +1,16 @@
-use std::collections::HashMap;
-
 use alloy_primitives::{
     Address,
     aliases::{I24, U24}
 };
 use angstrom_types::{
-    consensus::{PreProposalAggregation, Proposal},
+    consensus::PreProposalAggregation,
     contract_bindings::angstrom::Angstrom::PoolKey,
     matching::{SqrtPriceX96, uniswap::LiqRange},
-    primitive::{AngstromSigner, PoolId},
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    primitive::AngstromSigner
 };
-use matching_engine::{MatchingManager, strategy::BinarySearchStrategy};
-use reth_tasks::TokioTaskExecutor;
 
-use super::{pool::Pool, pre_proposal_agg::PreProposalAggregationBuilder};
-use crate::{mocks::validator::MockValidator, type_generator::amm::AMMSnapshotBuilder};
+use super::pool::Pool;
+use crate::type_generator::amm::AMMSnapshotBuilder;
 
 #[derive(Debug, Default)]
 pub struct ProposalBuilder {

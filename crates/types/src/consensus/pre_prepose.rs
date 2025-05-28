@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use alloy::{
     primitives::{B256, BlockNumber, keccak256},
     signers::{Signature, SignerSync}
@@ -11,12 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     orders::OrderSet,
-    primitive::{AngstromSigner, PoolId},
-    sol_bindings::{
-        ext::RawPoolOrder,
-        grouped_orders::{AllOrders, OrderWithStorageData},
-        rpc_orders::TopOfBlockOrder
-    }
+    primitive::AngstromSigner,
+    sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
