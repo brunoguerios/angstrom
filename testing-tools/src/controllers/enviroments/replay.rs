@@ -1,82 +1,239 @@
+use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc};
+
+use alloy::{
+    node_bindings::AnvilInstance,
+    primitives::Address,
+    providers::{Provider, WalletProvider as _, ext::AnvilApi}
+};
 use angstrom::components::initialize_strom_handles;
-use angstrom_types::testnet::InitialTestnetState;
+use angstrom_types::{
+    block_sync::GlobalBlockSync, consensus::ConsensusRoundName, testnet::InitialTestnetState
+};
+use futures::{Future, FutureExt};
 use order_pool::OrderPoolHandle;
-use reth_provider::BlockNumReader;
-use reth_tasks::TaskExecutor;
+use reth::rpc::eth::EthApiServer;
+use reth_chainspec::Hardforks;
+use reth_provider::{
+    BlockNumReader, BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider
+};
+use reth_tasks::{TaskExecutor, TaskSpawner};
 use telemetry::{NodeConstants, TelemetryMessage, blocklog::BlockLog};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};
 
+use super::AngstromTestnet;
 use crate::{
-    controllers::strom::initialize_strom_components_at_block, providers::AnvilProvider,
-    types::WithWalletProvider
+    agents::AgentConfig,
+    controllers::strom::{TestnetNode, initialize_strom_components_at_block},
+    providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
+    types::{
+        GlobalTestingConfig, WithWalletProvider,
+        config::{ReplayConfig, TestingNodeConfig, TestnetConfig},
+        initial_state::PartialConfigPoolKey
+    },
+    utils::noop_agent
 };
 
-pub async fn replay_stuff<Provider: WithWalletProvider>(
-    provider: AnvilProvider<Provider>,
-    executor: TaskExecutor,
-    replay_log: BlockLog,
-    initial_state: Option<InitialTestnetState>
-) -> eyre::Result<()> {
-    // The target block is the one in our replay
-    let block_id = replay_log.blocknum();
-    let newest_block = provider.state_provider().last_block_number().unwrap();
-    tracing::info!(block_id, newest_block, "Starting replay");
-    let telemetry_constants = if let Some(i) = initial_state {
-        let log_constants = replay_log.constants().unwrap();
-        NodeConstants::new(
-            log_constants.node_address(),
-            i.angstrom_addr,
-            i.pool_manager_addr,
-            log_constants.angstrom_deploy_block(),
-            log_constants.gas_token_address()
-        )
-    } else {
-        replay_log.constants().unwrap().clone()
-    };
+impl<C> AngstromTestnet<C, ReplayConfig, WalletProvider>
+where
+    C: BlockReader<Block = reth_primitives::Block>
+        + ReceiptProvider<Receipt = reth_primitives::Receipt>
+        + HeaderProvider<Header = reth_primitives::Header>
+        + ChainSpecProvider<ChainSpec: Hardforks>
+        + Unpin
+        + Clone
+        + 'static
+{
+    pub async fn replay_stuff(
+        mut self,
+        executor: TaskExecutor,
+        replay_log: BlockLog,
+        state_rx: UnboundedReceiver<ConsensusRoundName>
+    ) -> eyre::Result<()> {
+        let node = self.peers.remove(&0).unwrap();
+        let provider = node.state_provider().clone();
 
-    let pools = replay_log.pool_keys().unwrap().clone();
-    let strom_handles = initialize_strom_handles();
-    let consensus_sender = strom_handles.consensus_tx_op.clone();
+        let replay_log = replay_log.at_block(
+            alloy::providers::Provider::get_block_number(&provider.rpc_provider()).await?
+        );
+        let pool_handle = node.pool_handle();
 
-    let (_provider, pool_handle, state, canon) = initialize_strom_components_at_block(
-        strom_handles,
-        telemetry_constants,
-        provider,
-        executor,
-        pools,
-        block_id
-    )
-    .await
-    .unwrap();
+        let consensus_sender = node.strom_tx_handles().consensus_tx_op;
 
-    let mut state_stream = UnboundedReceiverStream::new(state);
+        executor.spawn_critical(
+            format!("testnet node {}", node.testnet_node_id()).leak(),
+            Box::pin(node.testnet_future())
+        );
 
-    // Playback our events in order
-    for event in replay_log.events() {
-        tracing::info!(?event, "Event playback");
-        match event {
-            TelemetryMessage::NewBlock { .. } => (),
-            TelemetryMessage::NewOrder { origin, order, .. } => {
-                let _res = pool_handle.new_order(*origin, order.clone()).await;
-            }
-            TelemetryMessage::CancelOrder { cancel, .. } => {
-                let _res = pool_handle.cancel_order(cancel.clone()).await;
-            }
-            TelemetryMessage::Consensus { event, .. } => {
-                let _res = consensus_sender.send(event.clone());
-            }
-            TelemetryMessage::ConsensusStateChange { state, .. } => {
-                // Wait for the new state to show up as it should
-                if let Some(new_state) = state_stream.next().await {
-                    assert_eq!(*state, new_state, "Consensus state mismatch")
+        let mut state_stream = UnboundedReceiverStream::new(state_rx);
+
+        // Playback our events in order
+        for event in replay_log.events() {
+            tracing::info!(?event, "Event playback");
+            match event {
+                TelemetryMessage::NewBlock { .. } => (),
+                TelemetryMessage::NewOrder { origin, order, .. } => {
+                    let _res = pool_handle.new_order(*origin, order.clone()).await;
+                }
+                TelemetryMessage::CancelOrder { cancel, .. } => {
+                    let _res = pool_handle.cancel_order(cancel.clone()).await;
+                }
+                TelemetryMessage::Consensus { event, .. } => {
+                    let _res = consensus_sender.send(event.clone());
+                }
+                TelemetryMessage::ConsensusStateChange { state, .. } => {
+                    // Wait for the new state to show up as it should
+                    if let Some(new_state) = state_stream.next().await {
+                        assert_eq!(*state, new_state, "Consensus state mismatch")
+                    }
+                }
+                TelemetryMessage::Error { message, .. } => {
+                    println!("Error: {message}");
                 }
             }
-            TelemetryMessage::Error { message, .. } => {
-                println!("Error: {message}");
-            }
         }
+        println!("Made it to after");
+        tracing::error!("Done with everything");
+
+        Ok(())
     }
-    println!("Made it to after");
-    tracing::error!("Done with everything");
-    Ok(())
+
+    pub async fn spawn_replay(
+        c: C,
+        config: ReplayConfig,
+        ex: TaskExecutor
+    ) -> eyre::Result<(Self, UnboundedReceiver<ConsensusRoundName>)> {
+        let block_provider = TestnetBlockProvider::new();
+        let mut this = Self {
+            peers: Default::default(),
+            _disconnected_peers: HashSet::new(),
+            _dropped_peers: HashSet::new(),
+            current_max_peer_id: 0,
+            config: config.clone(),
+            block_provider,
+            block_syncs: vec![],
+            _anvil_instance: None
+        };
+
+        tracing::info!("initializing testnet with {} nodes", config.node_count());
+        let state_rx = this.spawn_replay_node(c, ex).await?;
+        tracing::info!("initialized testnet with {} nodes", config.node_count());
+
+        Ok((this, state_rx))
+    }
+
+    pub async fn run_to_completion<TP: TaskSpawner>(mut self, executor: TP) {
+        for s in self.block_syncs {
+            s.clear();
+        }
+        tracing::info!("cleared blocksyncs, run to cmp");
+
+        let all_peers = std::mem::take(&mut self.peers).into_values().map(|peer| {
+            executor.spawn_critical(
+                format!("testnet node {}", peer.testnet_node_id()).leak(),
+                Box::pin(peer.testnet_future())
+            )
+        });
+
+        let _ = futures::future::select_all(all_peers).await;
+    }
+
+    async fn spawn_replay_node(
+        &mut self,
+        c: C,
+        ex: TaskExecutor
+    ) -> eyre::Result<UnboundedReceiver<ConsensusRoundName>> {
+        let configs = (0..self.config.node_count())
+            .map(|_| {
+                let node_id = self.incr_peer_id();
+                TestingNodeConfig::new(node_id, self.config.clone(), 100)
+            })
+            .collect::<Vec<_>>();
+
+        let initial_validators = configs
+            .iter()
+            .map(|node_config| node_config.angstrom_validator())
+            .collect::<Vec<_>>();
+        let node_addresses = configs
+            .iter()
+            .map(|c| c.angstrom_signer().address())
+            .collect::<Vec<_>>();
+
+        // initialize leader provider
+        let node_config = configs.first().cloned().unwrap();
+        let front = configs.first().unwrap().clone();
+        let pool_keys = front.pool_keys();
+        let initializer_provider = Self::spawn_provider(front, node_addresses).await?;
+        let (i, p, s) = Self::anvil_deployment(initializer_provider, pool_keys, ex.clone()).await?;
+        let initial_angstrom_state = Some(s);
+        self._anvil_instance = Some(i);
+        let leader_provider = AnvilProvider::from_future(
+            WalletProvider::new(node_config.clone()).then(async |v| v.map(|i| (i.0, i.1, None))),
+            true
+        )
+        .await?;
+        // take the provider and then set all people in the testnet as nodes.
+
+        tracing::info!("connected to state provider");
+
+        let node_pk = node_config.clone().angstrom_signer().id();
+        let block_sync =
+            GlobalBlockSync::new(leader_provider.rpc_provider().get_block_number().await?);
+
+        let (state_tx, state_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut node = TestnetNode::new(
+            c,
+            node_config,
+            leader_provider,
+            initial_validators,
+            initial_angstrom_state.unwrap(),
+            vec![noop_agent],
+            block_sync.clone(),
+            ex.clone(),
+            Some(state_tx)
+        )
+        .await?;
+        tracing::info!(?node_pk, "node pk!!!!!!!!!!!");
+
+        tracing::info!("made angstrom node");
+
+        node.connect_to_all_peers(&mut self.peers).await;
+        tracing::info!("connected node");
+        self.peers.insert(0, node);
+
+        Ok(state_rx)
+    }
+
+    async fn spawn_provider(
+        node_config: TestingNodeConfig<ReplayConfig>,
+        node_addresses: Vec<Address>
+    ) -> eyre::Result<AnvilProvider<AnvilInitializer>> {
+        AnvilProvider::from_future(
+            AnvilInitializer::new(node_config.clone(), node_addresses)
+                .then(async |v| v.map(|i| (i.0, i.1, Some(i.2)))),
+            true
+        )
+        .await
+    }
+
+    pub async fn anvil_deployment(
+        mut provider: AnvilProvider<AnvilInitializer>,
+        pool_keys: Vec<PartialConfigPoolKey>,
+        ex: TaskExecutor
+    ) -> eyre::Result<(AnvilInstance, AnvilProvider<WalletProvider>, InitialTestnetState)> {
+        let instance = provider._instance.take().unwrap();
+
+        tracing::debug!(leader_address = ?provider.rpc_provider().default_signer_address());
+
+        let initializer = provider.provider_mut().provider_mut();
+        initializer.deploy_pool_fulls(pool_keys).await?;
+
+        let initial_state = initializer.initialize_state_no_bytes(ex).await?;
+        initializer
+            .rpc_provider()
+            .anvil_mine(Some(10), None)
+            .await?;
+
+        Ok((instance, provider.into_state_provider(), initial_state))
+    }
 }

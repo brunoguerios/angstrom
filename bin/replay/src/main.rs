@@ -2,9 +2,10 @@ use std::io::{Read, stdin};
 
 use clap::Parser;
 use replay::{ReplayCli, build_log_and_provider, init_tracing};
+use reth_provider::noop::NoopProvider;
 use telemetry::blocklog::BlockLog;
 use testing_tools::{
-    controllers::enviroments::replay::replay_stuff,
+    controllers::enviroments::{AngstromTestnet, replay::replay_stuff},
     types::config::{ReplayConfig, TestingNodeConfig}
 };
 
@@ -22,15 +23,24 @@ fn main() {
     let cli = ReplayCli::parse();
     let config = cli.make_config().unwrap();
     let raw_log = read_log_from_stdin();
-    let node_config = TestingNodeConfig::new(1, config.clone(), 10);
+    // let node_config = TestingNodeConfig::new(1, config.clone(), 10);
     reth::CliRunner::try_default_runtime()
         .unwrap()
         .run_command_until_exit(async move |ctx| -> eyre::Result<()> {
-            let ex = ctx.task_executor;
-            let (replay_log, provider, initial_state) =
-                build_log_and_provider(node_config, raw_log, ex.clone()).await?;
-            // Replay our BlockLog
-            replay_stuff(provider, ex, replay_log, initial_state).await?;
+            // let ex = ctx.task_executor;
+            // let (replay_log, provider, initial_state) =
+            //     build_log_and_provider(node_config, raw_log, ex.clone()).await?;
+            // // Replay our BlockLog
+            // replay_stuff(provider, ex, replay_log, initial_state).await?;
+
+            let (net, state_rx) = AngstromTestnet::spawn_replay(
+                NoopProvider::mainnet(),
+                config,
+                ctx.task_executor.clone()
+            )
+            .await?;
+            net.replay_stuff(ctx.task_executor, raw_log, state_rx)
+                .await?;
             Ok(())
         })
         .unwrap();

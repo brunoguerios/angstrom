@@ -170,7 +170,8 @@ where
                         initial_angstrom_state,
                         agents.clone(),
                         block_sync.clone(),
-                        ex.clone()
+                        ex.clone(),
+                        None
                     )
                     .await?;
                     tracing::info!(?node_pk, "node pk!!!!!!!!!!!");

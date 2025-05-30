@@ -15,6 +15,7 @@ use angstrom_rpc::{
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
+    consensus::ConsensusRoundName,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
@@ -30,6 +31,7 @@ use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TaskExecutor;
 use telemetry::{NodeConstants, client::TelemetryClient, init_telemetry};
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
 use validation::{
@@ -70,7 +72,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         inital_angstrom_state: InitialTestnetState,
         agents: Vec<F>,
         block_sync: GlobalBlockSync,
-        executor: TaskExecutor
+        executor: TaskExecutor,
+        state_updates: Option<UnboundedSender<ConsensusRoundName>>
     ) -> eyre::Result<(
         Self,
         ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync, TelemetryClient>,
@@ -315,7 +318,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             block_sync.clone(),
             strom_handles.consensus_rx_rpc,
             Some(telemetry.clone()),
-            None
+            state_updates
         );
 
         // spin up amm quoter
