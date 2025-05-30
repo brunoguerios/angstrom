@@ -13,7 +13,7 @@ use alloy::{
     sol_types::SolValue
 };
 use alloy_primitives::I256;
-use base64::Engine;
+use base64::{Engine, prelude::BASE64_STANDARD};
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -418,7 +418,7 @@ impl AngstromBundle {
                 shared_gas
             ))
             .unwrap();
-            let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+            let b64_output = BASE64_STANDARD.encode(json.as_bytes());
             trace!(target: "dump::solution", data = b64_output, "Raw solution data");
         }
 
