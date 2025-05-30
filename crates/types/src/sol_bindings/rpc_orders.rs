@@ -6,11 +6,17 @@ use alloy::{
     sol,
     sol_types::{Eip712Domain, SolStruct}
 };
-use alloy_primitives::Signature;
+use alloy_primitives::{I256, Signature};
+use eyre::eyre;
 use pade::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 
-use crate::primitive::{ANGSTROM_DOMAIN, AngstromSigner};
+use super::RawPoolOrder;
+use crate::{
+    matching::uniswap::Direction,
+    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
+    uni_structure::BaselinePoolState
+};
 
 sol! {
 
@@ -103,6 +109,32 @@ sol! {
     #[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
     struct AttestAngstromBlockEmpty {
         uint64 block_number;
+    }
+}
+
+impl TopOfBlockOrder {
+    /// returns the amount in t0 that this order is bidding in the auction.
+    pub fn get_auction_bid(&self, snapshot: &BaselinePoolState) -> eyre::Result<u128> {
+        if self.is_bid() {
+            let res = snapshot.swap_current_with_amount(
+                I256::unchecked_from(self.quantity_in),
+                Direction::BuyingT0
+            )?;
+            res.total_d_t0
+                .checked_sub(self.quantity_out)
+                .ok_or_else(|| eyre!("Not enough output to cover the transaction"))
+        } else {
+            let cost = snapshot
+                .swap_current_with_amount(
+                    -I256::unchecked_from(self.quantity_out),
+                    Direction::SellingT0
+                )?
+                .total_d_t0;
+
+            self.quantity_in
+                .checked_sub(cost)
+                .ok_or_else(|| eyre!("Not enough input to cover the transaction"))
+        }
     }
 }
 
