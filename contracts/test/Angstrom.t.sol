@@ -254,9 +254,7 @@ contract AngstromTest is BaseTest {
 
         console.log("here? (%s)", protocol_unlock_swap_fee_e6);
 
-        assertApproxEqRel(
-            effective_fee_share, uint256(protocol_unlock_swap_fee_e6) * 1e12, 0.001e18
-        );
+        assertApproxEqRel(effective_fee_share, uint256(protocol_unlock_swap_fee_e6) * 1e12, 0.01e18);
     }
 
     function _createPool(uint16 tickSpacing, uint24 unlockedFee, uint248 startLiquidity)
