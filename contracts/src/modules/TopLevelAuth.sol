@@ -15,6 +15,7 @@ import {SafeCastLib} from "solady/src/utils/SafeCastLib.sol";
 import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {UnlockSwapFeeCollector} from "./UnlockSwapFeeCollector.sol";
 
 /// @dev Maximum fee that the `bundleFee` for any given pool should be settable to.
 uint256 constant MAX_UNLOCK_FEE_BPS = 0.4e6;
@@ -37,6 +38,8 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     uint256 internal constant ATTEST_EMPTY_BLOCK_TYPE_HASH =
         0x3f25e551746414ff93f076a7dd83828ff53735b39366c74015637e004fcb0223;
 
+    UnlockSwapFeeCollector internal immutable FEE_COLLECTOR;
+
     /// @dev Contract that manages all special privileges for contract (setting new nodes,
     /// configuring pools, pulling fees).
     address internal _controller;
@@ -50,13 +53,33 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     uint64 internal _lastBlockUpdated;
     PoolConfigStore internal _configStore;
 
+    mapping(address asset0 => mapping(address asset1 => uint32)) internal
+        _pairUnlockSwapProtocolFeeE6;
+
     constructor(address controller) {
         _controller = controller;
+        FEE_COLLECTOR = new UnlockSwapFeeCollector(UNI_V4);
     }
 
-    function setController(address newController) public {
+    function setController(address newController) public override {
         _onlyController();
         _controller = newController;
+    }
+
+    function set_protocol_unlock_swap_fee_e6(
+        address asset0,
+        address asset1,
+        uint32 protocol_unlock_swap_fee_e6
+    ) external override {
+        _onlyController();
+        if (asset0 >= asset1) revert AssetsUnordered();
+        if (protocol_unlock_swap_fee_e6 >= 1e6) revert UnlockFeeAboveMax();
+        _pairUnlockSwapProtocolFeeE6[asset0][asset1] = protocol_unlock_swap_fee_e6;
+    }
+
+    function collect_unlock_swap_fees(address to, bytes calldata packed_assets) external override {
+        _onlyController();
+        FEE_COLLECTOR.withdraw_to(to, packed_assets);
     }
 
     /// @dev Configure an existing pool or allow the creation of a new pool. Permissioned, only
@@ -67,7 +90,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         uint16 tickSpacing,
         uint24 bundleFee,
         uint24 unlockedFee
-    ) external {
+    ) external override {
         _onlyController();
 
         if (asset0 >= asset1) revert AssetsUnordered();
@@ -116,6 +139,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
 
     function removePool(StoreKey key, PoolConfigStore expected_store, uint256 store_index)
         external
+        override
     {
         _onlyController();
 
@@ -131,6 +155,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
 
     function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates)
         external
+        override
     {
         _onlyController();
 
@@ -151,12 +176,12 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
 
     /// @dev Function to allow controller to pull an arbitrary amount of tokens from the contract.
     /// Assumed to be accrued validator fees.
-    function pullFee(address asset, uint256 amount) external {
+    function pullFee(address asset, uint256 amount) external override {
         _onlyController();
         asset.safeTransfer(msg.sender, amount);
     }
 
-    function toggleNodes(address[] calldata nodes) external {
+    function toggleNodes(address[] calldata nodes) external override {
         _onlyController();
         for (uint256 i = 0; i < nodes.length; i++) {
             address node = nodes[i];
