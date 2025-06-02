@@ -8,10 +8,8 @@ homepage.workspace = true
 repository.workspace = true
 exclude.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-tokio.workspace = true
 futures.workspace = true
 pin-project.workspace = true
 serde.workspace = true
+tokio.workspace = true

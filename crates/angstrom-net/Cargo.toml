@@ -21,96 +21,76 @@ large_enum_variant = "allow"
 too_long_first_doc_paragraph = "allow"
 
 [dependencies]
-# reth
-reth-errors.workspace = true
-reth-primitives.workspace = true
-reth-network-api.workspace = true
+reth.workspace = true
 reth-codecs.workspace = true
-reth-tasks.workspace = true
-reth-transaction-pool.workspace = true
-reth-provider.workspace = true
+reth-ecies.workspace = true
+reth-errors.workspace = true
 reth-eth-wire.workspace = true
 reth-network.workspace = true
-reth-ecies.workspace = true
+reth-network-api.workspace = true
 reth-network-peers.workspace = true
 reth-node-builder.workspace = true
-reth.workspace = true
-
-reth-network-p2p = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
+reth-primitives.workspace = true
+reth-provider.workspace = true
+reth-tasks.workspace = true
+reth-transaction-pool.workspace = true
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-net-banlist = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-tokio-util = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-discv4.workspace = true
 reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-
+reth-net-banlist = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
+reth-network-p2p = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
+reth-tokio-util = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 alloy.workspace = true
 alloy-chains.workspace = true
 alloy-rpc-types = { workspace = true, features = ["eth"] }
-
 anyhow.workspace = true
 bincode.workspace = true
-
 angstrom-eth.workspace = true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
 order-pool.workspace = true
 validation.workspace = true
-
-# async/futures
 futures.workspace = true
 pin-project.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
-
-# io
-serde.workspace = true
 humantime-serde = { version = "1", optional = true }
+serde.workspace = true
 serde_json = { workspace = true, optional = true }
-
-# metrics
-reth-metrics.workspace = true
 metrics.workspace = true
-
-# misc
-auto_impl = "1"
+reth-metrics.workspace = true
 aquamarine.workspace = true
-tracing.workspace = true
-thiserror.workspace = true
-parking_lot.workspace = true
 async-trait.workspace = true
-linked_hash_set = "0"
+auto_impl = "1"
+eyre.workspace = true
 linked-hash-map = "0"
+linked_hash_set = "0"
+parking_lot.workspace = true
 rand.workspace = true
 secp256k1.workspace = true
-eyre.workspace = true
-
+thiserror.workspace = true
+tracing.workspace = true
 enr = { workspace = true, features = ["rust-secp256k1"], optional = true }
-tempfile = { workspace = true, optional = true }
-k256.workspace = true
 homedir.workspace = true
-once_cell.workspace = true
-toml.workspace = true
 itertools.workspace = true
+k256.workspace = true
+once_cell.workspace = true
+tempfile = { workspace = true, optional = true }
+toml.workspace = true
 
 [dev-dependencies]
-testing-tools.workspace = true
 angstrom-network.workspace = true
-# reth
+testing-tools.workspace = true
 reth-discv4 = { workspace = true, features = ["test-utils"] }
 reth-primitives = { workspace = true, features = ["test-utils"] }
-
-reth-network = { workspace = true, features = ["test-utils"] }
 reth-metrics.workspace = true
-
+reth-network = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
-
 rand.workspace = true
 secp256k1.workspace = true
-
-# misc
 serial_test.workspace = true
 tempfile.workspace = true
 toml.workspace = true

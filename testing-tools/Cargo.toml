@@ -9,83 +9,64 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-rayon = "1"
+angstrom.workspace = true
 angstrom-amm-quoter.workspace = true
-consensus.workspace = true
+angstrom-eth.workspace = true
+angstrom-network.workspace = true
+angstrom-rpc.workspace = true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
-uniswap-v4.workspace = true
-angstrom-network.workspace = true
-angstrom-eth.workspace = true
-angstrom-rpc.workspace = true
-angstrom.workspace = true
-pade.workspace = true
-order-pool.workspace = true
-validation.workspace = true
+consensus.workspace = true
 matching-engine.workspace = true
-
-reth-network-api.workspace = true
+order-pool.workspace = true
+pade.workspace = true
+rayon = "1"
+uniswap-v4.workspace = true
+validation.workspace = true
 reth-codecs.workspace = true
+reth-network-api.workspace = true
 reth-tasks.workspace = true
-# reth-rpc-types.workspace = true
 alloy-rpc-types.workspace = true
-reth-eth-wire.workspace = true
 futures.workspace = true
 jsonrpsee.workspace = true
-
-
+reth-eth-wire.workspace = true
 alloy = { workspace = true, features = ["rpc-types-anvil"] }
-alloy-rlp.workspace = true
 alloy-primitives.workspace = true
+alloy-rlp.workspace = true
 alloy-sol-types.workspace = true
-
-reth-node-types.workspace = true
-reth-node-ethereum.workspace = true
-reth-revm.workspace = true
-revm.workspace = true
-reth-chainspec.workspace = true
-reth-network-peers = { workspace = true, features = ["secp256k1"] }
 alloy-chains.workspace = true
 itertools.workspace = true
-
-
-# reth
+reth-chainspec.workspace = true
+reth-network-peers = { workspace = true, features = ["secp256k1"] }
+reth-node-ethereum.workspace = true
+reth-node-types.workspace = true
+reth-revm.workspace = true
+revm.workspace = true
 reth-discv4 = { workspace = true, features = ["test-utils"] }
-# reth-interfaces = { workspace = true, features = ["test-utils"] }
 reth-primitives = { workspace = true, features = ["test-utils"] }
-
-# we need to enable the test-utils feature in our own crate to use utils in
-# integration tests
-reth-network = { workspace = true, features = ["test-utils"] }
 reth-metrics.workspace = true
-
+reth-network = { workspace = true, features = ["test-utils"] }
 tokio-util.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-
-tokio.workspace = true
-tokio-stream.workspace = true
+reth-db.workspace = true
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
-reth-db.workspace = true
-
-
+tokio.workspace = true
+tokio-stream.workspace = true
 enr = { workspace = true, features = ["serde", "k256"] }
 rand.workspace = true
-rand_distr.workspace = true
 rand_chacha = "0.3"
+rand_distr.workspace = true
 secp256k1.workspace = true
-
-# misc
 serial_test.workspace = true
 tempfile.workspace = true
-
-parking_lot.workspace = true
 clap = { workspace = true, features = ["derive"] }
-eyre.workspace = true
-uniswap_v3_math.workspace = true
 create3 = { git = "https://github.com/AmanRaj1608/create3" }
+eyre.workspace = true
+parking_lot.workspace = true
+uniswap_v3_math.workspace = true
 
 [features]
 default = []

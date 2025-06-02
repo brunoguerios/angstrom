@@ -8,45 +8,37 @@ homepage.workspace = true
 repository.workspace = true
 exclude.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-
 [dependencies]
-angstrom-types.workspace = true
 angstrom-amm-quoter.workspace = true
-angstrom-utils.workspace = true
 angstrom-network.workspace = true
+angstrom-types.workspace = true
+angstrom-utils.workspace = true
 consensus.workspace = true
 order-pool.workspace = true
-validation.workspace = true
 tokio-stream.workspace = true
-
+validation.workspace = true
+reth-metrics = { workspace = true, features = ["common"] }
 reth-primitives.workspace = true
 reth-tasks.workspace = true
-reth-metrics = { workspace = true, features = ["common"] }
-
-strum = { workspace = true, features = ["derive"] }
 bincode = { workspace = true }
-
-# misc
-jsonrpsee = { workspace = true, features = ["server", "macros", "ws-client"] }
-serde_json.workspace = true
-serde.workspace = true
+strum = { workspace = true, features = ["derive"] }
 alloy-primitives = { workspace = true, features = ["serde"] }
 alloy-sol-types.workspace = true
 async-trait.workspace = true
-thiserror.workspace = true
-metrics.workspace = true
-tracing.workspace = true
 futures.workspace = true
-
-tower-http = { version = "0", features = ["full"] }
-tower = { version = "0", features = ["full"] }
+jsonrpsee = { workspace = true, features = ["server", "macros", "ws-client"] }
+metrics.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 hyper = "1"
+tower = { version = "0", features = ["full"] }
+tower-http = { version = "0", features = ["full"] }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["full", "tracing"] }
 rand = "0"
+tokio = { workspace = true, features = ["full", "tracing"] }
 
 [features]
 default = ["client"]

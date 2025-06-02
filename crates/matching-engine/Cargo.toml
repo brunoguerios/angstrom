@@ -13,20 +13,16 @@ name = "delta_tps"
 harness = false
 
 [dependencies]
-angstrom-types.workspace = true
-angstrom-utils.workspace = true
-uniswap-v4.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-base64.workspace = true
-base64-serde.workspace = true
-validation.workspace = true
 alloy.workspace = true
 alloy-primitives.workspace = true
+angstrom-types.workspace = true
+angstrom-utils.workspace = true
+base64.workspace = true
+base64-serde.workspace = true
+criterion.workspace = true
 eyre.workspace = true
 futures.workspace = true
 futures-util.workspace = true
-uniswap_v3_math.workspace = true
 itertools.workspace = true
 malachite.workspace = true
 malachite-q.workspace = true
@@ -34,25 +30,25 @@ pade.workspace = true
 pade-macro.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
-tokio.workspace = true
+reth-provider.workspace = true
 reth-tasks.workspace = true
-criterion.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-thiserror.workspace = true
-reth-provider.workspace = true
-
+uniswap-v4.workspace = true
+uniswap_v3_math.workspace = true
+validation.workspace = true
 arraydeque = "0"
 num-bigfloat.workspace = true
 once_cell.workspace = true
-
-# Using clap for our bookgen command-line tool
 clap.workspace = true
 
-
 [dev-dependencies]
+criterion = { version = "0.5.1", features = ['csv', 'csv_output'] }
+jsonrpsee.workspace = true
 pade.workspace = true
-jsonrpsee.workspace =true
 pade-macro.workspace = true
 testing-tools.workspace = true
-criterion = { version = "0.5.1", features = ['csv', 'csv_output'] }
