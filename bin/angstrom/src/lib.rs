@@ -63,30 +63,40 @@ pub fn run() -> eyre::Result<()> {
 
         match chain {
             NamedChain::Sepolia => {
-                args.mev_boost_endpoints = SEPOLIA_MEV_RPC
-                    .into_iter()
-                    .map(|url| Url::from_str(url).unwrap())
-                    .collect();
-                args.normal_nodes = SEPOLIA_DEFAULT_RPC
-                    .into_iter()
-                    .map(|url| Url::from_str(url).unwrap())
-                    .collect();
+                if args.mev_boost_endpoints.is_empty() {
+                    args.mev_boost_endpoints = SEPOLIA_MEV_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+                if args.normal_nodes.is_empty() {
+                    args.normal_nodes = SEPOLIA_DEFAULT_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
 
                 address_builder.init_with_chain_fallback(NamedChain::Sepolia as u64);
             }
             NamedChain::Mainnet => {
-                args.mev_boost_endpoints = ETH_MEV_RPC
-                    .into_iter()
-                    .map(|url| Url::from_str(url).unwrap())
-                    .collect();
-                args.normal_nodes = ETH_DEFAULT_RPC
-                    .into_iter()
-                    .map(|url| Url::from_str(url).unwrap())
-                    .collect();
-                args.angstrom_submission_nodes = ETH_ANGSTROM_RPC
-                    .into_iter()
-                    .map(|url| Url::from_str(url).unwrap())
-                    .collect();
+                if args.mev_boost_endpoints.is_empty() {
+                    args.mev_boost_endpoints = ETH_MEV_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+                if args.normal_nodes.is_empty() {
+                    args.normal_nodes = ETH_DEFAULT_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+                if args.angstrom_submission_nodes.is_empty() {
+                    args.angstrom_submission_nodes = ETH_ANGSTROM_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
 
                 address_builder.init_with_chain_fallback(NamedChain::Mainnet as u64);
             }
