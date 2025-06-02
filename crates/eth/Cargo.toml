@@ -11,16 +11,13 @@ exclude.workspace = true
 [dependencies]
 alloy.workspace = true
 angstrom-types.workspace = true
-angstrom-utils.workspace = true
 anyhow.workspace = true
-auto_impl.workspace = true
 futures.workspace = true
 futures-util.workspace = true
 itertools.workspace = true
 pade.workspace = true
 reth-ethereum-primitives.workspace = true
 reth-primitives.workspace = true
-reth-primitives-traits.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true
 tokio.workspace = true

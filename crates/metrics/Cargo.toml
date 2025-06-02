@@ -9,21 +9,16 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-alloy-primitives.workspace = true
 angstrom-types.workspace = true
-dashmap.workspace = true
 eyre.workspace = true
-futures.workspace = true
 hyper = "0.14"
 metrics.workspace = true
 metrics-exporter-prometheus = "0.12.2"
 metrics-process = "1"
 metrics-util = "0.15.0"
 prometheus = "0"
-reth-primitives.workspace = true
 tokio = { workspace = true, features = ["full", "tracing"] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 tikv-jemalloc-ctl = { version = "0.6.0", optional = true }

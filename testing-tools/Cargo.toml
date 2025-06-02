@@ -12,7 +12,6 @@ exclude.workspace = true
 alloy = { workspace = true, features = ["rpc-types-anvil"] }
 alloy-chains.workspace = true
 alloy-primitives.workspace = true
-alloy-rlp.workspace = true
 alloy-rpc-types.workspace = true
 alloy-sol-types.workspace = true
 angstrom.workspace = true
@@ -21,10 +20,7 @@ angstrom-eth.workspace = true
 angstrom-network.workspace = true
 angstrom-rpc.workspace = true
 angstrom-types.workspace = true
-angstrom-utils.workspace = true
-clap = { workspace = true, features = ["derive"] }
 consensus.workspace = true
-create3 = { git = "https://github.com/AmanRaj1608/create3" }
 enr = { workspace = true, features = ["serde", "k256"] }
 eyre.workspace = true
 futures.workspace = true
@@ -39,10 +35,7 @@ rand_chacha = "0.3"
 rand_distr.workspace = true
 rayon = "1"
 reth-chainspec.workspace = true
-reth-codecs.workspace = true
 reth-db.workspace = true
-reth-discv4 = { workspace = true, features = ["test-utils"] }
-reth-eth-wire.workspace = true
 reth-metrics.workspace = true
 reth-network = { workspace = true, features = ["test-utils"] }
 reth-network-api.workspace = true
@@ -53,12 +46,9 @@ reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-revm.workspace = true
 reth-tasks.workspace = true
-reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 revm.workspace = true
 secp256k1.workspace = true
-serial_test.workspace = true
-tempfile.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true

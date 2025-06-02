@@ -10,12 +10,6 @@ description = """
 Ethereum network support
 """
 
-[package.metadata.cargo-udeps.ignore]
-normal = [
-  # Used for diagrams in docs
-  "aquamarine",
-]
-
 [lints.clippy]
 large_enum_variant = "allow"
 too_long_first_doc_paragraph = "allow"
@@ -23,54 +17,30 @@ too_long_first_doc_paragraph = "allow"
 [dependencies]
 alloy.workspace = true
 alloy-chains.workspace = true
-alloy-rpc-types = { workspace = true, features = ["eth"] }
 angstrom-eth.workspace = true
 angstrom-types.workspace = true
-angstrom-utils.workspace = true
-anyhow.workspace = true
-aquamarine.workspace = true
-async-trait.workspace = true
-auto_impl = "1"
 bincode.workspace = true
-enr = { workspace = true, features = ["rust-secp256k1"], optional = true }
 eyre.workspace = true
 futures.workspace = true
 homedir.workspace = true
-humantime-serde = { version = "1", optional = true }
 itertools.workspace = true
-k256.workspace = true
-linked-hash-map = "0"
 linked_hash_set = "0"
-metrics.workspace = true
 once_cell.workspace = true
 order-pool.workspace = true
 parking_lot.workspace = true
-pin-project.workspace = true
-rand.workspace = true
 reth.workspace = true
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-codecs.workspace = true
-reth-discv4.workspace = true
-reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-ecies.workspace = true
-reth-errors.workspace = true
 reth-eth-wire.workspace = true
 reth-metrics.workspace = true
 reth-net-banlist = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-network.workspace = true
-reth-network-api.workspace = true
 reth-network-p2p = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-network-peers.workspace = true
 reth-node-builder.workspace = true
 reth-primitives.workspace = true
-reth-provider.workspace = true
 reth-tasks.workspace = true
-reth-tokio-util = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-transaction-pool.workspace = true
 secp256k1.workspace = true
 serde.workspace = true
-serde_json = { workspace = true, optional = true }
-tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
@@ -97,6 +67,6 @@ toml.workspace = true
 
 [features]
 default = ["serde"]
-serde = ["dep:humantime-serde", "secp256k1/serde", "enr?/serde", "dep:serde_json"]
-test-utils = ["reth-provider/test-utils", "dep:enr", "dep:tempfile"]
+serde = ["secp256k1/serde"]
+test-utils = ["reth-provider/test-utils"]
 geth-tests = []

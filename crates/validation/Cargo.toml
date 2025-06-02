@@ -10,38 +10,22 @@ exclude.workspace = true
 
 [dependencies]
 alloy.workspace = true
-angstrom-eth.workspace = true
 angstrom-metrics.workspace = true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
-anyhow.workspace = true
-async-trait = "0.1.68"
-auto_impl.workspace = true
-byteorder = "1.4.3"
 dashmap = "6.0.1"
-derive_more = "0.99.17"
 eyre = "0.6.8"
 futures = "0.3.26"
 futures-util.workspace = true
-hex-literal.workspace = true
 pade.workspace = true
 parking_lot = "0.12.1"
-pin-project = "1.0.12"
 rand.workspace = true
-rayon.workspace = true
-reth-db = { workspace = true, features = ["mdbx"] }
-reth-errors.workspace = true
 reth-primitives = { workspace = true, features = ["std"] }
 reth-provider.workspace = true
 reth-revm.workspace = true
 revm.workspace = true
-schnellru = "0.2"
-secp256k1 = { version = "0", default-features = false, features = ["global-context", "rand", "recovery"] }
 serde.workspace = true
-serde_json = { workspace = true, features = ["arbitrary_precision"] }
-thiserror = "1.0.34"
 tokio.workspace = true
-toml = "0.8.12"
 tracing.workspace = true
 uniswap-v4.workspace = true
 

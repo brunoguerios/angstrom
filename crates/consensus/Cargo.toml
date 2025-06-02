@@ -10,37 +10,23 @@ exclude.workspace = true
 
 [dependencies]
 alloy.workspace = true
-alloy-rlp.workspace = true
 angstrom-metrics.workspace = true
 angstrom-network.workspace = true
 angstrom-types.workspace = true
-angstrom-utils.workspace = true
-anyhow.workspace = true
-async-trait.workspace = true
-bitmaps.workspace = true
 eyre.workspace = true
 futures.workspace = true
-hex-literal.workspace = true
 itertools.workspace = true
 matching-engine.workspace = true
 order-pool.workspace = true
-pade.workspace = true
 rand.workspace = true
-rayon.workspace = true
 reth-metrics.workspace = true
-reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true
-secp256k1.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tracing.workspace = true
 uniswap-v4.workspace = true
-url.workspace = true
-validation.workspace = true
 
 [dev-dependencies]
 dashmap.workspace = true

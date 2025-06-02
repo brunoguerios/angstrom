@@ -160,7 +160,7 @@ dependencies = [
  "arbitrary",
  "auto_impl",
  "c-kzg",
- "derive_more 2.0.1",
+ "derive_more",
  "either",
  "k256",
  "once_cell",
@@ -231,7 +231,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-type-parser",
  "alloy-sol-types",
- "derive_more 2.0.1",
+ "derive_more",
  "itoa",
  "serde",
  "serde_json",
@@ -297,7 +297,7 @@ dependencies = [
  "arbitrary",
  "auto_impl",
  "c-kzg",
- "derive_more 2.0.1",
+ "derive_more",
  "either",
  "ethereum_ssz",
  "ethereum_ssz_derive",
@@ -317,7 +317,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "op-alloy-consensus",
  "op-revm",
  "revm 23.1.0",
@@ -396,7 +396,7 @@ dependencies = [
  "alloy-sol-types",
  "async-trait",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "futures-utils-wasm",
  "serde",
  "serde_json",
@@ -449,7 +449,7 @@ dependencies = [
  "cfg-if",
  "const-hex",
  "derive_arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "foldhash",
  "getrandom 0.3.3",
  "hashbrown 0.15.3",
@@ -677,7 +677,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-serde",
- "derive_more 2.0.1",
+ "derive_more",
  "ethereum_ssz",
  "ethereum_ssz_derive",
  "jsonwebtoken",
@@ -913,7 +913,7 @@ dependencies = [
  "alloy-json-rpc",
  "alloy-primitives",
  "base64 0.22.1",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "futures-utils-wasm",
  "parking_lot",
@@ -991,7 +991,7 @@ dependencies = [
  "arbitrary",
  "arrayvec",
  "derive_arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "nybbles",
  "proptest",
  "proptest-derive",
@@ -1028,7 +1028,6 @@ dependencies = [
  "alloy",
  "alloy-chains",
  "alloy-primitives",
- "alloy-rpc-types",
  "angstrom-amm-quoter",
  "angstrom-eth",
  "angstrom-metrics",
@@ -1044,19 +1043,14 @@ dependencies = [
  "parking_lot",
  "rayon",
  "reth",
- "reth-cli-util",
  "reth-metrics",
  "reth-network",
- "reth-network-peers",
  "reth-node-builder",
  "reth-node-ethereum",
  "reth-provider",
- "revm-interpreter 20.0.0",
- "secp256k1",
  "serde",
  "tikv-jemallocator",
  "tokio",
- "tokio-util",
  "toml",
  "tracing",
  "uniswap-v4",
@@ -1078,7 +1072,6 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-stream",
- "tracing",
  "uniswap-v4",
 ]
 
@@ -1088,9 +1081,7 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "angstrom-types",
- "angstrom-utils",
  "anyhow",
- "auto_impl",
  "futures",
  "futures-util",
  "itertools 0.14.0",
@@ -1098,7 +1089,6 @@ dependencies = [
  "rand 0.9.1",
  "reth-ethereum-primitives",
  "reth-primitives",
- "reth-primitives-traits",
  "reth-provider",
  "reth-tasks",
  "testing-tools",
@@ -1111,11 +1101,8 @@ dependencies = [
 name = "angstrom-metrics"
 version = "0.1.0"
 dependencies = [
- "alloy-primitives",
  "angstrom-types",
- "dashmap 6.1.0",
  "eyre",
- "futures",
  "hyper 0.14.32",
  "metrics 0.21.1",
  "metrics-exporter-prometheus 0.12.2",
@@ -1123,11 +1110,9 @@ dependencies = [
  "metrics-util 0.15.0",
  "procfs 0.16.0",
  "prometheus",
- "reth-primitives",
  "tikv-jemalloc-ctl",
  "tokio",
  "tracing",
- "tracing-subscriber 0.3.19",
 ]
 
 [[package]]
@@ -1136,55 +1121,35 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "alloy-chains",
- "alloy-rpc-types",
  "angstrom-eth",
  "angstrom-network",
  "angstrom-types",
- "angstrom-utils",
- "anyhow",
- "aquamarine",
- "async-trait",
- "auto_impl",
  "bincode",
- "enr",
  "eyre",
  "futures",
  "homedir",
- "humantime-serde",
  "itertools 0.14.0",
- "k256",
- "linked-hash-map",
  "linked_hash_set",
- "metrics 0.21.1",
  "once_cell",
  "order-pool",
  "parking_lot",
- "pin-project",
  "rand 0.9.1",
  "reth",
- "reth-chainspec",
- "reth-codecs",
  "reth-discv4",
- "reth-dns-discovery",
- "reth-ecies",
- "reth-errors",
  "reth-eth-wire",
  "reth-metrics",
  "reth-net-banlist",
  "reth-network",
- "reth-network-api",
  "reth-network-p2p",
  "reth-network-peers",
  "reth-node-builder",
  "reth-primitives",
  "reth-provider",
  "reth-tasks",
- "reth-tokio-util",
  "reth-tracing",
  "reth-transaction-pool",
  "secp256k1",
  "serde",
- "serde_json",
  "serial_test",
  "tempfile",
  "testing-tools",
@@ -1202,22 +1167,15 @@ name = "angstrom-rpc"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
- "alloy-sol-types",
  "angstrom-amm-quoter",
  "angstrom-network",
  "angstrom-types",
- "angstrom-utils",
  "async-trait",
- "bincode",
  "consensus",
  "futures",
- "hyper 1.6.0",
  "jsonrpsee",
- "metrics 0.21.1",
  "order-pool",
  "rand 0.9.1",
- "reth-metrics",
- "reth-primitives",
  "reth-tasks",
  "serde",
  "serde_json",
@@ -1225,8 +1183,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
- "tower",
- "tower-http",
  "tracing",
  "validation",
 ]
@@ -1237,25 +1193,18 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "alloy-primitives",
- "alloy-rlp",
  "angstrom-types",
- "anyhow",
  "auto_impl",
  "base64 0.22.1",
  "bincode",
- "bitmaps",
  "bytes",
  "convert_case 0.8.0",
  "dashmap 6.1.0",
- "derive_more 0.99.20",
  "eyre",
- "foldhash",
  "futures",
- "hex-literal",
  "itertools 0.14.0",
  "k256",
  "malachite",
- "num-traits",
  "pade",
  "pade-macro",
  "rand 0.9.1",
@@ -1273,8 +1222,6 @@ dependencies = [
  "revm-bytecode",
  "revm-database",
  "revm-primitives",
- "revm-state",
- "secp256k1",
  "serde",
  "serde_json",
  "testing-tools",
@@ -1291,8 +1238,6 @@ name = "angstrom-utils"
 version = "0.1.0"
 dependencies = [
  "futures",
- "pin-project",
- "serde",
  "tokio",
 ]
 
@@ -1835,12 +1780,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
-name = "base64-serde"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c6d128af408d8ebd08331f0331cf2cf20d19e6c44a7aec58791641ecc8c0b5"
-
-[[package]]
 name = "base64ct"
 version = "1.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1930,12 +1869,6 @@ checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 dependencies = [
  "serde",
 ]
-
-[[package]]
-name = "bitmaps"
-version = "3.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 
 [[package]]
 name = "bitvec"
@@ -2624,41 +2557,27 @@ name = "consensus"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "alloy-rlp",
  "angstrom-metrics",
  "angstrom-network",
  "angstrom-types",
- "angstrom-utils",
- "anyhow",
- "async-trait",
- "bitmaps",
  "dashmap 6.1.0",
  "eyre",
  "futures",
- "hex-literal",
  "itertools 0.14.0",
  "matching-engine",
  "order-pool",
- "pade",
  "rand 0.9.1",
- "rayon",
  "reth-metrics",
- "reth-primitives",
  "reth-provider",
  "reth-tasks",
- "secp256k1",
  "serde",
- "serde_json",
  "testing-tools",
- "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
  "tracing",
  "tracing-appender",
  "tracing-subscriber 0.3.19",
  "uniswap-v4",
- "url",
- "validation",
 ]
 
 [[package]]
@@ -2720,12 +2639,6 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "convert_case"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
-
-[[package]]
-name = "convert_case"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
@@ -2782,48 +2695,25 @@ name = "counter-matcher"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "alloy-chains",
  "alloy-primitives",
  "alloy-rpc-types",
- "angstrom-eth",
- "angstrom-metrics",
- "angstrom-network",
  "angstrom-rpc",
  "angstrom-types",
  "clap",
- "consensus",
  "eyre",
  "futures",
  "itertools 0.14.0",
  "jsonrpsee",
- "matching-engine",
- "order-pool",
  "pade",
- "rayon",
  "reth",
- "reth-cli-util",
- "reth-metrics",
- "reth-network",
- "reth-network-peers",
- "reth-node-builder",
- "reth-node-ethereum",
- "reth-provider",
- "revm-interpreter 20.0.0",
  "secp256k1",
  "sepolia-bundle-lander",
- "serde",
  "serde_json",
  "testing-tools",
  "tikv-jemallocator",
  "tokio",
- "tokio-util",
- "toml",
  "tracing",
  "tracing-subscriber 0.3.19",
- "uniswap-v4",
- "uniswap_v3_math",
- "url",
- "validation",
 ]
 
 [[package]]
@@ -2860,16 +2750,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "create3"
-version = "0.1.0"
-source = "git+https://github.com/AmanRaj1608/create3#09f5a6243a2ab3b5935b6b78ed1b725537e8589f"
-dependencies = [
- "hex",
- "rand 0.8.5",
- "sha3",
-]
-
-[[package]]
 name = "criterion"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2891,29 +2771,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_derive",
- "serde_json",
- "tinytemplate",
- "walkdir",
-]
-
-[[package]]
-name = "criterion"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bf7af66b0989381bd0be551bd7cc91912a655a58c6918420c9527b1fd8b4679"
-dependencies = [
- "anes",
- "cast",
- "ciborium",
- "clap",
- "criterion-plot",
- "itertools 0.13.0",
- "num-traits",
- "oorandom",
- "plotters",
- "rayon",
- "regex",
- "serde",
  "serde_json",
  "tinytemplate",
  "walkdir",
@@ -3275,19 +3132,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
 dependencies = [
  "derive_builder_core",
- "syn 2.0.101",
-]
-
-[[package]]
-name = "derive_more"
-version = "0.99.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
-dependencies = [
- "convert_case 0.4.0",
- "proc-macro2",
- "quote",
- "rustc_version 0.4.1",
  "syn 2.0.101",
 ]
 
@@ -4245,12 +4089,6 @@ checksum = "5313b072ce3c597065a808dbf612c4c8e8590bdbf8b579508bf7a762c5eae6cd"
 dependencies = [
  "arrayvec",
 ]
-
-[[package]]
-name = "hex-literal"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
 
 [[package]]
 name = "hickory-proto"
@@ -5511,18 +5349,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 
 [[package]]
-name = "local-ip-address"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "656b3b27f8893f7bbf9485148ff9a65f019e3f33bd5cdc87c83cab16b3fd9ec8"
-dependencies = [
- "libc",
- "neli",
- "thiserror 2.0.12",
- "windows-sys 0.59.0",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5682,31 +5508,21 @@ dependencies = [
  "alloy",
  "alloy-primitives",
  "angstrom-types",
- "angstrom-utils",
- "arraydeque",
  "base64 0.22.1",
- "base64-serde",
- "clap",
- "criterion 0.5.1",
+ "criterion",
  "eyre",
  "futures",
  "futures-util",
  "itertools 0.14.0",
  "jsonrpsee",
- "malachite",
- "malachite-q",
- "num-bigfloat",
- "once_cell",
  "pade",
  "pade-macro",
  "rand 0.9.1",
  "rand_distr",
- "reth-provider",
  "reth-tasks",
  "serde",
  "serde_json",
  "testing-tools",
- "thiserror 1.0.69",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
@@ -6062,31 +5878,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "neli"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93062a0dce6da2517ea35f301dfc88184ce18d3601ec786a727a87bf535deca9"
-dependencies = [
- "byteorder",
- "libc",
- "log",
- "neli-proc-macros",
-]
-
-[[package]]
-name = "neli-proc-macros"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c8034b7fbb6f9455b2a96c19e6edf8dc9fc34c70449938d8ee3b4df363f61fe"
-dependencies = [
- "either",
- "proc-macro2",
- "quote",
- "serde",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "nibble_vec"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6186,17 +5977,6 @@ dependencies = [
  "num-iter",
  "num-rational",
  "num-traits",
-]
-
-[[package]]
-name = "num-bigfloat"
-version = "1.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793a9a2afbf2b4fc1b9a47de731031b06ed362a5ede3681fbfbaeb2ad4faaa13"
-dependencies = [
- "num-traits",
- "rand 0.8.5",
- "serde",
 ]
 
 [[package]]
@@ -6363,7 +6143,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde",
  "arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "serde",
  "serde_with",
  "thiserror 2.0.12",
@@ -6380,7 +6160,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types-engine",
- "derive_more 2.0.1",
+ "derive_more",
  "ethereum_ssz",
  "op-alloy-consensus",
  "snap",
@@ -6460,37 +6240,23 @@ name = "order-pool"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "angstrom-eth",
  "angstrom-metrics",
  "angstrom-network",
  "angstrom-types",
  "angstrom-utils",
- "aquamarine",
- "async-trait",
- "auto_impl",
- "bitflags 2.9.1",
- "dashmap 6.1.0",
  "eyre",
  "futures",
  "futures-util",
- "metrics 0.21.1",
  "pade",
- "parking_lot",
- "paste",
- "proptest",
  "rand 0.9.1",
  "reth-discv4",
  "reth-metrics",
  "reth-network",
- "reth-network-peers",
  "reth-primitives",
  "reth-provider",
- "reth-tasks",
  "reth-tracing",
  "reth-transaction-pool",
- "revm 24.0.1",
  "secp256k1",
- "serde",
  "serial_test",
  "tempfile",
  "testing-tools",
@@ -7594,7 +7360,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-signer",
  "alloy-signer-local",
- "derive_more 2.0.1",
+ "derive_more",
  "metrics 0.24.2",
  "parking_lot",
  "pin-project",
@@ -7627,7 +7393,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-trie",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "reth-ethereum-forks",
  "reth-network-peers",
  "reth-primitives-traits",
@@ -7829,7 +7595,7 @@ dependencies = [
  "alloy-provider",
  "alloy-rpc-types-engine",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "eyre",
  "futures",
  "reqwest",
@@ -7847,7 +7613,7 @@ version = "1.4.3"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.3#fe3653ffe602d4e85ad213e8bd9f06e7b710c0c5"
 dependencies = [
  "alloy-primitives",
- "derive_more 2.0.1",
+ "derive_more",
  "eyre",
  "metrics 0.24.2",
  "page_size",
@@ -7877,7 +7643,7 @@ dependencies = [
  "alloy-primitives",
  "arbitrary",
  "bytes",
- "derive_more 2.0.1",
+ "derive_more",
  "metrics 0.24.2",
  "modular-bitfield",
  "parity-scale-codec",
@@ -7972,7 +7738,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.3#fe3653ffe602d4e85ad
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
- "derive_more 2.0.1",
+ "derive_more",
  "discv5",
  "enr",
  "futures",
@@ -8161,7 +7927,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types-engine",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "itertools 0.14.0",
  "metrics 0.24.2",
@@ -8295,7 +8061,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "bytes",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "pin-project",
  "reth-codecs",
@@ -8326,7 +8092,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "bytes",
- "derive_more 2.0.1",
+ "derive_more",
  "reth-chainspec",
  "reth-codecs-derive",
  "reth-ethereum-primitives",
@@ -8507,7 +8273,7 @@ dependencies = [
  "alloy-evm",
  "alloy-primitives",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "futures-util",
  "metrics 0.24.2",
  "reth-execution-errors",
@@ -8560,7 +8326,7 @@ dependencies = [
  "alloy-eips",
  "alloy-evm",
  "alloy-primitives",
- "derive_more 2.0.1",
+ "derive_more",
  "reth-ethereum-primitives",
  "reth-primitives-traits",
  "reth-trie-common",
@@ -8687,7 +8453,7 @@ dependencies = [
  "bitflags 2.9.1",
  "byteorder",
  "dashmap 6.1.0",
- "derive_more 2.0.1",
+ "derive_more",
  "indexmap 2.9.0",
  "parking_lot",
  "reth-mdbx-sys",
@@ -8750,7 +8516,7 @@ dependencies = [
  "alloy-rlp",
  "aquamarine",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "discv5",
  "enr",
  "futures",
@@ -8802,7 +8568,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-admin",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "enr",
  "futures",
  "reth-eth-wire-types",
@@ -8826,7 +8592,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "parking_lot",
  "reth-consensus",
@@ -8876,7 +8642,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.3#fe3653ffe602d4e85ad
 dependencies = [
  "anyhow",
  "bincode",
- "derive_more 2.0.1",
+ "derive_more",
  "lz4_flex",
  "memmap2",
  "reth-fs-util",
@@ -8984,7 +8750,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-engine",
  "clap",
- "derive_more 2.0.1",
+ "derive_more",
  "dirs-next",
  "eyre",
  "futures",
@@ -9069,7 +8835,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rpc-types-engine",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "humantime",
  "pin-project",
@@ -9228,7 +8994,7 @@ dependencies = [
  "auto_impl",
  "byteorder",
  "bytes",
- "derive_more 2.0.1",
+ "derive_more",
  "modular-bitfield",
  "once_cell",
  "op-alloy-consensus",
@@ -9325,7 +9091,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.3#fe3653ffe602d4e85ad
 dependencies = [
  "alloy-primitives",
  "arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "modular-bitfield",
  "reth-codecs",
  "serde",
@@ -9417,7 +9183,7 @@ dependencies = [
  "alloy-signer",
  "alloy-signer-local",
  "async-trait",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "http 1.3.1",
  "http-body 1.0.1",
@@ -9611,7 +9377,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-eth",
  "alloy-sol-types",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "itertools 0.14.0",
  "jsonrpsee-core",
@@ -9796,7 +9562,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.3#fe3653ffe602d4e85ad
 dependencies = [
  "alloy-primitives",
  "clap",
- "derive_more 2.0.1",
+ "derive_more",
  "serde",
  "strum 0.27.1",
 ]
@@ -9833,7 +9599,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
- "derive_more 2.0.1",
+ "derive_more",
  "reth-primitives-traits",
  "reth-prune-types",
  "reth-static-file-types",
@@ -9961,7 +9727,7 @@ dependencies = [
  "alloy-trie",
  "arbitrary",
  "bytes",
- "derive_more 2.0.1",
+ "derive_more",
  "hash-db",
  "itertools 0.14.0",
  "nybbles",
@@ -9994,7 +9760,7 @@ source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.3#fe3653ffe602d4e85ad
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
- "derive_more 2.0.1",
+ "derive_more",
  "itertools 0.14.0",
  "metrics 0.24.2",
  "rayon",
@@ -10882,47 +10648,26 @@ name = "sepolia-bundle-lander"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "alloy-chains",
  "alloy-primitives",
  "alloy-rpc-types",
- "angstrom-eth",
- "angstrom-metrics",
- "angstrom-network",
  "angstrom-rpc",
  "angstrom-types",
  "clap",
- "consensus",
  "eyre",
  "futures",
  "itertools 0.14.0",
  "jsonrpsee",
- "matching-engine",
- "order-pool",
- "rand 0.9.1",
- "rayon",
  "reth",
- "reth-cli-util",
- "reth-metrics",
- "reth-network",
- "reth-network-peers",
- "reth-node-builder",
- "reth-node-ethereum",
- "reth-provider",
- "revm-interpreter 20.0.0",
- "secp256k1",
  "serde",
  "serde_json",
  "testing-tools",
  "tikv-jemallocator",
  "tokio",
- "tokio-util",
- "toml",
  "tracing",
  "tracing-subscriber 0.3.19",
  "uniswap-v4",
  "uniswap_v3_math",
  "url",
- "validation",
 ]
 
 [[package]]
@@ -11517,7 +11262,6 @@ dependencies = [
  "alloy",
  "alloy-chains",
  "alloy-primitives",
- "alloy-rlp",
  "alloy-rpc-types",
  "alloy-sol-types",
  "angstrom",
@@ -11526,10 +11270,7 @@ dependencies = [
  "angstrom-network",
  "angstrom-rpc",
  "angstrom-types",
- "angstrom-utils",
- "clap",
  "consensus",
- "create3",
  "enr",
  "eyre",
  "futures",
@@ -11544,10 +11285,7 @@ dependencies = [
  "rand_distr",
  "rayon",
  "reth-chainspec",
- "reth-codecs",
  "reth-db",
- "reth-discv4",
- "reth-eth-wire",
  "reth-metrics",
  "reth-network",
  "reth-network-api",
@@ -11558,12 +11296,9 @@ dependencies = [
  "reth-provider",
  "reth-revm",
  "reth-tasks",
- "reth-tracing",
  "reth-transaction-pool",
  "revm 24.0.1",
  "secp256k1",
- "serial_test",
- "tempfile",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -11579,17 +11314,13 @@ name = "testnet"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "alloy-chains",
  "alloy-primitives",
  "alloy-rpc-types",
  "alloy-signer-local",
  "angstrom",
- "angstrom-eth",
  "angstrom-metrics",
- "angstrom-network",
  "angstrom-rpc",
  "angstrom-types",
- "angstrom-utils",
  "clap",
  "consensus",
  "enr",
@@ -11597,42 +11328,17 @@ dependencies = [
  "futures",
  "itertools 0.14.0",
  "jsonrpsee",
- "local-ip-address",
- "matching-engine",
- "order-pool",
  "pade",
- "parking_lot",
- "rand 0.9.1",
  "reth",
- "reth-cli-util",
- "reth-codecs",
- "reth-db",
- "reth-discv4",
- "reth-dns-discovery",
- "reth-ecies",
- "reth-eth-wire",
- "reth-metrics",
- "reth-network",
- "reth-network-api",
  "reth-network-peers",
- "reth-node-builder",
- "reth-node-ethereum",
- "reth-primitives",
  "reth-provider",
- "reth-revm",
  "reth-tasks",
- "reth-tokio-util",
- "reth-tracing",
- "reth-transaction-pool",
  "secp256k1",
  "serde",
  "serial_test",
- "tempfile",
  "testing-tools",
  "tikv-jemallocator",
  "tokio",
- "tokio-stream",
- "tokio-util",
  "toml",
  "tracing",
  "tracing-subscriber 0.3.19",
@@ -12328,11 +12034,8 @@ dependencies = [
  "alloy-primitives",
  "angstrom-eth",
  "angstrom-types",
- "angstrom-utils",
  "arraydeque",
- "clap",
  "convert_case 0.8.0",
- "criterion 0.6.0",
  "dashmap 6.1.0",
  "divan",
  "eyre",
@@ -12341,16 +12044,11 @@ dependencies = [
  "hex",
  "itertools 0.14.0",
  "malachite",
- "malachite-q",
- "num-bigfloat",
- "once_cell",
  "pade",
  "pade-macro",
  "rand 0.9.1",
- "rand_distr",
  "rayon",
  "reth-provider",
- "reth-tasks",
  "revm 24.0.1",
  "revm-bytecode",
  "revm-database",
@@ -12462,29 +12160,18 @@ name = "validation"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "angstrom-eth",
  "angstrom-metrics",
  "angstrom-network",
  "angstrom-types",
  "angstrom-utils",
- "anyhow",
- "async-trait",
- "auto_impl",
- "byteorder",
  "dashmap 6.1.0",
- "derive_more 0.99.20",
  "eyre",
  "futures",
  "futures-util",
- "hex-literal",
  "pade",
  "parking_lot",
- "pin-project",
  "rand 0.9.1",
- "rayon",
- "reth-db",
  "reth-discv4",
- "reth-errors",
  "reth-metrics",
  "reth-network",
  "reth-primitives",
@@ -12497,16 +12184,12 @@ dependencies = [
  "revm-database",
  "revm-primitives",
  "revm-state",
- "schnellru",
  "secp256k1",
  "serde",
- "serde_json",
  "serial_test",
  "tempfile",
  "testing-tools",
- "thiserror 1.0.69",
  "tokio",
- "toml",
  "tracing",
  "tracing-subscriber 0.3.19",
  "uniswap-v4",

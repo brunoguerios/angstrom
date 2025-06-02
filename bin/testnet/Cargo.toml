@@ -10,17 +10,13 @@ exclude.workspace = true
 
 [dependencies]
 alloy.workspace = true
-alloy-chains.workspace = true
 alloy-primitives.workspace = true
 alloy-rpc-types.workspace = true
 alloy-signer-local.workspace = true
 angstrom.workspace = true
-angstrom-eth.workspace = true
 angstrom-metrics.workspace = true
-angstrom-network.workspace = true
 angstrom-rpc.workspace = true
 angstrom-types = { workspace = true }
-angstrom-utils.workspace = true
 clap = { workspace = true, features = ["derive"] }
 consensus.workspace = true
 enr = { workspace = true, features = ["serde", "k256"] }
@@ -28,41 +24,16 @@ eyre.workspace = true
 futures.workspace = true
 itertools.workspace = true
 jsonrpsee.workspace = true
-local-ip-address = "0"
-matching-engine.workspace = true
-order-pool.workspace = true
 pade.workspace = true
-parking_lot.workspace = true
-rand.workspace = true
 reth.workspace = true
-reth-cli-util.workspace = true
-reth-codecs.workspace = true
-reth-db.workspace = true
-reth-discv4 = { workspace = true, features = ["test-utils"] }
-reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-ecies.workspace = true
-reth-eth-wire.workspace = true
-reth-metrics.workspace = true
-reth-network = { workspace = true, features = ["test-utils"] }
-reth-network-api.workspace = true
 reth-network-peers.workspace = true
-reth-node-builder.workspace = true
-reth-node-ethereum.workspace = true
-reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
-reth-revm.workspace = true
 reth-tasks.workspace = true
-reth-tokio-util.workspace = true
-reth-tracing.workspace = true
-reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 secp256k1.workspace = true
 serde.workspace = true
 serial_test.workspace = true
-tempfile.workspace = true
 testing-tools = { workspace = true }
 tokio.workspace = true
-tokio-stream.workspace = true
-tokio-util.workspace = true
 toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
