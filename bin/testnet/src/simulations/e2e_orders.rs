@@ -199,7 +199,7 @@ pub mod test {
     #[test]
     #[serial_test::serial]
     fn testnet_lands_block() {
-        init_tracing(4);
+        init_tracing(3);
         AngstromAddressConfig::INTERNAL_TESTNET.init();
         let runner = reth::CliRunner::try_default_runtime().unwrap();
 
@@ -287,7 +287,7 @@ pub mod test {
     #[test]
     #[serial_test::serial]
     fn test_remove_add_pool() {
-        init_tracing(4);
+        init_tracing(3);
         AngstromAddressConfig::INTERNAL_TESTNET.init();
 
         let runner = reth::CliRunner::try_default_runtime().unwrap();
