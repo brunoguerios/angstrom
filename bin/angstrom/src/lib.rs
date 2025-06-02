@@ -8,7 +8,7 @@ use alloy::{
     providers::{ProviderBuilder, network::Ethereum},
     signers::local::PrivateKeySigner
 };
-use alloy_chains::{Chain, NamedChain};
+use alloy_chains::NamedChain;
 use angstrom_amm_quoter::QuoterHandle;
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_network::AngstromNetworkBuilder;
