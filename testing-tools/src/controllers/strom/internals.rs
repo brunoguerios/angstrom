@@ -1,6 +1,6 @@
-use std::{collections::HashMap, pin::Pin, sync::Arc, time::Duration};
+use std::{cmp::max, collections::HashMap, pin::Pin, sync::Arc, time::Duration};
 
-use alloy::primitives::Address;
+use alloy::{primitives::Address, providers::Provider};
 use alloy_rpc_types::BlockId;
 use angstrom::components::StromHandles;
 use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
@@ -86,6 +86,12 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>>,
         F: Clone
     {
+        let start_block = state_provider
+            .rpc_provider()
+            .get_block_number()
+            .await
+            .unwrap();
+        println!("Strom internals start block: {start_block}");
         let pool = strom_handles.get_pool_handle();
         let tx_strom_handles = (&strom_handles).into();
 
@@ -160,7 +166,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         tracing::debug!("spawned data cleaner");
 
-        let block_number = b.tip().number;
+        // See if we have an updated block number - only ever advance
+        let block_number = max(block_number, b.tip().number);
 
         block_sync.clear();
         block_sync.set_block(block_number);

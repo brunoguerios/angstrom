@@ -36,6 +36,10 @@ impl<P: WithWalletProvider> AnvilStateProvider<P> {
         }
     }
 
+    pub fn current_chain_block(&self) -> u64 {
+        self.canon_state.current_block()
+    }
+
     pub(crate) fn update_canon_chain(
         &self,
         new_block: &Block,

@@ -33,9 +33,8 @@ pub struct ReplayCli {
 }
 
 impl ReplayCli {
-    pub fn make_config(&self) -> eyre::Result<ReplayConfig> {
-        let initial_state = AllPoolKeyInners::load_toml_config(&self.pool_key_config)?;
-        Ok(ReplayConfig::new(initial_state, self.testnet_replay, self.eth_fork_url.clone()))
+    pub fn load_pool_keys(&self) -> eyre::Result<InitialStateConfig> {
+        AllPoolKeyInners::load_toml_config(&self.pool_key_config)
     }
 }
 

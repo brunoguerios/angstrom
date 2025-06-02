@@ -6,22 +6,34 @@ pub struct ReplayConfig {
     /// testnet configuration files associated with our runner.  If this is
     /// false, this is a "live" replay that weill be replayed on a specified
     /// chain forked to a local anvil
-    initial_state:   InitialStateConfig,
-    testnet_replay:  bool,
-    eth_fork_url:    String,
-    seed:            u16,
-    leader_rpc_port: u16
+    initial_state:     InitialStateConfig,
+    testnet_replay:    bool,
+    eth_fork_url:      String,
+    seed:              u16,
+    leader_rpc_port:   u16,
+    angstrom_rpc_port: u16,
+    target_block:      u64
 }
 
 impl ReplayConfig {
     pub fn new(
         initial_state: InitialStateConfig,
         testnet_replay: bool,
-        eth_fork_url: String
+        eth_fork_url: String,
+        target_block: u64
     ) -> Self {
         let seed = rand::random();
         let leader_rpc_port = rand::random();
-        Self { initial_state, testnet_replay, eth_fork_url, seed, leader_rpc_port }
+        let angstrom_rpc_port = rand::random();
+        Self {
+            initial_state,
+            testnet_replay,
+            eth_fork_url,
+            seed,
+            leader_rpc_port,
+            angstrom_rpc_port,
+            target_block
+        }
     }
 
     pub fn testnet_replay(&self) -> bool {
@@ -39,7 +51,7 @@ impl GlobalTestingConfig for ReplayConfig {
     }
 
     fn base_angstrom_rpc_port(&self) -> u16 {
-        unreachable!()
+        self.angstrom_rpc_port
     }
 
     fn node_count(&self) -> u64 {
@@ -63,6 +75,6 @@ impl GlobalTestingConfig for ReplayConfig {
     }
 
     fn fork_config(&self) -> Option<(u64, String)> {
-        None
+        Some((self.target_block, self.eth_fork_url.clone()))
     }
 }

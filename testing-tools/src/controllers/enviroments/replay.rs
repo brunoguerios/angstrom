@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc};
+use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc, time::Duration};
 
 use alloy::{
     node_bindings::AnvilInstance,
@@ -24,7 +24,7 @@ use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};
 use super::AngstromTestnet;
 use crate::{
     agents::AgentConfig,
-    controllers::strom::{TestnetNode, initialize_strom_components_at_block},
+    controllers::strom::TestnetNode,
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
         GlobalTestingConfig, WithWalletProvider,
@@ -51,11 +51,12 @@ where
         state_rx: UnboundedReceiver<ConsensusRoundName>
     ) -> eyre::Result<()> {
         let node = self.peers.remove(&0).unwrap();
-        let provider = node.state_provider().clone();
+        let provider = node.state_provider();
+        let blocknum = provider.rpc_provider().get_block_number().await?;
+        tracing::warn!(blocknum, "Block number before executing");
 
-        let replay_log = replay_log.at_block(
-            alloy::providers::Provider::get_block_number(&provider.rpc_provider()).await?
-        );
+        let replay_log = replay_log.at_block(blocknum);
+
         let pool_handle = node.pool_handle();
 
         let consensus_sender = node.strom_tx_handles().consensus_tx_op;
@@ -94,6 +95,9 @@ where
         }
         println!("Made it to after");
         tracing::error!("Done with everything");
+        while let x = state_stream.next().await {
+            println!("Got a new state {:?}", x);
+        }
 
         Ok(())
     }
@@ -164,14 +168,15 @@ where
         let front = configs.first().unwrap().clone();
         let pool_keys = front.pool_keys();
         let initializer_provider = Self::spawn_provider(front, node_addresses).await?;
-        let (i, p, s) = Self::anvil_deployment(initializer_provider, pool_keys, ex.clone()).await?;
-        let initial_angstrom_state = Some(s);
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        let (i, leader_provider, initial_angstrom_state) =
+            Self::anvil_deployment(initializer_provider, pool_keys, ex.clone()).await?;
         self._anvil_instance = Some(i);
-        let leader_provider = AnvilProvider::from_future(
-            WalletProvider::new(node_config.clone()).then(async |v| v.map(|i| (i.0, i.1, None))),
-            true
-        )
-        .await?;
+        // let leader_provider = AnvilProvider::from_future(
+        //     WalletProvider::new(node_config.clone()).then(async |v| v.map(|i| (i.0,
+        // i.1, None))),     true
+        // )
+        // .await?;
         // take the provider and then set all people in the testnet as nodes.
 
         tracing::info!("connected to state provider");
@@ -181,12 +186,12 @@ where
             GlobalBlockSync::new(leader_provider.rpc_provider().get_block_number().await?);
 
         let (state_tx, state_rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut node = TestnetNode::new(
+        let node = TestnetNode::new(
             c,
             node_config,
             leader_provider,
             initial_validators,
-            initial_angstrom_state.unwrap(),
+            initial_angstrom_state,
             vec![noop_agent],
             block_sync.clone(),
             ex.clone(),
@@ -197,7 +202,7 @@ where
 
         tracing::info!("made angstrom node");
 
-        node.connect_to_all_peers(&mut self.peers).await;
+        // node.connect_to_all_peers(&mut self.peers).await;
         tracing::info!("connected node");
         self.peers.insert(0, node);
 
@@ -208,6 +213,7 @@ where
         node_config: TestingNodeConfig<ReplayConfig>,
         node_addresses: Vec<Address>
     ) -> eyre::Result<AnvilProvider<AnvilInitializer>> {
+        tracing::warn!("Spawning anvil provider");
         AnvilProvider::from_future(
             AnvilInitializer::new(node_config.clone(), node_addresses)
                 .then(async |v| v.map(|i| (i.0, i.1, Some(i.2)))),

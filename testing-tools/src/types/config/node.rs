@@ -90,6 +90,28 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         self.global_config.initial_state_config().pool_keys
     }
 
+    fn configure_replay_leader_anvil(&self) -> Anvil {
+        let mut anvil_builder = Anvil::new()
+            .chain_id(CHAIN_ID)
+            .arg("--host")
+            .arg("0.0.0.0")
+            .port(self.global_config.leader_eth_rpc_port())
+            .fork(self.global_config.eth_ws_url())
+            .arg("--ipc")
+            .arg(self.global_config.anvil_rpc_endpoint(self.node_id))
+            .arg("--code-size-limit")
+            .arg("393216")
+            .arg("--disable-block-gas-limit");
+
+        if let Some((fork_block_number, fork_url)) = self.global_config.fork_config() {
+            anvil_builder = anvil_builder
+                .fork(fork_url)
+                .fork_block_number(fork_block_number)
+        }
+
+        anvil_builder
+    }
+
     fn configure_testnet_leader_anvil(&self) -> Anvil {
         if !self.global_config.is_leader(self.node_id) {
             panic!("only the leader can call this!")
@@ -145,7 +167,11 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         let anvil = self
             .global_config
             .is_leader(self.node_id)
-            .then(|| self.configure_testnet_leader_anvil().try_spawn())
+            .then(|| match self.global_config.config_type() {
+                TestingConfigKind::Testnet => self.configure_testnet_leader_anvil().try_spawn(),
+                TestingConfigKind::Replay => self.configure_replay_leader_anvil().try_spawn(),
+                TestingConfigKind::Devnet => unreachable!("This should never happen")
+            })
             .transpose()?;
 
         let sk = self.signing_key();
