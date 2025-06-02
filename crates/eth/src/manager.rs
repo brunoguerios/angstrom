@@ -380,7 +380,7 @@ pub mod test {
             angstrom::{TopOfBlockOrder, UserOrder}
         },
         orders::OrderOutcome,
-        primitive::{AngstromSigner, ChainExt},
+        primitive::{AngstromAddressConfig, AngstromSigner, ChainExt},
         sol_bindings::grouped_orders::OrderWithStorageData
     };
     use pade::PadeEncode;
@@ -454,6 +454,7 @@ pub mod test {
 
     #[test]
     fn test_fetch_filled_orders() {
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
         let signing_info = setup_signing_info();
         let angstrom_address = Address::random();
         let eth = setup_non_subscription_eth_manager(Some(angstrom_address));

@@ -45,7 +45,7 @@ impl AngstromTestnetCli {
         this.init_tracing();
 
         // set the proper address and domain
-        AngstromAddressConfig::INTERNAL_TESTNET.init();
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
 
         if this.metrics
             && initialize_prometheus_metrics(this.metrics_port)

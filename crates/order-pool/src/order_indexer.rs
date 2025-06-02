@@ -481,7 +481,7 @@ mod tests {
         contract_bindings::angstrom::Angstrom::PoolKey,
         matching::Ray,
         orders::OrderId,
-        primitive::{AngstromSigner, OrderValidationError},
+        primitive::{AngstromAddressConfig, AngstromSigner, OrderValidationError},
         sol_bindings::RespendAvoidanceMethod
     };
     use pade::PadeEncode;
@@ -496,6 +496,7 @@ mod tests {
 
     fn setup_test_indexer() -> OrderIndexer<MockValidator> {
         init_tracing();
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
         let (tx, _) = broadcast::channel(100);
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
         let validator = MockValidator::default();
