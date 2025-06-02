@@ -51,7 +51,7 @@ function ltB(AmountB x, AmountB y) pure returns (bool) {
 library PriceLib {
     using RayMathLib for *;
 
-    uint256 internal constant ONE_BPS = 1e6;
+    uint256 internal constant ONE_E6 = 1e6;
 
     function into(PriceAB price) internal pure returns (uint256) {
         return PriceAB.unwrap(price);
@@ -89,8 +89,8 @@ library PriceLib {
     function reduceByFeeE6(PriceAB price, uint256 feeE6) internal pure returns (PriceAB) {
         uint256 oneMinusFee;
         unchecked {
-            oneMinusFee = ONE_BPS - feeE6;
+            oneMinusFee = ONE_E6 - feeE6;
         }
-        return PriceAB.wrap(PriceAB.unwrap(price) * oneMinusFee / ONE_BPS);
+        return PriceAB.wrap(PriceAB.unwrap(price) * oneMinusFee / ONE_E6);
     }
 }
