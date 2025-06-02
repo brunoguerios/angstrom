@@ -17,8 +17,10 @@ alloy.workspace = true
 alloy-primitives.workspace = true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
+arraydeque = "0"
 base64.workspace = true
 base64-serde.workspace = true
+clap.workspace = true
 criterion.workspace = true
 eyre.workspace = true
 futures.workspace = true
@@ -26,6 +28,8 @@ futures-util.workspace = true
 itertools.workspace = true
 malachite.workspace = true
 malachite-q.workspace = true
+num-bigfloat.workspace = true
+once_cell.workspace = true
 pade.workspace = true
 pade-macro.workspace = true
 rand.workspace = true
@@ -41,10 +45,6 @@ tracing-subscriber.workspace = true
 uniswap-v4.workspace = true
 uniswap_v3_math.workspace = true
 validation.workspace = true
-arraydeque = "0"
-num-bigfloat.workspace = true
-once_cell.workspace = true
-clap.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ['csv', 'csv_output'] }

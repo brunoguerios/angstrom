@@ -21,87 +21,82 @@ large_enum_variant = "allow"
 too_long_first_doc_paragraph = "allow"
 
 [dependencies]
+alloy.workspace = true
+alloy-chains.workspace = true
+alloy-rpc-types = { workspace = true, features = ["eth"] }
+angstrom-eth.workspace = true
+angstrom-types.workspace = true
+angstrom-utils.workspace = true
+anyhow.workspace = true
+aquamarine.workspace = true
+async-trait.workspace = true
+auto_impl = "1"
+bincode.workspace = true
+enr = { workspace = true, features = ["rust-secp256k1"], optional = true }
+eyre.workspace = true
+futures.workspace = true
+homedir.workspace = true
+humantime-serde = { version = "1", optional = true }
+itertools.workspace = true
+k256.workspace = true
+linked-hash-map = "0"
+linked_hash_set = "0"
+metrics.workspace = true
+once_cell.workspace = true
+order-pool.workspace = true
+parking_lot.workspace = true
+pin-project.workspace = true
+rand.workspace = true
 reth.workspace = true
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-codecs.workspace = true
+reth-discv4.workspace = true
+reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-ecies.workspace = true
 reth-errors.workspace = true
 reth-eth-wire.workspace = true
+reth-metrics.workspace = true
+reth-net-banlist = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-network.workspace = true
 reth-network-api.workspace = true
+reth-network-p2p = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-network-peers.workspace = true
 reth-node-builder.workspace = true
 reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true
-reth-transaction-pool.workspace = true
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-discv4.workspace = true
-reth-dns-discovery = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-net-banlist = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-reth-network-p2p = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
 reth-tokio-util = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3" }
-alloy.workspace = true
-alloy-chains.workspace = true
-alloy-rpc-types = { workspace = true, features = ["eth"] }
-anyhow.workspace = true
-bincode.workspace = true
-angstrom-eth.workspace = true
-angstrom-types.workspace = true
-angstrom-utils.workspace = true
-order-pool.workspace = true
-validation.workspace = true
-futures.workspace = true
-pin-project.workspace = true
+reth-transaction-pool.workspace = true
+secp256k1.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
-humantime-serde = { version = "1", optional = true }
-serde.workspace = true
-serde_json = { workspace = true, optional = true }
-metrics.workspace = true
-reth-metrics.workspace = true
-aquamarine.workspace = true
-async-trait.workspace = true
-auto_impl = "1"
-eyre.workspace = true
-linked-hash-map = "0"
-linked_hash_set = "0"
-parking_lot.workspace = true
-rand.workspace = true
-secp256k1.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
-enr = { workspace = true, features = ["rust-secp256k1"], optional = true }
-homedir.workspace = true
-itertools.workspace = true
-k256.workspace = true
-once_cell.workspace = true
-tempfile = { workspace = true, optional = true }
 toml.workspace = true
+tracing.workspace = true
+validation.workspace = true
 
 [dev-dependencies]
 angstrom-network.workspace = true
-testing-tools.workspace = true
+rand.workspace = true
 reth-discv4 = { workspace = true, features = ["test-utils"] }
-reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-metrics.workspace = true
 reth-network = { workspace = true, features = ["test-utils"] }
+reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
-rand.workspace = true
 secp256k1.workspace = true
 serial_test.workspace = true
 tempfile.workspace = true
+testing-tools.workspace = true
 toml.workspace = true
 
 [features]
 default = ["serde"]
-serde = [
-  "dep:humantime-serde",
-  "secp256k1/serde",
-  "enr?/serde",
-  "dep:serde_json",
-]
+serde = ["dep:humantime-serde", "secp256k1/serde", "enr?/serde", "dep:serde_json"]
 test-utils = ["reth-provider/test-utils", "dep:enr", "dep:tempfile"]
 geth-tests = []

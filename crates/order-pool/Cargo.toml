@@ -17,51 +17,51 @@ normal = [
 ]
 
 [dependencies]
+alloy.workspace = true
 angstrom-eth.workspace = true
 angstrom-metrics.workspace = true
 angstrom-types.workspace = true
 angstrom-utils.workspace = true
+aquamarine.workspace = true
+async-trait.workspace = true
+auto_impl = "1.0"
+bitflags.workspace = true
+dashmap = "6.1.0"
 eyre.workspace = true
-validation.workspace = true
+futures-util.workspace = true
+metrics.workspace = true
+parking_lot.workspace = true
+paste = { version = "1.0", optional = true }
+proptest = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+reth-metrics.workspace = true
 reth-network.workspace = true
 reth-network-peers.workspace = true
 reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true
 revm.workspace = true
-alloy.workspace = true
-async-trait.workspace = true
-futures-util.workspace = true
-parking_lot.workspace = true
-tokio = { workspace = true, default-features = false, features = ["sync"] }
-tokio-stream.workspace = true
-metrics.workspace = true
-reth-metrics.workspace = true
-aquamarine.workspace = true
-auto_impl = "1.0"
-bitflags.workspace = true
 serde = { workspace = true, features = ["derive", "rc"], optional = true }
 thiserror.workspace = true
+tokio = { workspace = true, default-features = false, features = ["sync"] }
+tokio-stream.workspace = true
 tracing.workspace = true
-dashmap = "6.1.0"
-paste = { version = "1.0", optional = true }
-proptest = { workspace = true, optional = true }
-rand = { workspace = true, optional = true }
+validation.workspace = true
 
 [dev-dependencies]
 angstrom-network.workspace = true
-testing-tools.workspace = true
+futures.workspace = true
+pade.workspace = true
+rand.workspace = true
 reth-discv4 = { workspace = true, features = ["test-utils"] }
-reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-metrics.workspace = true
 reth-network = { workspace = true, features = ["test-utils"] }
-pade.workspace = true
+reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
-futures.workspace = true
-rand.workspace = true
 secp256k1.workspace = true
+testing-tools.workspace = true
 # misc
 serial_test.workspace = true
 tempfile.workspace = true

@@ -11,13 +11,13 @@ exclude.workspace = true
 [dependencies]
 alloy.workspace = true
 angstrom-types.workspace = true
+eyre.workspace = true
+futures.workspace = true
+matching-engine.workspace = true
 order-pool.workspace = true
 rayon.workspace = true
 serde.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
-uniswap-v4.workspace = true
-eyre.workspace = true
-futures.workspace = true
-matching-engine.workspace = true
 tracing.workspace = true
+uniswap-v4.workspace = true

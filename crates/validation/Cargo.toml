@@ -9,53 +9,50 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
+alloy.workspace = true
 angstrom-eth.workspace = true
 angstrom-metrics.workspace = true
-angstrom-utils.workspace = true
-auto_impl.workspace = true
-pade.workspace = true
-rayon.workspace = true
 angstrom-types.workspace = true
+angstrom-utils.workspace = true
 anyhow.workspace = true
-hex-literal.workspace = true
-uniswap-v4.workspace = true
-derive_more = "0.99.17"
-revm.workspace = true
-reth-primitives = { workspace = true, features = ["std"] }
-reth-db = { workspace = true, features = ["mdbx"] }
-reth-errors.workspace = true
-reth-provider.workspace = true
-reth-revm.workspace = true
 async-trait = "0.1.68"
+auto_impl.workspace = true
+byteorder = "1.4.3"
+dashmap = "6.0.1"
+derive_more = "0.99.17"
+eyre = "0.6.8"
 futures = "0.3.26"
 futures-util.workspace = true
+hex-literal.workspace = true
+pade.workspace = true
 parking_lot = "0.12.1"
 pin-project = "1.0.12"
-tokio.workspace = true
-eyre = "0.6.8"
-secp256k1 = { version = "0", default-features = false, features = [
-  "global-context",
-  "rand",
-  "recovery",
-] }
-byteorder = "1.4.3"
 rand.workspace = true
-thiserror = "1.0.34"
+rayon.workspace = true
+reth-db = { workspace = true, features = ["mdbx"] }
+reth-errors.workspace = true
+reth-primitives = { workspace = true, features = ["std"] }
+reth-provider.workspace = true
+reth-revm.workspace = true
+revm.workspace = true
 schnellru = "0.2"
+secp256k1 = { version = "0", default-features = false, features = ["global-context", "rand", "recovery"] }
 serde.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-alloy.workspace = true
-dashmap = "6.0.1"
+thiserror = "1.0.34"
+tokio.workspace = true
 toml = "0.8.12"
 tracing.workspace = true
+uniswap-v4.workspace = true
 
 [dev-dependencies]
 angstrom-network.workspace = true
-testing-tools.workspace = true
+futures.workspace = true
+rand.workspace = true
 reth-discv4 = { workspace = true, features = ["test-utils"] }
-reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-metrics.workspace = true
 reth-network = { workspace = true, features = ["test-utils"] }
+reth-primitives = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-tracing.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
@@ -63,11 +60,10 @@ revm-bytecode.workspace = true
 revm-database.workspace = true
 revm-primitives.workspace = true
 revm-state.workspace = true
-futures.workspace = true
-rand.workspace = true
 secp256k1.workspace = true
 serial_test.workspace = true
 tempfile.workspace = true
+testing-tools.workspace = true
 tracing-subscriber.workspace = true
 
 [features]
