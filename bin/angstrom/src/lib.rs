@@ -2,12 +2,13 @@
 //!
 //! ## Feature Flags
 
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, str::FromStr, sync::Arc};
 
 use alloy::{
     providers::{ProviderBuilder, network::Ethereum},
     signers::local::PrivateKeySigner
 };
+use alloy_chains::NamedChain;
 use angstrom_amm_quoter::QuoterHandle;
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_network::AngstromNetworkBuilder;
@@ -17,15 +18,22 @@ use angstrom_rpc::{
 };
 use angstrom_types::{
     contract_bindings::controller_v_1::ControllerV1,
-    primitive::{ANGSTROM_DOMAIN, AngstromSigner}
+    primitive::{
+        ANGSTROM_DOMAIN, AngstromAddressBuilder, AngstromSigner, ETH_ANGSTROM_RPC, ETH_DEFAULT_RPC,
+        ETH_MEV_RPC, SEPOLIA_DEFAULT_RPC, SEPOLIA_MEV_RPC
+    }
 };
 use clap::Parser;
 use cli::AngstromConfig;
 use consensus::ConsensusHandler;
 use parking_lot::RwLock;
-use reth::{chainspec::EthereumChainSpecParser, cli::Cli};
+use reth::{
+    chainspec::{EthChainSpec, EthereumChainSpecParser},
+    cli::Cli
+};
 use reth_node_builder::{Node, NodeHandle};
 use reth_node_ethereum::node::{EthereumAddOns, EthereumNode};
+use url::Url;
 use validation::validator::ValidationClient;
 
 use crate::{
@@ -40,8 +48,60 @@ pub mod components;
 /// chosen command.
 #[inline]
 pub fn run() -> eyre::Result<()> {
-    Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, args| async move {
+    Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, mut args| async move {
         let executor = builder.task_executor().clone();
+        let chain = builder.config().chain.chain().named().unwrap();
+
+        let node_config = NodeConfig::load_from_config(Some(args.node_config.clone())).unwrap();
+
+        let address_builder = AngstromAddressBuilder::default()
+            .with_angstrom_address(node_config.angstrom_address)
+            .with_controller(node_config.periphery_address)
+            .with_pool_manager(node_config.pool_manager_address)
+            .with_deploy_block(node_config.angstrom_deploy_block)
+            .build();
+
+        match chain {
+            NamedChain::Sepolia => {
+                if args.mev_boost_endpoints.is_empty() {
+                    args.mev_boost_endpoints = SEPOLIA_MEV_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+                if args.normal_nodes.is_empty() {
+                    args.normal_nodes = SEPOLIA_DEFAULT_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+
+                address_builder.init_with_chain_fallback(NamedChain::Sepolia as u64);
+            }
+            NamedChain::Mainnet => {
+                if args.mev_boost_endpoints.is_empty() {
+                    args.mev_boost_endpoints = ETH_MEV_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+                if args.normal_nodes.is_empty() {
+                    args.normal_nodes = ETH_DEFAULT_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+                if args.angstrom_submission_nodes.is_empty() {
+                    args.angstrom_submission_nodes = ETH_ANGSTROM_RPC
+                        .into_iter()
+                        .map(|url| Url::from_str(url).unwrap())
+                        .collect();
+                }
+
+                address_builder.init_with_chain_fallback(NamedChain::Mainnet as u64);
+            }
+            chain => panic!("we do not support chain {chain}")
+        }
 
         if args.metrics_enabled {
             executor.spawn_critical("metrics", crate::cli::init_metrics(args.metrics_port));
@@ -71,8 +131,6 @@ pub fn run() -> eyre::Result<()> {
             .connect(&args.boot_node)
             .await
             .unwrap();
-
-        let node_config = NodeConfig::load_from_config(Some(args.node_config.clone())).unwrap();
 
         let periphery_c = ControllerV1::new(node_config.periphery_address, startup_provider);
         let node_set = periphery_c

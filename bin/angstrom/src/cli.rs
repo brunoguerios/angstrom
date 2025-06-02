@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use alloy_primitives::Address;
 use angstrom_metrics::initialize_prometheus_metrics;
-use angstrom_types::primitive::{ANGSTROM_RPC, DEFAULT_RPC, MEV_RPC};
 use eyre::Context;
 use serde::Deserialize;
 use url::Url;
@@ -20,23 +19,15 @@ pub struct AngstromConfig {
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
     pub metrics_port:              u16,
-    #[clap(short, long, default_values = MEV_RPC)]
+    #[clap(short, long)]
     pub mev_boost_endpoints:       Vec<Url>,
     /// needed to properly setup the node as we need some chain state before
     /// starting the internal reth node
     #[clap(short, long, default_value = "https://eth.drpc.org")]
     pub boot_node:                 String,
-    #[clap(
-        short,
-        long,
-        default_values = DEFAULT_RPC
-    )]
+    #[clap(short, long)]
     pub normal_nodes:              Vec<Url>,
-    #[clap(
-        short,
-        long,
-        default_values = ANGSTROM_RPC
-    )]
+    #[clap(short, long)]
     pub angstrom_submission_nodes: Vec<Url>
 }
 

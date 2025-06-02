@@ -4,66 +4,53 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-futures.workspace = true
+alloy = { workspace = true, features = ["rpc-types-mev"] }
+alloy-primitives = { workspace = true, features = ["rand"] }
+auto_impl.workspace = true
 base64.workspace = true
-bitmaps.workspace = true
-reth.workspace = true
-reth-network-peers = { workspace = true, features = ["secp256k1"] }
-reth-provider.workspace = true
-reth-trie.workspace = true
-reth-chainspec.workspace = true
-reth-storage-api.workspace = true
-# blsful.workspace = true
+bincode = { workspace = true }
 bytes.workspace = true
-pade.workspace = true
-pade-macro.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-thiserror.workspace = true
+dashmap.workspace = true
+eyre.workspace = true
+futures.workspace = true
 itertools.workspace = true
-serde_json.workspace = true
-reth-primitives.workspace = true
-reth-primitives-traits.workspace = true
-reth-ethereum-primitives.workspace = true
-revm.workspace = true
-num-traits.workspace = true
-secp256k1.workspace = true
 k256.workspace = true
 malachite.workspace = true
-hex-literal.workspace = true
-anyhow.workspace = true
-alloy = { workspace = true, features  = ["rpc-types-mev"] }
-alloy-primitives = { workspace = true, features = ["rand"] }
-alloy-rlp.workspace = true
-derive_more = "0"
-eyre.workspace = true
-bincode = { workspace = true }
-serde = { workspace = true, default-features = false, features = ["derive"] }
-uniswap_v3_math.workspace = true
-foldhash = "0"
+pade.workspace = true
+pade-macro.workspace = true
 rand.workspace = true
-dashmap.workspace = true
-auto_impl.workspace = true
-
+reqwest = { version = "0.12.5", features = ["json"] }
+reth.workspace = true
+reth-chainspec.workspace = true
+reth-ethereum-primitives.workspace = true
+reth-network-peers = { workspace = true, features = ["secp256k1"] }
+reth-primitives.workspace = true
+reth-primitives-traits.workspace = true
+reth-provider.workspace = true
+reth-storage-api.workspace = true
+reth-trie.workspace = true
+revm.workspace = true
 revm-bytecode.workspace = true
 revm-database.workspace = true
-revm-state.workspace = true
 revm-primitives.workspace = true
+serde = { workspace = true, default-features = false, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
 tower = "0.5.2"
-reqwest = { version = "0.12.5", features = ["json"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uniswap_v3_math.workspace = true
 
 [build-dependencies]
 convert_case.workspace = true
 itertools.workspace = true
 
 [dev-dependencies]
-rand.workspace = true
-tokio.workspace = true
-testing-tools.workspace = true
 angstrom-types.workspace = true
+rand.workspace = true
+testing-tools.workspace = true
+tokio.workspace = true
 
 [features]
 default = []
-testnet = []
-testnet-sepolia = []
 anvil = []

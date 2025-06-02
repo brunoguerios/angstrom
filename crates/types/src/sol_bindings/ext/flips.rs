@@ -34,7 +34,7 @@ impl GenerateFlippedOrder for ExactStandingOrder {
         };
 
         // sign new meta
-        let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = this.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
         this.meta =
@@ -63,7 +63,7 @@ impl GenerateFlippedOrder for PartialFlashOrder {
         };
 
         // sign new meta
-        let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = this.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
         this.meta =
@@ -89,7 +89,7 @@ impl GenerateFlippedOrder for ExactFlashOrder {
         };
 
         // sign new meta
-        let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = this.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
         this.meta =
@@ -118,7 +118,7 @@ impl GenerateFlippedOrder for PartialStandingOrder {
         };
 
         // sign new meta
-        let hash = this.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = this.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let sig = new_signer.sign_hash_sync(&hash).unwrap();
         let addr = new_signer.address();
         this.meta =

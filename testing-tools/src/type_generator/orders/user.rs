@@ -238,7 +238,7 @@ impl UserOrderBuilder {
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
-                    let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+                    let hash = order.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,
@@ -262,7 +262,7 @@ impl UserOrderBuilder {
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
-                    let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+                    let hash = order.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,
@@ -285,7 +285,7 @@ impl UserOrderBuilder {
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
-                    let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+                    let hash = order.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,
@@ -308,7 +308,7 @@ impl UserOrderBuilder {
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
-                    let hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+                    let hash = order.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
                     let sig = signer.sign_hash_sync(&hash).unwrap();
                     order.meta = OrderMeta {
                         isEcdsa:   true,

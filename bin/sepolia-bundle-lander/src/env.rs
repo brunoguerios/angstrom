@@ -16,7 +16,7 @@ use angstrom_types::{
         angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
     },
-    primitive::{AngstromSigner, UniswapPoolRegistry}
+    primitive::{AngstromSigner, UniswapPoolRegistry, init_with_chain_id}
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use itertools::Itertools;
@@ -51,6 +51,9 @@ impl BundleWashTraderEnv {
                 .await
                 .unwrap()
         );
+
+        let chain_id = provider.get_chain_id().await.unwrap();
+        init_with_chain_id(chain_id);
 
         let block = provider.get_block_number().await.unwrap();
 

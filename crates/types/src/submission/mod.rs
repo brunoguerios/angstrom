@@ -25,7 +25,7 @@ use crate::{
     primitive::AngstromSigner
 };
 
-pub(super) const EXTRA_GAS: u128 = (cfg!(feature = "testnet-sepolia") as u128) * (2e9 as u128);
+pub(super) const EXTRA_GAS: u128 = 2e9 as u128;
 const DEFAULT_SUBMISSION_CONCURRENCY: usize = 10;
 
 pub struct TxFeatureInfo {

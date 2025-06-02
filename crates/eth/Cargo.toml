@@ -8,37 +8,22 @@ homepage.workspace = true
 repository.workspace = true
 exclude.workspace = true
 
-
 [dependencies]
+alloy.workspace = true
 angstrom-types.workspace = true
-angstrom-utils.workspace = true
-pade.workspace = true
-itertools.workspace = true
-
-reth-primitives.workspace = true
-reth-ethereum-primitives.workspace = true
-reth-primitives-traits.workspace = true
-tokio.workspace = true
+anyhow.workspace = true
 futures.workspace = true
-tokio-stream.workspace = true
 futures-util.workspace = true
-
-# reth
+itertools.workspace = true
+pade.workspace = true
+reth-ethereum-primitives.workspace = true
+reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true
-
-# alloy  
-alloy.workspace = true
-
-# misc
-anyhow.workspace = true
-auto_impl.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-testing-tools.workspace = true
 rand.workspace = true
-
-
-[features]
-testnet-sepolia = ["angstrom-types/testnet-sepolia"]
+testing-tools.workspace = true

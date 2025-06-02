@@ -88,7 +88,7 @@ impl TopOfBlockOrder {
 
     pub fn signing_hash(&self, pair: &[Pair], asset: &[Asset], block: u64) -> B256 {
         let order = self.recover_order(pair, asset, block);
-        order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+        order.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap())
     }
 
     pub fn of_max_gas(

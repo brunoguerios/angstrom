@@ -33,11 +33,12 @@ pub fn run() -> eyre::Result<()> {
 
 pub async fn start(cfg: BundleLander, executor: TaskExecutor) -> eyre::Result<()> {
     init_tracing();
-    let domain = ANGSTROM_DOMAIN;
-    tracing::info!(?domain);
 
     let keys: JsonPKs = serde_json::from_str(&std::fs::read_to_string(&cfg.secret_keys_path)?)?;
     let env = BundleWashTraderEnv::init(&cfg, keys).await?;
+
+    let domain = ANGSTROM_DOMAIN.get().unwrap();
+    tracing::info!(?domain);
 
     executor
         .spawn_critical_with_graceful_shutdown_signal("counter_matcher", |mut signal| async move {

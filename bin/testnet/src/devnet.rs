@@ -1,3 +1,4 @@
+use angstrom_types::primitive::AngstromAddressConfig;
 use reth_provider::test_utils::NoopProvider;
 use reth_tasks::TaskExecutor;
 use testing_tools::{
@@ -19,6 +20,8 @@ pub(crate) async fn run_devnet(executor: TaskExecutor, cli: DevnetCli) -> eyre::
 
 async fn basic_example(executor: TaskExecutor, cli: DevnetCli) -> eyre::Result<()> {
     let config = cli.make_config()?;
+
+    AngstromAddressConfig::INTERNAL_TESTNET.init();
     let mut testnet =
         AngstromTestnet::spawn_devnet(NoopProvider::default(), config, executor.clone())
             .await?

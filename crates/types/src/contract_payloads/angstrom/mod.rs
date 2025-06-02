@@ -25,8 +25,6 @@ use super::{
     asset::builder::{AssetBuilder, AssetBuilderStage},
     rewards::PoolUpdate
 };
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
-use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
@@ -39,6 +37,7 @@ use crate::{
         grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
+    testnet::TestnetStateOverrides,
     uni_structure::{BaselinePoolState, donation::DonationCalculation}
 };
 
@@ -69,7 +68,6 @@ impl AngstromBundle {
         &self.pairs
     }
 
-    #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();

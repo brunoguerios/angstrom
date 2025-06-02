@@ -5,7 +5,7 @@ use alloy::{
     signers::local::PrivateKeySigner
 };
 use alloy_primitives::{Address, U256};
-use angstrom_types::{CHAIN_ID, primitive::AngstromSigner};
+use angstrom_types::primitive::{AngstromSigner, CHAIN_ID};
 use consensus::AngstromValidator;
 use rand_chacha::{
     ChaCha20Rng,
@@ -96,7 +96,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         }
 
         Anvil::new()
-            .chain_id(CHAIN_ID)
+            .chain_id(*CHAIN_ID.get().unwrap())
             .arg("--host")
             .arg("0.0.0.0")
             .port(self.global_config.leader_eth_rpc_port())
@@ -111,7 +111,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     fn configure_devnet_anvil(&self) -> Anvil {
         let mut anvil_builder = Anvil::new()
-            .chain_id(1)
+            .chain_id(*CHAIN_ID.get().unwrap())
             .arg("--host")
             .arg("0.0.0.0")
             .port((9545 + self.node_id) as u16)
