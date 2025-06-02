@@ -111,7 +111,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
 
     fn configure_devnet_anvil(&self) -> Anvil {
         let mut anvil_builder = Anvil::new()
-            .chain_id(1)
+            .chain_id(*CHAIN_ID.get().unwrap())
             .arg("--host")
             .arg("0.0.0.0")
             .port((9545 + self.node_id) as u16)

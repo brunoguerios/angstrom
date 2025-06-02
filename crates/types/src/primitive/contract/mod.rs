@@ -87,8 +87,8 @@ pub struct AngstromAddressConfig {
 impl AngstromAddressConfig {
     pub const INTERNAL_TESTNET: Self = Self {
         angstrom_address:         address!("0x293954613283cC7B82BfE9676D3cc0fb0A58fAa0"),
-        position_manager_address: Address::ZERO,
-        controller_v1_address:    Address::ZERO,
+        position_manager_address: address!("0xF967Ede45ED04ec89EcA04a4c7175b6E0106e3A8"),
+        controller_v1_address:    address!("0xEd421745765bc1938848cAaB502ffF53c653ff13"),
         pool_manager_address:     address!("0x48bC5A530873DcF0b890aD50120e7ee5283E0112"),
         angstrom_deploy_block:    0,
         chain_id:                 1
