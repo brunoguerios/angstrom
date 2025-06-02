@@ -19,8 +19,8 @@ use angstrom_rpc::{
 use angstrom_types::{
     contract_bindings::controller_v_1::ControllerV1,
     primitive::{
-        ANGSTROM_DOMAIN, AngstromSigner, ETH_ANGSTROM_RPC, ETH_DEFAULT_RPC, ETH_MEV_RPC,
-        SEPOLIA_DEFAULT_RPC, SEPOLIA_MEV_RPC, init_with_chain_id
+        ANGSTROM_DOMAIN, AngstromAddressBuilder, AngstromSigner, ETH_ANGSTROM_RPC, ETH_DEFAULT_RPC,
+        ETH_MEV_RPC, SEPOLIA_DEFAULT_RPC, SEPOLIA_MEV_RPC
     }
 };
 use clap::Parser;
@@ -51,6 +51,16 @@ pub fn run() -> eyre::Result<()> {
     Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, mut args| async move {
         let executor = builder.task_executor().clone();
         let chain = builder.config().chain.chain().named().unwrap();
+
+        let node_config = NodeConfig::load_from_config(Some(args.node_config.clone())).unwrap();
+
+        let address_builder = AngstromAddressBuilder::default()
+            .with_angstrom_address(node_config.angstrom_address)
+            .with_controller(node_config.periphery_address)
+            .with_pool_manager(node_config.pool_manager_address)
+            .with_deploy_block(node_config.angstrom_deploy_block)
+            .build();
+
         match chain {
             NamedChain::Sepolia => {
                 args.mev_boost_endpoints = SEPOLIA_MEV_RPC
@@ -62,7 +72,7 @@ pub fn run() -> eyre::Result<()> {
                     .map(|url| Url::from_str(url).unwrap())
                     .collect();
 
-                init_with_chain_id(NamedChain::Sepolia as u64);
+                address_builder.init_with_chain_fallback(NamedChain::Sepolia as u64);
             }
             NamedChain::Mainnet => {
                 args.mev_boost_endpoints = ETH_MEV_RPC
@@ -78,7 +88,7 @@ pub fn run() -> eyre::Result<()> {
                     .map(|url| Url::from_str(url).unwrap())
                     .collect();
 
-                init_with_chain_id(NamedChain::Mainnet as u64);
+                address_builder.init_with_chain_fallback(NamedChain::Mainnet as u64);
             }
             chain => panic!("we do not support chain {chain}")
         }
@@ -111,8 +121,6 @@ pub fn run() -> eyre::Result<()> {
             .connect(&args.boot_node)
             .await
             .unwrap();
-
-        let node_config = NodeConfig::load_from_config(Some(args.node_config.clone())).unwrap();
 
         let periphery_c = ControllerV1::new(node_config.periphery_address, startup_provider);
         let node_set = periphery_c

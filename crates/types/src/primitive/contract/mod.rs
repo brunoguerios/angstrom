@@ -117,12 +117,32 @@ impl AngstromAddressConfig {
             ))
             .unwrap();
     }
+
+    pub fn try_init(self) {
+        let _ = ANGSTROM_ADDRESS.set(self.angstrom_address);
+        let _ = POSITION_MANAGER_ADDRESS.set(self.position_manager_address);
+        let _ = CONTROLLER_V1_ADDRESS.set(self.controller_v1_address);
+        let _ = POOL_MANAGER_ADDRESS.set(self.pool_manager_address);
+        let _ = ANGSTROM_DEPLOYED_BLOCK.set(self.angstrom_deploy_block);
+        let _ = CHAIN_ID.set(self.chain_id);
+        let _ = ANGSTROM_DOMAIN.set(alloy::sol_types::eip712_domain!(
+            name: "Angstrom",
+            version: "v1",
+            chain_id: self.chain_id,
+            verifying_contract: self.angstrom_address,
+        ));
+    }
+
+    pub fn init_with_chain_fallback(self, chain_id: u64) {
+        init_with_chain_id(chain_id);
+        self.try_init();
+    }
 }
 
 pub fn init_with_chain_id(chain_id: ChainId) {
     match chain_id {
         1 => {
-            todo!("mainnet deploy is not currently setup");
+            tracing::error!("mainnet deploy is not currently setup, cannot set values");
         }
         11155111 => {
             ANGSTROM_ADDRESS
