@@ -17,7 +17,7 @@ library AngstromView {
     uint256 constant LAST_BLOCK_BIT_OFFSET = 0;
     uint256 constant STORE_BIT_OFFSET = 64;
 
-    uint256 constant BALANCES_SLOT = 5;
+    uint256 constant BALANCES_SLOT = 6;
 
     function controller(IAngstromAuth self) internal view returns (address) {
         return address(uint160(self.extsload(CONTROLLER_SLOT)));

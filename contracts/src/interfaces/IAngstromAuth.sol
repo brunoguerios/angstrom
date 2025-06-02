@@ -13,6 +13,12 @@ struct ConfigEntryUpdate {
 
 interface IAngstromAuth {
     function setController(address newController) external;
+    function set_protocol_unlock_swap_fee_e6(
+        address asset0,
+        address asset1,
+        uint32 protcolUnlockFeeE6
+    ) external;
+    function collect_unlock_swap_fees(address to, bytes calldata packed_assets) external;
     function configurePool(
         address assetA,
         address assetB,

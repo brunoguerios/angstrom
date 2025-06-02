@@ -15,6 +15,7 @@ import {PriceAB as Price10} from "src/types/Price.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 import {AngstromView} from "src/periphery/AngstromView.sol";
 import {RouterActor, PoolKey} from "test/_mocks/RouterActor.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
@@ -26,6 +27,7 @@ import {console} from "forge-std/console.sol";
 /// @author philogy <https://github.com/philogy>
 contract AngstromTest is BaseTest {
     using AngstromView for Angstrom;
+    using SafeTransferLib for address;
 
     using Hooks for IHooks;
 
@@ -205,6 +207,54 @@ contract AngstromTest is BaseTest {
 
         withFeeOut = actor.swap(pk, true, -int256(swapAmount2), 4295128740, unlockData).amount1();
         assertGe(withFeeOut, 0);
+    }
+
+    function test_fuzzing_unlockSwapWithProtocolFee(
+        uint256 bnInput,
+        uint24 unlockedFee,
+        uint256 swapAmount1,
+        uint256 swapAmount2,
+        uint32 protocol_unlock_swap_fee_e6
+    ) public {
+        uint64 bn = bound_block(bnInput);
+        vm.roll(bn);
+
+        unlockedFee = uint24(bound(unlockedFee, 0, MAX_UNLOCK_FEE_BPS));
+        protocol_unlock_swap_fee_e6 = uint32(bound(protocol_unlock_swap_fee_e6, 0, 0.02e6));
+        swapAmount1 = bound(swapAmount1, 1e8, 10e18);
+        swapAmount2 = bound(swapAmount2, 1e8, 10e18);
+
+        uint248 liq = 100_000e21;
+
+        PoolKey memory pk = _createPool(60, unlockedFee, liq);
+
+        vm.prank(controller);
+        angstrom.set_protocol_unlock_swap_fee_e6(asset0, asset1, protocol_unlock_swap_fee_e6);
+
+        vm.prank(node.addr);
+        angstrom.execute("");
+        int128 withFeeOut1 = actor.swap(pk, true, -int256(swapAmount1), 4295128740, "").amount1();
+
+        assertGe(withFeeOut1, 0);
+        assertEq(angstrom.lastBlockUpdated(), bn);
+
+        int128 withFeeOut2 = actor.swap(pk, true, -int256(swapAmount2), 4295128740, "").amount1();
+        assertGe(withFeeOut2, 0);
+
+        address fee_recv = makeAddr("temp_fee_recv");
+        vm.prank(controller);
+        angstrom.collect_unlock_swap_fees(fee_recv, abi.encodePacked(asset1));
+
+        uint256 fee_collected = asset1.balanceOf(fee_recv);
+
+        console.log("here");
+
+        uint256 effective_fee_share =
+            fee_collected * 1e18 / (uint128(withFeeOut1) + uint128(withFeeOut2) + fee_collected);
+
+        console.log("here? (%s)", protocol_unlock_swap_fee_e6);
+
+        assertApproxEqRel(effective_fee_share, uint256(protocol_unlock_swap_fee_e6) * 1e12, 0.01e18);
     }
 
     function _createPool(uint16 tickSpacing, uint24 unlockedFee, uint248 startLiquidity)
