@@ -142,7 +142,7 @@ impl AttestAngstromBlockEmpty {
     pub fn sign_and_encode(target_block: u64, signer: &AngstromSigner) -> Bytes {
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
 
-        let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         // we pade encode here as we expect v, r, s which is not the standard
         let sig = signer.sign_hash_sync(&hash).unwrap().pade_encode();
         let signer = signer.address();
@@ -160,7 +160,7 @@ impl AttestAngstromBlockEmpty {
 
         let Ok(sig) = Signature::pade_decode(&mut sig, None) else { return false };
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
-        let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let Ok(recovered_addr) = sig.recover_address_from_prehash(&hash) else { return false };
         node_address == recovered_addr
     }

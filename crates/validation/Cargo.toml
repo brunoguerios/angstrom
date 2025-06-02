@@ -109,5 +109,3 @@ tracing-subscriber.workspace = true
 [features]
 default = []
 reth-db-dep-tests = []
-testnet = ["angstrom-types/testnet"]
-testnet-sepolia = ["angstrom-types/testnet-sepolia"]

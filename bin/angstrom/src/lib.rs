@@ -2,12 +2,13 @@
 //!
 //! ## Feature Flags
 
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, str::FromStr, sync::Arc};
 
 use alloy::{
     providers::{ProviderBuilder, network::Ethereum},
     signers::local::PrivateKeySigner
 };
+use alloy_chains::{Chain, NamedChain};
 use angstrom_amm_quoter::QuoterHandle;
 use angstrom_metrics::METRICS_ENABLED;
 use angstrom_network::AngstromNetworkBuilder;
@@ -17,15 +18,22 @@ use angstrom_rpc::{
 };
 use angstrom_types::{
     contract_bindings::controller_v_1::ControllerV1,
-    primitive::{ANGSTROM_DOMAIN, AngstromSigner}
+    primitive::{
+        ANGSTROM_DOMAIN, AngstromSigner, ETH_ANGSTROM_RPC, ETH_DEFAULT_RPC, ETH_MEV_RPC,
+        SEPOLIA_DEFAULT_RPC, SEPOLIA_MEV_RPC, init_with_chain_id
+    }
 };
 use clap::Parser;
 use cli::AngstromConfig;
 use consensus::ConsensusHandler;
 use parking_lot::RwLock;
-use reth::{chainspec::EthereumChainSpecParser, cli::Cli};
+use reth::{
+    chainspec::{EthChainSpec, EthereumChainSpecParser},
+    cli::Cli
+};
 use reth_node_builder::{Node, NodeHandle};
 use reth_node_ethereum::node::{EthereumAddOns, EthereumNode};
+use url::Url;
 use validation::validator::ValidationClient;
 
 use crate::{
@@ -40,8 +48,40 @@ pub mod components;
 /// chosen command.
 #[inline]
 pub fn run() -> eyre::Result<()> {
-    Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, args| async move {
+    Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, mut args| async move {
         let executor = builder.task_executor().clone();
+        let chain = builder.config().chain.chain().named().unwrap();
+        match chain {
+            NamedChain::Sepolia => {
+                args.mev_boost_endpoints = SEPOLIA_MEV_RPC
+                    .into_iter()
+                    .map(|url| Url::from_str(url).unwrap())
+                    .collect();
+                args.normal_nodes = SEPOLIA_DEFAULT_RPC
+                    .into_iter()
+                    .map(|url| Url::from_str(url).unwrap())
+                    .collect();
+
+                init_with_chain_id(NamedChain::Sepolia as u64);
+            }
+            NamedChain::Mainnet => {
+                args.mev_boost_endpoints = ETH_MEV_RPC
+                    .into_iter()
+                    .map(|url| Url::from_str(url).unwrap())
+                    .collect();
+                args.normal_nodes = ETH_DEFAULT_RPC
+                    .into_iter()
+                    .map(|url| Url::from_str(url).unwrap())
+                    .collect();
+                args.angstrom_submission_nodes = ETH_ANGSTROM_RPC
+                    .into_iter()
+                    .map(|url| Url::from_str(url).unwrap())
+                    .collect();
+
+                init_with_chain_id(NamedChain::Mainnet as u64);
+            }
+            chain => panic!("we do not support chain {chain}")
+        }
 
         if args.metrics_enabled {
             executor.spawn_critical("metrics", crate::cli::init_metrics(args.metrics_port));

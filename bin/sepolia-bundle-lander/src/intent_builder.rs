@@ -136,7 +136,7 @@ where
             .recipient(key.address())
             .valid_block(self.block_number + 1)
             .build();
-        let recovery_order_hash = order.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let recovery_order_hash = order.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         tracing::info!(?order, ?recovery_order_hash);
 
         Ok(order.into())

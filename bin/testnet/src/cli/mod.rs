@@ -2,6 +2,7 @@ pub mod devnet;
 pub mod e2e_orders;
 pub mod testnet;
 use angstrom_metrics::{METRICS_ENABLED, initialize_prometheus_metrics};
+use angstrom_types::primitive::AngstromAddressConfig;
 use clap::{ArgAction, Parser, Subcommand};
 use devnet::DevnetCli;
 use e2e_orders::End2EndOrdersCli;
@@ -42,6 +43,9 @@ impl AngstromTestnetCli {
     pub async fn run_all(executor: TaskExecutor) -> eyre::Result<()> {
         let this = Self::parse();
         this.init_tracing();
+
+        // set the proper address and domain
+        AngstromAddressConfig::INTERNAL_TESTNET.init();
 
         if this.metrics
             && initialize_prometheus_metrics(this.metrics_port)

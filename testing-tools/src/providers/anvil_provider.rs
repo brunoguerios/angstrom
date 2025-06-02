@@ -9,7 +9,7 @@ use alloy::{
 };
 use alloy_primitives::Bytes;
 use alloy_rpc_types::{Header, Transaction};
-use angstrom_types::CHAIN_ID;
+use angstrom_types::primitive::CHAIN_ID;
 use futures::{Stream, StreamExt, stream::FuturesOrdered};
 
 use super::{AnvilStateProvider, WalletProvider};
@@ -149,7 +149,7 @@ impl AnvilProvider<WalletProvider> {
     pub async fn spawn_new_isolated() -> eyre::Result<Self> {
         let anvil = Anvil::new()
             .block_time(12)
-            .chain_id(CHAIN_ID)
+            .chain_id(*CHAIN_ID.get().unwrap())
             .arg("--ipc")
             .arg("--code-size-limit")
             .arg("393216")

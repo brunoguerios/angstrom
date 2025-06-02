@@ -736,7 +736,7 @@ impl RawPoolOrder for TopOfBlockOrder {
 
     fn is_valid_signature(&self) -> bool {
         let Ok(sig) = self.order_signature() else { return false };
-        let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = self.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
 
         sig.recover_address_from_prehash(&hash)
             .map(|addr| addr == self.meta.from)
@@ -781,7 +781,7 @@ impl RawPoolOrder for PartialStandingOrder {
         let mut slice = s.as_slice();
 
         let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
-        let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = self.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
 
         sig.recover_address_from_prehash(&hash)
             .map(|addr| addr == self.meta.from)
@@ -862,7 +862,7 @@ impl RawPoolOrder for ExactStandingOrder {
         let mut slice = s.as_slice();
 
         let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
-        let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = self.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
 
         sig.recover_address_from_prehash(&hash)
             .map(|addr| addr == self.meta.from)
@@ -943,7 +943,7 @@ impl RawPoolOrder for PartialFlashOrder {
         let mut slice = s.as_slice();
 
         let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
-        let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = self.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
 
         sig.recover_address_from_prehash(&hash)
             .map(|addr| addr == self.meta.from)
@@ -1024,7 +1024,7 @@ impl RawPoolOrder for ExactFlashOrder {
         let mut slice = s.as_slice();
 
         let Ok(sig) = Signature::pade_decode(&mut slice, None) else { return false };
-        let hash = self.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = self.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
 
         sig.recover_address_from_prehash(&hash)
             .map(|addr| addr == self.meta.from)

@@ -1,12 +1,13 @@
 use std::{fmt::Debug, pin::Pin, sync::Arc};
 
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
-use alloy::primitives::U256;
-use alloy::{primitives::Address, sol_types::SolCall};
+use alloy::{
+    primitives::{Address, U256},
+    sol_types::SolCall
+};
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::{
-    CHAIN_ID,
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails}
+    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    primitive::CHAIN_ID
 };
 use eyre::eyre;
 use futures::Future;
@@ -44,7 +45,6 @@ where
         Self { db: CacheDB::new(db), angstrom_address, node_address }
     }
 
-    #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
     fn apply_slot_overrides_for_token(
         db: &mut CacheDB<Arc<DB>>,
         token: Address,
@@ -75,7 +75,6 @@ where
         Ok(())
     }
 
-    #[allow(unused_mut)]
     pub fn simulate_bundle(
         &self,
         sender: tokio::sync::oneshot::Sender<eyre::Result<BundleGasDetails>>,
@@ -96,10 +95,12 @@ where
         let conversion_lookup = price_gen.generate_lookup_map();
 
         thread_pool.spawn_raw(Box::pin(async move {
-            #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+            let pool_manager_addr = *angstrom_types::primitive::POOL_MANAGER_ADDRESS.get().unwrap();
+
+            // This is the address that testnet uses
+            if alloy::primitives::address!("0x48bC5A530873DcF0b890aD50120e7ee5283E0112") == pool_manager_addr
             {
                 tracing::info!("local testnet overrides");
-                use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
 
                 let overrides = bundle.fetch_needed_overrides(number + 1);
                 for (token, slot, value) in overrides.into_slots_with_overrides(angstrom_address) {
@@ -107,24 +108,24 @@ where
                     db.insert_account_storage(token, slot.into(), value).unwrap();
                 }
                 for asset in bundle.assets.iter() {
-                    tracing::trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?TESTNET_POOL_MANAGER_ADDRESS, ?angstrom_address, "Inserting asset override");
+                    tracing::trace!(asset = ?asset.addr, quantity = ?asset.take, uniswap_addr = ?pool_manager_addr, ?angstrom_address, "Inserting asset override");
                     Self::apply_slot_overrides_for_token(
                         &mut db,
                         asset.addr,
                         U256::from(asset.take),
-                        TESTNET_POOL_MANAGER_ADDRESS,
+                        pool_manager_addr,
                     ).unwrap();
                 }
             }
 
             metrics.simulate_bundle(|| {
                 let bundle = bundle.pade_encode();
-                let mut console_log_inspector = CallDataInspector {};
+                let console_log_inspector = CallDataInspector {};
 
                  let mut evm = Context {
                         tx: TxEnv::default(),
                         block: BlockEnv::default(),
-                        cfg: CfgEnv::<SpecId>::default().with_chain_id(CHAIN_ID),
+                        cfg: CfgEnv::<SpecId>::default().with_chain_id(*CHAIN_ID.get().unwrap()),
                         journaled_state: Journal::<CacheDB<Arc<DB>>>::new(db.clone()),
                         chain: (),
                         error: Ok(()),
@@ -140,7 +141,7 @@ where
                     .modify_tx_chained(|tx| {
                         tx.caller = node_address;
                         tx.kind= TxKind::Call(angstrom_address);
-                        tx.chain_id = Some(CHAIN_ID);
+                        tx.chain_id = Some(*CHAIN_ID.get().unwrap());
                         tx.data =
                         angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::new((
                             bundle.into(),

@@ -15,16 +15,3 @@ pub mod sol_bindings;
 pub mod submission;
 pub mod testnet;
 pub mod uni_structure;
-
-// the 2nd cfg condition is for the GH CI
-#[cfg(any(
-    all(not(feature = "testnet"), not(feature = "testnet-sepolia")),
-    all(feature = "testnet", feature = "testnet-sepolia")
-))]
-pub const CHAIN_ID: u64 = 1;
-
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
-pub const CHAIN_ID: u64 = 1;
-
-#[cfg(all(feature = "testnet-sepolia", not(feature = "testnet")))]
-pub const CHAIN_ID: u64 = 11155111;

@@ -32,7 +32,7 @@ k256.workspace = true
 malachite.workspace = true
 hex-literal.workspace = true
 anyhow.workspace = true
-alloy = { workspace = true, features  = ["rpc-types-mev"] }
+alloy = { workspace = true, features = ["rpc-types-mev"] }
 alloy-primitives = { workspace = true, features = ["rand"] }
 alloy-rlp.workspace = true
 derive_more = "0"
@@ -64,6 +64,4 @@ angstrom-types.workspace = true
 
 [features]
 default = []
-testnet = []
-testnet-sepolia = []
 anvil = []

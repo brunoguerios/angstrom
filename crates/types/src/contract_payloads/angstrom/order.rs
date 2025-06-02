@@ -226,7 +226,7 @@ impl UserOrder {
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
                     };
-                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    recovered.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap())
                 } else {
                     // exact flash
                     let recovered = ExactFlashOrder {
@@ -252,7 +252,7 @@ impl UserOrder {
                         ..Default::default()
                     };
 
-                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    recovered.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap())
                 }
             }
             OrderQuantities::Partial { min_quantity_in, max_quantity_in, .. } => {
@@ -280,7 +280,7 @@ impl UserOrder {
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
                     };
-                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    recovered.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap())
                 } else {
                     let recovered = PartialFlashOrder {
                         ref_id: self.ref_id,
@@ -304,7 +304,7 @@ impl UserOrder {
                         max_extra_fee_asset0: self.max_extra_fee_asset0,
                         ..Default::default()
                     };
-                    recovered.no_meta_eip712_signing_hash(&ANGSTROM_DOMAIN)
+                    recovered.no_meta_eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap())
                 }
             }
         }

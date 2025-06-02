@@ -125,4 +125,3 @@ serde = [
 ]
 test-utils = ["reth-provider/test-utils", "dep:enr", "dep:tempfile"]
 geth-tests = []
-testnet = ["default", "angstrom-types/testnet"]

@@ -18,22 +18,6 @@ pub use ERC20::*;
 
 use crate::primitive::PoolId;
 
-// internal anvil testnet
-// #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
-// pub const TESTNET_ANGSTROM_ADDRESS: Address =
-
-// #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
-// pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
-//     alloy::primitives::
-
-// #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
-// pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
-//     name: "Angstrom",
-//     version: "v1",
-//     chain_id: 1,
-//     verifying_contract: TESTNET_ANGSTROM_ADDRESS,
-// );
-
 pub static ANGSTROM_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static POSITION_MANAGER_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static CONTROLLER_V1_ADDRESS: OnceLock<Address> = OnceLock::new();
@@ -154,64 +138,18 @@ pub fn init_with_chain_id(chain_id: ChainId) {
                 .set(address!("0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"))
                 .unwrap();
             ANGSTROM_DEPLOYED_BLOCK.set(8276506).unwrap();
-            ANGSTROM_DOMAIN.set(alloy::sol_types::eip712_domain!(
-                name: "Angstrom",
-                version: "v1",
-                chain_id: 11155111,
-                verifying_contract: address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"),
-            ));
+            ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 11155111,
+                    verifying_contract: address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"),
+                ))
+                .unwrap();
         }
         id => panic!("unsupported chain_id: {}", id)
     }
 }
-
-// sepolia testnet
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
-pub const TESTNET_ANGSTROM_ADDRESS: Address =
-    alloy::primitives::address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90");
-
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
-pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
-    alloy::primitives::address!("E03A1074c86CFeDd5C142C4F04F1a1536e203543");
-
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
-pub const TESTNET_POSITION_MANAGER_ADDRESS: Address =
-    alloy::primitives::address!("429ba70129df741B2Ca2a85BC3A2a3328e5c09b4");
-
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
-pub const TESTNET_CONTROLLER_V1_ADDRESS: Address =
-    alloy::primitives::address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674");
-
-#[cfg(all(not(feature = "testnet"), feature = "testnet-sepolia"))]
-pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
-    name: "Angstrom",
-    version: "v1",
-    chain_id: 11155111,
-    verifying_contract: TESTNET_ANGSTROM_ADDRESS,
-);
-
-// odd cases that we need to handle but should be unreachable.
-#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
-pub const TESTNET_ANGSTROM_ADDRESS: Address =
-    alloy::primitives::address!("293954613283cC7B82BfE9676D3cc0fb0A58fAa0");
-
-#[cfg(all(not(feature = "testnet"), not(feature = "testnet-sepolia")))]
-pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
-    name: "Angstrom",
-    version: "not both",
-    chain_id: 1,
-);
-#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
-pub const ANGSTROM_DOMAIN: Eip712Domain = eip712_domain!(
-    name: "Angstrom",
-    version: "both",
-    chain_id: 1,
-    verifying_contract: TESTNET_ANGSTROM_ADDRESS,
-
-);
-#[cfg(all(feature = "testnet", feature = "testnet-sepolia"))]
-pub const TESTNET_POOL_MANAGER_ADDRESS: Address =
-    alloy::primitives::address!("48bC5A530873DcF0b890aD50120e7ee5283E0112");
 
 #[derive(Debug, Default, Clone)]
 pub struct UniswapPoolRegistry {

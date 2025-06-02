@@ -89,14 +89,7 @@ name = "testnet"
 path = "src/main.rs"
 
 [features]
-default = ["jemalloc", "ipc", "testnet"]
-
-testnet = [
-  "angstrom-types/testnet",
-  "validation/testnet",
-  "testing-tools/testnet",
-]
-
+default = ["jemalloc", "ipc"]
 
 ws = []
 ipc = []

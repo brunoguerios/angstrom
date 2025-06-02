@@ -32,7 +32,13 @@ impl ChainSubmitter for AnvilSubmissionProvider {
         Box::pin(async move {
             let Some(bundle) = bundle else { return Ok(None) };
 
-            #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
+            let pool_manager_addr = *angstrom_types::primitive::POOL_MANAGER_ADDRESS
+                .get()
+                .unwrap();
+
+            // This is the address that testnet uses
+            if alloy::primitives::address!("0x48bC5A530873DcF0b890aD50120e7ee5283E0112")
+                == pool_manager_addr
             {
                 use alloy::providers::ext::AnvilApi;
                 use futures::StreamExt;

@@ -38,7 +38,3 @@ tracing.workspace = true
 [dev-dependencies]
 testing-tools.workspace = true
 rand.workspace = true
-
-
-[features]
-testnet-sepolia = ["angstrom-types/testnet-sepolia"]

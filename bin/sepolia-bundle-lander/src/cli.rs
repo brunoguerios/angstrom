@@ -2,9 +2,7 @@ use std::{path::PathBuf, pin::pin, sync::Arc, time::Duration};
 
 use alloy::{primitives::Address, providers::Provider};
 use alloy_rpc_types::TransactionTrait;
-#[cfg(feature = "testnet-sepolia")]
-use angstrom_types::primitive::TESTNET_POOL_MANAGER_ADDRESS;
-use angstrom_types::primitive::{ANGSTROM_DOMAIN, TESTNET_ANGSTROM_ADDRESS};
+use angstrom_types::primitive::{ANGSTROM_ADDRESS, ANGSTROM_DOMAIN};
 use futures::StreamExt;
 use jsonrpsee::http_client::HttpClientBuilder;
 use reth::tasks::TaskExecutor;
@@ -25,11 +23,9 @@ pub struct BundleLander {
     #[clap(short, long)]
     pub secret_keys_path:     PathBuf,
     /// address of angstrom
-    #[cfg_attr(feature = "testnet-sepolia", clap(short, long, default_value_t = TESTNET_ANGSTROM_ADDRESS))]
-    #[cfg_attr(not(feature = "testnet-sepolia"), clap(short, long))]
+    #[clap(short, long)]
     pub angstrom_address:     Address,
-    #[cfg_attr(feature = "testnet-sepolia", clap(short, long, default_value_t = TESTNET_POOL_MANAGER_ADDRESS))]
-    #[cfg_attr(not(feature = "testnet-sepolia"), clap(short, long))]
+    #[clap(short, long)]
     pub pool_manager_address: Address
 }
 
@@ -38,12 +34,12 @@ pub struct BundleLander {
 impl BundleLander {
     pub async fn run(self, executor: TaskExecutor) -> eyre::Result<()> {
         init_tracing();
-        let domain = ANGSTROM_DOMAIN;
-        tracing::info!(?domain);
 
         let keys: JsonPKs =
             serde_json::from_str(&std::fs::read_to_string(&self.secret_keys_path)?)?;
         let env = BundleWashTraderEnv::init(&self, keys).await?;
+        let domain = ANGSTROM_DOMAIN.get().unwrap();
+        tracing::info!(?domain);
         tracing::info!("startup complete");
 
         executor
@@ -94,7 +90,7 @@ impl BundleLander {
                             if block
                                 .into_transactions_vec()
                                 .into_iter()
-                                .any(|tx| tx.to() == Some(TESTNET_ANGSTROM_ADDRESS))
+                                .any(|tx| tx.to() == Some(*ANGSTROM_ADDRESS.get().unwrap()))
                             {
                                 tracing::info!("landed");
                                 // break;
