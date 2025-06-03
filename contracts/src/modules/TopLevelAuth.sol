@@ -21,6 +21,7 @@ import {UnlockSwapFeeCollector} from "./UnlockSwapFeeCollector.sol";
 uint256 constant MAX_UNLOCK_FEE_E6 = 0.4e6;
 
 /// @author philogy <https://github.com/philogy>
+/// @author Will Smith <https://github.com/Will-Smith11>
 abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     using LPFeeLibrary for uint24;
     using SafeTransferLib for address;

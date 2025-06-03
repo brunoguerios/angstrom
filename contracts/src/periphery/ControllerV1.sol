@@ -22,6 +22,7 @@ struct Asset {
 }
 
 /// @author philogy <https://github.com/philogy>
+/// @author Will Smith <https://github.com/Will-Smith11>
 contract ControllerV1 is Ownable {
     using AngstromView for IAngstromAuth;
     using SafeTransferLib for address;

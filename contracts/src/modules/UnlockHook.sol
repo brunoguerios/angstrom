@@ -13,6 +13,7 @@ import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
 
 /// @author philogy <https://github.com/philogy>
+/// @author Will Smith <https://github.com/Will-Smith11>
 abstract contract UnlockHook is UniConsumer, TopLevelAuth, IBeforeSwapHook, IAfterSwapHook {
     error UnlockDataTooShort();
     error CannotSwapWhileLocked();
