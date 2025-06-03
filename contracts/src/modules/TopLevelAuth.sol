@@ -67,10 +67,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         _controller = newController;
     }
 
-    function collect_unlock_swap_fees(
-        address to,
-        bytes calldata packed_assets
-    ) external override {
+    function collect_unlock_swap_fees(address to, bytes calldata packed_assets) external override {
         _onlyController();
         FEE_COLLECTOR.withdraw_to(to, packed_assets);
     }
@@ -99,10 +96,8 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         for (; i < entry_count; i++) {
             ConfigEntry entry = buffer.entries[i];
             if (entry.key() == key) {
-                buffer.entries[i] = buffer
-                    .entries[i]
-                    .setTickSpacing(tickSpacing)
-                    .setBundleFee(bundleFee);
+                buffer.entries[i] =
+                    buffer.entries[i].setTickSpacing(tickSpacing).setBundleFee(bundleFee);
                 break;
             }
         }
@@ -114,10 +109,8 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
 
         _configStore = PoolConfigStoreLib.store_from_buffer(buffer);
 
-        _unlockedFees[key] = UnlockedFees({
-            unlockedFee: unlockedFee,
-            protocolUnlockedFee: protocolUnlockedFee
-        });
+        _unlockedFees[key] =
+            UnlockedFees({unlockedFee: unlockedFee, protocolUnlockedFee: protocolUnlockedFee});
 
         protocolUnlockedFee.validate();
         unlockedFee.validate();
@@ -131,24 +124,17 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     ) public {
         if (assetA > assetB) (assetA, assetB) = (assetB, assetA);
         StoreKey key = StoreKeyLib.keyFromAssetsUnchecked(assetA, assetB);
-        (int24 tickSpacing, ) = _configStore.get(key, storeIndex);
+        (int24 tickSpacing,) = _configStore.get(key, storeIndex);
         UNI_V4.initialize(
-            PoolKey(
-                _c(assetA),
-                _c(assetB),
-                INIT_HOOK_FEE,
-                tickSpacing,
-                IHooks(address(this))
-            ),
+            PoolKey(_c(assetA), _c(assetB), INIT_HOOK_FEE, tickSpacing, IHooks(address(this))),
             sqrtPriceX96
         );
     }
 
-    function removePool(
-        StoreKey key,
-        PoolConfigStore expected_store,
-        uint256 store_index
-    ) external override {
+    function removePool(StoreKey key, PoolConfigStore expected_store, uint256 store_index)
+        external
+        override
+    {
         _onlyController();
 
         PoolConfigStore store = _configStore;
@@ -161,10 +147,10 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         delete _unlockedFees[key];
     }
 
-    function batchUpdatePools(
-        PoolConfigStore expected_store,
-        ConfigEntryUpdate[] calldata updates
-    ) external override {
+    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates)
+        external
+        override
+    {
         _onlyController();
 
         PoolConfigStore store = _configStore;
@@ -174,9 +160,8 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
 
         for (uint256 i = 0; i < updates.length; i++) {
             ConfigEntryUpdate calldata update = updates[i];
-            buffer.entries[update.index] = buffer
-                .get(update.key, update.index)
-                .setBundleFee(update.bundleFee);
+            buffer.entries[update.index] =
+                buffer.get(update.key, update.index).setBundleFee(update.bundleFee);
 
             update.unlockedFee.validate();
             update.protocolUnlockedFee.validate();
@@ -205,10 +190,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         }
     }
 
-    function unlockWithEmptyAttestation(
-        address node,
-        bytes calldata signature
-    ) public {
+    function unlockWithEmptyAttestation(address node, bytes calldata signature) public {
         if (_isUnlocked()) revert OnlyOncePerBlock();
         if (!_isNode[node]) revert NotNode();
 
@@ -220,13 +202,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
         }
 
         bytes32 digest = _hashTypedData(attestationStructHash);
-        if (
-            !SignatureCheckerLib.isValidSignatureNowCalldata(
-                node,
-                digest,
-                signature
-            )
-        ) {
+        if (!SignatureCheckerLib.isValidSignatureNowCalldata(node, digest, signature)) {
             revert InvalidSignature();
         }
 

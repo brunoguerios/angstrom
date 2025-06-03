@@ -10,7 +10,12 @@ import {Angstrom} from "src/Angstrom.sol";
 import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {LibSort} from "solady/src/utils/LibSort.sol";
-import {NoReturnToken, RevertsTrueToken, ReturnStatusToken, RevertsEmptyToken} from "../_mocks/NonStandardERC20s.sol";
+import {
+    NoReturnToken,
+    RevertsTrueToken,
+    ReturnStatusToken,
+    RevertsEmptyToken
+} from "../_mocks/NonStandardERC20s.sol";
 
 import {console} from "forge-std/console.sol";
 
@@ -30,9 +35,7 @@ contract SettlementTest is BaseTest {
 
     function setUp() public {
         uniV4 = new PoolManager(address(0));
-        angstrom = Angstrom(
-            deployAngstrom(type(Angstrom).creationCode, uniV4, controller)
-        );
+        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uniV4, controller));
         domainSeparator = computeDomainSeparator(address(angstrom));
         uint256 pairs = 40;
         address[] memory newAssets = new address[](pairs * 2);
@@ -67,10 +70,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(asset, amount);
     }
 
-    function test_fuzzing_prevents_depositingWhenNoReturnRevert(
-        address user,
-        uint256 amount
-    ) public {
+    function test_fuzzing_prevents_depositingWhenNoReturnRevert(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -87,10 +89,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenNoRevertsWithTrue(
-        address user,
-        uint256 amount
-    ) public {
+    function test_fuzzing_prevents_depositingWhenNoRevertsWithTrue(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -107,10 +108,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenReturnsFalse(
-        address user,
-        uint256 amount
-    ) public {
+    function test_fuzzing_prevents_depositingWhenReturnsFalse(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -127,10 +127,9 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenReturnsEmpty(
-        address user,
-        uint256 amount
-    ) public {
+    function test_fuzzing_prevents_depositingWhenReturnsEmpty(address user, uint256 amount)
+        public
+    {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -147,11 +146,7 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_depositCaller(
-        address user,
-        uint256 assetIndex,
-        uint256 amount
-    ) public {
+    function test_fuzzing_depositCaller(address user, uint256 assetIndex, uint256 amount) public {
         vm.assume(user != address(angstrom));
 
         address asset = assets[bound(assetIndex, 0, assets.length - 1)];
@@ -223,14 +218,8 @@ contract SettlementTest is BaseTest {
         vm.prank(user);
         angstrom.withdraw(asset, withdrawAmount);
 
-        assertEq(
-            token.balanceOf(user),
-            mintAmount - depositAmount + withdrawAmount
-        );
-        assertEq(
-            rawGetBalance(address(angstrom), asset, user),
-            depositAmount - withdrawAmount
-        );
+        assertEq(token.balanceOf(user), mintAmount - depositAmount + withdrawAmount);
+        assertEq(rawGetBalance(address(angstrom), asset, user), depositAmount - withdrawAmount);
     }
 
     function test_fuzzing_withdrawTo(
@@ -263,20 +252,11 @@ contract SettlementTest is BaseTest {
 
         if (recipient != user) {
             assertEq(token.balanceOf(user), mintAmount - depositAmount);
-            assertEq(
-                rawGetBalance(address(angstrom), asset, user),
-                depositAmount - withdrawAmount
-            );
+            assertEq(rawGetBalance(address(angstrom), asset, user), depositAmount - withdrawAmount);
             assertEq(token.balanceOf(recipient), withdrawAmount);
         } else {
-            assertEq(
-                token.balanceOf(user),
-                mintAmount - depositAmount + withdrawAmount
-            );
-            assertEq(
-                rawGetBalance(address(angstrom), asset, user),
-                depositAmount - withdrawAmount
-            );
+            assertEq(token.balanceOf(user), mintAmount - depositAmount + withdrawAmount);
+            assertEq(rawGetBalance(address(angstrom), asset, user), depositAmount - withdrawAmount);
         }
     }
 
@@ -291,16 +271,8 @@ contract SettlementTest is BaseTest {
 
         address asset = assets[bound(assetIndex, 0, assets.length - 1)];
         MockERC20 token = MockERC20(asset);
-        depositAmount = bound(
-            depositAmount,
-            0,
-            min(mintAmount, type(uint256).max - 1)
-        );
-        withdrawAmount = bound(
-            withdrawAmount,
-            depositAmount + 1,
-            type(uint256).max
-        );
+        depositAmount = bound(depositAmount, 0, min(mintAmount, type(uint256).max - 1));
+        withdrawAmount = bound(withdrawAmount, depositAmount + 1, type(uint256).max);
 
         token.mint(user, mintAmount);
         vm.prank(user);
@@ -321,15 +293,10 @@ contract SettlementTest is BaseTest {
         addFee(bundle, asset, amount);
         enablePool(asset, otherAsset);
 
-        bytes memory payload = bundle.encode(
-            rawGetConfigStore(address(angstrom))
-        );
+        bytes memory payload = bundle.encode(rawGetConfigStore(address(angstrom)));
         vm.expectEmitAnonymous(address(angstrom));
         bytes32 feeSummary = bundle.feeSummary();
-        assertEq(
-            feeSummary,
-            keccak256(abi.encodePacked(asset, amount, otherAsset, uint128(0)))
-        );
+        assertEq(feeSummary, keccak256(abi.encodePacked(asset, amount, otherAsset, uint128(0))));
         emit AngstromFeeSummary(feeSummary);
         vm.prank(validator);
         angstrom.execute(payload);
@@ -353,23 +320,12 @@ contract SettlementTest is BaseTest {
         addFee(bundle, asset2, amount2);
         enablePool(asset2, otherAsset);
 
-        bytes memory payload = bundle.encode(
-            rawGetConfigStore(address(angstrom))
-        );
+        bytes memory payload = bundle.encode(rawGetConfigStore(address(angstrom)));
         vm.expectEmitAnonymous(address(angstrom));
         bytes32 feeSummary = bundle.feeSummary();
         assertEq(
             feeSummary,
-            keccak256(
-                abi.encodePacked(
-                    asset2,
-                    amount2,
-                    asset1,
-                    amount1,
-                    otherAsset,
-                    uint128(0)
-                )
-            )
+            keccak256(abi.encodePacked(asset2, amount2, asset1, amount1, otherAsset, uint128(0)))
         );
         emit AngstromFeeSummary(feeSummary);
         vm.prank(validator);
@@ -400,9 +356,7 @@ contract SettlementTest is BaseTest {
         addFee(bundle, asset, amount);
         enablePool(asset, otherAsset);
 
-        bytes memory encodedPayload = bundle.encode(
-            rawGetConfigStore(address(angstrom))
-        );
+        bytes memory encodedPayload = bundle.encode(rawGetConfigStore(address(angstrom)));
 
         vm.prank(validator);
         angstrom.execute(encodedPayload);
@@ -417,11 +371,7 @@ contract SettlementTest is BaseTest {
         angstrom.configurePool(asset0, asset1, 60, 0, 0, 0);
     }
 
-    function addFee(
-        Bundle memory bundle,
-        address assetAddr,
-        uint128 amount
-    ) internal {
+    function addFee(Bundle memory bundle, address assetAddr, uint128 amount) internal {
         MockERC20(assetAddr).mint(searcher.addr, amount);
 
         TopOfBlockOrder memory tob;

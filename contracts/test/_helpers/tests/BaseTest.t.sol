@@ -15,12 +15,8 @@ contract BaseTestTest is BaseTest {
     OpenAngstrom open;
 
     function setUp() public {
-        real = Angstrom(
-            deployAngstrom(type(Angstrom).creationCode, uni, controller)
-        );
-        open = OpenAngstrom(
-            deployAngstrom(type(OpenAngstrom).creationCode, uni, controller)
-        );
+        real = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
+        open = OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, uni, controller));
     }
 
     function test_configStoreSlot() public {

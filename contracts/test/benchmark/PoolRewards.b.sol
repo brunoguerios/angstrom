@@ -53,9 +53,7 @@ contract PoolRewardsTest is BaseTest {
 
         uni = new PoolManager(address(0));
         gate = new PoolGate(address(uni));
-        angstrom = Angstrom(
-            deployAngstrom(type(Angstrom).creationCode, uni, controller)
-        );
+        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
         gate.setHook(address(angstrom));
 
         (asset0, asset1) = deployTokensSorted();
@@ -135,15 +133,9 @@ contract PoolRewardsTest is BaseTest {
         updatePoolZeroToOne(1.4e18, RewardLib.CurrentOnly(uni, id, 3.2e18));
     }
 
-    function test_bench_rewardMultiOneWord_swapWithin()
-        public
-        reportTickChange
-    {
+    function test_bench_rewardMultiOneWord_swapWithin() public reportTickChange {
         RewardsUpdate[] memory updates = RewardLib.toUpdates(
-            RewardLib.re(TickReward(60, 1.0e18), TickReward(0, 1.0e18)),
-            uni,
-            id,
-            tickSpacing
+            RewardLib.re(TickReward(60, 1.0e18), TickReward(0, 1.0e18)), uni, id, tickSpacing
         );
         assertEq(updates.length, 1);
         updatePoolOneToZero(3.33e14, updates[0]);
@@ -151,20 +143,13 @@ contract PoolRewardsTest is BaseTest {
 
     function test_bench_rewardMultiMultiWord_swapAcross() public {
         RewardsUpdate[] memory updates = RewardLib.toUpdates(
-            RewardLib.re(TickReward(-60, 1.0e18), TickReward(0, 1.0e18)),
-            uni,
-            id,
-            tickSpacing,
-            -60
+            RewardLib.re(TickReward(-60, 1.0e18), TickReward(0, 1.0e18)), uni, id, tickSpacing, -60
         );
         assertEq(updates.length, 1);
         updatePoolZeroToOne(1.7e18, updates[0]);
     }
 
-    function updatePoolZeroToOne(
-        uint128 swapIn,
-        RewardsUpdate memory rewards
-    ) internal {
+    function updatePoolZeroToOne(uint128 swapIn, RewardsUpdate memory rewards) internal {
         Bundle memory bundle;
 
         bundle.addAsset(asset0).addAsset(asset1).addAsset(address(clearer));
@@ -195,10 +180,7 @@ contract PoolRewardsTest is BaseTest {
         angstrom.execute(encodedPayload);
     }
 
-    function updatePoolOneToZero(
-        uint128 swapIn,
-        RewardsUpdate memory rewards
-    ) internal {
+    function updatePoolOneToZero(uint128 swapIn, RewardsUpdate memory rewards) internal {
         Bundle memory bundle;
 
         bundle.addAsset(asset0).addAsset(asset1).addAsset(address(clearer));

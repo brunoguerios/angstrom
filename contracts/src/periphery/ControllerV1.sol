@@ -44,17 +44,10 @@ contract ControllerV1 is Ownable {
     event OpaqueBatchPoolUpdate();
 
     event PoolRemoved(
-        address indexed asset0,
-        address indexed asset1,
-        int24 tickSpacing,
-        uint24 feeInE6
+        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
     );
 
-    event PoolProtocolUnlockSwapFeeSet(
-        address indexed asset0,
-        address indexed asset1,
-        uint32 fee
-    );
+    event PoolProtocolUnlockSwapFeeSet(address indexed asset0, address indexed asset1, uint32 fee);
 
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
@@ -84,11 +77,7 @@ contract ControllerV1 is Ownable {
 
     address public immutable fastOwner;
 
-    constructor(
-        IAngstromAuth angstrom,
-        address initialOwner,
-        address _fastOwner
-    ) {
+    constructor(IAngstromAuth angstrom, address initialOwner, address _fastOwner) {
         _initializeOwner(initialOwner);
         ANGSTROM = angstrom;
         fastOwner = _fastOwner;
@@ -117,10 +106,7 @@ contract ControllerV1 is Ownable {
 
     /// bundle fee, 1bps, 0.25bps saved, 0.75 lps -- change ratio on backedn
     /// unlock fee, 0.75bps ,protocol 0.25
-    function collect_unlock_swap_fees(
-        address to,
-        bytes calldata packed_assets
-    ) external {
+    function collect_unlock_swap_fees(address to, bytes calldata packed_assets) external {
         _checkFastOwner();
 
         ANGSTROM.collect_unlock_swap_fees(to, packed_assets);
@@ -156,20 +142,10 @@ contract ControllerV1 is Ownable {
         }
 
         emit PoolConfigured(
-            asset0,
-            asset1,
-            tickSpacing,
-            bundleFee,
-            unlockedFee,
-            protocolUnlockedFee
+            asset0, asset1, tickSpacing, bundleFee, unlockedFee, protocolUnlockedFee
         );
         ANGSTROM.configurePool(
-            asset0,
-            asset1,
-            tickSpacing,
-            bundleFee,
-            unlockedFee,
-            protocolUnlockedFee
+            asset0, asset1, tickSpacing, bundleFee, unlockedFee, protocolUnlockedFee
         );
     }
 
@@ -187,10 +163,8 @@ contract ControllerV1 is Ownable {
             uint256 length = _pools.length;
             if (index_plus_one < length) {
                 Pool memory last_pool = _pools[length - 1];
-                StoreKey last_key = StoreKeyLib.keyFromAssetsUnchecked(
-                    last_pool.asset0,
-                    last_pool.asset1
-                );
+                StoreKey last_key =
+                    StoreKeyLib.keyFromAssetsUnchecked(last_pool.asset0, last_pool.asset1);
                 _pools[index] = last_pool;
                 _poolIndices[last_key] = index_plus_one;
             }
@@ -199,10 +173,7 @@ contract ControllerV1 is Ownable {
             _pools.pop();
 
             PoolConfigStore config_store = ANGSTROM.configStore();
-            (int24 tick_spacing, uint24 bundle_fee) = config_store.get(
-                key,
-                index
-            );
+            (int24 tick_spacing, uint24 bundle_fee) = config_store.get(key, index);
             emit PoolRemoved(asset0, asset1, tick_spacing, bundle_fee);
             ANGSTROM.removePool(key, config_store, index);
         }
@@ -219,9 +190,7 @@ contract ControllerV1 is Ownable {
     function batchUpdatePools(PoolUpdate[] calldata updates) external {
         _checkNodeOrFastOwner();
 
-        ConfigEntryUpdate[] memory entry_updates = new ConfigEntryUpdate[](
-            updates.length
-        );
+        ConfigEntryUpdate[] memory entry_updates = new ConfigEntryUpdate[](updates.length);
 
         for (uint256 i = 0; i < updates.length; i++) {
             PoolUpdate calldata update = updates[i];
@@ -286,17 +255,13 @@ contract ControllerV1 is Ownable {
         return _pools.length;
     }
 
-    function getPoolByIndex(
-        uint256 index
-    ) public view returns (address asset0, address asset1) {
+    function getPoolByIndex(uint256 index) public view returns (address asset0, address asset1) {
         Pool storage pool = _pools[index];
         asset0 = pool.asset0;
         asset1 = pool.asset1;
     }
 
-    function getPoolByKey(
-        StoreKey key
-    ) public view returns (address asset0, address asset1) {
+    function getPoolByKey(StoreKey key) public view returns (address asset0, address asset1) {
         uint256 index_plus_one = _poolIndices[key];
         if (index_plus_one == 0) revert KeyNotFound();
         Pool storage pool = _pools[index_plus_one - 1];

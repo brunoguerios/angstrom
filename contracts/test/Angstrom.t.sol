@@ -47,9 +47,7 @@ contract AngstromTest is BaseTest {
 
     function setUp() public {
         uni = new PoolManager(address(0));
-        angstrom = Angstrom(
-            deployAngstrom(type(Angstrom).creationCode, uni, controller)
-        );
+        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
         domainSeparator = computeDomainSeparator(address(angstrom));
 
         vm.prank(controller);
@@ -126,21 +124,14 @@ contract AngstromTest is BaseTest {
         bundle.assets[1].take += 10.0e18;
         bundle.assets[1].settle += 10.0e18;
 
-        bytes memory payload = bundle.encode(
-            rawGetConfigStore(address(angstrom))
-        );
+        bytes memory payload = bundle.encode(rawGetConfigStore(address(angstrom)));
         vm.prank(node.addr);
         angstrom.execute(payload);
     }
 
-    function test_fuzzing_shortCircuitEmptyBundle(
-        uint256 bn1,
-        uint256 bn2
-    ) public {
+    function test_fuzzing_shortCircuitEmptyBundle(uint256 bn1, uint256 bn2) public {
         uint64 block1 = bound_block(bn1, type(uint40).max);
-        uint64 block2 = uint64(
-            bound(bn2, uint64(block1) + 1, type(uint64).max)
-        );
+        uint64 block2 = uint64(bound(bn2, uint64(block1) + 1, type(uint64).max));
 
         Bundle memory bundle;
         bytes memory payload = bundle.encode(angstrom.configStore().into());
@@ -162,19 +153,13 @@ contract AngstromTest is BaseTest {
         assertEq(angstrom.lastBlockUpdated(), block2);
     }
 
-    function test_fuzzing_unlockWithEmptyAttestation(
-        address submitter,
-        uint256 bn
-    ) public {
+    function test_fuzzing_unlockWithEmptyAttestation(address submitter, uint256 bn) public {
         uint64 unlock_block = bound_block(bn);
 
         bytes32 digest = erc712Hash(
             computeDomainSeparator(address(angstrom)),
             keccak256(
-                abi.encode(
-                    keccak256("AttestAngstromBlockEmpty(uint64 block_number)"),
-                    unlock_block
-                )
+                abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), unlock_block)
             )
         );
 
@@ -182,10 +167,7 @@ contract AngstromTest is BaseTest {
 
         vm.roll(unlock_block);
         vm.prank(submitter);
-        angstrom.unlockWithEmptyAttestation(
-            node.addr,
-            abi.encodePacked(r, s, v)
-        );
+        angstrom.unlockWithEmptyAttestation(node.addr, abi.encodePacked(r, s, v));
 
         assertEq(angstrom.lastBlockUpdated(), unlock_block);
     }
@@ -201,21 +183,11 @@ contract AngstromTest is BaseTest {
 
         bytes32 digest = erc712Hash(
             computeDomainSeparator(address(angstrom)),
-            keccak256(
-                abi.encode(
-                    keccak256("AttestAngstromBlockEmpty(uint64 block_number)"),
-                    bn
-                )
-            )
+            keccak256(abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), bn))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(node.key, digest);
 
-        bytes memory unlockData = bytes.concat(
-            bytes20(node.addr),
-            r,
-            s,
-            bytes1(v)
-        );
+        bytes memory unlockData = bytes.concat(bytes20(node.addr), r, s, bytes1(v));
 
         unlockedFee = uint24(bound(unlockedFee, 0, MAX_UNLOCK_FEE_E6));
         swapAmount1 = bound(swapAmount1, 1e8, 10e18);
@@ -227,16 +199,13 @@ contract AngstromTest is BaseTest {
 
         vm.prank(node.addr);
         angstrom.execute("");
-        int128 withFeeOut = actor
-            .swap(pk, true, -int256(swapAmount1), 4295128740, unlockData)
-            .amount1();
+        int128 withFeeOut =
+            actor.swap(pk, true, -int256(swapAmount1), 4295128740, unlockData).amount1();
 
         assertGe(withFeeOut, 0);
         assertEq(angstrom.lastBlockUpdated(), bn);
 
-        withFeeOut = actor
-            .swap(pk, true, -int256(swapAmount2), 4295128740, unlockData)
-            .amount1();
+        withFeeOut = actor.swap(pk, true, -int256(swapAmount2), 4295128740, unlockData).amount1();
         assertGe(withFeeOut, 0);
     }
 
@@ -251,33 +220,22 @@ contract AngstromTest is BaseTest {
         vm.roll(bn);
 
         unlockedFee = uint24(bound(unlockedFee, 0, MAX_UNLOCK_FEE_E6));
-        protocol_unlock_swap_fee_e6 = uint24(
-            bound(protocol_unlock_swap_fee_e6, 0, 0.02e6)
-        );
+        protocol_unlock_swap_fee_e6 = uint24(bound(protocol_unlock_swap_fee_e6, 0, 0.02e6));
         swapAmount1 = bound(swapAmount1, 1e8, 10e18);
         swapAmount2 = bound(swapAmount2, 1e8, 10e18);
 
         uint248 liq = 100_000e21;
 
-        PoolKey memory pk = _createPool(
-            60,
-            unlockedFee,
-            liq,
-            protocol_unlock_swap_fee_e6
-        );
+        PoolKey memory pk = _createPool(60, unlockedFee, liq, protocol_unlock_swap_fee_e6);
 
         vm.prank(node.addr);
         angstrom.execute("");
-        int128 withFeeOut1 = actor
-            .swap(pk, true, -int256(swapAmount1), 4295128740, "")
-            .amount1();
+        int128 withFeeOut1 = actor.swap(pk, true, -int256(swapAmount1), 4295128740, "").amount1();
 
         assertGe(withFeeOut1, 0);
         assertEq(angstrom.lastBlockUpdated(), bn);
 
-        int128 withFeeOut2 = actor
-            .swap(pk, true, -int256(swapAmount2), 4295128740, "")
-            .amount1();
+        int128 withFeeOut2 = actor.swap(pk, true, -int256(swapAmount2), 4295128740, "").amount1();
         assertGe(withFeeOut2, 0);
 
         address fee_recv = makeAddr("temp_fee_recv");
@@ -288,16 +246,12 @@ contract AngstromTest is BaseTest {
 
         console.log("here");
 
-        uint256 effective_fee_share = (fee_collected * 1e18) /
-            (uint128(withFeeOut1) + uint128(withFeeOut2) + fee_collected);
+        uint256 effective_fee_share =
+            (fee_collected * 1e18) / (uint128(withFeeOut1) + uint128(withFeeOut2) + fee_collected);
 
         console.log("here? (%s)", protocol_unlock_swap_fee_e6);
 
-        assertApproxEqRel(
-            effective_fee_share,
-            uint256(protocol_unlock_swap_fee_e6) * 1e12,
-            0.01e18
-        );
+        assertApproxEqRel(effective_fee_share, uint256(protocol_unlock_swap_fee_e6) * 1e12, 0.01e18);
     }
 
     function _createPool(
@@ -307,29 +261,13 @@ contract AngstromTest is BaseTest {
         uint24 protocolUnlockedFee
     ) internal returns (PoolKey memory pk) {
         vm.prank(controller);
-        angstrom.configurePool(
-            asset0,
-            asset1,
-            tickSpacing,
-            0,
-            unlockedFee,
-            protocolUnlockedFee
-        );
-        angstrom.initializePool(
-            asset0,
-            asset1,
-            0,
-            TickMath.getSqrtPriceAtTick(0)
-        );
+        angstrom.configurePool(asset0, asset1, tickSpacing, 0, unlockedFee, protocolUnlockedFee);
+        angstrom.initializePool(asset0, asset1, 0, TickMath.getSqrtPriceAtTick(0));
         int24 spacing = int24(uint24(tickSpacing));
         pk = poolKey(angstrom, asset0, asset1, spacing);
         if (startLiquidity > 0) {
             actor.modifyLiquidity(
-                pk,
-                -1 * spacing,
-                1 * spacing,
-                int256(uint256(startLiquidity)),
-                bytes32(0)
+                pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0)
             );
         }
 
@@ -340,10 +278,7 @@ contract AngstromTest is BaseTest {
         return bound_block(bn, type(uint64).max);
     }
 
-    function bound_block(
-        uint256 bn,
-        uint64 upper
-    ) internal pure returns (uint64) {
+    function bound_block(uint256 bn, uint64 upper) internal pure returns (uint64) {
         return uint64(bound(bn, 1, upper));
     }
 

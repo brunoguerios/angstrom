@@ -32,9 +32,7 @@ contract UserOrderBenchmarkTest is BaseTest {
 
     function setUp() public {
         uni = new PoolManager(address(0));
-        angstrom = OpenAngstrom(
-            deployAngstrom(type(OpenAngstrom).creationCode, uni, controller)
-        );
+        angstrom = OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, uni, controller));
         (asset0, asset1) = deployTokensSorted();
         vm.startPrank(controller);
         angstrom.configurePool(asset0, asset1, 1, 0, 0, 0);
@@ -65,11 +63,7 @@ contract UserOrderBenchmarkTest is BaseTest {
         order.assetIn = asset0;
         order.assetOut = asset1;
         order.validForBlock = u64(block.number);
-        sign(
-            user,
-            order.meta,
-            erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
-        );
+        sign(user, order.meta, erc712Hash(computeDomainSeparator(address(angstrom)), order.hash()));
 
         Asset[] memory assets = new Asset[](2);
         assets[0].addr = asset0;
