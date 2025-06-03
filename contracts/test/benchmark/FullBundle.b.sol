@@ -37,19 +37,32 @@ contract FullBundleBenchmark is BaseTest {
 
     function setUp() public {
         uni = new PoolManager(address(0));
-        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
+        angstrom = Angstrom(
+            deployAngstrom(type(Angstrom).creationCode, uni, controller)
+        );
         (asset0, asset1) = deployTokensSorted();
         vm.startPrank(controller);
-        angstrom.configurePool(asset0, asset1, 60, 0, 0);
+        angstrom.configurePool(asset0, asset1, 60, 0, 0, 0);
         angstrom.toggleNodes(addressArray(abi.encode(node)));
         vm.stopPrank();
 
-        angstrom.initializePool(asset0, asset1, 0, int24(0).getSqrtPriceAtTick());
+        angstrom.initializePool(
+            asset0,
+            asset1,
+            0,
+            int24(0).getSqrtPriceAtTick()
+        );
         RouterActor actor = new RouterActor(uni);
 
         MockERC20(asset0).mint(address(actor), 100_000_000e18);
         MockERC20(asset1).mint(address(actor), 100_000_000e18);
-        actor.modifyLiquidity(poolKey(angstrom, asset0, asset1, 60), -60, 60, 100e21, bytes32(0));
+        actor.modifyLiquidity(
+            poolKey(angstrom, asset0, asset1, 60),
+            -60,
+            60,
+            100e21,
+            bytes32(0)
+        );
     }
 
     function test_exactFlashInternal_solo_1() public {
@@ -108,13 +121,19 @@ contract FullBundleBenchmark is BaseTest {
             update.assetIn = asset1;
             update.assetOut = asset0;
             update.amountIn = 100.0e18;
-            update.rewardUpdate = RewardLib.CurrentOnly(uni, poolId(angstrom, asset0, asset1), 0);
+            update.rewardUpdate = RewardLib.CurrentOnly(
+                uni,
+                poolId(angstrom, asset0, asset1),
+                0
+            );
         }
 
         bundle.userOrders = new UserOrder[](total);
 
         for (uint256 i = 0; i < total; i++) {
-            Account memory user = makeAccount(string.concat("user_", vm.toString(i + 1)));
+            Account memory user = makeAccount(
+                string.concat("user_", vm.toString(i + 1))
+            );
 
             {
                 uint128 amount0 = amountIn + fee0 + 2.0e18;
@@ -147,14 +166,22 @@ contract FullBundleBenchmark is BaseTest {
             sign(
                 user,
                 order.meta,
-                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    order.hash()
+                )
             );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
         }
 
         bundle.assets = new Asset[](2);
-        bundle.assets[0] = Asset(asset0, uint128(total) * fee0, 99.900099900099900099e18, 0);
+        bundle.assets[0] = Asset(
+            asset0,
+            uint128(total) * fee0,
+            99.900099900099900099e18,
+            0
+        );
         bundle.assets[1] = Asset(asset1, 0, 0, 100.0e18);
         bundle.pairs = new Pair[](1);
         bundle.pairs[0] = Pair(asset0, asset1, PriceAB.wrap(1.0e27));
@@ -164,7 +191,10 @@ contract FullBundleBenchmark is BaseTest {
 
             uint128 tobIn = amountOut * uint128(total) + 100.0e18;
             uint128 tobFee0 = 0.05e18;
-            uint128 tobOut = amountIn * uint128(total) + tobFee0 + 99.900099900099900099e18;
+            uint128 tobOut = amountIn *
+                uint128(total) +
+                tobFee0 +
+                99.900099900099900099e18;
 
             {
                 uint128 amount1 = tobIn + 100.0e18;
@@ -193,7 +223,12 @@ contract FullBundleBenchmark is BaseTest {
             tob.gasUsedAsset0 = tobFee0;
 
             sign(
-                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+                mr_tob,
+                tob.meta,
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    tob.hash()
+                )
             );
 
             bundle.addToB(tob);
@@ -229,7 +264,11 @@ contract FullBundleBenchmark is BaseTest {
             update.assetIn = asset1;
             update.assetOut = asset0;
             update.amountIn = 100.0e18;
-            update.rewardUpdate = RewardLib.CurrentOnly(uni, poolId(angstrom, asset0, asset1), 0);
+            update.rewardUpdate = RewardLib.CurrentOnly(
+                uni,
+                poolId(angstrom, asset0, asset1),
+                0
+            );
         }
 
         bundle.userOrders = new UserOrder[](total);
@@ -238,7 +277,9 @@ contract FullBundleBenchmark is BaseTest {
         MockERC20(asset1).mint(address(angstrom), 1000.0e18);
 
         for (uint256 i = 0; i < total; i++) {
-            Account memory user = makeAccount(string.concat("user_", vm.toString(i + 1)));
+            Account memory user = makeAccount(
+                string.concat("user_", vm.toString(i + 1))
+            );
 
             {
                 uint128 amount0 = amountIn + fee0 + 2.0e18;
@@ -267,14 +308,22 @@ contract FullBundleBenchmark is BaseTest {
             sign(
                 user,
                 order.meta,
-                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    order.hash()
+                )
             );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
         }
 
         bundle.assets = new Asset[](2);
-        bundle.assets[0] = Asset(asset0, uint128(total) * fee0, 99.900099900099900099e18, 0);
+        bundle.assets[0] = Asset(
+            asset0,
+            uint128(total) * fee0,
+            99.900099900099900099e18,
+            0
+        );
         bundle.assets[1] = Asset(asset1, 0, 0, 100.0e18);
         bundle.pairs = new Pair[](1);
         bundle.pairs[0] = Pair(asset0, asset1, PriceAB.wrap(1.0e27));
@@ -284,7 +333,10 @@ contract FullBundleBenchmark is BaseTest {
 
             uint128 tobIn = amountOut * uint128(total) + 100.0e18;
             uint128 tobFee0 = 0.05e18;
-            uint128 tobOut = amountIn * uint128(total) + tobFee0 + 99.900099900099900099e18;
+            uint128 tobOut = amountIn *
+                uint128(total) +
+                tobFee0 +
+                99.900099900099900099e18;
 
             {
                 uint128 amount1 = tobIn + 100.0e18;
@@ -313,7 +365,12 @@ contract FullBundleBenchmark is BaseTest {
             tob.gasUsedAsset0 = tobFee0;
 
             sign(
-                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+                mr_tob,
+                tob.meta,
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    tob.hash()
+                )
             );
 
             bundle.addToB(tob);
@@ -346,7 +403,9 @@ contract FullBundleBenchmark is BaseTest {
         bundle.userOrders = new UserOrder[](total);
 
         for (uint256 i = 0; i < total; i++) {
-            Account memory user = makeAccount(string.concat("user_", vm.toString(i + 1)));
+            Account memory user = makeAccount(
+                string.concat("user_", vm.toString(i + 1))
+            );
 
             {
                 uint128 amount0 = amountIn + fee0 + 2.0e18;
@@ -379,7 +438,10 @@ contract FullBundleBenchmark is BaseTest {
             sign(
                 user,
                 order.meta,
-                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    order.hash()
+                )
             );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
@@ -425,7 +487,12 @@ contract FullBundleBenchmark is BaseTest {
             tob.gasUsedAsset0 = tobFee0;
 
             sign(
-                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+                mr_tob,
+                tob.meta,
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    tob.hash()
+                )
             );
 
             bundle.addToB(tob);
@@ -461,7 +528,9 @@ contract FullBundleBenchmark is BaseTest {
         MockERC20(asset1).mint(address(angstrom), 1000.0e18);
 
         for (uint256 i = 0; i < total; i++) {
-            Account memory user = makeAccount(string.concat("user_", vm.toString(i + 1)));
+            Account memory user = makeAccount(
+                string.concat("user_", vm.toString(i + 1))
+            );
 
             {
                 uint128 amount0 = amountIn + fee0 + 2.0e18;
@@ -490,7 +559,10 @@ contract FullBundleBenchmark is BaseTest {
             sign(
                 user,
                 order.meta,
-                erc712Hash(computeDomainSeparator(address(angstrom)), order.hash())
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    order.hash()
+                )
             );
 
             bundle.userOrders[i] = UserOrderLib.from(order);
@@ -536,7 +608,12 @@ contract FullBundleBenchmark is BaseTest {
             tob.gasUsedAsset0 = tobFee0;
 
             sign(
-                mr_tob, tob.meta, erc712Hash(computeDomainSeparator(address(angstrom)), tob.hash())
+                mr_tob,
+                tob.meta,
+                erc712Hash(
+                    computeDomainSeparator(address(angstrom)),
+                    tob.hash()
+                )
             );
 
             bundle.addToB(tob);

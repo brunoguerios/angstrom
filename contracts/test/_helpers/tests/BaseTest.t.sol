@@ -15,8 +15,12 @@ contract BaseTestTest is BaseTest {
     OpenAngstrom open;
 
     function setUp() public {
-        real = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
-        open = OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, uni, controller));
+        real = Angstrom(
+            deployAngstrom(type(Angstrom).creationCode, uni, controller)
+        );
+        open = OpenAngstrom(
+            deployAngstrom(type(OpenAngstrom).creationCode, uni, controller)
+        );
     }
 
     function test_configStoreSlot() public {
@@ -26,8 +30,8 @@ contract BaseTestTest is BaseTest {
             "Default get config store mismatch real != open"
         );
         vm.startPrank(controller);
-        real.configurePool(address(1), address(2), 1, 0, 0);
-        open.configurePool(address(1), address(2), 1, 0, 0);
+        real.configurePool(address(1), address(2), 1, 0, 0, 0);
+        open.configurePool(address(1), address(2), 1, 0, 0, 0);
         vm.stopPrank();
 
         assertEq(

@@ -51,24 +51,47 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         refId = PoolIdLibrary.toId(poolKey(asset0, asset1, TICK_SPACING));
         gate.setHook(address(0));
         uniV4.initialize(
-            poolKey(address(asset0), address(asset1), TICK_SPACING), startTick.getSqrtPriceAtTick()
+            poolKey(address(asset0), address(asset1), TICK_SPACING),
+            startTick.getSqrtPriceAtTick()
         );
 
-        angstrom = OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, uniV4, gov));
+        angstrom = OpenAngstrom(
+            deployAngstrom(type(OpenAngstrom).creationCode, uniV4, gov)
+        );
         id = PoolIdLibrary.toId(poolKey());
 
         vm.prank(gov);
-        angstrom.configurePool(address(asset0), address(asset1), uint16(uint24(TICK_SPACING)), 0, 0);
+        angstrom.configurePool(
+            address(asset0),
+            address(asset1),
+            uint16(uint24(TICK_SPACING)),
+            0,
+            0,
+            0
+        );
 
         gate.setHook(address(angstrom));
         angstrom.initializePool(
             asset0,
             asset1,
-            PairLib.getStoreIndex(rawGetConfigStore(address(angstrom)), asset0, asset1),
+            PairLib.getStoreIndex(
+                rawGetConfigStore(address(angstrom)),
+                asset0,
+                asset1
+            ),
             startTick.getSqrtPriceAtTick()
         );
 
-        handler = new PoolRewardsHandler(uniV4, angstrom, gate, id, refId, asset0, asset1, gov);
+        handler = new PoolRewardsHandler(
+            uniV4,
+            angstrom,
+            gate,
+            id,
+            refId,
+            asset0,
+            asset1,
+            gov
+        );
     }
 
     function test_addOverExistingPosition() public {
@@ -86,13 +109,21 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
 
         uint128 liq2 = 1.5e21;
         handler.addLiquidity(lp, -180, 180, liq2);
-        assertApproxEqAbs(positionRewards(lp, -180, 180, liq1 + liq2), amount1, 1);
+        assertApproxEqAbs(
+            positionRewards(lp, -180, 180, liq1 + liq2),
+            amount1,
+            1
+        );
 
         uint128 amount2 = 4.12e18;
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount2})));
 
-        assertApproxEqAbs(positionRewards(lp, -180, 180, liq1 + liq2), amount1 + amount2, 1);
+        assertApproxEqAbs(
+            positionRewards(lp, -180, 180, liq1 + liq2),
+            amount1 + amount2,
+            1
+        );
     }
 
     function test_addInSubordinateRange() public {
@@ -104,7 +135,10 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount1})));
         assertApproxEqRel(
-            positionRewards(lp1, -180, 180, liq1), amount1, 1.0e18 / 1e12, "reward while alone"
+            positionRewards(lp1, -180, 180, liq1),
+            amount1,
+            1.0e18 / 1e12,
+            "reward while alone"
         );
 
         uint128 liq2 = 0.64e21;
@@ -119,13 +153,13 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         uint128 totalLiq = liq1 + liq2;
         assertApproxEqRel(
             positionRewards(lp1, -180, 180, liq1),
-            amount1 + uint256(amount2) * liq1 / totalLiq,
+            amount1 + (uint256(amount2) * liq1) / totalLiq,
             1.0e18 / 1e12,
             "lp1"
         );
         assertApproxEqRel(
             positionRewards(lp2, -60, 60, liq2),
-            uint256(amount2) * liq2 / totalLiq,
+            (uint256(amount2) * liq2) / totalLiq,
             1.0e18 / 1e12,
             "lp2"
         );
@@ -135,34 +169,42 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         handler.addLiquidity(lp3, -60, 60, liq3);
         assertApproxEqRel(
             positionRewards(lp1, -180, 180, liq1),
-            amount1 + uint256(amount2) * liq1 / totalLiq,
+            amount1 + (uint256(amount2) * liq1) / totalLiq,
             1.0e18 / 1e12,
             "lp1"
         );
         assertApproxEqRel(
             positionRewards(lp2, -60, 60, liq2),
-            uint256(amount2) * liq2 / totalLiq,
+            (uint256(amount2) * liq2) / totalLiq,
             1.0e18 / 1e12,
             "lp2"
         );
-        assertEq(positionRewards(lp3, -60, 60, liq3), 0, "lp3 rewards not starting at 0");
+        assertEq(
+            positionRewards(lp3, -60, 60, liq3),
+            0,
+            "lp3 rewards not starting at 0"
+        );
 
         uint128 amount3 = 34.0287e18;
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount3})));
         assertApproxEqRel(
             positionRewards(lp1, -180, 180, liq1),
-            amount1 + amount3 + uint256(amount2) * liq1 / totalLiq,
+            amount1 + amount3 + (uint256(amount2) * liq1) / totalLiq,
             1.0e18 / 1e12,
             "lp1"
         );
         assertApproxEqRel(
             positionRewards(lp2, -60, 60, liq2),
-            uint256(amount2) * liq2 / totalLiq,
+            (uint256(amount2) * liq2) / totalLiq,
             1.0e18 / 1e12,
             "lp2"
         );
-        assertEq(positionRewards(lp3, -60, 60, liq3), 0, "lp3 rewards not kept at 0");
+        assertEq(
+            positionRewards(lp3, -60, 60, liq3),
+            0,
+            "lp3 rewards not kept at 0"
+        );
     }
 
     function test_addAndRemove_simple() public {
@@ -174,58 +216,82 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount})));
         assertApproxEqRel(
-            positionRewards(lp1, -180, 180, liq1), amount, 1.0e18 / 1e12, "reward while alone"
+            positionRewards(lp1, -180, 180, liq1),
+            amount,
+            1.0e18 / 1e12,
+            "reward while alone"
         );
 
         vm.startPrank(lp1);
         gate.setHook(address(angstrom));
-        (uint256 amount0Out, uint256 amount1Out) = removeLiquidity(-180, 180, 0);
+        (uint256 amount0Out, uint256 amount1Out) = removeLiquidity(
+            -180,
+            180,
+            0
+        );
         vm.stopPrank();
         assertApproxEqRel(amount0Out, amount, 1.0e18 / 1e12, "no reward");
         assertEq(amount1Out, 0, "got something from amount1");
     }
 
-    function positionRewards(address owner, int24 lowerTick, int24 upperTick, uint128 liquidity)
-        internal
-        view
-        returns (uint256)
-    {
-        return angstrom.getScaledGrowth(id, owner, lowerTick, upperTick, bytes32(0), liquidity);
+    function positionRewards(
+        address owner,
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) internal view returns (uint256) {
+        return
+            angstrom.getScaledGrowth(
+                id,
+                owner,
+                lowerTick,
+                upperTick,
+                bytes32(0),
+                liquidity
+            );
     }
 
-    function removeLiquidity(int24 lowerTick, int24 upperTick, uint256 liquidity)
-        internal
-        returns (uint256, uint256)
-    {
-        return gate.removeLiquidity(
-            address(asset0), address(asset1), lowerTick, upperTick, liquidity, bytes32(0)
-        );
+    function removeLiquidity(
+        int24 lowerTick,
+        int24 upperTick,
+        uint256 liquidity
+    ) internal returns (uint256, uint256) {
+        return
+            gate.removeLiquidity(
+                address(asset0),
+                address(asset1),
+                lowerTick,
+                upperTick,
+                liquidity,
+                bytes32(0)
+            );
     }
 
     function poolKey() internal view returns (PoolKey memory) {
         return poolKey(angstrom, asset0, asset1, TICK_SPACING);
     }
 
-    function re(TickReward memory reward) internal pure returns (TickReward[] memory r) {
+    function re(
+        TickReward memory reward
+    ) internal pure returns (TickReward[] memory r) {
         r = new TickReward[](1);
         r[0] = reward;
     }
 
-    function re(TickReward memory r1, TickReward memory r2)
-        internal
-        pure
-        returns (TickReward[] memory r)
-    {
+    function re(
+        TickReward memory r1,
+        TickReward memory r2
+    ) internal pure returns (TickReward[] memory r) {
         r = new TickReward[](2);
         r[0] = r1;
         r[1] = r2;
     }
 
-    function re(TickReward memory r1, TickReward memory r2, TickReward memory r3)
-        internal
-        pure
-        returns (TickReward[] memory r)
-    {
+    function re(
+        TickReward memory r1,
+        TickReward memory r2,
+        TickReward memory r3
+    ) internal pure returns (TickReward[] memory r) {
         r = new TickReward[](3);
         r[0] = r1;
         r[1] = r2;

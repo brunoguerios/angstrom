@@ -37,16 +37,24 @@ contract ControllerV1 is Ownable {
         address indexed asset1,
         uint16 tickSpacing,
         uint24 bundleFee,
-        uint24 unlockedFee
+        uint24 unlockedFee,
+        uint24 protocolUnlockedFee
     );
 
     event OpaqueBatchPoolUpdate();
 
     event PoolRemoved(
-        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
+        address indexed asset0,
+        address indexed asset1,
+        int24 tickSpacing,
+        uint24 feeInE6
     );
 
-    event PoolProtocolUnlockSwapFeeSet(address indexed asset0, address indexed asset1, uint32 fee);
+    event PoolProtocolUnlockSwapFeeSet(
+        address indexed asset0,
+        address indexed asset1,
+        uint32 fee
+    );
 
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
@@ -74,9 +82,16 @@ contract ControllerV1 is Ownable {
     Pool[] internal _pools;
     mapping(StoreKey key => uint256 maybeIndex) internal _poolIndices;
 
-    constructor(IAngstromAuth angstrom, address initialOwner) {
+    address public immutable fastOwner;
+
+    constructor(
+        IAngstromAuth angstrom,
+        address initialOwner,
+        address _fastOwner
+    ) {
         _initializeOwner(initialOwner);
         ANGSTROM = angstrom;
+        fastOwner = _fastOwner;
     }
 
     function transferOwnership(address) public payable override {
@@ -100,20 +115,14 @@ contract ControllerV1 is Ownable {
         ANGSTROM.setController(msg.sender);
     }
 
-    function set_protocol_unlock_swap_fee_e6(
-        address asset0,
-        address asset1,
-        uint32 protocol_unlock_swap_fee_e6
+    /// bundle fee, 1bps, 0.25bps saved, 0.75 lps -- change ratio on backedn
+    /// unlock fee, 0.75bps ,protocol 0.25
+    function collect_unlock_swap_fees(
+        address to,
+        bytes calldata packed_assets
     ) external {
-        _checkOwner();
-        if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
+        _checkFastOwner();
 
-        ANGSTROM.set_protocol_unlock_swap_fee_e6(asset0, asset1, protocol_unlock_swap_fee_e6);
-        emit PoolProtocolUnlockSwapFeeSet(asset0, asset1, protocol_unlock_swap_fee_e6);
-    }
-
-    function collect_unlock_swap_fees(address to, bytes calldata packed_assets) external {
-        _checkOwner();
         ANGSTROM.collect_unlock_swap_fees(to, packed_assets);
     }
 
@@ -122,9 +131,16 @@ contract ControllerV1 is Ownable {
         address asset1,
         uint16 tickSpacing,
         uint24 bundleFee,
-        uint24 unlockedFee
+        uint24 unlockedFee,
+        uint24 protocolUnlockedFee
     ) external {
-        _checkOwner();
+        _checkFastOwner();
+        // each pair, has a 1hop to gas token = eth
+        // usdc <> btc is ok if and only if btc <> eth or eth <> usdc,
+        // deploy doge <> bobcoin <- see no hops, panics
+        // NODE TASK: before enabling pair, validate hops, otherwise, just ignore as
+        // untradable
+
         if (bundleFee > MAX_FEE_BPS) revert FeeAboveMax();
         if (unlockedFee > MAX_FEE_BPS) revert FeeAboveMax();
 
@@ -139,8 +155,22 @@ contract ControllerV1 is Ownable {
             _poolIndices[key] = maybe_index;
         }
 
-        emit PoolConfigured(asset0, asset1, tickSpacing, bundleFee, unlockedFee);
-        ANGSTROM.configurePool(asset0, asset1, tickSpacing, bundleFee, unlockedFee);
+        emit PoolConfigured(
+            asset0,
+            asset1,
+            tickSpacing,
+            bundleFee,
+            unlockedFee,
+            protocolUnlockedFee
+        );
+        ANGSTROM.configurePool(
+            asset0,
+            asset1,
+            tickSpacing,
+            bundleFee,
+            unlockedFee,
+            protocolUnlockedFee
+        );
     }
 
     function removePool(address asset0, address asset1) external {
@@ -157,8 +187,10 @@ contract ControllerV1 is Ownable {
             uint256 length = _pools.length;
             if (index_plus_one < length) {
                 Pool memory last_pool = _pools[length - 1];
-                StoreKey last_key =
-                    StoreKeyLib.keyFromAssetsUnchecked(last_pool.asset0, last_pool.asset1);
+                StoreKey last_key = StoreKeyLib.keyFromAssetsUnchecked(
+                    last_pool.asset0,
+                    last_pool.asset1
+                );
                 _pools[index] = last_pool;
                 _poolIndices[last_key] = index_plus_one;
             }
@@ -167,7 +199,10 @@ contract ControllerV1 is Ownable {
             _pools.pop();
 
             PoolConfigStore config_store = ANGSTROM.configStore();
-            (int24 tick_spacing, uint24 bundle_fee) = config_store.get(key, index);
+            (int24 tick_spacing, uint24 bundle_fee) = config_store.get(
+                key,
+                index
+            );
             emit PoolRemoved(asset0, asset1, tick_spacing, bundle_fee);
             ANGSTROM.removePool(key, config_store, index);
         }
@@ -178,12 +213,15 @@ contract ControllerV1 is Ownable {
         address assetB;
         uint24 bundleFee;
         uint24 unlockedFee;
+        uint24 protocolUnlockedFee;
     }
 
     function batchUpdatePools(PoolUpdate[] calldata updates) external {
-        _checkNodeOrOwner();
+        _checkNodeOrFastOwner();
 
-        ConfigEntryUpdate[] memory entry_updates = new ConfigEntryUpdate[](updates.length);
+        ConfigEntryUpdate[] memory entry_updates = new ConfigEntryUpdate[](
+            updates.length
+        );
 
         for (uint256 i = 0; i < updates.length; i++) {
             PoolUpdate calldata update = updates[i];
@@ -198,7 +236,8 @@ contract ControllerV1 is Ownable {
                 index: _poolIndices[key] - 1,
                 key: key,
                 bundleFee: update.bundleFee,
-                unlockedFee: update.unlockedFee
+                unlockedFee: update.unlockedFee,
+                protocolUnlockedFee: update.protocolUnlockedFee
             });
         }
 
@@ -233,7 +272,7 @@ contract ControllerV1 is Ownable {
     }
 
     function removeNode(address node) external {
-        _checkOwner();
+        _checkFastOwner();
         if (!_nodes.remove(node)) revert NotNode();
         emit NodeRemoved(node);
         _toggle(node);
@@ -247,13 +286,17 @@ contract ControllerV1 is Ownable {
         return _pools.length;
     }
 
-    function getPoolByIndex(uint256 index) public view returns (address asset0, address asset1) {
+    function getPoolByIndex(
+        uint256 index
+    ) public view returns (address asset0, address asset1) {
         Pool storage pool = _pools[index];
         asset0 = pool.asset0;
         asset1 = pool.asset1;
     }
 
-    function getPoolByKey(StoreKey key) public view returns (address asset0, address asset1) {
+    function getPoolByKey(
+        StoreKey key
+    ) public view returns (address asset0, address asset1) {
         uint256 index_plus_one = _poolIndices[key];
         if (index_plus_one == 0) revert KeyNotFound();
         Pool storage pool = _pools[index_plus_one - 1];
@@ -274,6 +317,19 @@ contract ControllerV1 is Ownable {
         address[] memory nodesToToggle = new address[](1);
         nodesToToggle[0] = node;
         ANGSTROM.toggleNodes(nodesToToggle);
+    }
+
+    function _checkNodeOrFastOwner() internal view {
+        if (msg.sender == fastOwner) return;
+        if (_nodes.contains(msg.sender)) return;
+        if (msg.sender == owner()) return;
+        revert NotNodeOrOwner();
+    }
+
+    function _checkFastOwner() internal view {
+        if (msg.sender == fastOwner) return;
+        if (msg.sender == owner()) return;
+        revert NotNodeOrOwner();
     }
 
     function _checkNodeOrOwner() internal view {

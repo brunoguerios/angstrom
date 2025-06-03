@@ -8,7 +8,7 @@ import {TickMath} from "v4-core/src/libraries/TickMath.sol";
 import {Hooks, IHooks} from "v4-core/src/libraries/Hooks.sol";
 import {CustomRevert} from "v4-core/src/libraries/CustomRevert.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
-import {MAX_UNLOCK_FEE_BPS} from "src/modules/TopLevelAuth.sol";
+import {MAX_UNLOCK_FEE_E6} from "src/modules/TopLevelAuth.sol";
 
 import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {RouterActor, PoolKey} from "test/_mocks/RouterActor.sol";
@@ -31,7 +31,9 @@ contract UnlookHookTest is BaseTest {
 
     function setUp() public {
         uni = new PoolManager(address(0));
-        angstrom = Angstrom(deployAngstrom(type(Angstrom).creationCode, uni, controller));
+        angstrom = Angstrom(
+            deployAngstrom(type(Angstrom).creationCode, uni, controller)
+        );
         (asset0, asset1) = deployTokensSorted();
         vm.prank(controller);
         angstrom.toggleNodes(addressArray(abi.encode(node)));
@@ -47,8 +49,13 @@ contract UnlookHookTest is BaseTest {
 
         // Create pool.
         vm.prank(controller);
-        angstrom.configurePool(asset0, asset1, 60, 0, 0);
-        angstrom.initializePool(asset0, asset1, 0, TickMath.getSqrtPriceAtTick(0));
+        angstrom.configurePool(asset0, asset1, 60, 0, 0, 0);
+        angstrom.initializePool(
+            asset0,
+            asset1,
+            0,
+            TickMath.getSqrtPriceAtTick(0)
+        );
         PoolKey memory pk = poolKey(angstrom, asset0, asset1, 60);
         actor.modifyLiquidity(pk, -60, 60, 100_000e21, bytes32(0));
 
@@ -64,12 +71,14 @@ contract UnlookHookTest is BaseTest {
         actor.swap(pk, true, 1e18, 4295128740);
     }
 
-    function test_fuzzing_swapAfterUnlock(uint32 bn, uint24 unlockedFee, uint256 swapAmount)
-        public
-    {
+    function test_fuzzing_swapAfterUnlock(
+        uint32 bn,
+        uint24 unlockedFee,
+        uint256 swapAmount
+    ) public {
         vm.roll(boundBlock(bn));
 
-        unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_BPS));
+        unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_E6));
         swapAmount = bound(swapAmount, 1e8, 10e18);
 
         // ------ PRE SNAPSHOT ------
@@ -79,7 +88,9 @@ contract UnlookHookTest is BaseTest {
 
         vm.prank(node);
         angstrom.execute("");
-        int128 noFeeOut = actor.swap(pk, true, -int256(swapAmount), 4295128740).amount1();
+        int128 noFeeOut = actor
+            .swap(pk, true, -int256(swapAmount), 4295128740)
+            .amount1();
 
         vm.revertTo(snapshotId);
 
@@ -88,27 +99,43 @@ contract UnlookHookTest is BaseTest {
 
         vm.prank(node);
         angstrom.execute("");
-        int128 withFeeOut = actor.swap(pk, true, -int256(swapAmount), 4295128740).amount1();
+        int128 withFeeOut = actor
+            .swap(pk, true, -int256(swapAmount), 4295128740)
+            .amount1();
 
         assertGe(noFeeOut, 0);
         assertGe(withFeeOut, 0);
 
         uint256 out = uint256(uint128(noFeeOut));
-        assertApproxEqAbs(out * (1e6 - unlockedFee) / 1e6, uint256(uint128(withFeeOut)), out / 1e6);
+        assertApproxEqAbs(
+            (out * (1e6 - unlockedFee)) / 1e6,
+            uint256(uint128(withFeeOut)),
+            out / 1e6
+        );
     }
 
-    function _createPool(uint16 tickSpacing, uint24 unlockedFee, uint248 startLiquidity)
-        internal
-        returns (PoolKey memory pk)
-    {
+    function _createPool(
+        uint16 tickSpacing,
+        uint24 unlockedFee,
+        uint248 startLiquidity
+    ) internal returns (PoolKey memory pk) {
         vm.prank(controller);
-        angstrom.configurePool(asset0, asset1, tickSpacing, 0, unlockedFee);
-        angstrom.initializePool(asset0, asset1, 0, TickMath.getSqrtPriceAtTick(0));
+        angstrom.configurePool(asset0, asset1, tickSpacing, 0, unlockedFee, 0);
+        angstrom.initializePool(
+            asset0,
+            asset1,
+            0,
+            TickMath.getSqrtPriceAtTick(0)
+        );
         int24 spacing = int24(uint24(tickSpacing));
         pk = poolKey(angstrom, asset0, asset1, spacing);
         if (startLiquidity > 0) {
             actor.modifyLiquidity(
-                pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0)
+                pk,
+                -1 * spacing,
+                1 * spacing,
+                int256(uint256(startLiquidity)),
+                bytes32(0)
             );
         }
 
