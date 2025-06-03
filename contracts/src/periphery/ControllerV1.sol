@@ -105,8 +105,6 @@ contract ControllerV1 is Ownable {
         ANGSTROM.setController(msg.sender);
     }
 
-    /// bundle fee, 1bps, 0.25bps saved, 0.75 lps -- change ratio on backedn
-    /// unlock fee, 0.75bps ,protocol 0.25
     function collect_unlock_swap_fees(address to, bytes calldata packed_assets) external {
         _checkFastOwner();
 
@@ -122,11 +120,6 @@ contract ControllerV1 is Ownable {
         uint24 protocolUnlockedFee
     ) external {
         _checkFastOwner();
-        // each pair, has a 1hop to gas token = eth
-        // usdc <> btc is ok if and only if btc <> eth or eth <> usdc,
-        // deploy doge <> bobcoin <- see no hops, panics
-        // NODE TASK: before enabling pair, validate hops, otherwise, just ignore as
-        // untradable
 
         if (bundleFee > MAX_FEE_BPS) revert FeeAboveMax();
         if (unlockedFee > MAX_FEE_BPS) revert FeeAboveMax();
