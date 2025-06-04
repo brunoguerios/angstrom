@@ -2,8 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use angstrom_rpc::{api::OrderApiClient, impls::OrderApi};
 use angstrom_types::{
-    CHAIN_ID,
-    primitive::{ANGSTROM_DOMAIN, ChainExt},
+    primitive::{ANGSTROM_DOMAIN, CHAIN_ID, ChainExt},
     sol_bindings::{RawPoolOrder, grouped_orders::AllOrders},
     testnet::InitialTestnetState
 };
@@ -124,7 +123,7 @@ pub mod test {
             }
         },
         contract_payloads::angstrom::AngstromBundle,
-        primitive::TESTNET_ANGSTROM_ADDRESS
+        primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig}
     };
     use futures::{FutureExt, StreamExt};
     use pade::PadeDecode;
@@ -200,7 +199,8 @@ pub mod test {
     #[test]
     #[serial_test::serial]
     fn testnet_lands_block() {
-        init_tracing(4);
+        init_tracing(3);
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
         let runner = reth::CliRunner::try_default_runtime().unwrap();
 
         runner.run_command_until_exit(|ctx| async move {
@@ -262,7 +262,7 @@ pub mod test {
                 .transactions
                 .into_transactions_vec()
                 .into_iter()
-                .filter(|tx| tx.to() == Some(TESTNET_ANGSTROM_ADDRESS))
+                .filter(|tx| tx.to() == Some(*ANGSTROM_ADDRESS.get().unwrap()))
                 .filter_map(|tx| {
                     let calldata = tx.input().to_vec();
                     let mut slice = calldata.as_slice();
@@ -287,7 +287,9 @@ pub mod test {
     #[test]
     #[serial_test::serial]
     fn test_remove_add_pool() {
-        init_tracing(4);
+        init_tracing(3);
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
+
         let runner = reth::CliRunner::try_default_runtime().unwrap();
 
         runner.run_command_until_exit(|ctx| async move {

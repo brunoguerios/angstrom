@@ -45,7 +45,7 @@ fn angstrom_addr_valid(addr: Address) -> bool {
     if !has_permissions(addr, BeforeAddLiquidity | BeforeRemoveLiquidity) {
         return false;
     }
-    if has_any_permission(addr, AfterAddLiquidity | AfterRemoveLiquidity | AfterSwap) {
+    if has_any_permission(addr, AfterAddLiquidity | AfterRemoveLiquidity) {
         return false;
     }
     if !has_permission(addr, BeforeSwap) {
@@ -61,9 +61,11 @@ fn hook_addr_valid(addr: Address) -> bool {
     if !has_permission(addr, BeforeSwap) && has_permission(addr, BeforeSwapReturnsDelta) {
         return false;
     }
-    if !has_permission(addr, AfterSwap) && has_permission(addr, AfterSwapReturnsDelta) {
+
+    if !(has_permission(addr, AfterSwap) && has_permission(addr, AfterSwapReturnsDelta)) {
         return false;
     }
+
     if !has_permission(addr, AfterRemoveLiquidity)
         && has_permission(addr, AfterRemoveLiquidityReturnsDelta)
     {

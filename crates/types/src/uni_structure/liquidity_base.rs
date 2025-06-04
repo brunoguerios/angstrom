@@ -20,9 +20,9 @@ pub struct BaselineLiquidity {
     pub(super) start_tick:       i32,
     pub(super) start_sqrt_price: SqrtPriceX96,
     pub(super) start_liquidity:  u128,
-    /// should only have ticks that are initalized.
+    /// should only have ticks that are initialized.
     initialized_ticks:           HashMap<i32, TickInfo>,
-    /// should only have ticks that are initalized, i.e have liquidity
+    /// should only have ticks that are initialized, i.e have liquidity
     tick_bitmap:                 HashMap<i16, U256>
 }
 

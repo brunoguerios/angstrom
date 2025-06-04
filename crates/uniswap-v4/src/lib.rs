@@ -142,7 +142,7 @@ pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer, Telemetry: 
         .await
 }
 
-#[cfg(all(test, feature = "testnet-sepolia"))]
+#[cfg(all(test, feature = "anvil"))]
 pub mod fuzz_uniswap {
     use std::{collections::HashSet, ops::Deref, sync::Arc};
 
@@ -162,9 +162,8 @@ pub mod fuzz_uniswap {
     };
     use alloy_primitives::keccak256;
     use angstrom_types::{
-        CHAIN_ID,
         matching::uniswap::Quantity,
-        primitive::{TESTNET_ANGSTROM_ADDRESS, TESTNET_POOL_MANAGER_ADDRESS},
+        primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig, CHAIN_ID, POOL_MANAGER_ADDRESS},
         reth_db_wrapper::DBError,
         uni_structure::BaselinePoolState
     };
@@ -288,7 +287,7 @@ pub mod fuzz_uniswap {
     ) -> Option<Swap> {
         // override the slot
         let slot = db
-            .storage_ref(TESTNET_ANGSTROM_ADDRESS, LAST_BLOCK_SLOT_ANGSTROM)
+            .storage_ref(*ANGSTROM_ADDRESS.get().unwrap(), LAST_BLOCK_SLOT_ANGSTROM)
             .unwrap();
 
         let mut bytes: [u8; 32] = slot.to_be_bytes();
@@ -296,7 +295,7 @@ pub mod fuzz_uniswap {
         bytes[24..].copy_from_slice(&target_bytes);
 
         db.insert_account_storage(
-            TESTNET_ANGSTROM_ADDRESS,
+            *ANGSTROM_ADDRESS.get().unwrap(),
             LAST_BLOCK_SLOT_ANGSTROM,
             U256::from_be_bytes(bytes)
         )
@@ -306,7 +305,7 @@ pub mod fuzz_uniswap {
         let mut evm = Context {
             tx:              TxEnv::default(),
             block:           BlockEnv::default(),
-            cfg:             CfgEnv::<SpecId>::default().with_chain_id(CHAIN_ID),
+            cfg:             CfgEnv::<SpecId>::default().with_chain_id(*CHAIN_ID.get().unwrap()),
             journaled_state: Journal::<CacheDB<Arc<DB>>>::new(db.clone()),
             chain:           (),
             error:           Ok(()),
@@ -315,14 +314,14 @@ pub mod fuzz_uniswap {
         .modify_cfg_chained(|cfg| {
             cfg.disable_nonce_check = true;
             cfg.disable_balance_check = true;
-            cfg.chain_id = CHAIN_ID;
+            cfg.chain_id = *CHAIN_ID.get().unwrap();
         })
         .modify_block_chained(|block| {
             block.number = target_block;
         })
         .modify_tx_chained(|tx| {
             tx.kind = TxKind::Call(HOOK_EXECUTOR);
-            tx.chain_id = Some(CHAIN_ID);
+            tx.chain_id = Some(*CHAIN_ID.get().unwrap());
             tx.caller = TEST_ORDER_ADDR;
             tx.data = router_calldata
         })
@@ -361,6 +360,7 @@ pub mod fuzz_uniswap {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_fuzzing_of_uniswap() {
+        AngstromAddressConfig::INTERNAL_TESTNET.init();
         let node_endpoint =
             std::env::var("NODE_URL").unwrap_or_else(|_| "https://1rpc.io/sepolia".to_string());
         let provider = InnerProvider(Arc::new(
@@ -387,7 +387,7 @@ pub mod fuzz_uniswap {
                     currency1:   pool.token1,
                     fee:         U24::from(0x800000),
                     tickSpacing: I24::unchecked_from(pool.tick_spacing),
-                    hooks:       TESTNET_ANGSTROM_ADDRESS
+                    hooks:       *ANGSTROM_ADDRESS.get().unwrap()
                 };
                 let _ = am_check_exact_in(
                     pool,
@@ -547,9 +547,13 @@ pub mod fuzz_uniswap {
     ) -> (u64, Vec<EnhancedUniswapPool>) {
         let block = provider.get_block_number().await.unwrap();
 
-        let pools =
-            fetch_angstrom_pools(7838402, block as usize, TESTNET_ANGSTROM_ADDRESS, &provider)
-                .await;
+        let pools = fetch_angstrom_pools(
+            7838402,
+            block as usize,
+            *ANGSTROM_ADDRESS.get().unwrap(),
+            &provider
+        )
+        .await;
 
         let uniswap_registry: UniswapPoolRegistry = pools.into();
 
@@ -564,7 +568,7 @@ pub mod fuzz_uniswap {
                 pool_priv_key,
                 pub_key,
                 uniswap_registry.clone(),
-                TESTNET_POOL_MANAGER_ADDRESS
+                *POOL_MANAGER_ADDRESS.get().unwrap()
             );
             let mut pool = EnhancedUniswapPool::new(data_loader, 1000);
             pool.initialize(Some(block), provider.root().into())

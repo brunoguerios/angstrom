@@ -6,11 +6,17 @@ use alloy::{
     sol,
     sol_types::{Eip712Domain, SolStruct}
 };
-use alloy_primitives::Signature;
+use alloy_primitives::{I256, Signature};
+use eyre::eyre;
 use pade::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 
-use crate::primitive::{ANGSTROM_DOMAIN, AngstromSigner};
+use super::RawPoolOrder;
+use crate::{
+    matching::uniswap::Direction,
+    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
+    uni_structure::BaselinePoolState
+};
 
 sol! {
 
@@ -106,11 +112,37 @@ sol! {
     }
 }
 
+impl TopOfBlockOrder {
+    /// returns the amount in t0 that this order is bidding in the auction.
+    pub fn get_auction_bid(&self, snapshot: &BaselinePoolState) -> eyre::Result<u128> {
+        if self.is_bid() {
+            let res = snapshot.swap_current_with_amount(
+                I256::unchecked_from(self.quantity_in),
+                Direction::BuyingT0
+            )?;
+            res.total_d_t0
+                .checked_sub(self.quantity_out)
+                .ok_or_else(|| eyre!("Not enough output to cover the transaction"))
+        } else {
+            let cost = snapshot
+                .swap_current_with_amount(
+                    -I256::unchecked_from(self.quantity_out),
+                    Direction::SellingT0
+                )?
+                .total_d_t0;
+
+            self.quantity_in
+                .checked_sub(cost)
+                .ok_or_else(|| eyre!("Not enough input to cover the transaction"))
+        }
+    }
+}
+
 impl AttestAngstromBlockEmpty {
     pub fn sign_and_encode(target_block: u64, signer: &AngstromSigner) -> Bytes {
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
 
-        let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         // we pade encode here as we expect v, r, s which is not the standard
         let sig = signer.sign_hash_sync(&hash).unwrap().pade_encode();
         let signer = signer.address();
@@ -128,7 +160,7 @@ impl AttestAngstromBlockEmpty {
 
         let Ok(sig) = Signature::pade_decode(&mut sig, None) else { return false };
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
-        let hash = attestation.eip712_signing_hash(&ANGSTROM_DOMAIN);
+        let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let Ok(recovered_addr) = sig.recover_address_from_prehash(&hash) else { return false };
         node_address == recovered_addr
     }

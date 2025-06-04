@@ -13,7 +13,7 @@ use alloy::{
     sol_types::SolValue
 };
 use alloy_primitives::I256;
-use base64::Engine;
+use base64::{Engine, prelude::BASE64_STANDARD};
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
@@ -25,8 +25,6 @@ use super::{
     asset::builder::{AssetBuilder, AssetBuilderStage},
     rewards::PoolUpdate
 };
-#[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
-use crate::testnet::TestnetStateOverrides;
 use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
@@ -39,6 +37,7 @@ use crate::{
         grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
+    testnet::TestnetStateOverrides,
     uni_structure::{BaselinePoolState, donation::DonationCalculation}
 };
 
@@ -69,7 +68,6 @@ impl AngstromBundle {
         &self.pairs
     }
 
-    #[cfg(all(feature = "testnet", not(feature = "testnet-sepolia")))]
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
@@ -418,7 +416,7 @@ impl AngstromBundle {
                 shared_gas
             ))
             .unwrap();
-            let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+            let b64_output = BASE64_STANDARD.encode(json.as_bytes());
             trace!(target: "dump::solution", data = b64_output, "Raw solution data");
         }
 

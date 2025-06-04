@@ -28,12 +28,16 @@ pub(crate) async fn run_testnet(executor: TaskExecutor, cli: TestnetCli) -> eyre
 
 #[cfg(test)]
 mod tests {
+    use angstrom_types::primitive::AngstromAddressConfig;
+
     use super::*;
 
     #[test]
     #[serial_test::serial]
     fn testnet_deploy() {
         init_tracing(4);
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
+
         let runner = reth::CliRunner::try_default_runtime().unwrap();
         runner.run_command_until_exit(|ctx| async move {
             let cli = TestnetCli {

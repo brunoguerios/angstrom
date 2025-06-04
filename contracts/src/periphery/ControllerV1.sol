@@ -46,6 +46,8 @@ contract ControllerV1 is Ownable {
         address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
     );
 
+    event PoolProtocolUnlockSwapFeeSet(address indexed asset0, address indexed asset1, uint32 fee);
+
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
 
@@ -96,6 +98,23 @@ contract ControllerV1 is Ownable {
         setController = address(0);
         emit NewControllerAccepted(msg.sender);
         ANGSTROM.setController(msg.sender);
+    }
+
+    function set_protocol_unlock_swap_fee_e6(
+        address asset0,
+        address asset1,
+        uint32 protocol_unlock_swap_fee_e6
+    ) external {
+        _checkOwner();
+        if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
+
+        ANGSTROM.set_protocol_unlock_swap_fee_e6(asset0, asset1, protocol_unlock_swap_fee_e6);
+        emit PoolProtocolUnlockSwapFeeSet(asset0, asset1, protocol_unlock_swap_fee_e6);
+    }
+
+    function collect_unlock_swap_fees(address to, bytes calldata packed_assets) external {
+        _checkOwner();
+        ANGSTROM.collect_unlock_swap_fees(to, packed_assets);
     }
 
     function configurePool(
