@@ -93,10 +93,9 @@ where
                 }
             }
         }
-        println!("Made it to after");
         tracing::error!("Done with everything");
-        while let x = state_stream.next().await {
-            println!("Got a new state {:?}", x);
+        while let Some(x) = state_stream.next().await {
+            tracing::info!(state = ?x, "State transition received");
         }
 
         Ok(())

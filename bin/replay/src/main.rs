@@ -1,3 +1,4 @@
+use angstrom_types::primitive::AngstromAddressConfig;
 use clap::Parser;
 use replay::{ReplayCli, init_tracing};
 use reth_provider::noop::NoopProvider;
@@ -15,6 +16,10 @@ fn read_log_from_stdin() -> BlockLog {
 
 fn main() {
     init_tracing(2);
+
+    // set the proper address and domain
+    AngstromAddressConfig::INTERNAL_TESTNET.try_init();
+
     let cli = ReplayCli::parse();
     let raw_log = read_log_from_stdin();
     let target_block = raw_log.blocknum().saturating_sub(83);
