@@ -86,18 +86,9 @@ impl BaselineLiquidity {
                 })
         };
 
-        let min_tick_init = self
-            .initialized_ticks
-            .keys()
-            .min()
-            .copied()
-            .unwrap_or(MIN_TICK);
-        let max_tick_init = self
-            .initialized_ticks
-            .keys()
-            .max()
-            .copied()
-            .unwrap_or(MAX_TICK);
+        // We unwrap these as we should never have a swap on a pool with no liquidity.
+        let min_tick_init = self.initialized_ticks.keys().min().copied().unwrap();
+        let max_tick_init = self.initialized_ticks.keys().max().copied().unwrap();
 
         Ok(LiquidityAtPoint {
             tick_spacing: self.tick_spacing,
@@ -112,18 +103,9 @@ impl BaselineLiquidity {
     }
 
     pub fn current(&self) -> LiquidityAtPoint<'_> {
-        let min_tick_init = self
-            .initialized_ticks
-            .keys()
-            .min()
-            .copied()
-            .unwrap_or(MIN_TICK);
-        let max_tick_init = self
-            .initialized_ticks
-            .keys()
-            .max()
-            .copied()
-            .unwrap_or(MAX_TICK);
+        // We unwrap these as we should never have a swap on a pool with no liquidity.
+        let min_tick_init = self.initialized_ticks.keys().min().copied().unwrap();
+        let max_tick_init = self.initialized_ticks.keys().max().copied().unwrap();
 
         LiquidityAtPoint {
             tick_spacing: self.tick_spacing,
