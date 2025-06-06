@@ -8,7 +8,8 @@ use itertools::Itertools;
 use malachite::num::conversion::traits::SaturatingInto;
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
-    tick_bitmap::next_initialized_tick_within_one_word, tick_math::get_tick_at_sqrt_ratio
+    tick_bitmap::next_initialized_tick_within_one_word,
+    tick_math::{MAX_TICK, MIN_TICK, get_tick_at_sqrt_ratio}
 };
 
 use crate::matching::{SqrtPriceX96, uniswap::TickInfo};
@@ -85,9 +86,20 @@ impl BaselineLiquidity {
                 })
         };
 
-        // We unwrap these as we should never have a swap on a pool with no liquidity.
-        let min_tick_init = self.initialized_ticks.keys().min().copied().unwrap();
-        let max_tick_init = self.initialized_ticks.keys().max().copied().unwrap();
+        // If there is no liquidity ranges. We don't have to worry
+        // about undefined behaviour.
+        let min_tick_init = self
+            .initialized_ticks
+            .keys()
+            .min()
+            .copied()
+            .unwrap_or(MIN_TICK);
+        let max_tick_init = self
+            .initialized_ticks
+            .keys()
+            .max()
+            .copied()
+            .unwrap_or(MAX_TICK);
 
         Ok(LiquidityAtPoint {
             tick_spacing: self.tick_spacing,
@@ -102,9 +114,20 @@ impl BaselineLiquidity {
     }
 
     pub fn current(&self) -> LiquidityAtPoint<'_> {
-        // We unwrap these as we should never have a swap on a pool with no liquidity.
-        let min_tick_init = self.initialized_ticks.keys().min().copied().unwrap();
-        let max_tick_init = self.initialized_ticks.keys().max().copied().unwrap();
+        // If there is no liquidity ranges. We don't have to worry
+        // about undefined behaviour.
+        let min_tick_init = self
+            .initialized_ticks
+            .keys()
+            .min()
+            .copied()
+            .unwrap_or(MIN_TICK);
+        let max_tick_init = self
+            .initialized_ticks
+            .keys()
+            .max()
+            .copied()
+            .unwrap_or(MAX_TICK);
 
         LiquidityAtPoint {
             tick_spacing: self.tick_spacing,
