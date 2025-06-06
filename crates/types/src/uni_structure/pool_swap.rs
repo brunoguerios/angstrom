@@ -29,7 +29,6 @@ impl<'a> PoolSwap<'a> {
     pub fn swap(mut self) -> eyre::Result<PoolSwapResult<'a>> {
         // We want to ensure that we set the right limits and are swapping the correct
         // way.
-
         if self.direction.is_ask()
             && self
                 .target_price
@@ -179,6 +178,10 @@ impl<'a> PoolSwapResult<'a> {
         let amount = I256::unchecked_from(amount_in);
 
         self.swap_to_amount(amount, direction)
+    }
+
+    pub fn was_empty_swap(&self) -> bool {
+        self.total_d_t0 == 0 || self.total_d_t1 == 0
     }
 
     /// Reduce `PoolSwapStep`s into contiguous ranges for reward calculation.
