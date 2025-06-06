@@ -8,7 +8,8 @@ use itertools::Itertools;
 use malachite::num::conversion::traits::SaturatingInto;
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::{
-    tick_bitmap::next_initialized_tick_within_one_word, tick_math::get_tick_at_sqrt_ratio
+    tick_bitmap::next_initialized_tick_within_one_word,
+    tick_math::{MAX_TICK, MIN_TICK, get_tick_at_sqrt_ratio}
 };
 
 use crate::matching::{SqrtPriceX96, uniswap::TickInfo};
@@ -85,24 +86,54 @@ impl BaselineLiquidity {
                 })
         };
 
+        let min_tick_init = self
+            .initialized_ticks
+            .keys()
+            .min()
+            .copied()
+            .unwrap_or(MIN_TICK);
+        let max_tick_init = self
+            .initialized_ticks
+            .keys()
+            .max()
+            .copied()
+            .unwrap_or(MAX_TICK);
+
         Ok(LiquidityAtPoint {
-            tick_spacing:       self.tick_spacing,
-            current_tick:       tick_at_price,
-            current_liquidity:  liquidity.unsigned_abs(),
+            tick_spacing: self.tick_spacing,
+            current_tick: tick_at_price,
+            current_liquidity: liquidity.unsigned_abs(),
             current_sqrt_price: price,
-            initialized_ticks:  &self.initialized_ticks,
-            tick_bitmap:        &self.tick_bitmap
+            initialized_ticks: &self.initialized_ticks,
+            min_tick_init,
+            max_tick_init,
+            tick_bitmap: &self.tick_bitmap
         })
     }
 
     pub fn current(&self) -> LiquidityAtPoint<'_> {
+        let min_tick_init = self
+            .initialized_ticks
+            .keys()
+            .min()
+            .copied()
+            .unwrap_or(MIN_TICK);
+        let max_tick_init = self
+            .initialized_ticks
+            .keys()
+            .max()
+            .copied()
+            .unwrap_or(MAX_TICK);
+
         LiquidityAtPoint {
-            tick_spacing:       self.tick_spacing,
-            current_tick:       self.start_tick,
+            tick_spacing: self.tick_spacing,
+            current_tick: self.start_tick,
             current_sqrt_price: self.start_sqrt_price,
-            current_liquidity:  self.start_liquidity,
-            initialized_ticks:  &self.initialized_ticks,
-            tick_bitmap:        &self.tick_bitmap
+            current_liquidity: self.start_liquidity,
+            initialized_ticks: &self.initialized_ticks,
+            min_tick_init,
+            max_tick_init,
+            tick_bitmap: &self.tick_bitmap
         }
     }
 }
@@ -116,6 +147,8 @@ pub struct LiquidityAtPoint<'a> {
     pub(super) current_tick:       i32,
     pub(super) current_sqrt_price: SqrtPriceX96,
     pub(super) current_liquidity:  u128,
+    pub(super) max_tick_init:      i32,
+    pub(super) min_tick_init:      i32,
     initialized_ticks:             &'a HashMap<i32, TickInfo>,
     tick_bitmap:                   &'a HashMap<i16, U256>
 }
@@ -134,21 +167,9 @@ impl LiquidityAtPoint<'_> {
             direction
         )?;
 
-        // adjust self view
-        Ok((tick_next, self.current_liquidity, init))
-    }
-
-    pub fn get_to_next_initialized_tick_within_one_word_from_tick(
-        &self,
-        tick: i32,
-        direction: bool
-    ) -> eyre::Result<(i32, u128, bool)> {
-        let (tick_next, init) = next_initialized_tick_within_one_word(
-            self.tick_bitmap,
-            tick,
-            self.tick_spacing,
-            direction
-        )?;
+        if tick_next > self.max_tick_init || tick_next < self.min_tick_init {
+            return Err(eyre::eyre!("out of initialized tick ranges loaded for uniswap"));
+        }
 
         // adjust self view
         Ok((tick_next, self.current_liquidity, init))
