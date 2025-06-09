@@ -201,6 +201,29 @@ impl TopOfBlockOrder {
             Ok((price_vec, leftover))
         }
     }
+
+    pub fn calc_reward(&self, snapshot: BaselinePoolState) -> eyre::Result<u128> {
+        if !self.zero_for_1 {
+            let res = snapshot.swap_current_with_amount(
+                I256::unchecked_from(self.quantity_in),
+                Direction::BuyingT0
+            )?;
+            res.total_d_t0
+                .checked_sub(self.quantity_out)
+                .ok_or_else(|| eyre!("Not enough output to cover the transaction"))
+        } else {
+            let cost = snapshot
+                .swap_current_with_amount(
+                    -I256::unchecked_from(self.quantity_out),
+                    Direction::SellingT0
+                )?
+                .total_d_t0;
+
+            self.quantity_in
+                .checked_sub(cost)
+                .ok_or_else(|| eyre!("Not enough input to cover the transaction"))
+        }
+    }
 }
 
 #[cfg(test)]

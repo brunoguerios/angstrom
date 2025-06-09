@@ -6,7 +6,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   DOCKER_IMAGE_NAME: ghcr.io/sorellalabs/angstrom
-  DOCKER_IMAGE_NAME_SEPOLIA: ghcr.io/sorellalabs/angstrom-sepolia
   DOCKER_USERNAME: ${{ github.actor }}
   GIT_SHA: ${{ github.sha }}
 
@@ -21,9 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - name: 'Build and push the git-sha-tagged angstrom image x86 sepolia'
-            command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc,testnet-sepolia" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME_SEPOLIA}:${GIT_SHA} --tag ${DOCKER_IMAGE_NAME_SEPOLIA}:latest --push'
-          - name: 'Build and push the git-sha-tagged angstrom image x86 mainnet'
+          - name: 'Build and push the git-sha-tagged angstrom image x86'
             command: 'docker buildx build --build-arg BUILD_PROFILE=maxperf --build-arg FEATURES="jemalloc" --file ./Dockerfile . --tag ${DOCKER_IMAGE_NAME}:${GIT_SHA} --tag ${DOCKER_IMAGE_NAME}:latest --push'
     steps:
       - uses: actions/checkout@v4

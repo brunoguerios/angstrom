@@ -80,6 +80,18 @@ impl OrderTracker {
         self.order_hash_to_order_id.contains_key(hash) || self.seen_invalid_orders.contains(hash)
     }
 
+    pub fn handle_pool_removed(&mut self, txes: &[B256]) {
+        for tx in txes {
+            self.order_hash_to_order_id.remove(tx);
+            self.order_hash_to_peer_id.remove(tx);
+            self.address_to_orders.retain(|_, set| {
+                set.retain(|id| &id.hash != tx);
+
+                !set.is_empty()
+            });
+        }
+    }
+
     pub fn track_peer_id(&mut self, hash: B256, peer_id: Option<PeerId>) {
         if let Some(peer) = peer_id {
             self.order_hash_to_peer_id

@@ -41,6 +41,7 @@ mod proposal;
 
 type PollTransition<P, Matching, Telemetry> =
     Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>>;
+pub use preproposal_wait_trigger::{MAX_WAIT_DURATION, MIN_WAIT_DURATION};
 
 pub trait ConsensusState<P, Matching, Telemetry = TelemetryClient>: Send
 where

@@ -63,9 +63,11 @@ impl OrderStorage {
         }
     }
 
-    pub fn remove_pool(&self, key: PoolId) {
-        self.searcher_orders.lock().unwrap().remove_pool(&key);
-        self.limit_orders.lock().unwrap().remove_pool(&key);
+    pub fn remove_pool(&self, key: PoolId) -> Vec<B256> {
+        let mut orders = self.searcher_orders.lock().unwrap().remove_pool(&key);
+        orders.extend(self.limit_orders.lock().unwrap().remove_pool(&key));
+
+        orders
     }
 
     pub fn apply_new_gas_and_return_blocked_orders(

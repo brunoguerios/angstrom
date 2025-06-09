@@ -633,7 +633,7 @@ where
         if self.token0 == token_in { self.token1 } else { self.token0 }
     }
 
-    pub fn calculate_word_pos_bit_pos(&self, compressed: i32) -> (i16, u8) {
+    pub fn calculate_word_pos_bit_pos(compressed: i32) -> (i16, u8) {
         uniswap_v3_math::tick_bitmap::position(compressed)
     }
 
@@ -952,7 +952,7 @@ mod tests {
 
         // Flip tick
         pool.flip_tick(60, 60);
-        let (word_pos, bit_pos) = pool.calculate_word_pos_bit_pos(1);
+        let (word_pos, bit_pos) = EnhancedUniswapPool::calculate_word_pos_bit_pos(1);
         let mask = U256::from(1) << bit_pos;
         assert_eq!(pool.tick_bitmap.get(&word_pos), Some(&mask));
 
