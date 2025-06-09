@@ -182,13 +182,14 @@ impl Future for Telemetry {
                         self.on_new_block(blocknum, pool_keys, pool_snapshots);
                     }
                     event @ TelemetryMessage::NewOrder { blocknum, .. }
-                    | event @ TelemetryMessage::CancelOrder { blocknum, .. } => {
+                    | event @ TelemetryMessage::CancelOrder { blocknum, .. }
+                    | event @ TelemetryMessage::ConsensusStateChange { blocknum, .. }
+                    | event @ TelemetryMessage::Consensus { blocknum, .. } => {
                         self.add_event_to_block(blocknum, event);
                     }
                     TelemetryMessage::Error { blocknum, message } => {
                         self.on_error(blocknum, message);
                     }
-                    _ => println!("Unhandled!")
                 },
                 // End of receiver stream should end this task as well
                 Poll::Ready(None) => {

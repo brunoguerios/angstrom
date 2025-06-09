@@ -91,8 +91,6 @@ where
         F: Clone
     {
         tracing::info!("spawning node");
-        let cb = state_provider.state_provider().current_chain_block();
-        println!("Current block: {cb}");
         let strom_handles = initialize_strom_handles();
         let (strom_network, eth_peer, strom_network_manager) = TestnetNodeNetwork::new(
             c,

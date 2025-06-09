@@ -70,19 +70,23 @@ where
 
         // Playback our events in order
         for event in replay_log.events() {
-            tracing::info!(?event, "Event playback");
             match event {
                 TelemetryMessage::NewBlock { .. } => (),
                 TelemetryMessage::NewOrder { origin, order, .. } => {
-                    let _res = pool_handle.new_order(*origin, order.clone()).await;
+                    tracing::info!("NewOrder event playing back");
+                    let res = pool_handle.new_order(*origin, order.clone()).await;
+                    tracing::debug!(?res, "NewOrder result");
                 }
                 TelemetryMessage::CancelOrder { cancel, .. } => {
+                    tracing::info!("CancelOrder event playing back");
                     let _res = pool_handle.cancel_order(cancel.clone()).await;
                 }
                 TelemetryMessage::Consensus { event, .. } => {
+                    tracing::info!("Consensus event playing back");
                     let _res = consensus_sender.send(event.clone());
                 }
                 TelemetryMessage::ConsensusStateChange { state, .. } => {
+                    tracing::info!("ConsensusStateChange event playing back");
                     // Wait for the new state to show up as it should
                     if let Some(new_state) = state_stream.next().await {
                         assert_eq!(*state, new_state, "Consensus state mismatch")
