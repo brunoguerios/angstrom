@@ -1,4 +1,10 @@
-use std::{cmp::max, collections::HashMap, pin::Pin, sync::Arc, time::Duration};
+use std::{
+    cmp::max,
+    collections::{HashMap, VecDeque},
+    pin::Pin,
+    sync::Arc,
+    time::Duration
+};
 
 use alloy::{primitives::Address, providers::Provider};
 use alloy_rpc_types::BlockId;
@@ -18,7 +24,7 @@ use angstrom_types::{
     consensus::ConsensusRoundName,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
-    primitive::UniswapPoolRegistry,
+    primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::testnet::TestnetHub,
     submission::SubmissionHandler,
     testnet::InitialTestnetState
@@ -73,7 +79,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         agents: Vec<F>,
         block_sync: GlobalBlockSync,
         executor: TaskExecutor,
-        state_updates: Option<UnboundedSender<ConsensusRoundName>>
+        state_updates: Option<UnboundedSender<ConsensusRoundName>>,
+        token_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>
     ) -> eyre::Result<(
         Self,
         ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync, TelemetryClient>,
@@ -209,15 +216,26 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             )))
         );
 
-        let token_conversion = TokenPriceGenerator::new(
-            Arc::new(state_provider.rpc_provider()),
-            block_number,
-            uniswap_pools.clone(),
-            WETH_ADDRESS,
-            Some(1)
-        )
-        .await
-        .expect("failed to start price generator");
+        let token_conversion = if let Some((prev_prices, base_wei)) = token_price_snapshot {
+            println!("Using snapshot");
+            TokenPriceGenerator::from_snapshot(
+                uniswap_pools.clone(),
+                prev_prices,
+                WETH_ADDRESS,
+                base_wei
+            )
+        } else {
+            TokenPriceGenerator::new(
+                Arc::new(state_provider.rpc_provider()),
+                block_number,
+                uniswap_pools.clone(),
+                WETH_ADDRESS,
+                Some(1)
+            )
+            .await
+            .expect("failed to start price generator")
+        };
+        println!("{:#?}", token_conversion);
 
         let token_price_update_stream = state_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
@@ -241,7 +259,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             token_conversion,
             token_price_update_stream,
             pool_storage.clone(),
-            node_config.node_id
+            node_config.node_id,
+            Some(telemetry.clone())
         )
         .await?;
 

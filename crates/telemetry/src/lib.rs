@@ -1,10 +1,14 @@
-use std::{collections::HashMap, task::Poll};
+use std::{
+    collections::{HashMap, VecDeque},
+    task::Poll
+};
 
 use alloy_primitives::Address;
 use angstrom_types::{
     consensus::{ConsensusRoundName, StromConsensusEvent},
     contract_bindings::angstrom::Angstrom::PoolKey,
     orders::{CancelOrderRequest, OrderOrigin},
+    pair_with_price::PairsWithPrice,
     primitive::PoolId,
     sol_bindings::grouped_orders::AllOrders,
     uni_structure::BaselinePoolState
@@ -100,6 +104,11 @@ pub enum TelemetryMessage {
         blocknum: u64,
         state:    ConsensusRoundName
     },
+    /// Message assigning a snapshot of our gas prices to this block
+    GasPriceSnapshot {
+        blocknum: u64,
+        snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
+    },
     /// Message indicating an error has happened, marking a block for output
     Error {
         blocknum: u64,
@@ -153,6 +162,14 @@ impl Telemetry {
         self.get_block(blocknum).add_event(event);
     }
 
+    fn add_gas_snapshot_to_block(
+        &mut self,
+        blocknum: u64,
+        snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
+    ) {
+        self.get_block(blocknum).set_gas_price_snapshot(snapshot);
+    }
+
     fn on_error(&mut self, blocknum: u64, error: String) {
         if let Some(block) = self.block_cache.get_mut(&blocknum) {
             block.error(error);
@@ -186,6 +203,9 @@ impl Future for Telemetry {
                     | event @ TelemetryMessage::ConsensusStateChange { blocknum, .. }
                     | event @ TelemetryMessage::Consensus { blocknum, .. } => {
                         self.add_event_to_block(blocknum, event);
+                    }
+                    TelemetryMessage::GasPriceSnapshot { blocknum, snapshot } => {
+                        self.add_gas_snapshot_to_block(blocknum, snapshot);
                     }
                     TelemetryMessage::Error { blocknum, message } => {
                         self.on_error(blocknum, message);

@@ -351,7 +351,8 @@ where
         uniswap_pools.clone(),
         price_generator,
         pool_config_store.clone(),
-        handles.validator_rx
+        handles.validator_rx,
+        Some(telemetry.clone())
     );
 
     let validation_handle = ValidationClient(handles.validator_tx.clone());

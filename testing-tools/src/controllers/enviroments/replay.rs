@@ -1,4 +1,10 @@
-use std::{cell::Cell, collections::HashSet, pin::Pin, rc::Rc, time::Duration};
+use std::{
+    cell::Cell,
+    collections::{HashMap, HashSet, VecDeque},
+    pin::Pin,
+    rc::Rc,
+    time::Duration
+};
 
 use alloy::{
     node_bindings::AnvilInstance,
@@ -7,7 +13,8 @@ use alloy::{
 };
 use angstrom::components::initialize_strom_handles;
 use angstrom_types::{
-    block_sync::GlobalBlockSync, consensus::ConsensusRoundName, testnet::InitialTestnetState
+    block_sync::GlobalBlockSync, consensus::ConsensusRoundName, pair_with_price::PairsWithPrice,
+    primitive::PoolId, testnet::InitialTestnetState
 };
 use futures::{Future, FutureExt};
 use order_pool::OrderPoolHandle;
@@ -92,6 +99,9 @@ where
                         assert_eq!(*state, new_state, "Consensus state mismatch")
                     }
                 }
+                TelemetryMessage::GasPriceSnapshot { blocknum, snapshot } => {
+                    println!("Gas price snapshot not a valid replay event");
+                }
                 TelemetryMessage::Error { message, .. } => {
                     println!("Error: {message}");
                 }
@@ -108,7 +118,8 @@ where
     pub async fn spawn_replay(
         c: C,
         config: ReplayConfig,
-        ex: TaskExecutor
+        ex: TaskExecutor,
+        token_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>
     ) -> eyre::Result<(Self, UnboundedReceiver<ConsensusRoundName>)> {
         let block_provider = TestnetBlockProvider::new();
         let mut this = Self {
@@ -123,7 +134,7 @@ where
         };
 
         tracing::info!("initializing testnet with {} nodes", config.node_count());
-        let state_rx = this.spawn_replay_node(c, ex).await?;
+        let state_rx = this.spawn_replay_node(c, ex, token_price_snapshot).await?;
         tracing::info!("initialized testnet with {} nodes", config.node_count());
 
         Ok((this, state_rx))
@@ -148,7 +159,8 @@ where
     async fn spawn_replay_node(
         &mut self,
         c: C,
-        ex: TaskExecutor
+        ex: TaskExecutor,
+        token_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>
     ) -> eyre::Result<UnboundedReceiver<ConsensusRoundName>> {
         let configs = (0..self.config.node_count())
             .map(|_| {
@@ -198,7 +210,8 @@ where
             vec![noop_agent],
             block_sync.clone(),
             ex.clone(),
-            Some(state_tx)
+            Some(state_tx),
+            token_price_snapshot
         )
         .await?;
         tracing::info!(?node_pk, "node pk!!!!!!!!!!!");

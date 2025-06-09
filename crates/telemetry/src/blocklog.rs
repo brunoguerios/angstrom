@@ -1,11 +1,11 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     io::{Read, Write}
 };
 
 use angstrom_types::{
-    contract_bindings::angstrom::Angstrom::PoolKey, primitive::PoolId,
-    uni_structure::BaselinePoolState
+    contract_bindings::angstrom::Angstrom::PoolKey, pair_with_price::PairsWithPrice,
+    primitive::PoolId, uni_structure::BaselinePoolState
 };
 use base64::Engine;
 use flate2::Compression;
@@ -15,12 +15,13 @@ use crate::{NodeConstants, TelemetryMessage};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockLog {
-    blocknum:       u64,
-    constants:      Option<NodeConstants>,
-    pool_keys:      Option<Vec<PoolKey>>,
-    pool_snapshots: Option<HashMap<PoolId, BaselinePoolState>>,
-    events:         Vec<TelemetryMessage>,
-    error:          Option<String>
+    blocknum:           u64,
+    constants:          Option<NodeConstants>,
+    pool_keys:          Option<Vec<PoolKey>>,
+    pool_snapshots:     Option<HashMap<PoolId, BaselinePoolState>>,
+    events:             Vec<TelemetryMessage>,
+    gas_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>,
+    error:              Option<String>
 }
 
 impl BlockLog {
@@ -31,6 +32,7 @@ impl BlockLog {
             pool_keys: None,
             pool_snapshots: None,
             events: Vec::new(),
+            gas_price_snapshot: None,
             error: None
         }
     }
@@ -57,6 +59,10 @@ impl BlockLog {
         self.pool_keys.as_ref()
     }
 
+    pub fn gas_price_snapshot(&self) -> Option<&(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)> {
+        self.gas_price_snapshot.as_ref()
+    }
+
     pub fn set_pool_snapshots(&mut self, pool_snapshots: HashMap<PoolId, BaselinePoolState>) {
         self.pool_snapshots = Some(pool_snapshots);
     }
@@ -67,6 +73,13 @@ impl BlockLog {
 
     pub fn set_node_constants(&mut self, node_consts: NodeConstants) {
         self.constants = Some(node_consts);
+    }
+
+    pub fn set_gas_price_snapshot(
+        &mut self,
+        snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
+    ) {
+        self.gas_price_snapshot = Some(snapshot);
     }
 
     pub fn add_event(&mut self, event: TelemetryMessage) {

@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     net::SocketAddr,
     pin::Pin,
     sync::Arc,
@@ -15,7 +15,8 @@ use angstrom_network::{
 use angstrom_types::{
     block_sync::GlobalBlockSync,
     consensus::ConsensusRoundName,
-    primitive::PeerId,
+    pair_with_price::PairsWithPrice,
+    primitive::{PeerId, PoolId},
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
     testnet::InitialTestnetState
 };
@@ -81,7 +82,8 @@ where
         agents: Vec<F>,
         block_sync: GlobalBlockSync,
         ex: TaskExecutor,
-        state_updates: Option<UnboundedSender<ConsensusRoundName>>
+        state_updates: Option<UnboundedSender<ConsensusRoundName>>,
+        token_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>
     ) -> eyre::Result<Self>
     where
         F: for<'a> Fn(
@@ -112,7 +114,8 @@ where
             agents,
             block_sync,
             ex.clone(),
-            state_updates
+            state_updates,
+            token_price_snapshot
         )
         .await?;
 

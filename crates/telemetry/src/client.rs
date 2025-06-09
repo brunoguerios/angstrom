@@ -1,9 +1,13 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Debug
+};
 
 use angstrom_types::{
     consensus::{ConsensusRoundName, StromConsensusEvent},
     contract_bindings::angstrom::Angstrom::PoolKey,
     orders::{CancelOrderRequest, OrderOrigin},
+    pair_with_price::PairsWithPrice,
     primitive::PoolId,
     sol_bindings::grouped_orders::AllOrders,
     uni_structure::BaselinePoolState
@@ -23,6 +27,11 @@ pub trait TelemetryHandle: Send + Sync + Clone + Debug + Unpin + 'static {
     fn cancel_order(&self, blocknum: u64, cancel: CancelOrderRequest);
     fn consensus_event(&self, event: StromConsensusEvent);
     fn consensus_state(&self, blocknum: u64, state: ConsensusRoundName);
+    fn gas_price_snapshot(
+        &self,
+        blocknum: u64,
+        snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
+    );
     fn error(&self, blocknum: u64, message: String);
 }
 
@@ -72,6 +81,16 @@ impl TelemetryHandle for TelemetryClient {
         let _ = self
             .tx
             .send(TelemetryMessage::ConsensusStateChange { blocknum, state });
+    }
+
+    fn gas_price_snapshot(
+        &self,
+        blocknum: u64,
+        snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
+    ) {
+        let _ = self
+            .tx
+            .send(TelemetryMessage::GasPriceSnapshot { blocknum, snapshot });
     }
 
     fn error(&self, blocknum: u64, message: String) {

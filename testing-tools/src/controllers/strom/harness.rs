@@ -259,7 +259,8 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         uniswap_pools.clone(),
         price_generator,
         pool_config.clone(),
-        handles.validator_rx
+        handles.validator_rx,
+        telemetry.clone()
     );
 
     let (sn_tx, _sn_rx) = metered_unbounded_channel("replay");

@@ -171,6 +171,7 @@ where
                         agents.clone(),
                         block_sync.clone(),
                         ex.clone(),
+                        None,
                         None
                     )
                     .await?;

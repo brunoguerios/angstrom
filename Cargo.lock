@@ -12238,6 +12238,7 @@ dependencies = [
  "secp256k1",
  "serde",
  "serial_test",
+ "telemetry",
  "tempfile",
  "testing-tools",
  "tokio",

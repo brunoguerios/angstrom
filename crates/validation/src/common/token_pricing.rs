@@ -41,6 +41,46 @@ pub struct TokenPriceGenerator {
 }
 
 impl TokenPriceGenerator {
+    pub fn from_snapshot(
+        uniswap_pools: SyncedUniswapPools,
+        prev_prices: HashMap<PoolId, VecDeque<PairsWithPrice>>,
+        base_gas_token: Address,
+        base_wei: u128
+    ) -> Self {
+        let pair_to_pool = uniswap_pools
+            .iter()
+            .map(|p| {
+                let key = p.key();
+                let pool = p.value().read().unwrap();
+                ((pool.token0, pool.token1), *key)
+            })
+            .collect::<HashMap<(Address, Address), PoolId>>();
+
+        let remapped_prices = prev_prices
+            .into_iter()
+            .map(|(k, v)| {
+                let new_k = v
+                    .front()
+                    .and_then(|i| pair_to_pool.get(&(i.token0, i.token1)).copied())
+                    .unwrap_or(k);
+                (new_k, v)
+            })
+            .collect();
+
+        Self {
+            uniswap_pools,
+            prev_prices: remapped_prices,
+            pair_to_pool,
+            base_gas_token,
+            blocks_to_avg_price: 1,
+            base_wei
+        }
+    }
+
+    pub fn to_snapshot(&self) -> (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128) {
+        (self.prev_prices.clone(), self.base_wei)
+    }
+
     /// is a bit of a pain as we need todo a look-back in-order to grab last 5
     /// blocks.
     pub async fn new<P: Provider>(
@@ -427,7 +467,7 @@ impl std::fmt::Debug for TokenPriceGenerator {
             .field("pair_to_pool", &self.pair_to_pool)
             .field("base_gas_token", &self.base_gas_token)
             .field("blocks_to_avg_price", &self.blocks_to_avg_price)
-            .field("base_gas_token", &self.base_gas_token)
+            .field("base_wei", &self.base_wei)
             .finish()
     }
 }
