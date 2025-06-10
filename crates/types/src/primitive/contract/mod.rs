@@ -119,56 +119,85 @@ impl AngstromAddressConfig {
     }
 
     pub fn try_init(self) {
-        let _ = ANGSTROM_ADDRESS.set(self.angstrom_address);
-        let _ = POSITION_MANAGER_ADDRESS.set(self.position_manager_address);
-        let _ = CONTROLLER_V1_ADDRESS.set(self.controller_v1_address);
-        let _ = POOL_MANAGER_ADDRESS.set(self.pool_manager_address);
-        let _ = ANGSTROM_DEPLOYED_BLOCK.set(self.angstrom_deploy_block);
-        let _ = CHAIN_ID.set(self.chain_id);
-        let _ = ANGSTROM_DOMAIN.set(alloy::sol_types::eip712_domain!(
-            name: "Angstrom",
-            version: "v1",
-            chain_id: self.chain_id,
-            verifying_contract: self.angstrom_address,
-        ));
+        if self.angstrom_address != Address::ZERO {
+            let _ = ANGSTROM_ADDRESS.set(self.angstrom_address);
+        }
+        if self.position_manager_address != Address::ZERO {
+            let _ = POSITION_MANAGER_ADDRESS.set(self.position_manager_address);
+        }
+
+        if self.controller_v1_address != Address::ZERO {
+            let _ = CONTROLLER_V1_ADDRESS.set(self.controller_v1_address);
+        }
+
+        if self.pool_manager_address != Address::ZERO {
+            let _ = POOL_MANAGER_ADDRESS.set(self.pool_manager_address);
+        }
+
+        if self.angstrom_deploy_block != 0 {
+            let _ = ANGSTROM_DEPLOYED_BLOCK.set(self.angstrom_deploy_block);
+        }
+
+        if self.chain_id != 0 {
+            let _ = CHAIN_ID.set(self.chain_id);
+        }
+
+        if self.chain_id != 0 && self.angstrom_address != Address::ZERO {
+            let _ = ANGSTROM_DOMAIN.set(alloy::sol_types::eip712_domain!(
+                name: "Angstrom",
+                version: "v1",
+                chain_id: self.chain_id,
+                verifying_contract: self.angstrom_address,
+            ));
+        }
     }
 
     pub fn init_with_chain_fallback(self, chain_id: u64) {
-        init_with_chain_id(chain_id);
         self.try_init();
+        let _ = try_init_with_chain_id(chain_id);
     }
 }
 
-pub fn init_with_chain_id(chain_id: ChainId) {
+pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
+    let mut err = false;
     match chain_id {
         1 => {
             tracing::error!("mainnet deploy is not currently setup, cannot set values");
         }
         11155111 => {
-            ANGSTROM_ADDRESS
+            err |= ANGSTROM_ADDRESS
                 .set(address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"))
-                .unwrap();
-            POSITION_MANAGER_ADDRESS
+                .is_err();
+            err |= POSITION_MANAGER_ADDRESS
                 .set(address!("0x429ba70129df741B2Ca2a85BC3A2a3328e5c09b4"))
-                .unwrap();
-            CONTROLLER_V1_ADDRESS
+                .is_err();
+            err |= CONTROLLER_V1_ADDRESS
                 .set(address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674"))
-                .unwrap();
-            POOL_MANAGER_ADDRESS
+                .is_err();
+            err |= POOL_MANAGER_ADDRESS
                 .set(address!("0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"))
-                .unwrap();
-            ANGSTROM_DEPLOYED_BLOCK.set(8276506).unwrap();
-            ANGSTROM_DOMAIN
+                .is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(8276506).is_err();
+            err |= ANGSTROM_DOMAIN
                 .set(alloy::sol_types::eip712_domain!(
                     name: "Angstrom",
                     version: "v1",
                     chain_id: 11155111,
                     verifying_contract: address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"),
                 ))
-                .unwrap();
+                .is_err();
         }
         id => panic!("unsupported chain_id: {}", id)
     }
+    if err {
+        return Err(eyre::eyre!("one or more statics failed to set"));
+    }
+
+    Ok(())
+}
+
+pub fn init_with_chain_id(chain_id: ChainId) {
+    try_init_with_chain_id(chain_id).unwrap();
 }
 
 #[derive(Debug, Default, Clone)]

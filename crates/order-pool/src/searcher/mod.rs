@@ -121,8 +121,16 @@ impl SearcherPool {
         assert!(old_is_none);
     }
 
-    pub fn remove_pool(&mut self, key: &PoolId) {
-        let _ = self.searcher_orders.remove(key);
+    pub fn remove_pool(&mut self, key: &PoolId) -> Vec<B256> {
+        self.searcher_orders
+            .remove(key)
+            .map(|pool| {
+                pool.get_all_orders()
+                    .into_iter()
+                    .map(|o| o.order_id.hash)
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn remove_invalid_order(&mut self, order_hash: B256) {

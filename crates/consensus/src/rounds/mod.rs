@@ -37,6 +37,8 @@ mod pre_proposal_aggregation;
 mod preproposal_wait_trigger;
 mod proposal;
 
+pub use preproposal_wait_trigger::{MAX_WAIT_DURATION, MIN_WAIT_DURATION};
+
 type PollTransition<P, Matching> = Poll<Option<Box<dyn ConsensusState<P, Matching>>>>;
 
 pub trait ConsensusState<P, Matching>: Send

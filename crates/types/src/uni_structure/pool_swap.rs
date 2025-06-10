@@ -27,6 +27,18 @@ pub struct PoolSwap<'a> {
 
 impl<'a> PoolSwap<'a> {
     pub fn swap(mut self) -> eyre::Result<PoolSwapResult<'a>> {
+        // We want to ensure that we set the right limits and are swapping the correct
+        // way.
+        if self.direction.is_ask()
+            && self
+                .target_price
+                .as_ref()
+                .map(|target_price| target_price > &self.liquidity.current_sqrt_price)
+                .unwrap_or_default()
+        {
+            return Err(eyre::eyre!("direction and sqrt_price diverge"));
+        }
+
         let range_start = self.liquidity.current_sqrt_price;
         let range_start_tick = self.liquidity.current_tick;
 
@@ -166,6 +178,10 @@ impl<'a> PoolSwapResult<'a> {
         let amount = I256::unchecked_from(amount_in);
 
         self.swap_to_amount(amount, direction)
+    }
+
+    pub fn was_empty_swap(&self) -> bool {
+        self.total_d_t0 == 0 || self.total_d_t1 == 0
     }
 
     /// Reduce `PoolSwapStep`s into contiguous ranges for reward calculation.

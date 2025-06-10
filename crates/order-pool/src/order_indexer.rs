@@ -91,8 +91,11 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.order_tracker.is_cancelled(order_hash)
     }
 
-    pub fn remove_pool(&self, key: PoolId) {
-        self.order_storage.remove_pool(key);
+    pub fn remove_pool(&mut self, key: PoolId) {
+        let orders = self.order_storage.remove_pool(key);
+        self.order_tracker.handle_pool_removed(&orders);
+
+        self.subscribers.notify_expired_orders(&orders);
     }
 
     pub fn new_rpc_order(

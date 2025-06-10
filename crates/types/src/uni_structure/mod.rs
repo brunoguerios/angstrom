@@ -71,6 +71,9 @@ impl BaselinePoolState {
             .swap()
     }
 
+    /// Swap to current price is designed to represent all swap outcomes as an
+    /// amount in swap. Because of this, this swap does two swaps to make
+    /// sure the values always align perfectly.
     pub fn swap_current_to_price(
         &self,
         direction: Direction,
@@ -92,6 +95,25 @@ impl BaselinePoolState {
         let amount = I256::unchecked_from(amount_in);
 
         self.swap_current_with_amount(amount, direction)
+    }
+
+    pub fn swap_current_to_price_raw(
+        &self,
+        price_limit: SqrtPriceX96
+    ) -> eyre::Result<PoolSwapResult<'_>> {
+        let liq = self.liquidity.current();
+
+        let is_bid = liq.current_sqrt_price >= price_limit;
+        let direction = Direction::from_is_bid(is_bid);
+
+        PoolSwap {
+            liquidity: liq,
+            target_amount: I256::MAX,
+            target_price: Some(price_limit),
+            direction,
+            fee: 0
+        }
+        .swap()
     }
 
     pub fn swap_from_price_to(
