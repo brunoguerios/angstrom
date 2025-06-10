@@ -17,10 +17,13 @@ fn read_log_from_stdin() -> BlockLog {
 fn main() {
     init_tracing(2);
 
-    // set the proper address and domain
-    AngstromAddressConfig::INTERNAL_TESTNET.try_init();
 
     let cli = ReplayCli::parse();
+
+    if cli.testnet_replay {
+        // Setup the testnet addresses if we are doing a testnet run
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
+    }
     let raw_log = read_log_from_stdin();
     let target_block = raw_log.blocknum().saturating_sub(71);
     tracing::info!(target_block, log_block = raw_log.blocknum(), "Loaded and registered log");
@@ -35,12 +38,6 @@ fn main() {
     reth::CliRunner::try_default_runtime()
         .unwrap()
         .run_command_until_exit(async move |ctx| -> eyre::Result<()> {
-            // let ex = ctx.task_executor;
-            // let (replay_log, provider, initial_state) =
-            //     build_log_and_provider(node_config, raw_log, ex.clone()).await?;
-            // // Replay our BlockLog
-            // replay_stuff(provider, ex, replay_log, initial_state).await?;
-
             let (net, state_rx) = AngstromTestnet::spawn_replay(
                 NoopProvider::mainnet(),
                 config,
