@@ -1,8 +1,5 @@
 use std::{
-    cell::Cell,
     collections::{HashMap, HashSet, VecDeque},
-    pin::Pin,
-    rc::Rc,
     time::Duration
 };
 
@@ -11,31 +8,26 @@ use alloy::{
     primitives::Address,
     providers::{Provider, WalletProvider as _, ext::AnvilApi}
 };
-use angstrom::components::initialize_strom_handles;
 use angstrom_types::{
     block_sync::GlobalBlockSync, consensus::ConsensusRoundName, pair_with_price::PairsWithPrice,
     primitive::PoolId, testnet::InitialTestnetState
 };
-use futures::{Future, FutureExt};
+use futures::FutureExt;
 use order_pool::OrderPoolHandle;
-use reth::rpc::eth::EthApiServer;
 use reth_chainspec::Hardforks;
-use reth_provider::{
-    BlockNumReader, BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider
-};
+use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::{TaskExecutor, TaskSpawner};
-use telemetry::{NodeConstants, TelemetryMessage, blocklog::BlockLog};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use telemetry::{TelemetryMessage, blocklog::BlockLog};
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};
 
 use super::AngstromTestnet;
 use crate::{
-    agents::AgentConfig,
     controllers::strom::TestnetNode,
     providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
     types::{
         GlobalTestingConfig, WithWalletProvider,
-        config::{ReplayConfig, TestingNodeConfig, TestnetConfig},
+        config::{ReplayConfig, TestingNodeConfig},
         initial_state::PartialConfigPoolKey
     },
     utils::noop_agent
@@ -99,7 +91,7 @@ where
                         assert_eq!(*state, new_state, "Consensus state mismatch")
                     }
                 }
-                TelemetryMessage::GasPriceSnapshot { blocknum, snapshot } => {
+                TelemetryMessage::GasPriceSnapshot { .. } => {
                     println!("Gas price snapshot not a valid replay event");
                 }
                 TelemetryMessage::Error { message, .. } => {

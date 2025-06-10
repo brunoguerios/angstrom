@@ -42,7 +42,7 @@ impl ReplayConfig {
 }
 
 impl GlobalTestingConfig for ReplayConfig {
-    fn is_leader(&self, node_id: u64) -> bool {
+    fn is_leader(&self, _node_id: u64) -> bool {
         true
     }
 
