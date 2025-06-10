@@ -38,11 +38,15 @@ pub struct TestingNodeConfig<C> {
 
 impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
     pub fn new(node_id: u64, global_config: C, voting_power: u64) -> Self {
-        let secret_key = if matches!(global_config.config_type(), TestingConfigKind::Testnet)
-            && global_config.is_leader(node_id)
+        let secret_key = if matches!(
+            global_config.config_type(),
+            TestingConfigKind::Testnet | TestingConfigKind::Replay
+        ) && global_config.is_leader(node_id)
         {
+            tracing::trace!(node_id, voting_power, "Using fixed leader node key");
             SecretKey::from_slice(&TESTNET_LEADER_SECRET_KEY).unwrap()
         } else {
+            tracing::trace!(node_id, voting_power, "Using deterministic follower node key");
             // use node_id as deterministic random seed
             let mut seed = [0u8; 32];
             seed[0..8].copy_from_slice(&node_id.to_le_bytes());
