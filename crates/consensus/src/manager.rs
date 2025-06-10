@@ -135,6 +135,10 @@ where
 
         self.consensus_round_state
             .reset_round(self.current_height, round_leader);
+        // We just reset to BidAggregation so let's make sure to send our listener
+        if let Some(su) = self.state_updates.as_ref() {
+            let _res = su.send(ConsensusRoundName::BidAggregation);
+        }
         self.broadcasted_messages.clear();
 
         match notification {

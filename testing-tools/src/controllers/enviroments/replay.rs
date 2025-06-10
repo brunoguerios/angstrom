@@ -107,6 +107,10 @@ where
         tracing::error!("Done with everything");
         while let Some(x) = state_stream.next().await {
             tracing::info!(state = ?x, "State transition received");
+            if matches!(x, ConsensusRoundName::BidAggregation) {
+                tracing::info!("Completed one block");
+                break;
+            }
         }
 
         Ok(())
