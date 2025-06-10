@@ -26,6 +26,7 @@ contract AngstromScript is BaseScript {
 
         address controllerOwner;
         address angstromMultisig;
+        address[] memory initNodes;
         if (isTestnet()) {
             console.log("[INFO] Testnet detected, deploying *WITHOUT* timelock");
             controllerOwner = vm.envAddress("TESTNET_OWNER");
@@ -50,8 +51,9 @@ contract AngstromScript is BaseScript {
             controllerOwner = address(timelock);
         }
 
-        ControllerV1 controller =
-            new ControllerV1(IAngstromAuth(angstromAddress), controllerOwner, angstromMultisig);
+        ControllerV1 controller = new ControllerV1(
+            IAngstromAuth(angstromAddress), controllerOwner, angstromMultisig, initNodes
+        );
         VANITY_MARKET.deploy(
             angstromAddressTokenId,
             bytes.concat(type(Angstrom).creationCode, abi.encode(uniswap, controller))

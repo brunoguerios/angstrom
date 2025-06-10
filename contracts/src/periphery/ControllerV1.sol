@@ -78,10 +78,22 @@ contract ControllerV1 is Ownable {
 
     address public immutable fastOwner;
 
-    constructor(IAngstromAuth angstrom, address initialOwner, address _fastOwner) {
+    constructor(
+        IAngstromAuth angstrom,
+        address initialOwner,
+        address _fastOwner,
+        address[] memory initNodes
+    ) {
         _initializeOwner(initialOwner);
         ANGSTROM = angstrom;
         fastOwner = _fastOwner;
+
+        for (uint256 i = 0; i < initNodes.length; i++) {
+            address node = initNodes[i];
+            if (!_nodes.add(node)) revert AlreadyNode();
+            emit NodeAdded(node);
+            _toggle(node);
+        }
     }
 
     function transferOwnership(address) public payable override {
