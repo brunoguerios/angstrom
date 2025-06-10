@@ -58,6 +58,10 @@ impl GlobalTestingConfig for ReplayConfig {
         1
     }
 
+    fn use_testnet(&self) -> bool {
+        self.testnet_replay
+    }
+
     fn leader_eth_rpc_port(&self) -> u16 {
         self.leader_rpc_port
     }

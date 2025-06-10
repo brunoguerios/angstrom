@@ -9,8 +9,11 @@ use alloy::{
     providers::{Provider, WalletProvider as _, ext::AnvilApi}
 };
 use angstrom_types::{
-    block_sync::GlobalBlockSync, consensus::ConsensusRoundName, pair_with_price::PairsWithPrice,
-    primitive::PoolId, testnet::InitialTestnetState
+    block_sync::GlobalBlockSync,
+    consensus::ConsensusRoundName,
+    pair_with_price::PairsWithPrice,
+    primitive::{ANGSTROM_ADDRESS, CONTROLLER_V1_ADDRESS, POOL_MANAGER_ADDRESS, PoolId},
+    testnet::InitialTestnetState
 };
 use futures::FutureExt;
 use order_pool::OrderPoolHandle;
@@ -24,11 +27,13 @@ use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};
 use super::AngstromTestnet;
 use crate::{
     controllers::strom::TestnetNode,
-    providers::{AnvilInitializer, AnvilProvider, TestnetBlockProvider, WalletProvider},
+    providers::{
+        AnvilInitializer, AnvilProvider, AnvilStateProvider, TestnetBlockProvider, WalletProvider
+    },
     types::{
         GlobalTestingConfig, WithWalletProvider,
         config::{ReplayConfig, TestingNodeConfig},
-        initial_state::PartialConfigPoolKey
+        initial_state::{DeployedAddresses, PartialConfigPoolKey}
     },
     utils::noop_agent
 };
@@ -172,19 +177,34 @@ where
 
         // initialize leader provider
         let node_config = configs.first().cloned().unwrap();
-        let front = configs.first().unwrap().clone();
-        let pool_keys = front.pool_keys();
-        let initializer_provider = Self::spawn_provider(front, node_addresses).await?;
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+        let pool_keys = node_config.pool_keys();
         let (i, leader_provider, initial_angstrom_state) =
-            Self::anvil_deployment(initializer_provider, pool_keys, ex.clone()).await?;
+            if node_config.global_config.use_testnet() {
+                // If we're using Testnet thene we want to deploy and configure a local testnet
+                // Anvil
+                let initializer_provider =
+                    Self::spawn_provider(node_config.clone(), node_addresses).await?;
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                Self::anvil_deployment(initializer_provider, pool_keys, ex.clone()).await?
+            } else {
+                // If we're not using testnet, then we want to spawn a mainnet fork instead
+                // This is experimental and I'm not sure how well any of it works yet
+                let deployed_addresses =
+                    DeployedAddresses::from_globals(Address::random(), Address::random());
+                let res =
+                    Self::spawn_mainnet_fork(node_config.clone(), Some(deployed_addresses)).await?;
+                let state = InitialTestnetState::new(
+                    *ANGSTROM_ADDRESS.get().unwrap(),
+                    *CONTROLLER_V1_ADDRESS.get().unwrap(),
+                    *POOL_MANAGER_ADDRESS.get().unwrap(),
+                    None,
+                    vec![],
+                    ex.clone()
+                );
+                (res.0, res.1, state)
+            };
+
         self._anvil_instance = Some(i);
-        // let leader_provider = AnvilProvider::from_future(
-        //     WalletProvider::new(node_config.clone()).then(async |v| v.map(|i| (i.0,
-        // i.1, None))),     true
-        // )
-        // .await?;
-        // take the provider and then set all people in the testnet as nodes.
 
         tracing::info!("connected to state provider");
 
@@ -228,6 +248,17 @@ where
             true
         )
         .await
+    }
+
+    async fn spawn_mainnet_fork(
+        config: TestingNodeConfig<ReplayConfig>,
+        deployed_addresses: Option<DeployedAddresses>
+    ) -> eyre::Result<(AnvilInstance, AnvilProvider<WalletProvider>)> {
+        let (wallet_provider, anvil) = config.spawn_anvil_rpc().await?;
+        let provider = AnvilStateProvider::new(wallet_provider);
+        let mut ap = AnvilProvider::new(provider, anvil, deployed_addresses);
+        let instance = ap._instance.take().unwrap();
+        Ok((instance, ap))
     }
 
     pub async fn anvil_deployment(
