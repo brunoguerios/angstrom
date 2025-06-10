@@ -73,7 +73,8 @@ where
                 inner.provider(),
                 angstrom_addr,
                 inner.controller(),
-                inner.controller()
+                inner.controller(),
+                vec![]
             ))
             .await?
             .address();

@@ -11,9 +11,9 @@ import {hasAngstromHookFlags} from "src/modules/UniConsumer.sol";
 /// @author philogy <https://github.com/philogy>
 contract MineTestnetAddrScript is BaseScript {
     function run() public {
-        uint256 pk = vm.envUint("TESTNET_PK");
-        address owner = vm.addr(pk);
-        vm.startBroadcast(pk);
+        // uint256 pk = vm.envUint("TESTNET_PK");
+        address owner = 0x9b9202606f77DB144C682650343a10E43aC4C64B;
+        // vm.startBroadcast(pk);
 
         uint256 id = uint256(uint160(owner)) << 96;
         uint8 nonce = 0;
@@ -31,7 +31,12 @@ contract MineTestnetAddrScript is BaseScript {
     }
 
     function _foundAddr(uint256 id, uint8 nonce) internal view returns (bool) {
-        if (!hasAngstromHookFlags(VANITY_MARKET.computeAddress(bytes32(id), nonce))) return false;
+        address computed = VANITY_MARKET.computeAddress(bytes32(id), nonce);
+
+        if (!hasAngstromHookFlags(computed)) return false;
+
+        console.log("shit: %s", computed);
+
         try VANITY_MARKET.addressOf(id) returns (address) {
             return false;
         } catch (bytes memory errData) {
@@ -40,6 +45,7 @@ contract MineTestnetAddrScript is BaseScript {
                     revert(add(errData, 0x20), mload(errData))
                 }
             }
+
             return true;
         }
     }
