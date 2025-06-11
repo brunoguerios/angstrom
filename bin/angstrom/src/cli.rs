@@ -1,18 +1,13 @@
 use std::path::PathBuf;
 
 use alloy::signers::local::PrivateKeySigner;
-use alloy_primitives::Address;
 use angstrom_metrics::initialize_prometheus_metrics;
 use angstrom_types::primitive::{AngstromSigner, CHAIN_ID};
-use eyre::Context;
 use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
-use serde::Deserialize;
 use url::Url;
 
 #[derive(Debug, Clone, Default, clap::Args)]
 pub struct AngstromConfig {
-    #[clap(long)]
-    pub node_config:               PathBuf,
     /// enables the metrics
     #[clap(long, default_value = "false", global = true)]
     pub metrics_enabled:           bool,
@@ -65,33 +60,6 @@ impl AngstromConfig {
                 .map(AngstromSigner::new)
             })
             .transpose()?)
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct NodeConfig {
-    pub angstrom_address:      Address,
-    pub periphery_address:     Address,
-    pub pool_manager_address:  Address,
-    pub gas_token_address:     Address,
-    pub angstrom_deploy_block: u64
-}
-
-impl NodeConfig {
-    pub fn load_from_config(config: Option<PathBuf>) -> Result<Self, eyre::Report> {
-        let config_path = config.ok_or_else(|| eyre::eyre!("Config path not provided"))?;
-
-        if !config_path.exists() {
-            return Err(eyre::eyre!("Config file does not exist at {:?}", config_path));
-        }
-
-        let toml_content = std::fs::read_to_string(&config_path)
-            .wrap_err_with(|| format!("Could not read config file {:?}", config_path))?;
-
-        let node_config: NodeConfig = toml::from_str(&toml_content)
-            .wrap_err_with(|| format!("Could not deserialize config file {:?}", config_path))?;
-
-        Ok(node_config)
     }
 }
 
