@@ -1,9 +1,13 @@
 use std::{
+    collections::HashSet,
     ops::Deref,
     time::{SystemTime, UNIX_EPOCH}
 };
 
-use alloy::rlp::{BytesMut, Encodable};
+use alloy::{
+    primitives::Address,
+    rlp::{BytesMut, Encodable}
+};
 use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use futures::{
     StreamExt,
@@ -31,7 +35,8 @@ pub struct StromStartup<S: AngstromMetaSigner> {
     remote_peer_id:       PeerId,
     to_session_manager:   MeteredPollSender<StromSessionMessage>,
     commands_rx:          ReceiverStream<SessionCommand>,
-    shutdown:             bool
+    shutdown:             bool,
+    valid_nodes:          HashSet<Address>
 }
 
 impl<S: AngstromMetaSigner> StromStartup<S> {
@@ -41,7 +46,8 @@ impl<S: AngstromMetaSigner> StromStartup<S> {
         conn: ProtocolConnection,
         remote_peer_id: PeerId,
         to_session_manager: MeteredPollSender<StromSessionMessage>,
-        commands_rx: ReceiverStream<SessionCommand>
+        commands_rx: ReceiverStream<SessionCommand>,
+        valid_nodes: HashSet<Address>
     ) -> Self {
         Self {
             verification_sidecar,
@@ -50,7 +56,8 @@ impl<S: AngstromMetaSigner> StromStartup<S> {
             remote_peer_id,
             to_session_manager,
             commands_rx,
-            shutdown: false
+            shutdown: false,
+            valid_nodes
         }
     }
 
@@ -130,11 +137,13 @@ impl<S: AngstromMetaSigner> StromStartup<S> {
 
         let status_time = status.state.timestamp + STATUS_TIMESTAMP_TIMEOUT_MS;
         let verification = status.verify();
-        if verification.is_err() {
-            return false;
-        }
 
-        current_time <= status_time && verification.unwrap() == self.remote_peer_id
+        let Ok(verification) = verification else { return false };
+        let peer_id = verification;
+        let digest = alloy::primitives::keccak256(peer_id);
+        let address = Address::from_slice(&digest[12..]);
+
+        current_time <= status_time && self.valid_nodes.contains(&address)
     }
 }
 
