@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant}
 };
 
-use alloy::providers::Provider;
+use alloy::{primitives::Bytes, providers::Provider};
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
@@ -114,14 +114,11 @@ impl ProposalState {
                 return false;
             };
 
-        if possible_bundle.is_none() {
-            let signed_attestation =
-                AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer);
-            handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(
-                signed_attestation
-            ));
-            cx.waker().wake_by_ref();
-        }
+        let attestation = possible_bundle
+            .is_none()
+            .then(|| AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer))
+            .unwrap_or_default();
+        handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(attestation));
 
         let submission_future = Box::pin(async move {
             let Ok(tx_hash) = provider
