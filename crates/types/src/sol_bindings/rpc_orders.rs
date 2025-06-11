@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use alloy::{
     primitives::{Address, B256, Bytes, keccak256},
-    signers::SignerSync,
     sol,
     sol_types::{Eip712Domain, SolStruct}
 };
@@ -14,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use super::RawPoolOrder;
 use crate::{
     matching::uniswap::Direction,
-    primitive::{ANGSTROM_DOMAIN, AngstromSigner},
+    primitive::{ANGSTROM_DOMAIN, AngstromMetaSigner, AngstromSigner},
     uni_structure::BaselinePoolState
 };
 
@@ -139,7 +138,10 @@ impl TopOfBlockOrder {
 }
 
 impl AttestAngstromBlockEmpty {
-    pub fn sign_and_encode(target_block: u64, signer: &AngstromSigner) -> Bytes {
+    pub fn sign_and_encode<S: AngstromMetaSigner>(
+        target_block: u64,
+        signer: &AngstromSigner<S>
+    ) -> Bytes {
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
 
         let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());

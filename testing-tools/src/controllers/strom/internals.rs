@@ -1,6 +1,6 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc, time::Duration};
 
-use alloy::primitives::Address;
+use alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use alloy_rpc_types::BlockId;
 use angstrom::components::StromHandles;
 use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
@@ -19,7 +19,7 @@ use angstrom_types::{
     pair_with_price::PairsWithPrice,
     primitive::UniswapPoolRegistry,
     sol_bindings::testnet::TestnetHub,
-    submission::SubmissionHandler,
+    submission::{ChainSubmitterHolder, SubmissionHandler},
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
@@ -72,7 +72,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         executor: TaskExecutor
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>,
+        ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync, PrivateKeySigner>,
         TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where
@@ -280,7 +280,10 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let mev_boost_provider = SubmissionHandler {
             node_provider: Arc::new(state_provider.rpc_provider()),
-            submitters:    vec![Box::new(anvil)]
+            submitters:    vec![Box::new(ChainSubmitterHolder::new(
+                anvil,
+                node_config.angstrom_signer()
+            ))]
         };
 
         tracing::debug!("created mev boost provider");

@@ -16,7 +16,7 @@ use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     orders::PoolSolution,
-    primitive::AngstromSigner,
+    primitive::{AngstromMetaSigner, AngstromSigner},
     submission::SubmissionHandler,
     uni_structure::BaselinePoolState
 };
@@ -39,16 +39,17 @@ mod proposal;
 
 pub use preproposal_wait_trigger::{MAX_WAIT_DURATION, MIN_WAIT_DURATION};
 
-type PollTransition<P, Matching> = Poll<Option<Box<dyn ConsensusState<P, Matching>>>>;
+type PollTransition<P, Matching, S> = Poll<Option<Box<dyn ConsensusState<P, Matching, S>>>>;
 
-pub trait ConsensusState<P, Matching>: Send
+pub trait ConsensusState<P, Matching, S>: Send
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         message: StromConsensusEvent
     );
 
@@ -56,9 +57,9 @@ where
     /// round is over
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         cx: &mut Context<'_>
-    ) -> PollTransition<P, Matching>;
+    ) -> PollTransition<P, Matching, S>;
 
     fn last_round_info(&mut self) -> Option<LastRoundInfo> {
         None
@@ -66,23 +67,24 @@ where
 }
 
 /// Holds and progresses the consensus state machine
-pub struct RoundStateMachine<P, Matching>
+pub struct RoundStateMachine<P, Matching, S: AngstromMetaSigner>
 where
     P: Provider + Unpin + 'static
 {
-    current_state:           Box<dyn ConsensusState<P, Matching>>,
+    current_state:           Box<dyn ConsensusState<P, Matching, S>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: PreProposalWaitTrigger,
-    shared_state:            SharedRoundState<P, Matching>
+    shared_state:            SharedRoundState<P, Matching, S>
 }
 
-impl<P, Matching> RoundStateMachine<P, Matching>
+impl<P, Matching, S> RoundStateMachine<P, Matching, S>
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
-    pub fn new(shared_state: SharedRoundState<P, Matching>) -> Self {
+    pub fn new(shared_state: SharedRoundState<P, Matching, S>) -> Self {
         let mut consensus_wait_duration =
             PreProposalWaitTrigger::new(shared_state.order_storage.clone());
 
@@ -124,10 +126,11 @@ where
     }
 }
 
-impl<P, Matching> Stream for RoundStateMachine<P, Matching>
+impl<P, Matching, S> Stream for RoundStateMachine<P, Matching, S>
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     type Item = ConsensusMessage;
 
@@ -150,10 +153,10 @@ where
     }
 }
 
-pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching> {
+pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching, S: AngstromMetaSigner> {
     block_height:    BlockNumber,
     matching_engine: Matching,
-    signer:          AngstromSigner,
+    signer:          AngstromSigner<S>,
     round_leader:    Address,
     validators:      Vec<AngstromValidator>,
     order_storage:   Arc<OrderStorage>,
@@ -165,16 +168,17 @@ pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching> {
 }
 
 // contains shared impls
-impl<P, Matching> SharedRoundState<P, Matching>
+impl<P, Matching, S: AngstromMetaSigner> SharedRoundState<P, Matching, S>
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         block_height: BlockNumber,
         order_storage: Arc<OrderStorage>,
-        signer: AngstromSigner,
+        signer: AngstromSigner<S>,
         round_leader: Address,
         validators: Vec<AngstromValidator>,
         metrics: ConsensusMetricsWrapper,
@@ -376,7 +380,8 @@ pub mod tests {
 
     use alloy::{
         primitives::Address,
-        providers::{ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *}
+        providers::{ProviderBuilder, RootProvider, fillers::*, network::Ethereum, *},
+        signers::local::PrivateKeySigner
     };
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_network::manager::StromConsensusEvent;
@@ -405,10 +410,10 @@ pub mod tests {
         rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
-    impl RoundStateMachine<ProviderDef, MockMatchingEngine> {
+    impl RoundStateMachine<ProviderDef, MockMatchingEngine, PrivateKeySigner> {
         fn set_state_machine_at(
             &mut self,
-            state: Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>
+            state: Box<dyn ConsensusState<ProviderDef, MockMatchingEngine, PrivateKeySigner>>
         ) {
             self.current_state = state;
         }
@@ -431,7 +436,8 @@ pub mod tests {
             .try_init();
     }
 
-    async fn setup_state_machine() -> RoundStateMachine<ProviderDef, MockMatchingEngine> {
+    async fn setup_state_machine()
+    -> RoundStateMachine<ProviderDef, MockMatchingEngine, PrivateKeySigner> {
         let order_storage = Arc::new(OrderStorage::new(&PoolConfig::default()));
         let signer = AngstromSigner::random();
         let leader_id = signer.address();
@@ -511,7 +517,8 @@ pub mod tests {
             handles,
             Instant::now(),
             futures::task::noop_waker_ref().to_owned()
-        )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
+        ))
+            as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine, PrivateKeySigner>>;
         handles.messages.clear();
 
         state_machine.set_state_machine_at(state);
@@ -554,7 +561,8 @@ pub mod tests {
             handles,
             Instant::now(),
             futures::task::noop_waker_ref().to_owned()
-        )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
+        ))
+            as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine, PrivateKeySigner>>;
 
         handles.messages.clear();
 
@@ -652,7 +660,8 @@ pub mod tests {
             handles,
             Instant::now(),
             futures::task::noop_waker_ref().to_owned()
-        )) as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine>>;
+        ))
+            as Box<dyn ConsensusState<ProviderDef, MockMatchingEngine, PrivateKeySigner>>;
 
         handles.messages.clear();
         state_machine.set_state_machine_at(state);

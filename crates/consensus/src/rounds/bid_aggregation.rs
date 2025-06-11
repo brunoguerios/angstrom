@@ -6,7 +6,10 @@ use std::{
 
 use alloy::providers::Provider;
 use angstrom_network::manager::StromConsensusEvent;
-use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
+use angstrom_types::{
+    consensus::{PreProposal, PreProposalAggregation, Proposal},
+    primitive::AngstromMetaSigner
+};
 use futures::FutureExt;
 use matching_engine::MatchingEngineHandle;
 
@@ -50,14 +53,15 @@ impl BidAggregationState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for BidAggregationState
+impl<P, Matching, S> ConsensusState<P, Matching, S> for BidAggregationState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -88,9 +92,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, S>>>> {
         self.waker = Some(cx.waker().clone());
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization

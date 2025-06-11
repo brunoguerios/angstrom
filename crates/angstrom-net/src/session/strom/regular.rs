@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, ops::Deref};
 
 use alloy::rlp::{BytesMut, Encodable};
-use angstrom_types::primitive::PeerId;
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use futures::{
     StreamExt,
     task::{Context, Poll}
@@ -47,7 +47,7 @@ impl RegularProcessing {
     }
 }
 
-impl StromSession for RegularProcessing {
+impl<S: AngstromMetaSigner> StromSession<S> for RegularProcessing {
     fn poll_outbound_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>> {
         // handle possible commands
         if let Poll::Ready(possible_command) = self.commands_rx.poll_next_unpin(cx) {
@@ -95,7 +95,7 @@ impl StromSession for RegularProcessing {
         Poll::Pending
     }
 
-    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates> {
+    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates<S>> {
         cx.waker().wake_by_ref();
 
         Some(StromSessionStates::Shutdown(Shutdown::new(

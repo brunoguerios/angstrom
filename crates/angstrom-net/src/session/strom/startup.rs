@@ -4,7 +4,7 @@ use std::{
 };
 
 use alloy::rlp::{BytesMut, Encodable};
-use angstrom_types::primitive::PeerId;
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use futures::{
     StreamExt,
     task::{Context, Poll}
@@ -24,8 +24,8 @@ use crate::{
 
 const STATUS_TIMESTAMP_TIMEOUT_MS: u128 = 1500;
 
-pub struct StromStartup {
-    verification_sidecar: VerificationSidecar,
+pub struct StromStartup<S: AngstromMetaSigner> {
+    verification_sidecar: VerificationSidecar<S>,
     handle:               Option<StromSessionHandle>,
     conn:                 ProtocolConnection,
     remote_peer_id:       PeerId,
@@ -34,9 +34,9 @@ pub struct StromStartup {
     shutdown:             bool
 }
 
-impl StromStartup {
+impl<S: AngstromMetaSigner> StromStartup<S> {
     pub fn new(
-        verification_sidecar: VerificationSidecar,
+        verification_sidecar: VerificationSidecar<S>,
         handle: Option<StromSessionHandle>,
         conn: ProtocolConnection,
         remote_peer_id: PeerId,
@@ -138,7 +138,7 @@ impl StromStartup {
     }
 }
 
-impl StromSession for StromStartup {
+impl<S: AngstromMetaSigner> StromSession<S> for StromStartup<S> {
     fn poll_outbound_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>> {
         if !self.manager_has_handle(cx) {
             return Poll::Pending;
@@ -147,7 +147,7 @@ impl StromSession for StromStartup {
         self.handle_verification(cx)
     }
 
-    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates> {
+    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates<S>> {
         // going to register a waker so that the new state will be registered
         cx.waker().wake_by_ref();
 

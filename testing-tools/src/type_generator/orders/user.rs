@@ -1,6 +1,6 @@
 use alloy::{
     primitives::{Address, U256},
-    signers::SignerSync
+    signers::{SignerSync, local::PrivateKeySigner}
 };
 use alloy_primitives::aliases::U40;
 use angstrom_types::{
@@ -34,7 +34,7 @@ pub struct UserOrderBuilder {
     gas_0:       Option<u128>,
     min_price:   Ray,
     deadline:    U256,
-    signing_key: Option<AngstromSigner>
+    signing_key: Option<AngstromSigner<PrivateKeySigner>>
 }
 
 impl UserOrderBuilder {
@@ -132,7 +132,7 @@ impl UserOrderBuilder {
         Self { min_price: min_price.inv_ray_round(true), ..self }
     }
 
-    pub fn signing_key(self, signing_key: Option<AngstromSigner>) -> Self {
+    pub fn signing_key(self, signing_key: Option<AngstromSigner<PrivateKeySigner>>) -> Self {
         Self { signing_key, ..self }
     }
 

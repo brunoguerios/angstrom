@@ -1,15 +1,16 @@
 use std::path::PathBuf;
 
+use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::Address;
 use angstrom_metrics::initialize_prometheus_metrics;
+use angstrom_types::primitive::{AngstromSigner, CHAIN_ID};
 use eyre::Context;
+use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
 use serde::Deserialize;
 use url::Url;
 
 #[derive(Debug, Clone, Default, clap::Args)]
 pub struct AngstromConfig {
-    #[clap(long)]
-    pub secret_key_location:       PathBuf,
     #[clap(long)]
     pub node_config:               PathBuf,
     /// enables the metrics
@@ -28,16 +29,51 @@ pub struct AngstromConfig {
     #[clap(short, long)]
     pub normal_nodes:              Vec<Url>,
     #[clap(short, long)]
-    pub angstrom_submission_nodes: Vec<Url>
+    pub angstrom_submission_nodes: Vec<Url>,
+    #[clap(flatten)]
+    pub key_config:                KeyConfig
+}
+
+impl AngstromConfig {
+    pub fn get_local_signer(&self) -> eyre::Result<Option<AngstromSigner<PrivateKeySigner>>> {
+        self.key_config
+            .local_secret_key_location
+            .as_ref()
+            .map(|sk_path| {
+                if sk_path.try_exists()? {
+                    let contents = std::fs::read_to_string(sk_path)?;
+                    Ok(AngstromSigner::new(contents.trim().parse::<PrivateKeySigner>()?))
+                } else {
+                    Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
+                }
+            })
+            .transpose()
+    }
+
+    pub fn get_hsm_signer(&self) -> eyre::Result<Option<AngstromSigner<Pkcs11Signer>>> {
+        Ok((self.key_config.hsm_enabled)
+            .then(|| {
+                Pkcs11Signer::new(
+                    Pkcs11SignerConfig::from_env_with_defaults(
+                        self.key_config.hsm_public_key_label.as_ref().unwrap(),
+                        self.key_config.hsm_private_key_label.as_ref().unwrap(),
+                        self.key_config.pkcs11_lib_path.clone().into(),
+                        None
+                    ),
+                    Some(*CHAIN_ID.get().unwrap())
+                )
+                .map(AngstromSigner::new)
+            })
+            .transpose()?)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct NodeConfig {
-    pub angstrom_address:     Address,
-    pub periphery_address:    Address,
-    pub pool_manager_address: Address,
-    pub gas_token_address:    Address,
-
+    pub angstrom_address:      Address,
+    pub periphery_address:     Address,
+    pub pool_manager_address:  Address,
+    pub gas_token_address:     Address,
     pub angstrom_deploy_block: u64
 }
 
@@ -63,4 +99,22 @@ pub async fn init_metrics(metrics_port: u16) {
     let _ = initialize_prometheus_metrics(metrics_port)
         .await
         .inspect_err(|e| eprintln!("failed to start metrics endpoint - {:?}", e));
+}
+
+#[derive(Debug, Clone, Default, clap::Args)]
+pub struct KeyConfig {
+    #[clap(long, conflicts_with = "hsm_enabled")]
+    pub local_secret_key_location: Option<PathBuf>,
+    #[clap(short, long, conflicts_with = "local_secret_key_location")]
+    pub hsm_enabled:               bool,
+    #[clap(long, requires = "hsm_enabled")]
+    pub hsm_public_key_label:      Option<String>,
+    #[clap(long, requires = "hsm_enabled")]
+    pub hsm_private_key_label:     Option<String>,
+    #[clap(
+        long,
+        requires = "hsm_enabled",
+        default_value = "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so"
+    )]
+    pub pkcs11_lib_path:           String
 }

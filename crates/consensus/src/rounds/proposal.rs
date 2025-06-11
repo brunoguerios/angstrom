@@ -10,6 +10,7 @@ use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution,
+    primitive::AngstromMetaSigner,
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
@@ -38,9 +39,9 @@ pub struct ProposalState {
 }
 
 impl ProposalState {
-    pub fn new<P, Matching>(
+    pub fn new<P, Matching, S: AngstromMetaSigner>(
         pre_proposal_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         trigger_time: Instant,
         waker: Waker
     ) -> Self
@@ -65,11 +66,11 @@ impl ProposalState {
         }
     }
 
-    fn try_build_proposal<P, Matching>(
+    fn try_build_proposal<P, Matching, S: AngstromMetaSigner>(
         &mut self,
         cx: &mut Context<'_>,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
-        handles: &mut SharedRoundState<P, Matching>
+        handles: &mut SharedRoundState<P, Matching, S>
     ) -> bool
     where
         P: Provider + Unpin + 'static,
@@ -162,14 +163,15 @@ impl ProposalState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for ProposalState
+impl<P, Matching, S> ConsensusState<P, Matching, S> for ProposalState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     fn on_consensus_message(
         &mut self,
-        _: &mut SharedRoundState<P, Matching>,
+        _: &mut SharedRoundState<P, Matching, S>,
         _: StromConsensusEvent
     ) {
         // No messages at this point can effect the consensus round and thus are
@@ -178,9 +180,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, S>>>> {
         if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(state) => {

@@ -6,7 +6,10 @@ use std::{
 
 use alloy::{primitives::BlockNumber, providers::Provider};
 use angstrom_network::manager::StromConsensusEvent;
-use angstrom_types::consensus::{PreProposal, PreProposalAggregation, Proposal};
+use angstrom_types::{
+    consensus::{PreProposal, PreProposalAggregation, Proposal},
+    primitive::AngstromMetaSigner
+};
 use matching_engine::MatchingEngineHandle;
 
 use super::{ConsensusState, SharedRoundState};
@@ -31,11 +34,11 @@ pub struct PreProposalState {
 }
 
 impl PreProposalState {
-    pub fn new<P, Matching>(
+    pub fn new<P, Matching, S: AngstromMetaSigner>(
         block_height: BlockNumber,
         mut pre_proposals: HashSet<PreProposal>,
         pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         trigger_time: Instant,
         waker: Waker
     ) -> Self
@@ -61,14 +64,15 @@ impl PreProposalState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for PreProposalState
+impl<P, Matching, S> ConsensusState<P, Matching, S> for PreProposalState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -98,9 +102,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, S>>>> {
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization
             return Poll::Ready(Some(Box::new(FinalizationState::new(

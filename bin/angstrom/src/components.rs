@@ -28,7 +28,7 @@ use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
-    primitive::{AngstromSigner, PoolId, UniswapPoolRegistry},
+    primitive::{AngstromMetaSigner, AngstromSigner, PoolId, UniswapPoolRegistry},
     reth_db_provider::RethDbLayer,
     reth_db_wrapper::RethDbWrapper,
     submission::SubmissionHandler
@@ -66,11 +66,11 @@ use validation::{
 
 use crate::{AngstromConfig, cli::NodeConfig};
 
-pub fn init_network_builder(
-    secret_key: AngstromSigner,
+pub fn init_network_builder<S: AngstromMetaSigner>(
+    secret_key: AngstromSigner<S>,
     eth_handle: UnboundedReceiver<EthEvent>,
     validator_set: Arc<RwLock<HashSet<Address>>>
-) -> eyre::Result<StromNetworkBuilder<NetworkHandle>> {
+) -> eyre::Result<StromNetworkBuilder<NetworkHandle, S>> {
     let public_key = secret_key.id();
 
     let state = StatusState {
@@ -167,11 +167,11 @@ pub fn initialize_strom_handles() -> StromHandles {
     }
 }
 
-pub async fn initialize_strom_components<Node, AddOns, P: Peers + Unpin + 'static>(
+pub async fn initialize_strom_components<Node, AddOns, P: Peers + Unpin + 'static, S>(
     config: AngstromConfig,
-    signer: AngstromSigner,
+    signer: AngstromSigner<S>,
     mut handles: StromHandles,
-    network_builder: StromNetworkBuilder<P>,
+    network_builder: StromNetworkBuilder<P, S>,
     node: &FullNode<Node, AddOns>,
     executor: TaskExecutor,
     exit: NodeExitFuture,
@@ -189,7 +189,8 @@ where
     AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
     <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider:
         TryIntoHistoricalStateProvider + ReceiptProvider,
-    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader
+    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader,
+    S: AngstromMetaSigner
 {
     let node_address = signer.address();
 
@@ -213,7 +214,8 @@ where
         &config.normal_nodes,
         &config.angstrom_submission_nodes,
         &config.mev_boost_endpoints,
-        node_config.angstrom_address
+        node_config.angstrom_address,
+        signer.clone()
     );
 
     tracing::info!(target: "angstrom::startup-sequence", "waiting for the next block to continue startup sequence. \

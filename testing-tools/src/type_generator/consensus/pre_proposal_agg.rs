@@ -1,3 +1,4 @@
+use alloy::signers::local::PrivateKeySigner;
 use angstrom_types::{
     consensus::{PreProposal, PreProposalAggregation},
     primitive::AngstromSigner,
@@ -14,7 +15,7 @@ pub struct PreProposalAggregationBuilder {
     order_count: Option<usize>,
     block:       Option<u64>,
     pools:       Option<Vec<Pool>>,
-    sk:          Option<AngstromSigner>
+    sk:          Option<AngstromSigner<PrivateKeySigner>>
 }
 
 impl PreProposalAggregationBuilder {
@@ -41,7 +42,7 @@ impl PreProposalAggregationBuilder {
         Self { pools: Some(pools), ..self }
     }
 
-    pub fn with_secret_key(self, sk: AngstromSigner) -> Self {
+    pub fn with_secret_key(self, sk: AngstromSigner<PrivateKeySigner>) -> Self {
         Self { sk: Some(sk), ..self }
     }
 

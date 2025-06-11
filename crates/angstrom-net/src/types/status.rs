@@ -8,7 +8,7 @@ use alloy::{
     rlp::{BufMut, BytesMut},
     signers::Signature
 };
-use angstrom_types::primitive::{AngstromSigner, PeerId};
+use angstrom_types::primitive::{PeerId, public_key_to_peer_id};
 use serde::{Deserialize, Serialize};
 
 use crate::StatusBuilder;
@@ -35,7 +35,7 @@ impl Status {
         let message = self.state.to_message();
         let key = self.signature.recover_from_prehash(&message).unwrap();
 
-        Ok(AngstromSigner::public_key_to_peer_id(&key))
+        Ok(public_key_to_peer_id(&key))
     }
 }
 

@@ -1,4 +1,7 @@
-use alloy::{primitives::Address, signers::SignerSync};
+use alloy::{
+    primitives::Address,
+    signers::{SignerSync, local::PrivateKeySigner}
+};
 use angstrom_types::{
     primitive::{ANGSTROM_DOMAIN, AngstromSigner},
     sol_bindings::rpc_orders::{OmitOrderMeta, OrderMeta, TopOfBlockOrder}
@@ -14,7 +17,7 @@ pub struct ToBOrderBuilder {
     quantity_out: Option<u128>,
     max_gas:      Option<u128>,
     valid_block:  Option<u64>,
-    signing_key:  Option<AngstromSigner>
+    signing_key:  Option<AngstromSigner<PrivateKeySigner>>
 }
 
 impl ToBOrderBuilder {
@@ -53,7 +56,7 @@ impl ToBOrderBuilder {
         Self { valid_block: Some(valid_block), ..self }
     }
 
-    pub fn signing_key(self, signing_key: Option<AngstromSigner>) -> Self {
+    pub fn signing_key(self, signing_key: Option<AngstromSigner<PrivateKeySigner>>) -> Self {
         Self { signing_key, ..self }
     }
 

@@ -8,6 +8,7 @@ use alloy::{
         Identity, Provider, ProviderBuilder, RootProvider,
         fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller}
     },
+    signers::local::PrivateKeySigner,
     sol_types::{SolCall, SolEvent}
 };
 use alloy_rpc_types::{Filter, TransactionRequest};
@@ -36,7 +37,7 @@ pub type ProviderType = FillProvider<
 >;
 
 pub struct BundleWashTraderEnv {
-    pub keys:     Vec<AngstromSigner>,
+    pub keys:     Vec<AngstromSigner<PrivateKeySigner>>,
     pub provider: Arc<ProviderType>,
     pub pools:    Vec<EnhancedUniswapPool>
 }
@@ -103,7 +104,7 @@ impl BundleWashTraderEnv {
     async fn approve_max_tokens_to_angstrom(
         angstrom: Address,
         tokens: Vec<Address>,
-        users: &[AngstromSigner],
+        users: &[AngstromSigner<PrivateKeySigner>],
         provider: &ProviderType
     ) -> eyre::Result<()> {
         return Ok(());

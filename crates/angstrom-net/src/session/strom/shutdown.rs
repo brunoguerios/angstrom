@@ -1,5 +1,5 @@
 use alloy::rlp::BytesMut;
-use angstrom_types::primitive::PeerId;
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use futures::{
     StreamExt,
     task::{Context, Poll}
@@ -36,7 +36,7 @@ impl Shutdown {
     }
 }
 
-impl StromSession for Shutdown {
+impl<S: AngstromMetaSigner> StromSession<S> for Shutdown {
     fn poll_outbound_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>> {
         if let Some(mut inner) = self.to_session_manager.take() {
             if inner.poll_reserve(cx).is_ready() {
@@ -61,7 +61,7 @@ impl StromSession for Shutdown {
         Poll::Pending
     }
 
-    fn poll_next_state(self, _: &mut Context<'_>) -> Option<StromSessionStates> {
+    fn poll_next_state(self, _: &mut Context<'_>) -> Option<StromSessionStates<S>> {
         None
     }
 }
