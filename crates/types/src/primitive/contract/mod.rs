@@ -22,6 +22,7 @@ pub static ANGSTROM_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static POSITION_MANAGER_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static CONTROLLER_V1_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static POOL_MANAGER_ADDRESS: OnceLock<Address> = OnceLock::new();
+pub static GAS_TOKEN_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static ANGSTROM_DEPLOYED_BLOCK: OnceLock<u64> = OnceLock::new();
 pub static CHAIN_ID: OnceLock<u64> = OnceLock::new();
 pub static ANGSTROM_DOMAIN: OnceLock<Eip712Domain> = OnceLock::new();
@@ -32,6 +33,7 @@ pub struct AngstromAddressBuilder {
     position_manager_address: Address,
     controller_v1_address:    Address,
     pool_manager_address:     Address,
+    gas_token_address:        Address,
     angstrom_deploy_block:    u64,
     chain_id:                 u64
 }
@@ -61,6 +63,10 @@ impl AngstromAddressBuilder {
         Self { chain_id, ..self }
     }
 
+    pub fn with_gas_token(self, gas_token_address: Address) -> Self {
+        Self { gas_token_address, ..self }
+    }
+
     pub fn build(self) -> AngstromAddressConfig {
         AngstromAddressConfig {
             angstrom_address:         self.angstrom_address,
@@ -68,6 +74,7 @@ impl AngstromAddressBuilder {
             controller_v1_address:    self.controller_v1_address,
             pool_manager_address:     self.pool_manager_address,
             angstrom_deploy_block:    self.angstrom_deploy_block,
+            gas_token_address:        self.gas_token_address,
             chain_id:                 self.chain_id
         }
     }
@@ -80,6 +87,7 @@ pub struct AngstromAddressConfig {
     position_manager_address: Address,
     controller_v1_address:    Address,
     pool_manager_address:     Address,
+    gas_token_address:        Address,
     angstrom_deploy_block:    u64,
     chain_id:                 u64
 }
@@ -90,8 +98,10 @@ impl AngstromAddressConfig {
         position_manager_address: address!("0xF967Ede45ED04ec89EcA04a4c7175b6E0106e3A8"),
         controller_v1_address:    address!("0xEd421745765bc1938848cAaB502ffF53c653ff13"),
         pool_manager_address:     address!("0x48bC5A530873DcF0b890aD50120e7ee5283E0112"),
-        angstrom_deploy_block:    0,
-        chain_id:                 1
+        gas_token_address:        address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+
+        angstrom_deploy_block: 0,
+        chain_id:              1
     };
 
     /// Will panic if config has already been set
@@ -108,6 +118,7 @@ impl AngstromAddressConfig {
             .set(self.angstrom_deploy_block)
             .unwrap();
         CHAIN_ID.set(self.chain_id).unwrap();
+        GAS_TOKEN_ADDRESS.set(self.gas_token_address).unwrap();
         ANGSTROM_DOMAIN
             .set(alloy::sol_types::eip712_domain!(
                 name: "Angstrom",
@@ -119,6 +130,9 @@ impl AngstromAddressConfig {
     }
 
     pub fn try_init(self) {
+        if self.gas_token_address != Address::ZERO {
+            let _ = GAS_TOKEN_ADDRESS.set(self.gas_token_address);
+        }
         if self.angstrom_address != Address::ZERO {
             let _ = ANGSTROM_ADDRESS.set(self.angstrom_address);
         }
@@ -178,6 +192,9 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
                 .set(address!("0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"))
                 .is_err();
             err |= ANGSTROM_DEPLOYED_BLOCK.set(8276506).is_err();
+            err |= GAS_TOKEN_ADDRESS
+                .set(address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"))
+                .is_err();
             err |= ANGSTROM_DOMAIN
                 .set(alloy::sol_types::eip712_domain!(
                     name: "Angstrom",
