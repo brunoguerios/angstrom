@@ -191,6 +191,7 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
             err |= POOL_MANAGER_ADDRESS
                 .set(address!("0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"))
                 .is_err();
+            err |= CHAIN_ID.set(11155111).is_err();
             err |= ANGSTROM_DEPLOYED_BLOCK.set(8276506).is_err();
             err |= GAS_TOKEN_ADDRESS
                 .set(address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"))
