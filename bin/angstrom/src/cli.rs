@@ -105,7 +105,7 @@ pub async fn init_metrics(metrics_port: u16) {
 pub struct KeyConfig {
     #[clap(long, conflicts_with = "hsm_enabled")]
     pub local_secret_key_location: Option<PathBuf>,
-    #[clap(short, long, conflicts_with = "local_secret_key_location")]
+    #[clap(long, conflicts_with = "local_secret_key_location")]
     pub hsm_enabled:               bool,
     #[clap(long, requires = "hsm_enabled")]
     pub hsm_public_key_label:      Option<String>,
