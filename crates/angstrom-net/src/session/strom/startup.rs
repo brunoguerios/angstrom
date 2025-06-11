@@ -15,7 +15,6 @@ use futures::{
 };
 use reth_eth_wire::multiplex::ProtocolConnection;
 use reth_metrics::common::mpsc::MeteredPollSender;
-use reth_network_peers::id2pk;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::{

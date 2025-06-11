@@ -1,10 +1,7 @@
 use std::{collections::HashSet, net::SocketAddr, pin::Pin};
 
-use alloy::{
-    primitives::{Address, keccak256},
-    rlp::BytesMut
-};
-use angstrom_types::primitive::{AngstromMetaSigner, PeerId, public_key_to_peer_id};
+use alloy::{primitives::Address, rlp::BytesMut};
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use futures::{Stream, StreamExt, stream::Empty};
 use reth_eth_wire::{
     DisconnectReason, capability::SharedCapabilities, multiplex::ProtocolConnection,
