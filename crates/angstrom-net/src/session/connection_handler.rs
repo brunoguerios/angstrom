@@ -93,7 +93,8 @@ impl<S: AngstromMetaSigner> ConnectionHandler for StromConnectionHandler<S> {
             ReceiverStream::new(rx),
             self.to_session_manager,
             self.side_car,
-            handle
+            handle,
+            self.validator_set.clone()
         ))
     }
 }
