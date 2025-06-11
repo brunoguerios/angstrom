@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant}
 };
 
-use alloy::{primitives::Bytes, providers::Provider};
+use alloy::providers::Provider;
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
     consensus::{PreProposalAggregation, Proposal},
