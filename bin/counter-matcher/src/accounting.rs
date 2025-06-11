@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::{network::TransactionBuilder, providers::Provider, sol_types::SolCall};
+use alloy::{
+    network::TransactionBuilder, providers::Provider, signers::local::PrivateKeySigner,
+    sol_types::SolCall
+};
 use alloy_primitives::{Address, B256, TxKind};
 use alloy_rpc_types::TransactionRequest;
 use angstrom_types::primitive::AngstromSigner;
@@ -16,7 +19,7 @@ const MAX_AMOUNT_PER_TOKEN: f64 = 0.2;
 
 /// used to see what wallet should create the orders
 pub struct WalletAccounting {
-    pub pk:              AngstromSigner,
+    pub pk:              AngstromSigner<PrivateKeySigner>,
     tokens:              Vec<Address>,
     on_chain:            HashMap<Address, u128>,
     // token -> order_id -> amount
@@ -27,7 +30,7 @@ impl WalletAccounting {
     /// initializes the wallet with the curent
     pub async fn new(
         block_number: u64,
-        pk: AngstromSigner,
+        pk: AngstromSigner<PrivateKeySigner>,
         tokens: Vec<Address>,
         provider: Arc<ProviderType>
     ) -> Self {

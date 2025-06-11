@@ -1,6 +1,6 @@
 use alloy::{
     primitives::{BlockNumber, U256},
-    signers::{Signature, SignerSync}
+    signers::Signature
 };
 use alloy_primitives::keccak256;
 use bytes::Bytes;
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::{PreProposal, PreProposalAggregation};
 use crate::{
     orders::PoolSolution,
-    primitive::{AngstromSigner, PeerId}
+    primitive::{AngstromMetaSigner, AngstromSigner, PeerId, public_key_to_peer_id}
 };
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,9 +40,9 @@ impl Default for Proposal {
 }
 
 impl Proposal {
-    pub fn generate_proposal(
+    pub fn generate_proposal<S: AngstromMetaSigner>(
         ethereum_height: BlockNumber,
-        sk: &AngstromSigner,
+        sk: &AngstromSigner<S>,
         preproposals: Vec<PreProposalAggregation>,
         mut solutions: Vec<PoolSolution>
     ) -> Self {
@@ -85,7 +85,7 @@ impl Proposal {
         let Ok(source) = self.signature.recover_from_prehash(&hash) else {
             return false;
         };
-        let source = AngstromSigner::public_key_to_peer_id(&source);
+        let source = public_key_to_peer_id(&source);
 
         source == self.source
     }

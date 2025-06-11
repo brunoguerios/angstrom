@@ -4,29 +4,26 @@ use alloy::{
     consensus::{SignableTransaction, TypedTransaction},
     network::{Ethereum, NetworkWallet},
     primitives::Signature,
-    signers::{SignerSync, local::PrivateKeySigner}
+    signers::{Signer, SignerSync, local::PrivateKeySigner}
 };
 use alloy_primitives::Address;
+use hsm_signer::Pkcs11Signer;
 use k256::{ecdsa::VerifyingKey, elliptic_curve::sec1::ToEncodedPoint};
 use reth_network_peers::PeerId;
 
 /// Wrapper around key and signing to allow for a uniform type across codebase
 #[derive(Debug, Clone)]
-pub struct AngstromSigner {
+pub struct AngstromSigner<S: AngstromMetaSigner> {
     id:     PeerId,
-    signer: PrivateKeySigner
+    signer: S
 }
 
-impl AngstromSigner {
-    pub fn new(signer: PrivateKeySigner) -> Self {
-        let pub_key = signer.credential().verifying_key();
-        let peer_id = Self::public_key_to_peer_id(pub_key);
+impl<S: AngstromMetaSigner> AngstromSigner<S> {
+    pub fn new(signer: S) -> Self {
+        let pub_key = signer.pubkey();
+        let peer_id = public_key_to_peer_id(&pub_key);
 
         Self { signer, id: peer_id }
-    }
-
-    pub fn random() -> Self {
-        Self::new(PrivateKeySigner::random())
     }
 
     pub fn address(&self) -> Address {
@@ -35,14 +32,6 @@ impl AngstromSigner {
 
     pub fn id(&self) -> PeerId {
         self.id
-    }
-
-    /// Taken from alloy impl
-    pub fn public_key_to_peer_id(pub_key: &VerifyingKey) -> PeerId {
-        let affine = pub_key.as_ref();
-        let encoded = affine.to_encoded_point(false);
-
-        PeerId::from_slice(&encoded.as_bytes()[1..])
     }
 
     fn sign_transaction_inner(
@@ -55,21 +44,35 @@ impl AngstromSigner {
     }
 }
 
-impl Deref for AngstromSigner {
-    type Target = PrivateKeySigner;
+/// Taken from alloy impl
+pub fn public_key_to_peer_id(pub_key: &VerifyingKey) -> PeerId {
+    let affine = pub_key.as_ref();
+    let encoded = affine.to_encoded_point(false);
+
+    PeerId::from_slice(&encoded.as_bytes()[1..])
+}
+
+impl AngstromSigner<PrivateKeySigner> {
+    pub fn random() -> Self {
+        Self::new(PrivateKeySigner::random())
+    }
+}
+
+impl<S: AngstromMetaSigner> Deref for AngstromSigner<S> {
+    type Target = S;
 
     fn deref(&self) -> &Self::Target {
         &self.signer
     }
 }
 
-impl DerefMut for AngstromSigner {
+impl<S: AngstromMetaSigner> DerefMut for AngstromSigner<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.signer
     }
 }
 
-impl NetworkWallet<Ethereum> for AngstromSigner {
+impl<S: AngstromMetaSigner> NetworkWallet<Ethereum> for AngstromSigner<S> {
     fn default_signer_address(&self) -> Address {
         self.address()
     }
@@ -111,5 +114,23 @@ impl NetworkWallet<Ethereum> for AngstromSigner {
                 Ok(t.into_signed(sig).into())
             }
         }
+    }
+}
+
+pub trait AngstromMetaSigner:
+    SignerSync + Signer + Clone + Unpin + std::fmt::Debug + Send + Sync + 'static
+{
+    fn pubkey(&self) -> VerifyingKey;
+}
+
+impl AngstromMetaSigner for PrivateKeySigner {
+    fn pubkey(&self) -> VerifyingKey {
+        *self.credential().verifying_key()
+    }
+}
+
+impl AngstromMetaSigner for Pkcs11Signer {
+    fn pubkey(&self) -> VerifyingKey {
+        self.verifying_key()
     }
 }

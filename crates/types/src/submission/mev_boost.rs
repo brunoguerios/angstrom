@@ -23,6 +23,7 @@ use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
     Url
 };
+use crate::primitive::AngstromMetaSigner;
 
 pub struct MevBoostSubmitter {
     clients:          Vec<RpcClient>,
@@ -48,9 +49,9 @@ impl ChainSubmitter for MevBoostSubmitter {
         self.angstrom_address
     }
 
-    fn submit<'a>(
+    fn submit<'a, S: AngstromMetaSigner>(
         &'a self,
-        signer: &'a AngstromSigner,
+        signer: &'a AngstromSigner<S>,
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
     ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {

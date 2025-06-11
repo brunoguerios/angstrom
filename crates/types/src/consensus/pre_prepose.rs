@@ -1,6 +1,6 @@
 use alloy::{
     primitives::{B256, BlockNumber, keccak256},
-    signers::{Signature, SignerSync}
+    signers::Signature
 };
 use alloy_primitives::U256;
 use bytes::Bytes;
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     orders::OrderSet,
-    primitive::AngstromSigner,
+    primitive::{AngstromMetaSigner, AngstromSigner, public_key_to_peer_id},
     sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 
@@ -37,14 +37,14 @@ impl Default for PreProposal {
 }
 
 impl PreProposal {
-    fn sign_payload(sk: &AngstromSigner, payload: Vec<u8>) -> Signature {
+    fn sign_payload<S: AngstromMetaSigner>(sk: &AngstromSigner<S>, payload: Vec<u8>) -> Signature {
         let hash = keccak256(payload);
         sk.sign_hash_sync(&hash).unwrap()
     }
 
-    pub fn generate_pre_proposal(
+    pub fn generate_pre_proposal<S: AngstromMetaSigner>(
         ethereum_height: BlockNumber,
-        sk: &AngstromSigner,
+        sk: &AngstromSigner<S>,
         limit: Vec<B256>,
         searcher: Vec<B256>
     ) -> Self {
@@ -54,9 +54,9 @@ impl PreProposal {
         Self { limit, source: sk.id(), searcher, block_height: ethereum_height, signature }
     }
 
-    pub fn new(
+    pub fn new<S: AngstromMetaSigner>(
         ethereum_height: u64,
-        sk: &AngstromSigner,
+        sk: &AngstromSigner<S>,
         orders: OrderSet<AllOrders, TopOfBlockOrder>
     ) -> Self {
         let OrderSet { limit, searcher } = orders;
@@ -77,7 +77,7 @@ impl PreProposal {
         let Ok(source) = self.signature.recover_from_prehash(&hash) else {
             return false;
         };
-        let source = AngstromSigner::public_key_to_peer_id(&source);
+        let source = public_key_to_peer_id(&source);
 
         source == self.source && &self.block_height == block_height
     }

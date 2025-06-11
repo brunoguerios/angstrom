@@ -15,7 +15,7 @@ use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
     Url
 };
-use crate::sol_bindings::rpc_orders::AttestAngstromBlockEmpty;
+use crate::{primitive::AngstromMetaSigner, sol_bindings::rpc_orders::AttestAngstromBlockEmpty};
 
 pub struct AngstromSubmitter {
     clients:          Vec<RpcClient>,
@@ -38,9 +38,9 @@ impl ChainSubmitter for AngstromSubmitter {
         self.angstrom_address
     }
 
-    fn submit<'a>(
+    fn submit<'a, S: AngstromMetaSigner>(
         &'a self,
-        signer: &'a AngstromSigner,
+        signer: &'a AngstromSigner<S>,
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
     ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {

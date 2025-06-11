@@ -1,3 +1,4 @@
+use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::{
     Address,
     aliases::{I24, U24}
@@ -20,7 +21,7 @@ pub struct ProposalBuilder {
     pub preproposal_count: Option<usize>,
     pub block:             Option<u64>,
     pub pools:             Option<Vec<Pool>>,
-    pub sk:                Option<AngstromSigner>
+    pub sk:                Option<AngstromSigner<PrivateKeySigner>>
 }
 
 impl ProposalBuilder {
@@ -74,7 +75,7 @@ impl ProposalBuilder {
         Self { pools: Some(pools), ..self }
     }
 
-    pub fn with_secret_key(self, sk: AngstromSigner) -> Self {
+    pub fn with_secret_key(self, sk: AngstromSigner<PrivateKeySigner>) -> Self {
         Self { sk: Some(sk), ..self }
     }
 }

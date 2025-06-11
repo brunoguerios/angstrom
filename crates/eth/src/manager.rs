@@ -367,7 +367,7 @@ pub mod test {
         consensus::TxLegacy,
         hex,
         primitives::{BlockHash, BlockNumber, Log, TxKind, U256, aliases::U24, b256},
-        signers::Signature,
+        signers::{Signature, local::PrivateKeySigner},
         sol_types::SolEvent
     };
     use angstrom_types::{
@@ -448,7 +448,7 @@ pub mod test {
         }
     }
 
-    fn setup_signing_info() -> AngstromSigner {
+    fn setup_signing_info() -> AngstromSigner<PrivateKeySigner> {
         AngstromSigner::random()
     }
 

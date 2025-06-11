@@ -16,7 +16,7 @@ use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensus
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
     contract_payloads::angstrom::UniswapAngstromRegistry,
-    primitive::{AngstromSigner, ChainExt},
+    primitive::{AngstromMetaSigner, AngstromSigner, ChainExt},
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty,
     submission::SubmissionHandler
 };
@@ -38,13 +38,13 @@ use crate::{
 
 const MODULE_NAME: &str = "Consensus";
 
-pub struct ConsensusManager<P, Matching, BlockSync>
+pub struct ConsensusManager<P, Matching, BlockSync, S: AngstromMetaSigner>
 where
     P: Provider + Unpin + 'static
 {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    consensus_round_state:  RoundStateMachine<P, Matching>,
+    consensus_round_state:  RoundStateMachine<P, Matching, S>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
@@ -56,16 +56,17 @@ where
     broadcasted_messages: HashSet<StromConsensusEvent>
 }
 
-impl<P, Matching, BlockSync> ConsensusManager<P, Matching, BlockSync>
+impl<P, Matching, BlockSync, S> ConsensusManager<P, Matching, BlockSync, S>
 where
     P: Provider + Unpin + 'static,
     BlockSync: BlockSyncConsumer,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         netdeps: ManagerNetworkDeps,
-        signer: AngstromSigner,
+        signer: AngstromSigner<S>,
         validators: Vec<AngstromValidator>,
         order_storage: Arc<OrderStorage>,
         deploy_block: BlockNumber,
@@ -234,11 +235,12 @@ where
     async fn cleanup(mut self) {}
 }
 
-impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>
+impl<P, Matching, BlockSync, S> Future for ConsensusManager<P, Matching, BlockSync, S>
 where
     P: Provider + Unpin + 'static,
     Matching: MatchingEngineHandle,
-    BlockSync: BlockSyncConsumer
+    BlockSync: BlockSyncConsumer,
+    S: AngstromMetaSigner
 {
     type Output = ();
 

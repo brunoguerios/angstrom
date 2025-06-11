@@ -1,7 +1,7 @@
 use std::{collections::HashSet, fmt::Debug, net::SocketAddr, sync::Arc};
 
 use alloy::primitives::Address;
-use angstrom_types::primitive::PeerId;
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use parking_lot::RwLock;
 use reth_metrics::common::mpsc::MeteredPollSender;
 use reth_network::protocol::ProtocolHandler;
@@ -12,19 +12,19 @@ const SESSION_COMMAND_BUFFER: usize = 100;
 /// The protocol handler that is used to announce the strom capability upon
 /// successfully establishing a hello handshake on an incoming tcp connection.
 #[derive(Debug)]
-pub struct StromProtocolHandler {
+pub struct StromProtocolHandler<S: AngstromMetaSigner> {
     /// When a new connection is created, the conection handler will use
     /// this channel to send the sender half of the sessions command channel to
     /// the manager via the `Established` event.
     to_session_manager: MeteredPollSender<StromSessionMessage>,
     /// details for verifying status messages
-    sidecar:            VerificationSidecar,
+    sidecar:            VerificationSidecar<S>,
     // the set of current validators
     validators:         Arc<RwLock<HashSet<Address>>>
 }
 
-impl ProtocolHandler for StromProtocolHandler {
-    type ConnectionHandler = StromConnectionHandler;
+impl<S: AngstromMetaSigner> ProtocolHandler for StromProtocolHandler<S> {
+    type ConnectionHandler = StromConnectionHandler<S>;
 
     fn on_incoming(&self, socket_addr: SocketAddr) -> Option<Self::ConnectionHandler> {
         Some(StromConnectionHandler {
@@ -53,10 +53,10 @@ impl ProtocolHandler for StromProtocolHandler {
     }
 }
 
-impl StromProtocolHandler {
+impl<S: AngstromMetaSigner> StromProtocolHandler<S> {
     pub fn new(
         to_session_manager: MeteredPollSender<StromSessionMessage>,
-        sidecar: VerificationSidecar,
+        sidecar: VerificationSidecar<S>,
         validators: Arc<RwLock<HashSet<Address>>>
     ) -> Self {
         Self { to_session_manager, validators, sidecar }

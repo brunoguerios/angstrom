@@ -479,7 +479,11 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH}
     };
 
-    use alloy::{primitives::U256, signers::SignerSync, sol_types::SolValue};
+    use alloy::{
+        primitives::U256,
+        signers::{SignerSync, local::PrivateKeySigner},
+        sol_types::SolValue
+    };
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
         matching::Ray,
@@ -542,7 +546,7 @@ mod tests {
         from: Address,
         pool_id: PoolKey,
         validity: Option<OrderValidity>,
-        signer: Option<AngstromSigner>
+        signer: Option<AngstromSigner<PrivateKeySigner>>
     ) -> AllOrders {
         let validity = validity.unwrap_or_default();
 

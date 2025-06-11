@@ -1,6 +1,9 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use alloy::primitives::{I256, U256};
+use alloy::{
+    primitives::{I256, U256},
+    signers::local::PrivateKeySigner
+};
 use alloy_primitives::Address;
 use angstrom_types::{
     matching::{Ray, SqrtPriceX96},
@@ -17,7 +20,7 @@ use uniswap_v4::uniswap::{
 use crate::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
 pub struct OrderBuilder {
-    keys:      Vec<AngstromSigner>,
+    keys:      Vec<AngstromSigner<PrivateKeySigner>>,
     t0:        Address,
     t1:        Address,
     /// pools to based orders off of

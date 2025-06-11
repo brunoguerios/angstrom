@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, keccak256},
     rlp::BytesMut
 };
-use angstrom_types::primitive::PeerId;
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use futures::{Stream, StreamExt, stream::Empty};
 use reth_eth_wire::{
     DisconnectReason, capability::SharedCapabilities, multiplex::ProtocolConnection,
@@ -26,13 +26,13 @@ use crate::{
     types::message::{StromMessage, StromProtocolMessage}
 };
 
-pub enum PossibleStromSession {
-    Session(StromSessionHandler),
+pub enum PossibleStromSession<S: AngstromMetaSigner> {
+    Session(StromSessionHandler<S>),
     /// this will instantly terminate when first polled
     Invalid(Empty<BytesMut>)
 }
 
-impl Stream for PossibleStromSession {
+impl<S: AngstromMetaSigner> Stream for PossibleStromSession<S> {
     type Item = BytesMut;
 
     fn poll_next(
@@ -47,16 +47,16 @@ impl Stream for PossibleStromSession {
 }
 
 //TODO: Add bandwith meter to be
-pub struct StromConnectionHandler {
+pub struct StromConnectionHandler<S: AngstromMetaSigner> {
     pub to_session_manager:     MeteredPollSender<StromSessionMessage>,
     pub session_command_buffer: usize,
     pub socket_addr:            SocketAddr,
-    pub side_car:               VerificationSidecar,
+    pub side_car:               VerificationSidecar<S>,
     pub validator_set:          HashSet<Address>
 }
 
-impl ConnectionHandler for StromConnectionHandler {
-    type Connection = PossibleStromSession;
+impl<S: AngstromMetaSigner> ConnectionHandler for StromConnectionHandler<S> {
+    type Connection = PossibleStromSession<S>;
 
     fn protocol(&self) -> Protocol {
         StromProtocolMessage::protocol()

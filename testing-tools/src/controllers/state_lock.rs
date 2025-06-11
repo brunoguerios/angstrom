@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll}
 };
 
-use alloy::providers::Provider;
+use alloy::{providers::Provider, signers::local::PrivateKeySigner};
 use angstrom_network::StromNetworkManager;
 use angstrom_types::block_sync::GlobalBlockSync;
 use consensus::ConsensusManager;
@@ -34,7 +34,8 @@ pub(crate) struct TestnetStateFutureLock<
 > {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C, P>>,
-    strom_consensus:       StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>,
+    strom_consensus:
+        StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync, PrivateKeySigner>>,
     validation:            StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>
 }
 
@@ -53,7 +54,7 @@ where
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C, P>,
-        consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync>,
+        consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync, PrivateKeySigner>,
         validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>,
         ex: TaskExecutor
     ) -> Self {
@@ -98,14 +99,14 @@ where
 
     pub(crate) fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync, PrivateKeySigner>) -> R
     {
         self.strom_consensus.on_inner(f)
     }
 
     pub(crate) fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
+        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync, PrivateKeySigner>) -> R
     {
         self.strom_consensus.on_inner_mut(f)
     }
