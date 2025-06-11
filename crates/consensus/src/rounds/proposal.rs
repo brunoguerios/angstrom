@@ -34,8 +34,7 @@ pub struct ProposalState {
     pre_proposal_aggs:      Vec<PreProposalAggregation>,
     proposal:               Option<Proposal>,
     last_round_info:        Option<LastRoundInfo>,
-    trigger_time:           Instant,
-    waker:                  Waker
+    trigger_time:           Instant
 }
 
 impl ProposalState {
@@ -61,8 +60,7 @@ impl ProposalState {
             pre_proposal_aggs: pre_proposal_aggregation.into_iter().collect::<Vec<_>>(),
             submission_future: None,
             proposal: None,
-            trigger_time,
-            waker
+            trigger_time
         }
     }
 
@@ -114,14 +112,11 @@ impl ProposalState {
                 return false;
             };
 
-        if possible_bundle.is_none() {
-            let signed_attestation =
-                AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer);
-            handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(
-                signed_attestation
-            ));
-            cx.waker().wake_by_ref();
-        }
+        let attestation = possible_bundle
+            .is_none()
+            .then(|| AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer))
+            .unwrap_or_default();
+        handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(attestation));
 
         let submission_future = Box::pin(async move {
             let Ok(tx_hash) = provider
@@ -156,7 +151,7 @@ impl ProposalState {
             included
         });
 
-        self.waker.wake_by_ref();
+        cx.waker().wake_by_ref();
         self.submission_future = Some(Box::pin(tokio::spawn(submission_future)));
 
         true
