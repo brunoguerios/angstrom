@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use alloy::signers::local::PrivateKeySigner;
 use alloy_primitives::Address;
 use angstrom_metrics::initialize_prometheus_metrics;
-use angstrom_types::primitive::AngstromSigner;
+use angstrom_types::primitive::{AngstromSigner, CHAIN_ID};
 use eyre::Context;
 use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
 use serde::Deserialize;
@@ -40,14 +40,11 @@ impl AngstromConfig {
             .local_secret_key_location
             .as_ref()
             .map(|sk_path| {
-                let exists = sk_path.try_exists();
-
-                match exists {
-                    Ok(true) => {
-                        let contents = std::fs::read_to_string(sk_path)?;
-                        Ok(AngstromSigner::new(contents.trim().parse::<PrivateKeySigner>()?))
-                    }
-                    _ => Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
+                if sk_path.try_exists()? {
+                    let contents = std::fs::read_to_string(sk_path)?;
+                    Ok(AngstromSigner::new(contents.trim().parse::<PrivateKeySigner>()?))
+                } else {
+                    Err(eyre::eyre!("no secret_key was found at {:?}", sk_path))
                 }
             })
             .transpose()
@@ -63,7 +60,7 @@ impl AngstromConfig {
                         self.key_config.pkcs11_lib_path.clone().into(),
                         None
                     ),
-                    Some(1u64)
+                    Some(*CHAIN_ID.get().unwrap())
                 )
                 .map(AngstromSigner::new)
             })
