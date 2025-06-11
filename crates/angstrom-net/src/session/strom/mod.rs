@@ -2,9 +2,9 @@ pub mod regular;
 pub mod shutdown;
 pub mod startup;
 
-use std::{fmt::Debug, pin::Pin};
+use std::{collections::HashSet, fmt::Debug, pin::Pin};
 
-use alloy::rlp::BytesMut;
+use alloy::{primitives::Address, rlp::BytesMut};
 use angstrom_types::primitive::{AngstromMetaSigner, AngstromSigner, PeerId};
 use futures::{
     Stream,
@@ -117,7 +117,8 @@ impl<S: AngstromMetaSigner> StromSessionHandler<S> {
         commands_rx: ReceiverStream<SessionCommand>,
         to_session_manager: MeteredPollSender<StromSessionMessage>,
         verification_sidecar: VerificationSidecar<S>,
-        handle: StromSessionHandle
+        handle: StromSessionHandle,
+        valid_nodes: HashSet<Address>
     ) -> Self {
         let inner_state = StromSessionStates::Startup(StromStartup::new(
             verification_sidecar,
@@ -125,7 +126,8 @@ impl<S: AngstromMetaSigner> StromSessionHandler<S> {
             conn,
             peer_id,
             to_session_manager,
-            commands_rx
+            commands_rx,
+            valid_nodes
         ));
         Self { inner_state }
     }

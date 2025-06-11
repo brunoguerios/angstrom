@@ -4,7 +4,7 @@ use alloy::{
     primitives::{Address, keccak256},
     rlp::BytesMut
 };
-use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId, public_key_to_peer_id};
 use futures::{Stream, StreamExt, stream::Empty};
 use reth_eth_wire::{
     DisconnectReason, capability::SharedCapabilities, multiplex::ProtocolConnection,
@@ -71,20 +71,12 @@ impl<S: AngstromMetaSigner> ConnectionHandler for StromConnectionHandler<S> {
         OnNotSupported::KeepAlive
     }
 
-    // this occurs after the eth handshake occured
     fn into_connection(
         self,
         direction: Direction,
         peer_id: PeerId,
         conn: ProtocolConnection
     ) -> Self::Connection {
-        let hash = keccak256(peer_id);
-        let validator_address = Address::from_slice(&hash[12..]);
-        if !self.validator_set.contains(&validator_address) {
-            tracing::error!("got someone try to connect that wasn't a validator");
-            return PossibleStromSession::Invalid(futures::stream::empty());
-        }
-
         let (tx, rx) = mpsc::channel(self.session_command_buffer);
 
         let handle = StromSessionHandle {

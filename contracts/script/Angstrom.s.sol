@@ -15,11 +15,18 @@ contract AngstromScript is BaseScript {
     function run() public {
         vm.startBroadcast(vm.envUint("TESTNET_PK"));
 
-        uint256 angstromAddressTokenId = vm.envUint("ANGSTROM_ADDRESS_TOKEN_ID");
-        address angstromAddress = VANITY_MARKET.addressOf(angstromAddressTokenId);
+        uint256 angstromAddressTokenId = 0x9b9202606f77db144c682650343a10e43ac4c64b000000000000000000000005;
+
+        // vm.envUint("ANGSTROM_ADDRESS_TOKEN_ID");
+        address angstromAddress = VANITY_MARKET.addressOf(
+            angstromAddressTokenId
+        );
 
         require(
-            hasAngstromHookFlags(VANITY_MARKET.addressOf(angstromAddressTokenId)), "Bad address"
+            hasAngstromHookFlags(
+                VANITY_MARKET.addressOf(angstromAddressTokenId)
+            ),
+            "Bad address"
         );
 
         address uniswap = uniswapOnCurrentChain();
@@ -28,7 +35,9 @@ contract AngstromScript is BaseScript {
         address angstromMultisig;
         address[] memory initNodes;
         if (isTestnet()) {
-            console.log("[INFO] Testnet detected, deploying *WITHOUT* timelock");
+            console.log(
+                "[INFO] Testnet detected, deploying *WITHOUT* timelock"
+            );
             controllerOwner = vm.envAddress("TESTNET_OWNER");
         } else {
             angstromMultisig = vm.envAddress("ANGSTROM_MULTISIG");
@@ -52,11 +61,17 @@ contract AngstromScript is BaseScript {
         }
 
         ControllerV1 controller = new ControllerV1(
-            IAngstromAuth(angstromAddress), controllerOwner, angstromMultisig, initNodes
+            IAngstromAuth(angstromAddress),
+            controllerOwner,
+            angstromMultisig,
+            initNodes
         );
         VANITY_MARKET.deploy(
             angstromAddressTokenId,
-            bytes.concat(type(Angstrom).creationCode, abi.encode(uniswap, controller))
+            bytes.concat(
+                type(Angstrom).creationCode,
+                abi.encode(uniswap, controller)
+            )
         );
 
         console.log("angstrom: %s", angstromAddress);
@@ -78,6 +93,8 @@ contract AngstromScript is BaseScript {
         if (isChain("mainnet")) {
             return 0x000000000004444c5dc75cB358380D2e3dE08A90;
         }
-        revert(string.concat("Unsupported chain: ", getChain(block.chainid).name));
+        revert(
+            string.concat("Unsupported chain: ", getChain(block.chainid).name)
+        );
     }
 }
