@@ -176,7 +176,31 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
     let mut err = false;
     match chain_id {
         1 => {
-            tracing::error!("mainnet deploy is not currently setup, cannot set values");
+            err |= ANGSTROM_ADDRESS
+                .set(address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4"))
+                .is_err();
+            err |= POSITION_MANAGER_ADDRESS
+                .set(address!("0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e"))
+                .is_err();
+            err |= CONTROLLER_V1_ADDRESS
+                .set(address!("0x16eD937987753a50f9Eb293eFffA753aC4313db0"))
+                .is_err();
+            err |= POOL_MANAGER_ADDRESS
+                .set(address!("0x000000000004444c5dc75cB358380D2e3dE08A90"))
+                .is_err();
+            err |= CHAIN_ID.set(1).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(22689729).is_err();
+            err |= GAS_TOKEN_ADDRESS
+                .set(address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"))
+                .is_err();
+            err |= ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 1,
+                    verifying_contract: address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4"),
+                ))
+                .is_err();
         }
         11155111 => {
             err |= ANGSTROM_ADDRESS
