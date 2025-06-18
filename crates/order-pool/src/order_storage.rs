@@ -63,7 +63,7 @@ impl OrderStorage {
         }
     }
 
-    pub fn remove_pool(&self, key: PoolId) -> Vec<B256> {
+    pub fn remove_pool(&self, key: PoolId) -> Vec<OrderWithStorageData<AllOrders>> {
         let mut orders = self.searcher_orders.lock().unwrap().remove_pool(&key);
         orders.extend(self.limit_orders.lock().unwrap().remove_pool(&key));
 
