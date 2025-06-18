@@ -648,7 +648,10 @@ mod tests {
         // Simulate block transition
         let expired_hashes = indexer
             .order_tracker
-            .remove_expired_orders(2, &indexer.order_storage);
+            .remove_expired_orders(2, &indexer.order_storage)
+            .into_iter()
+            .map(|o| o.order_id.hash)
+            .collect::<Vec<_>>();
 
         // Verify order was removed
         assert!(expired_hashes.contains(&order_hash));
