@@ -80,8 +80,8 @@ impl OrderTracker {
         self.order_hash_to_order_id.contains_key(hash) || self.seen_invalid_orders.contains(hash)
     }
 
-    pub fn handle_pool_removed(&mut self, txes: &[B256]) {
-        for tx in txes {
+    pub fn handle_pool_removed(&mut self, txes: &[OrderWithStorageData<AllOrders>]) {
+        for tx in txes.iter().map(|tx| &tx.order_id.hash) {
             self.order_hash_to_order_id.remove(tx);
             self.order_hash_to_peer_id.remove(tx);
             self.address_to_orders.retain(|_, set| {
@@ -111,7 +111,7 @@ impl OrderTracker {
         &mut self,
         block_number: u64,
         storage: &OrderStorage
-    ) -> Vec<B256> {
+    ) -> Vec<OrderWithStorageData<AllOrders>> {
         let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let expiry_deadline = U256::from((time + ETH_BLOCK_TIME).as_secs()); // grab all expired hashes
 
@@ -136,7 +136,7 @@ impl OrderTracker {
             // remove hash from id
             .map(|hash| self.order_hash_to_order_id.remove(hash).unwrap())
             // remove from all underlying pools
-            .for_each(|id| {
+            .filter_map(|id| {
                 self.address_to_orders
                     .values_mut()
                     // remove from address to orders
@@ -144,10 +144,9 @@ impl OrderTracker {
                 match id.location {
                     OrderLocation::Searcher => storage.remove_searcher_order(&id),
                     OrderLocation::Limit => storage.remove_limit_order(&id)
-                };
-            });
-
-        hashes
+                }
+            })
+            .collect::<Vec<_>>()
     }
 
     pub fn filled_orders<'a>(

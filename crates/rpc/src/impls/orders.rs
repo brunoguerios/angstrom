@@ -275,10 +275,17 @@ impl OrderFilterMatching for PoolManagerUpdate {
             {
                 Some(OrderSubscriptionResult::CancelledOrder(order_hash))
             }
-            PoolManagerUpdate::ExpiredOrder(order_hash)
-                if kind.contains(&OrderSubscriptionKind::ExpiredOrders) =>
+            PoolManagerUpdate::ExpiredOrder(order)
+                if kind.contains(&OrderSubscriptionKind::ExpiredOrders)
+                    && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
+                        || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
+                            && order.is_tob())
+                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
+                            && !order.is_tob())
+                        || filter.contains(&OrderSubscriptionFilter::None)) =>
             {
-                Some(OrderSubscriptionResult::ExpiredOrder(order_hash))
+                Some(OrderSubscriptionResult::ExpiredOrder(order.order))
             }
             _ => None
         }

@@ -43,40 +43,25 @@ impl LimitOrderPool {
             .or_else(|| self.composable_orders.get_order(id.pool_id, id.hash))
     }
 
-    pub fn remove_pool(&mut self, key: &PoolId) -> Vec<B256> {
+    pub fn remove_pool(&mut self, key: &PoolId) -> Vec<OrderWithStorageData<AllOrders>> {
         let mut expired_orders: Vec<_> = self
             .composable_orders
             .map
             .remove(key)
-            .map(|pool| {
-                pool.get_all_orders()
-                    .into_iter()
-                    .map(|o| o.order_id.hash)
-                    .collect()
-            })
+            .map(|pool| pool.get_all_orders().into_iter().collect())
             .unwrap_or_default();
         expired_orders.extend(
             self.limit_orders
                 .parked_orders
                 .remove(key)
-                .map(|pool| {
-                    pool.get_all_orders()
-                        .into_iter()
-                        .map(|o| o.order_id.hash)
-                        .collect::<Vec<_>>()
-                })
+                .map(|pool| pool.get_all_orders().into_iter().collect::<Vec<_>>())
                 .unwrap_or_default()
         );
         expired_orders.extend(
             self.limit_orders
                 .pending_orders
                 .remove(key)
-                .map(|pool| {
-                    pool.get_all_orders()
-                        .into_iter()
-                        .map(|o| o.order_id.hash)
-                        .collect::<Vec<_>>()
-                })
+                .map(|pool| pool.get_all_orders().into_iter().collect::<Vec<_>>())
                 .unwrap_or_default()
         );
 

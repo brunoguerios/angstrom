@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use alloy::primitives::B256;
+use angstrom_types::sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData};
 use tokio::sync::oneshot::Sender;
 use validation::order::OrderValidationResults;
 
@@ -52,12 +53,12 @@ impl OrderSubscriptionTracker {
         let _ = self.orders_subscriber_tx.send(update);
     }
 
-    pub fn notify_expired_orders(&mut self, orders: &[B256]) {
+    pub fn notify_expired_orders(&mut self, orders: &[OrderWithStorageData<AllOrders>]) {
         for order in orders {
-            self.order_notification_tracker.remove(order);
+            self.order_notification_tracker.remove(&order.order_id.hash);
             let _ = self
                 .orders_subscriber_tx
-                .send(PoolManagerUpdate::ExpiredOrder(*order));
+                .send(PoolManagerUpdate::ExpiredOrder(order.clone()));
         }
     }
 

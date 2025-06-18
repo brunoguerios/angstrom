@@ -34,7 +34,7 @@ pub enum PoolManagerUpdate {
         pool_id:    FixedBytes<32>,
         order_hash: B256
     },
-    ExpiredOrder(B256)
+    ExpiredOrder(OrderWithStorageData<AllOrders>)
 }
 impl PoolManagerUpdate {
     pub fn order_id(&self) -> B256 {
@@ -43,7 +43,7 @@ impl PoolManagerUpdate {
             Self::FilledOrder(_, o) => o.order_id.hash,
             Self::UnfilledOrders(o) => o.order_id.hash,
             Self::CancelledOrder { order_hash, .. } => *order_hash,
-            Self::ExpiredOrder(o) => *o
+            Self::ExpiredOrder(o) => o.order_id.hash
         }
     }
 

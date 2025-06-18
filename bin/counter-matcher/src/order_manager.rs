@@ -73,7 +73,7 @@ impl OrderManager {
             }
             OrderSubscriptionResult::FilledOrder(_, order) => self.on_filled_order(order).await,
             OrderSubscriptionResult::ExpiredOrder(hash) => {
-                self.on_expired_order(hash);
+                self.on_expired_order(hash.order_hash());
             }
             OrderSubscriptionResult::CancelledOrder(hash) => self.on_order_cancel(hash).await,
             _ => unreachable!()

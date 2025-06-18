@@ -121,13 +121,13 @@ impl SearcherPool {
         assert!(old_is_none);
     }
 
-    pub fn remove_pool(&mut self, key: &PoolId) -> Vec<B256> {
+    pub fn remove_pool(&mut self, key: &PoolId) -> Vec<OrderWithStorageData<AllOrders>> {
         self.searcher_orders
             .remove(key)
             .map(|pool| {
                 pool.get_all_orders()
                     .into_iter()
-                    .map(|o| o.order_id.hash)
+                    .map(|o| o.try_map_inner(|o| Ok(AllOrders::TOB(o))).unwrap())
                     .collect()
             })
             .unwrap_or_default()
