@@ -225,7 +225,7 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
                     name: "Angstrom",
                     version: "v1",
                     chain_id: 11155111,
-                    verifying_contract: address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"),
+                    verifying_contract: address!("0x3B9172ef12bd245A07DA0d43dE29e09036626AFC"),
                 ))
                 .is_err();
         }
