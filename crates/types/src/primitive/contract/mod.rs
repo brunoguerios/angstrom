@@ -204,19 +204,19 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
         }
         11155111 => {
             err |= ANGSTROM_ADDRESS
-                .set(address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"))
+                .set(address!("0x3B9172ef12bd245A07DA0d43dE29e09036626AFC"))
                 .is_err();
             err |= POSITION_MANAGER_ADDRESS
                 .set(address!("0x429ba70129df741B2Ca2a85BC3A2a3328e5c09b4"))
                 .is_err();
             err |= CONTROLLER_V1_ADDRESS
-                .set(address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674"))
+                .set(address!("0x977c67e6CEe5b5De090006E87ADaFc99Ebed2a7A"))
                 .is_err();
             err |= POOL_MANAGER_ADDRESS
                 .set(address!("0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"))
                 .is_err();
             err |= CHAIN_ID.set(11155111).is_err();
-            err |= ANGSTROM_DEPLOYED_BLOCK.set(8276506).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(8578780).is_err();
             err |= GAS_TOKEN_ADDRESS
                 .set(address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"))
                 .is_err();
