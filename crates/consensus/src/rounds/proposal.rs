@@ -38,16 +38,15 @@ pub struct ProposalState {
 }
 
 impl ProposalState {
-    pub fn new<P, Matching, Telemetry>(
+    pub fn new<P, Matching>(
         pre_proposal_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         trigger_time: Instant,
         waker: Waker
     ) -> Self
     where
         P: Provider + Unpin + 'static,
-        Matching: MatchingEngineHandle,
-        Telemetry: TelemetryHandle
+        Matching: MatchingEngineHandle
     {
         // queue building future
         waker.wake_by_ref();
@@ -70,7 +69,7 @@ impl ProposalState {
         &mut self,
         cx: &mut Context<'_>,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>
+        handles: &mut SharedRoundState<P, Matching>
     ) -> bool
     where
         P: Provider + Unpin + 'static,
@@ -124,11 +123,6 @@ impl ProposalState {
             cx.waker().wake_by_ref();
         }
 
-        // We're right now ALWAYS going to log our block
-        if let Some(t) = handles.telemetry.as_ref() {
-            t.error(handles.block_height, "Default error".to_owned());
-        }
-
         let submission_future = Box::pin(async move {
             let Ok(tx_hash) = provider
                 .submit_tx(signer, possible_bundle, target_block)
@@ -169,15 +163,14 @@ impl ProposalState {
     }
 }
 
-impl<P, Matching, Telemetry> ConsensusState<P, Matching, Telemetry> for ProposalState
+impl<P, Matching> ConsensusState<P, Matching> for ProposalState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        _: &mut SharedRoundState<P, Matching, Telemetry>,
+        _: &mut SharedRoundState<P, Matching>,
         _: StromConsensusEvent
     ) {
         // No messages at this point can effect the consensus round and thus are
@@ -186,9 +179,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(state) => {

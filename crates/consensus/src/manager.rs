@@ -27,7 +27,7 @@ use order_pool::order_storage::OrderStorage;
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_provider::{CanonStateNotification, CanonStateNotifications};
 use reth_tasks::shutdown::GracefulShutdown;
-use telemetry::client::{TelemetryClient, TelemetryHandle};
+use telemetry::telemetry_event;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -40,33 +40,30 @@ use crate::{
 
 const MODULE_NAME: &str = "Consensus";
 
-pub struct ConsensusManager<P, Matching, BlockSync, Telemetry = TelemetryClient>
+pub struct ConsensusManager<P, Matching, BlockSync>
 where
-    P: Provider + Unpin + 'static,
-    Telemetry: TelemetryHandle
+    P: Provider + Unpin + 'static
 {
     current_height:         BlockNumber,
     leader_selection:       WeightedRoundRobin,
-    consensus_round_state:  RoundStateMachine<P, Matching, Telemetry>,
+    consensus_round_state:  RoundStateMachine<P, Matching>,
     canonical_block_stream: BroadcastStream<CanonStateNotification>,
     strom_consensus_event:  UnboundedMeteredReceiver<StromConsensusEvent>,
     network:                StromNetworkHandle,
     block_sync:             BlockSync,
     rpc_rx:                 mpsc::UnboundedReceiver<ConsensusRequest>,
     subscribers:            Vec<mpsc::Sender<ConsensusDataWithBlock<Bytes>>>,
-    telemetry:              Option<Telemetry>,
     state_updates:          Option<mpsc::UnboundedSender<ConsensusRoundName>>,
 
     /// Track broadcasted messages to avoid rebroadcasting
     broadcasted_messages: HashSet<StromConsensusEvent>
 }
 
-impl<P, Matching, BlockSync, Telemetry> ConsensusManager<P, Matching, BlockSync, Telemetry>
+impl<P, Matching, BlockSync> ConsensusManager<P, Matching, BlockSync>
 where
     P: Provider + Unpin + 'static,
     BlockSync: BlockSyncConsumer,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -82,7 +79,6 @@ where
         matching_engine: Matching,
         block_sync: BlockSync,
         rpc_rx: mpsc::UnboundedReceiver<ConsensusRequest>,
-        telemetry: Option<Telemetry>,
         state_updates: Option<mpsc::UnboundedSender<ConsensusRoundName>>
     ) -> Self {
         let ManagerNetworkDeps { network, canonical_block_stream, strom_consensus_event } = netdeps;
@@ -96,23 +92,19 @@ where
             strom_consensus_event,
             current_height,
             leader_selection,
-            consensus_round_state: RoundStateMachine::new(
-                SharedRoundState::<_, _, Telemetry>::new(
-                    current_height,
-                    order_storage,
-                    signer,
-                    leader,
-                    validators.clone(),
-                    ConsensusMetricsWrapper::new(),
-                    pool_registry,
-                    uniswap_pools,
-                    provider,
-                    matching_engine,
-                    telemetry.clone()
-                )
-            ),
+            consensus_round_state: RoundStateMachine::new(SharedRoundState::<_, _>::new(
+                current_height,
+                order_storage,
+                signer,
+                leader,
+                validators.clone(),
+                ConsensusMetricsWrapper::new(),
+                pool_registry,
+                uniswap_pools,
+                provider,
+                matching_engine
+            )),
             rpc_rx,
-            telemetry,
             state_updates,
             block_sync,
             network,
@@ -198,9 +190,8 @@ where
             }
         }
 
-        if let Some(t) = self.telemetry.as_ref() {
-            t.consensus_event(event.clone());
-        }
+        let block = event.block_height();
+        telemetry_event!(block, event.clone());
 
         self.consensus_round_state.handle_message(event);
     }
@@ -209,9 +200,8 @@ where
         match event {
             ConsensusMessage::StateChange(state) => {
                 // If we have telemetry, record the state change
-                if let Some(t) = self.telemetry.as_ref() {
-                    t.consensus_state(self.current_height, state);
-                }
+                telemetry_event!(self.current_height, state);
+
                 // If we have a state update listener, report the new state
                 if let Some(su) = self.state_updates.as_ref() {
                     let _res = su.send(state);
@@ -265,13 +255,11 @@ where
     async fn cleanup(mut self) {}
 }
 
-impl<P, Matching, BlockSync, Telemetry> Future
-    for ConsensusManager<P, Matching, BlockSync, Telemetry>
+impl<P, Matching, BlockSync> Future for ConsensusManager<P, Matching, BlockSync>
 where
     P: Provider + Unpin + 'static,
     Matching: MatchingEngineHandle,
-    BlockSync: BlockSyncConsumer,
-    Telemetry: TelemetryHandle
+    BlockSync: BlockSyncConsumer
 {
     type Output = ();
 

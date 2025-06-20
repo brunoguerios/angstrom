@@ -33,18 +33,17 @@ pub struct PreProposalState {
 }
 
 impl PreProposalState {
-    pub fn new<P, Matching, Telemetry>(
+    pub fn new<P, Matching>(
         block_height: BlockNumber,
         mut pre_proposals: HashSet<PreProposal>,
         pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         trigger_time: Instant,
         waker: Waker
     ) -> Self
     where
         P: Provider + Unpin + 'static,
-        Matching: MatchingEngineHandle,
-        Telemetry: TelemetryHandle
+        Matching: MatchingEngineHandle
     {
         // generate my pre_proposal
         let my_preproposal =
@@ -64,15 +63,14 @@ impl PreProposalState {
     }
 }
 
-impl<P, Matching, Telemetry> ConsensusState<P, Matching, Telemetry> for PreProposalState
+impl<P, Matching> ConsensusState<P, Matching> for PreProposalState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -102,9 +100,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization
             return Poll::Ready(Some(Box::new(FinalizationState::new(

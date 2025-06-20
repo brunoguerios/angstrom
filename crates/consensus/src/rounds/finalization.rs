@@ -27,13 +27,12 @@ pub struct FinalizationState {
 impl FinalizationState {
     pub fn new<P, Matching, Telemetry>(
         proposal: Proposal,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         waker: Waker
     ) -> Self
     where
         P: Provider + Unpin + 'static,
-        Matching: MatchingEngineHandle,
-        Telemetry: TelemetryHandle
+        Matching: MatchingEngineHandle
     {
         let preproposal = proposal
             .preproposals()
@@ -76,15 +75,14 @@ impl FinalizationState {
     }
 }
 
-impl<P, Matching, Telemetry> ConsensusState<P, Matching, Telemetry> for FinalizationState
+impl<P, Matching> ConsensusState<P, Matching> for FinalizationState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        _: &mut SharedRoundState<P, Matching, Telemetry>,
+        _: &mut SharedRoundState<P, Matching>,
         _: StromConsensusEvent
     ) {
         // no messages consensus related matter at this point. is just waiting
@@ -93,9 +91,9 @@ where
 
     fn poll_transition(
         &mut self,
-        _: &mut SharedRoundState<P, Matching, Telemetry>,
+        _: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         if self.completed {
             return Poll::Ready(None);
         }

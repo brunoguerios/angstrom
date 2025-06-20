@@ -52,15 +52,14 @@ impl BidAggregationState {
     }
 }
 
-impl<P, Matching, Telemetry> ConsensusState<P, Matching, Telemetry> for BidAggregationState
+impl<P, Matching> ConsensusState<P, Matching> for BidAggregationState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -91,9 +90,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         self.waker = Some(cx.waker().clone());
         if let Some(proposal) = self.proposal.take() {
             // skip to finalization

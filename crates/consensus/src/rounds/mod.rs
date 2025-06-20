@@ -39,19 +39,17 @@ mod pre_proposal_aggregation;
 mod preproposal_wait_trigger;
 mod proposal;
 
-type PollTransition<P, Matching, Telemetry> =
-    Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>>;
+type PollTransition<P, Matching> = Poll<Option<Box<dyn ConsensusState<P, Matching>>>>;
 pub use preproposal_wait_trigger::{MAX_WAIT_DURATION, MIN_WAIT_DURATION};
 
-pub trait ConsensusState<P, Matching, Telemetry = TelemetryClient>: Send
+pub trait ConsensusState<P, Matching>: Send
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         message: StromConsensusEvent
     );
 
@@ -59,9 +57,9 @@ where
     /// round is over
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> PollTransition<P, Matching, Telemetry>;
+    ) -> PollTransition<P, Matching>;
 
     fn last_round_info(&mut self) -> Option<LastRoundInfo> {
         None
@@ -71,24 +69,23 @@ where
 }
 
 /// Holds and progresses the consensus state machine
-pub struct RoundStateMachine<P, Matching, Telemetry: TelemetryHandle = TelemetryClient>
+pub struct RoundStateMachine<P, Matching>
 where
     P: Provider + Unpin + 'static
 {
-    current_state:           Box<dyn ConsensusState<P, Matching, Telemetry>>,
+    current_state:           Box<dyn ConsensusState<P, Matching>>,
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: PreProposalWaitTrigger,
-    shared_state:            SharedRoundState<P, Matching, Telemetry>
+    shared_state:            SharedRoundState<P, Matching>
 }
 
-impl<P, Matching, Telemetry> RoundStateMachine<P, Matching, Telemetry>
+impl<P, Matching> RoundStateMachine<P, Matching>
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
-    pub fn new(shared_state: SharedRoundState<P, Matching, Telemetry>) -> Self {
+    pub fn new(shared_state: SharedRoundState<P, Matching>) -> Self {
         let mut consensus_wait_duration =
             PreProposalWaitTrigger::new(shared_state.order_storage.clone());
 
@@ -130,11 +127,10 @@ where
     }
 }
 
-impl<P, Matching, Telemetry> Stream for RoundStateMachine<P, Matching, Telemetry>
+impl<P, Matching> Stream for RoundStateMachine<P, Matching>
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     type Item = ConsensusMessage;
 
@@ -148,7 +144,7 @@ where
             tracing::info!("transitioning to new round state");
             this.current_state = transitioned_state;
             let name = this.current_state.name();
-            return Poll::Ready(Some(ConsensusMessage::StateChange(name)))
+            return Poll::Ready(Some(ConsensusMessage::StateChange(name)));
         }
 
         if let Some(message) = this.shared_state.messages.pop_front() {
@@ -159,11 +155,7 @@ where
     }
 }
 
-pub struct SharedRoundState<
-    P: Provider + Unpin + 'static,
-    Matching,
-    Telemetry: TelemetryHandle = TelemetryClient
-> {
+pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching> {
     block_height:    BlockNumber,
     matching_engine: Matching,
     signer:          AngstromSigner,
@@ -174,16 +166,14 @@ pub struct SharedRoundState<
     pool_registry:   UniswapAngstromRegistry,
     uniswap_pools:   SyncedUniswapPools,
     provider:        Arc<SubmissionHandler<P>>,
-    messages:        VecDeque<ConsensusMessage>,
-    telemetry:       Option<Telemetry>
+    messages:        VecDeque<ConsensusMessage>
 }
 
 // contains shared impls
-impl<P, Matching, Telemetry> SharedRoundState<P, Matching, Telemetry>
+impl<P, Matching> SharedRoundState<P, Matching>
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -196,8 +186,7 @@ where
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
         provider: SubmissionHandler<P>,
-        matching_engine: Matching,
-        telemetry: Option<Telemetry>
+        matching_engine: Matching
     ) -> Self {
         Self {
             block_height,
@@ -210,8 +199,7 @@ where
             _metrics: metrics,
             matching_engine,
             messages: VecDeque::new(),
-            provider: Arc::new(provider),
-            telemetry
+            provider: Arc::new(provider)
         }
     }
 
@@ -487,8 +475,7 @@ pub mod tests {
             pool_registry,
             uniswap_pools,
             provider,
-            MockMatchingEngine {},
-            None
+            MockMatchingEngine {}
         );
         RoundStateMachine::new(shared_state)
     }

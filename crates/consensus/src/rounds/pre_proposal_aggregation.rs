@@ -9,7 +9,6 @@ use angstrom_types::consensus::{
     ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal, StromConsensusEvent
 };
 use matching_engine::MatchingEngineHandle;
-use telemetry::client::TelemetryHandle;
 
 use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{finalization::FinalizationState, proposal::ProposalState};
@@ -35,14 +34,13 @@ impl PreProposalAggregationState {
     pub fn new<P, Matching, Telemetry>(
         pre_proposals: HashSet<PreProposal>,
         mut pre_proposals_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         trigger_time: Instant,
         waker: Waker
     ) -> Self
     where
         P: Provider + Unpin + 'static,
-        Matching: MatchingEngineHandle,
-        Telemetry: TelemetryHandle
+        Matching: MatchingEngineHandle
     {
         // generate my pre_proposal aggregation
         let my_preproposal_aggregation = PreProposalAggregation::new(
@@ -65,15 +63,14 @@ impl PreProposalAggregationState {
     }
 }
 
-impl<P, Matching, Telemetry> ConsensusState<P, Matching, Telemetry> for PreProposalAggregationState
+impl<P, Matching> ConsensusState<P, Matching> for PreProposalAggregationState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle,
-    Telemetry: TelemetryHandle
+    Matching: MatchingEngineHandle
 {
     fn on_consensus_message(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         message: StromConsensusEvent
     ) {
         match message {
@@ -98,9 +95,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching, Telemetry>,
+        handles: &mut SharedRoundState<P, Matching>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, Telemetry>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
         // if we aren't the leader. we wait for the proposal to then verify in the
         // finalization state.
         if let Some(proposal) = self.proposal.take() {
