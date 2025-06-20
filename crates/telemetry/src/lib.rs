@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
+    sync::OnceLock,
     task::Poll
 };
 
@@ -14,10 +15,11 @@ use angstrom_types::{
     uni_structure::BaselinePoolState
 };
 use blocklog::BlockLog;
+use chrono::Utc;
 use client::TelemetryClient;
 use outputs::{TelemetryOutput, log::LogOutput};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::warn;
 
 pub mod blocklog;
@@ -25,8 +27,22 @@ pub mod client;
 pub mod outputs;
 pub mod replay;
 
+#[macro_export]
+macro_rules! telemetry_event {
+    ($($items:expr),*) => {{
+        if let Some(handle) = $crate::TELEMETRY_SENDER.get() {
+            let message = $crate::TelemetryMessage::from(($($items),*));
+            let _ = handle.send(message);
+        } else {
+            ::tracing::warn!("No Telemetry handle set.");
+        }
+    }};
+}
+
 // 5 block lookbehind, simple const for now
 const MAX_BLOCKS: usize = 5;
+
+pub static TELEMETRY_SENDER: OnceLock<UnboundedSender<TelemetryMessage>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeConstants {
@@ -86,33 +102,77 @@ pub enum TelemetryMessage {
     },
     /// Message indicating an incoming order to be validated
     NewOrder {
-        blocknum: u64,
-        origin:   OrderOrigin,
-        order:    AllOrders
+        blocknum:  u64,
+        timestamp: chrono::DateTime<Utc>,
+        origin:    OrderOrigin,
+        order:     AllOrders
     },
     /// Request to cancel an order
-    CancelOrder {
-        blocknum: u64,
-        cancel:   CancelOrderRequest
-    },
+    CancelOrder { blocknum: u64, timestamp: chrono::DateTime<Utc>, cancel: CancelOrderRequest },
     /// Message indicating an incoming Consensus message
-    Consensus {
-        blocknum: u64,
-        event:    StromConsensusEvent
-    },
+    Consensus { blocknum: u64, timestamp: chrono::DateTime<Utc>, event: StromConsensusEvent },
     ConsensusStateChange {
-        blocknum: u64,
-        state:    ConsensusRoundName
+        blocknum:  u64,
+        timestamp: chrono::DateTime<Utc>,
+        state:     ConsensusRoundName
     },
     /// Message assigning a snapshot of our gas prices to this block
-    GasPriceSnapshot {
-        blocknum: u64,
-        snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
-    },
+    GasPriceSnapshot { blocknum: u64, snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128) },
     /// Message indicating an error has happened, marking a block for output
-    Error {
-        blocknum: u64,
-        message:  String
+    Error { blocknum: u64, timestamp: chrono::DateTime<Utc>, message: String, backtrace: String }
+}
+
+impl From<(u64, Vec<PoolKey>, HashMap<PoolId, BaselinePoolState>)> for TelemetryMessage {
+    fn from(value: (u64, Vec<PoolKey>, HashMap<PoolId, BaselinePoolState>)) -> Self {
+        Self::NewBlock { blocknum: value.0, pool_keys: value.1, pool_snapshots: value.2 }
+    }
+}
+
+impl From<(u64, OrderOrigin, AllOrders)> for TelemetryMessage {
+    fn from(value: (u64, OrderOrigin, AllOrders)) -> Self {
+        Self::NewOrder {
+            blocknum:  value.0,
+            origin:    value.1,
+            order:     value.2,
+            timestamp: Utc::now()
+        }
+    }
+}
+
+impl From<(u64, CancelOrderRequest)> for TelemetryMessage {
+    fn from(value: (u64, CancelOrderRequest)) -> Self {
+        Self::CancelOrder { blocknum: value.0, timestamp: Utc::now(), cancel: value.1 }
+    }
+}
+
+impl From<(u64, StromConsensusEvent)> for TelemetryMessage {
+    fn from(value: (u64, StromConsensusEvent)) -> Self {
+        Self::Consensus { blocknum: value.0, timestamp: Utc::now(), event: value.1 }
+    }
+}
+
+impl From<(u64, ConsensusRoundName)> for TelemetryMessage {
+    fn from(value: (u64, ConsensusRoundName)) -> Self {
+        Self::ConsensusStateChange { blocknum: value.0, timestamp: Utc::now(), state: value.1 }
+    }
+}
+
+impl From<(u64, (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128))> for TelemetryMessage {
+    fn from(value: (u64, (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128))) -> Self {
+        Self::GasPriceSnapshot { blocknum: value.0, snapshot: value.1 }
+    }
+}
+
+impl From<(u64, String)> for TelemetryMessage {
+    fn from(value: (u64, String)) -> Self {
+        let bt = std::backtrace::Backtrace::force_capture();
+
+        Self::Error {
+            blocknum:  value.0,
+            timestamp: Utc::now(),
+            message:   value.1,
+            backtrace: bt.to_string()
+        }
     }
 }
 
@@ -170,9 +230,16 @@ impl Telemetry {
         self.get_block(blocknum).set_gas_price_snapshot(snapshot);
     }
 
-    fn on_error(&mut self, blocknum: u64, error: String) {
+    fn on_error(
+        &mut self,
+        blocknum: u64,
+        timestamp: chrono::DateTime<Utc>,
+        error: String,
+        backtrace: String
+    ) {
         if let Some(block) = self.block_cache.get_mut(&blocknum) {
-            block.error(error);
+            block.error(error, timestamp, backtrace);
+
             for out in self.outputs.iter() {
                 block.set_node_constants(self.node_consts.clone());
                 out.output(block)
@@ -207,8 +274,8 @@ impl Future for Telemetry {
                     TelemetryMessage::GasPriceSnapshot { blocknum, snapshot } => {
                         self.add_gas_snapshot_to_block(blocknum, snapshot);
                     }
-                    TelemetryMessage::Error { blocknum, message } => {
-                        self.on_error(blocknum, message);
+                    TelemetryMessage::Error { blocknum, timestamp, message, backtrace } => {
+                        self.on_error(blocknum, timestamp, message, backtrace);
                     }
                 },
                 // End of receiver stream should end this task as well
@@ -226,6 +293,8 @@ impl Future for Telemetry {
 
 pub fn init_telemetry(node_consts: NodeConstants) -> TelemetryClient {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    let _ = TELEMETRY_SENDER.set(tx.clone());
+
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()

@@ -59,28 +59,19 @@ impl TelemetryHandle for TelemetryClient {
     }
 
     fn new_order(&self, blocknum: u64, origin: OrderOrigin, order: AllOrders) {
-        let _ = self
-            .tx
-            .send(TelemetryMessage::NewOrder { blocknum, origin, order });
+        todo!()
     }
 
     fn cancel_order(&self, blocknum: u64, cancel: CancelOrderRequest) {
-        let _ = self
-            .tx
-            .send(TelemetryMessage::CancelOrder { blocknum, cancel });
+        todo!()
     }
 
     fn consensus_event(&self, event: StromConsensusEvent) {
-        let blocknum = event.block_height();
-        let _ = self
-            .tx
-            .send(TelemetryMessage::Consensus { blocknum, event });
+        todo!()
     }
 
     fn consensus_state(&self, blocknum: u64, state: ConsensusRoundName) {
-        let _ = self
-            .tx
-            .send(TelemetryMessage::ConsensusStateChange { blocknum, state });
+        todo!()
     }
 
     fn gas_price_snapshot(
@@ -88,12 +79,10 @@ impl TelemetryHandle for TelemetryClient {
         blocknum: u64,
         snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
     ) {
-        let _ = self
-            .tx
-            .send(TelemetryMessage::GasPriceSnapshot { blocknum, snapshot });
+        todo!()
     }
 
     fn error(&self, blocknum: u64, message: String) {
-        let _ = self.tx.send(TelemetryMessage::Error { blocknum, message });
+        todo!()
     }
 }

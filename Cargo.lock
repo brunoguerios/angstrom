@@ -11832,6 +11832,7 @@ dependencies = [
  "aws-sdk-ec2",
  "base64 0.22.1",
  "base64-serde",
+ "chrono",
  "flate2",
  "serde",
  "serde_json",

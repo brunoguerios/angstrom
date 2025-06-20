@@ -8,6 +8,7 @@ use angstrom_types::{
     primitive::PoolId, uni_structure::BaselinePoolState
 };
 use base64::Engine;
+use chrono::{DateTime, Utc};
 use flate2::Compression;
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +22,8 @@ pub struct BlockLog {
     pool_snapshots:     Option<HashMap<PoolId, BaselinePoolState>>,
     events:             Vec<TelemetryMessage>,
     gas_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>,
-    error:              Option<String>
+    error:              Option<(String, chrono::DateTime<Utc>)>,
+    backtrace:          Option<String>
 }
 
 impl BlockLog {
@@ -33,7 +35,8 @@ impl BlockLog {
             pool_snapshots: None,
             events: Vec::new(),
             gas_price_snapshot: None,
-            error: None
+            error: None,
+            backtrace: None
         }
     }
 
@@ -86,8 +89,9 @@ impl BlockLog {
         self.events.push(event)
     }
 
-    pub fn error(&mut self, error: String) {
-        self.error = Some(error)
+    pub fn error(&mut self, error: String, timestamp: DateTime<Utc>, backtrace: String) {
+        self.error = Some((error, timestamp));
+        self.backtrace = Some(backtrace);
     }
 
     pub fn to_deflate_base64_str(&self) -> String {
