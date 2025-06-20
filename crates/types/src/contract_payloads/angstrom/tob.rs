@@ -14,7 +14,7 @@ use crate::{
     sol_bindings::{
         RawPoolOrder,
         grouped_orders::OrderWithStorageData,
-        rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder}
+        rpc_orders::{OmitOrderMeta, OrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder}
     },
     uni_structure::{BaselinePoolState, pool_swap::PoolSwapResult}
 };
@@ -49,7 +49,8 @@ pub struct TopOfBlockOrder {
 
 impl TopOfBlockOrder {
     // eip-712 hash_struct. is a pain since we need to reconstruct values.
-    fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
+    pub fn recover_order(&self, pair: &[Pair], asset: &[Asset], block: u64) -> RpcTopOfBlockOrder {
+        let user_address = self.user_address(pair, asset, block);
         let pair = &pair[self.pairs_index as usize];
         RpcTopOfBlockOrder {
             quantity_in:     self.quantity_in,
@@ -68,7 +69,7 @@ impl TopOfBlockOrder {
             use_internal:    self.use_internal,
             max_gas_asset0:  self.max_gas_asset_0,
             valid_for_block: block,
-            meta:            Default::default()
+            meta:            OrderMeta { from: user_address, ..Default::default() }
         }
     }
 
