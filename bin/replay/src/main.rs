@@ -17,7 +17,6 @@ fn read_log_from_stdin() -> BlockLog {
 fn main() {
     init_tracing(2);
 
-
     let cli = ReplayCli::parse();
 
     if cli.testnet_replay {

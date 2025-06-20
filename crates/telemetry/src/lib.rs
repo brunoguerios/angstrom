@@ -229,7 +229,7 @@ pub fn init_telemetry(node_consts: NodeConstants) -> TelemetryClient {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .worker_threads(4)
+            .worker_threads(2)
             .build()
             .unwrap();
 
