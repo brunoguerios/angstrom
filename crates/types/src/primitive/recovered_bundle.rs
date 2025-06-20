@@ -2,10 +2,7 @@ use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    contract_payloads::{
-        angstrom::{AngstromBundle, TopOfBlockOrder},
-        rewards::RewardsUpdate
-    },
+    contract_payloads::{angstrom::AngstromBundle, rewards::RewardsUpdate},
     matching::Ray,
     sol_bindings::grouped_orders::AllOrders
 };
