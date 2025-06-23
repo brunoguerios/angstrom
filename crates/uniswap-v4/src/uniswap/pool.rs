@@ -999,7 +999,7 @@ mod tests {
         pool.update_position(0, 60, 3000);
         // set the sqrt_liq at -120
         let sqrt = get_sqrt_ratio_at_tick(-60).unwrap();
-        pool.sqrt_price = sqrt;
+        pool.sqrt_price_x96 = sqrt;
         pool.tick = -60;
 
         let result = pool.fetch_pool_snapshot();
