@@ -1,28 +1,27 @@
 use std::{
     collections::{HashMap, VecDeque},
-    sync::OnceLock,
     task::Poll
 };
 
 use alloy_primitives::Address;
+use angstrom_eth::telemetry::EthUpdaterSnapshot;
 use angstrom_types::{
-    consensus::{ConsensusRoundName, StromConsensusEvent},
     contract_bindings::angstrom::Angstrom::PoolKey,
-    orders::{CancelOrderRequest, OrderOrigin},
     pair_with_price::PairsWithPrice,
     primitive::{
         ANGSTROM_ADDRESS, ANGSTROM_DEPLOYED_BLOCK, GAS_TOKEN_ADDRESS, POOL_MANAGER_ADDRESS, PoolId
     },
-    sol_bindings::grouped_orders::AllOrders,
     uni_structure::BaselinePoolState
 };
 use blocklog::BlockLog;
 use chrono::Utc;
+use order_pool::telemetry::OrderPoolSnapshot;
 use outputs::{TelemetryOutput, log::LogOutput};
 use serde::{Deserialize, Serialize};
 use telemetry_recorder::{TELEMETRY_SENDER, TelemetryMessage};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::warn;
+use validation::order::state::account::user::UserAccounts;
 
 pub mod blocklog;
 pub mod outputs;
@@ -169,6 +168,24 @@ impl Future for Telemetry {
             match self.rx.poll_recv(cx) {
                 // As long as we're getting snapshots, process them
                 Poll::Ready(Some(req)) => match req {
+                    TelemetryMessage::EthSnapshot { blocknum, eth_snapshot } => {
+                        let decoded: EthUpdaterSnapshot =
+                            serde_json::from_value(eth_snapshot).unwrap();
+
+                        self.get_block(blocknum).set_eth(decoded);
+                    }
+                    TelemetryMessage::OrderPoolSnapshot { blocknum, orderpool_snapshot } => {
+                        let decoded: OrderPoolSnapshot =
+                            serde_json::from_value(orderpool_snapshot).unwrap();
+
+                        self.get_block(blocknum).set_orderpool(decoded);
+                    }
+                    TelemetryMessage::ValidationSnapshot { blocknum, validation_snapshot } => {
+                        let decoded: UserAccounts =
+                            serde_json::from_value(validation_snapshot).unwrap();
+
+                        self.get_block(blocknum).set_validation(decoded);
+                    }
                     TelemetryMessage::NewBlock { blocknum, pool_keys, pool_snapshots } => {
                         println!("New block [{blocknum}]");
                         self.on_new_block(blocknum, pool_keys, pool_snapshots);

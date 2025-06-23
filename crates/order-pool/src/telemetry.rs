@@ -7,7 +7,7 @@ use validation::order::OrderValidatorHandle;
 use crate::{OrderIndexer, order_storage::OrderStorage, order_tracker::OrderTracker};
 
 // Didn't want to have to do a massive refactor of the order pool for this.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct OrderPoolSnapshot {
     pub order_storage: OrderStorage,
     pub order_tracker: OrderTracker,

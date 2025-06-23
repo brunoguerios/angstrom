@@ -3,6 +3,7 @@ use std::{
     io::{Read, Write}
 };
 
+use angstrom_eth::telemetry::EthUpdaterSnapshot;
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey, pair_with_price::PairsWithPrice,
     primitive::PoolId, uni_structure::BaselinePoolState
@@ -10,20 +11,25 @@ use angstrom_types::{
 use base64::Engine;
 use chrono::{DateTime, Utc};
 use flate2::Compression;
+use order_pool::telemetry::OrderPoolSnapshot;
 use serde::{Deserialize, Serialize};
+use validation::order::state::account::user::UserAccounts;
 
 use crate::{NodeConstants, TelemetryMessage};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct BlockLog {
-    blocknum:           u64,
-    constants:          Option<NodeConstants>,
-    pool_keys:          Option<Vec<PoolKey>>,
-    pool_snapshots:     Option<HashMap<PoolId, BaselinePoolState>>,
-    events:             Vec<TelemetryMessage>,
-    gas_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>,
-    error:              Option<(String, chrono::DateTime<Utc>)>,
-    backtrace:          Option<String>
+    blocknum:            u64,
+    order_pool_snapshot: Option<OrderPoolSnapshot>,
+    eth_snapshot:        Option<EthUpdaterSnapshot>,
+    validation_snapshot: Option<UserAccounts>,
+    constants:           Option<NodeConstants>,
+    pool_keys:           Option<Vec<PoolKey>>,
+    pool_snapshots:      Option<HashMap<PoolId, BaselinePoolState>>,
+    events:              Vec<TelemetryMessage>,
+    gas_price_snapshot:  Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>,
+    error:               Option<(String, chrono::DateTime<Utc>)>,
+    backtrace:           Option<String>
 }
 
 impl BlockLog {
@@ -31,6 +37,9 @@ impl BlockLog {
         Self {
             blocknum,
             constants: None,
+            eth_snapshot: None,
+            order_pool_snapshot: None,
+            validation_snapshot: None,
             pool_keys: None,
             pool_snapshots: None,
             events: Vec::new(),
@@ -38,6 +47,18 @@ impl BlockLog {
             error: None,
             backtrace: None
         }
+    }
+
+    pub fn set_orderpool(&mut self, snap: OrderPoolSnapshot) {
+        self.order_pool_snapshot = Some(snap);
+    }
+
+    pub fn set_eth(&mut self, snap: EthUpdaterSnapshot) {
+        self.eth_snapshot = Some(snap);
+    }
+
+    pub fn set_validation(&mut self, snap: UserAccounts) {
+        self.validation_snapshot = Some(snap);
     }
 
     /// Produce a copy of this log targetting another block number.  This is for

@@ -12119,6 +12119,7 @@ name = "telemetry"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
+ "angstrom-eth",
  "angstrom-types",
  "aws-config",
  "aws-sdk-s3",
@@ -12127,7 +12128,6 @@ dependencies = [
  "chrono",
  "flate2",
  "order-pool",
- "reth-execution-types",
  "reth-provider",
  "serde",
  "serde_json",
