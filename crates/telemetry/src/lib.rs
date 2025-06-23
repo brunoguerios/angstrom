@@ -18,14 +18,12 @@ use angstrom_types::{
 };
 use blocklog::BlockLog;
 use chrono::Utc;
-use client::TelemetryClient;
 use outputs::{TelemetryOutput, log::LogOutput};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::warn;
 
 pub mod blocklog;
-pub mod client;
 pub mod outputs;
 pub mod replay;
 
@@ -300,9 +298,9 @@ impl Future for Telemetry {
     }
 }
 
-pub fn init_telemetry(node_address: Address) -> TelemetryClient {
+pub fn init_telemetry(node_address: Address) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let _ = TELEMETRY_SENDER.set(tx.clone());
+    let _ = TELEMETRY_SENDER.set(tx);
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -313,5 +311,4 @@ pub fn init_telemetry(node_address: Address) -> TelemetryClient {
 
         rt.block_on(Telemetry::new(rx, node_address))
     });
-    TelemetryClient::new(tx)
 }

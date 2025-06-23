@@ -184,7 +184,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let network_stream = Box::pin(eth_handle.subscribe_network())
             as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
-        let telemetry = init_telemetry(node_config.address());
+        init_telemetry(node_config.address());
 
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
