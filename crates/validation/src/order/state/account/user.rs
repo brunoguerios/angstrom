@@ -13,7 +13,6 @@ use angstrom_types::{
 use angstrom_utils::FnResultOption;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use telemetry_recorder::OrderTelemetryExt;
 
 use crate::order::state::db_state_utils::StateFetchUtils;
 
@@ -462,15 +461,6 @@ impl UserAccounts {
                     .map(|a| a.value().clone())
                     .unwrap_or_default()
             )
-    }
-}
-
-impl OrderTelemetryExt for (u64, UserAccounts) {
-    fn into_message(self) -> telemetry_recorder::TelemetryMessage {
-        telemetry_recorder::TelemetryMessage::ValidationSnapshot {
-            blocknum:            self.0,
-            validation_snapshot: serde_json::to_value(&&self.0).unwrap()
-        }
     }
 }
 

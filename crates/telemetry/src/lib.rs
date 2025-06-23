@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use telemetry_recorder::{TELEMETRY_SENDER, TelemetryMessage};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::warn;
-use validation::order::state::account::user::UserAccounts;
+use validation::telemetry::ValidationSnapshot;
 
 pub mod blocklog;
 pub mod outputs;
@@ -181,7 +181,7 @@ impl Future for Telemetry {
                         self.get_block(blocknum).set_orderpool(decoded);
                     }
                     TelemetryMessage::ValidationSnapshot { blocknum, validation_snapshot } => {
-                        let decoded: UserAccounts =
+                        let decoded: ValidationSnapshot =
                             serde_json::from_value(validation_snapshot).unwrap();
 
                         self.get_block(blocknum).set_validation(decoded);

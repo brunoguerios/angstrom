@@ -33,8 +33,8 @@ impl<Sync: BlockSyncProducer> From<(&EthDataCleanser<Sync>, CanonStateNotificati
     fn from((data, update): (&EthDataCleanser<Sync>, CanonStateNotification)) -> Self {
         Self {
             angstrom_tokens:   data.angstrom_tokens.clone(),
-            angstrom_address:  data.angstrom_address.clone(),
-            periphery_address: data.periphery_address.clone(),
+            angstrom_address:  data.angstrom_address,
+            periphery_address: data.periphery_address,
             chain_update:      update.into(),
             pool_store:        data.pool_store.clone(),
             node_set:          data.node_set.clone()

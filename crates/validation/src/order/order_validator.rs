@@ -22,7 +22,8 @@ use super::{
 };
 use crate::{
     common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
-    order::{OrderValidation, state::account::UserAccountProcessor}
+    order::{OrderValidation, state::account::UserAccountProcessor},
+    telemetry::ValidationSnapshot
 };
 
 pub struct OrderValidator<DB, Pools, Fetch> {
@@ -83,7 +84,7 @@ where
         // when this occurs, we know there are currently no pending orders and thus we
         // can snapshot them.
         let state = self.state.user_account_tracker.user_accounts.deep_clone();
-        telemetry_recorder::telemetry_event!((block_number, state));
+        telemetry_recorder::telemetry_event!(ValidationSnapshot::from((block_number, state)));
 
         self.state.new_block(completed_orders, address_changes);
     }

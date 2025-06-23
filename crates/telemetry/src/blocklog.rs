@@ -13,7 +13,7 @@ use chrono::{DateTime, Utc};
 use flate2::Compression;
 use order_pool::telemetry::OrderPoolSnapshot;
 use serde::{Deserialize, Serialize};
-use validation::order::state::account::user::UserAccounts;
+use validation::telemetry::ValidationSnapshot;
 
 use crate::{NodeConstants, TelemetryMessage};
 
@@ -22,7 +22,7 @@ pub struct BlockLog {
     blocknum:            u64,
     order_pool_snapshot: Option<OrderPoolSnapshot>,
     eth_snapshot:        Option<EthUpdaterSnapshot>,
-    validation_snapshot: Option<UserAccounts>,
+    validation_snapshot: Option<ValidationSnapshot>,
     constants:           Option<NodeConstants>,
     pool_keys:           Option<Vec<PoolKey>>,
     pool_snapshots:      Option<HashMap<PoolId, BaselinePoolState>>,
@@ -57,7 +57,7 @@ impl BlockLog {
         self.eth_snapshot = Some(snap);
     }
 
-    pub fn set_validation(&mut self, snap: UserAccounts) {
+    pub fn set_validation(&mut self, snap: ValidationSnapshot) {
         self.validation_snapshot = Some(snap);
     }
 
