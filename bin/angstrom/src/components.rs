@@ -351,8 +351,7 @@ where
         uniswap_pools.clone(),
         price_generator,
         pool_config_store.clone(),
-        handles.validator_rx,
-        Some(telemetry.clone())
+        handles.validator_rx
     );
 
     let validation_handle = ValidationClient(handles.validator_tx.clone());
@@ -374,8 +373,7 @@ where
         network_handle.clone(),
         eth_handle.subscribe_network(),
         handles.pool_rx,
-        global_block_sync.clone(),
-        Some(telemetry.clone())
+        global_block_sync.clone()
     )
     .with_config(pool_config)
     .build_with_channels(
@@ -427,7 +425,6 @@ where
         matching_handle,
         global_block_sync.clone(),
         handles.consensus_rx_rpc,
-        Some(telemetry.clone()),
         None
     );
 

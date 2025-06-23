@@ -13,7 +13,6 @@ use angstrom_types::{
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::MatchingEngineHandle;
-use telemetry::client::TelemetryHandle;
 
 use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{ConsensusMessage, preproposal_wait_trigger::LastRoundInfo};
@@ -65,7 +64,7 @@ impl ProposalState {
         }
     }
 
-    fn try_build_proposal<P, Matching, Telemetry>(
+    fn try_build_proposal<P, Matching>(
         &mut self,
         cx: &mut Context<'_>,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
@@ -73,8 +72,7 @@ impl ProposalState {
     ) -> bool
     where
         P: Provider + Unpin + 'static,
-        Matching: MatchingEngineHandle,
-        Telemetry: TelemetryHandle
+        Matching: MatchingEngineHandle
     {
         self.last_round_info = Some(LastRoundInfo {
             time_to_complete: Instant::now().duration_since(self.trigger_time)

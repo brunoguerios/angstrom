@@ -3,7 +3,7 @@ use std::{fmt::Debug, task::Poll};
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
 use futures_util::{Future, FutureExt};
-use telemetry::client::TelemetryHandle;
+use telemetry::telemetry_event;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{
@@ -53,30 +53,27 @@ pub enum ValidationRequest {
 #[derive(Debug, Clone)]
 pub struct ValidationClient(pub UnboundedSender<ValidationRequest>);
 
-pub struct Validator<DB, Pools, Fetch, Telemetry> {
+pub struct Validator<DB, Pools, Fetch> {
     rx:               UnboundedReceiver<ValidationRequest>,
     order_validator:  OrderValidator<DB, Pools, Fetch>,
     bundle_validator: BundleValidator<DB>,
-    utils:            SharedTools,
-    telemetry:        Option<Telemetry>
+    utils:            SharedTools
 }
 
-impl<DB, Pools, Fetch, Telemetry> Validator<DB, Pools, Fetch, Telemetry>
+impl<DB, Pools, Fetch> Validator<DB, Pools, Fetch>
 where
     DB: Unpin + Clone + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync + 'static,
     Pools: PoolsTracker + Send + Sync + 'static,
     Fetch: StateFetchUtils + Send + Sync + 'static,
-    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
-    Telemetry: TelemetryHandle
+    <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
 {
     pub fn new(
         rx: UnboundedReceiver<ValidationRequest>,
         order_validator: OrderValidator<DB, Pools, Fetch>,
         bundle_validator: BundleValidator<DB>,
-        utils: SharedTools,
-        telemetry: Option<Telemetry>
+        utils: SharedTools
     ) -> Self {
-        Self { order_validator, rx, utils, bundle_validator, telemetry }
+        Self { order_validator, rx, utils, bundle_validator }
     }
 
     fn on_new_validation_request(&mut self, req: ValidationRequest) {
@@ -116,12 +113,7 @@ where
                 sender
                     .send(OrderValidationResults::TransitionedToBlock(gas_updates))
                     .unwrap();
-                if let Some(t) = self.telemetry.as_ref() {
-                    t.gas_price_snapshot(
-                        block_number,
-                        self.utils.token_pricing_ref().to_snapshot()
-                    );
-                }
+                telemetry_event!(block_number, self.utils.token_pricing_ref().to_snapshot());
             }
             ValidationRequest::Nonce { sender, user_address } => {
                 let nonce = self.order_validator.fetch_nonce(user_address);
@@ -165,13 +157,12 @@ where
     }
 }
 
-impl<DB, Pools, Fetch, Telemetry> Future for Validator<DB, Pools, Fetch, Telemetry>
+impl<DB, Pools, Fetch> Future for Validator<DB, Pools, Fetch>
 where
     DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Send + Sync,
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
     Pools: PoolsTracker + Send + Sync + Unpin + 'static,
-    Fetch: StateFetchUtils + Send + Sync + Unpin + 'static,
-    Telemetry: TelemetryHandle
+    Fetch: StateFetchUtils + Send + Sync + Unpin + 'static
 {
     type Output = ();
 

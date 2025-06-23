@@ -8,7 +8,6 @@ use alloy::providers::Provider;
 use angstrom_types::consensus::{ConsensusRoundName, Proposal, StromConsensusEvent};
 use futures::{Future, FutureExt};
 use matching_engine::MatchingEngineHandle;
-use telemetry::client::TelemetryHandle;
 
 use super::{ConsensusState, SharedRoundState};
 
@@ -25,7 +24,7 @@ pub struct FinalizationState {
 }
 
 impl FinalizationState {
-    pub fn new<P, Matching, Telemetry>(
+    pub fn new<P, Matching>(
         proposal: Proposal,
         handles: &mut SharedRoundState<P, Matching>,
         waker: Waker

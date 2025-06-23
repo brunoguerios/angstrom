@@ -19,7 +19,6 @@ use reth_chainspec::Hardforks;
 use reth_network::{Peers, test_utils::Peer};
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::TaskExecutor;
-use telemetry::client::TelemetryClient;
 use tokio::task::JoinHandle;
 use tracing::{Level, span};
 
@@ -35,8 +34,7 @@ pub(crate) struct TestnetStateFutureLock<
 > {
     eth_peer:              StateLockInner<Peer<C>>,
     strom_network_manager: StateLockInner<StromNetworkManager<C, P>>,
-    strom_consensus:
-        StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync, TelemetryClient>>,
+    strom_consensus:       StateLockInner<ConsensusManager<T, MatcherHandle, GlobalBlockSync>>,
     validation:            StateLockInner<TestOrderValidator<AnvilStateProvider<WalletProvider>>>
 }
 
@@ -55,7 +53,7 @@ where
         node_id: u64,
         eth_peer: Peer<C>,
         strom_network_manager: StromNetworkManager<C, P>,
-        consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync, TelemetryClient>,
+        consensus: ConsensusManager<T, MatcherHandle, GlobalBlockSync>,
         validation: TestOrderValidator<AnvilStateProvider<WalletProvider>>,
         ex: TaskExecutor
     ) -> Self {
@@ -100,14 +98,14 @@ where
 
     pub(crate) fn strom_consensus<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync, TelemetryClient>) -> R
+        F: FnOnce(&ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus.on_inner(f)
     }
 
     pub(crate) fn strom_consensus_mut<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync, TelemetryClient>) -> R
+        F: FnOnce(&mut ConsensusManager<T, MatcherHandle, GlobalBlockSync>) -> R
     {
         self.strom_consensus.on_inner_mut(f)
     }

@@ -31,7 +31,7 @@ pub struct PreProposalAggregationState {
 }
 
 impl PreProposalAggregationState {
-    pub fn new<P, Matching, Telemetry>(
+    pub fn new<P, Matching>(
         pre_proposals: HashSet<PreProposal>,
         mut pre_proposals_aggregation: HashSet<PreProposalAggregation>,
         handles: &mut SharedRoundState<P, Matching>,

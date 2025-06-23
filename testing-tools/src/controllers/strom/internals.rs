@@ -36,7 +36,7 @@ use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TaskExecutor;
-use telemetry::{NodeConstants, client::TelemetryClient, init_telemetry};
+use telemetry::{NodeConstants, init_telemetry};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
@@ -83,7 +83,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         token_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync, TelemetryClient>,
+        ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>,
         TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where
@@ -259,8 +259,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             token_conversion,
             token_price_update_stream,
             pool_storage.clone(),
-            node_config.node_id,
-            Some(telemetry.clone())
+            node_config.node_id
         )
         .await?;
 
@@ -276,8 +275,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             strom_network_handle.clone(),
             eth_handle.subscribe_network(),
             strom_handles.pool_rx,
-            block_sync.clone(),
-            Some(telemetry.clone())
+            block_sync.clone()
         )
         .with_config(pool_config)
         .build_with_channels(
@@ -343,7 +341,6 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             matching_handle,
             block_sync.clone(),
             strom_handles.consensus_rx_rpc,
-            Some(telemetry.clone()),
             state_updates
         );
 

@@ -27,7 +27,6 @@ use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
 use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
-use telemetry::client::{TelemetryClient, TelemetryHandle};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::AngstromValidator;

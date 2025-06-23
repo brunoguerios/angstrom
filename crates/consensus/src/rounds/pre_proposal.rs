@@ -9,7 +9,6 @@ use angstrom_types::consensus::{
     ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal, StromConsensusEvent
 };
 use matching_engine::MatchingEngineHandle;
-use telemetry::client::TelemetryHandle;
 
 use super::{ConsensusState, SharedRoundState};
 use crate::rounds::{

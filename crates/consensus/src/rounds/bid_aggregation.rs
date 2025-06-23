@@ -10,7 +10,6 @@ use angstrom_types::consensus::{
 };
 use futures::FutureExt;
 use matching_engine::MatchingEngineHandle;
-use telemetry::client::TelemetryHandle;
 
 use super::{
     ConsensusState, SharedRoundState, finalization::FinalizationState,
