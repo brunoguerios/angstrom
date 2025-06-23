@@ -10,7 +10,9 @@ use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     orders::{CancelOrderRequest, OrderOrigin},
     pair_with_price::PairsWithPrice,
-    primitive::PoolId,
+    primitive::{
+        ANGSTROM_ADDRESS, ANGSTROM_DEPLOYED_BLOCK, GAS_TOKEN_ADDRESS, POOL_MANAGER_ADDRESS, PoolId
+    },
     sol_bindings::grouped_orders::AllOrders,
     uni_structure::BaselinePoolState
 };
@@ -184,7 +186,14 @@ pub struct Telemetry {
 }
 
 impl Telemetry {
-    pub fn new(rx: UnboundedReceiver<TelemetryMessage>, node_consts: NodeConstants) -> Self {
+    pub fn new(rx: UnboundedReceiver<TelemetryMessage>, node_address: Address) -> Self {
+        let node_consts = NodeConstants {
+            node_address,
+            angstrom_address: *ANGSTROM_ADDRESS.get().unwrap(),
+            pool_manager_address: *POOL_MANAGER_ADDRESS.get().unwrap(),
+            angstrom_deploy_block: *ANGSTROM_DEPLOYED_BLOCK.get().unwrap(),
+            gas_token_address: *GAS_TOKEN_ADDRESS.get().unwrap()
+        };
         // By default let's just turn on all our outputs, we only have one
         let outputs: Vec<Box<dyn TelemetryOutput>> = vec![Box::new(LogOutput {})];
         let block_cache = HashMap::new();
@@ -291,7 +300,7 @@ impl Future for Telemetry {
     }
 }
 
-pub fn init_telemetry(node_consts: NodeConstants) -> TelemetryClient {
+pub fn init_telemetry(node_address: Address) -> TelemetryClient {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let _ = TELEMETRY_SENDER.set(tx.clone());
 
@@ -302,7 +311,7 @@ pub fn init_telemetry(node_consts: NodeConstants) -> TelemetryClient {
             .build()
             .unwrap();
 
-        rt.block_on(Telemetry::new(rx, node_consts))
+        rt.block_on(Telemetry::new(rx, node_address))
     });
     TelemetryClient::new(tx)
 }

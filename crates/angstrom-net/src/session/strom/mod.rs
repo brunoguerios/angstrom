@@ -2,10 +2,10 @@ pub mod regular;
 pub mod shutdown;
 pub mod startup;
 
-use std::{fmt::Debug, pin::Pin};
+use std::{collections::HashSet, fmt::Debug, pin::Pin};
 
-use alloy::rlp::BytesMut;
-use angstrom_types::primitive::{AngstromSigner, PeerId};
+use alloy::{primitives::Address, rlp::BytesMut};
+use angstrom_types::primitive::{AngstromMetaSigner, AngstromSigner, PeerId};
 use futures::{
     Stream,
     task::{Context, Poll}
@@ -23,30 +23,30 @@ use crate::{
     types::status::{Status, StatusState}
 };
 
-pub enum StromSessionStates {
-    Startup(StromStartup),
+pub enum StromSessionStates<S: AngstromMetaSigner> {
+    Startup(StromStartup<S>),
     Regular(RegularProcessing),
     Shutdown(Shutdown),
     Dummy(DummyState)
 }
 
-impl Default for StromSessionStates {
+impl<S: AngstromMetaSigner> Default for StromSessionStates<S> {
     fn default() -> Self {
         Self::Dummy(DummyState)
     }
 }
 
-impl StromSession for StromSessionStates {
+impl<S: AngstromMetaSigner> StromSession<S> for StromSessionStates<S> {
     fn poll_outbound_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>> {
         match self {
             Self::Startup(s) => s.poll_outbound_msg(cx),
-            Self::Regular(s) => s.poll_outbound_msg(cx),
-            Self::Shutdown(s) => s.poll_outbound_msg(cx),
-            Self::Dummy(s) => s.poll_outbound_msg(cx)
+            Self::Regular(s) => <_ as StromSession<S>>::poll_outbound_msg(s, cx),
+            Self::Shutdown(s) => <_ as StromSession<S>>::poll_outbound_msg(s, cx),
+            Self::Dummy(s) => <_ as StromSession<S>>::poll_outbound_msg(s, cx)
         }
     }
 
-    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates> {
+    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates<S>> {
         match self {
             Self::Startup(s) => s.poll_next_state(cx),
             Self::Regular(s) => s.poll_next_state(cx),
@@ -58,35 +58,35 @@ impl StromSession for StromSessionStates {
 
 /// this trait handles the transition and different functionality of
 /// a strom session at the different points in time
-pub trait StromSession: Send + 'static {
+pub trait StromSession<S: AngstromMetaSigner>: Send + 'static {
     /// Messages encoded that are meant for the peer
     fn poll_outbound_msg(&mut self, cx: &mut Context<'_>) -> Poll<Option<BytesMut>>;
     /// will transition to next state.
-    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates>;
+    fn poll_next_state(self, cx: &mut Context<'_>) -> Option<StromSessionStates<S>>;
 }
 
 #[derive(Default)]
 pub struct DummyState;
-impl StromSession for DummyState {
+impl<S: AngstromMetaSigner> StromSession<S> for DummyState {
     fn poll_outbound_msg(&mut self, _: &mut Context<'_>) -> Poll<Option<BytesMut>> {
         todo!()
     }
 
-    fn poll_next_state(self, _: &mut Context<'_>) -> Option<StromSessionStates> {
+    fn poll_next_state(self, _: &mut Context<'_>) -> Option<StromSessionStates<S>> {
         todo!()
     }
 }
 
 /// holds the state we need to verify the new peer
 #[derive(Clone)]
-pub struct VerificationSidecar {
-    pub secret_key:   AngstromSigner,
+pub struct VerificationSidecar<S: AngstromMetaSigner> {
+    pub secret_key:   AngstromSigner<S>,
     pub status:       StatusState,
     pub has_sent:     bool,
     pub has_received: bool
 }
 
-impl VerificationSidecar {
+impl<S: AngstromMetaSigner> VerificationSidecar<S> {
     pub fn make_status_message(&mut self, peer: PeerId) -> Status {
         if self.has_sent {
             panic!("can only send the status message once");
@@ -100,24 +100,25 @@ impl VerificationSidecar {
     }
 }
 
-impl Debug for VerificationSidecar {
+impl<S: AngstromMetaSigner> Debug for VerificationSidecar<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("status: {:?}", self.status))
     }
 }
 
-pub struct StromSessionHandler {
-    inner_state: StromSessionStates
+pub struct StromSessionHandler<S: AngstromMetaSigner> {
+    inner_state: StromSessionStates<S>
 }
 
-impl StromSessionHandler {
+impl<S: AngstromMetaSigner> StromSessionHandler<S> {
     pub fn new(
         conn: ProtocolConnection,
         peer_id: PeerId,
         commands_rx: ReceiverStream<SessionCommand>,
         to_session_manager: MeteredPollSender<StromSessionMessage>,
-        verification_sidecar: VerificationSidecar,
-        handle: StromSessionHandle
+        verification_sidecar: VerificationSidecar<S>,
+        handle: StromSessionHandle,
+        valid_nodes: HashSet<Address>
     ) -> Self {
         let inner_state = StromSessionStates::Startup(StromStartup::new(
             verification_sidecar,
@@ -125,13 +126,14 @@ impl StromSessionHandler {
             conn,
             peer_id,
             to_session_manager,
-            commands_rx
+            commands_rx,
+            valid_nodes
         ));
         Self { inner_state }
     }
 }
 
-impl Stream for StromSessionHandler {
+impl<S: AngstromMetaSigner> Stream for StromSessionHandler<S> {
     type Item = BytesMut;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

@@ -34,7 +34,7 @@ use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth::{providers::CanonStateSubscriptions, tasks::TaskExecutor};
 use reth_metrics::common::mpsc::metered_unbounded_channel;
 use reth_provider::test_utils::TestCanonStateSubscriptions;
-use telemetry::{NodeConstants, client::TelemetryClient};
+use telemetry::NodeConstants;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uniswap_v4::configure_uniswap_manager;
 use validation::{common::TokenPriceGenerator, init_validation, validator::ValidationClient};
@@ -159,8 +159,14 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         OrderApi::new(pool.clone(), executor.clone(), validation_client.clone(), amm_quoter);
 
     // Create our provider
-    let submission_handler =
-        SubmissionHandler::new(provider.rpc_provider().into(), &[], &[], &[], angstrom_contract);
+    let submission_handler = SubmissionHandler::new(
+        provider.rpc_provider().into(),
+        &[],
+        &[],
+        &[],
+        angstrom_contract,
+        signer.clone()
+    );
 
     // EXTERNAL DATA - we can specify block by using a specific ID
     // let pool_config_data = load_poolconfig_from_chain(
@@ -208,7 +214,6 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     let network_stream =
         Box::pin(eth_event_rx_stream) as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
-    let telemetry: Option<TelemetryClient> = None;
     // Takes updates that are generally provided by EthDataCleanser
     let uniswap_pool_manager = configure_uniswap_manager(
         provider.rpc_provider().into(),
@@ -217,8 +222,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         block_id,
         global_block_sync.clone(),
         pool_manager,
-        network_stream,
-        telemetry.clone()
+        network_stream
     )
     .await;
 

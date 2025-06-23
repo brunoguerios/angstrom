@@ -19,7 +19,6 @@ use reth_provider::{
     CanonStateNotifications, DatabaseProviderFactory, ReceiptProvider, StateProvider,
     TryIntoHistoricalStateProvider
 };
-use telemetry::client::TelemetryHandle;
 use uniswap::pool_factory::V4PoolFactory;
 
 use crate::uniswap::{
@@ -118,28 +117,25 @@ where
         .collect::<Vec<_>>()
 }
 
-pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer, Telemetry: TelemetryHandle>(
+pub async fn configure_uniswap_manager<BlockSync: BlockSyncConsumer>(
     provider: Arc<impl Provider + 'static>,
     state_notification: CanonStateNotifications,
     uniswap_pool_registry: UniswapPoolRegistry,
     current_block: BlockNumber,
     block_sync: BlockSync,
     pool_manager_address: Address,
-    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>,
-    telemetry: Option<Telemetry>
+    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
 ) -> UniswapPoolManager<
     CanonicalStateAdapter<impl Provider + 'static>,
     impl Provider + 'static,
-    BlockSync,
-    Telemetry
+    BlockSync
 > {
     let factory = V4PoolFactory::new(provider.clone(), uniswap_pool_registry, pool_manager_address);
 
     let notifier =
         Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
 
-    UniswapPoolManager::new(factory, current_block, notifier, block_sync, update_stream, telemetry)
-        .await
+    UniswapPoolManager::new(factory, current_block, notifier, block_sync, update_stream).await
 }
 
 #[cfg(all(test, feature = "anvil"))]

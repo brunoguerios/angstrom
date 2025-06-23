@@ -1,4 +1,4 @@
-use alloy::primitives::Uint;
+use alloy::{primitives::Uint, signers::local::PrivateKeySigner};
 use alloy_primitives::B256;
 use angstrom_types::{
     matching::Ray,
@@ -18,7 +18,7 @@ pub struct OrderDistributionBuilder {
     volumeparams: Option<DistributionParameters>,
     pool_id:      Option<PoolId>,
     valid_block:  Option<u64>,
-    signing_key:  Option<AngstromSigner>
+    signing_key:  Option<AngstromSigner<PrivateKeySigner>>
 }
 
 impl OrderDistributionBuilder {
@@ -58,7 +58,7 @@ impl OrderDistributionBuilder {
         Self { valid_block: Some(valid_block), ..self }
     }
 
-    pub fn signing_key(self, signing_key: Option<AngstromSigner>) -> Self {
+    pub fn signing_key(self, signing_key: Option<AngstromSigner<PrivateKeySigner>>) -> Self {
         Self { signing_key, ..self }
     }
 

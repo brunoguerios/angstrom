@@ -8,6 +8,7 @@ use alloy::{
     network::TransactionBuilder,
     primitives::{Address, I256, U256},
     providers::Provider,
+    signers::local::PrivateKeySigner,
     sol_types::SolCall
 };
 use alloy_primitives::TxKind;
@@ -31,7 +32,7 @@ where
 {
     pool:            EnhancedUniswapPool,
     block_number:    u64,
-    keys:            Vec<AngstromSigner>,
+    keys:            Vec<AngstromSigner<PrivateKeySigner>>,
     provider:        Arc<ProviderType>,
     angstrom_client: Arc<T>
 }
@@ -43,7 +44,7 @@ where
     pub fn new(
         pool: EnhancedUniswapPool,
         block_number: u64,
-        keys: Vec<AngstromSigner>,
+        keys: Vec<AngstromSigner<PrivateKeySigner>>,
         provider: Arc<ProviderType>,
         angstrom_client: Arc<T>
     ) -> Self {
@@ -157,7 +158,10 @@ where
         Ok(res)
     }
 
-    async fn angstrom_signer_inner(&self, key: &AngstromSigner) -> eyre::Result<AllOrders> {
+    async fn angstrom_signer_inner(
+        &self,
+        key: &AngstromSigner<PrivateKeySigner>
+    ) -> eyre::Result<AllOrders> {
         let mut gas = self
             .angstrom_client
             .estimate_gas(true, false, self.pool.token0, self.pool.token1)
@@ -260,7 +264,7 @@ where
     // (amount, zfo)
     async fn fetch_direction_and_amounts(
         &self,
-        key: &AngstromSigner,
+        key: &AngstromSigner<PrivateKeySigner>,
         pool_price: &Ray,
         exact_in: bool
     ) -> (I256, bool) {

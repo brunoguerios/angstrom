@@ -1,10 +1,7 @@
 use std::{collections::HashSet, net::SocketAddr, pin::Pin};
 
-use alloy::{
-    primitives::{Address, keccak256},
-    rlp::BytesMut
-};
-use angstrom_types::primitive::PeerId;
+use alloy::{primitives::Address, rlp::BytesMut};
+use angstrom_types::primitive::{AngstromMetaSigner, PeerId};
 use futures::{Stream, StreamExt, stream::Empty};
 use reth_eth_wire::{
     DisconnectReason, capability::SharedCapabilities, multiplex::ProtocolConnection,
@@ -26,13 +23,13 @@ use crate::{
     types::message::{StromMessage, StromProtocolMessage}
 };
 
-pub enum PossibleStromSession {
-    Session(StromSessionHandler),
+pub enum PossibleStromSession<S: AngstromMetaSigner> {
+    Session(StromSessionHandler<S>),
     /// this will instantly terminate when first polled
     Invalid(Empty<BytesMut>)
 }
 
-impl Stream for PossibleStromSession {
+impl<S: AngstromMetaSigner> Stream for PossibleStromSession<S> {
     type Item = BytesMut;
 
     fn poll_next(
@@ -47,16 +44,16 @@ impl Stream for PossibleStromSession {
 }
 
 //TODO: Add bandwith meter to be
-pub struct StromConnectionHandler {
+pub struct StromConnectionHandler<S: AngstromMetaSigner> {
     pub to_session_manager:     MeteredPollSender<StromSessionMessage>,
     pub session_command_buffer: usize,
     pub socket_addr:            SocketAddr,
-    pub side_car:               VerificationSidecar,
+    pub side_car:               VerificationSidecar<S>,
     pub validator_set:          HashSet<Address>
 }
 
-impl ConnectionHandler for StromConnectionHandler {
-    type Connection = PossibleStromSession;
+impl<S: AngstromMetaSigner> ConnectionHandler for StromConnectionHandler<S> {
+    type Connection = PossibleStromSession<S>;
 
     fn protocol(&self) -> Protocol {
         StromProtocolMessage::protocol()
@@ -71,20 +68,12 @@ impl ConnectionHandler for StromConnectionHandler {
         OnNotSupported::KeepAlive
     }
 
-    // this occurs after the eth handshake occured
     fn into_connection(
         self,
         direction: Direction,
         peer_id: PeerId,
         conn: ProtocolConnection
     ) -> Self::Connection {
-        let hash = keccak256(peer_id);
-        let validator_address = Address::from_slice(&hash[12..]);
-        if !self.validator_set.contains(&validator_address) {
-            tracing::error!("got someone try to connect that wasn't a validator");
-            return PossibleStromSession::Invalid(futures::stream::empty());
-        }
-
         let (tx, rx) = mpsc::channel(self.session_command_buffer);
 
         let handle = StromSessionHandle {
@@ -101,7 +90,8 @@ impl ConnectionHandler for StromConnectionHandler {
             ReceiverStream::new(rx),
             self.to_session_manager,
             self.side_car,
-            handle
+            handle,
+            self.validator_set.clone()
         ))
     }
 }

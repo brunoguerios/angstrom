@@ -6,7 +6,7 @@ use std::{
     time::Duration
 };
 
-use alloy::{primitives::Address, providers::Provider};
+use alloy::{primitives::Address, providers::Provider, signers::local::PrivateKeySigner};
 use alloy_rpc_types::BlockId;
 use angstrom::components::StromHandles;
 use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
@@ -26,7 +26,7 @@ use angstrom_types::{
     pair_with_price::PairsWithPrice,
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::testnet::TestnetHub,
-    submission::SubmissionHandler,
+    submission::{ChainSubmitterHolder, SubmissionHandler},
     testnet::InitialTestnetState
 };
 use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
@@ -36,7 +36,7 @@ use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TaskExecutor;
-use telemetry::{NodeConstants, init_telemetry};
+use telemetry::init_telemetry;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
@@ -83,7 +83,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         token_price_snapshot: Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>
     ) -> eyre::Result<(
         Self,
-        ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync>,
+        ConsensusManager<WalletProviderRpc, MatcherHandle, GlobalBlockSync, PrivateKeySigner>,
         TestOrderValidator<AnvilStateProvider<WalletProvider>>
     )>
     where
@@ -184,14 +184,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let network_stream = Box::pin(eth_handle.subscribe_network())
             as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
-        let node_constants = NodeConstants::new(
-            node_config.address(),
-            inital_angstrom_state.angstrom_addr,
-            inital_angstrom_state.pool_manager_addr,
-            block_number,
-            WETH_ADDRESS
-        );
-        let telemetry = init_telemetry(node_constants);
+        let telemetry = init_telemetry(node_config.address());
 
         let uniswap_pool_manager = configure_uniswap_manager(
             state_provider.rpc_provider().into(),
@@ -200,8 +193,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             block_number,
             block_sync.clone(),
             inital_angstrom_state.pool_manager_addr,
-            network_stream,
-            Some(telemetry.clone())
+            network_stream
         )
         .await;
         tracing::debug!("uniswap configured");
@@ -319,7 +311,10 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let mev_boost_provider = SubmissionHandler {
             node_provider: Arc::new(state_provider.rpc_provider()),
-            submitters:    vec![Box::new(anvil)]
+            submitters:    vec![Box::new(ChainSubmitterHolder::new(
+                anvil,
+                node_config.angstrom_signer()
+            ))]
         };
 
         tracing::debug!("created mev boost provider");

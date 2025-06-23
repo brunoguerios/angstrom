@@ -78,5 +78,5 @@ pub enum OrderSubscriptionResult {
     FilledOrder(u64, AllOrders),
     UnfilledOrder(AllOrders),
     CancelledOrder(B256),
-    ExpiredOrder(B256)
+    ExpiredOrder(AllOrders)
 }

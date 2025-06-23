@@ -409,7 +409,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .remove_expired_orders(block_number, &self.order_storage);
         self.subscribers.notify_expired_orders(&expired_orders);
 
-        completed_orders.extend(expired_orders);
+        completed_orders.extend(expired_orders.into_iter().map(|o| o.order_id.hash));
 
         self.validator.notify_validation_on_changes(
             block_number,
@@ -479,7 +479,11 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH}
     };
 
-    use alloy::{primitives::U256, signers::SignerSync, sol_types::SolValue};
+    use alloy::{
+        primitives::U256,
+        signers::{SignerSync, local::PrivateKeySigner},
+        sol_types::SolValue
+    };
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
         matching::Ray,
@@ -542,7 +546,7 @@ mod tests {
         from: Address,
         pool_id: PoolKey,
         validity: Option<OrderValidity>,
-        signer: Option<AngstromSigner>
+        signer: Option<AngstromSigner<PrivateKeySigner>>
     ) -> AllOrders {
         let validity = validity.unwrap_or_default();
 
@@ -644,7 +648,10 @@ mod tests {
         // Simulate block transition
         let expired_hashes = indexer
             .order_tracker
-            .remove_expired_orders(2, &indexer.order_storage);
+            .remove_expired_orders(2, &indexer.order_storage)
+            .into_iter()
+            .map(|o| o.order_id.hash)
+            .collect::<Vec<_>>();
 
         // Verify order was removed
         assert!(expired_hashes.contains(&order_hash));

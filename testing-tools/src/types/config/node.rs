@@ -77,7 +77,7 @@ impl<C: GlobalTestingConfig> TestingNodeConfig<C> {
         PrivateKeySigner::from_bytes(&self.secret_key.secret_bytes().into()).unwrap()
     }
 
-    pub fn angstrom_signer(&self) -> AngstromSigner {
+    pub fn angstrom_signer(&self) -> AngstromSigner<PrivateKeySigner> {
         AngstromSigner::new(self.signing_key())
     }
 

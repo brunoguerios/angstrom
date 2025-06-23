@@ -22,6 +22,7 @@ pub static ANGSTROM_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static POSITION_MANAGER_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static CONTROLLER_V1_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static POOL_MANAGER_ADDRESS: OnceLock<Address> = OnceLock::new();
+pub static GAS_TOKEN_ADDRESS: OnceLock<Address> = OnceLock::new();
 pub static ANGSTROM_DEPLOYED_BLOCK: OnceLock<u64> = OnceLock::new();
 pub static CHAIN_ID: OnceLock<u64> = OnceLock::new();
 pub static ANGSTROM_DOMAIN: OnceLock<Eip712Domain> = OnceLock::new();
@@ -32,6 +33,7 @@ pub struct AngstromAddressBuilder {
     position_manager_address: Address,
     controller_v1_address:    Address,
     pool_manager_address:     Address,
+    gas_token_address:        Address,
     angstrom_deploy_block:    u64,
     chain_id:                 u64
 }
@@ -61,6 +63,10 @@ impl AngstromAddressBuilder {
         Self { chain_id, ..self }
     }
 
+    pub fn with_gas_token(self, gas_token_address: Address) -> Self {
+        Self { gas_token_address, ..self }
+    }
+
     pub fn build(self) -> AngstromAddressConfig {
         AngstromAddressConfig {
             angstrom_address:         self.angstrom_address,
@@ -68,6 +74,7 @@ impl AngstromAddressBuilder {
             controller_v1_address:    self.controller_v1_address,
             pool_manager_address:     self.pool_manager_address,
             angstrom_deploy_block:    self.angstrom_deploy_block,
+            gas_token_address:        self.gas_token_address,
             chain_id:                 self.chain_id
         }
     }
@@ -80,6 +87,7 @@ pub struct AngstromAddressConfig {
     position_manager_address: Address,
     controller_v1_address:    Address,
     pool_manager_address:     Address,
+    gas_token_address:        Address,
     angstrom_deploy_block:    u64,
     chain_id:                 u64
 }
@@ -90,8 +98,10 @@ impl AngstromAddressConfig {
         position_manager_address: address!("0xF967Ede45ED04ec89EcA04a4c7175b6E0106e3A8"),
         controller_v1_address:    address!("0xEd421745765bc1938848cAaB502ffF53c653ff13"),
         pool_manager_address:     address!("0x48bC5A530873DcF0b890aD50120e7ee5283E0112"),
-        angstrom_deploy_block:    0,
-        chain_id:                 1
+        gas_token_address:        address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+
+        angstrom_deploy_block: 0,
+        chain_id:              1
     };
 
     /// Will panic if config has already been set
@@ -108,6 +118,7 @@ impl AngstromAddressConfig {
             .set(self.angstrom_deploy_block)
             .unwrap();
         CHAIN_ID.set(self.chain_id).unwrap();
+        GAS_TOKEN_ADDRESS.set(self.gas_token_address).unwrap();
         ANGSTROM_DOMAIN
             .set(alloy::sol_types::eip712_domain!(
                 name: "Angstrom",
@@ -119,6 +130,9 @@ impl AngstromAddressConfig {
     }
 
     pub fn try_init(self) {
+        if self.gas_token_address != Address::ZERO {
+            let _ = GAS_TOKEN_ADDRESS.set(self.gas_token_address);
+        }
         if self.angstrom_address != Address::ZERO {
             let _ = ANGSTROM_ADDRESS.set(self.angstrom_address);
         }
@@ -162,28 +176,56 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
     let mut err = false;
     match chain_id {
         1 => {
-            tracing::error!("mainnet deploy is not currently setup, cannot set values");
+            err |= ANGSTROM_ADDRESS
+                .set(address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4"))
+                .is_err();
+            err |= POSITION_MANAGER_ADDRESS
+                .set(address!("0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e"))
+                .is_err();
+            err |= CONTROLLER_V1_ADDRESS
+                .set(address!("0x16eD937987753a50f9Eb293eFffA753aC4313db0"))
+                .is_err();
+            err |= POOL_MANAGER_ADDRESS
+                .set(address!("0x000000000004444c5dc75cB358380D2e3dE08A90"))
+                .is_err();
+            err |= CHAIN_ID.set(1).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(22689729).is_err();
+            err |= GAS_TOKEN_ADDRESS
+                .set(address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"))
+                .is_err();
+            err |= ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 1,
+                    verifying_contract: address!("0x0000000AA8c2Fb9b232F78D2B286dC2aE53BfAD4"),
+                ))
+                .is_err();
         }
         11155111 => {
             err |= ANGSTROM_ADDRESS
-                .set(address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"))
+                .set(address!("0x3B9172ef12bd245A07DA0d43dE29e09036626AFC"))
                 .is_err();
             err |= POSITION_MANAGER_ADDRESS
                 .set(address!("0x429ba70129df741B2Ca2a85BC3A2a3328e5c09b4"))
                 .is_err();
             err |= CONTROLLER_V1_ADDRESS
-                .set(address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674"))
+                .set(address!("0x977c67e6CEe5b5De090006E87ADaFc99Ebed2a7A"))
                 .is_err();
             err |= POOL_MANAGER_ADDRESS
                 .set(address!("0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"))
                 .is_err();
-            err |= ANGSTROM_DEPLOYED_BLOCK.set(8276506).is_err();
+            err |= CHAIN_ID.set(11155111).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(8578780).is_err();
+            err |= GAS_TOKEN_ADDRESS
+                .set(address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b14"))
+                .is_err();
             err |= ANGSTROM_DOMAIN
                 .set(alloy::sol_types::eip712_domain!(
                     name: "Angstrom",
                     version: "v1",
                     chain_id: 11155111,
-                    verifying_contract: address!("0x9051085355BA7e36177e0a1c4082cb88C270ba90"),
+                    verifying_contract: address!("0x3B9172ef12bd245A07DA0d43dE29e09036626AFC"),
                 ))
                 .is_err();
         }

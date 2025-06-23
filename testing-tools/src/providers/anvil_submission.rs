@@ -7,7 +7,7 @@ use alloy::{
 };
 use angstrom_types::{
     contract_payloads::angstrom::AngstromBundle,
-    primitive::AngstromSigner,
+    primitive::{AngstromMetaSigner, AngstromSigner},
     submission::{ChainSubmitter, TxFeatureInfo}
 };
 use futures::Future;
@@ -23,9 +23,9 @@ impl ChainSubmitter for AnvilSubmissionProvider {
         self.angstrom_address
     }
 
-    fn submit<'a>(
+    fn submit<'a, S: AngstromMetaSigner>(
         &'a self,
-        signer: &'a AngstromSigner,
+        signer: &'a AngstromSigner<S>,
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {

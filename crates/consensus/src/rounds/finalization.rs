@@ -5,7 +5,10 @@ use std::{
 };
 
 use alloy::providers::Provider;
-use angstrom_types::consensus::{ConsensusRoundName, Proposal, StromConsensusEvent};
+use angstrom_types::{
+    consensus::{ConsensusRoundName, Proposal, StromConsensusEvent},
+    primitive::AngstromMetaSigner
+};
 use futures::{Future, FutureExt};
 use matching_engine::MatchingEngineHandle;
 
@@ -24,9 +27,9 @@ pub struct FinalizationState {
 }
 
 impl FinalizationState {
-    pub fn new<P, Matching>(
+    pub fn new<P, Matching, S: AngstromMetaSigner>(
         proposal: Proposal,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         waker: Waker
     ) -> Self
     where
@@ -74,14 +77,15 @@ impl FinalizationState {
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for FinalizationState
+impl<P, Matching, S> ConsensusState<P, Matching, S> for FinalizationState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     fn on_consensus_message(
         &mut self,
-        _: &mut SharedRoundState<P, Matching>,
+        _: &mut SharedRoundState<P, Matching, S>,
         _: StromConsensusEvent
     ) {
         // no messages consensus related matter at this point. is just waiting
@@ -90,9 +94,9 @@ where
 
     fn poll_transition(
         &mut self,
-        _: &mut SharedRoundState<P, Matching>,
+        _: &mut SharedRoundState<P, Matching, S>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, S>>>> {
         if self.completed {
             return Poll::Ready(None);
         }

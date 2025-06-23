@@ -2,12 +2,12 @@
 
 use std::{collections::HashSet, sync::Arc};
 
-use alloy::{primitives::Address, signers::SignerSync};
+use alloy::primitives::Address;
 use alloy_chains::Chain;
 use angstrom_eth::manager::EthEvent;
 use angstrom_types::{
     consensus::StromConsensusEvent,
-    primitive::{AngstromSigner, PeerId}
+    primitive::{AngstromMetaSigner, AngstromSigner, PeerId}
 };
 use parking_lot::RwLock;
 use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
@@ -22,7 +22,7 @@ use crate::{
     types::status::StatusState
 };
 
-pub struct NetworkBuilder<P: Peers + Unpin> {
+pub struct NetworkBuilder<P: Peers + Unpin, S: AngstromMetaSigner> {
     to_pool_manager:      Option<UnboundedMeteredSender<NetworkOrderEvent>>,
     to_consensus_manager: Option<UnboundedMeteredSender<StromConsensusEvent>>,
     session_manager_rx:   Option<Receiver<StromSessionMessage>>,
@@ -30,12 +30,12 @@ pub struct NetworkBuilder<P: Peers + Unpin> {
     reth_handle:          Option<P>,
 
     validator_set: Arc<RwLock<HashSet<Address>>>,
-    verification:  VerificationSidecar
+    verification:  VerificationSidecar<S>
 }
 
-impl<P: Peers + Unpin + 'static> NetworkBuilder<P> {
+impl<P: Peers + Unpin + 'static, S: AngstromMetaSigner> NetworkBuilder<P, S> {
     pub fn new(
-        verification: VerificationSidecar,
+        verification: VerificationSidecar<S>,
         eth_handle: UnboundedReceiver<EthEvent>,
         validator_set: Arc<RwLock<HashSet<Address>>>
     ) -> Self {
@@ -73,7 +73,7 @@ impl<P: Peers + Unpin + 'static> NetworkBuilder<P> {
         self
     }
 
-    pub fn build_protocol_handler(&mut self) -> StromProtocolHandler {
+    pub fn build_protocol_handler(&mut self) -> StromProtocolHandler<S> {
         let (session_manager_tx, session_manager_rx) = tokio::sync::mpsc::channel(100);
         let protocol = StromProtocolHandler::new(
             MeteredPollSender::new(PollSender::new(session_manager_tx), "session manager"),
@@ -128,7 +128,7 @@ impl StatusBuilder {
 
     /// Consumes the type and creates the actual [`Status`] message, Signing the
     /// payload
-    pub fn build(mut self, key: &AngstromSigner) -> Status {
+    pub fn build<S: AngstromMetaSigner>(mut self, key: &AngstromSigner<S>) -> Status {
         // set state timestamp to now;
         self.state.timestamp_now();
 

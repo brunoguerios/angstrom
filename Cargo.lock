@@ -1038,11 +1038,13 @@ dependencies = [
  "consensus",
  "eyre",
  "futures",
+ "hsm-signer",
  "matching-engine",
  "order-pool",
  "parking_lot",
  "rayon",
  "reth",
+ "reth-db",
  "reth-metrics",
  "reth-network",
  "reth-node-builder",
@@ -1085,7 +1087,7 @@ dependencies = [
  "anyhow",
  "futures",
  "futures-util",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "pade",
  "rand 0.9.1",
  "reth-ethereum-primitives",
@@ -1129,7 +1131,7 @@ dependencies = [
  "eyre",
  "futures",
  "homedir",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "linked_hash_set",
  "once_cell",
  "order-pool",
@@ -1204,7 +1206,8 @@ dependencies = [
  "dashmap 6.1.0",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "hsm-signer",
+ "itertools 0.11.0",
  "k256",
  "malachite",
  "pade",
@@ -2236,7 +2239,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -2798,7 +2801,7 @@ checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
 dependencies = [
  "glob",
  "libc",
- "libloading",
+ "libloading 0.8.8",
 ]
 
 [[package]]
@@ -3003,7 +3006,7 @@ dependencies = [
  "dashmap 6.1.0",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "matching-engine",
  "order-pool",
  "rand 0.9.1",
@@ -3143,7 +3146,7 @@ dependencies = [
  "clap",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "pade",
  "reth",
@@ -3319,6 +3322,29 @@ dependencies = [
  "generic-array",
  "rand_core 0.6.4",
  "typenum",
+]
+
+[[package]]
+name = "cryptoki"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b34e469ac5a28d546ed7aae9dd69037b38f4e966cd9adb2a01250a5d257de02"
+dependencies = [
+ "bitflags 1.3.2",
+ "cryptoki-sys",
+ "libloading 0.7.4",
+ "log",
+ "paste",
+ "secrecy",
+]
+
+[[package]]
+name = "cryptoki-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d279ad423469b93e631f4bc53f277c7424cf01353c70eba685046d294dc042c7"
+dependencies = [
+ "libloading 0.7.4",
 ]
 
 [[package]]
@@ -3921,7 +3947,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4656,6 +4682,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "hsm-signer"
+version = "0.1.0"
+source = "git+https://github.com/SorellaLabs/hsm-signer#84650e387c4636a1129620071a59d310aaaf0989"
+dependencies = [
+ "alloy-consensus",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-signer",
+ "async-trait",
+ "cryptoki",
+ "eyre",
+ "hex",
+ "k256",
+ "once_cell",
+ "parking_lot",
+ "sec1",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
 name = "http"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4885,7 +4932,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.57.0",
 ]
 
 [[package]]
@@ -5315,7 +5362,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5681,6 +5728,16 @@ dependencies = [
 
 [[package]]
 name = "libloading"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b67380fd3b2fbe7527a606e18729d21c6f3951633d0500574c4dc22d2d638b9f"
+dependencies = [
+ "cfg-if",
+ "winapi",
+]
+
+[[package]]
+name = "libloading"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
@@ -6011,7 +6068,7 @@ dependencies = [
  "eyre",
  "futures",
  "futures-util",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "pade",
  "pade-macro",
@@ -6828,7 +6885,7 @@ name = "pade-macro"
 version = "0.1.0"
 source = "git+https://github.com/SorellaLabs/pade#637c5f01d3058f2fa87c51035bf9cad0d0a57192"
 dependencies = [
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7457,7 +7514,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -10869,7 +10926,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -10882,7 +10939,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.9.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -10974,7 +11031,7 @@ dependencies = [
  "security-framework 3.2.0",
  "security-framework-sys",
  "webpki-root-certs 0.26.11",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -11159,6 +11216,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "secrecy"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+dependencies = [
+ "zeroize",
+]
+
+[[package]]
 name = "security-framework"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11245,7 +11311,7 @@ dependencies = [
  "clap",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "reth",
  "serde",
@@ -11850,7 +11916,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix 1.0.7",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -11883,7 +11949,7 @@ dependencies = [
  "enr",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "matching-engine",
  "order-pool",
@@ -11938,7 +12004,7 @@ dependencies = [
  "enr",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "pade",
  "reth",
@@ -12664,7 +12730,7 @@ dependencies = [
  "futures",
  "futures-util",
  "hex",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "malachite",
  "pade",
  "pade-macro",
@@ -13138,7 +13204,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

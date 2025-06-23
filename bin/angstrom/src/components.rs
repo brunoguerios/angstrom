@@ -28,7 +28,11 @@ use angstrom_types::{
     consensus::StromConsensusEvent,
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
-    primitive::{AngstromSigner, PoolId, UniswapPoolRegistry},
+    primitive::{
+        ANGSTROM_ADDRESS, ANGSTROM_DEPLOYED_BLOCK, AngstromMetaSigner, AngstromSigner,
+        CONTROLLER_V1_ADDRESS, GAS_TOKEN_ADDRESS, POOL_MANAGER_ADDRESS, PoolId,
+        UniswapPoolRegistry
+    },
     reth_db_provider::RethDbLayer,
     reth_db_wrapper::RethDbWrapper,
     submission::SubmissionHandler
@@ -53,7 +57,7 @@ use reth_node_builder::{FullNode, NodeTypes, node::FullNodeTypes, rpc::RethRpcAd
 use reth_provider::{
     BlockReader, DatabaseProviderFactory, ReceiptProvider, TryIntoHistoricalStateProvider
 };
-use telemetry::{NodeConstants, init_telemetry};
+use telemetry::init_telemetry;
 use tokio::sync::{
     mpsc,
     mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel}
@@ -65,13 +69,13 @@ use validation::{
     validator::{ValidationClient, ValidationRequest}
 };
 
-use crate::{AngstromConfig, cli::NodeConfig};
+use crate::AngstromConfig;
 
-pub fn init_network_builder(
-    secret_key: AngstromSigner,
+pub fn init_network_builder<S: AngstromMetaSigner>(
+    secret_key: AngstromSigner<S>,
     eth_handle: UnboundedReceiver<EthEvent>,
     validator_set: Arc<RwLock<HashSet<Address>>>
-) -> eyre::Result<StromNetworkBuilder<NetworkHandle>> {
+) -> eyre::Result<StromNetworkBuilder<NetworkHandle, S>> {
     let public_key = secret_key.id();
 
     let state = StatusState {
@@ -168,16 +172,15 @@ pub fn initialize_strom_handles() -> StromHandles {
     }
 }
 
-pub async fn initialize_strom_components<Node, AddOns, P: Peers + Unpin + 'static>(
+pub async fn initialize_strom_components<Node, AddOns, P: Peers + Unpin + 'static, S>(
     config: AngstromConfig,
-    signer: AngstromSigner,
+    signer: AngstromSigner<S>,
     mut handles: StromHandles,
-    network_builder: StromNetworkBuilder<P>,
+    network_builder: StromNetworkBuilder<P, S>,
     node: &FullNode<Node, AddOns>,
     executor: TaskExecutor,
     exit: NodeExitFuture,
-    node_set: HashSet<Address>,
-    node_config: NodeConfig
+    node_set: HashSet<Address>
 ) -> eyre::Result<()>
 where
     Node: FullNodeComponents
@@ -190,7 +193,8 @@ where
     AddOns: NodeAddOns<Node> + RethRpcAddOns<Node>,
     <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider:
         TryIntoHistoricalStateProvider + ReceiptProvider,
-    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader
+    <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader,
+    S: AngstromMetaSigner
 {
     let node_address = signer.address();
 
@@ -209,12 +213,19 @@ where
         .unwrap()
         .into();
 
+    let angstrom_address = *ANGSTROM_ADDRESS.get().unwrap();
+    let controller = *CONTROLLER_V1_ADDRESS.get().unwrap();
+    let deploy_block = *ANGSTROM_DEPLOYED_BLOCK.get().unwrap();
+    let gas_token = *GAS_TOKEN_ADDRESS.get().unwrap();
+    let pool_manager = *POOL_MANAGER_ADDRESS.get().unwrap();
+
     let submission_handler = SubmissionHandler::new(
         querying_provider.clone(),
         &config.normal_nodes,
         &config.angstrom_submission_nodes,
         &config.mev_boost_endpoints,
-        node_config.angstrom_address
+        angstrom_address,
+        signer.clone()
     );
 
     tracing::info!(target: "angstrom::startup-sequence", "waiting for the next block to continue startup sequence. \
@@ -232,7 +243,7 @@ where
 
     let pool_config_store = Arc::new(
         AngstromPoolConfigStore::load_from_chain(
-            node_config.angstrom_address,
+            angstrom_address,
             BlockId::Number(BlockNumberOrTag::Latest),
             &querying_provider
         )
@@ -243,9 +254,9 @@ where
     // load the angstrom pools;
     tracing::info!("starting search for pools");
     let pools = fetch_angstrom_pools(
-        node_config.angstrom_deploy_block as usize,
+        deploy_block as usize,
         block_id as usize,
-        node_config.angstrom_address,
+        angstrom_address,
         &node.provider
     )
     .await;
@@ -281,8 +292,8 @@ where
     // Build our PoolManager using the PoolConfig and OrderStorage we've already
     // created
     let eth_handle = EthDataCleanser::spawn(
-        node_config.angstrom_address,
-        node_config.periphery_address,
+        angstrom_address,
+        controller,
         eth_data_sub,
         executor.clone(),
         handles.eth_tx,
@@ -298,13 +309,7 @@ where
     let network_stream = Box::pin(eth_handle.subscribe_network())
         as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
-    let telemetry = init_telemetry(NodeConstants::new(
-        signer.address(),
-        node_config.angstrom_address,
-        node_config.pool_manager_address,
-        node_config.angstrom_deploy_block,
-        node_config.gas_token_address
-    ));
+    let telemetry = init_telemetry(signer.address());
 
     let uniswap_pool_manager = configure_uniswap_manager(
         querying_provider.clone(),
@@ -312,9 +317,8 @@ where
         uniswap_registry,
         block_id,
         global_block_sync.clone(),
-        node_config.pool_manager_address,
-        network_stream,
-        Some(telemetry.clone())
+        pool_manager,
+        network_stream
     )
     .await;
 
@@ -328,14 +332,14 @@ where
         querying_provider.clone(),
         block_id,
         uniswap_pools.clone(),
-        node_config.gas_token_address,
+        gas_token,
         None
     )
     .await
     .expect("failed to start token price generator");
 
     let update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
-        node_config.angstrom_address,
+        angstrom_address,
         node.provider.canonical_state_stream(),
         querying_provider.clone()
     ));
@@ -345,7 +349,7 @@ where
     init_validation(
         RethDbWrapper::new(node.provider.clone()),
         block_height,
-        node_config.angstrom_address,
+        angstrom_address,
         node_address,
         update_stream,
         uniswap_pools.clone(),
@@ -417,7 +421,7 @@ where
         signer,
         validators,
         order_storage.clone(),
-        node_config.angstrom_deploy_block,
+        deploy_block,
         block_height,
         uni_ang_registry,
         uniswap_pools.clone(),

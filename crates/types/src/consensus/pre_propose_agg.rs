@@ -1,12 +1,15 @@
 use alloy::{
     primitives::{BlockNumber, U256, keccak256},
-    signers::{Signature, SignerSync}
+    signers::Signature
 };
 use bytes::Bytes;
 use reth_network_peers::PeerId;
 use serde::{Deserialize, Serialize};
 
-use crate::{consensus::PreProposal, primitive::AngstromSigner};
+use crate::{
+    consensus::PreProposal,
+    primitive::{AngstromMetaSigner, AngstromSigner, public_key_to_peer_id}
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PreProposalAggregation {
@@ -28,9 +31,9 @@ impl Default for PreProposalAggregation {
 }
 
 impl PreProposalAggregation {
-    pub fn new(
+    pub fn new<S: AngstromMetaSigner>(
         block_height: BlockNumber,
-        sk: &AngstromSigner,
+        sk: &AngstromSigner<S>,
         pre_proposals: Vec<PreProposal>
     ) -> Self {
         let payload = Self::serialize_payload(&block_height, &pre_proposals);
@@ -38,7 +41,7 @@ impl PreProposalAggregation {
         Self { block_height, source: sk.id(), pre_proposals, signature }
     }
 
-    fn sign_payload(sk: &AngstromSigner, payload: Vec<u8>) -> Signature {
+    fn sign_payload<S: AngstromMetaSigner>(sk: &AngstromSigner<S>, payload: Vec<u8>) -> Signature {
         let hash = keccak256(payload);
 
         sk.sign_hash_sync(&hash).unwrap()
@@ -73,7 +76,7 @@ impl PreProposalAggregation {
         let Ok(source) = self.signature.recover_from_prehash(&hash) else {
             return false;
         };
-        let source = AngstromSigner::public_key_to_peer_id(&source);
+        let source = public_key_to_peer_id(&source);
 
         source == self.source
     }

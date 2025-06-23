@@ -9,6 +9,7 @@ use angstrom_types::{
     consensus::{ConsensusRoundName, PreProposalAggregation, Proposal, StromConsensusEvent},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution,
+    primitive::AngstromMetaSigner,
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
@@ -32,14 +33,13 @@ pub struct ProposalState {
     pre_proposal_aggs:      Vec<PreProposalAggregation>,
     proposal:               Option<Proposal>,
     last_round_info:        Option<LastRoundInfo>,
-    trigger_time:           Instant,
-    waker:                  Waker
+    trigger_time:           Instant
 }
 
 impl ProposalState {
-    pub fn new<P, Matching>(
+    pub fn new<P, Matching, S: AngstromMetaSigner>(
         pre_proposal_aggregation: HashSet<PreProposalAggregation>,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         trigger_time: Instant,
         waker: Waker
     ) -> Self
@@ -59,16 +59,15 @@ impl ProposalState {
             pre_proposal_aggs: pre_proposal_aggregation.into_iter().collect::<Vec<_>>(),
             submission_future: None,
             proposal: None,
-            trigger_time,
-            waker
+            trigger_time
         }
     }
 
-    fn try_build_proposal<P, Matching>(
+    fn try_build_proposal<P, Matching, S: AngstromMetaSigner>(
         &mut self,
         cx: &mut Context<'_>,
         result: eyre::Result<(Vec<PoolSolution>, BundleGasDetails)>,
-        handles: &mut SharedRoundState<P, Matching>
+        handles: &mut SharedRoundState<P, Matching, S>
     ) -> bool
     where
         P: Provider + Unpin + 'static,
@@ -112,14 +111,11 @@ impl ProposalState {
                 return false;
             };
 
-        if possible_bundle.is_none() {
-            let signed_attestation =
-                AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer);
-            handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(
-                signed_attestation
-            ));
-            cx.waker().wake_by_ref();
-        }
+        let attestation = possible_bundle
+            .is_none()
+            .then(|| AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer))
+            .unwrap_or_default();
+        handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(attestation));
 
         let submission_future = Box::pin(async move {
             let Ok(tx_hash) = provider
@@ -154,21 +150,22 @@ impl ProposalState {
             included
         });
 
-        self.waker.wake_by_ref();
+        cx.waker().wake_by_ref();
         self.submission_future = Some(Box::pin(tokio::spawn(submission_future)));
 
         true
     }
 }
 
-impl<P, Matching> ConsensusState<P, Matching> for ProposalState
+impl<P, Matching, S> ConsensusState<P, Matching, S> for ProposalState
 where
     P: Provider + Unpin + 'static,
-    Matching: MatchingEngineHandle
+    Matching: MatchingEngineHandle,
+    S: AngstromMetaSigner
 {
     fn on_consensus_message(
         &mut self,
-        _: &mut SharedRoundState<P, Matching>,
+        _: &mut SharedRoundState<P, Matching, S>,
         _: StromConsensusEvent
     ) {
         // No messages at this point can effect the consensus round and thus are
@@ -177,9 +174,9 @@ where
 
     fn poll_transition(
         &mut self,
-        handles: &mut SharedRoundState<P, Matching>,
+        handles: &mut SharedRoundState<P, Matching, S>,
         cx: &mut Context<'_>
-    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching>>>> {
+    ) -> Poll<Option<Box<dyn ConsensusState<P, Matching, S>>>> {
         if let Some(mut b_fut) = self.matching_engine_future.take() {
             match b_fut.poll_unpin(cx) {
                 Poll::Ready(state) => {
