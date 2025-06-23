@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, hash_map::Entry},
     fmt::Debug,
     pin::Pin,
     sync::Arc,
@@ -144,9 +144,26 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
         let OrderSet { limit, searcher } = self.orders.get_all_orders();
         let books = build_non_proposal_books(limit, &self.book_snapshots);
 
-        let searcher_orders: HashMap<PoolId, _> =
-            searcher.into_iter().fold(HashMap::new(), |mut acc, order| {
-                acc.entry(order.pool_id).or_insert(order);
+        let searcher_orders = searcher
+            .into_iter()
+            .fold(HashMap::new(), |mut acc, searcher| {
+                match acc.entry(searcher.pool_id) {
+                    Entry::Vacant(v) => {
+                        v.insert(searcher);
+                    }
+                    Entry::Occupied(mut o) => {
+                        let current = o.get();
+                        // if this order on same pool_id has a higher tob reward or they are the
+                        // same and it has a lower order hash. replace
+                        if searcher.tob_reward > current.tob_reward
+                            || (searcher.tob_reward == current.tob_reward
+                                && searcher.order_id.hash < current.order_id.hash)
+                        {
+                            o.insert(searcher);
+                        }
+                    }
+                };
+
                 acc
             });
 
