@@ -106,7 +106,7 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 }
 
                 if let Err(e) = self.validate(&order) {
-                    tracing::warn!(?order, "invalid order");
+                    tracing::warn!(?e, ?order, "invalid order");
                     return OrderValidationResults::Invalid { hash: order_hash, error: e };
                 };
 
