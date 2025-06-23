@@ -3,7 +3,7 @@ use std::{collections::HashSet, sync::Arc};
 use alloy::{
     eips::Encodable2718,
     network::TransactionBuilder,
-    primitives::{Address, Bytes, U256, address, aliases::I24},
+    primitives::{Address, Bytes, U256, aliases::I24},
     providers::{
         Identity, Provider, ProviderBuilder, RootProvider,
         fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller}
