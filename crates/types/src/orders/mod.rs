@@ -226,7 +226,9 @@ impl CancelOrderRequest {
         let hash = self.signing_payload();
         let signature = self.signature.to_vec();
         let slice = &mut signature.as_slice();
-        let signature = Signature::pade_decode(slice, None).unwrap();
+        let Ok(signature) = Signature::pade_decode(slice, None) else {
+            return false;
+        };
 
         let Ok(sender) = signature.recover_address_from_msg(hash) else { return false };
 
