@@ -103,6 +103,8 @@ where
                 TelemetryMessage::Error { message, .. } => {
                     println!("Error: {message}");
                 }
+
+                _ => todo!()
             }
         }
         tracing::error!("Done with everything");
