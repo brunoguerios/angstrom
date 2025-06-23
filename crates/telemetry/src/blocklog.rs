@@ -3,6 +3,7 @@ use std::{
     io::{Read, Write}
 };
 
+use alloy_primitives::{FixedBytes, keccak256};
 use angstrom_eth::telemetry::EthUpdaterSnapshot;
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey, pair_with_price::PairsWithPrice,
@@ -47,6 +48,19 @@ impl BlockLog {
             error: None,
             backtrace: None
         }
+    }
+
+    pub fn error_unique_id(&self) -> FixedBytes<4> {
+        let mut slice = [0u8; 4];
+        self.error
+            .as_ref()
+            .inspect(|e| slice.copy_from_slice(&keccak256(&e.0)[0..4]));
+
+        FixedBytes::<4>::new(slice)
+    }
+
+    pub fn has_error(&self) -> bool {
+        self.error.is_some()
     }
 
     pub fn set_orderpool(&mut self, snap: OrderPoolSnapshot) {
@@ -121,6 +135,15 @@ impl BlockLog {
         let _ = codec.write_all(json.as_bytes());
         let compressed = codec.finish().unwrap();
         base64::prelude::BASE64_STANDARD.encode(&compressed)
+    }
+
+    pub fn from_deflate_base64(data: &[u8]) -> Self {
+        let bytes = base64::prelude::BASE64_STANDARD.decode(data).unwrap();
+        let mut codec = flate2::read::DeflateDecoder::new(bytes.as_slice());
+        let mut s = String::new();
+        let _ = codec.read_to_string(&mut s);
+        let blocklog: BlockLog = serde_json::from_str(&s).unwrap();
+        blocklog
     }
 
     pub fn from_deflate_base64_str(string: &str) -> Self {

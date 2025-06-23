@@ -1,58 +1,90 @@
-use std::{error::Error, path::Path};
+use std::error::Error;
 
 use aws_config::Region;
 use aws_sdk_s3::{Client, primitives::ByteStream};
 use chrono::{Datelike, Utc};
 
-use super::TelemetryOutput;
+use crate::blocklog::BlockLog;
 
+/// S3 Storage functionality goes as the following.
+///
+/// 1) If we have a block that doesn't error. We will store the snapshot in an
+///    deep-store archive s3 bucket that has a TTL of 1 week. This can be used
+///    in the case of some bug that doesn't get automatically detected.
+/// 2) If we have a block with an error. This will be put into a separate
+///    bucket, No TTL. This will be a bucket that allows quick reads. This
+///    bucket will also be linked to PagerDuty so that the team gets notified of
+///    anything critical.
 pub struct S3Storage {
-    client: Client,
-    bucket: String
+    client:         Client,
+    archive_bucket: String,
+    error_bucket:   String
 }
 
 impl S3Storage {
-    pub async fn new(bucket: &str, region: &str) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(
+        archive_bucket: &str,
+        error_bucket: &str,
+        region: &str
+    ) -> Result<Self, Box<dyn Error>> {
         let config = aws_config::from_env()
             .region(Region::new(region.to_string()))
             .load()
             .await;
         let client = Client::new(&config);
-        Ok(Self { client, bucket: bucket.to_string() })
+
+        Ok(Self {
+            client,
+            archive_bucket: archive_bucket.to_string(),
+            error_bucket: error_bucket.to_string()
+        })
     }
 
-    /// Uploads data organized by `year/month/day/filename`
-    pub async fn upload_block(
-        &self,
-        data: Vec<u8>,
-        filename: &str
-    ) -> Result<String, Box<dyn Error>> {
+    /// Uploads a snapshot to either the archive or error bucket based on
+    /// `is_error`.
+    pub async fn store_snapshot(&self, data: &BlockLog) -> Result<String, Box<dyn Error>> {
         let now = Utc::now();
-        let key = format!("{}/{}/{}/{}", now.year(), now.month(), now.day(), filename);
 
-        let byte_stream = ByteStream::from(data);
+        let key = format!(
+            "{}/{}/{}/{}-{:x}.bin",
+            now.year(),
+            now.month(),
+            now.day(),
+            data.blocknum(),
+            data.error_unique_id()
+        );
+
+        let bucket = if data.has_error() { &self.error_bucket } else { &self.archive_bucket };
+
         self.client
             .put_object()
-            .bucket(&self.bucket)
+            .bucket(bucket)
             .key(&key)
-            .body(byte_stream)
+            .body(ByteStream::from(data.to_deflate_base64_str().into_bytes()))
             .send()
             .await?;
 
-        Ok(key)
+        Ok(format!("{}/{}", bucket, key))
     }
 
-    /// Downloads an object using full key (you can build it based on the date)
-    pub async fn download_object(&self, key: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    /// Retrieve a snapshot by full key (bucket inferred from `is_error`).
+    pub async fn retrieve_snapshot(
+        &self,
+        key: &str,
+        is_error: bool
+    ) -> Result<BlockLog, Box<dyn Error>> {
+        let bucket = if is_error { &self.error_bucket } else { &self.archive_bucket };
+
         let resp = self
             .client
             .get_object()
-            .bucket(&self.bucket)
+            .bucket(bucket)
             .key(key)
             .send()
             .await?;
 
-        let data = resp.body.collect().await?.into_bytes().to_vec();
-        Ok(data)
+        let bytes = resp.body.collect().await?.into_bytes().to_vec();
+
+        Ok(BlockLog::from_deflate_base64(&bytes))
     }
 }

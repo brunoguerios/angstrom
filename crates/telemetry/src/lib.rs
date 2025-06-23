@@ -15,8 +15,10 @@ use angstrom_types::{
 };
 use blocklog::BlockLog;
 use chrono::Utc;
+use futures::FutureExt;
 use order_pool::telemetry::OrderPoolSnapshot;
 use outputs::{TelemetryOutput, log::LogOutput};
+use reth_tasks::shutdown::GracefulShutdown;
 use serde::{Deserialize, Serialize};
 use telemetry_recorder::{TELEMETRY_SENDER, TelemetryMessage};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -27,7 +29,7 @@ pub mod blocklog;
 pub mod outputs;
 
 // 5 block lookbehind, simple const for now
-const MAX_BLOCKS: usize = 5;
+const MAX_BLOCKS: usize = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeConstants {
@@ -80,11 +82,17 @@ pub struct Telemetry {
     rx:          UnboundedReceiver<TelemetryMessage>,
     node_consts: NodeConstants,
     block_cache: HashMap<u64, BlockLog>,
-    outputs:     Vec<Box<dyn TelemetryOutput>>
+    outputs:     Vec<Box<dyn TelemetryOutput>>,
+    // Allows us to keep shutdown from trigging for awhile to collect all data and send it off.
+    guard:       GracefulShutdown
 }
 
 impl Telemetry {
-    pub fn new(rx: UnboundedReceiver<TelemetryMessage>, node_address: Address) -> Self {
+    pub fn new(
+        rx: UnboundedReceiver<TelemetryMessage>,
+        node_address: Address,
+        guard: GracefulShutdown
+    ) -> Self {
         let node_consts = NodeConstants {
             node_address,
             angstrom_address: *ANGSTROM_ADDRESS.get().unwrap(),
@@ -95,7 +103,7 @@ impl Telemetry {
         // By default let's just turn on all our outputs, we only have one
         let outputs: Vec<Box<dyn TelemetryOutput>> = vec![Box::new(LogOutput {})];
         let block_cache = HashMap::new();
-        Self { rx, node_consts, block_cache, outputs }
+        Self { rx, node_consts, block_cache, outputs, guard }
     }
 
     fn get_block(&mut self, blocknum: u64) -> &mut BlockLog {
@@ -164,10 +172,10 @@ impl Future for Telemetry {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>
     ) -> std::task::Poll<Self::Output> {
-        loop {
-            match self.rx.poll_recv(cx) {
+        while let Poll::Ready(req) = self.rx.poll_recv(cx) {
+            match req {
                 // As long as we're getting snapshots, process them
-                Poll::Ready(Some(req)) => match req {
+                Some(req) => match req {
                     TelemetryMessage::EthSnapshot { blocknum, eth_snapshot } => {
                         let decoded: EthUpdaterSnapshot =
                             serde_json::from_value(eth_snapshot).unwrap();
@@ -204,19 +212,48 @@ impl Future for Telemetry {
                     }
                 },
                 // End of receiver stream should end this task as well
-                Poll::Ready(None) => {
+                None => {
                     return Poll::Ready(());
-                }
-                // Otherwise we're scheduled to wake on next message, so let's pend
-                Poll::Pending => {
-                    return Poll::Pending;
                 }
             }
         }
+
+        // We want to be careful here as we want to ensure that all readings have been
+        // sent before this
+        if let Poll::Ready(guard) = self.guard.poll_unpin(cx) {
+            let cache = self.block_cache.clone();
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .worker_threads(2)
+                    .build()
+                    .unwrap();
+
+                rt.block_on(async move {
+                    for (_, mut block) in cache {
+                        if !block.has_error() {
+                            block.error(
+                                "shutdown has occurred".to_string(),
+                                Utc::now(),
+                                "".to_string()
+                            );
+
+                            for out in self.outputs.iter() {
+                                block.set_node_constants(self.node_consts.clone());
+                                out.output(&block)
+                            }
+                        }
+                    }
+                    drop(guard);
+                });
+            });
+        }
+
+        Poll::Pending
     }
 }
 
-pub fn init_telemetry(node_address: Address) {
+pub fn init_telemetry(node_address: Address, shutdown_handle: GracefulShutdown) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let _ = TELEMETRY_SENDER.set(tx);
 
@@ -227,6 +264,6 @@ pub fn init_telemetry(node_address: Address) {
             .build()
             .unwrap();
 
-        rt.block_on(Telemetry::new(rx, node_address))
+        rt.block_on(Telemetry::new(rx, node_address, shutdown_handle))
     });
 }
