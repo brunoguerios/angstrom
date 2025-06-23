@@ -53,6 +53,7 @@ where
 
     pub async fn new_block(&mut self, block_number: u64) -> eyre::Result<()> {
         self.block_number = block_number;
+        tracing::debug!("loading new pools");
         self.pool
             .update_to_block(Some(block_number), self.provider.clone())
             .await

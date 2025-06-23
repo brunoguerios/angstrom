@@ -3,7 +3,7 @@ use std::{collections::HashSet, sync::Arc};
 use alloy::{
     eips::Encodable2718,
     network::TransactionBuilder,
-    primitives::{Address, Bytes, U256, address, aliases::I24},
+    primitives::{Address, Bytes, U256, aliases::I24},
     providers::{
         Identity, Provider, ProviderBuilder, RootProvider,
         fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller}
@@ -17,11 +17,16 @@ use angstrom_types::{
         angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
     },
-    primitive::{AngstromSigner, UniswapPoolRegistry, init_with_chain_id}
+    primitive::{
+        ANGSTROM_DEPLOYED_BLOCK, AngstromSigner, CONTROLLER_V1_ADDRESS, UniswapPoolRegistry,
+        init_with_chain_id
+    }
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use itertools::Itertools;
-use uniswap_v4::uniswap::{pool::EnhancedUniswapPool, pool_data_loader::DataLoader};
+use uniswap_v4::uniswap::{
+    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_factory::INITIAL_TICKS_PER_SIDE
+};
 
 use crate::{
     approveCall,
@@ -58,8 +63,13 @@ impl BundleWashTraderEnv {
 
         let block = provider.get_block_number().await.unwrap();
 
-        let pools =
-            fetch_angstrom_pools(8276506, block as usize, cli.angstrom_address, &provider).await;
+        let pools = fetch_angstrom_pools(
+            *ANGSTROM_DEPLOYED_BLOCK.get().unwrap() as usize,
+            block as usize,
+            cli.angstrom_address,
+            &provider
+        )
+        .await;
 
         let uniswap_registry: UniswapPoolRegistry = pools.into();
 
@@ -75,7 +85,7 @@ impl BundleWashTraderEnv {
                 uniswap_registry.clone(),
                 cli.pool_manager_address
             );
-            let mut pool = EnhancedUniswapPool::new(data_loader, 400);
+            let mut pool = EnhancedUniswapPool::new(data_loader, INITIAL_TICKS_PER_SIDE);
             pool.initialize(Some(provider.get_block_number().await?), provider.root().into())
                 .await?;
             tracing::info!("{:#?}", pool);
@@ -171,7 +181,7 @@ where
     P: Provider
 {
     let mut filters = vec![];
-    let controller_address = address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674");
+    let controller_address = *CONTROLLER_V1_ADDRESS.get().unwrap();
 
     loop {
         let this_end_block = std::cmp::min(deploy_block + 99_999, end_block);
