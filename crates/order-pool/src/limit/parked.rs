@@ -4,7 +4,7 @@ use alloy::primitives::FixedBytes;
 use angstrom_types::sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ParkedPool(HashMap<FixedBytes<32>, OrderWithStorageData<AllOrders>>);
 
 impl ParkedPool {

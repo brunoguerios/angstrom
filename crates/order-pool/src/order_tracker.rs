@@ -24,7 +24,7 @@ const MAX_NEW_ORDER_DELAY_PROPAGATION: u64 = 7000;
 
 /// Used as a storage of order hashes to order ids of validated and pending
 /// validation orders.
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OrderTracker {
     pub(super) address_to_orders:      HashMap<Address, HashSet<OrderId>>,
     /// current block_number

@@ -15,7 +15,8 @@ mod pending;
 mod standard;
 
 use serde::{Deserialize, Serialize};
-#[derive(Default, Deserialize, Serialize)]
+
+#[derive(Default, Clone, Deserialize, Serialize)]
 pub struct LimitOrderPool {
     /// Sub-pool of all limit orders
     limit_orders:      LimitPool,

@@ -27,7 +27,7 @@ use crate::{
     validator::{OrderValidator, OrderValidatorRes}
 };
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct InnerCancelOrderRequest {
     /// The address of the entity requesting the cancellation.
     pub from:     Address,
@@ -36,17 +36,17 @@ pub(crate) struct InnerCancelOrderRequest {
 
 pub struct OrderIndexer<V: OrderValidatorHandle> {
     /// order storage
-    order_storage: Arc<OrderStorage>,
+    pub(crate) order_storage: Arc<OrderStorage>,
     /// current block_number
-    block_number:  u64,
+    pub(crate) block_number:  u64,
     /// used to track the relevant order ids.
-    order_tracker: OrderTracker,
+    pub(crate) order_tracker: OrderTracker,
     /// Order hash to order id, used for order inclusion lookups
     /// Order Validator
-    validator:     OrderValidator<V>,
+    pub(crate) validator:     OrderValidator<V>,
     /// List of subscribers for order validation result
     /// order
-    subscribers:   OrderSubscriptionTracker
+    pub(crate) subscribers:   OrderSubscriptionTracker
 }
 
 impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {

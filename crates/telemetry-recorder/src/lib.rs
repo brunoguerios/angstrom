@@ -30,6 +30,14 @@ macro_rules! telemetry_event {
     }};
 }
 
+pub enum TelemetryBlockSnapshot {
+    V4PoolSnapshot {
+        blocknum:       u64,
+        pool_keys:      Vec<PoolKey>,
+        pool_snapshots: HashMap<PoolId, BaselinePoolState>
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TelemetryMessage {
     /// Message indicating that a new block has begun.  Sent by the pool manager

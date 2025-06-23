@@ -1,9 +1,9 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     default::Default,
     fmt::Debug,
     sync::{Arc, Mutex},
-    time::{Instant, SystemTime}
+    time::SystemTime
 };
 
 use alloy::primitives::{B256, BlockNumber, FixedBytes};
@@ -63,6 +63,22 @@ impl OrderStorage {
             searcher_orders,
             pending_finalization_orders,
             metrics: OrderStorageMetricsWrapper::default()
+        }
+    }
+
+    pub fn deep_clone(&self) -> Self {
+        let limit_orders = Arc::new(Mutex::new(self.limit_orders.lock().unwrap().clone()));
+        let searcher_orders = Arc::new(Mutex::new(self.searcher_orders.lock().unwrap().clone()));
+        let pending_finalization_orders =
+            Arc::new(Mutex::new(self.pending_finalization_orders.lock().unwrap().clone()));
+        let filled_orders = Arc::new(Mutex::new(self.filled_orders.lock().unwrap().clone()));
+
+        Self {
+            limit_orders,
+            pending_finalization_orders,
+            searcher_orders,
+            filled_orders,
+            metrics: Default::default()
         }
     }
 

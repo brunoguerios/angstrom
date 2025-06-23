@@ -10,7 +10,7 @@ use angstrom_types::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingPool {
     /// all order hashes
     orders: HashMap<FixedBytes<32>, OrderWithStorageData<TopOfBlockOrder>>,
