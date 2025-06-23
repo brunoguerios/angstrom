@@ -38,23 +38,23 @@ alloy::sol!(
 /// Listens for CanonStateNotifications and sends the appropriate updates to be
 /// executed by the order pool
 pub struct EthDataCleanser<Sync> {
-    angstrom_address:  Address,
-    periphery_address: Address,
+    pub(crate) angstrom_address:  Address,
+    pub(crate) periphery_address: Address,
     /// our command receiver
-    commander:         ReceiverStream<EthCommand>,
+    commander:                    ReceiverStream<EthCommand>,
     /// people listening to events
-    event_listeners:   Vec<UnboundedSender<EthEvent>>,
+    event_listeners:              Vec<UnboundedSender<EthEvent>>,
     /// for rebroadcasting
-    cannon_sender:     tokio::sync::broadcast::Sender<CanonStateNotification>,
+    cannon_sender:                tokio::sync::broadcast::Sender<CanonStateNotification>,
     /// Notifications for Canonical Block updates
-    canonical_updates: BroadcastStream<CanonStateNotification>,
-    angstrom_tokens:   HashMap<Address, usize>,
+    canonical_updates:            BroadcastStream<CanonStateNotification>,
+    pub(crate) angstrom_tokens:   HashMap<Address, usize>,
     /// handles syncing of blocks.
-    block_sync:        Sync,
+    block_sync:                   Sync,
     /// updated by periphery contract.
-    pool_store:        Arc<AngstromPoolConfigStore>,
+    pub(crate) pool_store:        Arc<AngstromPoolConfigStore>,
     /// the set of currently active nodes.
-    node_set:          HashSet<Address>
+    pub(crate) node_set:          HashSet<Address>
 }
 
 impl<Sync> EthDataCleanser<Sync>

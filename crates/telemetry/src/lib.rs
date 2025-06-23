@@ -26,7 +26,6 @@ use tracing::warn;
 
 pub mod blocklog;
 pub mod outputs;
-pub mod types;
 
 // 5 block lookbehind, simple const for now
 const MAX_BLOCKS: usize = 5;

@@ -30,16 +30,22 @@ macro_rules! telemetry_event {
     }};
 }
 
-pub enum TelemetryBlockSnapshot {
-    V4PoolSnapshot {
-        blocknum:       u64,
-        pool_keys:      Vec<PoolKey>,
-        pool_snapshots: HashMap<PoolId, BaselinePoolState>
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TelemetryMessage {
+    // don't want to do a big refactor for the given types.
+    OrderPoolSnapshot {
+        blocknum:           u64,
+        orderpool_snapshot: serde_json::Value
+    },
+    ValidationSnapshot {
+        blocknum:            u64,
+        validation_snapshot: serde_json::Value
+    },
+    EthSnapshot {
+        blocknum:     u64,
+        eth_snapshot: serde_json::Value
+    },
+
     /// Message indicating that a new block has begun.  Sent by the pool manager
     /// with the updated pool snapshot for that block
     NewBlock {
@@ -55,18 +61,34 @@ pub enum TelemetryMessage {
         order:     AllOrders
     },
     /// Request to cancel an order
-    CancelOrder { blocknum: u64, timestamp: chrono::DateTime<Utc>, cancel: CancelOrderRequest },
+    CancelOrder {
+        blocknum:  u64,
+        timestamp: chrono::DateTime<Utc>,
+        cancel:    CancelOrderRequest
+    },
     /// Message indicating an incoming Consensus message
-    Consensus { blocknum: u64, timestamp: chrono::DateTime<Utc>, event: StromConsensusEvent },
+    Consensus {
+        blocknum:  u64,
+        timestamp: chrono::DateTime<Utc>,
+        event:     StromConsensusEvent
+    },
     ConsensusStateChange {
         blocknum:  u64,
         timestamp: chrono::DateTime<Utc>,
         state:     ConsensusRoundName
     },
     /// Message assigning a snapshot of our gas prices to this block
-    GasPriceSnapshot { blocknum: u64, snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128) },
+    GasPriceSnapshot {
+        blocknum: u64,
+        snapshot: (HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)
+    },
     /// Message indicating an error has happened, marking a block for output
-    Error { blocknum: u64, timestamp: chrono::DateTime<Utc>, message: String, backtrace: String }
+    Error {
+        blocknum:  u64,
+        timestamp: chrono::DateTime<Utc>,
+        message:   String,
+        backtrace: String
+    }
 }
 
 impl From<(u64, Vec<PoolKey>, HashMap<PoolId, BaselinePoolState>)> for TelemetryMessage {
