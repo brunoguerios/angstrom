@@ -80,7 +80,7 @@ where
     }
 
     async fn generate_tob_intent(&self) -> eyre::Result<AllOrders> {
-        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
+        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price_x96));
         let mut gas = self
             .angstrom_client
             .estimate_gas(false, false, self.pool.token0, self.pool.token1)
@@ -173,7 +173,7 @@ where
         }
         gas *= U256::from(2);
 
-        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price));
+        let pool_price = Ray::from(SqrtPriceX96::from(self.pool.sqrt_price_x96));
 
         let mut exact_in: bool = self.random_time_bool();
         let is_partial: bool = self.random_time_bool();

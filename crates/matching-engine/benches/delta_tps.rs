@@ -104,7 +104,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
     }
 
     let current_tick = 100_000;
-    let sqrt_price = get_sqrt_ratio_at_tick(current_tick).unwrap();
+    let sqrt_price_x96 = get_sqrt_ratio_at_tick(current_tick).unwrap();
     let liquidity = 600_000_000;
 
     let mut pool = EnhancedUniswapPool::new(DataLoader::default(), 0);
@@ -115,7 +115,7 @@ async fn setup_synced_pool_for_order_generation() -> SyncedUniswapPool {
     pool.token1 = token_1;
     pool.token1_decimals = 18;
     pool.liquidity = liquidity;
-    pool.sqrt_price = sqrt_price;
+    pool.sqrt_price_x96 = sqrt_price_x96;
     pool.tick = current_tick;
     pool.tick_spacing = tick_spacing;
     pool.ticks = tick_map;
