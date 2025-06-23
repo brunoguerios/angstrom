@@ -5,11 +5,13 @@ use std::{
 
 use alloy::primitives::Address;
 use angstrom_types::{
-    block_sync::BlockSyncProducer, contract_payloads::angstrom::AngstromPoolConfigStore
+    block_sync::BlockSyncProducer, contract_payloads::angstrom::AngstromPoolConfigStore,
+    primitive::ChainExt
 };
 use reth_execution_types::Chain;
 use reth_provider::CanonStateNotification;
 use serde::{Deserialize, Serialize};
+use telemetry_recorder::OrderTelemetryExt;
 
 use crate::manager::EthDataCleanser;
 
@@ -40,10 +42,30 @@ impl<Sync: BlockSyncProducer> From<(&EthDataCleanser<Sync>, CanonStateNotificati
     }
 }
 
+impl OrderTelemetryExt for EthUpdaterSnapshot {
+    fn into_message(self) -> telemetry_recorder::TelemetryMessage {
+        let block = self.chain_update.get_block_number();
+
+        telemetry_recorder::TelemetryMessage::EthSnapshot {
+            blocknum:     block,
+            eth_snapshot: serde_json::to_value(&self).unwrap()
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub enum AngstromChainUpdate {
     New(Arc<Chain>),
     Reorg { new: Arc<Chain>, old: Arc<Chain> }
+}
+
+impl AngstromChainUpdate {
+    fn get_block_number(&self) -> u64 {
+        match self {
+            Self::New(n) => n.tip_number(),
+            Self::Reorg { new, .. } => new.tip_number()
+        }
+    }
 }
 
 impl From<CanonStateNotification> for AngstromChainUpdate {

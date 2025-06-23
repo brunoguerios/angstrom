@@ -20,6 +20,16 @@ pub static TELEMETRY_SENDER: OnceLock<UnboundedSender<TelemetryMessage>> = OnceL
 
 #[macro_export]
 macro_rules! telemetry_event {
+    // Ext paths will only have 1 argument while non will have 2 or more
+    ($update:expr) => {{
+        if let Some(handle) = $crate::TELEMETRY_SENDER.get() {
+            let message = $crate::OrderTelemetryExt::into_message($update);
+            let _ = handle.send(message);
+        } else {
+            ::tracing::warn!("No Telemetry handle set.");
+        }
+
+    }};
     ($($items:expr),*) => {{
         if let Some(handle) = $crate::TELEMETRY_SENDER.get() {
             let message = $crate::TelemetryMessage::from(($($items),*));
@@ -28,6 +38,11 @@ macro_rules! telemetry_event {
             ::tracing::warn!("No Telemetry handle set.");
         }
     }};
+
+}
+
+pub trait OrderTelemetryExt {
+    fn into_message(self) -> TelemetryMessage;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,7 +60,6 @@ pub enum TelemetryMessage {
         blocknum:     u64,
         eth_snapshot: serde_json::Value
     },
-
     /// Message indicating that a new block has begun.  Sent by the pool manager
     /// with the updated pool snapshot for that block
     NewBlock {

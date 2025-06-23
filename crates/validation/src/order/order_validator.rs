@@ -80,6 +80,11 @@ where
     ) {
         self.block_number
             .store(block_number, std::sync::atomic::Ordering::Relaxed);
+        // when this occurs, we know there are currently no pending orders and thus we
+        // can snapshot them.
+        let state = self.state.user_account_tracker.user_accounts.deep_clone();
+        telemetry_recorder::telemetry_event!((block_number, state));
+
         self.state.new_block(completed_orders, address_changes);
     }
 

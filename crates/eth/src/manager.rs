@@ -28,7 +28,10 @@ use reth_tasks::TaskSpawner;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 
-use crate::handle::{EthCommand, EthHandle};
+use crate::{
+    handle::{EthCommand, EthHandle},
+    telemetry::EthUpdaterSnapshot
+};
 
 alloy::sol!(
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
@@ -125,6 +128,11 @@ where
 
     fn on_canon_update(&mut self, canonical_updates: CanonStateNotification) {
         tracing::info!("got new block update!!!!!");
+        telemetry_recorder::telemetry_event!(EthUpdaterSnapshot::from((
+            &*self,
+            canonical_updates.clone()
+        )));
+
         match canonical_updates.clone() {
             CanonStateNotification::Reorg { old, new } => self.handle_reorg(old, new),
             CanonStateNotification::Commit { new } => self.handle_commit(new)

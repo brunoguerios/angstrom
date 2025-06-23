@@ -13,6 +13,7 @@ use angstrom_types::{
 use angstrom_utils::FnResultOption;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use telemetry_recorder::OrderTelemetryExt;
 
 use crate::order::state::db_state_utils::StateFetchUtils;
 
@@ -20,7 +21,7 @@ pub type UserAddress = Address;
 pub type TokenAddress = Address;
 pub type Amount = U256;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BaselineState {
     token_approval:   HashMap<TokenAddress, Amount>,
     token_balance:    HashMap<TokenAddress, Amount>,
@@ -175,6 +176,18 @@ impl UserAccounts {
             pending_tob_actions:  Arc::new(DashMap::default()),
             pending_book_actions: Arc::new(DashMap::default()),
             last_known_state:     Arc::new(DashMap::default())
+        }
+    }
+
+    pub fn deep_clone(&self) -> Self {
+        let pending_book = Arc::new((*self.pending_book_actions).clone());
+        let pending_tob = Arc::new((*self.pending_tob_actions).clone());
+        let last_known = Arc::new((*self.last_known_state).clone());
+
+        Self {
+            last_known_state:     last_known,
+            pending_tob_actions:  pending_tob,
+            pending_book_actions: pending_book
         }
     }
 
@@ -449,6 +462,15 @@ impl UserAccounts {
                     .map(|a| a.value().clone())
                     .unwrap_or_default()
             )
+    }
+}
+
+impl OrderTelemetryExt for (u64, UserAccounts) {
+    fn into_message(self) -> telemetry_recorder::TelemetryMessage {
+        telemetry_recorder::TelemetryMessage::ValidationSnapshot {
+            blocknum:            self.0,
+            validation_snapshot: serde_json::to_value(&&self.0).unwrap()
+        }
     }
 }
 
