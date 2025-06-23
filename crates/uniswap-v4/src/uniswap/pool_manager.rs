@@ -26,7 +26,7 @@ use arraydeque::ArrayDeque;
 use dashmap::DashMap;
 use futures::Stream;
 use futures_util::{StreamExt, stream::BoxStream};
-use telemetry::telemetry_event;
+use telemetry_recorder::telemetry_event;
 use thiserror::Error;
 use tokio::sync::Notify;
 

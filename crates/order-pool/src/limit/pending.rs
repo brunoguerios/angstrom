@@ -7,7 +7,9 @@ use alloy::primitives::FixedBytes;
 use angstrom_types::{
     orders::OrderPriorityData, sol_bindings::grouped_orders::OrderWithStorageData
 };
+use serde::{Deserialize, Serialize};
 
+#[derive(Deserialize, Serialize)]
 pub struct PendingPool<Order: Clone> {
     /// all order hashes
     pub(crate) orders: HashMap<FixedBytes<32>, OrderWithStorageData<Order>>,

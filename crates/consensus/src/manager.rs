@@ -27,7 +27,7 @@ use order_pool::order_storage::OrderStorage;
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_provider::{CanonStateNotification, CanonStateNotifications};
 use reth_tasks::shutdown::GracefulShutdown;
-use telemetry::telemetry_event;
+use telemetry_recorder::telemetry_event;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;

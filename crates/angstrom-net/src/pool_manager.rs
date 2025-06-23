@@ -21,7 +21,7 @@ use order_pool::{
 };
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_tasks::TaskSpawner;
-use telemetry::telemetry_event;
+use telemetry_recorder::telemetry_event;
 use tokio::sync::{
     broadcast,
     mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}
@@ -352,11 +352,14 @@ where
     fn on_network_order_event(&mut self, event: NetworkOrderEvent) {
         match event {
             NetworkOrderEvent::IncomingOrders { peer_id, orders } => {
+                let block_num = self.global_sync.current_block_number();
+
                 orders.into_iter().for_each(|order| {
                     self.peer_to_info
                         .get_mut(&peer_id)
                         .map(|peer| peer.orders.insert(order.order_hash()));
 
+                    telemetry_event!(block_num, OrderOrigin::External, order.clone());
                     self.order_indexer.new_network_order(
                         peer_id,
                         OrderOrigin::External,
@@ -365,6 +368,9 @@ where
                 });
             }
             NetworkOrderEvent::CancelOrder { request, .. } => {
+                let block_num = self.global_sync.current_block_number();
+                telemetry_event!(block_num, request.clone());
+
                 let res = self.order_indexer.cancel_order(&request);
                 if res {
                     self.broadcast_cancel_to_peers(request);

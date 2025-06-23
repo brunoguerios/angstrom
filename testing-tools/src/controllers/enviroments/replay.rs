@@ -20,7 +20,8 @@ use order_pool::OrderPoolHandle;
 use reth_chainspec::Hardforks;
 use reth_provider::{BlockReader, ChainSpecProvider, HeaderProvider, ReceiptProvider};
 use reth_tasks::{TaskExecutor, TaskSpawner};
-use telemetry::{TelemetryMessage, blocklog::BlockLog};
+use telemetry::blocklog::BlockLog;
+use telemetry_recorder::TelemetryMessage;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_stream::{StreamExt, wrappers::UnboundedReceiverStream};
 

@@ -20,6 +20,7 @@ reth-ethereum-primitives.workspace = true
 reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true
+telemetry-recorder.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tracing.workspace = true

@@ -8,7 +8,9 @@ use angstrom_types::{
     orders::OrderPriorityData,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PendingPool {
     /// all order hashes
     orders: HashMap<FixedBytes<32>, OrderWithStorageData<TopOfBlockOrder>>,

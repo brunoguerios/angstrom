@@ -3,7 +3,7 @@ use std::{fmt::Debug, task::Poll};
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
 use futures_util::{Future, FutureExt};
-use telemetry::telemetry_event;
+use telemetry_recorder::telemetry_event;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{

@@ -1,9 +1,9 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     default::Default,
     fmt::Debug,
     sync::{Arc, Mutex},
-    time::Instant
+    time::{Instant, SystemTime}
 };
 
 use alloy::primitives::{B256, BlockNumber, FixedBytes};
@@ -16,6 +16,7 @@ use angstrom_types::{
         rpc_orders::TopOfBlockOrder
     }
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
     PoolConfig,
@@ -25,14 +26,15 @@ use crate::{
 };
 
 /// The Storage of all verified orders.
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct OrderStorage {
     pub limit_orders:                Arc<Mutex<LimitOrderPool>>,
     pub searcher_orders:             Arc<Mutex<SearcherPool>>,
     pub pending_finalization_orders: Arc<Mutex<FinalizationPool>>,
     /// we store filled order hashes until they are expired time wise to ensure
     /// we don't waste processing power in the validator.
-    pub filled_orders:               Arc<Mutex<HashMap<B256, Instant>>>,
+    pub filled_orders:               Arc<Mutex<HashMap<B256, SystemTime>>>,
+    #[serde(skip)]
     pub metrics:                     OrderStorageMetricsWrapper
 }
 
@@ -53,6 +55,7 @@ impl OrderStorage {
             &config.ids,
             Some(config.s_pending_limit.max_size)
         )));
+
         let pending_finalization_orders = Arc::new(Mutex::new(FinalizationPool::new()));
         Self {
             filled_orders: Arc::new(Mutex::new(HashMap::default())),

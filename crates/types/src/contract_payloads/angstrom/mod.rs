@@ -1036,7 +1036,7 @@ pub struct AngPoolConfigEntry {
     pub store_index:      usize
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AngstromPoolConfigStore {
     entries: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>
 }

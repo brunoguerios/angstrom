@@ -27,6 +27,7 @@ use crate::{
     validator::{OrderValidator, OrderValidatorRes}
 };
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct InnerCancelOrderRequest {
     /// The address of the entity requesting the cancellation.
     pub from:     Address,

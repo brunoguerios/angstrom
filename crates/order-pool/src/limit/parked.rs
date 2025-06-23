@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use alloy::primitives::FixedBytes;
 use angstrom_types::sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct ParkedPool(HashMap<FixedBytes<32>, OrderWithStorageData<AllOrders>>);
 
 impl ParkedPool {
