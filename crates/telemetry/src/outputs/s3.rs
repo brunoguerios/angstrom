@@ -4,7 +4,7 @@ use aws_config::Region;
 use aws_sdk_s3::{Client, primitives::ByteStream};
 use chrono::{Datelike, Utc};
 
-use crate::blocklog::BlockLog;
+use crate::{blocklog::BlockLog, outputs::TelemetryOutput};
 
 /// S3 Storage functionality goes as the following.
 ///
@@ -19,6 +19,17 @@ pub struct S3Storage {
     client:         Client,
     archive_bucket: String,
     error_bucket:   String
+}
+
+impl TelemetryOutput for S3Storage {
+    fn output<'a>(
+        &'a self,
+        blocklog: &'a BlockLog
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        Box::pin(async {
+            self.store_snapshot(blocklog).await.unwrap();
+        })
+    }
 }
 
 impl S3Storage {
