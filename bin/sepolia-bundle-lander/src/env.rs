@@ -17,7 +17,10 @@ use angstrom_types::{
         angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{PoolConfigured, PoolRemoved}
     },
-    primitive::{AngstromSigner, UniswapPoolRegistry, init_with_chain_id}
+    primitive::{
+        ANGSTROM_DEPLOYED_BLOCK, AngstromSigner, CONTROLLER_V1_ADDRESS, UniswapPoolRegistry,
+        init_with_chain_id
+    }
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use itertools::Itertools;
@@ -58,8 +61,13 @@ impl BundleWashTraderEnv {
 
         let block = provider.get_block_number().await.unwrap();
 
-        let pools =
-            fetch_angstrom_pools(8276506, block as usize, cli.angstrom_address, &provider).await;
+        let pools = fetch_angstrom_pools(
+            *ANGSTROM_DEPLOYED_BLOCK.get().unwrap() as usize,
+            block as usize,
+            cli.angstrom_address,
+            &provider
+        )
+        .await;
 
         let uniswap_registry: UniswapPoolRegistry = pools.into();
 
@@ -171,7 +179,7 @@ where
     P: Provider
 {
     let mut filters = vec![];
-    let controller_address = address!("0x73922Ee4f10a1D5A68700fF5c4Fbf6B0e5bbA674");
+    let controller_address = *CONTROLLER_V1_ADDRESS.get().unwrap();
 
     loop {
         let this_end_block = std::cmp::min(deploy_block + 99_999, end_block);
