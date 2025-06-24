@@ -21,10 +21,11 @@ use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Clone, clap::Parser)]
 pub struct ReplayCli {
-    /// Is this a replay meant to be performed on a local testnet?
-    #[clap(short, long, action)]
-    pub testnet_replay:  bool,
-    /// eth rpc/ipc fork url
+    /// The error id for the aws bucket.
+    #[clap(short, long)]
+    pub id:              String,
+    #[clap(long)]
+    pub is_error:        bool,
     #[clap(short, long, default_value = "ws://localhost:8546")]
     pub eth_fork_url:    String,
     /// path to the toml file with the pool keys

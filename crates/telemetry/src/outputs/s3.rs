@@ -6,6 +6,10 @@ use chrono::{Datelike, Utc};
 
 use crate::{blocklog::BlockLog, outputs::TelemetryOutput};
 
+pub const ERROR_BUCKET: &str = "NodeErrors";
+pub const ARCHIVE_BUCKET: &str = "ArchivedBlocks";
+pub const REGION: &str = "ap-northeast-1";
+
 /// S3 Storage functionality goes as the following.
 ///
 /// 1) If we have a block that doesn't error. We will store the snapshot in an
@@ -35,21 +39,17 @@ impl TelemetryOutput for S3Storage {
 }
 
 impl S3Storage {
-    pub async fn new(
-        archive_bucket: &str,
-        error_bucket: &str,
-        region: &str
-    ) -> Result<Self, Box<dyn Error>> {
+    pub async fn new() -> Result<Self, Box<dyn Error>> {
         let config = aws_config::from_env()
-            .region(Region::new(region.to_string()))
+            .region(Region::new(REGION.to_string()))
             .load()
             .await;
         let client = Client::new(&config);
 
         Ok(Self {
             client,
-            archive_bucket: archive_bucket.to_string(),
-            error_bucket: error_bucket.to_string()
+            archive_bucket: ARCHIVE_BUCKET.to_string(),
+            error_bucket: ERROR_BUCKET.to_string()
         })
     }
 

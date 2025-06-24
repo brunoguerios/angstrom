@@ -68,6 +68,10 @@ impl AngstromSigner<PrivateKeySigner> {
         let key = PrivateKeySigner::new_with_credential(credential, address, None);
         Self::new(key)
     }
+
+    pub fn into_signer(self) -> PrivateKeySigner {
+        self.signer
+    }
 }
 
 impl<S: AngstromMetaSigner> Deref for AngstromSigner<S> {

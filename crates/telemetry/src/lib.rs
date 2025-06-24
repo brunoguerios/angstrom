@@ -35,12 +35,12 @@ const MAX_BLOCKS: usize = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeConstants {
-    node_address:          Address,
-    angstrom_address:      Address,
-    pool_manager_address:  Address,
-    angstrom_deploy_block: u64,
-    gas_token_address:     Address,
-    chain_id:              u64
+    pub node_address:          Address,
+    pub angstrom_address:      Address,
+    pub pool_manager_address:  Address,
+    pub angstrom_deploy_block: u64,
+    pub gas_token_address:     Address,
+    pub chain_id:              u64
 }
 
 impl NodeConstants {
@@ -108,7 +108,16 @@ impl Telemetry {
             // We're adding a new item, so trim down to size
             while self.block_cache.len() >= MAX_BLOCKS {
                 let oldest_key = self.block_cache.keys().copied().min().unwrap();
-                self.block_cache.remove(&oldest_key);
+                if let Some(mut block) = self.block_cache.remove(&oldest_key) {
+                    // If we have a block that doesn't have any errors when we remove it. We know
+                    // that it hasn't been pushed so we will push it here.
+                    if !block.has_error() {
+                        for out in self.outputs.iter() {
+                            block.set_node_constants(self.node_consts.clone());
+                            self.pending_submissions.push(out.output(block.clone()));
+                        }
+                    }
+                }
             }
             // Add our new entry
             self.block_cache

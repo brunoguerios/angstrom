@@ -20,17 +20,17 @@ use crate::{NodeConstants, TelemetryMessage};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlockLog {
-    blocknum:            u64,
-    order_pool_snapshot: Option<OrderPoolSnapshot>,
-    eth_snapshot:        Option<EthUpdaterSnapshot>,
-    validation_snapshot: Option<ValidationSnapshot>,
-    constants:           Option<NodeConstants>,
-    pool_keys:           Option<Vec<PoolKey>>,
-    pool_snapshots:      Option<HashMap<PoolId, BaselinePoolState>>,
-    events:              Vec<TelemetryMessage>,
-    gas_price_snapshot:  Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>,
-    error:               Option<(String, chrono::DateTime<Utc>)>,
-    backtrace:           Option<String>
+    pub blocknum:            u64,
+    pub order_pool_snapshot: Option<OrderPoolSnapshot>,
+    pub eth_snapshot:        Option<EthUpdaterSnapshot>,
+    pub validation_snapshot: Option<ValidationSnapshot>,
+    pub constants:           Option<NodeConstants>,
+    pub pool_keys:           Option<Vec<PoolKey>>,
+    pub pool_snapshots:      Option<HashMap<PoolId, BaselinePoolState>>,
+    pub events:              Vec<TelemetryMessage>,
+    pub gas_price_snapshot:  Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>,
+    pub error:               Option<(String, chrono::DateTime<Utc>)>,
+    pub backtrace:           Option<String>
 }
 
 impl BlockLog {
