@@ -50,6 +50,13 @@ impl BlockLog {
         }
     }
 
+    pub fn everything_to_replay(&self) -> bool {
+        self.order_pool_snapshot.is_some()
+            && self.eth_snapshot.is_some()
+            && self.validation_snapshot.is_some()
+            && self.constants.is_some()
+    }
+
     pub fn error_unique_id(&self) -> FixedBytes<4> {
         let mut slice = [0u8; 4];
         self.error

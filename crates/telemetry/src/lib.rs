@@ -161,7 +161,9 @@ impl Telemetry {
 
             for out in self.outputs.iter() {
                 block.set_node_constants(self.node_consts.clone());
-                self.pending_submissions.push(out.output(block.clone()));
+                if block.everything_to_replay() {
+                    self.pending_submissions.push(out.output(block.clone()));
+                }
             }
         } else {
             warn!(blocknum, "Telemetry error for unrecorded block");

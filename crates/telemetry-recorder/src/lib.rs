@@ -105,6 +105,18 @@ pub enum TelemetryMessage {
     }
 }
 
+impl TelemetryMessage {
+    pub fn try_get_timestamp(&self) -> chrono::DateTime<Utc> {
+        match self {
+            TelemetryMessage::NewOrder { timestamp, .. } => *timestamp,
+            TelemetryMessage::CancelOrder { timestamp, .. } => *timestamp,
+            TelemetryMessage::Consensus { timestamp, .. } => *timestamp,
+            TelemetryMessage::ConsensusStateChange { timestamp, .. } => *timestamp,
+            _ => panic!("this event isn't timestamped")
+        }
+    }
+}
+
 impl From<(u64, Vec<PoolKey>, HashMap<PoolId, BaselinePoolState>)> for TelemetryMessage {
     fn from(value: (u64, Vec<PoolKey>, HashMap<PoolId, BaselinePoolState>)) -> Self {
         Self::NewBlock { blocknum: value.0, pool_keys: value.1, pool_snapshots: value.2 }

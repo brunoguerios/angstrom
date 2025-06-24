@@ -15,7 +15,7 @@ use angstrom_eth::{
     handle::Eth,
     manager::{EthDataCleanser, EthEvent}
 };
-use angstrom_network::PoolManagerBuilder;
+use angstrom_network::{PoolManagerBuilder, pool_manager::PoolHandle};
 use angstrom_rpc::{
     ConsensusApi, OrderApi,
     api::{ConsensusApiServer, OrderApiServer}
@@ -35,11 +35,11 @@ use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNe
 use futures::{Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::MatchingManager;
-use order_pool::PoolConfig;
-use reth_chainspec::Hardforks;
-use reth_provider::{BlockNumReader, CanonStateSubscriptions, noop::NoopProvider};
+use order_pool::{OrderPoolHandle, PoolConfig};
+use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TaskExecutor;
 use telemetry::blocklog::BlockLog;
+use telemetry_recorder::TelemetryMessage;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
 use validation::{
@@ -47,9 +47,8 @@ use validation::{
 };
 
 use super::fake_network::FakeNetwork;
-use crate::{
-    providers::{AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider, WalletProvider},
-    types::WithWalletProvider
+use crate::providers::{
+    AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider, WalletProvider
 };
 
 /// Replay Runner
@@ -57,13 +56,93 @@ use crate::{
 /// The Replay Runner allows us to take any snapshot of a block and replay it
 /// in order to allow us to debug quickly.
 pub struct ReplayRunner {
+    #[allow(dead_code)]
     anvil:          AnvilInstance,
     anvil_provider: AnvilProvider<WalletProvider>,
     fake_network:   FakeNetwork,
-    block_log:      BlockLog
+    block_log:      BlockLog,
+    pool_handle:    PoolHandle
 }
 
 impl ReplayRunner {
+    pub async fn run(self) -> eyre::Result<()> {
+        // At this point all the setup should be done.
+        // what we do now is send the message of a new block to the eth_manager
+        // and then start sending the rest of the orders.
+        let update = self
+            .block_log
+            .eth_snapshot
+            .as_ref()
+            .unwrap()
+            .chain_update
+            .clone();
+
+        match update {
+            angstrom_eth::telemetry::AngstromChainUpdate::New(chain) => self
+                .anvil_provider
+                .state_provider()
+                .canon_state_tx
+                .send(reth_provider::CanonStateNotification::Commit { new: chain })
+                .unwrap(),
+            angstrom_eth::telemetry::AngstromChainUpdate::Reorg { new, old } => self
+                .anvil_provider
+                .state_provider()
+                .canon_state_tx
+                .send(reth_provider::CanonStateNotification::Reorg { old, new })
+                .unwrap()
+        };
+
+        let mut last_timestamp = self.block_log.eth_snapshot.as_ref().unwrap().timestamp;
+
+        for next_event in self.block_log.events() {
+            match next_event {
+                TelemetryMessage::NewOrder { origin, order, timestamp, .. } => {
+                    tracing::info!("NewOrder event playing back");
+                    let delta = timestamp.signed_duration_since(last_timestamp);
+                    let sleep_duration =
+                        Duration::from_micros(delta.abs().num_microseconds().unwrap() as u64);
+                    tokio::time::sleep(sleep_duration).await;
+                    last_timestamp = *timestamp;
+                    tracing::info!("Slept for time delta, applying new order");
+
+                    self.pool_handle
+                        .new_order(*origin, order.clone())
+                        .await
+                        .unwrap();
+                }
+                TelemetryMessage::CancelOrder { cancel, timestamp, .. } => {
+                    tracing::info!("CancelOrder event playing back");
+                    let delta = timestamp.signed_duration_since(last_timestamp);
+                    let sleep_duration =
+                        Duration::from_micros(delta.abs().num_microseconds().unwrap() as u64);
+                    tokio::time::sleep(sleep_duration).await;
+                    last_timestamp = *timestamp;
+                    tracing::info!("CancelOrder sleep completed");
+                    self.pool_handle.cancel_order(cancel.clone()).await;
+                }
+                TelemetryMessage::Consensus { event, timestamp, .. } => {
+                    tracing::info!("Consensus event playing back");
+                    let delta = timestamp.signed_duration_since(last_timestamp);
+                    let sleep_duration =
+                        Duration::from_micros(delta.abs().num_microseconds().unwrap() as u64);
+                    tokio::time::sleep(sleep_duration).await;
+                    tracing::info!("Consensus event sleep completed");
+                    last_timestamp = *timestamp;
+
+                    self.fake_network
+                        .to_consensus_manager
+                        .as_ref()
+                        .unwrap()
+                        .send(event.clone())
+                        .unwrap();
+                }
+                _ => ()
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn new(
         id: String,
         block_log: BlockLog,
@@ -272,7 +351,7 @@ impl ReplayRunner {
 
         let network_handle = fake_network.handle.clone();
 
-        let _pool_handle = PoolManagerBuilder::new(
+        let pool_handle = PoolManagerBuilder::new(
             validation_client.clone(),
             Some(order_storage.clone()),
             network_handle.clone(),
@@ -372,7 +451,7 @@ impl ReplayRunner {
         tracing::info!("created consensus manager");
         global_block_sync.finalize_modules();
 
-        Ok(Self { anvil, anvil_provider, fake_network, block_log })
+        Ok(Self { anvil, anvil_provider, fake_network, block_log, pool_handle })
     }
 }
 

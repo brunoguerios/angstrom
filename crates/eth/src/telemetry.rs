@@ -8,6 +8,7 @@ use angstrom_types::{
     block_sync::BlockSyncProducer, contract_payloads::angstrom::AngstromPoolConfigStore,
     primitive::ChainExt
 };
+use chrono::Utc;
 use reth_execution_types::Chain;
 use reth_provider::CanonStateNotification;
 use serde::{Deserialize, Serialize};
@@ -24,7 +25,8 @@ pub struct EthUpdaterSnapshot {
     pub angstrom_tokens:   HashMap<Address, usize>,
     pub pool_store:        Arc<AngstromPoolConfigStore>,
     /// the set of currently active nodes.
-    pub node_set:          HashSet<Address>
+    pub node_set:          HashSet<Address>,
+    pub timestamp:         chrono::DateTime<Utc>
 }
 
 impl<Sync: BlockSyncProducer> From<(&EthDataCleanser<Sync>, CanonStateNotification)>
@@ -37,7 +39,8 @@ impl<Sync: BlockSyncProducer> From<(&EthDataCleanser<Sync>, CanonStateNotificati
             periphery_address: data.periphery_address,
             chain_update:      update.into(),
             pool_store:        data.pool_store.clone(),
-            node_set:          data.node_set.clone()
+            node_set:          data.node_set.clone(),
+            timestamp:         Utc::now()
         }
     }
 }

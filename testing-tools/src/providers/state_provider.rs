@@ -22,9 +22,9 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct AnvilStateProvider<P> {
-    provider:       P,
-    canon_state:    AnvilConsensusCanonStateNotification,
-    canon_state_tx: broadcast::Sender<CanonStateNotification>
+    provider:           P,
+    canon_state:        AnvilConsensusCanonStateNotification,
+    pub canon_state_tx: broadcast::Sender<CanonStateNotification>
 }
 
 impl<P: WithWalletProvider> AnvilStateProvider<P> {
