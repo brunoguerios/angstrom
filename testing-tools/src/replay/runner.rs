@@ -59,7 +59,8 @@ use crate::{
 pub struct ReplayRunner {
     anvil:          AnvilInstance,
     anvil_provider: AnvilProvider<WalletProvider>,
-    fake_network:   FakeNetwork
+    fake_network:   FakeNetwork,
+    block_log:      BlockLog
 }
 
 impl ReplayRunner {
@@ -103,7 +104,6 @@ impl ReplayRunner {
         let wallet_provider = WalletProvider::new_with_provider(rpc.clone(), sk);
         let state_provider = AnvilStateProvider::new(wallet_provider);
         let anvil_provider = AnvilProvider::new(state_provider, None, None);
-        let reth_provider = NoopProvider::mainnet();
 
         let angstrom_address = *ANGSTROM_ADDRESS.get().unwrap();
         let controller = *CONTROLLER_V1_ADDRESS.get().unwrap();
@@ -112,13 +112,9 @@ impl ReplayRunner {
         let pool_manager = *POOL_MANAGER_ADDRESS.get().unwrap();
 
         let mut strom_handles = initialize_strom_handles();
-        let quoter_handle = QuoterHandle(strom_handles.quoter_tx.clone());
 
         // for rpc
         let pool = strom_handles.get_pool_handle();
-        let executor_clone = executor.clone();
-        let validation_client = ValidationClient(strom_handles.validator_tx.clone());
-        let consensus_client = ConsensusHandler(strom_handles.consensus_tx_rpc.clone());
 
         let query_provider = Arc::new(anvil_provider.state_provider());
 
@@ -376,7 +372,7 @@ impl ReplayRunner {
         tracing::info!("created consensus manager");
         global_block_sync.finalize_modules();
 
-        Ok(Self { anvil, anvil_provider, fake_network })
+        Ok(Self { anvil, anvil_provider, fake_network, block_log })
     }
 }
 
