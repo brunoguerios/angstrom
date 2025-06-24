@@ -24,7 +24,9 @@ use angstrom_types::{
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use itertools::Itertools;
-use uniswap_v4::uniswap::{pool::EnhancedUniswapPool, pool_data_loader::DataLoader};
+use uniswap_v4::uniswap::{
+    pool::EnhancedUniswapPool, pool_data_loader::DataLoader, pool_factory::INITIAL_TICKS_PER_SIDE
+};
 
 use crate::{
     approveCall,
@@ -83,7 +85,7 @@ impl BundleWashTraderEnv {
                 uniswap_registry.clone(),
                 cli.pool_manager_address
             );
-            let mut pool = EnhancedUniswapPool::new(data_loader, 400);
+            let mut pool = EnhancedUniswapPool::new(data_loader, INITIAL_TICKS_PER_SIDE);
             pool.initialize(Some(provider.get_block_number().await?), provider.root().into())
                 .await?;
             tracing::info!("{:#?}", pool);

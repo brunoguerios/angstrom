@@ -47,11 +47,11 @@ impl OrderBuilder {
         // convert price to sqrtx96
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let price = price.clamp(MIN_SQRT_RATIO + U256_1, MAX_SQRT_RATIO - U256_1);
-        let sqrt_price = pool.sqrt_price;
-        let float_price = SqrtPriceX96::from(sqrt_price).as_f64();
+        let sqrt_price_x96 = pool.sqrt_price_x96;
+        let float_price = SqrtPriceX96::from(sqrt_price_x96).as_f64();
         tracing::info!(?cur_price, ?float_price);
 
-        let zfo = sqrt_price > price;
+        let zfo = sqrt_price_x96 > price;
         tracing::info!(?zfo, "generated tob order direction");
 
         let token0 = pool.token0;
@@ -109,10 +109,10 @@ impl OrderBuilder {
         let price: U256 = SqrtPriceX96::from_float_price(cur_price).into();
         let price = price.clamp(MIN_SQRT_RATIO + U256_1, MAX_SQRT_RATIO - U256_1);
 
-        let sqrt_price = pool.sqrt_price;
+        let sqrt_price_x96 = pool.sqrt_price_x96;
 
         // if current price is higher than target price, we have a ask
-        let zfo = sqrt_price > price;
+        let zfo = sqrt_price_x96 > price;
 
         let token0 = pool.token0;
         let token1 = pool.token1;

@@ -53,7 +53,7 @@ pub struct EnhancedUniswapPool<Loader: PoolDataLoader = DataLoader> {
     pub block_number:       u64,
     pub liquidity:          u128,
     pub liquidity_net:      i128,
-    pub sqrt_price:         U256,
+    pub sqrt_price_x96:     U256,
     pub book_fee:           u32,
     pub tick:               i32,
     pub tick_spacing:       i32,
@@ -120,7 +120,7 @@ where
                 BaselineLiquidity::new(
                     self.tick_spacing,
                     self.tick,
-                    self.sqrt_price.into(),
+                    self.sqrt_price_x96.into(),
                     self.liquidity,
                     self.ticks.clone(),
                     self.tick_bitmap.clone()
@@ -333,7 +333,7 @@ where
     }
 
     pub fn calculate_price(&self) -> f64 {
-        let tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(self.sqrt_price).unwrap();
+        let tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(self.sqrt_price_x96).unwrap();
         let shift = self.token0_decimals as i8 - self.token1_decimals as i8;
         match shift.cmp(&0) {
             Ordering::Less => 1.0001_f64.powi(tick) / 10_f64.powi(-shift as i32),
@@ -376,18 +376,19 @@ where
         });
 
         if (zero_for_one
-            && (sqrt_price_limit_x96 >= self.sqrt_price || sqrt_price_limit_x96 <= MIN_SQRT_RATIO))
+            && (sqrt_price_limit_x96 >= self.sqrt_price_x96
+                || sqrt_price_limit_x96 <= MIN_SQRT_RATIO))
             || (!zero_for_one
-                && (sqrt_price_limit_x96 <= self.sqrt_price
+                && (sqrt_price_limit_x96 <= self.sqrt_price_x96
                     || sqrt_price_limit_x96 >= MAX_SQRT_RATIO))
         {
-            tracing::warn!(?zero_for_one, ?sqrt_price_limit_x96, ?self.sqrt_price);
+            tracing::warn!(?zero_for_one, ?sqrt_price_limit_x96, ?self.sqrt_price_x96);
             return Err(SwapSimulationError::InvalidSqrtPriceLimit);
         }
 
         let mut amount_specified_remaining = amount_specified;
         let mut amount_calculated = I256::ZERO;
-        let mut sqrt_price_x_96 = self.sqrt_price;
+        let mut sqrt_price_x_96 = self.sqrt_price_x96;
         let mut tick = self.tick;
         let mut liquidity = self.liquidity;
         let fee = with_fee.then_some(self.book_fee).unwrap_or_default();
@@ -525,7 +526,7 @@ where
         self.token1 = pool_data.tokenB;
         self.token1_decimals = pool_data.tokenBDecimals;
         self.liquidity = pool_data.liquidity;
-        self.sqrt_price = U256::from(pool_data.sqrtPrice);
+        self.sqrt_price_x96 = U256::from(pool_data.sqrtPrice);
         self.tick = pool_data.tick.as_i32();
         self.tick_spacing = pool_data.tickSpacing.as_i32();
         self.book_fee = self.data_loader.pool_fee();
@@ -639,12 +640,12 @@ where
 
     #[cfg(test)]
     pub fn set_sqrt_price_x96(&mut self, price: u128) {
-        self.sqrt_price = U256::from(price);
+        self.sqrt_price_x96 = U256::from(price);
     }
 
     #[cfg(test)]
     pub fn get_sqrt_price_x96(&self) -> u128 {
-        self.sqrt_price.to()
+        self.sqrt_price_x96.to()
     }
 }
 
@@ -823,7 +824,7 @@ mod tests {
         pool.token0_decimals = 18;
         pool.token1_decimals = 18;
         pool.liquidity = 1_000_000;
-        pool.sqrt_price = U256::from(1004968906420141727126888u128);
+        pool.sqrt_price_x96 = U256::from(1004968906420141727126888u128);
         pool.book_fee = 3000;
         pool.tick = 1000;
         pool.tick_spacing = 60;
@@ -998,7 +999,7 @@ mod tests {
         pool.update_position(0, 60, 3000);
         // set the sqrt_liq at -120
         let sqrt = get_sqrt_ratio_at_tick(-60).unwrap();
-        pool.sqrt_price = sqrt;
+        pool.sqrt_price_x96 = sqrt;
         pool.tick = -60;
 
         let result = pool.fetch_pool_snapshot();
