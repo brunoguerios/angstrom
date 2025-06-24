@@ -399,11 +399,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         address_changes: Vec<Address>
     ) {
         self.block_number = block_number;
-
-        // Now that we have drained validation for anything last block.
-        // we snapshot.
         telemetry_recorder::telemetry_event!(OrderPoolSnapshot::from((block_number, &*self)));
-
         // clear the invalid orders as they could of become valid.
         self.order_tracker.clear_invalid();
         // deal with changed orders

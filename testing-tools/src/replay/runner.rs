@@ -10,10 +10,15 @@ use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
     primitives::Address,
-    providers::Provider,
+    providers::{
+        Identity, Provider, ProviderBuilder, RootProvider,
+        fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller}
+    },
     signers::local::PrivateKeySigner
 };
-use alloy_rpc_types::{BlockId, BlockNumberOrTag};
+use alloy_primitives::aliases::I24;
+use alloy_rpc_types::{BlockId, BlockNumberOrTag, Filter, TransactionRequest};
+use alloy_sol_types::SolEvent;
 use angstrom::components::{StromHandles, initialize_strom_handles};
 use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
 use angstrom_eth::{
@@ -28,7 +33,10 @@ use angstrom_rpc::{
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     consensus::ConsensusRoundName,
-    contract_bindings::controller_v_1::ControllerV1,
+    contract_bindings::{
+        angstrom::Angstrom::PoolKey,
+        controller_v_1::ControllerV1::{self, PoolConfigured, PoolRemoved}
+    },
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
     primitive::{
@@ -53,10 +61,10 @@ use reth_tasks::TaskExecutor;
 use telemetry::{blocklog::BlockLog, init_telemetry};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Instrument, span};
-use uniswap_v4::{configure_uniswap_manager, fetch_angstrom_pools};
+use uniswap_v4::configure_uniswap_manager;
 use validation::{
     common::{TokenPriceGenerator, WETH_ADDRESS},
-    init_validation,
+    init_validation, init_validation_replay,
     order::state::pools::AngstromPoolsTracker,
     validator::ValidationClient
 };
@@ -80,18 +88,7 @@ use crate::{
 ///
 /// The Replay Runner allows us to take any snapshot of a block and replay it
 /// in order to allow us to debug quickly.
-pub struct ReplayRunner
-//<C, W>
-// where
-//     C: BlockReader<Block = reth_primitives::Block>
-//         + ReceiptProvider<Receipt = reth_primitives::Receipt>
-//         + HeaderProvider<Header = reth_primitives::Header>
-//         + ChainSpecProvider<ChainSpec: Hardforks>
-//         + Unpin
-//         + Clone
-//         + 'static,
-//     W: WithWalletProvider, {
-{
+pub struct ReplayRunner {
     anvil:          AnvilInstance,
     anvil_provider: AnvilProvider<WalletProvider>
 }
@@ -101,6 +98,7 @@ impl ReplayRunner {
         id: String,
         block_log: BlockLog,
         fork_url: String,
+        rpc_port: u16,
         executor: TaskExecutor
     ) -> eyre::Result<Self> {
         let chain_id = block_log.constants.as_ref().unwrap().chain_id;
@@ -195,6 +193,7 @@ impl ReplayRunner {
             deploy_block as usize,
             block_number as usize,
             angstrom_address,
+            controller,
             &rpc
         )
         .await;
@@ -274,7 +273,6 @@ impl ReplayRunner {
             .await
             .expect("failed to start price generator")
         };
-        println!("{:#?}", token_conversion);
 
         let token_price_update_stream = anvil_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
@@ -283,33 +281,25 @@ impl ReplayRunner {
             Arc::new(anvil_provider.rpc_provider())
         ));
 
-        let pool_storage = AngstromPoolsTracker::new(angstrom_address, pool_config_store.clone());
+        let user_account = block_log
+            .validation_snapshot
+            .as_ref()
+            .unwrap()
+            .state
+            .clone();
 
-        init_validation(
-            db,
-            current_block,
+        init_validation_replay(
+            anvil_provider.state_provider(),
+            block_number,
             angstrom_address,
-            node_address,
-            update_stream,
+            node_addr,
+            token_price_update_stream,
             uniswap_pools,
-            price_generator,
-            pool_store,
-            validator_rx
+            token_conversion,
+            pool_config_store,
+            strom_handles.validator_rx,
+            |validator| validator.set_user_account(user_account)
         );
-
-        // let validator = TestOrderValidator::new(
-        //     state_provider.state_provider(),
-        //     validation_client.clone(),
-        //     strom_handles.validator_rx,
-        //     angstrom_address,
-        //     node_config.address(),
-        //     uniswap_pools.clone(),
-        //     token_conversion,
-        //     token_price_update_stream,
-        //     pool_storage.clone(),
-        //     node_config.node_id,
-        // )
-        // .await?;
 
         let pool_config = PoolConfig {
             ids: uniswap_registry.pools().keys().cloned().collect::<Vec<_>>(),
@@ -334,7 +324,6 @@ impl ReplayRunner {
             block_number
         );
 
-        let rpc_port = node_config.strom_rpc_port();
         let server = ServerBuilder::default()
             .build(format!("0.0.0.0:{}", rpc_port))
             .await?;
@@ -357,12 +346,12 @@ impl ReplayRunner {
 
         tracing::debug!("created testnet hub and uniswap registry");
 
-        let anvil =
+        let anvil_sub =
             AnvilSubmissionProvider { provider: anvil_provider.rpc_provider(), angstrom_address };
 
         let mev_boost_provider = SubmissionHandler {
             node_provider: Arc::new(anvil_provider.rpc_provider()),
-            submitters:    vec![Box::new(ChainSubmitterHolder::new(anvil, angstrom_signer))]
+            submitters:    vec![Box::new(ChainSubmitterHolder::new(anvil_sub, angstrom_signer))]
         };
 
         tracing::debug!("created mev boost provider");
@@ -407,24 +396,95 @@ impl ReplayRunner {
 
         executor.spawn_critical("amm quoting service", amm);
 
-        // init agents
-
         tracing::info!("created consensus manager");
-
         global_block_sync.finalize_modules();
-        // Ok((
-        //     Self {
-        //         rpc_port,
-        //         state_provider,
-        //         order_storage,
-        //         pool_handle,
-        //         tx_strom_handles,
-        //         testnet_hub
-        //     },
-        //     consensus,
-        //     validator
-        // ))
 
         Ok(Self { anvil, anvil_provider })
     }
+}
+
+async fn fetch_angstrom_pools<P>(
+    // the block angstrom was deployed at
+    mut deploy_block: usize,
+    end_block: usize,
+    angstrom_address: Address,
+    controller_address: Address,
+    db: &P
+) -> Vec<PoolKey>
+where
+    P: Provider
+{
+    let mut filters = vec![];
+
+    loop {
+        let this_end_block = std::cmp::min(deploy_block + 99_999, end_block);
+
+        if this_end_block == deploy_block {
+            break;
+        }
+
+        tracing::info!(?deploy_block, ?this_end_block);
+        let filter = Filter::new()
+            .from_block(deploy_block as u64)
+            .to_block(this_end_block as u64)
+            .address(controller_address);
+
+        filters.push(filter);
+
+        deploy_block = std::cmp::min(end_block, this_end_block);
+    }
+
+    let logs = futures::stream::iter(filters)
+        .map(|filter| async move {
+            db.get_logs(&filter)
+                .await
+                .unwrap()
+                .into_iter()
+                .collect::<Vec<_>>()
+        })
+        .buffered(10)
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    tracing::info!(?logs);
+
+    logs.into_iter()
+        .fold(HashSet::new(), |mut set, log| {
+            if let Ok(pool) = PoolConfigured::decode_log(&log.clone().into_inner()) {
+                let pool_key = PoolKey {
+                    currency0:   pool.asset0,
+                    currency1:   pool.asset1,
+                    fee:         pool.bundleFee,
+                    tickSpacing: I24::try_from_be_slice(&{
+                        let bytes = pool.tickSpacing.to_be_bytes();
+                        let mut a = [0u8; 3];
+                        a[1..3].copy_from_slice(&bytes);
+                        a
+                    })
+                    .unwrap(),
+                    hooks:       angstrom_address
+                };
+
+                set.insert(pool_key);
+                return set;
+            }
+
+            if let Ok(pool) = PoolRemoved::decode_log(&log.clone().into_inner()) {
+                let pool_key = PoolKey {
+                    currency0:   pool.asset0,
+                    currency1:   pool.asset1,
+                    fee:         pool.feeInE6,
+                    tickSpacing: pool.tickSpacing,
+                    hooks:       angstrom_address
+                };
+
+                set.remove(&pool_key);
+                return set;
+            }
+            set
+        })
+        .into_iter()
+        .collect::<Vec<_>>()
 }

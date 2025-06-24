@@ -1,4 +1,4 @@
-use std::{fmt::Debug, task::Poll};
+use std::{fmt::Debug, sync::Arc, task::Poll};
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
@@ -13,7 +13,11 @@ use crate::{
         OrderValidationRequest, OrderValidationResults,
         order_validator::OrderValidator,
         sim::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL},
-        state::{db_state_utils::StateFetchUtils, pools::PoolsTracker}
+        state::{
+            account::{UserAccountProcessor, user::UserAccounts},
+            db_state_utils::StateFetchUtils,
+            pools::PoolsTracker
+        }
     }
 };
 
@@ -74,6 +78,18 @@ where
         utils: SharedTools
     ) -> Self {
         Self { order_validator, rx, utils, bundle_validator }
+    }
+
+    pub fn set_user_account(&mut self, account: UserAccounts) {
+        let fetch_clone = self
+            .order_validator
+            .state
+            .user_account_tracker
+            .fetch_utils
+            .clone();
+        let new_tracker = Arc::new(UserAccountProcessor::new_with_accounts(fetch_clone, account));
+
+        self.order_validator.state.user_account_tracker = new_tracker;
     }
 
     fn on_new_validation_request(&mut self, req: ValidationRequest) {

@@ -28,6 +28,10 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
         Self { fetch_utils, user_accounts }
     }
 
+    pub fn new_with_accounts(fetch_utils: S, user_accounts: UserAccounts) -> Self {
+        Self { fetch_utils, user_accounts }
+    }
+
     pub fn prepare_for_new_block(&self, users: Vec<Address>, orders: Vec<B256>) {
         self.user_accounts.new_block(users, orders);
     }
