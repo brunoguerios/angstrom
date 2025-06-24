@@ -15,6 +15,7 @@ use crate::{blocklog::BlockLog, outputs::TelemetryOutput};
 ///    bucket, No TTL. This will be a bucket that allows quick reads. This
 ///    bucket will also be linked to PagerDuty so that the team gets notified of
 ///    anything critical.
+#[derive(Clone)]
 pub struct S3Storage {
     client:         Client,
     archive_bucket: String,
@@ -22,12 +23,13 @@ pub struct S3Storage {
 }
 
 impl TelemetryOutput for S3Storage {
-    fn output<'a>(
-        &'a self,
+    fn output(
+        &self,
         blocklog: BlockLog
-    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> {
+        let this = self.clone();
         Box::pin(async move {
-            self.store_snapshot(&blocklog).await.unwrap();
+            this.store_snapshot(&blocklog).await.unwrap();
         })
     }
 }
@@ -51,7 +53,7 @@ impl S3Storage {
         })
     }
 
-    pub async fn store_snapshot(&self, data: &BlockLog) -> Result<String, Box<dyn Error>> {
+    pub async fn store_snapshot(&self, data: &BlockLog) -> eyre::Result<String> {
         let now = Utc::now();
 
         let key = format!(
@@ -76,11 +78,7 @@ impl S3Storage {
         Ok(format!("{}/{}", bucket, key))
     }
 
-    pub async fn retrieve_snapshot(
-        &self,
-        key: &str,
-        is_error: bool
-    ) -> Result<BlockLog, Box<dyn Error>> {
+    pub async fn retrieve_snapshot(&self, key: &str, is_error: bool) -> eyre::Result<BlockLog> {
         let bucket = if is_error { &self.error_bucket } else { &self.archive_bucket };
 
         let resp = self

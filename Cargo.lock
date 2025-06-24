@@ -12129,6 +12129,7 @@ dependencies = [
  "base64 0.22.1",
  "base64-serde",
  "chrono",
+ "eyre",
  "flate2",
  "futures",
  "order-pool",

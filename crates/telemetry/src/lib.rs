@@ -17,7 +17,7 @@ use angstrom_types::{
 };
 use blocklog::BlockLog;
 use chrono::Utc;
-use futures::{FutureExt, stream::FuturesUnordered};
+use futures::{FutureExt, StreamExt, stream::FuturesUnordered};
 use order_pool::telemetry::OrderPoolSnapshot;
 use outputs::{TelemetryOutput, log::LogOutput};
 use reth_tasks::shutdown::GracefulShutdown;
@@ -65,22 +65,23 @@ impl NodeConstants {
     }
 }
 
-pub struct Telemetry<'a> {
+pub struct Telemetry {
     rx:                  UnboundedReceiver<TelemetryMessage>,
     node_consts:         NodeConstants,
     block_cache:         HashMap<u64, BlockLog>,
-    outputs:             &'a [Box<dyn TelemetryOutput + 'a>],
-    pending_submissions: FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'a>>>,
+    outputs:             Vec<Box<dyn TelemetryOutput + Send + 'static>>,
+    pending_submissions:
+        FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>,
     // Allows us to keep shutdown from trigging for awhile to collect all data and send it off.
     guard:               GracefulShutdown
 }
 
-impl<'a> Telemetry<'a> {
+impl Telemetry {
     pub fn new(
         rx: UnboundedReceiver<TelemetryMessage>,
         node_address: Address,
         guard: GracefulShutdown,
-        outputs: &'a [Box<dyn TelemetryOutput + 'a>]
+        outputs: Vec<Box<dyn TelemetryOutput + Send + 'static>>
     ) -> Self {
         let node_consts = NodeConstants {
             node_address,
@@ -160,7 +161,7 @@ impl<'a> Telemetry<'a> {
     }
 }
 
-impl Future for Telemetry<'_> {
+impl Future for Telemetry {
     type Output = ();
 
     fn poll(
@@ -217,6 +218,19 @@ impl Future for Telemetry<'_> {
         // sent before this
         if let Poll::Ready(guard) = self.guard.poll_unpin(cx) {
             let cache = self.block_cache.clone();
+
+            let mut futures = FuturesUnordered::new();
+            for (_, mut block) in cache {
+                if !block.has_error() {
+                    block.error("shutdown has occurred".to_string(), Utc::now(), "".to_string());
+
+                    for out in self.outputs.iter() {
+                        block.set_node_constants(self.node_consts.clone());
+                        futures.push(out.output(block.clone()));
+                    }
+                }
+            }
+
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -225,20 +239,7 @@ impl Future for Telemetry<'_> {
                     .unwrap();
 
                 rt.block_on(async move {
-                    for (_, mut block) in cache {
-                        if !block.has_error() {
-                            block.error(
-                                "shutdown has occurred".to_string(),
-                                Utc::now(),
-                                "".to_string()
-                            );
-
-                            for out in self.outputs.iter() {
-                                block.set_node_constants(self.node_consts.clone());
-                                out.output(block).await;
-                            }
-                        }
-                    }
+                    while let Some(_) = futures.next().await {}
                     drop(guard);
                 });
             });
@@ -258,8 +259,8 @@ pub fn init_telemetry(node_address: Address, shutdown_handle: GracefulShutdown) 
             .worker_threads(2)
             .build()
             .unwrap();
-        let handles = vec![Box::new(LogOutput {})] as Vec<Box<dyn TelemetryOutput>>;
+        let handles = vec![Box::new(LogOutput {}) as Box<dyn TelemetryOutput + Send>];
 
-        rt.block_on(Telemetry::new(rx, node_address, shutdown_handle, handles.as_slice()))
+        rt.block_on(Telemetry::new(rx, node_address, shutdown_handle, handles))
     });
 }
