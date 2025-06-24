@@ -22,10 +22,7 @@ use order_pool::{
 use reth_metrics::common::mpsc::UnboundedMeteredReceiver;
 use reth_tasks::TaskSpawner;
 use telemetry_recorder::telemetry_event;
-use tokio::sync::{
-    broadcast,
-    mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}
-};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, error::SendError};
 use tokio_stream::wrappers::{BroadcastStream, UnboundedReceiverStream};
 use validation::order::{OrderValidationResults, OrderValidatorHandle};
 

@@ -1,88 +1,55 @@
-use std::{
-    cmp::max,
-    collections::{HashMap, HashSet, VecDeque},
-    pin::Pin,
-    sync::Arc,
-    time::Duration
-};
+use std::{collections::HashSet, pin::Pin, sync::Arc, time::Duration};
 
 use alloy::{
     network::{Ethereum, EthereumWallet},
     node_bindings::{Anvil, AnvilInstance},
     primitives::Address,
-    providers::{
-        Identity, Provider, ProviderBuilder, RootProvider,
-        fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller}
-    },
-    signers::local::PrivateKeySigner
+    providers::Provider
 };
 use alloy_primitives::aliases::I24;
-use alloy_rpc_types::{BlockId, BlockNumberOrTag, Filter, TransactionRequest};
+use alloy_rpc_types::{BlockId, BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
-use angstrom::components::{StromHandles, initialize_strom_handles};
+use angstrom::components::initialize_strom_handles;
 use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
 use angstrom_eth::{
     handle::Eth,
     manager::{EthDataCleanser, EthEvent}
 };
-use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
+use angstrom_network::PoolManagerBuilder;
 use angstrom_rpc::{
     ConsensusApi, OrderApi,
     api::{ConsensusApiServer, OrderApiServer}
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
-    consensus::ConsensusRoundName,
     contract_bindings::{
         angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{self, PoolConfigured, PoolRemoved}
     },
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
-    primitive::{
-        AngstromSigner, PoolId, UniswapPoolRegistry, init_with_chain_id, try_init_with_chain_id, *
-    },
-    sol_bindings::testnet::TestnetHub,
-    submission::{ChainSubmitterHolder, SubmissionHandler},
-    testnet::InitialTestnetState
+    primitive::{AngstromSigner, UniswapPoolRegistry, try_init_with_chain_id, *},
+    submission::{ChainSubmitterHolder, SubmissionHandler}
 };
 use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
-use futures::{Future, Stream, StreamExt};
+use futures::{Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
-use matching_engine::{MatchingManager, manager::MatcherHandle};
-use order_pool::{PoolConfig, order_storage::OrderStorage};
+use matching_engine::MatchingManager;
+use order_pool::PoolConfig;
 use reth_chainspec::Hardforks;
-use reth_network::NetworkHandle;
-use reth_provider::{
-    BlockNumReader, BlockReader, CanonStateSubscriptions, ChainSpecProvider, HeaderProvider,
-    ReceiptProvider, noop::NoopProvider
-};
+use reth_provider::{BlockNumReader, CanonStateSubscriptions, noop::NoopProvider};
 use reth_tasks::TaskExecutor;
-use telemetry::{blocklog::BlockLog, init_telemetry};
-use tokio::sync::mpsc::UnboundedSender;
+use telemetry::blocklog::BlockLog;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
 use validation::{
-    common::{TokenPriceGenerator, WETH_ADDRESS},
-    init_validation, init_validation_replay,
-    order::state::pools::AngstromPoolsTracker,
-    validator::ValidationClient
+    common::TokenPriceGenerator, init_validation_replay, validator::ValidationClient
 };
 
 use super::fake_network::FakeNetwork;
 use crate::{
-    agents::AgentConfig,
-    contracts::anvil::WalletProviderRpc,
-    controllers::strom::initialize_strom_components_at_block,
-    providers::{
-        AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider, TestnetBlockProvider,
-        WalletProvider,
-        utils::{StromContractInstance, async_to_sync}
-    },
-    types::{
-        GlobalTestingConfig, SendingStromHandles, WithWalletProvider, config::TestingNodeConfig
-    },
-    validation::TestOrderValidator
+    providers::{AnvilProvider, AnvilStateProvider, AnvilSubmissionProvider, WalletProvider},
+    types::WithWalletProvider
 };
 
 /// Replay Runner

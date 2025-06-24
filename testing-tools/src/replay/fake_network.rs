@@ -1,12 +1,9 @@
 use std::sync::{Arc, atomic::AtomicUsize};
 
 use angstrom_eth::manager::EthEvent;
-use angstrom_network::{
-    CachedPeer, CachedPeers, NetworkOrderEvent, StromMessage, StromNetworkHandle,
-    StromNetworkHandleMsg, Swarm, SwarmEvent
-};
+use angstrom_network::{NetworkOrderEvent, StromNetworkHandle, StromNetworkHandleMsg};
 use angstrom_types::consensus::StromConsensusEvent;
-use reth_metrics::common::mpsc::{MeteredPollSender, UnboundedMeteredSender};
+use reth_metrics::common::mpsc::UnboundedMeteredSender;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 

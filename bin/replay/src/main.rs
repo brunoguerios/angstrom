@@ -1,9 +1,6 @@
-use angstrom_types::primitive::AngstromAddressConfig;
 use clap::Parser;
 use replay::{ReplayCli, init_tracing};
-use reth_provider::noop::NoopProvider;
-use telemetry::{blocklog::BlockLog, outputs::s3::S3Storage};
-use testing_tools::{controllers::enviroments::AngstromTestnet, types::config::ReplayConfig};
+use telemetry::outputs::s3::S3Storage;
 
 fn main() -> eyre::Result<()> {
     init_tracing(3);

@@ -248,7 +248,7 @@ impl Future for Telemetry {
                     .unwrap();
 
                 rt.block_on(async move {
-                    while let Some(_) = futures.next().await {}
+                    while (futures.next().await).is_some() {}
                     drop(guard);
                 });
             });
