@@ -24,10 +24,10 @@ pub struct S3Storage {
 impl TelemetryOutput for S3Storage {
     fn output<'a>(
         &'a self,
-        blocklog: &'a BlockLog
+        blocklog: BlockLog
     ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-        Box::pin(async {
-            self.store_snapshot(blocklog).await.unwrap();
+        Box::pin(async move {
+            self.store_snapshot(&blocklog).await.unwrap();
         })
     }
 }
@@ -51,13 +51,11 @@ impl S3Storage {
         })
     }
 
-    /// Uploads a snapshot to either the archive or error bucket based on
-    /// `is_error`.
     pub async fn store_snapshot(&self, data: &BlockLog) -> Result<String, Box<dyn Error>> {
         let now = Utc::now();
 
         let key = format!(
-            "{}/{}/{}/{}-{:x}.bin",
+            "{}-{}-{}-{}-{:x}.bin",
             now.year(),
             now.month(),
             now.day(),
@@ -78,7 +76,6 @@ impl S3Storage {
         Ok(format!("{}/{}", bucket, key))
     }
 
-    /// Retrieve a snapshot by full key (bucket inferred from `is_error`).
     pub async fn retrieve_snapshot(
         &self,
         key: &str,

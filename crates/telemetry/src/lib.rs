@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
+    pin::Pin,
     task::Poll
 };
 
@@ -9,13 +10,14 @@ use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey,
     pair_with_price::PairsWithPrice,
     primitive::{
-        ANGSTROM_ADDRESS, ANGSTROM_DEPLOYED_BLOCK, GAS_TOKEN_ADDRESS, POOL_MANAGER_ADDRESS, PoolId
+        ANGSTROM_ADDRESS, ANGSTROM_DEPLOYED_BLOCK, CHAIN_ID, GAS_TOKEN_ADDRESS,
+        POOL_MANAGER_ADDRESS, PoolId
     },
     uni_structure::BaselinePoolState
 };
 use blocklog::BlockLog;
 use chrono::Utc;
-use futures::FutureExt;
+use futures::{FutureExt, stream::FuturesUnordered};
 use order_pool::telemetry::OrderPoolSnapshot;
 use outputs::{TelemetryOutput, log::LogOutput};
 use reth_tasks::shutdown::GracefulShutdown;
@@ -37,26 +39,11 @@ pub struct NodeConstants {
     angstrom_address:      Address,
     pool_manager_address:  Address,
     angstrom_deploy_block: u64,
-    gas_token_address:     Address
+    gas_token_address:     Address,
+    chain_id:              u64
 }
 
 impl NodeConstants {
-    pub fn new(
-        node_address: Address,
-        angstrom_address: Address,
-        pool_manager_address: Address,
-        angstrom_deploy_block: u64,
-        gas_token_address: Address
-    ) -> Self {
-        Self {
-            node_address,
-            angstrom_address,
-            pool_manager_address,
-            angstrom_deploy_block,
-            gas_token_address
-        }
-    }
-
     pub fn node_address(&self) -> Address {
         self.node_address
     }
@@ -78,32 +65,40 @@ impl NodeConstants {
     }
 }
 
-pub struct Telemetry {
-    rx:          UnboundedReceiver<TelemetryMessage>,
-    node_consts: NodeConstants,
-    block_cache: HashMap<u64, BlockLog>,
-    outputs:     Vec<Box<dyn TelemetryOutput>>,
+pub struct Telemetry<'a> {
+    rx:                  UnboundedReceiver<TelemetryMessage>,
+    node_consts:         NodeConstants,
+    block_cache:         HashMap<u64, BlockLog>,
+    outputs:             &'a [Box<dyn TelemetryOutput + 'a>],
+    pending_submissions: FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'a>>>,
     // Allows us to keep shutdown from trigging for awhile to collect all data and send it off.
-    guard:       GracefulShutdown
+    guard:               GracefulShutdown
 }
 
-impl Telemetry {
+impl<'a> Telemetry<'a> {
     pub fn new(
         rx: UnboundedReceiver<TelemetryMessage>,
         node_address: Address,
-        guard: GracefulShutdown
+        guard: GracefulShutdown,
+        outputs: &'a [Box<dyn TelemetryOutput + 'a>]
     ) -> Self {
         let node_consts = NodeConstants {
             node_address,
             angstrom_address: *ANGSTROM_ADDRESS.get().unwrap(),
             pool_manager_address: *POOL_MANAGER_ADDRESS.get().unwrap(),
             angstrom_deploy_block: *ANGSTROM_DEPLOYED_BLOCK.get().unwrap(),
-            gas_token_address: *GAS_TOKEN_ADDRESS.get().unwrap()
+            gas_token_address: *GAS_TOKEN_ADDRESS.get().unwrap(),
+            chain_id: *CHAIN_ID.get().unwrap()
         };
-        // By default let's just turn on all our outputs, we only have one
-        let outputs: Vec<Box<dyn TelemetryOutput>> = vec![Box::new(LogOutput {})];
         let block_cache = HashMap::new();
-        Self { rx, node_consts, block_cache, outputs, guard }
+        Self {
+            rx,
+            node_consts,
+            block_cache,
+            outputs,
+            guard,
+            pending_submissions: FuturesUnordered::new()
+        }
     }
 
     fn get_block(&mut self, blocknum: u64) -> &mut BlockLog {
@@ -157,7 +152,7 @@ impl Telemetry {
 
             for out in self.outputs.iter() {
                 block.set_node_constants(self.node_consts.clone());
-                out.output(block)
+                self.pending_submissions.push(out.output(block.clone()));
             }
         } else {
             warn!(blocknum, "Telemetry error for unrecorded block");
@@ -165,7 +160,7 @@ impl Telemetry {
     }
 }
 
-impl Future for Telemetry {
+impl Future for Telemetry<'_> {
     type Output = ();
 
     fn poll(
@@ -240,7 +235,7 @@ impl Future for Telemetry {
 
                             for out in self.outputs.iter() {
                                 block.set_node_constants(self.node_consts.clone());
-                                out.output(&block)
+                                out.output(block).await;
                             }
                         }
                     }
@@ -263,7 +258,8 @@ pub fn init_telemetry(node_address: Address, shutdown_handle: GracefulShutdown) 
             .worker_threads(2)
             .build()
             .unwrap();
+        let handles = vec![Box::new(LogOutput {})] as Vec<Box<dyn TelemetryOutput>>;
 
-        rt.block_on(Telemetry::new(rx, node_address, shutdown_handle))
+        rt.block_on(Telemetry::new(rx, node_address, shutdown_handle, handles.as_slice()))
     });
 }
