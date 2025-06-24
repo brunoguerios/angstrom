@@ -11,13 +11,15 @@ exclude.workspace = true
 [dependencies]
 angstrom-types.workspace = true
 eyre.workspace = true
-hyper = "0.14"
+hyper = { version = "1.6.0", features = ["server"] }
+jsonrpsee-server = "0.25.1"
 metrics.workspace = true
-metrics-exporter-prometheus = "0.12.2"
+metrics-exporter-prometheus = "0.16.2"
 metrics-process = "1"
-metrics-util = "0.15.0"
+metrics-util = "0.20.0"
 prometheus = "0"
 tokio = { workspace = true, features = ["full", "tracing"] }
+tower = "0.5.2"
 tracing.workspace = true
 
 [target.'cfg(unix)'.dependencies]
