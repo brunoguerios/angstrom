@@ -1,5 +1,6 @@
 use std::error::Error;
 
+use angstrom_types::primitive::CHAIN_ID;
 use aws_config::Region;
 use aws_sdk_s3::{Client, primitives::ByteStream};
 use chrono::{Datelike, Utc};
@@ -56,8 +57,9 @@ impl S3Storage {
     pub async fn store_snapshot(&self, data: &BlockLog) -> eyre::Result<String> {
         let now = Utc::now();
 
+        let chain = CHAIN_ID.get().unwrap();
         let key = format!(
-            "{}-{}-{}-{}-{:x}.bin",
+            "{chain}/{}-{}-{}-{}-{:x}.bin",
             now.year(),
             now.month(),
             now.day(),
