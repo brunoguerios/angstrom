@@ -26,7 +26,7 @@ impl TelemetryOutput for S3Storage {
     fn output(
         &self,
         blocklog: BlockLog
-    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> {
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
         let this = self.clone();
         Box::pin(async move {
             this.store_snapshot(&blocklog).await.unwrap();

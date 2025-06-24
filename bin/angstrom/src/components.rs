@@ -309,7 +309,13 @@ where
     let network_stream = Box::pin(eth_handle.subscribe_network())
         as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
-    init_telemetry(signer.address());
+    let signer_addr = signer.address();
+    executor.spawn_critical_with_graceful_shutdown_signal(
+        "telemetry init",
+        |grace_shutdown| async move {
+            init_telemetry(signer_addr, grace_shutdown);
+        }
+    );
 
     let uniswap_pool_manager = configure_uniswap_manager(
         querying_provider.clone(),

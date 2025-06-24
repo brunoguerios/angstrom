@@ -70,8 +70,7 @@ pub struct Telemetry {
     node_consts:         NodeConstants,
     block_cache:         HashMap<u64, BlockLog>,
     outputs:             Vec<Box<dyn TelemetryOutput + Send + 'static>>,
-    pending_submissions:
-        FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>,
+    pending_submissions: FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>,
     // Allows us to keep shutdown from trigging for awhile to collect all data and send it off.
     guard:               GracefulShutdown
 }
@@ -231,6 +230,7 @@ impl Future for Telemetry {
                 }
             }
 
+            // move gaurd and ensure everything gets sent
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -243,6 +243,8 @@ impl Future for Telemetry {
                     drop(guard);
                 });
             });
+
+            return Poll::Ready(());
         }
 
         Poll::Pending
