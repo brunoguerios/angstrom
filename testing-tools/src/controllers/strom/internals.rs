@@ -36,7 +36,6 @@ use matching_engine::{MatchingManager, manager::MatcherHandle};
 use order_pool::{PoolConfig, order_storage::OrderStorage};
 use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TaskExecutor;
-use telemetry::init_telemetry;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;

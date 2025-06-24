@@ -19,13 +19,15 @@ use blocklog::BlockLog;
 use chrono::Utc;
 use futures::{FutureExt, StreamExt, stream::FuturesUnordered};
 use order_pool::telemetry::OrderPoolSnapshot;
-use outputs::{TelemetryOutput, log::LogOutput};
+use outputs::TelemetryOutput;
 use reth_tasks::shutdown::GracefulShutdown;
 use serde::{Deserialize, Serialize};
 use telemetry_recorder::{TELEMETRY_SENDER, TelemetryMessage};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::warn;
 use validation::telemetry::ValidationSnapshot;
+
+use crate::outputs::s3::S3Storage;
 
 pub mod blocklog;
 pub mod outputs;
@@ -236,7 +238,9 @@ impl Future for Telemetry {
 
                     for out in self.outputs.iter() {
                         block.set_node_constants(self.node_consts.clone());
-                        futures.push(out.output(block.clone()));
+                        if block.everything_to_replay() {
+                            futures.push(out.output(block.clone()));
+                        }
                     }
                 }
             }
@@ -262,9 +266,11 @@ impl Future for Telemetry {
     }
 }
 
-pub fn init_telemetry(node_address: Address, shutdown_handle: GracefulShutdown) {
+pub async fn init_telemetry(node_address: Address, shutdown_handle: GracefulShutdown) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let _ = TELEMETRY_SENDER.set(tx);
+    let handles =
+        vec![Box::new(S3Storage::new().await.unwrap()) as Box<dyn TelemetryOutput + Send>];
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -272,7 +278,6 @@ pub fn init_telemetry(node_address: Address, shutdown_handle: GracefulShutdown) 
             .worker_threads(2)
             .build()
             .unwrap();
-        let handles = vec![Box::new(LogOutput {}) as Box<dyn TelemetryOutput + Send>];
 
         rt.block_on(Telemetry::new(rx, node_address, shutdown_handle, handles))
     });

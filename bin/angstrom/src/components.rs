@@ -313,7 +313,7 @@ where
     executor.spawn_critical_with_graceful_shutdown_signal(
         "telemetry init",
         |grace_shutdown| async move {
-            init_telemetry(signer_addr, grace_shutdown);
+            init_telemetry(signer_addr, grace_shutdown).await;
         }
     );
 
