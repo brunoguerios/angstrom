@@ -69,6 +69,7 @@ use validation::{
     validator::ValidationClient
 };
 
+use super::fake_network::FakeNetwork;
 use crate::{
     agents::AgentConfig,
     contracts::anvil::WalletProviderRpc,
@@ -90,7 +91,8 @@ use crate::{
 /// in order to allow us to debug quickly.
 pub struct ReplayRunner {
     anvil:          AnvilInstance,
-    anvil_provider: AnvilProvider<WalletProvider>
+    anvil_provider: AnvilProvider<WalletProvider>,
+    fake_network:   FakeNetwork
 }
 
 impl ReplayRunner {
@@ -111,7 +113,7 @@ impl ReplayRunner {
             .chain_id(chain_id)
             .fork(fork_url)
             .arg("--ipc")
-            .arg(endpoint)
+            .arg(endpoint.clone())
             // We not needed for the given block.
             .arg("--no-mining")
             .spawn();
@@ -121,8 +123,6 @@ impl ReplayRunner {
         let sk = angstrom_signer.clone().into_signer();
 
         let wallet = EthereumWallet::new(sk.clone());
-
-        tracing::info!(?endpoint);
 
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
@@ -144,7 +144,7 @@ impl ReplayRunner {
         let gas_token = *GAS_TOKEN_ADDRESS.get().unwrap();
         let pool_manager = *POOL_MANAGER_ADDRESS.get().unwrap();
 
-        let strom_handles = initialize_strom_handles();
+        let mut strom_handles = initialize_strom_handles();
         let quoter_handle = QuoterHandle(strom_handles.quoter_tx.clone());
 
         // for rpc
@@ -155,9 +155,7 @@ impl ReplayRunner {
 
         let query_provider = Arc::new(anvil_provider.state_provider());
 
-        let tx_strom_handles = (&strom_handles).into();
-
-        let periphery_c = ControllerV1::new(*CONTROLLER_V1_ADDRESS.get().unwrap(), rpc);
+        let periphery_c = ControllerV1::new(*CONTROLLER_V1_ADDRESS.get().unwrap(), rpc.clone());
         let node_set = periphery_c
             .nodes()
             .call()
@@ -176,7 +174,8 @@ impl ReplayRunner {
         let order_api =
             OrderApi::new(pool.clone(), executor.clone(), validation_client.clone(), amm_quoter);
 
-        let block_number = BlockNumReader::best_block_number(&query_provider)?;
+        // We set -1 as the start of the replay will be triggering new block transition.
+        let block_number = BlockNumReader::best_block_number(&query_provider)? - 1;
 
         let global_block_sync = GlobalBlockSync::new(block_number);
 
@@ -198,21 +197,13 @@ impl ReplayRunner {
         )
         .await;
 
-        let angstrom_tokens = pools
-            .iter()
-            .flat_map(|pool| [pool.currency0, pool.currency1])
-            .fold(HashMap::<Address, usize>::new(), |mut acc, x| {
-                *acc.entry(x).or_default() += 1;
-                acc
-            });
-
         let uniswap_registry: UniswapPoolRegistry = pools.into();
-        let uni_ang_registry =
-            UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
         let sub = anvil_provider
             .state_provider()
             .subscribe_to_canonical_state();
+
+        let eth_snap = block_log.eth_snapshot.as_ref().unwrap();
 
         let eth_handle = EthDataCleanser::spawn(
             angstrom_address,
@@ -221,10 +212,10 @@ impl ReplayRunner {
             executor.clone(),
             strom_handles.eth_tx,
             strom_handles.eth_rx,
-            angstrom_tokens,
-            pool_config_store.clone(),
+            eth_snap.angstrom_tokens.clone(),
+            eth_snap.pool_store.clone(),
             global_block_sync.clone(),
-            node_set.clone(),
+            eth_snap.node_set.clone(),
             vec![]
         )
         .unwrap();
@@ -254,25 +245,26 @@ impl ReplayRunner {
             )
         );
 
-        let token_conversion = if let Some((prev_prices, base_wei)) = token_price_snapshot {
-            println!("Using snapshot");
-            TokenPriceGenerator::from_snapshot(
-                uniswap_pools.clone(),
-                prev_prices,
-                WETH_ADDRESS,
-                base_wei
-            )
-        } else {
-            TokenPriceGenerator::new(
-                Arc::new(anvil_provider.rpc_provider()),
-                block_number,
-                uniswap_pools.clone(),
-                WETH_ADDRESS,
-                Some(1)
-            )
-            .await
-            .expect("failed to start price generator")
-        };
+        let token_conversion =
+            if let Some((prev_prices, base_wei)) = block_log.gas_price_snapshot.as_ref() {
+                println!("Using snapshot");
+                TokenPriceGenerator::from_snapshot(
+                    uniswap_pools.clone(),
+                    prev_prices.clone(),
+                    gas_token,
+                    *base_wei
+                )
+            } else {
+                TokenPriceGenerator::new(
+                    Arc::new(anvil_provider.rpc_provider()),
+                    block_number,
+                    uniswap_pools.clone(),
+                    gas_token,
+                    Some(1)
+                )
+                .await
+                .expect("failed to start price generator")
+            };
 
         let token_price_update_stream = anvil_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
@@ -294,9 +286,9 @@ impl ReplayRunner {
             angstrom_address,
             node_addr,
             token_price_update_stream,
-            uniswap_pools,
+            uniswap_pools.clone(),
             token_conversion,
-            pool_config_store,
+            pool_config_store.clone(),
             strom_handles.validator_rx,
             |validator| validator.set_user_account(user_account)
         );
@@ -305,12 +297,22 @@ impl ReplayRunner {
             ids: uniswap_registry.pools().keys().cloned().collect::<Vec<_>>(),
             ..Default::default()
         };
-        let order_storage = Arc::new(OrderStorage::new(&pool_config));
 
-        let pool_handle = PoolManagerBuilder::new(
+        let pool_snapshot = block_log.order_pool_snapshot.as_ref().unwrap().clone();
+        let order_storage = Arc::new(pool_snapshot.order_storage.clone());
+
+        let fake_network = FakeNetwork::new(
+            Some(strom_handles.pool_tx),
+            Some(strom_handles.consensus_tx_op),
+            strom_handles.eth_handle_rx.take().unwrap()
+        );
+
+        let network_handle = fake_network.handle.clone();
+
+        let _pool_handle = PoolManagerBuilder::new(
             validation_client.clone(),
             Some(order_storage.clone()),
-            strom_network_handle.clone(),
+            network_handle.clone(),
             eth_handle.subscribe_network(),
             strom_handles.pool_rx,
             global_block_sync.clone()
@@ -321,7 +323,11 @@ impl ReplayRunner {
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
             strom_handles.pool_manager_tx,
-            block_number
+            block_number,
+            |order_indexer| {
+                // Order storage is set above.
+                order_indexer.set_tracker(pool_snapshot.order_tracker);
+            }
         );
 
         let server = ServerBuilder::default()
@@ -344,14 +350,15 @@ impl ReplayRunner {
         let pool_registry =
             UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
-        tracing::debug!("created testnet hub and uniswap registry");
-
         let anvil_sub =
             AnvilSubmissionProvider { provider: anvil_provider.rpc_provider(), angstrom_address };
 
         let mev_boost_provider = SubmissionHandler {
             node_provider: Arc::new(anvil_provider.rpc_provider()),
-            submitters:    vec![Box::new(ChainSubmitterHolder::new(anvil_sub, angstrom_signer))]
+            submitters:    vec![Box::new(ChainSubmitterHolder::new(
+                anvil_sub,
+                angstrom_signer.clone()
+            ))]
         };
 
         tracing::debug!("created mev boost provider");
@@ -380,6 +387,9 @@ impl ReplayRunner {
             strom_handles.consensus_rx_rpc,
             None
         );
+        executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
+            consensus.run_till_shutdown(grace)
+        });
 
         // spin up amm quoter
         let amm = QuoterManager::new(
@@ -399,7 +409,7 @@ impl ReplayRunner {
         tracing::info!("created consensus manager");
         global_block_sync.finalize_modules();
 
-        Ok(Self { anvil, anvil_provider })
+        Ok(Self { anvil, anvil_provider, fake_network })
     }
 }
 

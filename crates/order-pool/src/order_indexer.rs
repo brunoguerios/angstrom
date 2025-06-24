@@ -66,6 +66,10 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         }
     }
 
+    pub fn set_tracker(&mut self, tracker: OrderTracker) {
+        self.order_tracker = tracker;
+    }
+
     pub fn pending_orders_for_address(
         &self,
         address: Address

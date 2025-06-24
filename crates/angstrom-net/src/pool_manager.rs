@@ -181,7 +181,8 @@ where
         tx: UnboundedSender<OrderCommand>,
         rx: UnboundedReceiver<OrderCommand>,
         pool_manager_tx: tokio::sync::broadcast::Sender<PoolManagerUpdate>,
-        block_number: u64
+        block_number: u64,
+        replay: impl FnOnce(&mut OrderIndexer<V>) + Send + 'static
     ) -> PoolHandle {
         let rx = UnboundedReceiverStream::new(rx);
         let order_storage = self
@@ -189,46 +190,14 @@ where
             .unwrap_or_else(|| Arc::new(OrderStorage::new(&self.config)));
         let handle =
             PoolHandle { manager_tx: tx.clone(), pool_manager_tx: pool_manager_tx.clone() };
-        let inner = OrderIndexer::new(
+        let mut inner = OrderIndexer::new(
             self.validator.clone(),
             order_storage.clone(),
             block_number,
             pool_manager_tx.clone()
         );
+        replay(&mut inner);
         self.global_sync.register(MODULE_NAME);
-
-        task_spawner.spawn_critical(
-            "transaction manager",
-            Box::pin(PoolManager {
-                eth_network_events:   self.eth_network_events,
-                strom_network_events: self.strom_network_events,
-                order_events:         self.order_events,
-                peer_to_info:         HashMap::default(),
-                order_indexer:        inner,
-                network:              self.network_handle,
-                command_rx:           rx,
-                global_sync:          self.global_sync
-            })
-        );
-
-        handle
-    }
-
-    pub fn build<TP: TaskSpawner>(self, task_spawner: TP) -> PoolHandle {
-        let (tx, rx) = unbounded_channel();
-        let rx = UnboundedReceiverStream::new(rx);
-        let order_storage = self
-            .order_storage
-            .unwrap_or_else(|| Arc::new(OrderStorage::new(&self.config)));
-        let (pool_manager_tx, _) = broadcast::channel(100);
-        let handle =
-            PoolHandle { manager_tx: tx.clone(), pool_manager_tx: pool_manager_tx.clone() };
-        let inner = OrderIndexer::new(
-            self.validator.clone(),
-            order_storage.clone(),
-            0,
-            pool_manager_tx.clone()
-        );
 
         task_spawner.spawn_critical(
             "transaction manager",

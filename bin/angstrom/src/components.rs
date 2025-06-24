@@ -391,7 +391,8 @@ where
         handles.orderpool_tx,
         handles.orderpool_rx,
         handles.pool_manager_tx,
-        block_id
+        block_id,
+        |_| {}
     );
     let validators = node_set
         .into_iter()

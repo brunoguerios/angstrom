@@ -278,7 +278,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             strom_handles.orderpool_tx,
             strom_handles.orderpool_rx,
             strom_handles.pool_manager_tx,
-            block_number
+            block_number,
+            |_| {}
         );
 
         let rpc_port = node_config.strom_rpc_port();

@@ -288,7 +288,8 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         handles.orderpool_tx,
         handles.orderpool_rx,
         handles.pool_manager_tx,
-        block_id
+        block_id,
+        |_| {}
     );
     let validators = node_set
         .into_iter()
