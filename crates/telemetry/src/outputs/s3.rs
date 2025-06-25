@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use angstrom_types::primitive::CHAIN_ID;
-use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{Client, primitives::ByteStream};
+use aws_config::{BehaviorVersion, Region, from_env, profile::profile_file::ProfileFiles};
+use aws_sdk_s3::{Client, config::Credentials, primitives::ByteStream};
 use chrono::{Datelike, Utc};
 
 use crate::{blocklog::BlockLog, outputs::TelemetryOutput};
@@ -41,13 +41,7 @@ impl TelemetryOutput for S3Storage {
 
 impl S3Storage {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
-        // Explicitly set the region instead of relying on environment detection
-        let config = aws_config::from_env()
-            .region(Region::new(REGION.to_string()))
-            .behavior_version(BehaviorVersion::latest())
-            .load()
-            .await;
-
+        let config = from_env().load().await;
         let client = Client::new(&config);
 
         Ok(Self {
