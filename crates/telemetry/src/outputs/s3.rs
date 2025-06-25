@@ -1,11 +1,8 @@
 use std::error::Error;
 
 use angstrom_types::primitive::CHAIN_ID;
-use aws_config::{
-    BehaviorVersion, Region, meta::region::RegionProviderChain,
-    profile::ProfileFileCredentialsProvider
-};
-use aws_sdk_s3::{Client, config::SharedCredentialsProvider, primitives::ByteStream};
+use aws_config::{BehaviorVersion, Region};
+use aws_sdk_s3::{Client, primitives::ByteStream};
 use chrono::{Datelike, Utc};
 
 use crate::{blocklog::BlockLog, outputs::TelemetryOutput};
@@ -44,17 +41,12 @@ impl TelemetryOutput for S3Storage {
 
 impl S3Storage {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
-        // Use the "default" profile from ~/.aws/credentials
-        let credentials_provider = SharedCredentialsProvider::new(
-            ProfileFileCredentialsProvider::builder()
-                .profile_name("default")
-                .build()
-        );
-
-        // Use your hardcoded region or fallback chain
-        let region_provider = RegionProviderChain::first_try(Region::new(REGION.to_string()));
-
-        let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        // Explicitly set the region instead of relying on environment detection
+        let config = aws_config::from_env()
+            .region(Region::new(REGION.to_string()))
+            .behavior_version(BehaviorVersion::latest())
+            .load()
+            .await;
 
         let client = Client::new(&config);
 
