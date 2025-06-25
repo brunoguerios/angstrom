@@ -235,7 +235,7 @@ impl TokenPriceGenerator {
             pool_update.replace_price_if_empty(|| {
                 self.uniswap_pools
                     .get(&pool_key)
-                    .map(|pool| Ray::from(SqrtPriceX96::from(pool.read().unwrap().sqrt_price)))
+                    .map(|pool| Ray::from(SqrtPriceX96::from(pool.read().unwrap().sqrt_price_x96)))
                     .unwrap_or_default()
             });
 
@@ -288,7 +288,7 @@ impl TokenPriceGenerator {
             }
             // new
             let pool_r = pool.read().unwrap();
-            let price: Ray = SqrtPriceX96::from(pool_r.sqrt_price).into();
+            let price: Ray = SqrtPriceX96::from(pool_r.sqrt_price_x96).into();
 
             let mut queue = VecDeque::new();
             queue.push_back(PairsWithPrice {

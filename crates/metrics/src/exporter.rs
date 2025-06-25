@@ -7,14 +7,13 @@ use std::{
 
 use eyre::WrapErr;
 use hyper::{
-    Body, Request, Response, Server,
-    service::{make_service_fn, service_fn}
+    Response,
+    header::{CONTENT_TYPE, HeaderValue}
 };
 #[allow(unused_imports)]
 use metrics::Unit;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use metrics_util::layers::{PrefixLayer, Stack};
-use prometheus::{Encoder, TextEncoder};
 
 pub(crate) trait Hook: Fn() + Send + Sync {}
 impl<T: Fn() + Send + Sync> Hook for T {}
@@ -39,46 +38,50 @@ pub(crate) async fn initialize_with_hooks<F: Hook + 'static>(
         .await
         .wrap_err("Could not start Prometheus endpoint")?;
 
-    // Build metrics stack
     Stack::new(recorder)
-        .push(PrefixLayer::new("brontes"))
+        .push(PrefixLayer::new("angstrom"))
         .install()
         .wrap_err("Couldn't set metrics recorder.")?;
+    // Build metrics stack
 
     Ok(())
 }
 
-/// Starts an endpoint at the given address to serve Prometheus metrics.
 async fn start_endpoint<F: Hook + 'static>(
     listen_addr: SocketAddr,
     handle: PrometheusHandle,
     hook: Arc<F>
 ) -> eyre::Result<()> {
-    let make_svc = make_service_fn(move |_| {
-        let handle = handle.clone();
-        let hook = Arc::clone(&hook);
-        async move {
-            Ok::<_, Infallible>(service_fn(move |_: Request<Body>| {
+    let listener = tokio::net::TcpListener::bind(listen_addr)
+        .await
+        .wrap_err("Could not bind to address")?;
+
+    tokio::spawn(async move {
+        loop {
+            let Ok((io, _)) = listener.accept().await else {
+                tracing::error!("metrics listener failed to accept");
+                continue;
+            };
+
+            let hook = hook.clone();
+            let h_clone = handle.clone();
+            let service = tower::service_fn(move |_| {
                 (hook)();
-                let mut metrics_render = handle.render();
+                let metrics = h_clone.render();
+                let mut response = Response::new(metrics);
+                response
+                    .headers_mut()
+                    .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+                async move { Ok::<_, Infallible>(response) }
+            });
 
-                let mut buffer = Vec::new();
-                let encoder = TextEncoder::new();
-                // Gather the metrics.
-                let metric_families = prometheus::gather();
-                // Encode them to send.
-                encoder.encode(&metric_families, &mut buffer).unwrap();
-                metrics_render += &String::from_utf8(buffer.clone()).unwrap();
-
-                async move { Ok::<_, Infallible>(Response::new(Body::from(metrics_render))) }
-            }))
+            tokio::task::spawn(async move {
+                let _ = jsonrpsee_server::serve(io, service)
+                    .await
+                    .inspect_err(|error| tracing::debug!(%error, "failed to serve request"));
+            });
         }
     });
-    let server = Server::try_bind(&listen_addr)
-        .wrap_err("Could not bind to address")?
-        .serve(make_svc);
-
-    tokio::spawn(async move { server.await.expect("Metrics endpoint crashed") });
 
     Ok(())
 }
