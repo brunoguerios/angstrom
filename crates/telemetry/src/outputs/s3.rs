@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use angstrom_types::primitive::CHAIN_ID;
-use aws_config::Region;
+use aws_config::{Region, profile::ProfileFileCredentialsProvider};
 use aws_sdk_s3::{Client, primitives::ByteStream};
 use chrono::{Datelike, Utc};
 
@@ -41,8 +41,13 @@ impl TelemetryOutput for S3Storage {
 
 impl S3Storage {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
+        let credentials_provider = ProfileFileCredentialsProvider::builder()
+            .profile_name("default")
+            .build();
+
         let config = aws_config::from_env()
             .region(Region::new(REGION.to_string()))
+            .credentials_provider(credentials_provider)
             .load()
             .await;
         let client = Client::new(&config);
