@@ -222,6 +222,8 @@ impl Future for Telemetry {
             }
         }
 
+        while let Poll::Ready(Some(_)) = self.pending_submissions.poll_next_unpin(cx) {}
+
         // We want to be careful here as we want to ensure that all readings have been
         // sent before this
         if let Poll::Ready(guard) = self.guard.poll_unpin(cx) {
