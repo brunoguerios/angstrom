@@ -10,14 +10,13 @@ use angstrom_types::{
     primitive::PoolId, uni_structure::BaselinePoolState
 };
 use base64::Engine;
-use bincode::config::Config;
 use chrono::{DateTime, Utc};
 use flate2::Compression;
 use order_pool::telemetry::OrderPoolSnapshot;
 use serde::{Deserialize, Serialize};
 use validation::telemetry::ValidationSnapshot;
 
-use crate::{NodeConstants, TelemetryMessage, from_value};
+use crate::{NodeConstants, TelemetryMessage};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlockLog {
@@ -138,7 +137,7 @@ impl BlockLog {
     }
 
     pub fn to_deflate_base64_str(&self) -> String {
-        let bytes = bincode::serialize(&self).unwrap();
+        let bytes = serde_cbor::to_vec(&self).unwrap();
         let mut codec = flate2::write::DeflateEncoder::new(Vec::new(), Compression::default());
         let _ = codec.write_all(&bytes);
         let compressed = codec.finish().unwrap();
@@ -146,23 +145,28 @@ impl BlockLog {
     }
 
     pub fn from_deflate_base64(data: &[u8]) -> Self {
-        let bytes = base64::prelude::BASE64_STANDARD.decode(data).unwrap();
+        let bytes = match base64::prelude::BASE64_STANDARD.decode(data) {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::error!("Failed to decode base64: {}", e);
+                return Self::new(0);
+            }
+        };
+
         let mut codec = flate2::read::DeflateDecoder::new(bytes.as_slice());
         let mut s = vec![];
-        let _ = codec.read_to_end(&mut s);
-        let block_log: BlockLog = bincode::deserialize(&s).unwrap();
+        if let Err(e) = codec.read_to_end(&mut s) {
+            tracing::error!("Failed to decompress data: {}", e);
+            return Self::new(0);
+        }
 
-        block_log
-    }
-
-    pub fn from_deflate_base64_str(string: &str) -> Self {
-        let bytes = base64::prelude::BASE64_STANDARD.decode(string).unwrap();
-        let mut codec = flate2::read::DeflateDecoder::new(bytes.as_slice());
-        let mut s = vec![];
-        let _ = codec.read_to_end(&mut s);
-        let block_log: BlockLog = bincode::deserialize(&s).unwrap();
-
-        block_log
+        match serde_cbor::from_slice(&s) {
+            Ok(block_log) => block_log,
+            Err(e) => {
+                tracing::error!("Failed to deserialize BlockLog: {}", e);
+                Self::new(0)
+            }
+        }
     }
 }
 
@@ -175,7 +179,7 @@ mod tests {
         // Very basic compress/decompress test
         let log = BlockLog::new(100);
         let compressed = log.to_deflate_base64_str();
-        let decompressed = BlockLog::from_deflate_base64_str(&compressed);
+        let decompressed = BlockLog::from_deflate_base64(compressed.as_bytes());
         assert_eq!(log.blocknum, decompressed.blocknum, "Blocknum does not match");
     }
 }
