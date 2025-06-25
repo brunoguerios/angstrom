@@ -310,12 +310,9 @@ where
         as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
     let signer_addr = signer.address();
-    executor.spawn_critical_with_graceful_shutdown_signal(
-        "telemetry init",
-        |grace_shutdown| async move {
-            init_telemetry(signer_addr, grace_shutdown).await;
-        }
-    );
+    executor.spawn_critical_with_graceful_shutdown_signal("telemetry init", |grace_shutdown| {
+        init_telemetry(signer_addr, grace_shutdown)
+    });
 
     let uniswap_pool_manager = configure_uniswap_manager(
         querying_provider.clone(),

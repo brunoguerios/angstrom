@@ -128,9 +128,10 @@ where
 
         self.consensus_round_state
             .reset_round(self.current_height, round_leader);
-        // We just reset to BidAggregation so let's make sure to send our listener
+
+        // We just reset to BidAggregation so let's make sure to send our listener.
         if let Some(su) = self.state_updates.as_ref() {
-            let _res = su.send(ConsensusRoundName::BidAggregation);
+            let _ = su.send(ConsensusRoundName::BidAggregation);
         }
         self.broadcasted_messages.clear();
 
@@ -200,12 +201,12 @@ where
     fn on_round_event(&mut self, event: ConsensusMessage) {
         match event {
             ConsensusMessage::StateChange(state) => {
-                // If we have telemetry, record the state change
+                // If we have telemetry, record the state change.
                 telemetry_event!(self.current_height, state);
 
-                // If we have a state update listener, report the new state
+                // If we have a state update listener, report the new state.
                 if let Some(su) = self.state_updates.as_ref() {
-                    let _res = su.send(state);
+                    let _ = su.send(state);
                 }
             }
             ConsensusMessage::PropagateProposal(p) => {

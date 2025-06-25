@@ -1041,11 +1041,13 @@ pub struct AngstromPoolConfigStore {
     entries: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>
 }
 
-impl AngstromPoolConfigStore {
-    pub fn from_entries(entries: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>) -> Self {
-        Self { entries }
+impl From<DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>> for AngstromPoolConfigStore {
+    fn from(value: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>) -> Self {
+        Self { entries: value }
     }
+}
 
+impl AngstromPoolConfigStore {
     pub async fn load_from_chain<N, P>(
         angstrom_contract: Address,
         block_id: BlockId,

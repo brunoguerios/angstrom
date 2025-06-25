@@ -97,7 +97,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             .get_block_number()
             .await
             .unwrap();
-        println!("Strom internals start block: {start_block}");
+        tracing::info!("Strom internals start block: {start_block}");
         let pool = strom_handles.get_pool_handle();
         let tx_strom_handles = (&strom_handles).into();
 

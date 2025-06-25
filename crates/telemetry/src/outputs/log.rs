@@ -5,7 +5,7 @@ use tracing::Level;
 use super::TelemetryOutput;
 use crate::blocklog::BlockLog;
 
-pub struct LogOutput {}
+pub struct LogOutput;
 
 impl TelemetryOutput for LogOutput {
     fn output<'a>(

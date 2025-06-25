@@ -5,6 +5,7 @@ use testing_tools::replay::runner::ReplayRunner;
 
 fn main() -> eyre::Result<()> {
     init_tracing(3);
+
     reth::CliRunner::try_default_runtime()
         .unwrap()
         .run_command_until_exit(async move |ctx| {
@@ -19,11 +20,8 @@ fn main() -> eyre::Result<()> {
                 rpc_port,
                 ctx.task_executor.clone()
             )
-            .await
-            .unwrap();
+            .await?;
 
-            runner.run().await.unwrap();
-
-            Ok(())
+            runner.run().await
         })
 }

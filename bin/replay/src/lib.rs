@@ -103,8 +103,6 @@ impl TryInto<InitialStateConfig> for AllPoolKeyInners {
 
 #[derive(Debug, Clone, Deserialize)]
 struct PoolKeyInner {
-    // currency0:    String,
-    // currency1:    String,
     fee:          u64,
     tick_spacing: i32,
     liquidity:    String,

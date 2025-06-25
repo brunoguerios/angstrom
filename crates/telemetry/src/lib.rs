@@ -92,11 +92,10 @@ impl Telemetry {
             gas_token_address: *GAS_TOKEN_ADDRESS.get().unwrap(),
             chain_id: *CHAIN_ID.get().unwrap()
         };
-        let block_cache = HashMap::new();
         Self {
             rx,
             node_consts,
-            block_cache,
+            block_cache: HashMap::new(),
             outputs,
             guard,
             pending_submissions: FuturesUnordered::new()
@@ -168,7 +167,7 @@ impl Telemetry {
                 }
             }
         } else {
-            warn!(blocknum, "Telemetry error for unrecorded block");
+            warn!(blocknum, "got a error for a block that doesn't exist");
         }
     }
 }
