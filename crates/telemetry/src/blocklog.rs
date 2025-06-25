@@ -10,13 +10,14 @@ use angstrom_types::{
     primitive::PoolId, uni_structure::BaselinePoolState
 };
 use base64::Engine;
+use bincode::config::Config;
 use chrono::{DateTime, Utc};
 use flate2::Compression;
 use order_pool::telemetry::OrderPoolSnapshot;
 use serde::{Deserialize, Serialize};
 use validation::telemetry::ValidationSnapshot;
 
-use crate::{NodeConstants, TelemetryMessage};
+use crate::{NodeConstants, TelemetryMessage, from_value};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlockLog {
@@ -137,9 +138,9 @@ impl BlockLog {
     }
 
     pub fn to_deflate_base64_str(&self) -> String {
-        let json = serde_json::to_string(self).unwrap();
+        let bytes = bincode::serde::encode_to_vec(&self, bincode::config::standard()).unwrap();
         let mut codec = flate2::write::DeflateEncoder::new(Vec::new(), Compression::default());
-        let _ = codec.write_all(json.as_bytes());
+        let _ = codec.write_all(&bytes);
         let compressed = codec.finish().unwrap();
         base64::prelude::BASE64_STANDARD.encode(&compressed)
     }
@@ -147,19 +148,27 @@ impl BlockLog {
     pub fn from_deflate_base64(data: &[u8]) -> Self {
         let bytes = base64::prelude::BASE64_STANDARD.decode(data).unwrap();
         let mut codec = flate2::read::DeflateDecoder::new(bytes.as_slice());
-        let mut s = String::new();
-        let _ = codec.read_to_string(&mut s);
-        let blocklog: BlockLog = serde_json::from_str(&s).unwrap();
-        blocklog
+        let mut s = vec![];
+        let _ = codec.read_to_end(&mut s);
+        let block_log: BlockLog =
+            bincode::serde::decode_from_slice(&s, bincode::config::standard())
+                .unwrap()
+                .0;
+
+        block_log
     }
 
     pub fn from_deflate_base64_str(string: &str) -> Self {
         let bytes = base64::prelude::BASE64_STANDARD.decode(string).unwrap();
         let mut codec = flate2::read::DeflateDecoder::new(bytes.as_slice());
-        let mut s = String::new();
-        let _ = codec.read_to_string(&mut s);
-        let blocklog: BlockLog = serde_json::from_str(&s).unwrap();
-        blocklog
+        let mut s = vec![];
+        let _ = codec.read_to_end(&mut s);
+        let block_log: BlockLog =
+            bincode::serde::decode_from_slice(&s, bincode::config::standard())
+                .unwrap()
+                .0;
+
+        block_log
     }
 }
 
