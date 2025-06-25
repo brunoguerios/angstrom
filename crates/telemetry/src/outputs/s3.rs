@@ -2,7 +2,8 @@ use std::error::Error;
 
 use angstrom_types::primitive::CHAIN_ID;
 use aws_config::{
-    Region, meta::region::RegionProviderChain, profile::ProfileFileCredentialsProvider
+    BehaviorVersion, Region, meta::region::RegionProviderChain,
+    profile::ProfileFileCredentialsProvider
 };
 use aws_sdk_s3::{Client, config::SharedCredentialsProvider, primitives::ByteStream};
 use chrono::{Datelike, Utc};
@@ -53,11 +54,7 @@ impl S3Storage {
         // Use your hardcoded region or fallback chain
         let region_provider = RegionProviderChain::first_try(Region::new(REGION.to_string()));
 
-        let config = aws_config::from_env()
-            .region(region_provider)
-            .credentials_provider(credentials_provider)
-            .load()
-            .await;
+        let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
 
         let client = Client::new(&config);
 
