@@ -148,7 +148,6 @@ impl TokenPriceGenerator {
             })
             .await;
 
-        println!("{:#?}", pools);
         Ok(Self {
             prev_prices: pools,
             base_gas_token,
