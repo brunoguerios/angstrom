@@ -1105,6 +1105,7 @@ dependencies = [
  "reth-provider",
  "reth-tasks",
  "serde",
+ "serde-value",
  "serde_json",
  "telemetry-recorder",
  "testing-tools",
@@ -6430,7 +6431,7 @@ dependencies = [
  "hashbrown 0.15.4",
  "indexmap 2.9.0",
  "metrics 0.24.2",
- "ordered-float",
+ "ordered-float 4.6.0",
  "quanta",
  "radix_trie",
  "rand 0.9.1",
@@ -6981,6 +6982,7 @@ dependencies = [
  "reth-transaction-pool",
  "secp256k1",
  "serde",
+ "serde-value",
  "serde_json",
  "serial_test",
  "telemetry-recorder",
@@ -6992,6 +6994,15 @@ dependencies = [
  "tracing",
  "tracing-subscriber 0.3.19",
  "validation",
+]
+
+[[package]]
+name = "ordered-float"
+version = "2.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -11559,6 +11570,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float 2.10.1",
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.219"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12142,6 +12163,7 @@ dependencies = [
  "reth-provider",
  "reth-tasks",
  "serde",
+ "serde-value",
  "serde_json",
  "telemetry-recorder",
  "tokio",
@@ -12157,7 +12179,7 @@ dependencies = [
  "angstrom-types",
  "chrono",
  "serde",
- "serde_json",
+ "serde-value",
  "tokio",
  "tracing",
 ]
@@ -13137,6 +13159,7 @@ dependencies = [
  "revm-state",
  "secp256k1",
  "serde",
+ "serde-value",
  "serde_json",
  "serial_test",
  "telemetry-recorder",

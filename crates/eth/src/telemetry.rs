@@ -51,7 +51,7 @@ impl OrderTelemetryExt for EthUpdaterSnapshot {
 
         telemetry_recorder::TelemetryMessage::EthSnapshot {
             blocknum:     block,
-            eth_snapshot: serde_json::to_value(&self).unwrap()
+            eth_snapshot: serde_value::to_value(self).unwrap()
         }
     }
 }

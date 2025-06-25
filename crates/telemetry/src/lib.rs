@@ -184,20 +184,17 @@ impl Future for Telemetry {
                 // As long as we're getting snapshots, process them
                 Some(req) => match req {
                     TelemetryMessage::EthSnapshot { blocknum, eth_snapshot } => {
-                        let decoded: EthUpdaterSnapshot =
-                            serde_json::from_value(eth_snapshot).unwrap();
+                        let decoded: EthUpdaterSnapshot = from_value(eth_snapshot);
 
                         self.get_block(blocknum).set_eth(decoded);
                     }
                     TelemetryMessage::OrderPoolSnapshot { blocknum, orderpool_snapshot } => {
-                        let decoded: OrderPoolSnapshot =
-                            serde_json::from_value(orderpool_snapshot).unwrap();
+                        let decoded: OrderPoolSnapshot = from_value(orderpool_snapshot);
 
                         self.get_block(blocknum).set_orderpool(decoded);
                     }
                     TelemetryMessage::ValidationSnapshot { blocknum, validation_snapshot } => {
-                        let decoded: ValidationSnapshot =
-                            serde_json::from_value(validation_snapshot).unwrap();
+                        let decoded: ValidationSnapshot = from_value(validation_snapshot);
 
                         self.get_block(blocknum).set_validation(decoded);
                     }
@@ -280,4 +277,11 @@ pub async fn init_telemetry(node_address: Address, shutdown_handle: GracefulShut
 
         rt.block_on(Telemetry::new(rx, node_address, shutdown_handle, handles))
     });
+}
+
+use serde_value::{Value, ValueDeserializer};
+
+fn from_value<T: for<'de> Deserialize<'de>>(value: Value) -> T {
+    let deserializer = ValueDeserializer::<serde_value::DeserializerError>::new(value);
+    T::deserialize(deserializer).unwrap()
 }

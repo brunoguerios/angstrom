@@ -37,7 +37,7 @@ impl OrderTelemetryExt for OrderPoolSnapshot {
     fn into_message(self) -> TelemetryMessage {
         TelemetryMessage::OrderPoolSnapshot {
             blocknum:           self.baseline_for_block,
-            orderpool_snapshot: serde_json::to_value(&self).unwrap()
+            orderpool_snapshot: serde_value::to_value(self).unwrap()
         }
     }
 }

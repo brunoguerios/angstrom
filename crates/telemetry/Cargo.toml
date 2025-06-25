@@ -24,6 +24,7 @@ order-pool.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true
 serde.workspace = true
+serde-value.workspace = true
 serde_json.workspace = true
 telemetry-recorder.workspace = true
 tokio.workspace = true
