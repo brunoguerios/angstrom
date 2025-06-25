@@ -1,14 +1,14 @@
 use std::error::Error;
 
 use angstrom_types::primitive::CHAIN_ID;
-use aws_config::{BehaviorVersion, Region, from_env, profile::profile_file::ProfileFiles};
-use aws_sdk_s3::{Client, config::Credentials, primitives::ByteStream};
+use aws_config::{Region, from_env};
+use aws_sdk_s3::{Client, primitives::ByteStream};
 use chrono::{Datelike, Utc};
 
 use crate::{blocklog::BlockLog, outputs::TelemetryOutput};
 
-pub const ERROR_BUCKET: &str = "NodeErrors";
-pub const ARCHIVE_BUCKET: &str = "ArchivedBlocks";
+pub const ERROR_BUCKET: &str = "node-errors";
+pub const ARCHIVE_BUCKET: &str = "archived-blocks";
 pub const REGION: &str = "ap-northeast-1";
 
 /// S3 Storage functionality goes as the following.
