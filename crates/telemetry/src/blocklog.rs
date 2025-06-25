@@ -138,7 +138,7 @@ impl BlockLog {
     }
 
     pub fn to_deflate_base64_str(&self) -> String {
-        let bytes = bincode::serde::encode_to_vec(&self, bincode::config::standard()).unwrap();
+        let bytes = bincode::serialize(&self).unwrap();
         let mut codec = flate2::write::DeflateEncoder::new(Vec::new(), Compression::default());
         let _ = codec.write_all(&bytes);
         let compressed = codec.finish().unwrap();
@@ -150,10 +150,7 @@ impl BlockLog {
         let mut codec = flate2::read::DeflateDecoder::new(bytes.as_slice());
         let mut s = vec![];
         let _ = codec.read_to_end(&mut s);
-        let block_log: BlockLog =
-            bincode::serde::decode_from_slice(&s, bincode::config::standard())
-                .unwrap()
-                .0;
+        let block_log: BlockLog = bincode::deserialize(&s).unwrap();
 
         block_log
     }
@@ -163,10 +160,7 @@ impl BlockLog {
         let mut codec = flate2::read::DeflateDecoder::new(bytes.as_slice());
         let mut s = vec![];
         let _ = codec.read_to_end(&mut s);
-        let block_log: BlockLog =
-            bincode::serde::decode_from_slice(&s, bincode::config::standard())
-                .unwrap()
-                .0;
+        let block_log: BlockLog = bincode::deserialize(&s).unwrap();
 
         block_log
     }
