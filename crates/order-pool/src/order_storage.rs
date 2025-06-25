@@ -57,12 +57,13 @@ impl OrderStorage {
         )));
 
         let pending_finalization_orders = Arc::new(Mutex::new(FinalizationPool::new()));
+
         Self {
             filled_orders: Arc::new(Mutex::new(HashMap::default())),
             limit_orders,
             searcher_orders,
             pending_finalization_orders,
-            metrics: OrderStorageMetricsWrapper::default()
+            metrics: OrderStorageMetricsWrapper::new()
         }
     }
 
@@ -78,7 +79,7 @@ impl OrderStorage {
             pending_finalization_orders,
             searcher_orders,
             filled_orders,
-            metrics: Default::default()
+            metrics: OrderStorageMetricsWrapper::empty()
         }
     }
 

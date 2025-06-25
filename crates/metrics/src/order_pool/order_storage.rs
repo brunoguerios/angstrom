@@ -132,6 +132,10 @@ impl Default for OrderStorageMetricsWrapper {
 }
 
 impl OrderStorageMetricsWrapper {
+    pub fn empty() -> Self {
+        Self(None)
+    }
+
     pub fn new() -> Self {
         Self(
             METRICS_ENABLED
