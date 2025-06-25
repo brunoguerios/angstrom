@@ -41,7 +41,7 @@ impl TelemetryOutput for S3Storage {
 
 impl S3Storage {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
-        let config = from_env().load().await;
+        let config = from_env().region(Region::new(REGION)).load().await;
         let client = Client::new(&config);
 
         Ok(Self {
