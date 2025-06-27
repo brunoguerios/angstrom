@@ -258,7 +258,7 @@ where
         &'a self,
         chain: &'a impl ChainExt
     ) -> impl Iterator<Item = B256> + 'a {
-        let tip_txs = chain.successful_tip_transactions().cloned();
+        let tip_txs = chain.tip_transactions().cloned();
 
         tip_txs
             .filter(|tx| tx.to() == Some(self.angstrom_address))
