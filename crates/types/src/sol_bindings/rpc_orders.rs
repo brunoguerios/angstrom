@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 
 use super::RawPoolOrder;
 use crate::{
-    matching::uniswap::Direction,
     primitive::{ANGSTROM_DOMAIN, AngstromMetaSigner, AngstromSigner},
     uni_structure::BaselinePoolState
 };
@@ -115,19 +114,14 @@ impl TopOfBlockOrder {
     /// returns the amount in t0 that this order is bidding in the auction.
     pub fn get_auction_bid(&self, snapshot: &BaselinePoolState) -> eyre::Result<u128> {
         if self.is_bid() {
-            let res = snapshot.swap_current_with_amount(
-                I256::unchecked_from(self.quantity_in),
-                Direction::BuyingT0
-            )?;
+            let res =
+                snapshot.swap_current_with_amount(I256::unchecked_from(self.quantity_in), false)?;
             res.total_d_t0
                 .checked_sub(self.quantity_out)
                 .ok_or_else(|| eyre!("Not enough output to cover the transaction"))
         } else {
             let cost = snapshot
-                .swap_current_with_amount(
-                    -I256::unchecked_from(self.quantity_out),
-                    Direction::SellingT0
-                )?
+                .swap_current_with_amount(-I256::unchecked_from(self.quantity_out), true)?
                 .total_d_t0;
 
             self.quantity_in
@@ -153,7 +147,7 @@ impl AttestAngstromBlockEmpty {
 
     pub fn is_valid_attestation(target_block: u64, bytes: &Bytes) -> bool {
         // size needs to be 65 + 20
-        if bytes.len() != 85 && !bytes.is_empty() {
+        if bytes.len() != 85 {
             tracing::warn!(bytes=%bytes.len(),"attestation bytes doesn't match expected 85");
             return false;
         }
