@@ -638,11 +638,16 @@ impl<'a> DeltaMatcher<'a> {
 
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
-        let start_liq = &self.amm_start_location.as_ref().unwrap().end_liquidity;
+        let (min_price, max_price) = self
+            .amm_start_location
+            .as_ref()
+            .map(|swap| {
+                let start_liq = &swap.end_liquidity;
+                (Ray::from(start_liq.min_sqrt_price()), Ray::from(start_liq.max_sqrt_price()))
+            })
+            .unwrap_or((Ray::from(U256::ZERO), Ray::from(U256::MAX)));
         // We ensure that no matter what, we always swap within the bounds of valid
         // liquidity.
-        let max_price: Ray = start_liq.max_sqrt_price().into();
-        let min_price: Ray = start_liq.min_sqrt_price().into();
 
         // p_max is (highest bid || (MAX_PRICE - 1)) + 1
         let mut p_max =
