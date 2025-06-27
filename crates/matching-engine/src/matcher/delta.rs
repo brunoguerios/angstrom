@@ -586,6 +586,7 @@ impl<'a> DeltaMatcher<'a> {
         let direction = Direction::from_is_bid(is_bid);
 
         let Ok(res) = pool.swap_to_price(end_price_sqrt) else {
+            tracing::info!("at amm failed to swap");
             return Default::default();
         };
 
