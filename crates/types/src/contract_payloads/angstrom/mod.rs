@@ -561,8 +561,11 @@ impl AngstromBundle {
             let ucp: SqrtPriceX96 = solution.ucp.into();
             // grab amount in when swap to price, then from there, calculate
             // actual values.
+
+            let is_bid = post_tob >= ucp;
             let book_swap_vec =
-                post_tob_price.swap_to_price(Direction::from_prices(post_tob, ucp), ucp)?;
+                post_tob_price.swap_to_price(Direction::from_is_bid(is_bid), ucp)?;
+
             trace!(
                 net_t0 = book_swap_vec.total_d_t0,
                 net_t1 = book_swap_vec.total_d_t1,
