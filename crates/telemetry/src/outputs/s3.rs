@@ -3,7 +3,6 @@ use std::error::Error;
 use angstrom_types::primitive::CHAIN_ID;
 use aws_config::{Region, from_env};
 use aws_sdk_s3::{Client, primitives::ByteStream};
-use chrono::{Datelike, Utc};
 
 use crate::{blocklog::BlockLog, outputs::TelemetryOutput};
 
@@ -52,17 +51,10 @@ impl S3Storage {
     }
 
     pub async fn store_snapshot(&self, data: &BlockLog) -> eyre::Result<String> {
-        let now = Utc::now();
-
         let chain = CHAIN_ID.get().unwrap();
-        let key = format!(
-            "{chain}/{}-{}-{}-{}-{:x}.bin",
-            now.year(),
-            now.month(),
-            now.day(),
-            data.blocknum(),
-            data.error_unique_id()
-        );
+        let node_addr = data.constants().unwrap().node_address();
+        let key =
+            format!("{chain}/{}-{:?}-{:x}.bin", data.blocknum(), node_addr, data.error_unique_id());
 
         let bucket = if data.has_error() { &self.error_bucket } else { &self.archive_bucket };
 

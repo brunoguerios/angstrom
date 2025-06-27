@@ -3,7 +3,7 @@ use telemetry_recorder::OrderTelemetryExt;
 
 use crate::order::state::account::user::UserAccounts;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationSnapshot {
     pub block_number: u64,
     pub state:        UserAccounts
@@ -19,7 +19,7 @@ impl OrderTelemetryExt for ValidationSnapshot {
     fn into_message(self) -> telemetry_recorder::TelemetryMessage {
         telemetry_recorder::TelemetryMessage::ValidationSnapshot {
             blocknum:            self.block_number,
-            validation_snapshot: serde_value::to_value(self).unwrap()
+            validation_snapshot: serde_cbor::value::to_value(self).unwrap()
         }
     }
 }

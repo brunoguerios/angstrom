@@ -26,7 +26,7 @@ use crate::{
 };
 
 /// The Storage of all verified orders.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OrderStorage {
     pub limit_orders:                Arc<Mutex<LimitOrderPool>>,
     pub searcher_orders:             Arc<Mutex<SearcherPool>>,
@@ -36,13 +36,6 @@ pub struct OrderStorage {
     pub filled_orders:               Arc<Mutex<HashMap<B256, SystemTime>>>,
     #[serde(skip)]
     pub metrics:                     OrderStorageMetricsWrapper
-}
-
-impl Debug for OrderStorage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Simplified implementation for the moment
-        write!(f, "OrderStorage")
-    }
 }
 
 impl OrderStorage {

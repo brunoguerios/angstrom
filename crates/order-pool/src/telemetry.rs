@@ -8,7 +8,7 @@ use validation::order::OrderValidatorHandle;
 use crate::{OrderIndexer, order_storage::OrderStorage, order_tracker::OrderTracker};
 
 // Didn't want to have to do a massive refactor of the order pool for this.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderPoolSnapshot {
     pub baseline_for_block: u64,
     pub order_storage: OrderStorage,
@@ -37,7 +37,7 @@ impl OrderTelemetryExt for OrderPoolSnapshot {
     fn into_message(self) -> TelemetryMessage {
         TelemetryMessage::OrderPoolSnapshot {
             blocknum:           self.baseline_for_block,
-            orderpool_snapshot: serde_value::to_value(self).unwrap()
+            orderpool_snapshot: serde_cbor::value::to_value(self).unwrap()
         }
     }
 }

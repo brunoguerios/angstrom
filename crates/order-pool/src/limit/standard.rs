@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use super::{parked::ParkedPool, pending::PendingPool};
 use crate::limit::LimitPoolError;
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LimitPool {
     pub(super) pending_orders: HashMap<PoolId, PendingPool<AllOrders>>,
     pub(super) parked_orders:  HashMap<PoolId, ParkedPool>,

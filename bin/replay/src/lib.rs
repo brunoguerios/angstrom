@@ -194,6 +194,7 @@ pub fn init_tracing(verbosity: u8) {
     } else {
         let filter = filter::Targets::new()
             .with_target("testnet", level)
+            .with_target("replay", level)
             .with_target("devnet", level)
             .with_target("angstrom_rpc", level)
             .with_target("angstrom", level)
@@ -203,7 +204,8 @@ pub fn init_tracing(verbosity: u8) {
             .with_target("uniswap_v4", level)
             .with_target("consensus", level)
             .with_target("validation", level)
-            .with_target("order_pool", level);
+            .with_target("order_pool", level)
+            .with_target("telemetry", level);
         let _ = tracing_subscriber::registry()
             .with(format)
             .with(filter)

@@ -9,7 +9,7 @@ use angstrom_types::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PendingPool<Order: Clone> {
     /// all order hashes
     pub(crate) orders: HashMap<FixedBytes<32>, OrderWithStorageData<Order>>,

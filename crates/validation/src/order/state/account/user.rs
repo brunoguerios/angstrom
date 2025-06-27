@@ -151,7 +151,7 @@ impl Deref for PendingUserAction {
 }
 
 /// NB: tob actions have priority over non-tob
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserAccounts {
     /// all of a user addresses pending book orders.
     pending_book_actions: Arc<DashMap<UserAddress, Vec<PendingUserAction>>>,

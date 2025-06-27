@@ -10,7 +10,7 @@ use angstrom_utils::map::OwnedMap;
 
 use super::{LimitPoolError, pending::PendingPool};
 
-#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComposableLimitPool {
     pub(super) map: HashMap<PoolId, PendingPool<AllOrders>>,
     #[serde(skip)]

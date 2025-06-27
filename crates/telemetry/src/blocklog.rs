@@ -18,7 +18,7 @@ use validation::telemetry::ValidationSnapshot;
 
 use crate::{NodeConstants, TelemetryMessage};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockLog {
     pub blocknum:            u64,
     pub order_pool_snapshot: Option<OrderPoolSnapshot>,
@@ -149,7 +149,7 @@ impl BlockLog {
             Ok(b) => b,
             Err(e) => {
                 tracing::error!("Failed to decode base64: {}", e);
-                return Self::new(0);
+                panic!()
             }
         };
 
@@ -157,14 +157,14 @@ impl BlockLog {
         let mut s = vec![];
         if let Err(e) = codec.read_to_end(&mut s) {
             tracing::error!("Failed to decompress data: {}", e);
-            return Self::new(0);
+            panic!()
         }
 
         match serde_cbor::from_slice(&s) {
             Ok(block_log) => block_log,
             Err(e) => {
                 tracing::error!("Failed to deserialize BlockLog: {}", e);
-                Self::new(0)
+                panic!()
             }
         }
     }

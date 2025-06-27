@@ -17,7 +17,7 @@ use telemetry_recorder::OrderTelemetryExt;
 use crate::manager::EthDataCleanser;
 
 /// The state of our eth-updater, right before we go to the next block
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EthUpdaterSnapshot {
     pub angstrom_address:  Address,
     pub periphery_address: Address,
@@ -51,12 +51,12 @@ impl OrderTelemetryExt for EthUpdaterSnapshot {
 
         telemetry_recorder::TelemetryMessage::EthSnapshot {
             blocknum:     block,
-            eth_snapshot: serde_value::to_value(self).unwrap()
+            eth_snapshot: serde_cbor::value::to_value(self).unwrap()
         }
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AngstromChainUpdate {
     New(Arc<Chain>),
     Reorg { new: Arc<Chain>, old: Arc<Chain> }
