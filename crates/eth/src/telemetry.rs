@@ -12,21 +12,25 @@ use chrono::Utc;
 use reth_execution_types::Chain;
 use reth_provider::CanonStateNotification;
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 use telemetry_recorder::OrderTelemetryExt;
 
 use crate::manager::EthDataCleanser;
 
 /// The state of our eth-updater, right before we go to the next block
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EthUpdaterSnapshot {
     pub angstrom_address:  Address,
     pub periphery_address: Address,
     pub chain_update:      AngstromChainUpdate,
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     pub angstrom_tokens:   HashMap<Address, usize>,
-    pub pool_store:        Arc<AngstromPoolConfigStore>,
+
+    pub pool_store: Arc<AngstromPoolConfigStore>,
     /// the set of currently active nodes.
-    pub node_set:          HashSet<Address>,
-    pub timestamp:         chrono::DateTime<Utc>
+    pub node_set:   HashSet<Address>,
+    pub timestamp:  chrono::DateTime<Utc>
 }
 
 impl<Sync: BlockSyncProducer> From<(&EthDataCleanser<Sync>, CanonStateNotification)>
@@ -51,7 +55,7 @@ impl OrderTelemetryExt for EthUpdaterSnapshot {
 
         telemetry_recorder::TelemetryMessage::EthSnapshot {
             blocknum:     block,
-            eth_snapshot: serde_cbor::value::to_value(self).unwrap()
+            eth_snapshot: serde_json::to_value(self).unwrap()
         }
     }
 }

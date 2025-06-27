@@ -185,19 +185,19 @@ impl Future for Telemetry {
                 Some(req) => match req {
                     TelemetryMessage::EthSnapshot { blocknum, eth_snapshot } => {
                         let decoded: EthUpdaterSnapshot =
-                            serde_cbor::value::from_value(eth_snapshot).unwrap();
+                            serde_json::from_value(eth_snapshot).unwrap();
 
                         self.get_block(blocknum).set_eth(decoded);
                     }
                     TelemetryMessage::OrderPoolSnapshot { blocknum, orderpool_snapshot } => {
                         let decoded: OrderPoolSnapshot =
-                            serde_cbor::value::from_value(orderpool_snapshot).unwrap();
+                            serde_json::from_value(orderpool_snapshot).unwrap();
 
                         self.get_block(blocknum).set_orderpool(decoded);
                     }
                     TelemetryMessage::ValidationSnapshot { blocknum, validation_snapshot } => {
                         let decoded: ValidationSnapshot =
-                            serde_cbor::value::from_value(validation_snapshot).unwrap();
+                            serde_json::from_value(validation_snapshot).unwrap();
 
                         self.get_block(blocknum).set_validation(decoded);
                     }

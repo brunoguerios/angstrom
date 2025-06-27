@@ -3,9 +3,14 @@ use std::collections::HashMap;
 use alloy::primitives::FixedBytes;
 use angstrom_types::sol_bindings::grouped_orders::{AllOrders, OrderWithStorageData};
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 
+#[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ParkedPool(HashMap<FixedBytes<32>, OrderWithStorageData<AllOrders>>);
+pub struct ParkedPool(
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+    HashMap<FixedBytes<32>, OrderWithStorageData<AllOrders>>
+);
 
 impl ParkedPool {
     #[allow(dead_code)]

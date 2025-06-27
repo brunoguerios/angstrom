@@ -50,15 +50,15 @@ pub enum TelemetryMessage {
     // don't want to do a big refactor for the given types.
     OrderPoolSnapshot {
         blocknum:           u64,
-        orderpool_snapshot: serde_cbor::Value
+        orderpool_snapshot: serde_json::Value
     },
     ValidationSnapshot {
         blocknum:            u64,
-        validation_snapshot: serde_cbor::Value
+        validation_snapshot: serde_json::Value
     },
     EthSnapshot {
         blocknum:     u64,
-        eth_snapshot: serde_cbor::Value
+        eth_snapshot: serde_json::Value
     },
     /// Message indicating that a new block has begun.  Sent by the pool manager
     /// with the updated pool snapshot for that block

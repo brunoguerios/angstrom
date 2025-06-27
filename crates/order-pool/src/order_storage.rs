@@ -17,6 +17,7 @@ use angstrom_types::{
     }
 };
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 
 use crate::{
     PoolConfig,
@@ -26,6 +27,7 @@ use crate::{
 };
 
 /// The Storage of all verified orders.
+#[serde_as]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OrderStorage {
     pub limit_orders:                Arc<Mutex<LimitOrderPool>>,
@@ -33,6 +35,7 @@ pub struct OrderStorage {
     pub pending_finalization_orders: Arc<Mutex<FinalizationPool>>,
     /// we store filled order hashes until they are expired time wise to ensure
     /// we don't waste processing power in the validator.
+    #[serde_as(as = "Arc<Mutex<HashMap<DisplayFromStr, _>>>")]
     pub filled_orders:               Arc<Mutex<HashMap<B256, SystemTime>>>,
     #[serde(skip)]
     pub metrics:                     OrderStorageMetricsWrapper

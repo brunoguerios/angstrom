@@ -137,7 +137,7 @@ impl BlockLog {
     }
 
     pub fn to_deflate_base64_str(&self) -> String {
-        let bytes = serde_cbor::to_vec(&self).unwrap();
+        let bytes = serde_json::to_vec(&self).unwrap();
         let mut codec = flate2::write::DeflateEncoder::new(Vec::new(), Compression::default());
         let _ = codec.write_all(&bytes);
         let compressed = codec.finish().unwrap();
@@ -160,7 +160,7 @@ impl BlockLog {
             panic!()
         }
 
-        match serde_cbor::from_slice(&s) {
+        match serde_json::from_slice(&s) {
             Ok(block_log) => block_log,
             Err(e) => {
                 tracing::error!("Failed to deserialize BlockLog: {}", e);
