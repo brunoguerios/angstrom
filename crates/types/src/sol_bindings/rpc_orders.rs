@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 
 use super::RawPoolOrder;
 use crate::{
-    matching::uniswap::Direction,
     primitive::{ANGSTROM_DOMAIN, AngstromMetaSigner, AngstromSigner},
     uni_structure::BaselinePoolState
 };

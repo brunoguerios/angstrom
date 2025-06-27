@@ -29,7 +29,7 @@ use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::rewards::RewardsUpdate,
-    matching::{Ray, SqrtPriceX96, get_quantities_at_price, uniswap::Direction},
+    matching::{Ray, SqrtPriceX96, get_quantities_at_price},
     orders::{OrderFillState, OrderId, OrderOutcome, OrderSet, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
