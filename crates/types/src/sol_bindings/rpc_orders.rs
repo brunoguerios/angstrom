@@ -148,7 +148,7 @@ impl AttestAngstromBlockEmpty {
 
     pub fn is_valid_attestation(target_block: u64, bytes: &Bytes) -> bool {
         // size needs to be 65 + 20
-        if bytes.len() != 85 && !bytes.is_empty() {
+        if bytes.len() != 85 {
             tracing::warn!(bytes=%bytes.len(),"attestation bytes doesn't match expected 85");
             return false;
         }
