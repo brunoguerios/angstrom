@@ -56,9 +56,11 @@ impl TokenPriceGenerator {
             })
             .collect::<HashMap<(Address, Address), PoolId>>();
 
+        let mut avg = 0;
         let remapped_prices = prev_prices
             .into_iter()
             .map(|(k, v)| {
+                avg = v.len();
                 let new_k = v
                     .front()
                     .and_then(|i| pair_to_pool.get(&(i.token0, i.token1)).copied())
@@ -72,7 +74,7 @@ impl TokenPriceGenerator {
             prev_prices: remapped_prices,
             pair_to_pool,
             base_gas_token,
-            blocks_to_avg_price: 1,
+            blocks_to_avg_price: avg as u64,
             base_wei
         }
     }

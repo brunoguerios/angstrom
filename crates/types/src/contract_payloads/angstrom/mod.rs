@@ -1080,7 +1080,7 @@ where
 {
     let hashmap: HashMap<String, AngPoolConfigEntry> = dashmap
         .iter()
-        .map(|entry| (entry.key().to_string(), entry.value().clone()))
+        .map(|entry| (entry.key().to_string(), *entry.value()))
         .collect();
     hashmap.serialize(serializer)
 }

@@ -171,13 +171,13 @@ where
     }
 }
 
-pub struct UniswapPoolManager<P, PP, BlockSync>
+pub struct UniswapPoolManager<P, PP, BlockSync, const TICKS: u16>
 where
     DataLoader: PoolDataLoader,
     PP: Provider + 'static
 {
     /// the poolId with the fee to the dynamic fee poolId
-    factory:             V4PoolFactory<PP>,
+    factory:             V4PoolFactory<PP, TICKS>,
     pools:               SyncedUniswapPools,
     latest_synced_block: u64,
     _state_change_cache: Arc<RwLock<StateChangeCache>>,
@@ -188,7 +188,7 @@ where
     rx:                  tokio::sync::mpsc::Receiver<(TickRangeToLoad, Arc<Notify>)>
 }
 
-impl<P, PP, BlockSync> UniswapPoolManager<P, PP, BlockSync>
+impl<P, PP, BlockSync, const TICKS: u16> UniswapPoolManager<P, PP, BlockSync, TICKS>
 where
     PP: Provider + 'static,
     DataLoader: PoolDataLoader + Default + Clone + Send + Sync + Unpin + 'static,
@@ -196,7 +196,7 @@ where
     P: PoolManagerProvider + Send + Sync + 'static
 {
     pub async fn new(
-        factory: V4PoolFactory<PP>,
+        factory: V4PoolFactory<PP, TICKS>,
         latest_synced_block: BlockNumber,
         provider: Arc<P>,
         block_sync: BlockSync,
@@ -326,7 +326,7 @@ where
     }
 }
 
-impl<P, PP, BlockSync> Future for UniswapPoolManager<P, PP, BlockSync>
+impl<P, PP, BlockSync, const TICKS: u16> Future for UniswapPoolManager<P, PP, BlockSync, TICKS>
 where
     DataLoader: PoolDataLoader + Default + Clone + Send + Sync + Unpin + 'static,
     BlockSync: BlockSyncConsumer,

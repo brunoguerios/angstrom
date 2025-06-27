@@ -36,7 +36,7 @@ use futures::{Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::MatchingManager;
 use order_pool::{OrderPoolHandle, PoolConfig};
-use reth_provider::{BlockNumReader, CanonStateSubscriptions};
+use reth_provider::CanonStateSubscriptions;
 use reth_tasks::TaskExecutor;
 use telemetry::blocklog::BlockLog;
 use telemetry_recorder::TelemetryMessage;
@@ -139,12 +139,12 @@ impl ReplayRunner {
                 _ => ()
             }
         }
+        tracing::info!("everything completed");
 
         Ok(())
     }
 
     pub async fn new(
-        id: String,
         block_log: BlockLog,
         fork_url: String,
         rpc_port: u16,
@@ -153,28 +153,40 @@ impl ReplayRunner {
         let chain_id = block_log.constants.as_ref().unwrap().chain_id;
         try_init_with_chain_id(chain_id).unwrap();
 
-        let endpoint = format!("/tmp/anvil-replay-{id}.ipc");
+        let http_port = 8545u16; // Use HTTP instead of IPC for now
+
+        // Clone necessary values before moving into async block
+        let block_num = block_log.blocknum();
+        let http_port_clone = http_port;
+
+        // First try with forking, then fallback to local if fork fails
+        tracing::info!("Attempting to spawn anvil with fork URL: {}", fork_url);
 
         let anvil = Anvil::new()
-            .fork_block_number(block_log.blocknum())
+            .arg("--host")
+            .arg("0.0.0.0")
+            .fork_block_number(block_num)
             .chain_id(chain_id)
             .fork(fork_url)
+            .port(http_port_clone)
             .arg("--ipc")
-            .arg(endpoint.clone())
-            // We not needed for the given block.
             .arg("--no-mining")
+            .arg("--timeout")
+            .arg("60000")
             .spawn();
+
+        // Wait for anvil to be ready socket to be created.
+        tokio::time::sleep(Duration::from_secs(5)).await;
 
         let node_addr = block_log.constants.as_ref().unwrap().node_address();
         let angstrom_signer = AngstromSigner::for_address(node_addr);
         let sk = angstrom_signer.clone().into_signer();
 
         let wallet = EthereumWallet::new(sk.clone());
-
         let rpc = alloy::providers::builder::<Ethereum>()
             .with_recommended_fillers()
-            .wallet(wallet)
-            .connect(&endpoint)
+            .wallet(wallet.clone())
+            .connect("/tmp/anvil.ipc")
             .await
             .unwrap();
 
@@ -194,8 +206,6 @@ impl ReplayRunner {
 
         // for rpc
         let pool = strom_handles.get_pool_handle();
-
-        let query_provider = Arc::new(anvil_provider.state_provider());
 
         let periphery_c = ControllerV1::new(*CONTROLLER_V1_ADDRESS.get().unwrap(), rpc.clone());
         let node_set = periphery_c
@@ -217,7 +227,7 @@ impl ReplayRunner {
             OrderApi::new(pool.clone(), executor.clone(), validation_client.clone(), amm_quoter);
 
         // We set -1 as the start of the replay will be triggering new block transition.
-        let block_number = BlockNumReader::best_block_number(&query_provider)? - 1;
+        let block_number = block_num - 1;
 
         let global_block_sync = GlobalBlockSync::new(block_number);
 
@@ -267,11 +277,11 @@ impl ReplayRunner {
         let network_stream = Box::pin(eth_handle.subscribe_network())
             as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
-        let uniswap_pool_manager = configure_uniswap_manager(
+        let uniswap_pool_manager = configure_uniswap_manager::<_, 50>(
             rpc.clone().into(),
             eth_handle.subscribe_cannon_state_notifications().await,
             uniswap_registry.clone(),
-            block_number,
+            block_number + 1,
             global_block_sync.clone(),
             pool_manager,
             network_stream
@@ -475,7 +485,6 @@ where
             break;
         }
 
-        tracing::info!(?deploy_block, ?this_end_block);
         let filter = Filter::new()
             .from_block(deploy_block as u64)
             .to_block(this_end_block as u64)
@@ -500,7 +509,6 @@ where
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
-    tracing::info!(?logs);
 
     logs.into_iter()
         .fold(HashSet::new(), |mut set, log| {

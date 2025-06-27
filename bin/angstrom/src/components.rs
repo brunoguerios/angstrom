@@ -62,7 +62,7 @@ use tokio::sync::{
     mpsc,
     mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel}
 };
-use uniswap_v4::{configure_uniswap_manager, fetch_angstrom_pools};
+use uniswap_v4::{DEFAULT_TICKS, configure_uniswap_manager, fetch_angstrom_pools};
 use validation::{
     common::TokenPriceGenerator,
     init_validation,
@@ -314,7 +314,7 @@ where
         init_telemetry(signer_addr, grace_shutdown)
     });
 
-    let uniswap_pool_manager = configure_uniswap_manager(
+    let uniswap_pool_manager = configure_uniswap_manager::<_, DEFAULT_TICKS>(
         querying_provider.clone(),
         eth_handle.subscribe_cannon_state_notifications().await,
         uniswap_registry,

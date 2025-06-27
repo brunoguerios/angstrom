@@ -36,7 +36,7 @@ use reth_metrics::common::mpsc::metered_unbounded_channel;
 use reth_provider::test_utils::TestCanonStateSubscriptions;
 use telemetry::NodeConstants;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use uniswap_v4::configure_uniswap_manager;
+use uniswap_v4::{DEFAULT_TICKS, configure_uniswap_manager};
 use validation::{common::TokenPriceGenerator, init_validation, validator::ValidationClient};
 
 use crate::{
@@ -215,7 +215,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         Box::pin(eth_event_rx_stream) as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
     // Takes updates that are generally provided by EthDataCleanser
-    let uniswap_pool_manager = configure_uniswap_manager(
+    let uniswap_pool_manager = configure_uniswap_manager::<_, DEFAULT_TICKS>(
         provider.rpc_provider().into(),
         mock_canon.subscribe_to_canonical_state(),
         uniswap_registry,

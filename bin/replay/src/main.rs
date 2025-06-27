@@ -13,15 +13,9 @@ fn main() -> eyre::Result<()> {
             let aws = S3Storage::new().await.unwrap();
             let rpc_port = 7000 + rand::random_range(0..1000);
             let snapshot = aws.retrieve_snapshot(&cli.id, cli.is_error).await?;
-            tracing::error!(?snapshot);
-            let runner = ReplayRunner::new(
-                cli.id,
-                snapshot,
-                cli.eth_fork_url,
-                rpc_port,
-                ctx.task_executor.clone()
-            )
-            .await?;
+            let runner =
+                ReplayRunner::new(snapshot, cli.eth_fork_url, rpc_port, ctx.task_executor.clone())
+                    .await?;
 
             runner.run().await
         })

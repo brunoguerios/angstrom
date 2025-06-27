@@ -38,7 +38,7 @@ use reth_provider::{BlockNumReader, CanonStateSubscriptions};
 use reth_tasks::TaskExecutor;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Instrument, span};
-use uniswap_v4::configure_uniswap_manager;
+use uniswap_v4::{DEFAULT_TICKS, configure_uniswap_manager};
 use validation::{
     common::{TokenPriceGenerator, WETH_ADDRESS},
     order::state::pools::AngstromPoolsTracker,
@@ -183,7 +183,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let network_stream = Box::pin(eth_handle.subscribe_network())
             as Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>;
 
-        let uniswap_pool_manager = configure_uniswap_manager(
+        let uniswap_pool_manager = configure_uniswap_manager::<_, DEFAULT_TICKS>(
             state_provider.rpc_provider().into(),
             eth_handle.subscribe_cannon_state_notifications().await,
             uniswap_registry.clone(),

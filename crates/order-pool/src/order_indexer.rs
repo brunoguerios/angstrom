@@ -316,11 +316,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                     .invalidates
                     .iter()
                     .flat_map(|order| {
-                        let id = self
-                            .order_tracker
-                            .order_hash_to_order_id
-                            .get(order)
-                            .unwrap();
+                        let id = self.order_tracker.order_hash_to_order_id.get(order)?;
                         self.order_storage.remove_order_from_id(id)
                     })
                     .collect::<Vec<_>>();
