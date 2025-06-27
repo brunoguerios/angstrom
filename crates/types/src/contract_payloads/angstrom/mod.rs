@@ -557,7 +557,7 @@ impl AngstromBundle {
             None
         } else {
             let ucp: SqrtPriceX96 = solution.ucp.into();
-            tracing::info!(?post_tob_price, ?ucp);
+            tracing::info!(?solution);
             // grab amount in when swap to price, then from there, calculate
             // actual values.
             let book_swap_vec = post_tob_price.swap_to_price(ucp).unwrap();
@@ -755,7 +755,7 @@ impl AngstromBundle {
             (t0_net + t0_fee + gas, t1)
         };
 
-        trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
+        tracing::info!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
         let token_in = order.token_in();
         let token_out = order.token_out();
 
