@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     contract_payloads::{Asset, Pair, Signature},
-    matching::uniswap::Direction,
     primitive::ANGSTROM_DOMAIN,
     sol_bindings::{
         RawPoolOrder,
@@ -198,10 +197,8 @@ impl TopOfBlockOrder {
             // than needed, but the entire input will be swapped through the AMM.
             // Therefore, our input quantity is simple - the entire input amount from
             // the order.
-            let res = snapshot.swap_current_with_amount(
-                I256::unchecked_from(tob.quantity_in),
-                Direction::BuyingT0
-            )?;
+            let res =
+                snapshot.swap_current_with_amount(I256::unchecked_from(tob.quantity_in), false)?;
             let leftover = res
                 .total_d_t0
                 .checked_sub(tob.quantity_out)
@@ -219,10 +216,7 @@ impl TopOfBlockOrder {
             // out
 
             let cost = snapshot
-                .swap_current_with_amount(
-                    -I256::unchecked_from(tob.quantity_out),
-                    Direction::SellingT0
-                )?
+                .swap_current_with_amount(-I256::unchecked_from(tob.quantity_out), true)?
                 .total_d_t0;
 
             let leftover = tob
@@ -230,27 +224,21 @@ impl TopOfBlockOrder {
                 .checked_sub(cost)
                 .ok_or_else(|| eyre!("Not enough input to cover the transaction"))?;
 
-            let price_vec = snapshot
-                .swap_current_with_amount(I256::unchecked_from(cost), Direction::SellingT0)?;
+            let price_vec = snapshot.swap_current_with_amount(I256::unchecked_from(cost), true)?;
             Ok((price_vec, leftover))
         }
     }
 
     pub fn calc_reward(&self, snapshot: BaselinePoolState) -> eyre::Result<u128> {
         if !self.zero_for_1 {
-            let res = snapshot.swap_current_with_amount(
-                I256::unchecked_from(self.quantity_in),
-                Direction::BuyingT0
-            )?;
+            let res =
+                snapshot.swap_current_with_amount(I256::unchecked_from(self.quantity_in), false)?;
             res.total_d_t0
                 .checked_sub(self.quantity_out)
                 .ok_or_else(|| eyre!("Not enough output to cover the transaction"))
         } else {
             let cost = snapshot
-                .swap_current_with_amount(
-                    -I256::unchecked_from(self.quantity_out),
-                    Direction::SellingT0
-                )?
+                .swap_current_with_amount(-I256::unchecked_from(self.quantity_out), true)?
                 .total_d_t0;
 
             self.quantity_in

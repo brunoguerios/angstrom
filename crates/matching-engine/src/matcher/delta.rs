@@ -120,10 +120,10 @@ impl<'a> DeltaMatcher<'a> {
 
         // If the AMM price is decreasing, it is because the AMM is accepting T0 from
         // the contract.  An order that purchases T0 from the contract is a bid
-        let is_bid = start_sqrt >= end_sqrt;
+        let zfo = start_sqrt >= end_sqrt;
 
         // swap to start
-        let Ok(res) = pool.swap_to_price(Direction::from_is_bid(is_bid), end_sqrt) else {
+        let Ok(res) = pool.swap_to_price(end_sqrt) else {
             return Default::default();
         };
 
@@ -133,10 +133,10 @@ impl<'a> DeltaMatcher<'a> {
             ?price,
             res.total_d_t0,
             res.total_d_t1,
-            is_bid,
+            zfo,
             "AMM swap calc"
         );
-        if is_bid {
+        if zfo {
             // if the amm is swapping from zero to one, it means that we need more liquidity
             // it in token 1 and less in token zero
             (
@@ -585,7 +585,7 @@ impl<'a> DeltaMatcher<'a> {
         let is_bid = pool.end_price >= end_price_sqrt;
         let direction = Direction::from_is_bid(is_bid);
 
-        let Ok(res) = pool.swap_to_price(direction, end_price_sqrt) else {
+        let Ok(res) = pool.swap_to_price(end_price_sqrt) else {
             return Default::default();
         };
 

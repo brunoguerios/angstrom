@@ -5,10 +5,7 @@ use liquidity_base::BaselineLiquidity;
 use pool_swap::{PoolSwap, PoolSwapResult};
 use serde::{Deserialize, Serialize};
 
-use crate::matching::{
-    SqrtPriceX96,
-    uniswap::{Direction, Quantity}
-};
+use crate::matching::{SqrtPriceX96, uniswap::Quantity};
 
 pub mod donation;
 pub mod liquidity_base;
@@ -63,7 +60,7 @@ impl BaselinePoolState {
     pub fn swap_current_with_amount(
         &self,
         amount: I256,
-        direction: Direction
+        direction: bool
     ) -> eyre::Result<PoolSwapResult<'_>> {
         let liq = self.liquidity.current();
 
@@ -76,10 +73,10 @@ impl BaselinePoolState {
     /// sure the values always align perfectly.
     pub fn swap_current_to_price(
         &self,
-        direction: Direction,
         price_limit: SqrtPriceX96
     ) -> eyre::Result<PoolSwapResult<'_>> {
         let liq = self.liquidity.current();
+        let direction = liq.current_sqrt_price >= price_limit;
 
         let price_swap = PoolSwap {
             liquidity: liq,
@@ -90,8 +87,7 @@ impl BaselinePoolState {
         }
         .swap()?;
 
-        let amount_in =
-            if direction.is_ask() { price_swap.total_d_t0 } else { price_swap.total_d_t1 };
+        let amount_in = if direction { price_swap.total_d_t0 } else { price_swap.total_d_t1 };
         let amount = I256::unchecked_from(amount_in);
 
         self.swap_current_with_amount(amount, direction)
@@ -103,32 +99,12 @@ impl BaselinePoolState {
     ) -> eyre::Result<PoolSwapResult<'_>> {
         let liq = self.liquidity.current();
 
-        let is_bid = liq.current_sqrt_price >= price_limit;
-        let direction = Direction::from_is_bid(is_bid);
+        let direction = liq.current_sqrt_price >= price_limit;
 
         PoolSwap {
             liquidity: liq,
             target_amount: I256::MAX,
             target_price: Some(price_limit),
-            direction,
-            fee: 0
-        }
-        .swap()
-    }
-
-    pub fn swap_from_price_to(
-        &self,
-        start_price: SqrtPriceX96,
-        amount: I256,
-        direction: Direction,
-        price_limit: Option<SqrtPriceX96>
-    ) -> eyre::Result<PoolSwapResult<'_>> {
-        let liq = self.liquidity.at_sqrt_price(start_price)?;
-
-        PoolSwap {
-            liquidity: liq,
-            target_amount: amount,
-            target_price: price_limit,
             direction,
             fee: 0
         }
@@ -142,7 +118,7 @@ impl<'a> Add<Quantity> for &'a BaselinePoolState {
     fn add(self, rhs: Quantity) -> Self::Output {
         let amount = I256::unchecked_from(rhs.magnitude());
         let direction = rhs.as_input();
-        self.swap_current_with_amount(amount, direction)
+        self.swap_current_with_amount(amount, direction.is_ask())
     }
 }
 
@@ -152,6 +128,6 @@ impl<'a> Sub<Quantity> for &'a BaselinePoolState {
     fn sub(self, rhs: Quantity) -> Self::Output {
         let amount = I256::unchecked_from(rhs.magnitude()).saturating_neg();
         let direction = rhs.as_output();
-        self.swap_current_with_amount(amount, direction)
+        self.swap_current_with_amount(amount, direction.is_ask())
     }
 }
