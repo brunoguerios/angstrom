@@ -172,8 +172,7 @@ impl<'a> PoolSwapResult<'a> {
             target_amount: I256::MAX,
             fee: 0
         }
-        .swap()
-        .unwrap();
+        .swap()?;
 
         let amount_in = if direction { price_swap.total_d_t0 } else { price_swap.total_d_t1 };
         let amount = I256::unchecked_from(amount_in);
