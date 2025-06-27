@@ -400,6 +400,7 @@ impl AngstromBundle {
         store_index: u16,
         shared_gas: Option<U256>
     ) -> eyre::Result<()> {
+        tracing::info!(?solution);
         let process_solution_span =
             tracing::debug_span!("process_solution", t0 = ?t0, t1 = ?t1, pool_id = ?solution.id)
                 .entered();
