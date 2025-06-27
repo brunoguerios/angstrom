@@ -560,7 +560,7 @@ impl AngstromBundle {
             tracing::info!(?post_tob_price, ?ucp);
             // grab amount in when swap to price, then from there, calculate
             // actual values.
-            let book_swap_vec = post_tob_price.swap_to_price(ucp)?;
+            let book_swap_vec = post_tob_price.swap_to_price(ucp).unwrap();
             trace!(
                 net_t0 = book_swap_vec.total_d_t0,
                 net_t1 = book_swap_vec.total_d_t1,
