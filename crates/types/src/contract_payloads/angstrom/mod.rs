@@ -556,8 +556,8 @@ impl AngstromBundle {
             trace!("No book swap, UCP was zero");
             None
         } else {
-            let post_tob = post_tob_price.end_price;
             let ucp: SqrtPriceX96 = solution.ucp.into();
+            tracing::info!(?post_tob_price, ?ucp);
             // grab amount in when swap to price, then from there, calculate
             // actual values.
             let book_swap_vec = post_tob_price.swap_to_price(ucp)?;
