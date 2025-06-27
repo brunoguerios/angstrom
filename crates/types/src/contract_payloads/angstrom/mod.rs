@@ -17,7 +17,7 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tracing::{Level, debug, error, trace, warn};
 
 use super::{
@@ -1028,6 +1028,26 @@ impl Deref for AngstromPoolPartialKey {
     }
 }
 
+impl std::fmt::Display for AngstromPoolPartialKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", BASE64_STANDARD.encode(self.0))
+    }
+}
+
+impl std::str::FromStr for AngstromPoolPartialKey {
+    type Err = base64::DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = BASE64_STANDARD.decode(s)?;
+        if bytes.len() != 27 {
+            return Err(base64::DecodeError::InvalidLength(bytes.len()));
+        }
+        let mut arr = [0u8; 27];
+        arr.copy_from_slice(&bytes);
+        Ok(Self(arr))
+    }
+}
+
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct AngPoolConfigEntry {
     pub pool_partial_key: AngstromPoolPartialKey,
@@ -1038,6 +1058,10 @@ pub struct AngPoolConfigEntry {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AngstromPoolConfigStore {
+    #[serde(
+        serialize_with = "serialize_dashmap_with_display_keys",
+        deserialize_with = "deserialize_dashmap_with_display_keys"
+    )]
     entries: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>
 }
 
@@ -1045,6 +1069,37 @@ impl From<DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>> for AngstromPoolC
     fn from(value: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>) -> Self {
         Self { entries: value }
     }
+}
+
+fn serialize_dashmap_with_display_keys<S>(
+    dashmap: &DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>,
+    serializer: S
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer
+{
+    let hashmap: HashMap<String, AngPoolConfigEntry> = dashmap
+        .iter()
+        .map(|entry| (entry.key().to_string(), entry.value().clone()))
+        .collect();
+    hashmap.serialize(serializer)
+}
+
+fn deserialize_dashmap_with_display_keys<'de, D>(
+    deserializer: D
+) -> Result<DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>, D::Error>
+where
+    D: Deserializer<'de>
+{
+    let hashmap: HashMap<String, AngPoolConfigEntry> = HashMap::deserialize(deserializer)?;
+    let dashmap = DashMap::new();
+    for (key_str, value) in hashmap {
+        let key = key_str
+            .parse::<AngstromPoolPartialKey>()
+            .map_err(serde::de::Error::custom)?;
+        dashmap.insert(key, value);
+    }
+    Ok(dashmap)
 }
 
 impl AngstromPoolConfigStore {
