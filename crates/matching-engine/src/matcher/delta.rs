@@ -1,5 +1,5 @@
 use std::{
-    cmp::{Ordering, Reverse, min},
+    cmp::{Ordering, Reverse, max, min},
     collections::HashSet
 };
 
@@ -638,10 +638,18 @@ impl<'a> DeltaMatcher<'a> {
 
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
+        let start_liq = &self.amm_start_location.as_ref().unwrap().end_liquidity;
+        // We ensure that no matter what, we always swap within the bounds of valid
+        // liquidity.
+        let max_price: Ray = start_liq.max_sqrt_price().into();
+        let min_price: Ray = start_liq.min_sqrt_price().into();
+
         // p_max is (highest bid || (MAX_PRICE - 1)) + 1
-        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(U256_1));
+        let mut p_max =
+            min(max_price, Ray::from(self.book.highest_clearing_price().saturating_add(U256_1)));
         // p_min is (lowest ask || (MIN_PRICE + 1)) - 1
-        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(U256_1));
+        let mut p_min =
+            max(min_price, Ray::from(self.book.lowest_clearing_price().saturating_sub(U256_1)));
 
         let two = U256::from(2);
         let four = U256::from(4);
