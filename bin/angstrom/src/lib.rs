@@ -193,7 +193,7 @@ async fn run_with_signer<S: AngstromMetaSigner>(
                 .components_builder()
                 .network(AngstromNetworkBuilder::new(protocol_handle))
         )
-        .with_add_ons::<EthereumAddOns<_>>(Default::default())
+        .with_add_ons::<EthereumAddOns<_, _, _>>(Default::default())
         .extend_rpc_modules(move |rpc_context| {
             let order_api = OrderApi::new(
                 pool.clone(),

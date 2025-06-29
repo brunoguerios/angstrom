@@ -5,8 +5,9 @@ use alloy::{
 };
 use reth_chainspec::ChainInfo;
 use reth_provider::{
-    AccountReader, BlockHashReader, BlockIdReader, BlockNumReader, HashedPostStateProvider,
-    ProviderError, ProviderResult, StateProofProvider, StateProvider, StateProviderFactory
+    AccountReader, BlockHashReader, BlockIdReader, BlockNumReader, BytecodeReader,
+    HashedPostStateProvider, ProviderError, ProviderResult, StateProofProvider, StateProvider,
+    StateProviderFactory
 };
 use reth_storage_api::{StateRootProvider, StorageRootProvider};
 use reth_trie::{
@@ -219,13 +220,6 @@ where
     fn account_balance(&self, addr: &Address) -> reth_provider::ProviderResult<Option<U256>> {
         self.0.latest()?.account_balance(addr)
     }
-
-    fn bytecode_by_hash(
-        &self,
-        code_hash: &B256
-    ) -> reth_provider::ProviderResult<Option<reth_primitives::Bytecode>> {
-        self.0.latest()?.bytecode_by_hash(code_hash)
-    }
 }
 
 impl<DB> AccountReader for RethDbWrapper<DB>
@@ -358,5 +352,17 @@ where
         targets: reth_trie::MultiProofTargets
     ) -> ProviderResult<MultiProof> {
         self.0.latest()?.multiproof(input, targets)
+    }
+}
+
+impl<DB> BytecodeReader for RethDbWrapper<DB>
+where
+    DB: StateProviderFactory + Unpin + Clone + 'static
+{
+    fn bytecode_by_hash(
+        &self,
+        code_hash: &B256
+    ) -> reth_provider::ProviderResult<Option<reth_primitives::Bytecode>> {
+        self.0.latest()?.bytecode_by_hash(code_hash)
     }
 }
