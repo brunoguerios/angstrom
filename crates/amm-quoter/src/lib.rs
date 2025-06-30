@@ -164,7 +164,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
 
     fn spawn_book_solvers(&mut self, seq_id: u16) {
         let OrderSet { limit, searcher } = self.all_orders_with_consensus();
-        let books = build_non_proposal_books(limit, &self.book_snapshots);
+        let mut books = build_non_proposal_books(limit, &self.book_snapshots);
 
         let searcher_orders = searcher
             .into_iter()
@@ -189,7 +189,12 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
                 acc
             });
 
-        for book in books {
+        for (book_id, amm) in &self.book_snapshots {
+            // Default as if we don't have a book, we want to still send update.
+            let mut book = books.remove(book_id).unwrap_or_default();
+            book.id = *book_id;
+            book.set_amm_if_missing(|| amm.clone());
+
             let searcher = searcher_orders.get(&book.id()).cloned();
             let (tx, rx) = oneshot::channel();
             let block = self.cur_block;
@@ -293,14 +298,14 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
 pub fn build_non_proposal_books(
     limit: Vec<BookOrder>,
     pool_snapshots: &HashMap<PoolId, BaselinePoolState>
-) -> Vec<OrderBook> {
+) -> HashMap<PoolId, OrderBook> {
     let book_sources = orders_sorted_by_pool_id(limit);
 
     book_sources
         .into_iter()
         .map(|(id, orders)| {
             let amm = pool_snapshots.get(&id).cloned();
-            build_book(id, amm, orders)
+            (id, build_book(id, amm, orders))
         })
         .collect()
 }
