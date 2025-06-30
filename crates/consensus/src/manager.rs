@@ -15,7 +15,7 @@ use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensusEvent};
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
-    consensus::{ConsensusRoundEvent, ConsensusRoundOrderHashes},
+    consensus::ConsensusRoundOrderHashes,
     contract_payloads::angstrom::UniswapAngstromRegistry,
     primitive::{AngstromMetaSigner, AngstromSigner, ChainExt},
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty,
@@ -126,7 +126,6 @@ where
         self.consensus_round_state
             .reset_round(self.current_height, round_leader);
         self.broadcasted_messages.clear();
-        self.subscribers.subscription_send_round_reset();
 
         match notification {
             CanonStateNotification::Reorg { old, new } => {
@@ -330,23 +329,6 @@ impl ConsensusSubscriptionManager {
                 limit:    HashSet::from_iter(data.limit_order_hashes()),
                 searcher: HashSet::from_iter(data.searcher_order_hashes()),
                 round:    data.round_event()
-            };
-            subs.retain(|tx| {
-                tx.try_send(ConsensusSubscriptionData::RoundEventOrders(order_hashes.clone()))
-                    .is_ok()
-            });
-        }
-    }
-
-    fn subscription_send_round_reset(&mut self) {
-        if let Some(subs) = self
-            .subscribers
-            .get_mut(&ConsensusSubscriptionRequestKind::RoundEventOrders)
-        {
-            let order_hashes = ConsensusRoundOrderHashes {
-                limit:    HashSet::default(),
-                searcher: HashSet::default(),
-                round:    ConsensusRoundEvent::NewRound
             };
             subs.retain(|tx| {
                 tx.try_send(ConsensusSubscriptionData::RoundEventOrders(order_hashes.clone()))

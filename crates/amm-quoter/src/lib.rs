@@ -229,12 +229,8 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn update_consensus_state(&mut self, round: ConsensusRoundOrderHashes) {
-        match round.round {
-            ConsensusRoundEvent::NewRound => self.active_pre_proposal_aggr_order_hashes = None,
-            ConsensusRoundEvent::PropagatePreProposalAgg => {
-                self.active_pre_proposal_aggr_order_hashes = Some(round)
-            }
-            _ => ()
+        if matches!(round.round, ConsensusRoundEvent::PropagatePreProposalAgg) {
+            self.active_pre_proposal_aggr_order_hashes = Some(round)
         }
     }
 
@@ -277,6 +273,7 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
             if self.cur_block != self.block_sync.current_block_number() {
                 self.update_book_state();
                 self.cur_block = self.block_sync.current_block_number();
+                self.active_pre_proposal_aggr_order_hashes = None;
                 self.seq_id = 0;
             }
 

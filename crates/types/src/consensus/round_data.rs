@@ -11,7 +11,6 @@ pub struct ConsensusRoundOrderHashes {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ConsensusRoundEvent {
-    NewRound,
     PropagatePreProposal,
     PropagatePreProposalAgg,
     PropagateProposal,
