@@ -156,7 +156,7 @@ pub mod fuzz_uniswap {
         rpc::types::{BlockNumberOrTag, Filter},
         sol_types::{SolCall, SolEvent, SolValue}
     };
-    use alloy_primitives::keccak256;
+    use alloy_primitives::{U256, keccak256};
     use angstrom_types::{
         matching::uniswap::Quantity,
         primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig, CHAIN_ID, POOL_MANAGER_ADDRESS},
@@ -313,7 +313,7 @@ pub mod fuzz_uniswap {
             cfg.chain_id = *CHAIN_ID.get().unwrap();
         })
         .modify_block_chained(|block| {
-            block.number = target_block;
+            block.number = U256::from(target_block);
         })
         .modify_tx_chained(|tx| {
             tx.kind = TxKind::Call(HOOK_EXECUTOR);
