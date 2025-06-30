@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use alloy::primitives::{B256, U256};
 use angstrom_metrics::VanillaLimitOrderPoolMetricsWrapper;
@@ -160,6 +160,16 @@ impl LimitPool {
         self.pending_orders
             .values()
             .flat_map(|p| p.get_all_orders())
+            .collect()
+    }
+
+    pub fn get_all_orders_with_hashes(
+        &self,
+        hashes: HashSet<B256>
+    ) -> Vec<OrderWithStorageData<AllOrders>> {
+        self.pending_orders
+            .values()
+            .flat_map(|p| p.get_all_orders_with_hashes(&hashes))
             .collect()
     }
 

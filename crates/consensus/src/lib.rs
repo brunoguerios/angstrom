@@ -1,12 +1,13 @@
 mod leader_selection;
 mod manager;
 
+use angstrom_types::consensus::ConsensusRoundOrderHashes;
 pub use manager::*;
 pub mod rounds;
 use std::{collections::HashSet, pin::Pin};
 
 use alloy::primitives::{Address, Bytes};
-use futures::Stream;
+use futures::{Stream, StreamExt};
 pub use leader_selection::AngstromValidator;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{
@@ -61,12 +62,55 @@ impl ConsensusHandle for ConsensusHandler {
         let (tx, rx) = channel(5);
         let _ = self.0.send(ConsensusRequest::SubscribeAttestations(tx));
 
-        Box::pin(ReceiverStream::new(rx))
+        Box::pin(ReceiverStream::new(rx).then(async |sub_req| match sub_req {
+            ConsensusSubscriptionData::Attestations(attestations) => attestations,
+            _ => unreachable!()
+        }))
+    }
+}
+
+impl ConsensusHandler {
+    pub fn subscribe_consensus_round_event(
+        &self
+    ) -> Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>> {
+        let (tx, rx) = channel(5);
+        let _ = self.0.send(ConsensusRequest::SubscribeRoundEventOrders(tx));
+
+        Box::pin(ReceiverStream::new(rx).then(async |sub_req| match sub_req {
+            ConsensusSubscriptionData::RoundEventOrders(order_hashes) => order_hashes,
+            _ => unreachable!()
+        }))
     }
 }
 
 pub enum ConsensusRequest {
     CurrentLeader(oneshot::Sender<ConsensusDataWithBlock<Address>>),
     CurrentConsensusState(oneshot::Sender<ConsensusDataWithBlock<HashSet<AngstromValidator>>>),
-    SubscribeAttestations(mpsc::Sender<ConsensusDataWithBlock<Bytes>>)
+    SubscribeAttestations(mpsc::Sender<ConsensusSubscriptionData>),
+    SubscribeRoundEventOrders(mpsc::Sender<ConsensusSubscriptionData>)
+}
+
+impl ConsensusRequest {
+    pub fn subscription_kind(&self) -> Option<ConsensusSubscriptionRequestKind> {
+        match self {
+            ConsensusRequest::SubscribeAttestations(_) => {
+                Some(ConsensusSubscriptionRequestKind::Attestations)
+            }
+            ConsensusRequest::SubscribeRoundEventOrders(_) => {
+                Some(ConsensusSubscriptionRequestKind::RoundEventOrders)
+            }
+            _ => None
+        }
+    }
+}
+
+pub enum ConsensusSubscriptionData {
+    Attestations(ConsensusDataWithBlock<Bytes>),
+    RoundEventOrders(ConsensusRoundOrderHashes)
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ConsensusSubscriptionRequestKind {
+    Attestations,
+    RoundEventOrders
 }

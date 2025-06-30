@@ -9,7 +9,11 @@ use std::{
 
 use alloy::primitives::U160;
 use angstrom_types::{
-    block_sync::BlockSyncConsumer, orders::OrderSet, primitive::PoolId,
+    block_sync::BlockSyncConsumer,
+    consensus::{ConsensusRoundEvent, ConsensusRoundOrderHashes},
+    orders::OrderSet,
+    primitive::PoolId,
+    sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder},
     uni_structure::BaselinePoolState
 };
 use futures::{
@@ -66,16 +70,22 @@ impl AngstromBookQuoter for QuoterHandle {
 }
 
 pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
-    cur_block:           u64,
-    seq_id:              u16,
-    block_sync:          BlockSync,
-    orders:              Arc<OrderStorage>,
-    amms:                SyncedUniswapPools,
-    threadpool:          ThreadPool,
-    recv:                mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
-    book_snapshots:      HashMap<PoolId, BaselinePoolState>,
-    pending_tasks:       FuturesUnordered<BoxFuture<'static, eyre::Result<Slot0Update>>>,
+    cur_block: u64,
+    seq_id: u16,
+    block_sync: BlockSync,
+    orders: Arc<OrderStorage>,
+    amms: SyncedUniswapPools,
+    threadpool: ThreadPool,
+    recv: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
+    book_snapshots: HashMap<PoolId, BaselinePoolState>,
+    pending_tasks: FuturesUnordered<BoxFuture<'static, eyre::Result<Slot0Update>>>,
     pool_to_subscribers: HashMap<PoolId, Vec<mpsc::Sender<Slot0Update>>>,
+    consensus_stream: Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>>,
+    /// The unique order hashes of the current PreProposalAggregate consensus
+    /// round. Used to build the book for the slot0 stream, so that all
+    /// orders are valid, and the subscription can't be manipulated by orders
+    /// submitted after this round and between the next block
+    active_pre_proposal_aggr_order_hashes: Option<ConsensusRoundOrderHashes>,
 
     execution_interval: Interval
 }
@@ -89,7 +99,8 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
         recv: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
         amms: SyncedUniswapPools,
         threadpool: ThreadPool,
-        update_interval: Duration
+        update_interval: Duration,
+        consensus_stream: Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>>
     ) -> Self {
         let cur_block = block_sync.current_block_number();
         let book_snapshots = amms
@@ -119,7 +130,9 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             threadpool,
             pending_tasks: FuturesUnordered::new(),
             pool_to_subscribers: HashMap::default(),
-            execution_interval: interval(update_interval)
+            execution_interval: interval(update_interval),
+            consensus_stream,
+            active_pre_proposal_aggr_order_hashes: None
         }
     }
 
@@ -140,8 +153,17 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
         }
     }
 
+    fn all_orders_with_consensus(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
+        if let Some(hashes) = self.active_pre_proposal_aggr_order_hashes.as_ref() {
+            self.orders
+                .get_all_orders_with_hashes(hashes.limit.clone(), hashes.searcher.clone())
+        } else {
+            self.orders.get_all_orders()
+        }
+    }
+
     fn spawn_book_solvers(&mut self, seq_id: u16) {
-        let OrderSet { limit, searcher } = self.orders.get_all_orders();
+        let OrderSet { limit, searcher } = self.all_orders_with_consensus();
         let books = build_non_proposal_books(limit, &self.book_snapshots);
 
         let searcher_orders = searcher
@@ -201,6 +223,16 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             .collect();
     }
 
+    fn update_consensus_state(&mut self, round: ConsensusRoundOrderHashes) {
+        match round.round {
+            ConsensusRoundEvent::NewRound => self.active_pre_proposal_aggr_order_hashes = None,
+            ConsensusRoundEvent::PropagatePreProposalAgg => {
+                self.active_pre_proposal_aggr_order_hashes = Some(round)
+            }
+            _ => ()
+        }
+    }
+
     fn send_out_result(&mut self, slot_update: Slot0Update) {
         let Some(pool_subs) = self.pool_to_subscribers.get_mut(&slot_update.pool_id) else {
             return;
@@ -219,6 +251,10 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
     ) -> std::task::Poll<Self::Output> {
         while let Poll::Ready(Some((pools, subscriber))) = self.recv.poll_recv(cx) {
             self.handle_new_subscription(pools, subscriber);
+        }
+
+        while let Poll::Ready(Some(consensus_update)) = self.consensus_stream.poll_next_unpin(cx) {
+            self.update_consensus_state(consensus_update);
         }
 
         while let Poll::Ready(Some(Ok(slot_update))) = self.pending_tasks.poll_next_unpin(cx) {

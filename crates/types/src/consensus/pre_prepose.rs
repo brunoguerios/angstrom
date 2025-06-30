@@ -93,6 +93,14 @@ impl PreProposal {
     fn payload(&self) -> Bytes {
         Bytes::from(Self::serialize_payload(&self.block_height, &self.limit, &self.searcher))
     }
+
+    pub fn searcher_order_hashes(&self) -> Vec<B256> {
+        self.searcher.clone()
+    }
+
+    pub fn limit_order_hashes(&self) -> Vec<B256> {
+        self.limit.clone()
+    }
 }
 
 #[cfg(test)]

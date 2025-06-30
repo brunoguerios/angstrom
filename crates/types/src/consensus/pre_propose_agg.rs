@@ -2,6 +2,7 @@ use alloy::{
     primitives::{BlockNumber, U256, keccak256},
     signers::Signature
 };
+use alloy_primitives::B256;
 use bytes::Bytes;
 use reth_network_peers::PeerId;
 use serde::{Deserialize, Serialize};
@@ -79,5 +80,19 @@ impl PreProposalAggregation {
         let source = public_key_to_peer_id(&source);
 
         source == self.source
+    }
+
+    pub fn searcher_order_hashes(&self) -> Vec<B256> {
+        self.pre_proposals
+            .iter()
+            .flat_map(PreProposal::searcher_order_hashes)
+            .collect()
+    }
+
+    pub fn limit_order_hashes(&self) -> Vec<B256> {
+        self.pre_proposals
+            .iter()
+            .flat_map(PreProposal::limit_order_hashes)
+            .collect()
     }
 }
