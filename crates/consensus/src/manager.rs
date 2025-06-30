@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     future::Future,
     pin::Pin,
     sync::Arc,
@@ -15,6 +15,7 @@ use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{StromMessage, StromNetworkHandle, manager::StromConsensusEvent};
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
+    consensus::ConsensusRoundOrderHashes,
     contract_payloads::angstrom::UniswapAngstromRegistry,
     primitive::{AngstromMetaSigner, AngstromSigner, ChainExt},
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty,
@@ -31,7 +32,8 @@ use tokio_stream::wrappers::BroadcastStream;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
-    AngstromValidator, ConsensusDataWithBlock, ConsensusRequest,
+    AngstromValidator, ConsensusDataWithBlock, ConsensusRequest, ConsensusSubscriptionData,
+    ConsensusSubscriptionRequestKind,
     leader_selection::WeightedRoundRobin,
     rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState}
 };
@@ -50,7 +52,7 @@ where
     network:                StromNetworkHandle,
     block_sync:             BlockSync,
     rpc_rx:                 mpsc::UnboundedReceiver<ConsensusRequest>,
-    subscribers:            Vec<mpsc::Sender<ConsensusDataWithBlock<Bytes>>>,
+    subscribers:            ConsensusSubscriptionManager,
 
     /// Track broadcasted messages to avoid rebroadcasting
     broadcasted_messages: HashSet<StromConsensusEvent>
@@ -106,7 +108,7 @@ where
             network,
             canonical_block_stream: wrapped_broadcast_stream,
             broadcasted_messages: HashSet::new(),
-            subscribers: vec![]
+            subscribers: ConsensusSubscriptionManager::default()
         }
     }
 
@@ -154,7 +156,12 @@ where
                 let _ = tx.send(ConsensusDataWithBlock { data, block });
             }
             ConsensusRequest::SubscribeAttestations(tx) => {
-                self.subscribers.push(tx);
+                self.subscribers
+                    .add_subscription(ConsensusSubscriptionRequestKind::Attestations, tx);
+            }
+            ConsensusRequest::SubscribeRoundEventOrders(tx) => {
+                self.subscribers
+                    .add_subscription(ConsensusSubscriptionRequestKind::RoundEventOrders, tx);
             }
         }
     }
@@ -175,8 +182,7 @@ where
             if AttestAngstromBlockEmpty::is_valid_attestation(block + 1, bytes) {
                 let data =
                     ConsensusDataWithBlock { data: bytes.clone(), block: self.current_height };
-                self.subscribers
-                    .retain(|tx| tx.try_send(data.clone()).is_ok());
+                self.subscribers.subscription_send_attestations(data);
             } else {
                 tracing::warn!(?addr, "got invalid bundle unlock attestation from");
             }
@@ -186,7 +192,7 @@ where
     }
 
     fn on_round_event(&mut self, event: ConsensusMessage) {
-        match event {
+        match event.clone() {
             ConsensusMessage::PropagateProposal(p) => {
                 self.network.broadcast_message(StromMessage::Propose(p))
             }
@@ -198,8 +204,7 @@ where
                 .broadcast_message(StromMessage::PreProposeAgg(p)),
             ConsensusMessage::PropagateEmptyBlockAttestation(p) => {
                 let data = ConsensusDataWithBlock { data: p.clone(), block: self.current_height };
-                self.subscribers
-                    .retain(|tx| tx.try_send(data.clone()).is_ok());
+                self.subscribers.subscription_send_attestations(data);
 
                 self.network
                     .broadcast_message(StromMessage::BundleUnlockAttestation(
@@ -207,7 +212,8 @@ where
                         p
                     ));
             }
-        }
+        };
+        self.subscribers.subscription_send_round_event(event);
     }
 
     pub async fn run_till_shutdown(mut self, sig: GracefulShutdown) {
@@ -284,5 +290,50 @@ impl ManagerNetworkDeps {
         strom_consensus_event: UnboundedMeteredReceiver<StromConsensusEvent>
     ) -> Self {
         Self { network, canonical_block_stream, strom_consensus_event }
+    }
+}
+
+#[derive(Debug, Default)]
+struct ConsensusSubscriptionManager {
+    subscribers:
+        HashMap<ConsensusSubscriptionRequestKind, Vec<mpsc::Sender<ConsensusSubscriptionData>>>
+}
+
+impl ConsensusSubscriptionManager {
+    fn add_subscription(
+        &mut self,
+        kind: ConsensusSubscriptionRequestKind,
+        tx: mpsc::Sender<ConsensusSubscriptionData>
+    ) {
+        self.subscribers.entry(kind).or_default().push(tx);
+    }
+
+    fn subscription_send_attestations(&mut self, data: ConsensusDataWithBlock<Bytes>) {
+        if let Some(subs) = self
+            .subscribers
+            .get_mut(&ConsensusSubscriptionRequestKind::Attestations)
+        {
+            subs.retain(|tx| {
+                tx.try_send(ConsensusSubscriptionData::Attestations(data.clone()))
+                    .is_ok()
+            });
+        }
+    }
+
+    fn subscription_send_round_event(&mut self, data: ConsensusMessage) {
+        if let Some(subs) = self
+            .subscribers
+            .get_mut(&ConsensusSubscriptionRequestKind::RoundEventOrders)
+        {
+            let order_hashes = ConsensusRoundOrderHashes {
+                limit:    HashSet::from_iter(data.limit_order_hashes()),
+                searcher: HashSet::from_iter(data.searcher_order_hashes()),
+                round:    data.round_event()
+            };
+            subs.retain(|tx| {
+                tx.try_send(ConsensusSubscriptionData::RoundEventOrders(order_hashes.clone()))
+                    .is_ok()
+            });
+        }
     }
 }

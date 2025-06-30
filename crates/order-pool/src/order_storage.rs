@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     default::Default,
     fmt::Debug,
     sync::{Arc, Mutex},
@@ -240,6 +240,22 @@ impl OrderStorage {
             .collect()
     }
 
+    pub fn top_orders_with_hashes(
+        &self,
+        hashes: &HashSet<B256>
+    ) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
+        let searcher_orders = self.searcher_orders.lock().expect("lock poisoned");
+
+        searcher_orders
+            .get_all_pool_ids()
+            .flat_map(|pool_id| {
+                searcher_orders
+                    .get_orders_for_pool_with_hashes(&pool_id, hashes)
+                    .unwrap_or_else(|| panic!("pool {} does not exist", pool_id))
+            })
+            .collect()
+    }
+
     pub fn add_new_limit_order(
         &self,
         order: OrderWithStorageData<AllOrders>
@@ -379,6 +395,21 @@ impl OrderStorage {
             .expect("poisoned")
             .get_all_orders_with_parked();
         let searcher = self.top_tob_orders();
+
+        OrderSet { limit, searcher }
+    }
+
+    pub fn get_all_orders_with_hashes(
+        &self,
+        limit_hashes: &HashSet<B256>,
+        searcher_hashes: &HashSet<B256>
+    ) -> OrderSet<AllOrders, TopOfBlockOrder> {
+        let limit = self
+            .limit_orders
+            .lock()
+            .expect("poisoned")
+            .get_all_orders_with_hashes(limit_hashes);
+        let searcher = self.top_orders_with_hashes(searcher_hashes);
 
         OrderSet { limit, searcher }
     }

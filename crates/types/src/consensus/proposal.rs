@@ -2,7 +2,7 @@ use alloy::{
     primitives::{BlockNumber, U256},
     signers::Signature
 };
-use alloy_primitives::keccak256;
+use alloy_primitives::{B256, keccak256};
 use bytes::Bytes;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -106,6 +106,20 @@ impl Proposal {
             .flat_map(|preproposal| preproposal.pre_proposals.clone())
             .unique_by(|proposal| proposal.source)
             .collect::<Vec<_>>()
+    }
+
+    pub fn searcher_order_hashes(&self) -> Vec<B256> {
+        self.preproposals
+            .iter()
+            .flat_map(PreProposalAggregation::searcher_order_hashes)
+            .collect()
+    }
+
+    pub fn limit_order_hashes(&self) -> Vec<B256> {
+        self.preproposals
+            .iter()
+            .flat_map(PreProposalAggregation::limit_order_hashes)
+            .collect()
     }
 }
 

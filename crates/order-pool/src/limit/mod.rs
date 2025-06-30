@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::HashSet, fmt::Debug};
 
 use alloy::primitives::{B256, FixedBytes};
 use angstrom_types::{
@@ -110,6 +110,13 @@ impl LimitOrderPool {
 
     pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<AllOrders>> {
         self.limit_orders.get_all_orders()
+    }
+
+    pub fn get_all_orders_with_hashes(
+        &self,
+        hashes: &HashSet<B256>
+    ) -> Vec<OrderWithStorageData<AllOrders>> {
+        self.limit_orders.get_all_orders_with_hashes(hashes)
     }
 
     pub fn get_all_orders_with_parked(&self) -> Vec<OrderWithStorageData<AllOrders>> {

@@ -7,13 +7,13 @@ use std::{
 };
 
 use alloy::{
-    primitives::{Address, BlockNumber, Bytes, FixedBytes},
+    primitives::{Address, B256, BlockNumber, Bytes, FixedBytes},
     providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
-    consensus::{PreProposal, PreProposalAggregation, Proposal},
+    consensus::{ConsensusRoundEvent, PreProposal, PreProposalAggregation, Proposal},
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     orders::PoolSolution,
     primitive::{AngstromMetaSigner, AngstromSigner},
@@ -381,6 +381,47 @@ pub enum ConsensusMessage {
     PropagatePreProposalAgg(PreProposalAggregation),
     PropagateProposal(Proposal),
     PropagateEmptyBlockAttestation(Bytes)
+}
+
+impl ConsensusMessage {
+    pub fn searcher_order_hashes(&self) -> Vec<B256> {
+        match self {
+            ConsensusMessage::PropagatePreProposal(pre_proposal) => {
+                pre_proposal.searcher_order_hashes()
+            }
+            ConsensusMessage::PropagatePreProposalAgg(pre_proposal_aggregation) => {
+                pre_proposal_aggregation.searcher_order_hashes()
+            }
+            ConsensusMessage::PropagateProposal(proposal) => proposal.searcher_order_hashes(),
+            ConsensusMessage::PropagateEmptyBlockAttestation(_) => Vec::new()
+        }
+    }
+
+    pub fn limit_order_hashes(&self) -> Vec<B256> {
+        match self {
+            ConsensusMessage::PropagatePreProposal(pre_proposal) => {
+                pre_proposal.limit_order_hashes()
+            }
+            ConsensusMessage::PropagatePreProposalAgg(pre_proposal_aggregation) => {
+                pre_proposal_aggregation.limit_order_hashes()
+            }
+            ConsensusMessage::PropagateProposal(proposal) => proposal.limit_order_hashes(),
+            ConsensusMessage::PropagateEmptyBlockAttestation(_) => Vec::new()
+        }
+    }
+
+    pub fn round_event(&self) -> ConsensusRoundEvent {
+        match self {
+            ConsensusMessage::PropagatePreProposal(_) => ConsensusRoundEvent::PropagatePreProposal,
+            ConsensusMessage::PropagatePreProposalAgg(_) => {
+                ConsensusRoundEvent::PropagatePreProposalAgg
+            }
+            ConsensusMessage::PropagateProposal(_) => ConsensusRoundEvent::PropagateProposal,
+            ConsensusMessage::PropagateEmptyBlockAttestation(_) => {
+                ConsensusRoundEvent::PropagateEmptyBlockAttestation
+            }
+        }
+    }
 }
 
 impl From<PreProposal> for ConsensusMessage {

@@ -184,7 +184,7 @@ async fn run_with_signer<S: AngstromMetaSigner>(
     )?;
 
     let protocol_handle = network.build_protocol_handler();
-
+    let cloned_consensus_client = consensus_client.clone();
     let executor_clone = executor.clone();
     let NodeHandle { node, node_exit_future } = builder
         .with_types::<EthereumNode>()
@@ -201,7 +201,7 @@ async fn run_with_signer<S: AngstromMetaSigner>(
                 validation_client,
                 quoter_handle
             );
-            let consensus = ConsensusApi::new(consensus_client, executor_clone);
+            let consensus = ConsensusApi::new(cloned_consensus_client, executor_clone);
             rpc_context.modules.merge_configured(order_api.into_rpc())?;
             rpc_context.modules.merge_configured(consensus.into_rpc())?;
 
@@ -219,7 +219,8 @@ async fn run_with_signer<S: AngstromMetaSigner>(
         &node,
         executor,
         node_exit_future,
-        node_set
+        node_set,
+        consensus_client
     )
     .await
 }

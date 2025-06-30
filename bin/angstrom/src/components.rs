@@ -37,7 +37,7 @@ use angstrom_types::{
     reth_db_wrapper::RethDbWrapper,
     submission::SubmissionHandler
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
+use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
 use futures::Stream;
 use matching_engine::{MatchingManager, manager::MatcherCommand};
 use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
@@ -179,7 +179,8 @@ pub async fn initialize_strom_components<Node, AddOns, P: Peers + Unpin + 'stati
     node: &FullNode<Node, AddOns>,
     executor: TaskExecutor,
     exit: NodeExitFuture,
-    node_set: HashSet<Address>
+    node_set: HashSet<Address>,
+    consensus_client: ConsensusHandler
 ) -> eyre::Result<()>
 where
     Node: FullNodeComponents
@@ -404,7 +405,8 @@ where
             .num_threads(6)
             .build()
             .expect("failed to build rayon thread pool"),
-        Duration::from_millis(100)
+        Duration::from_millis(100),
+        consensus_client.subscribe_consensus_round_event()
     );
 
     executor.spawn_critical("amm quoting service", amm);

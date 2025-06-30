@@ -313,7 +313,7 @@ pub mod fuzz_uniswap {
             cfg.chain_id = *CHAIN_ID.get().unwrap();
         })
         .modify_block_chained(|block| {
-            block.number = target_block;
+            block.number = U256::from(target_block);
         })
         .modify_tx_chained(|tx| {
             tx.kind = TxKind::Call(HOOK_EXECUTOR);

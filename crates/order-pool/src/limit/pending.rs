@@ -1,9 +1,9 @@
 use std::{
     cmp::Reverse,
-    collections::{BTreeMap, HashMap}
+    collections::{BTreeMap, HashMap, HashSet}
 };
 
-use alloy::primitives::FixedBytes;
+use alloy::primitives::{B256, FixedBytes};
 use angstrom_types::{
     orders::OrderPriorityData, sol_bindings::grouped_orders::OrderWithStorageData
 };
@@ -54,5 +54,16 @@ impl<Order: Clone> PendingPool<Order> {
 
     pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<Order>> {
         self.orders.values().cloned().collect()
+    }
+
+    pub fn get_all_orders_with_hashes(
+        &self,
+        hashes: &HashSet<B256>
+    ) -> Vec<OrderWithStorageData<Order>> {
+        self.orders
+            .values()
+            .filter_map(|order| hashes.contains(&order.order_id.hash).then_some(order))
+            .cloned()
+            .collect()
     }
 }
