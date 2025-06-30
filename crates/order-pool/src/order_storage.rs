@@ -242,7 +242,7 @@ impl OrderStorage {
 
     pub fn top_orders_with_hashes(
         &self,
-        hashes: HashSet<B256>
+        hashes: &HashSet<B256>
     ) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
         let searcher_orders = self.searcher_orders.lock().expect("lock poisoned");
 
@@ -250,7 +250,7 @@ impl OrderStorage {
             .get_all_pool_ids()
             .flat_map(|pool_id| {
                 searcher_orders
-                    .get_orders_for_pool_with_hashes(&pool_id, &hashes)
+                    .get_orders_for_pool_with_hashes(&pool_id, hashes)
                     .unwrap_or_else(|| panic!("pool {} does not exist", pool_id))
             })
             .collect()
@@ -401,8 +401,8 @@ impl OrderStorage {
 
     pub fn get_all_orders_with_hashes(
         &self,
-        limit_hashes: HashSet<B256>,
-        searcher_hashes: HashSet<B256>
+        limit_hashes: &HashSet<B256>,
+        searcher_hashes: &HashSet<B256>
     ) -> OrderSet<AllOrders, TopOfBlockOrder> {
         let limit = self
             .limit_orders

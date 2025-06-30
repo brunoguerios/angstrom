@@ -156,7 +156,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     fn all_orders_with_consensus(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
         if let Some(hashes) = self.active_pre_proposal_aggr_order_hashes.as_ref() {
             self.orders
-                .get_all_orders_with_hashes(hashes.limit.clone(), hashes.searcher.clone())
+                .get_all_orders_with_hashes(&hashes.limit, &hashes.searcher)
         } else {
             self.orders.get_all_orders()
         }

@@ -114,7 +114,7 @@ impl LimitOrderPool {
 
     pub fn get_all_orders_with_hashes(
         &self,
-        hashes: HashSet<B256>
+        hashes: &HashSet<B256>
     ) -> Vec<OrderWithStorageData<AllOrders>> {
         self.limit_orders.get_all_orders_with_hashes(hashes)
     }

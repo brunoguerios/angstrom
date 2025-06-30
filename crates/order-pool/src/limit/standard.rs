@@ -165,11 +165,11 @@ impl LimitPool {
 
     pub fn get_all_orders_with_hashes(
         &self,
-        hashes: HashSet<B256>
+        hashes: &HashSet<B256>
     ) -> Vec<OrderWithStorageData<AllOrders>> {
         self.pending_orders
             .values()
-            .flat_map(|p| p.get_all_orders_with_hashes(&hashes))
+            .flat_map(|p| p.get_all_orders_with_hashes(hashes))
             .collect()
     }
 
