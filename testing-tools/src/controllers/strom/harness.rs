@@ -7,10 +7,8 @@ use std::{
 use alloy::{self, eips::BlockId, network::Network, primitives::Address, providers::Provider};
 use alloy_primitives::U256;
 use angstrom::components::StromHandles;
-use angstrom_amm_quoter::QuoterHandle;
 use angstrom_eth::manager::EthEvent;
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
-use angstrom_rpc::{ConsensusApi, OrderApi};
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
     consensus::ConsensusRoundName,
@@ -25,7 +23,7 @@ use angstrom_types::{
     primitive::{AngstromSigner, UniswapPoolRegistry},
     submission::SubmissionHandler
 };
-use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use dashmap::DashMap;
 use eyre::eyre;
 use futures::{Stream, StreamExt};
@@ -39,10 +37,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use uniswap_v4::{DEFAULT_TICKS, configure_uniswap_manager};
 use validation::{common::TokenPriceGenerator, init_validation, validator::ValidationClient};
 
-use crate::{
-    providers::AnvilProvider,
-    types::{SendingStromHandles, WithWalletProvider}
-};
+use crate::{providers::AnvilProvider, types::WithWalletProvider};
 
 pub async fn load_poolconfig_from_chain<N, P>(
     angstrom_contract: Address,
@@ -148,15 +143,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     );
 
     // Build handles and other tools
-    let pool = handles.get_pool_handle();
-    let tx_strom_handles: SendingStromHandles = (&handles).into();
     let validation_client = ValidationClient(handles.validator_tx);
-    let matching_handle = MatchingManager::spawn(executor.clone(), validation_client.clone());
-    let consensus_client = ConsensusHandler(handles.consensus_tx_rpc.clone());
-    let consensus_api = ConsensusApi::new(consensus_client.clone(), executor.clone());
-    let amm_quoter = QuoterHandle(handles.quoter_tx.clone());
-    let order_api =
-        OrderApi::new(pool.clone(), executor.clone(), validation_client.clone(), amm_quoter);
 
     // Create our provider
     let submission_handler = SubmissionHandler::new(
