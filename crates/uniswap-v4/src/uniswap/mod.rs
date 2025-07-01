@@ -63,7 +63,7 @@ mod tests {
             let converted = i32_to_i24(original).unwrap();
             assert_eq!(
                 converted,
-                I24::from_dec_str(format!("{}", original).as_str()).unwrap(),
+                I24::from_dec_str(format!("{original}").as_str()).unwrap(),
                 "i32 to I24 conversion failed"
             );
         }
@@ -83,7 +83,7 @@ mod tests {
             let converted = i32_to_i24(original).unwrap();
             assert_eq!(
                 converted,
-                I24::from_dec_str(format!("{}", original).as_str()).unwrap(),
+                I24::from_dec_str(format!("{original}").as_str()).unwrap(),
                 "i32 to I24 conversion failed"
             );
         }

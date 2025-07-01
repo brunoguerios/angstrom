@@ -304,7 +304,7 @@ mod tests {
         let donation = DonationCalculation::from_vec(&[]).unwrap();
         let res = donation.into_reward_updates();
         if let (r, None) = res {
-            println!("{:?}", r);
+            println!("{r:?}");
         } else {
             panic!("Made the wrong thing");
         }

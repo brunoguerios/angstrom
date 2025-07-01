@@ -124,11 +124,11 @@ impl BlockSyncConsumer for GlobalBlockSync {
     ) {
         // check to see if there is pending state
         if self.pending_state.read().unwrap().is_empty() {
-            panic!("{} tried to sign off on a proposal that didn't exist", module);
+            panic!("{module} tried to sign off on a proposal that didn't exist");
         }
         // ensure we are signing over equivalent proposals
         if !self.proper_proposal(&GlobalBlockState::PendingReorg(block_range.clone())) {
-            panic!("{} tried to sign off on a incorrect proposal", module);
+            panic!("{module} tried to sign off on a incorrect proposal");
         }
 
         let check = SignOffState::HandledReorg(waker);
@@ -167,7 +167,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
         tracing::info!(?module, ?block_number, "module signed off for block");
         // check to see if there is pending state
         if self.pending_state.read().unwrap().is_empty() {
-            panic!("{} tried to sign off on a proposal that didn't exist", module);
+            panic!("{module} tried to sign off on a proposal that didn't exist");
         }
         // ensure the block number is cur_block + 1
         if !self.proper_proposal(&GlobalBlockState::PendingProgression(block_number)) {

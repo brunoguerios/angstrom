@@ -184,7 +184,7 @@ pub fn amm_debt_same_move_solve(
     debug!(c = ?c, "C factor");
 
     let solution = quadratic_solve(a, b, c, precision);
-    println!("Got solutions: {:?}", solution);
+    println!("Got solutions: {solution:?}");
     solution
         .0
         .filter(|i| match direction {
@@ -413,7 +413,7 @@ mod tests {
         let amm_price = Ray::from(SqrtPriceX96::at_tick(100000).unwrap());
         let debt_fixed_t1 = 10_000_000_000_u128;
         let debt_initial_t0 = amm_price.inverse_quantity(debt_fixed_t1, true);
-        println!("Debt initial T0: {}", debt_initial_t0);
+        println!("Debt initial T0: {debt_initial_t0}");
         let amm_liquidity = 1_000_000_000_000_000_u128;
         let total_input = 1_000_000_000_u128;
         let amm_portion = amm_debt_same_move_solve(
@@ -423,9 +423,9 @@ mod tests {
             total_input,
             Direction::SellingT0
         );
-        println!("AMM portion: {}", amm_portion);
+        println!("AMM portion: {amm_portion}");
         let debt_portion = total_input - amm_portion;
-        println!("Debt portion: {}", debt_portion);
+        println!("Debt portion: {debt_portion}");
     }
 
     #[test]

@@ -5,9 +5,8 @@ use std::{
 };
 
 use alloy::providers::Provider;
-use angstrom_network::manager::StromConsensusEvent;
 use angstrom_types::{
-    consensus::{PreProposalAggregation, Proposal},
+    consensus::{ConsensusRoundName, PreProposalAggregation, Proposal, StromConsensusEvent},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution,
     primitive::AngstromMetaSigner,
@@ -112,10 +111,11 @@ impl ProposalState {
                 return false;
             };
 
-        let attestation = possible_bundle
-            .is_none()
-            .then(|| AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer))
-            .unwrap_or_default();
+        let attestation = if possible_bundle.is_none() {
+            AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer)
+        } else {
+            Default::default()
+        };
         handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(attestation));
 
         let submission_future = Box::pin(async move {
@@ -211,5 +211,9 @@ where
 
     fn last_round_info(&mut self) -> Option<LastRoundInfo> {
         self.last_round_info.take()
+    }
+
+    fn name(&self) -> ConsensusRoundName {
+        ConsensusRoundName::Proposal
     }
 }

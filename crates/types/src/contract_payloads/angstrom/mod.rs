@@ -17,7 +17,7 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use dashmap::DashMap;
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tracing::{Level, debug, error, trace, warn};
 
 use super::{
@@ -400,6 +400,7 @@ impl AngstromBundle {
         store_index: u16,
         shared_gas: Option<U256>
     ) -> eyre::Result<()> {
+        tracing::info!(?solution);
         let process_solution_span =
             tracing::debug_span!("process_solution", t0 = ?t0, t1 = ?t1, pool_id = ?solution.id)
                 .entered();
@@ -1012,11 +1013,37 @@ impl AngstromBundle {
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct AngstromPoolPartialKey([u8; 27]);
 
+impl AngstromPoolPartialKey {
+    pub fn new(key: [u8; 27]) -> Self {
+        Self(key)
+    }
+}
+
 impl Deref for AngstromPoolPartialKey {
     type Target = [u8; 27];
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl std::fmt::Display for AngstromPoolPartialKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", BASE64_STANDARD.encode(self.0))
+    }
+}
+
+impl std::str::FromStr for AngstromPoolPartialKey {
+    type Err = base64::DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = BASE64_STANDARD.decode(s)?;
+        if bytes.len() != 27 {
+            return Err(base64::DecodeError::InvalidLength(bytes.len()));
+        }
+        let mut arr = [0u8; 27];
+        arr.copy_from_slice(&bytes);
+        Ok(Self(arr))
     }
 }
 
@@ -1028,9 +1055,50 @@ pub struct AngPoolConfigEntry {
     pub store_index:      usize
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AngstromPoolConfigStore {
+    #[serde(
+        serialize_with = "serialize_dashmap_with_display_keys",
+        deserialize_with = "deserialize_dashmap_with_display_keys"
+    )]
     entries: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>
+}
+
+impl From<DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>> for AngstromPoolConfigStore {
+    fn from(value: DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>) -> Self {
+        Self { entries: value }
+    }
+}
+
+fn serialize_dashmap_with_display_keys<S>(
+    dashmap: &DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>,
+    serializer: S
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer
+{
+    let hashmap: HashMap<String, AngPoolConfigEntry> = dashmap
+        .iter()
+        .map(|entry| (entry.key().to_string(), *entry.value()))
+        .collect();
+    hashmap.serialize(serializer)
+}
+
+fn deserialize_dashmap_with_display_keys<'de, D>(
+    deserializer: D
+) -> Result<DashMap<AngstromPoolPartialKey, AngPoolConfigEntry>, D::Error>
+where
+    D: Deserializer<'de>
+{
+    let hashmap: HashMap<String, AngPoolConfigEntry> = HashMap::deserialize(deserializer)?;
+    let dashmap = DashMap::new();
+    for (key_str, value) in hashmap {
+        let key = key_str
+            .parse::<AngstromPoolPartialKey>()
+            .map_err(serde::de::Error::custom)?;
+        dashmap.insert(key, value);
+    }
+    Ok(dashmap)
 }
 
 impl AngstromPoolConfigStore {
@@ -1048,7 +1116,7 @@ impl AngstromPoolConfigStore {
             .get_storage_at(angstrom_contract, U256::from(CONFIG_STORE_SLOT))
             .block_id(block_id)
             .await
-            .map_err(|e| format!("Error getting storage: {}", e))?;
+            .map_err(|e| format!("Error getting storage: {e}"))?;
 
         let value_bytes: [u8; 32] = value.to_be_bytes();
         tracing::debug!("storage slot of poolkey storage {:?}", value_bytes);
@@ -1060,12 +1128,12 @@ impl AngstromPoolConfigStore {
             .get_code_at(config_store_address)
             .block_id(block_id)
             .await
-            .map_err(|e| format!("Error getting code: {}", e))?;
+            .map_err(|e| format!("Error getting code: {e}"))?;
 
         tracing::info!(len=?code.len(), "bytecode: {:x}", code);
 
         AngstromPoolConfigStore::try_from(code.as_ref())
-            .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
+            .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {e}"))
     }
 
     pub fn length(&self) -> usize {

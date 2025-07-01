@@ -742,8 +742,8 @@ mod tests {
         let spthree: SqrtPriceX96 = rptwo.into();
         let rpthree: Ray = spthree.into();
 
-        println!("{:?} - {:?} - {:?}", rp, rptwo, rpthree);
-        println!("{:?} - {:?} - {:?}", sp, sptwo, spthree);
+        println!("{rp:?} - {rptwo:?} - {rpthree:?}");
+        println!("{sp:?} - {sptwo:?} - {spthree:?}");
         println!("{} - {}", rp.as_f64(), sp.as_f64());
         assert!(rp.as_f64() == sp.as_f64());
         assert!(rp == rptwo);

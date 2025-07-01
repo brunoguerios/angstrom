@@ -93,10 +93,10 @@ fn delta_matcher_test() {
             vec![orders[2].clone(), orders[3].clone()],
             Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
         );
-        println!("{:#?}", book);
+        println!("{book:#?}");
         let mut matcher = DeltaMatcher::new(&book, DeltaMatcherToB::None, true);
         let solution = matcher.solution(None);
-        println!("{:?}", solution);
+        println!("{solution:?}");
         // Because it's a partial fill, our price should end at our ask price
         assert_eq!(solution.ucp, book.asks()[0].price(), "Price is not at partial fill Ask price");
         // And our total T0 state should sum to zero
@@ -158,10 +158,10 @@ fn delta_matcher_kill_order_test() {
             vec![orders[2].clone(), orders[3].clone(), orders[4].clone()],
             Some(matching_engine::book::sort::SortStrategy::ByPriceByVolume)
         );
-        println!("{:#?}", book);
+        println!("{book:#?}");
         let mut matcher = DeltaMatcher::new(&book, DeltaMatcherToB::None, true);
         let solution = matcher.solution(None);
-        println!("{:?}", solution);
+        println!("{solution:?}");
         // Because it's a partial fill, our price should end at our ask price
         assert_eq!(solution.ucp, book.asks()[0].price(), "Price is not at partial fill Ask price");
         // And our total T0 state should sum to zero

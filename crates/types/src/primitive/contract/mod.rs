@@ -229,7 +229,7 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
                 ))
                 .is_err();
         }
-        id => panic!("unsupported chain_id: {}", id)
+        id => panic!("unsupported chain_id: {id}")
     }
     if err {
         return Err(eyre::eyre!("one or more statics failed to set"));

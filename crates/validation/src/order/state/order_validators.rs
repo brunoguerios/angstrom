@@ -112,6 +112,6 @@ fn test_valid_order_passes_all_validators() {
     for validator in ORDER_VALIDATORS {
         let mut state = OrderValidationState::new(&order);
         let result = validator.validate_order(&mut state);
-        assert_eq!(result, Ok(()), "Validator {:?} unexpectedly failed", validator);
+        assert_eq!(result, Ok(()), "Validator {validator:?} unexpectedly failed");
     }
 }
