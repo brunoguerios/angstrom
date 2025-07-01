@@ -1,5 +1,5 @@
 use std::{
-    cmp::{Ordering, Reverse, min},
+    cmp::{Ordering, Reverse, max, min},
     collections::HashSet
 };
 
@@ -120,10 +120,10 @@ impl<'a> DeltaMatcher<'a> {
 
         // If the AMM price is decreasing, it is because the AMM is accepting T0 from
         // the contract.  An order that purchases T0 from the contract is a bid
-        let is_bid = start_sqrt >= end_sqrt;
+        let zfo = start_sqrt >= end_sqrt;
 
         // swap to start
-        let Ok(res) = pool.swap_to_price(Direction::from_is_bid(is_bid), end_sqrt) else {
+        let Ok(res) = pool.swap_to_price(end_sqrt) else {
             return Default::default();
         };
 
@@ -133,10 +133,10 @@ impl<'a> DeltaMatcher<'a> {
             ?price,
             res.total_d_t0,
             res.total_d_t1,
-            is_bid,
+            zfo,
             "AMM swap calc"
         );
-        if is_bid {
+        if zfo {
             // if the amm is swapping from zero to one, it means that we need more liquidity
             // it in token 1 and less in token zero
             (
@@ -585,7 +585,7 @@ impl<'a> DeltaMatcher<'a> {
         let is_bid = pool.end_price >= end_price_sqrt;
         let direction = Direction::from_is_bid(is_bid);
 
-        let Ok(res) = pool.swap_to_price(direction, end_price_sqrt) else {
+        let Ok(res) = pool.swap_to_price(end_price_sqrt) else {
             return Default::default();
         };
 
@@ -638,10 +638,23 @@ impl<'a> DeltaMatcher<'a> {
 
     #[tracing::instrument(level = "debug", skip(self))]
     fn solve_clearing_price(&self) -> Option<UcpSolution> {
+        let (min_price, max_price) = self
+            .amm_start_location
+            .as_ref()
+            .map(|swap| {
+                let start_liq = &swap.end_liquidity;
+                (Ray::from(start_liq.min_sqrt_price()), Ray::from(start_liq.max_sqrt_price()))
+            })
+            .unwrap_or((Ray::from(U256::ZERO), Ray::from(U256::MAX)));
+        // We ensure that no matter what, we always swap within the bounds of valid
+        // liquidity.
+
         // p_max is (highest bid || (MAX_PRICE - 1)) + 1
-        let mut p_max = Ray::from(self.book.highest_clearing_price().saturating_add(U256_1));
+        let mut p_max =
+            min(max_price, Ray::from(self.book.highest_clearing_price().saturating_add(U256_1)));
         // p_min is (lowest ask || (MIN_PRICE + 1)) - 1
-        let mut p_min = Ray::from(self.book.lowest_clearing_price().saturating_sub(U256_1));
+        let mut p_min =
+            max(min_price, Ray::from(self.book.lowest_clearing_price().saturating_sub(U256_1)));
 
         let two = U256::from(2);
         let four = U256::from(4);

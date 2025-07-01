@@ -442,6 +442,7 @@ impl ReplayRunner {
         executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
             consensus.run_till_shutdown(grace)
         });
+        let consensus_client = ConsensusHandler(strom_handles.consensus_tx_rpc.clone());
 
         // spin up amm quoter
         let amm = QuoterManager::new(
@@ -453,7 +454,8 @@ impl ReplayRunner {
                 .num_threads(2)
                 .build()
                 .expect("failed to build rayon thread pool"),
-            Duration::from_millis(100)
+            Duration::from_millis(100),
+            consensus_client.subscribe_consensus_round_event()
         );
 
         executor.spawn_critical("amm quoting service", amm);

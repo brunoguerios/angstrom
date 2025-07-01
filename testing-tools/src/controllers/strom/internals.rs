@@ -347,7 +347,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
                 .num_threads(2)
                 .build()
                 .expect("failed to build rayon thread pool"),
-            Duration::from_millis(100)
+            Duration::from_millis(100),
+            consensus_client.subscribe_consensus_round_event()
         );
 
         executor.spawn_critical("amm quoting service", amm);

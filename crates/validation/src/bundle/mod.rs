@@ -135,7 +135,7 @@ where
                         cfg.disable_nonce_check = true;
                     })
                     .modify_block_chained(|block| {
-                        block.number = number + 1;
+                        block.number = U256::from(number + 1);
                         tracing::info!(?block.number, "simulating block on");
                     })
                     .modify_tx_chained(|tx| {
@@ -150,9 +150,9 @@ where
                         .into();
                     }).build_mainnet_with_inspector(console_log_inspector);
 
-
+                let tx = std::mem::take(&mut evm.tx);
                 // TODO:  Put this on a feature flag so we use `replay()` when not needing debug inspection
-                let result = match evm.inspect_replay()
+                let result = match evm.inspect_one_tx(tx)
                     .map_err(|e| eyre!("failed to transact with revm - {e:?}"))
                 {
                     Ok(r) => r,
@@ -165,13 +165,13 @@ where
                     }
                 };
 
-                if !result.result.is_success() {
-                    tracing::warn!(?result.result);
+                if !result.is_success() {
+                    tracing::warn!(?result);
                     let _ = sender.send(Err(eyre!("transaction simulation failed")));
                     return;
                 }
 
-                let res = BundleGasDetails::new(conversion_lookup,result.result.gas_used());
+                let res = BundleGasDetails::new(conversion_lookup,result.gas_used());
                 let _ = sender.send(Ok(res));
             });
         }))

@@ -158,6 +158,14 @@ pub struct LiquidityAtPoint<'a> {
 }
 
 impl LiquidityAtPoint<'_> {
+    pub fn min_sqrt_price(&self) -> SqrtPriceX96 {
+        SqrtPriceX96::at_tick(self.min_tick_init + 1).unwrap()
+    }
+
+    pub fn max_sqrt_price(&self) -> SqrtPriceX96 {
+        SqrtPriceX96::at_tick(self.max_tick_init - 1).unwrap()
+    }
+
     /// moves to the next tick initialized within one word returning
     /// the tick and the liquidity to swap with
     pub fn get_to_next_initialized_tick_within_one_word(

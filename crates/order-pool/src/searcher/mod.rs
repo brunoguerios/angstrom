@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use alloy::primitives::{B256, FixedBytes};
 use angstrom_metrics::SearcherOrderPoolMetricsWrapper;
@@ -109,6 +109,16 @@ impl SearcherPool {
         self.searcher_orders
             .get(pool_id)
             .map(|pool| pool.get_all_orders())
+    }
+
+    pub fn get_orders_for_pool_with_hashes(
+        &self,
+        pool_id: &PoolId,
+        hashes: &HashSet<B256>
+    ) -> Option<Vec<OrderWithStorageData<TopOfBlockOrder>>> {
+        self.searcher_orders
+            .get(pool_id)
+            .map(|pool| pool.get_all_orders_with_hashes(hashes))
     }
 
     pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {

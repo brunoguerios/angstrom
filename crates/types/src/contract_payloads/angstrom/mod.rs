@@ -29,7 +29,7 @@ use crate::{
     consensus::{PreProposal, Proposal},
     contract_bindings::angstrom::Angstrom::PoolKey,
     contract_payloads::rewards::RewardsUpdate,
-    matching::{Ray, SqrtPriceX96, get_quantities_at_price, uniswap::Direction},
+    matching::{Ray, SqrtPriceX96, get_quantities_at_price},
     orders::{OrderFillState, OrderId, OrderOutcome, OrderSet, PoolSolution},
     primitive::{PoolId, UniswapPoolRegistry},
     sol_bindings::{
@@ -557,15 +557,11 @@ impl AngstromBundle {
             trace!("No book swap, UCP was zero");
             None
         } else {
-            let post_tob = post_tob_price.end_price;
             let ucp: SqrtPriceX96 = solution.ucp.into();
+            tracing::info!(?solution);
             // grab amount in when swap to price, then from there, calculate
             // actual values.
-
-            let is_bid = post_tob >= ucp;
-            let book_swap_vec =
-                post_tob_price.swap_to_price(Direction::from_is_bid(is_bid), ucp)?;
-
+            let book_swap_vec = post_tob_price.swap_to_price(ucp).unwrap();
             trace!(
                 net_t0 = book_swap_vec.total_d_t0,
                 net_t1 = book_swap_vec.total_d_t1,
@@ -625,8 +621,7 @@ impl AngstromBundle {
                 .unwrap_or(I256::ZERO)
                 + tob_vec.t0_signed();
 
-            let net_direction =
-                if net_t0.is_negative() { Direction::SellingT0 } else { Direction::BuyingT0 };
+            let net_direction = net_t0.is_negative();
 
             let amount_in = if net_t0.is_negative() {
                 net_t0.unsigned_abs()
@@ -761,7 +756,7 @@ impl AngstromBundle {
             (t0_net + t0_fee + gas, t1)
         };
 
-        trace!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
+        tracing::info!(quantity_in = ?quantity_in, quantity_out = ?quantity_out, is_bid = order.is_bid, exact_in = order.exact_in(), "Processing user order");
         let token_in = order.token_in();
         let token_out = order.token_out();
 

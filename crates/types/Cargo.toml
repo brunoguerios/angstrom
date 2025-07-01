@@ -24,9 +24,7 @@ reqwest = { version = "0.12.5", features = ["json"] }
 reth.workspace = true
 reth-chainspec.workspace = true
 reth-ethereum-primitives.workspace = true
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3", features = [
-  "serde",
-] }
+reth-execution-types.workspace = true
 reth-network-peers.workspace = true
 reth-primitives.workspace = true
 reth-primitives-traits.workspace = true

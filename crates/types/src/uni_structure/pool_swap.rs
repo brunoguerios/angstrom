@@ -5,10 +5,7 @@ use itertools::Itertools;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
 
 use super::{donation::DonationType, liquidity_base::LiquidityAtPoint};
-use crate::{
-    matching::{SqrtPriceX96, uniswap::Direction},
-    sol_bindings::Ray
-};
+use crate::{matching::SqrtPriceX96, sol_bindings::Ray};
 
 const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
@@ -19,8 +16,8 @@ pub struct PoolSwap<'a> {
     pub(super) target_price:  Option<SqrtPriceX96>,
     /// if its negative, it is an exact out.
     pub(super) target_amount: I256,
-    /// what way to swap
-    pub(super) direction:     Direction,
+    /// zfo = true
+    pub(super) direction:     bool,
     // the fee of the pool.
     pub(super) fee:           u32
 }
@@ -29,7 +26,8 @@ impl<'a> PoolSwap<'a> {
     pub fn swap(mut self) -> eyre::Result<PoolSwapResult<'a>> {
         // We want to ensure that we set the right limits and are swapping the correct
         // way.
-        if self.direction.is_ask()
+
+        if self.direction
             && self
                 .target_price
                 .as_ref()
@@ -44,7 +42,7 @@ impl<'a> PoolSwap<'a> {
 
         let exact_input = self.target_amount.is_positive();
         let sqrt_price_limit_x96 = self.target_price.map(|p| p.into()).unwrap_or_else(|| {
-            if self.direction.is_ask() { MIN_SQRT_RATIO + U256_1 } else { MAX_SQRT_RATIO - U256_1 }
+            if self.direction { MIN_SQRT_RATIO + U256_1 } else { MAX_SQRT_RATIO - U256_1 }
         });
 
         let mut amount_remaining = self.target_amount;
@@ -59,14 +57,14 @@ impl<'a> PoolSwap<'a> {
 
             let (next_tick, liquidity, init) = self
                 .liquidity
-                .get_to_next_initialized_tick_within_one_word(self.direction.is_ask())?;
+                .get_to_next_initialized_tick_within_one_word(self.direction)?;
 
             let sqrt_price_next_x96 =
                 uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(next_tick)?;
 
-            let target_sqrt_ratio = if (self.direction.is_ask()
+            let target_sqrt_ratio = if (self.direction
                 && sqrt_price_next_x96 < sqrt_price_limit_x96)
-                || (!self.direction.is_ask() && sqrt_price_next_x96 > sqrt_price_limit_x96)
+                || (!self.direction && sqrt_price_next_x96 > sqrt_price_limit_x96)
             {
                 sqrt_price_limit_x96
             } else {
@@ -95,10 +93,15 @@ impl<'a> PoolSwap<'a> {
             total_in += amount_in + fee_amount;
             total_out += amount_out;
 
-            let (d_t0, d_t1) = self.direction.sort_tokens(amount_in.to(), amount_out.to());
+            let (d_t0, d_t1) = if self.direction {
+                (amount_in.to(), amount_out.to())
+            } else {
+                (amount_out.to(), amount_in.to())
+            };
+
             self.liquidity.move_to_next_tick(
                 sqrt_price_x96,
-                self.direction.is_ask(),
+                self.direction,
                 sqrt_price_x96 == sqrt_price_next_x96,
                 sqrt_price_x96 != sqrt_price_start_x_96
             )?;
@@ -147,7 +150,7 @@ impl<'a> PoolSwapResult<'a> {
     pub fn swap_to_amount(
         &'a self,
         amount: I256,
-        direction: Direction
+        direction: bool
     ) -> eyre::Result<PoolSwapResult<'a>> {
         PoolSwap {
             liquidity: self.end_liquidity.clone(),
@@ -159,11 +162,9 @@ impl<'a> PoolSwapResult<'a> {
         .swap()
     }
 
-    pub fn swap_to_price(
-        &'a self,
-        direction: Direction,
-        price_limit: SqrtPriceX96
-    ) -> eyre::Result<PoolSwapResult<'a>> {
+    pub fn swap_to_price(&'a self, price_limit: SqrtPriceX96) -> eyre::Result<PoolSwapResult<'a>> {
+        let direction = self.end_price >= price_limit;
+
         let price_swap = PoolSwap {
             liquidity: self.end_liquidity.clone(),
             target_price: Some(price_limit),
@@ -173,8 +174,7 @@ impl<'a> PoolSwapResult<'a> {
         }
         .swap()?;
 
-        let amount_in =
-            if direction.is_ask() { price_swap.total_d_t0 } else { price_swap.total_d_t1 };
+        let amount_in = if direction { price_swap.total_d_t0 } else { price_swap.total_d_t1 };
         let amount = I256::unchecked_from(amount_in);
 
         self.swap_to_amount(amount, direction)

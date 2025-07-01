@@ -18,9 +18,7 @@ futures-util.workspace = true
 itertools.workspace = true
 pade.workspace = true
 reth-ethereum-primitives.workspace = true
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", version = "1.4.3", tag = "v1.4.3", features = [
-  "serde",
-] }
+reth-execution-types.workspace = true
 reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-tasks.workspace = true

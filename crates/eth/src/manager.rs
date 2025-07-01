@@ -44,13 +44,13 @@ pub struct EthDataCleanser<Sync> {
     pub(crate) angstrom_address:  Address,
     pub(crate) periphery_address: Address,
     /// our command receiver
-    commander:                    ReceiverStream<EthCommand>,
+    pub(crate) commander:         ReceiverStream<EthCommand>,
     /// people listening to events
-    event_listeners:              Vec<UnboundedSender<EthEvent>>,
+    pub(crate) event_listeners:   Vec<UnboundedSender<EthEvent>>,
     /// for rebroadcasting
-    cannon_sender:                tokio::sync::broadcast::Sender<CanonStateNotification>,
+    pub(crate) cannon_sender:     tokio::sync::broadcast::Sender<CanonStateNotification>,
     /// Notifications for Canonical Block updates
-    canonical_updates:            BroadcastStream<CanonStateNotification>,
+    pub(crate) canonical_updates: BroadcastStream<CanonStateNotification>,
     pub(crate) angstrom_tokens:   HashMap<Address, usize>,
     /// handles syncing of blocks.
     block_sync:                   Sync,

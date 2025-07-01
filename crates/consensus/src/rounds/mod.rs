@@ -7,13 +7,14 @@ use std::{
 };
 
 use alloy::{
-    primitives::{Address, BlockNumber, Bytes, FixedBytes},
+    primitives::{Address, B256, BlockNumber, Bytes, FixedBytes},
     providers::Provider
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_types::{
     consensus::{
-        ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal, StromConsensusEvent
+        ConsensusRoundEvent, ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal,
+        StromConsensusEvent
     },
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     orders::PoolSolution,
@@ -392,6 +393,50 @@ pub enum ConsensusMessage {
     PropagateProposal(Proposal),
     /// Command to propagate an Empty Block Attestatino over the network
     PropagateEmptyBlockAttestation(Bytes)
+}
+
+impl ConsensusMessage {
+    pub fn searcher_order_hashes(&self) -> Vec<B256> {
+        match self {
+            ConsensusMessage::PropagatePreProposal(pre_proposal) => {
+                pre_proposal.searcher_order_hashes()
+            }
+            ConsensusMessage::PropagatePreProposalAgg(pre_proposal_aggregation) => {
+                pre_proposal_aggregation.searcher_order_hashes()
+            }
+            ConsensusMessage::PropagateProposal(proposal) => proposal.searcher_order_hashes(),
+            ConsensusMessage::StateChange(_)
+            | ConsensusMessage::PropagateEmptyBlockAttestation(_) => Vec::new()
+        }
+    }
+
+    pub fn limit_order_hashes(&self) -> Vec<B256> {
+        match self {
+            ConsensusMessage::PropagatePreProposal(pre_proposal) => {
+                pre_proposal.limit_order_hashes()
+            }
+            ConsensusMessage::PropagatePreProposalAgg(pre_proposal_aggregation) => {
+                pre_proposal_aggregation.limit_order_hashes()
+            }
+            ConsensusMessage::PropagateProposal(proposal) => proposal.limit_order_hashes(),
+            ConsensusMessage::StateChange(_)
+            | ConsensusMessage::PropagateEmptyBlockAttestation(_) => Vec::new()
+        }
+    }
+
+    pub fn round_event(&self) -> ConsensusRoundEvent {
+        match self {
+            ConsensusMessage::StateChange(_) => ConsensusRoundEvent::Noop,
+            ConsensusMessage::PropagatePreProposal(_) => ConsensusRoundEvent::PropagatePreProposal,
+            ConsensusMessage::PropagatePreProposalAgg(_) => {
+                ConsensusRoundEvent::PropagatePreProposalAgg
+            }
+            ConsensusMessage::PropagateProposal(_) => ConsensusRoundEvent::PropagateProposal,
+            ConsensusMessage::PropagateEmptyBlockAttestation(_) => {
+                ConsensusRoundEvent::PropagateEmptyBlockAttestation
+            }
+        }
+    }
 }
 
 impl From<PreProposal> for ConsensusMessage {
