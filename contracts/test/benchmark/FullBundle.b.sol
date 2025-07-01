@@ -60,6 +60,10 @@ contract FullBundleBenchmark is BaseTest {
         _bundleWithExactFlashInternal(2);
     }
 
+    function test_exactFlashInternal_solo_3() public {
+        _bundleWithExactFlashInternal(3);
+    }
+
     function test_exactStandingLiquidNonZeroNonce_solo_1() public {
         _bundleWithExactStandingLiquid(1);
     }
