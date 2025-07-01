@@ -22,7 +22,7 @@ fn compute_swap_step_oddity() {
     )
     .unwrap();
 
-    println!("Res: {:?}", res);
+    println!("Res: {res:?}");
     let next_res = get_next_sqrt_price_from_amount_0_rounding_up(
         sqrt_ratio_current_x_96,
         liquidity,
@@ -30,5 +30,5 @@ fn compute_swap_step_oddity() {
         true
     )
     .unwrap();
-    println!("Next Res: {:?}", next_res);
+    println!("Next Res: {next_res:?}");
 }

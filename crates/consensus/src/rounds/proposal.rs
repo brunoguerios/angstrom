@@ -111,10 +111,11 @@ impl ProposalState {
                 return false;
             };
 
-        let attestation = possible_bundle
-            .is_none()
-            .then(|| AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer))
-            .unwrap_or_default();
+        let attestation = if possible_bundle.is_none() {
+            AttestAngstromBlockEmpty::sign_and_encode(target_block, &signer)
+        } else {
+            Default::default()
+        };
         handles.propagate_message(ConsensusMessage::PropagateEmptyBlockAttestation(attestation));
 
         let submission_future = Box::pin(async move {

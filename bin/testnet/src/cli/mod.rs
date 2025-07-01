@@ -50,7 +50,7 @@ impl AngstromTestnetCli {
         if this.metrics
             && initialize_prometheus_metrics(this.metrics_port)
                 .await
-                .inspect_err(|e| eprintln!("failed to start metrics endpoint - {:?}", e))
+                .inspect_err(|e| eprintln!("failed to start metrics endpoint - {e:?}"))
                 .is_ok()
         {
             {

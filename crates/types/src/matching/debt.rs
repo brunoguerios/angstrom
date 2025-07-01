@@ -305,7 +305,7 @@ impl Debt {
     pub fn dq_to_price(&self, target_price: &Ray) -> u128 {
         let final_t0 = self.magnitude.t0_at_price(*target_price);
         let current_t0: u128 = self.current_t0();
-        if final_t0 > current_t0 { final_t0 - current_t0 } else { current_t0 - final_t0 }
+        final_t0.abs_diff(current_t0)
     }
 
     /// Given an AMM liquidity and a quantity of t0 being bought to or sold from

@@ -414,7 +414,7 @@ impl TokenPriceGenerator {
                 .expect("got pool update that we don't have stored");
 
             let prices = self.prev_prices.get(default_pool_key)?;
-            println!("{:?}", prices);
+            println!("{prices:?}");
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -580,7 +580,7 @@ pub mod test {
             .unwrap();
 
         let expected_rate = Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER);
-        println!("rate: {:?} got: {:?}", rate, expected_rate);
+        println!("rate: {rate:?} got: {expected_rate:?}");
         assert_eq!(rate, expected_rate)
     }
 
@@ -599,7 +599,7 @@ pub mod test {
         //  conversion = price =  weth / t2  == 5e45
 
         let expected_rate = Ray::scale_to_ray(U256::from(5e18));
-        println!("rate: {:?} got: {:?}", rate, expected_rate);
+        println!("rate: {rate:?} got: {expected_rate:?}");
         assert_eq!(rate, expected_rate)
     }
 

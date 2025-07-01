@@ -110,10 +110,10 @@ impl AllPoolKeyInners {
         }
 
         let toml_content = std::fs::read_to_string(config_path)
-            .wrap_err_with(|| format!("could not read pool key config file {:?}", config_path))?;
+            .wrap_err_with(|| format!("could not read pool key config file {config_path:?}"))?;
 
         let node_config: Self = toml::from_str(&toml_content).wrap_err_with(|| {
-            format!("could not deserialize pool key config file {:?}", config_path)
+            format!("could not deserialize pool key config file {config_path:?}")
         })?;
 
         node_config.try_into()
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn test_read_config() {
         let path = PathBuf::from_str("./testnet-config.toml").unwrap();
-        println!("{:?}", path);
+        println!("{path:?}");
 
         let config = AllPoolKeyInners::load_toml_config(&path);
         config.as_ref().unwrap();

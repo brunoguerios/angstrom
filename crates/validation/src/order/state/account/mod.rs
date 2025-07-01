@@ -524,8 +524,7 @@ pub mod tests {
 
         assert!(
             !result.is_currently_valid(),
-            "Order should be marked as invalid due to insufficient balance {:?}",
-            result
+            "Order should be marked as invalid due to insufficient balance {result:?}"
         );
     }
 
@@ -976,8 +975,7 @@ pub mod tests {
         // Assert we get the expected error
         assert!(
             matches!(result, Err(UserAccountVerificationError::DuplicateNonce { .. })),
-            "Expected DuplicateNonce error, got {:?}",
-            result
+            "Expected DuplicateNonce error, got {result:?}"
         );
     }
 }

@@ -391,7 +391,7 @@ where
         let mut sqrt_price_x_96 = self.sqrt_price_x96;
         let mut tick = self.tick;
         let mut liquidity = self.liquidity;
-        let fee = with_fee.then_some(self.book_fee).unwrap_or_default();
+        let fee = if with_fee { self.book_fee } else { Default::default() };
 
         tracing::trace!(
             token_in = ?token_in,
@@ -1003,12 +1003,12 @@ mod tests {
         pool.tick = -60;
 
         let result = pool.fetch_pool_snapshot();
-        assert!(result.is_ok(), "{:?}", result);
+        assert!(result.is_ok(), "{result:?}");
 
         let (token_a, token_b, snapshot) = result.unwrap();
         assert_eq!(token_a, pool.token0);
         assert_eq!(token_b, pool.token1);
         //assert!(!snapshot.ranges.is_empty());
-        println!("Snapshot: {:#?}", snapshot);
+        println!("Snapshot: {snapshot:#?}");
     }
 }

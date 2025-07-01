@@ -581,7 +581,7 @@ pub mod tests {
             Poll::Ready(Some(ConsensusMessage::PropagatePreProposal(_))) => {}
             res => {
                 tracing::info!(?res);
-                panic!("Expected PreProposal propagation {:?}", res)
+                panic!("Expected PreProposal propagation {res:?}")
             }
         }
     }

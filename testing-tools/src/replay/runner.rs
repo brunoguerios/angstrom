@@ -383,7 +383,7 @@ impl ReplayRunner {
         );
 
         let server = ServerBuilder::default()
-            .build(format!("0.0.0.0:{}", rpc_port))
+            .build(format!("0.0.0.0:{rpc_port}"))
             .await?;
 
         let addr = server.local_addr()?;

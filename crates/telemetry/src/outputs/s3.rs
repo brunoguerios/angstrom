@@ -66,7 +66,7 @@ impl S3Storage {
             .send()
             .await?;
 
-        Ok(format!("{}/{}", bucket, key))
+        Ok(format!("{bucket}/{key}"))
     }
 
     pub async fn retrieve_snapshot(&self, key: &str, is_error: bool) -> eyre::Result<BlockLog> {

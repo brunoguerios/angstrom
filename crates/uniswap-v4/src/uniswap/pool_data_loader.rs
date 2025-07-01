@@ -303,15 +303,12 @@ impl PoolDataLoader for DataLoader {
     }
 
     fn is_swap_event(log: &Log) -> bool {
-        log.topics()
-            .iter()
-            .any(|t| *t == IUniswapV4Pool::Swap::SIGNATURE_HASH)
+        log.topics().contains(&IUniswapV4Pool::Swap::SIGNATURE_HASH)
     }
 
     fn is_modify_position_event(log: &Log) -> bool {
         log.topics()
-            .iter()
-            .any(|t| *t == IUniswapV4Pool::ModifyLiquidity::SIGNATURE_HASH)
+            .contains(&IUniswapV4Pool::ModifyLiquidity::SIGNATURE_HASH)
     }
 
     fn decode_swap_event(log: &Log) -> Result<SwapEvent, PoolError> {

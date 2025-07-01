@@ -251,7 +251,7 @@ impl OrderStorage {
             .flat_map(|pool_id| {
                 searcher_orders
                     .get_orders_for_pool(&pool_id)
-                    .unwrap_or_else(|| panic!("pool {} does not exist", pool_id))
+                    .unwrap_or_else(|| panic!("pool {pool_id} does not exist"))
             })
             .collect()
     }
@@ -267,7 +267,7 @@ impl OrderStorage {
             .flat_map(|pool_id| {
                 searcher_orders
                     .get_orders_for_pool_with_hashes(&pool_id, hashes)
-                    .unwrap_or_else(|| panic!("pool {} does not exist", pool_id))
+                    .unwrap_or_else(|| panic!("pool {pool_id} does not exist"))
             })
             .collect()
     }
@@ -366,8 +366,7 @@ impl OrderStorage {
     }
 
     pub fn remove_searcher_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
-        let order = self
-            .searcher_orders
+        self.searcher_orders
             .lock()
             .expect("posioned")
             .remove_order(id)
@@ -378,9 +377,7 @@ impl OrderStorage {
                         Ok(AllOrders::TOB(v))
                     })
                     .unwrap()
-            });
-
-        order
+            })
     }
 
     pub fn remove_limit_order(&self, id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {

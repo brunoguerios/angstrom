@@ -224,7 +224,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             .await
             .expect("failed to start price generator")
         };
-        println!("{:#?}", token_conversion);
+        println!("{token_conversion:#?}");
 
         let token_price_update_stream = state_provider.state_provider().canonical_state_stream();
         let token_price_update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
@@ -278,7 +278,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
 
         let rpc_port = node_config.strom_rpc_port();
         let server = ServerBuilder::default()
-            .build(format!("0.0.0.0:{}", rpc_port))
+            .build(format!("0.0.0.0:{rpc_port}"))
             .await?;
 
         let addr = server.local_addr()?;

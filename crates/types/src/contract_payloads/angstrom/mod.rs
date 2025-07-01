@@ -1116,7 +1116,7 @@ impl AngstromPoolConfigStore {
             .get_storage_at(angstrom_contract, U256::from(CONFIG_STORE_SLOT))
             .block_id(block_id)
             .await
-            .map_err(|e| format!("Error getting storage: {}", e))?;
+            .map_err(|e| format!("Error getting storage: {e}"))?;
 
         let value_bytes: [u8; 32] = value.to_be_bytes();
         tracing::debug!("storage slot of poolkey storage {:?}", value_bytes);
@@ -1128,12 +1128,12 @@ impl AngstromPoolConfigStore {
             .get_code_at(config_store_address)
             .block_id(block_id)
             .await
-            .map_err(|e| format!("Error getting code: {}", e))?;
+            .map_err(|e| format!("Error getting code: {e}"))?;
 
         tracing::info!(len=?code.len(), "bytecode: {:x}", code);
 
         AngstromPoolConfigStore::try_from(code.as_ref())
-            .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {}", e))
+            .map_err(|e| format!("Failed to deserialize code into AngstromPoolConfigStore: {e}"))
     }
 
     pub fn length(&self) -> usize {

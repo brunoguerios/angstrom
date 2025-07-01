@@ -22,9 +22,9 @@ pub fn order_distribution(
     let mut rng = rand::rng();
     let mut rng2 = rand::rng();
     let price_gen = SkewNormal::new(price_location, price_scale, price_shape)
-        .map_err(|e| format!("Error creating price distribution: {}", e))?;
+        .map_err(|e| format!("Error creating price distribution: {e}"))?;
     let quantity_gen = SkewNormal::new(quantity_location, quantity_scale, quantity_shape)
-        .map_err(|e| format!("Error creating price distribution: {}", e))?;
+        .map_err(|e| format!("Error creating price distribution: {e}"))?;
     Ok(price_gen
         .sample_iter(&mut rng)
         .zip(quantity_gen.sample_iter(&mut rng2))

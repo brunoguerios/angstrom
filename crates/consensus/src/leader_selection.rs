@@ -383,8 +383,7 @@ mod tests {
 
         assert!(
             sum_priorities.abs() <= algo.validators.len() as i64,
-            "Sum of centered priorities ({}) should be close to zero",
-            sum_priorities
+            "Sum of centered priorities ({sum_priorities}) should be close to zero"
         );
 
         // 2. Each priority should be within reasonable bounds
