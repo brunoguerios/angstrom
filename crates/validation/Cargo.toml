@@ -34,6 +34,8 @@ uniswap-v4.workspace = true
 [dev-dependencies]
 angstrom-network.workspace = true
 futures.workspace = true
+proptest.workspace = true
+proptest-derive.workspace = true
 rand.workspace = true
 reth-discv4 = { workspace = true, features = ["test-utils"] }
 reth-metrics.workspace = true
