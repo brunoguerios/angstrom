@@ -458,7 +458,13 @@ impl UserAccounts {
             .chain(
                 self.pending_book_actions
                     .get(&user)
-                    .map(|a| a.value().clone())
+                    .map(|a| {
+                        a.value()
+                            .clone()
+                            .into_iter()
+                            .filter(|action| action.token_address == token)
+                            .collect::<Vec<_>>()
+                    })
                     .unwrap_or_default()
             )
     }

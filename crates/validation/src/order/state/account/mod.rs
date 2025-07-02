@@ -12,6 +12,9 @@ use super::db_state_utils::StateFetchUtils;
 
 pub mod user;
 
+#[cfg(test)]
+mod fuzz_tests;
+
 /// processes a user account and tells us based on there current live orders
 /// wether or not this order is valid.
 pub struct UserAccountProcessor<S> {
