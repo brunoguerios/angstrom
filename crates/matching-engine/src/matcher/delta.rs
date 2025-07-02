@@ -646,8 +646,6 @@ impl<'a> DeltaMatcher<'a> {
                 (Ray::from(start_liq.min_sqrt_price()), Ray::from(start_liq.max_sqrt_price()))
             })
             .unwrap_or((Ray::from(U256::ZERO), Ray::from(U256::MAX)));
-        let pair_id = self.book.id;
-        tracing::info!(?min_price, ?max_price, ?pair_id);
         // We ensure that no matter what, we always swap within the bounds of valid
         // liquidity.
 
