@@ -16,6 +16,18 @@ impl From<PoolKey> for PoolId {
     }
 }
 
+impl From<crate::contract_bindings::pool_manager::PoolKey> for PoolId {
+    fn from(value: crate::contract_bindings::pool_manager::PoolKey) -> Self {
+        keccak256(value.abi_encode())
+    }
+}
+
+impl From<crate::contract_bindings::position_manager::PoolKey> for PoolId {
+    fn from(value: crate::contract_bindings::position_manager::PoolKey) -> Self {
+        keccak256(value.abi_encode())
+    }
+}
+
 pub type PoolIdWithDirection = (bool, PoolId);
 
 /// just a placeholder type so i can implement the general architecture
