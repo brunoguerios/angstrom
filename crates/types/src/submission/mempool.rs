@@ -47,7 +47,7 @@ impl ChainSubmitter for MempoolSubmitter {
             let client = self
                 .clients
                 .first()
-                .ok_or(eyre::eyre!("no clients found"))?
+                .ok_or(eyre::eyre!("no mempool clients found"))?
                 .0
                 .clone();
 

@@ -173,6 +173,8 @@ where
         let mut tx_hash = None;
         // We log out errors at the lower level so no need to expand them here.
         while let Some(res) = buffered_futs.next().await {
+            let res = res.inspect_err(|e| tracing::warn!(?e));
+
             if let Ok(Some(res)) = res {
                 tx_hash = Some(res);
             }

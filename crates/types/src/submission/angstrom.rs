@@ -50,7 +50,7 @@ impl ChainSubmitter for AngstromSubmitter {
                 let client = self
                     .clients
                     .first()
-                    .ok_or(eyre::eyre!("no clients found"))?
+                    .ok_or(eyre::eyre!("no angstrom submission clients found"))?
                     .0
                     .clone();
 

@@ -64,7 +64,7 @@ impl ChainSubmitter for MevBoostSubmitter {
             let client = self
                 .clients
                 .first()
-                .ok_or(eyre::eyre!("no clients found"))?
+                .ok_or(eyre::eyre!("no mev-boost clients found"))?
                 .clone();
 
             let tx = self
