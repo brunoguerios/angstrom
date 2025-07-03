@@ -24,7 +24,6 @@ use angstrom_types::{
 };
 use bid_aggregation::BidAggregationState;
 use futures::{FutureExt, Stream, future::BoxFuture};
-use itertools::Itertools;
 use matching_engine::MatchingEngineHandle;
 use order_pool::order_storage::OrderStorage;
 use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
@@ -306,21 +305,35 @@ where
 
     fn handle_pre_proposal_aggregation(
         &mut self,
-        peer_id: Address,
         pre_proposal_agg: PreProposalAggregation,
         pre_proposal_agg_set: &mut HashSet<PreProposalAggregation>
     ) {
         let two_thirds = self.two_thirds_of_validation_set();
+        let valid_peers = self
+            .validators
+            .iter()
+            .map(|v| v.peer_id)
+            .collect::<Vec<_>>();
+
         self.handle_proposal_verification(
-            peer_id,
             pre_proposal_agg,
             pre_proposal_agg_set,
-            |pre_proposal_agg, block| pre_proposal_agg.is_valid(block, two_thirds)
+            |pre_proposal_agg, block| {
+                let valid_sig = pre_proposal_agg.is_valid(block, two_thirds);
+                let Some(peer_id) = pre_proposal_agg.recover_signer() else {
+                    return false;
+                };
+                let valid_node = valid_peers.contains(&peer_id);
+
+                valid_sig && valid_node
+            }
         )
     }
 
-    fn verify_proposal(&mut self, peer_id: Address, proposal: Proposal) -> Option<Proposal> {
-        if self.round_leader != peer_id {
+    fn verify_proposal(&mut self, proposal: Proposal) -> Option<Proposal> {
+        let signer = proposal.recover_signer()?;
+
+        if self.round_leader != signer {
             tracing::debug!("got invalid proposal");
             return None;
         }
@@ -337,34 +350,37 @@ where
 
     fn handle_pre_proposal(
         &mut self,
-        peer_id: Address,
         pre_proposal: PreProposal,
         pre_proposal_set: &mut HashSet<PreProposal>
     ) {
-        self.handle_proposal_verification(
-            peer_id,
-            pre_proposal,
-            pre_proposal_set,
-            |pre_proposal, block| pre_proposal.is_valid(block)
-        )
+        let valid_peers = self
+            .validators
+            .iter()
+            .map(|v| v.peer_id)
+            .collect::<Vec<_>>();
+
+        self.handle_proposal_verification(pre_proposal, pre_proposal_set, |pre_proposal, block| {
+            let valid_sig = pre_proposal.is_valid(block);
+            let Some(peer_id) = pre_proposal.recover_address() else {
+                return false;
+            };
+            let valid_node = valid_peers.contains(&peer_id);
+
+            valid_sig && valid_node
+        })
     }
 
     fn handle_proposal_verification<Pro>(
         &mut self,
-        peer_id: Address,
         proposal: Pro,
         proposal_set: &mut HashSet<Pro>,
         valid: impl FnOnce(&Pro, &BlockNumber) -> bool
     ) where
         Pro: Into<ConsensusMessage> + Eq + Hash + Clone
     {
-        if !self.validators.iter().map(|v| v.peer_id).contains(&peer_id) {
-            tracing::warn!(peer=?peer_id,"got a consensus message from a invalid peer");
-            return;
-        }
         // ensure pre_proposal is valid
         if !valid(&proposal, &self.block_height) {
-            tracing::info!(peer=?peer_id,"got a invalid consensus message");
+            tracing::info!("got a invalid consensus message");
             return;
         }
 
@@ -374,7 +390,7 @@ where
             self.propagate_message(proposal.clone().into());
             proposal_set.insert(proposal);
         } else {
-            tracing::trace!(peer=?peer_id,"got a duplicate consensus message");
+            tracing::trace!("got a duplicate consensus message");
         }
     }
 }

@@ -1,5 +1,5 @@
 use alloy::{
-    primitives::{BlockNumber, U256, keccak256},
+    primitives::{Address, BlockNumber, U256, keccak256},
     signers::Signature
 };
 use alloy_primitives::B256;
@@ -57,6 +57,11 @@ impl PreProposalAggregation {
 
     fn payload(&self) -> Bytes {
         Bytes::from(Self::serialize_payload(&self.block_height, &self.pre_proposals))
+    }
+
+    pub fn recover_signer(&self) -> Option<Address> {
+        let hash = keccak256(self.payload());
+        self.signature.recover_address_from_prehash(&hash).ok()
     }
 
     pub fn is_valid(&self, block_height: &BlockNumber, two_thrids_th: usize) -> bool {

@@ -1,5 +1,5 @@
 use alloy::{
-    primitives::{B256, BlockNumber, keccak256},
+    primitives::{Address, B256, BlockNumber, keccak256},
     signers::Signature
 };
 use alloy_primitives::U256;
@@ -69,6 +69,11 @@ impl PreProposal {
             .map(|order| order.order_hash())
             .collect();
         Self::generate_pre_proposal(ethereum_height, sk, limit_hashes, searcher_hashes)
+    }
+
+    pub fn recover_address(&self) -> Option<Address> {
+        let hash = keccak256(self.payload());
+        self.signature.recover_address_from_prehash(&hash).ok()
     }
 
     /// ensures block height is correct as-well as validates the signature.
