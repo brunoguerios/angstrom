@@ -26,8 +26,10 @@ use crate::{
     primitive::{AngstromMetaSigner, AngstromSigner}
 };
 
-pub(super) const EXTRA_GAS: u128 = 2e9 as u128;
+pub(super) const EXTRA_GAS: u128 = 1e9 as u128;
 const DEFAULT_SUBMISSION_CONCURRENCY: usize = 10;
+
+pub(super) const EXTRA_GAS_LIMIT: u64 = 100_000;
 
 pub struct TxFeatureInfo {
     pub nonce:        u64,
@@ -64,6 +66,25 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
             .with_gas_limit(ETHEREUM_BLOCK_GAS_LIMIT_30M)
             .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas + EXTRA_GAS)
             .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas + EXTRA_GAS)
+    }
+
+    fn build_and_sign_tx_with_gas<'a, S: AngstromMetaSigner, F>(
+        &'a self,
+        signer: &'a AngstromSigner<S>,
+        bundle: &'a AngstromBundle,
+        tx_features: &'a TxFeatureInfo,
+        gas: impl FnOnce(TransactionRequest) -> F + Send + Sync + 'a
+    ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + 'a>>
+    where
+        F: Future<Output = TransactionRequest> + Send + 'a
+    {
+        Box::pin(async move {
+            gas(self.build_tx(signer, bundle, tx_features))
+                .await
+                .build(signer)
+                .await
+                .unwrap()
+        })
     }
 
     fn build_and_sign_tx<'a, S: AngstromMetaSigner>(
@@ -150,8 +171,13 @@ where
         let mut buffered_futs = futures::stream::iter(futs).buffer_unordered(10);
 
         let mut tx_hash = None;
+        // We log out errors at the lower level so no need to expand them here.
         while let Some(res) = buffered_futs.next().await {
-            tx_hash = res?;
+            let res = res.inspect_err(|e| tracing::warn!(?e));
+
+            if let Ok(Some(res)) = res {
+                tx_hash = Some(res);
+            }
         }
 
         Ok(tx_hash)
