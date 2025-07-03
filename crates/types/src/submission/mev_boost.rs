@@ -6,9 +6,11 @@ use std::{
 
 use alloy::{
     hex,
+    network::TransactionBuilder,
     primitives::keccak256,
+    providers::{Provider, RootProvider},
     rpc::{
-        client::{ClientBuilder, RpcClient},
+        client::ClientBuilder,
         json_rpc::{RequestPacket, ResponsePacket}
     },
     signers::{Signer, local::PrivateKeySigner},
@@ -20,13 +22,13 @@ use itertools::Itertools;
 use reth::rpc::types::mev::PrivateTransactionRequest;
 
 use super::{
-    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
-    Url
+    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY,
+    ETHEREUM_BLOCK_GAS_LIMIT_30M, EXTRA_GAS_LIMIT, TxFeatureInfo, Url
 };
 use crate::primitive::AngstromMetaSigner;
 
 pub struct MevBoostSubmitter {
-    clients:          Vec<RpcClient>,
+    clients:          Vec<RootProvider>,
     angstrom_address: Address
 }
 
@@ -36,7 +38,8 @@ impl MevBoostSubmitter {
             .iter()
             .map(|url| {
                 let transport = MevHttp::new_flashbots(url.clone());
-                ClientBuilder::default().transport(transport, false)
+                let client = ClientBuilder::default().transport(transport, false);
+                RootProvider::new(client)
             })
             .collect_vec();
 
@@ -57,7 +60,27 @@ impl ChainSubmitter for MevBoostSubmitter {
     ) -> std::pin::Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {
         Box::pin(async move {
             let bundle = bundle.ok_or_else(|| eyre::eyre!("no bundle was past in"))?;
-            let tx = self.build_and_sign_tx(signer, bundle, tx_features).await;
+
+            let client = self
+                .clients
+                .first()
+                .ok_or(eyre::eyre!("no clients found"))?
+                .clone();
+
+            let tx = self
+                .build_and_sign_tx_with_gas(signer, bundle, tx_features, |tx| async move {
+                    let gas = std::cmp::min(
+                        client
+                            .estimate_gas(tx.clone())
+                            .await
+                            .unwrap_or(ETHEREUM_BLOCK_GAS_LIMIT_30M)
+                            + EXTRA_GAS_LIMIT,
+                        ETHEREUM_BLOCK_GAS_LIMIT_30M
+                    );
+                    tx.with_gas_limit(gas)
+                })
+                .await;
+
             let hash = *tx.tx_hash();
 
             let private_tx = PrivateTransactionRequest::new(&tx)
@@ -70,11 +93,14 @@ impl ChainSubmitter for MevBoostSubmitter {
             let _: Vec<_> = iter(self.clients.clone())
                 .map(async |client| {
                     client
-                        .request::<(&PrivateTransactionRequest,), TxHash>(
-                            "eth_sendPrivateTransaction",
+                        .raw_request::<(&PrivateTransactionRequest,), TxHash>(
+                            "eth_sendPrivateTransaction".into(),
                             (&private_tx,)
                         )
                         .await
+                        .inspect_err(|e| {
+                            tracing::warn!(err=?e, "failed to submit to mev-boost");
+                        })
                 })
                 .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
                 .collect::<Vec<_>>()
