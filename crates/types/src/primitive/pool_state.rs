@@ -16,14 +16,14 @@ impl From<PoolKey> for PoolId {
     }
 }
 
-impl From<crate::contract_bindings::pool_manager::PoolKey> for PoolId {
-    fn from(value: crate::contract_bindings::pool_manager::PoolKey) -> Self {
+impl From<crate::contract_bindings::pool_manager::PoolManager::PoolKey> for PoolId {
+    fn from(value: crate::contract_bindings::pool_manager::PoolManager::PoolKey) -> Self {
         keccak256(value.abi_encode())
     }
 }
 
-impl From<crate::contract_bindings::position_manager::PoolKey> for PoolId {
-    fn from(value: crate::contract_bindings::position_manager::PoolKey) -> Self {
+impl From<crate::contract_bindings::position_manager::PositionManager::PoolKey> for PoolId {
+    fn from(value: crate::contract_bindings::position_manager::PositionManager::PoolKey) -> Self {
         keccak256(value.abi_encode())
     }
 }
