@@ -5,28 +5,12 @@ use alloy::{
 use alloy_primitives::{Address, keccak256};
 
 use crate::contract_bindings::{
-    angstrom::Angstrom::PoolKey, pool_manager::PoolManager::Initialize
+    angstrom::Angstrom,
+    pool_manager::PoolManager::{self, Initialize},
+    position_manager::PositionManager
 };
 
 pub type PoolId = FixedBytes<32>;
-
-impl From<PoolKey> for PoolId {
-    fn from(value: PoolKey) -> Self {
-        keccak256(value.abi_encode())
-    }
-}
-
-impl From<crate::contract_bindings::pool_manager::PoolManager::PoolKey> for PoolId {
-    fn from(value: crate::contract_bindings::pool_manager::PoolManager::PoolKey) -> Self {
-        keccak256(value.abi_encode())
-    }
-}
-
-impl From<crate::contract_bindings::position_manager::PositionManager::PoolKey> for PoolId {
-    fn from(value: crate::contract_bindings::position_manager::PositionManager::PoolKey) -> Self {
-        keccak256(value.abi_encode())
-    }
-}
 
 pub type PoolIdWithDirection = (bool, PoolId);
 
@@ -47,3 +31,23 @@ impl From<Log<Initialize>> for NewInitializedPool {
         }
     }
 }
+
+macro_rules! pool_key_to_id {
+    ($contract:ident) => {
+        impl From<$contract::PoolKey> for PoolId {
+            fn from(value: $contract::PoolKey) -> Self {
+                keccak256(value.abi_encode())
+            }
+        }
+
+        impl From<&$contract::PoolKey> for PoolId {
+            fn from(value: &$contract::PoolKey) -> Self {
+                keccak256(value.abi_encode())
+            }
+        }
+    };
+}
+
+pool_key_to_id!(PoolManager);
+pool_key_to_id!(PositionManager);
+pool_key_to_id!(Angstrom);
