@@ -77,21 +77,20 @@ where
         message: StromConsensusEvent
     ) {
         match message {
-            StromConsensusEvent::PreProposal(peer_id, pre_proposal) => {
-                handles.handle_pre_proposal(peer_id, pre_proposal, &mut self.pre_proposals);
+            StromConsensusEvent::PreProposal(_, pre_proposal) => {
+                handles.handle_pre_proposal(pre_proposal, &mut self.pre_proposals);
 
                 if self.pre_proposals.len() >= handles.two_thirds_of_validation_set() {
                     self.waker.wake_by_ref();
                 }
             }
-            StromConsensusEvent::PreProposalAgg(peer_id, pre_proposal_agg) => handles
+            StromConsensusEvent::PreProposalAgg(_, pre_proposal_agg) => handles
                 .handle_pre_proposal_aggregation(
-                    peer_id,
                     pre_proposal_agg,
                     &mut self.pre_proposals_aggregation
                 ),
-            StromConsensusEvent::Proposal(peer_id, proposal) => {
-                if let Some(proposal) = handles.verify_proposal(peer_id, proposal) {
+            StromConsensusEvent::Proposal(_, proposal) => {
+                if let Some(proposal) = handles.verify_proposal(proposal) {
                     // given a proposal was seen. we will skip directly to verification
                     self.proposal = Some(proposal);
                     self.waker.wake_by_ref();

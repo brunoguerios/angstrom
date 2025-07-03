@@ -81,14 +81,13 @@ where
             StromConsensusEvent::PreProposal(..) => {
                 tracing::debug!("got a lagging pre-proposal");
             }
-            StromConsensusEvent::PreProposalAgg(peer_id, pre_proposal_agg) => handles
+            StromConsensusEvent::PreProposalAgg(_, pre_proposal_agg) => handles
                 .handle_pre_proposal_aggregation(
-                    peer_id,
                     pre_proposal_agg,
                     &mut self.pre_proposals_aggregation
                 ),
-            StromConsensusEvent::Proposal(peer_id, proposal) => {
-                if let Some(proposal) = handles.verify_proposal(peer_id, proposal) {
+            StromConsensusEvent::Proposal(_, proposal) => {
+                if let Some(proposal) = handles.verify_proposal(proposal) {
                     self.proposal = Some(proposal);
                     self.waker.wake_by_ref();
                 }

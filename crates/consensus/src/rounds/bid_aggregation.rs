@@ -66,22 +66,14 @@ where
         message: StromConsensusEvent
     ) {
         match message {
-            StromConsensusEvent::PreProposal(peer_id, pre_proposal) => {
-                handles.handle_pre_proposal(
-                    peer_id,
-                    pre_proposal,
-                    &mut self.received_pre_proposals
-                );
+            StromConsensusEvent::PreProposal(_, pre_proposal) => {
+                handles.handle_pre_proposal(pre_proposal, &mut self.received_pre_proposals);
             }
-            StromConsensusEvent::PreProposalAgg(peer_id, agg) => {
-                handles.handle_pre_proposal_aggregation(
-                    peer_id,
-                    agg,
-                    &mut self.pre_proposals_aggregation
-                );
+            StromConsensusEvent::PreProposalAgg(_, agg) => {
+                handles.handle_pre_proposal_aggregation(agg, &mut self.pre_proposals_aggregation);
             }
-            StromConsensusEvent::Proposal(peer_id, proposal) => {
-                if let Some(proposal) = handles.verify_proposal(peer_id, proposal) {
+            StromConsensusEvent::Proposal(_, proposal) => {
+                if let Some(proposal) = handles.verify_proposal(proposal) {
                     // given a proposal was seen. we will skip directly to verification
                     self.proposal = Some(proposal);
                     self.waker.as_ref().inspect(|w| w.wake_by_ref());

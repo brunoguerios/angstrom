@@ -1,5 +1,5 @@
 use alloy::{
-    primitives::{BlockNumber, U256},
+    primitives::{Address, BlockNumber, U256},
     signers::Signature
 };
 use alloy_primitives::{B256, keccak256};
@@ -69,6 +69,12 @@ impl Proposal {
 
     pub fn preproposals(&self) -> &Vec<PreProposalAggregation> {
         &self.preproposals
+    }
+
+    pub fn recover_signer(&self) -> Option<Address> {
+        let hash = keccak256(self.payload());
+
+        self.signature.recover_address_from_prehash(&hash).ok()
     }
 
     pub fn is_valid(&self, ethereum_height: &BlockNumber, two_thrids: usize) -> bool {
