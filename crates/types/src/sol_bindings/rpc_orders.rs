@@ -7,7 +7,6 @@ use alloy::{
 };
 use alloy_primitives::{I256, Signature};
 use eyre::eyre;
-use pade::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 
 use super::RawPoolOrder;
@@ -135,6 +134,14 @@ impl TopOfBlockOrder {
 }
 
 impl AttestAngstromBlockEmpty {
+    /// Returns a pade encoded signature.
+    pub fn sign<S: AngstromMetaSigner>(target_block: u64, signer: &AngstromSigner<S>) -> Vec<u8> {
+        let attestation = AttestAngstromBlockEmpty { block_number: target_block };
+        let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
+        // we pade encode here as we expect v, r, s which is not the standard
+        signer.sign_hash_sync(&hash).unwrap().as_bytes().to_vec()
+    }
+
     pub fn sign_and_encode<S: AngstromMetaSigner>(
         target_block: u64,
         signer: &AngstromSigner<S>
@@ -143,9 +150,9 @@ impl AttestAngstromBlockEmpty {
 
         let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         // we pade encode here as we expect v, r, s which is not the standard
-        let sig = signer.sign_hash_sync(&hash).unwrap().pade_encode();
+        let sig = signer.sign_hash_sync(&hash).unwrap().as_bytes();
         let signer = signer.address();
-        Bytes::from_iter([signer.to_vec(), sig].concat())
+        Bytes::from_iter([signer.to_vec(), sig.to_vec()].concat())
     }
 
     pub fn is_valid_attestation(target_block: u64, bytes: &Bytes) -> bool {
@@ -155,9 +162,9 @@ impl AttestAngstromBlockEmpty {
             return false;
         }
         let node_address = Address::from_slice(&bytes[0..20]);
-        let mut sig = &bytes[20..];
+        let sig = &bytes[20..];
+        let Ok(sig) = Signature::from_raw(sig) else { return false };
 
-        let Ok(sig) = Signature::pade_decode(&mut sig, None) else { return false };
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
         let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let Ok(recovered_addr) = sig.recover_address_from_prehash(&hash) else { return false };

@@ -17,7 +17,7 @@ use angstrom_types::{
     block_sync::GlobalBlockSync,
     consensus::ConsensusRoundName,
     pair_with_price::PairsWithPrice,
-    primitive::{PeerId, PoolId},
+    primitive::{AngstromSigner, PeerId, PoolId},
     sol_bindings::{grouped_orders::AllOrders, testnet::random::RandomValues},
     testnet::InitialTestnetState
 };
@@ -138,6 +138,10 @@ where
             init_state: inital_angstrom_state,
             config: node_config
         })
+    }
+
+    pub fn get_sk(&self) -> AngstromSigner<PrivateKeySigner> {
+        self.config.angstrom_signer()
     }
 
     pub fn get_init_state(&self) -> &InitialTestnetState {
