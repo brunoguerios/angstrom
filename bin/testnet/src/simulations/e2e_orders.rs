@@ -116,14 +116,15 @@ pub mod test {
     use alloy_rpc_types::{BlockTransactionsKind, TransactionTrait};
     use angstrom_types::{
         contract_bindings::{
-            angstrom::Angstrom::configurePoolCall,
+            angstrom::Angstrom::{configurePoolCall, unlockWithEmptyAttestationCall},
             controller_v_1::{
                 self,
                 ControllerV1::{self, removePoolCall}
             }
         },
         contract_payloads::angstrom::AngstromBundle,
-        primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig}
+        primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig, AngstromSigner},
+        sol_bindings::rpc_orders::AttestAngstromBlockEmpty
     };
     use futures::{FutureExt, StreamExt};
     use pade::PadeDecode;
