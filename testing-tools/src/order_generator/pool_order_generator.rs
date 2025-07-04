@@ -2,7 +2,9 @@ use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::primitive::PoolId;
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPool;
 
-use super::{GeneratedPoolOrders, PriceDistribution, order_builder::OrderBuilder};
+use super::{
+    GeneratedPoolOrders, InternalBalanceMode, PriceDistribution, order_builder::OrderBuilder
+};
 /// Order Generator is used for generating orders based off of
 /// the current pool state.
 ///
@@ -24,14 +26,15 @@ impl<T: OrderApiClient + Clone> PoolOrderGenerator<T> {
         pool_id: PoolId,
         pool_data: SyncedUniswapPool,
         block_number: u64,
-        client: T
+        client: T,
+        internal_balance_mode: InternalBalanceMode
     ) -> Self {
         let price = pool_data.read().unwrap().calculate_price();
 
         // bounds of 50% from start with a std of 5%
         let mut price_distribution = PriceDistribution::new(price, f64::MAX - 1.0, 0.0, 25.0);
         let cur_price = price_distribution.generate_price();
-        let builder = OrderBuilder::new(pool_data);
+        let builder = OrderBuilder::new(pool_data, internal_balance_mode.clone());
 
         Self { block_number, price_distribution, cur_price, builder, pool_id, client: Some(client) }
     }
@@ -40,14 +43,15 @@ impl<T: OrderApiClient + Clone> PoolOrderGenerator<T> {
         pool_id: PoolId,
         pool_data: SyncedUniswapPool,
         block_number: u64,
-        sd_pct: f64
+        sd_pct: f64,
+        internal_balance_mode: InternalBalanceMode
     ) -> Self {
         let price = pool_data.read().unwrap().calculate_price();
 
         // bounds of 50% from start with a std of 2%
         let mut price_distribution = PriceDistribution::new(price, f64::MAX - 1.0, 0.0, sd_pct);
         let cur_price = price_distribution.generate_price();
-        let builder = OrderBuilder::new(pool_data);
+        let builder = OrderBuilder::new(pool_data, internal_balance_mode.clone());
 
         Self { block_number, price_distribution, cur_price, builder, pool_id, client: None }
     }

@@ -15,6 +15,17 @@ mod order_builder;
 mod pool_order_generator;
 pub use pool_order_generator::PoolOrderGenerator;
 
+/// Configuration for internal balance usage in generated orders
+#[derive(Debug, Clone)]
+pub enum InternalBalanceMode {
+    /// All orders use internal balances
+    Always,
+    /// No orders use internal balances
+    Never,
+    /// Random percentage of orders use internal balances (0.0 to 1.0)
+    Random(f64)
+}
+
 pub struct OrderGenerator<T: OrderApiClient> {
     pools:             Vec<PoolOrderGenerator<T>>,
     /// lower and upper bounds for the amount of book orders to generate
@@ -28,14 +39,21 @@ impl<T: OrderApiClient + Clone> OrderGenerator<T> {
         block_number: u64,
         client: T,
         order_amt_range: Range<usize>,
-        partial_pct_range: Range<f64>
+        partial_pct_range: Range<f64>,
+        internal_balance_mode: InternalBalanceMode
     ) -> Self {
         let pools = pool_data
             .iter()
             .map(|item| {
                 let pool_id = item.key();
                 let pool_data = item.value();
-                PoolOrderGenerator::new(*pool_id, pool_data.clone(), block_number, client.clone())
+                PoolOrderGenerator::new(
+                    *pool_id,
+                    pool_data.clone(),
+                    block_number,
+                    client.clone(),
+                    internal_balance_mode.clone()
+                )
             })
             .sorted_by_key(|k| k.pool_id)
             .collect::<Vec<_>>();

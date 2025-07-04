@@ -17,28 +17,45 @@ use uniswap_v4::uniswap::{
     pool_manager::SyncedUniswapPool
 };
 
-use crate::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
+use crate::{
+    order_generator::InternalBalanceMode,
+    type_generator::orders::{ToBOrderBuilder, UserOrderBuilder}
+};
 
 pub struct OrderBuilder {
-    keys:      Vec<AngstromSigner<PrivateKeySigner>>,
-    t0:        Address,
-    t1:        Address,
+    keys:                  Vec<AngstromSigner<PrivateKeySigner>>,
+    t0:                    Address,
+    t1:                    Address,
     /// pools to based orders off of
-    pool_data: SyncedUniswapPool
+    pool_data:             SyncedUniswapPool,
+    internal_balance_mode: InternalBalanceMode
 }
 
 impl OrderBuilder {
-    pub fn new(pool_data: SyncedUniswapPool) -> Self {
+    pub fn new(pool_data: SyncedUniswapPool, internal_balance_mode: InternalBalanceMode) -> Self {
         let lock = pool_data.read().unwrap();
         let t0 = lock.token0;
         let t1 = lock.token1;
         drop(lock);
 
-        Self { keys: vec![AngstromSigner::random(); 10], pool_data, t0, t1 }
+        Self { keys: vec![AngstromSigner::random(); 10], pool_data, t0, t1, internal_balance_mode }
     }
 
     pub fn get_token0_token1(&self) -> (Address, Address) {
         (self.t0, self.t1)
+    }
+
+    /// Determines if an order should use internal balances based on the
+    /// configured mode
+    fn should_use_internal(&self) -> bool {
+        match &self.internal_balance_mode {
+            InternalBalanceMode::Always => true,
+            InternalBalanceMode::Never => false,
+            InternalBalanceMode::Random(probability) => {
+                let mut rng = rand::rng();
+                rng.random_bool(*probability)
+            }
+        }
     }
 
     pub fn build_tob_order(&self, cur_price: f64, block_number: u64, gas: u128) -> TopOfBlockOrder {
@@ -91,6 +108,7 @@ impl OrderBuilder {
             .quantity_out(amount_out)
             .valid_block(block_number)
             .max_gas(gas * 2)
+            .use_internal(self.should_use_internal())
             .build()
     }
 
@@ -161,6 +179,7 @@ impl OrderBuilder {
             .min_price(price)
             .block(block_number)
             .amount(amount)
+            .use_internal(self.should_use_internal())
             .build()
     }
 }
