@@ -17,6 +17,7 @@ pub struct ToBOrderBuilder {
     quantity_out: Option<u128>,
     max_gas:      Option<u128>,
     valid_block:  Option<u64>,
+    use_internal: bool,
     signing_key:  Option<AngstromSigner<PrivateKeySigner>>
 }
 
@@ -60,6 +61,10 @@ impl ToBOrderBuilder {
         Self { signing_key, ..self }
     }
 
+    pub fn use_internal(self, use_internal: bool) -> Self {
+        Self { use_internal, ..self }
+    }
+
     pub fn build(self) -> TopOfBlockOrder {
         let mut order = TopOfBlockOrder {
             asset_in: self.asset_in.unwrap_or_default(),
@@ -76,6 +81,7 @@ impl ToBOrderBuilder {
                     self.quantity_out.unwrap_or_default() / 2
                 }
             }),
+            use_internal: self.use_internal,
             ..Default::default()
         };
         if let Some(signer) = self.signing_key {

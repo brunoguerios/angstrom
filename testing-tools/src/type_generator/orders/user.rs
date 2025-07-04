@@ -21,20 +21,21 @@ use super::{StoredOrderBuilder, default_high_addr, default_low_addr};
 #[derive(Clone, Debug, Default)]
 pub struct UserOrderBuilder {
     /// If the order is not a Standing order, it is KillOrFill
-    is_standing: bool,
+    is_standing:  bool,
     /// If the order is not an Exact order, it is Partial
-    is_exact:    bool,
-    exact_in:    bool,
-    block:       u64,
-    nonce:       u64,
-    recipient:   Address,
-    asset_in:    Address,
-    asset_out:   Address,
-    amount:      u128,
-    gas_0:       Option<u128>,
-    min_price:   Ray,
-    deadline:    U256,
-    signing_key: Option<AngstromSigner<PrivateKeySigner>>
+    is_exact:     bool,
+    exact_in:     bool,
+    use_internal: bool,
+    block:        u64,
+    nonce:        u64,
+    recipient:    Address,
+    asset_in:     Address,
+    asset_out:    Address,
+    amount:       u128,
+    gas_0:        Option<u128>,
+    min_price:    Ray,
+    deadline:     U256,
+    signing_key:  Option<AngstromSigner<PrivateKeySigner>>
 }
 
 impl UserOrderBuilder {
@@ -114,6 +115,10 @@ impl UserOrderBuilder {
 
     pub fn exact_in(self, exact_in: bool) -> Self {
         Self { exact_in, ..self }
+    }
+
+    pub fn use_internal(self, use_internal: bool) -> Self {
+        Self { use_internal, ..self }
     }
 
     pub fn max_gas(self, gas: u128) -> Self {
@@ -235,6 +240,7 @@ impl UserOrderBuilder {
                     nonce: self.nonce,
                     exact_in: self.exact_in,
                     deadline: U40::from(self.deadline.to::<u32>()),
+                    use_internal: self.use_internal,
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
@@ -259,6 +265,7 @@ impl UserOrderBuilder {
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     deadline: U40::from(self.deadline.to::<u32>()),
+                    use_internal: self.use_internal,
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
@@ -282,6 +289,7 @@ impl UserOrderBuilder {
                     min_price: *self.min_price,
                     recipient: self.recipient,
                     exact_in: self.exact_in,
+                    use_internal: self.use_internal,
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {
@@ -305,6 +313,7 @@ impl UserOrderBuilder {
                     min_amount_in: self.valid_min_qty(),
                     min_price: *self.min_price,
                     recipient: self.recipient,
+                    use_internal: self.use_internal,
                     ..Default::default()
                 };
                 if let Some(signer) = self.signing_key {

@@ -26,6 +26,7 @@ macro_rules! telemetry_event {
             let message = $crate::OrderTelemetryExt::into_message($update);
             let _ = handle.send(message);
         } else {
+            #[cfg(not(test))]
             ::tracing::warn!("No Telemetry handle set.");
         }
 
@@ -35,6 +36,7 @@ macro_rules! telemetry_event {
             let message = $crate::TelemetryMessage::from(($($items),*));
             let _ = handle.send(message);
         } else {
+            #[cfg(not(test))]
             ::tracing::warn!("No Telemetry handle set.");
         }
     }};

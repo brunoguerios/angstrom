@@ -63,9 +63,6 @@ where
 
         // first thing we will do is setup Uniswap's token balance.
         let uniswap_balance_slot = keccak256((uniswap, balance_slot).abi_encode());
-        // let uniswap_approval_slot =
-        //     keccak256((angstrom, keccak256((uniswap,
-        // approval_slot).abi_encode())).abi_encode());
 
         // set Uniswap's balance on the token_in
         db.insert_account_storage(token, uniswap_balance_slot.into(), U256::from(2) * quantity)
@@ -114,6 +111,13 @@ where
                         asset.addr,
                         U256::from(asset.take),
                         pool_manager_addr,
+                    ).unwrap();
+
+                    Self::apply_slot_overrides_for_token(
+                        &mut db,
+                        asset.addr,
+                        U256::from(asset.settle),
+                        angstrom_address,
                     ).unwrap();
                 }
             }

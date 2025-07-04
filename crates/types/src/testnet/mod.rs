@@ -31,9 +31,11 @@ impl InitialTestnetState {
 
 pub struct TestnetStateOverrides {
     /// token -> user -> amount
-    pub approvals: HashMap<Address, HashMap<Address, u128>>,
+    pub approvals:         HashMap<Address, HashMap<Address, u128>>,
     /// token -> user -> amount
-    pub balances:  HashMap<Address, HashMap<Address, u128>>
+    pub balances:          HashMap<Address, HashMap<Address, u128>>,
+    /// token -> user -> amount (for angstrom internal balances)
+    pub angstrom_balances: HashMap<Address, HashMap<Address, u128>>
 }
 
 impl TestnetStateOverrides {
@@ -41,6 +43,19 @@ impl TestnetStateOverrides {
         self,
         angstrom_addr: Address
     ) -> impl Iterator<Item = (Address, B256, U256)> + 'static {
+        // First, collect contract token balance overrides
+        let contract_balances: Vec<_> = self
+            .angstrom_balances
+            .iter()
+            .map(|(token, user_balances)| {
+                // Calculate total amount needed for this token
+                let total_needed: u128 = user_balances.values().sum();
+                // Set contract's ERC20 balance: token.balanceOf[angstrom_addr] = total_needed
+                let contract_balance_slot = keccak256((angstrom_addr, 1).abi_encode());
+                (*token, contract_balance_slot, U256::from(total_needed) * U256::from(2))
+            })
+            .collect();
+
         self.approvals
             .into_iter()
             .flat_map(move |(token, i)| {
@@ -56,5 +71,19 @@ impl TestnetStateOverrides {
                     (token, slot, U256::from(qty) * U256::from(2))
                 })
             }))
+            .chain(contract_balances)
+            .chain(
+                // Set individual user internal balances in the contract
+                self.angstrom_balances
+                    .into_iter()
+                    .flat_map(move |(token, i)| {
+                        i.into_iter().map(move |(user, amount)| {
+                            // Set internal balance mapping: _balances[user][token] = amount
+                            let slot =
+                                keccak256((user, keccak256((token, 5).abi_encode())).abi_encode());
+                            (angstrom_addr, slot, U256::from(amount))
+                        })
+                    })
+            )
     }
 }
