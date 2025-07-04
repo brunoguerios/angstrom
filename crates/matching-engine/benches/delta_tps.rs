@@ -234,7 +234,8 @@ pub fn tps(c: &mut Criterion) {
         PoolId::default(),
         pool.clone(),
         0,
-        0.2
+        0.2,
+        testing_tools::order_generator::InternalBalanceMode::Never
     );
     for bucket in TPS_BUCKETS {
         group.throughput(criterion::Throughput::Elements(bucket));
