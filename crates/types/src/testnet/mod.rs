@@ -31,9 +31,11 @@ impl InitialTestnetState {
 
 pub struct TestnetStateOverrides {
     /// token -> user -> amount
-    pub approvals: HashMap<Address, HashMap<Address, u128>>,
+    pub approvals:         HashMap<Address, HashMap<Address, u128>>,
     /// token -> user -> amount
-    pub balances:  HashMap<Address, HashMap<Address, u128>>
+    pub balances:          HashMap<Address, HashMap<Address, u128>>,
+    /// token -> user -> amount (for angstrom internal balances)
+    pub angstrom_balances: HashMap<Address, HashMap<Address, u128>>
 }
 
 impl TestnetStateOverrides {
@@ -56,5 +58,16 @@ impl TestnetStateOverrides {
                     (token, slot, U256::from(qty) * U256::from(2))
                 })
             }))
+            .chain(
+                self.angstrom_balances
+                    .into_iter()
+                    .flat_map(move |(token, i)| {
+                        i.into_iter().map(move |(user, amount)| {
+                            let slot =
+                                keccak256((user, keccak256((token, 5).abi_encode())).abi_encode());
+                            (angstrom_addr, slot, U256::from(amount))
+                        })
+                    })
+            )
     }
 }

@@ -71,6 +71,7 @@ impl AngstromBundle {
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
         let mut approvals: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
         let mut balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
+        let mut angstrom_balances: HashMap<Address, HashMap<Address, u128>> = HashMap::new();
 
         // user orders
         self.user_orders.iter().for_each(|order| {
@@ -108,22 +109,35 @@ impl AngstromBundle {
                 )
             };
 
-            approvals
-                .entry(token)
-                .or_default()
-                .entry(address)
-                .and_modify(|q| {
-                    *q = q.saturating_add(qty);
-                })
-                .or_insert(qty);
-            balances
-                .entry(token)
-                .or_default()
-                .entry(address)
-                .and_modify(|q| {
-                    *q = q.saturating_add(qty);
-                })
-                .or_insert(qty);
+            if order.use_internal {
+                // For internal balance orders, add to angstrom_balances
+                angstrom_balances
+                    .entry(token)
+                    .or_default()
+                    .entry(address)
+                    .and_modify(|q| {
+                        *q = q.saturating_add(qty);
+                    })
+                    .or_insert(qty);
+            } else {
+                // For external balance orders, add to approvals and balances
+                approvals
+                    .entry(token)
+                    .or_default()
+                    .entry(address)
+                    .and_modify(|q| {
+                        *q = q.saturating_add(qty);
+                    })
+                    .or_insert(qty);
+                balances
+                    .entry(token)
+                    .or_default()
+                    .entry(address)
+                    .and_modify(|q| {
+                        *q = q.saturating_add(qty);
+                    })
+                    .or_insert(qty);
+            }
         });
 
         // tob
@@ -144,25 +158,38 @@ impl AngstromBundle {
                 qty += order.gas_used_asset_0;
             }
 
-            approvals
-                .entry(token)
-                .or_default()
-                .entry(address)
-                .and_modify(|q| {
-                    *q = q.saturating_add(qty);
-                })
-                .or_insert(qty);
-            balances
-                .entry(token)
-                .or_default()
-                .entry(address)
-                .and_modify(|q| {
-                    *q = q.saturating_add(qty);
-                })
-                .or_insert(qty);
+            if order.use_internal {
+                // For internal balance orders, add to angstrom_balances
+                angstrom_balances
+                    .entry(token)
+                    .or_default()
+                    .entry(address)
+                    .and_modify(|q| {
+                        *q = q.saturating_add(qty);
+                    })
+                    .or_insert(qty);
+            } else {
+                // For external balance orders, add to approvals and balances
+                approvals
+                    .entry(token)
+                    .or_default()
+                    .entry(address)
+                    .and_modify(|q| {
+                        *q = q.saturating_add(qty);
+                    })
+                    .or_insert(qty);
+                balances
+                    .entry(token)
+                    .or_default()
+                    .entry(address)
+                    .and_modify(|q| {
+                        *q = q.saturating_add(qty);
+                    })
+                    .or_insert(qty);
+            }
         });
 
-        TestnetStateOverrides { approvals, balances }
+        TestnetStateOverrides { approvals, balances, angstrom_balances }
     }
 
     pub fn assert_book_matches(&self) {

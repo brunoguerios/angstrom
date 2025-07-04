@@ -16,7 +16,7 @@ pub struct Balances {
     tokens:           DashMap<Address, TokenBalanceSlot>,
     angstrom_address: Address
 }
-const ANGSTROM_BALANCE_SLOT_OFFSET: u32 = 4;
+const ANGSTROM_BALANCE_SLOT_OFFSET: u32 = 5;
 
 impl Balances {
     pub fn new(angstrom_address: Address) -> Self {
@@ -87,7 +87,7 @@ impl Balances {
         db: &DB
     ) -> U256 {
         let token_slot = keccak256((token, ANGSTROM_BALANCE_SLOT_OFFSET).abi_encode());
-        let final_slot = keccak256((token_slot, account).abi_encode());
+        let final_slot = keccak256((account, token_slot).abi_encode());
         db.storage_ref(self.angstrom_address, U256::from_be_bytes(*final_slot.as_ref()))
             .unwrap_or_default()
     }
