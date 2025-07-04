@@ -63,7 +63,6 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
             .with_input(encoded)
             .with_chain_id(tx_features.chain_id)
             .with_nonce(tx_features.nonce)
-            .with_gas_limit(ETHEREUM_BLOCK_GAS_LIMIT_30M)
             .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas + EXTRA_GAS)
             .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas + EXTRA_GAS)
     }
@@ -81,21 +80,6 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
         Box::pin(async move {
             gas(self.build_tx(signer, bundle, tx_features))
                 .await
-                .build(signer)
-                .await
-                .unwrap()
-        })
-    }
-
-    fn build_and_sign_tx<'a, S: AngstromMetaSigner>(
-        &'a self,
-        signer: &'a AngstromSigner<S>,
-        bundle: &'a AngstromBundle,
-        tx_features: &'a TxFeatureInfo
-    ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + Sync + 'a>>
-    {
-        Box::pin(async move {
-            self.build_tx(signer, bundle, tx_features)
                 .build(signer)
                 .await
                 .unwrap()
@@ -200,14 +184,6 @@ pub trait ChainSubmitterWrapper: Send + Sync + Unpin + 'static {
         bundle: Option<&'a AngstromBundle>,
         tx_features: &'a TxFeatureInfo
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>>;
-
-    fn build_tx(&self, bundle: &AngstromBundle, tx_features: &TxFeatureInfo) -> TransactionRequest;
-
-    fn build_and_sign_tx<'a>(
-        &'a self,
-        bundle: &'a AngstromBundle,
-        tx_features: &'a TxFeatureInfo
-    ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + Sync + 'a>>;
 }
 
 impl<I: ChainSubmitter, S: AngstromMetaSigner + 'static> ChainSubmitterWrapper
@@ -223,18 +199,5 @@ impl<I: ChainSubmitter, S: AngstromMetaSigner + 'static> ChainSubmitterWrapper
         tx_features: &'a TxFeatureInfo
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Option<TxHash>>> + Send + 'a>> {
         self.0.submit(&self.1, bundle, tx_features)
-    }
-
-    fn build_tx(&self, bundle: &AngstromBundle, tx_features: &TxFeatureInfo) -> TransactionRequest {
-        self.0.build_tx(&self.1, bundle, tx_features)
-    }
-
-    fn build_and_sign_tx<'a>(
-        &'a self,
-        bundle: &'a AngstromBundle,
-        tx_features: &'a TxFeatureInfo
-    ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + Sync + 'a>>
-    {
-        self.0.build_and_sign_tx(&self.1, bundle, tx_features)
     }
 }

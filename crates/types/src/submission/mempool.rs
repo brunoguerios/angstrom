@@ -57,6 +57,9 @@ impl ChainSubmitter for MempoolSubmitter {
                         client
                             .estimate_gas(tx.clone())
                             .await
+                            .inspect_err(|e| {
+                                tracing::error!(err=%e, "failed to query gas");
+                            })
                             .unwrap_or(ETHEREUM_BLOCK_GAS_LIMIT_30M)
                             + EXTRA_GAS_LIMIT,
                         ETHEREUM_BLOCK_GAS_LIMIT_30M
