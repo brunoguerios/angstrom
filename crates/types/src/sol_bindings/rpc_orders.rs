@@ -138,7 +138,7 @@ impl AttestAngstromBlockEmpty {
     pub fn sign<S: AngstromMetaSigner>(target_block: u64, signer: &AngstromSigner<S>) -> Vec<u8> {
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
         let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
-        // we pade encode here as we expect v, r, s which is not the standard
+
         signer.sign_hash_sync(&hash).unwrap().as_bytes().to_vec()
     }
 
@@ -149,7 +149,7 @@ impl AttestAngstromBlockEmpty {
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
 
         let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
-        // we pade encode here as we expect v, r, s which is not the standard
+
         let sig = signer.sign_hash_sync(&hash).unwrap().as_bytes();
         let signer = signer.address();
         Bytes::from_iter([signer.to_vec(), sig.to_vec()].concat())
@@ -168,6 +168,7 @@ impl AttestAngstromBlockEmpty {
         let attestation = AttestAngstromBlockEmpty { block_number: target_block };
         let hash = attestation.eip712_signing_hash(ANGSTROM_DOMAIN.get().unwrap());
         let Ok(recovered_addr) = sig.recover_address_from_prehash(&hash) else { return false };
+
         node_address == recovered_addr
     }
 }
