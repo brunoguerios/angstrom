@@ -214,6 +214,25 @@ pub fn rpc_err(
     )
 }
 
+fn matches_all_filters(
+    filters: &HashSet<OrderSubscriptionFilter>,
+    pool_id: PoolId,
+    address: Address,
+    is_tob: bool
+) -> bool {
+    if filters.contains(&OrderSubscriptionFilter::None) {
+        return true;
+    }
+
+    filters.iter().all(|filter| match filter {
+        OrderSubscriptionFilter::ByPair(id) => *id == pool_id,
+        OrderSubscriptionFilter::ByAddress(addr) => *addr == address,
+        OrderSubscriptionFilter::OnlyTOB => is_tob,
+        OrderSubscriptionFilter::OnlyBook => !is_tob,
+        OrderSubscriptionFilter::None => true
+    })
+}
+
 trait OrderFilterMatching {
     fn filter_out_order(
         self,
@@ -231,59 +250,31 @@ impl OrderFilterMatching for PoolManagerUpdate {
         match self {
             PoolManagerUpdate::NewOrder(order)
                 if kind.contains(&OrderSubscriptionKind::NewOrders)
-                    && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
-                        || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
-                            && order.is_tob())
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
-                            && !order.is_tob())
-                        || filter.contains(&OrderSubscriptionFilter::None)) =>
+                    && matches_all_filters(filter, order.pool_id, order.from(), order.is_tob()) =>
             {
                 Some(OrderSubscriptionResult::NewOrder(order.order))
             }
             PoolManagerUpdate::FilledOrder(block, order)
                 if kind.contains(&OrderSubscriptionKind::FilledOrders)
-                    && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
-                        || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
-                            && order.is_tob())
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
-                            && !order.is_tob())
-                        || filter.contains(&OrderSubscriptionFilter::None)) =>
+                    && matches_all_filters(filter, order.pool_id, order.from(), order.is_tob()) =>
             {
                 Some(OrderSubscriptionResult::FilledOrder(block, order.order))
             }
             PoolManagerUpdate::UnfilledOrders(order)
                 if kind.contains(&OrderSubscriptionKind::UnfilledOrders)
-                    && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
-                        || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
-                            && order.is_tob())
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
-                            && !order.is_tob())
-                        || filter.contains(&OrderSubscriptionFilter::None)) =>
+                    && matches_all_filters(filter, order.pool_id, order.from(), order.is_tob()) =>
             {
                 Some(OrderSubscriptionResult::UnfilledOrder(order.order))
             }
             PoolManagerUpdate::CancelledOrder { is_tob, order_hash, user, pool_id }
                 if kind.contains(&OrderSubscriptionKind::CancelledOrders)
-                    && (filter.contains(&OrderSubscriptionFilter::ByPair(pool_id))
-                        || filter.contains(&OrderSubscriptionFilter::ByAddress(user))
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB) && is_tob)
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook) && !is_tob)
-                        || filter.contains(&OrderSubscriptionFilter::None)) =>
+                    && matches_all_filters(filter, pool_id, user, is_tob) =>
             {
                 Some(OrderSubscriptionResult::CancelledOrder(order_hash))
             }
             PoolManagerUpdate::ExpiredOrder(order)
                 if kind.contains(&OrderSubscriptionKind::ExpiredOrders)
-                    && (filter.contains(&OrderSubscriptionFilter::ByPair(order.pool_id))
-                        || filter.contains(&OrderSubscriptionFilter::ByAddress(order.from()))
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyTOB)
-                            && order.is_tob())
-                        || (filter.contains(&OrderSubscriptionFilter::OnlyBook)
-                            && !order.is_tob())
-                        || filter.contains(&OrderSubscriptionFilter::None)) =>
+                    && matches_all_filters(filter, order.pool_id, order.from(), order.is_tob()) =>
             {
                 Some(OrderSubscriptionResult::ExpiredOrder(order.order))
             }
