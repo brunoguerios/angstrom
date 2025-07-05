@@ -486,11 +486,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH}
     };
 
-    use alloy::{
-        primitives::U256,
-        signers::{SignerSync, local::PrivateKeySigner},
-        sol_types::SolValue
-    };
+    use alloy::{primitives::U256, signers::local::PrivateKeySigner};
     use angstrom_types::{
         contract_bindings::angstrom::Angstrom::PoolKey,
         matching::Ray,
@@ -498,7 +494,6 @@ mod tests {
         primitive::{AngstromAddressConfig, AngstromSigner, OrderValidationError},
         sol_bindings::RespendAvoidanceMethod
     };
-    use pade::PadeEncode;
     use testing_tools::{
         mocks::validator::MockValidator, type_generator::orders::UserOrderBuilder
     };
@@ -1080,15 +1075,8 @@ mod tests {
             }))
             .unwrap();
 
-        let hash = (from, order_hash).abi_encode_packed();
-        let sig = signer.sign_message_sync(hash.as_slice()).unwrap();
-
-        // Cancel the order
-        let cancel_request = angstrom_types::orders::CancelOrderRequest {
-            order_id:     order_hash,
-            user_address: from,
-            signature:    sig.pade_encode().into()
-        };
+        let cancel_request =
+            angstrom_types::orders::CancelOrderRequest::new(from, order_hash, &signer);
 
         let result = indexer.cancel_order(&cancel_request);
         assert!(result);

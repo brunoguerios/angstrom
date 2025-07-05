@@ -1,6 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::{signers::SignerSync, sol_types::SolValue};
 use alloy_primitives::B256;
 use angstrom_rpc::{api::OrderApiClient, types::OrderSubscriptionResult};
 use angstrom_types::{
@@ -10,7 +9,6 @@ use angstrom_types::{
 };
 use itertools::Itertools;
 use jsonrpsee::ws_client::WsClient;
-use pade::PadeEncode;
 use secp256k1::rand;
 use sepolia_bundle_lander::env::ProviderType;
 use testing_tools::type_generator::orders::UserOrderBuilder;
@@ -128,15 +126,7 @@ impl OrderManager {
 
         let order_wallet = &mut self.wallets[wallet];
         let addr = order_wallet.pk.address();
-        let signing_bytes = (addr, our_hash).abi_encode_packed();
-        let sig = order_wallet.pk.sign_message_sync(&signing_bytes).unwrap();
-        let encoded_sig = sig.pade_encode();
-
-        let cancel_request = CancelOrderRequest {
-            signature:    encoded_sig.into(),
-            user_address: addr,
-            order_id:     our_hash
-        };
+        let cancel_request = CancelOrderRequest::new(addr, our_hash, &order_wallet.pk);
 
         let cancel_res = self.client.cancel_order(cancel_request).await.unwrap();
         if !cancel_res {
