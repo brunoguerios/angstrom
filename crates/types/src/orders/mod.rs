@@ -220,7 +220,7 @@ impl CancelOrderRequest {
         order_id: B256,
         signer: &AngstromSigner<S>
     ) -> Self {
-        let payload = format!("canceling order: {order_id:?} for user {user_address:?}");
+        let payload = format!("canceling order: {order_id:?} for user: {user_address:?}");
         let signature = signer.sign_message_sync(payload.as_bytes()).unwrap();
         let encoded: Bytes = signature.pade_encode().into();
 
