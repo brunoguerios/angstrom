@@ -13,15 +13,10 @@ use revm::database::CacheDB;
 use super::GasUsed;
 
 // A address we can use to deploy contracts
-// const DEFAULT_FROM: Address =
-// address!("aa250d5630b4cf539739df2c5dacb4c659f2488d");
-// const DEFAULT_CREATE2_FACTORY: Address =
-// address!("4e59b44847b379578588920cA78FbF26c0B4956C"); const SETUP_BYTECODE:
-// FixedBytes<32> =     fixed_bytes!("
-// 907ea7ad6d1fbded0236f040aea693e2c9711b62b065fc95c4262972aca03996");
 
-pub const BOOK_GAS: u64 = 50_000;
-pub const BOOK_GAS_INTERNAL: u64 = 10_000;
+// internal balance on book should be 27k gas cheaper
+pub const BOOK_GAS: u64 = 92_000;
+pub const BOOK_GAS_INTERNAL: u64 = 65_000;
 pub const TOB_GAS: u64 = 160_000;
 pub const TOB_GAS_INTERNAL: u64 = 150_000;
 /// deals with the calculation of gas for a given type of order.
