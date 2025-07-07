@@ -72,6 +72,7 @@ impl<T: OrderApiClient + Clone> PoolOrderGenerator<T> {
                 .await
                 .unwrap()
                 .unwrap()
+                .0
                 .to::<u128>()
         } else {
             0
@@ -83,6 +84,7 @@ impl<T: OrderApiClient + Clone> PoolOrderGenerator<T> {
                 .await
                 .unwrap()
                 .unwrap()
+                .0
                 .to::<u128>()
         } else {
             0

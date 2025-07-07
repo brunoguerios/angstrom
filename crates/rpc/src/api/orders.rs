@@ -43,7 +43,7 @@ pub trait OrderApi {
         is_internal: bool,
         token_0: Address,
         token_1: Address
-    ) -> RpcResult<Result<U256, String>>;
+    ) -> RpcResult<Result<(U256, u64), String>>;
 
     #[method(name = "orderStatus")]
     async fn order_status(&self, order_hash: B256) -> RpcResult<CallResult>;
@@ -117,7 +117,7 @@ pub trait OrderApi {
     async fn estimate_gas_of_orders(
         &self,
         orders: Vec<(bool, bool, Address, Address)>
-    ) -> RpcResult<Vec<Result<U256, String>>> {
+    ) -> RpcResult<Vec<Result<(U256, u64), String>>> {
         futures::stream::iter(orders.into_iter())
             .map(|(is_book, is_internal, token_0, token_1)| async move {
                 self.estimate_gas(is_book, is_internal, token_0, token_1)

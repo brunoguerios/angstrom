@@ -37,7 +37,8 @@ pub struct TokenPriceGenerator {
     /// chain
     base_gas_token:      Address,
     blocks_to_avg_price: u64,
-    base_wei:            u128
+    base_wei:            u128,
+    current_block:       u64
 }
 
 impl TokenPriceGenerator {
@@ -70,6 +71,7 @@ impl TokenPriceGenerator {
             .collect();
 
         Self {
+            current_block: 0,
             uniswap_pools,
             prev_prices: remapped_prices,
             pair_to_pool,
@@ -151,6 +153,7 @@ impl TokenPriceGenerator {
             .await;
 
         Ok(Self {
+            current_block,
             prev_prices: pools,
             base_gas_token,
             pair_to_pool,
@@ -158,6 +161,10 @@ impl TokenPriceGenerator {
             uniswap_pools: uni,
             base_wei: new_gas_wei
         })
+    }
+
+    pub fn current_block(&self) -> u64 {
+        self.current_block
     }
 
     pub fn generate_gas_updates(&self) -> Vec<UpdatedGas> {
@@ -193,13 +200,18 @@ impl TokenPriceGenerator {
             .collect()
     }
 
-    pub fn apply_update(&mut self, new_gas_wei: u128, updates: Vec<PairsWithPrice>) {
+    pub fn apply_update(
+        &mut self,
+        new_block: u64,
+        new_gas_wei: u128,
+        updates: Vec<PairsWithPrice>
+    ) {
         // we will duplicate same price if no update for pool.
         let mut updated_pool_keys = Vec::new();
         self.base_wei = new_gas_wei;
+        self.current_block = new_block;
 
         for mut pool_update in updates {
-            println!("{:#?} {:#?}", pool_update, self.pair_to_pool);
             let pool_key = if let Some(p) = self
                 .pair_to_pool
                 .get(&(pool_update.token0, pool_update.token1))
@@ -560,6 +572,7 @@ pub mod test {
         prices.insert(FixedBytes::<32>::with_last_byte(4), queue);
 
         TokenPriceGenerator {
+            current_block:       0,
             base_wei:            0,
             prev_prices:         prices,
             base_gas_token:      WETH_ADDRESS,
@@ -713,6 +726,7 @@ pub mod test {
     fn test_empty_pool_gas_price() {
         // Create a TokenPriceGenerator with no pools
         let token_conversion = TokenPriceGenerator {
+            current_block:       0,
             base_wei:            0,
             prev_prices:         HashMap::default(),
             base_gas_token:      WETH_ADDRESS,

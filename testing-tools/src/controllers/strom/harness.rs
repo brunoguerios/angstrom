@@ -237,7 +237,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     let update_stream = Box::pin(
         mock_canon
             .canonical_state_stream()
-            .then(async |_| (0_u128, vec![]))
+            .then(async |_| (0_u64, 0_u128, vec![]))
     );
     init_validation(
         provider.state_provider(),

@@ -141,7 +141,11 @@ where
         target_block: u64
     ) -> eyre::Result<Option<TxHash>> {
         let from = signer.address();
-        let nonce = self.node_provider.get_transaction_count(from).await?;
+        let nonce = self
+            .node_provider
+            .get_transaction_count(from)
+            .number(target_block - 1)
+            .await?;
 
         let fees = self.node_provider.estimate_eip1559_fees().await?;
         let chain_id = self.node_provider.get_chain_id().await?;
