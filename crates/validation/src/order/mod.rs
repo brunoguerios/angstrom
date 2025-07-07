@@ -27,7 +27,7 @@ pub type ValidationsFuture<'a> =
     Pin<Box<dyn Future<Output = Vec<OrderValidationResults>> + Send + Sync + 'a>>;
 
 pub type GasEstimationFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<U256, String>> + Send + Sync + 'a>>;
+    Pin<Box<dyn Future<Output = Result<(U256, u64), String>> + Send + Sync + 'a>>;
 
 pub type NonceFuture<'a> = Pin<Box<dyn Future<Output = u64> + Send + Sync + 'a>>;
 

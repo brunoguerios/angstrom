@@ -86,7 +86,8 @@ where
             .angstrom_client
             .estimate_gas(false, false, self.pool.token0, self.pool.token1)
             .await?
-            .unwrap();
+            .unwrap()
+            .0;
         // cannot have zero gas.
         if gas.is_zero() {
             gas += U256::from(1);
@@ -167,7 +168,8 @@ where
             .angstrom_client
             .estimate_gas(true, false, self.pool.token0, self.pool.token1)
             .await?
-            .unwrap();
+            .unwrap()
+            .0;
         // cannot have zero gas.
         if gas.is_zero() {
             gas += U256::from(1);

@@ -76,7 +76,7 @@ impl OrderValidatorHandle for MockValidator {
         _token_0: Address,
         _token_1: Address
     ) -> GasEstimationFuture {
-        Box::pin(future::ready(Ok(U256::from(250_000u64))))
+        Box::pin(future::ready(Ok((U256::from(250_000u64), 23423))))
     }
 
     fn valid_nonce_for_user(&self, _: Address) -> validation::order::NonceFuture {

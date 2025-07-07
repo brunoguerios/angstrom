@@ -39,7 +39,7 @@ impl PairsWithPrice {
         angstrom_address: Address,
         stream: CanonStateNotificationStream,
         provider: Arc<P>
-    ) -> impl Stream<Item = (u128, Vec<Self>)> + Send {
+    ) -> impl Stream<Item = (u64, u128, Vec<Self>)> + Send {
         stream.then(move |notification| {
             let provider = provider.clone();
             async move {
@@ -49,6 +49,7 @@ impl PairsWithPrice {
                 };
                 let gas_wei = provider.get_gas_price().await.unwrap_or_default();
                 (
+                    new_cannon_chain.tip_number(),
                     gas_wei,
                     new_cannon_chain
                         .successful_tip_transactions()

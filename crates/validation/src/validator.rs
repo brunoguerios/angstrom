@@ -46,7 +46,7 @@ pub enum ValidationRequest {
         order_hash: B256
     },
     GasEstimation {
-        sender:      tokio::sync::oneshot::Sender<eyre::Result<U256>>,
+        sender:      tokio::sync::oneshot::Sender<eyre::Result<(U256, u64)>>,
         is_book:     bool,
         is_internal: bool,
         token_0:     Address,
@@ -161,9 +161,10 @@ where
                     (false, false) => TOB_GAS
                 };
 
+                let block = self.utils.token_pricing_ref().current_block();
                 let amount = cvrt.inverse_quantity(gas_in_wei as u128, false);
 
-                let _ = sender.send(Ok(U256::from(amount)));
+                let _ = sender.send(Ok((U256::from(amount), block)));
             }
         }
     }

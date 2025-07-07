@@ -19,7 +19,8 @@ pub use token_pricing::*;
 /// it so all async future state is polled and up-kept in a single spot
 pub struct SharedTools {
     pub token_pricing:   TokenPriceGenerator,
-    token_price_updater: Pin<Box<dyn Stream<Item = (u128, Vec<PairsWithPrice>)> + Send + 'static>>,
+    token_price_updater:
+        Pin<Box<dyn Stream<Item = (u64, u128, Vec<PairsWithPrice>)> + Send + 'static>>,
     pub thread_pool:
         KeySplitThreadpool<Address, Pin<Box<dyn Future<Output = ()> + Send + Sync>>, Handle>,
     pub metrics:         ValidationMetrics
@@ -29,7 +30,7 @@ impl SharedTools {
     pub fn new(
         token_pricing: TokenPriceGenerator,
         token_price_updater: Pin<
-            Box<dyn Stream<Item = (u128, Vec<PairsWithPrice>)> + Send + 'static>
+            Box<dyn Stream<Item = (u64, u128, Vec<PairsWithPrice>)> + Send + 'static>
         >,
         thread_pool: KeySplitThreadpool<
             Address,
@@ -66,10 +67,10 @@ impl Future for SharedTools {
         self.thread_pool.try_register_waker(|| cx.waker().clone());
         while let Poll::Ready(Some(_)) = self.thread_pool.poll_next_unpin(cx) {}
 
-        while let Poll::Ready(Some((new_gas, updates))) =
+        while let Poll::Ready(Some((new_block, new_gas, updates))) =
             self.token_price_updater.poll_next_unpin(cx)
         {
-            self.token_pricing.apply_update(new_gas, updates);
+            self.token_pricing.apply_update(new_block, new_gas, updates);
         }
 
         Poll::Pending

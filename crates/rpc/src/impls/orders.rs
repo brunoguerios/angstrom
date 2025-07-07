@@ -75,7 +75,7 @@ where
         is_internal: bool,
         token_0: Address,
         token_1: Address
-    ) -> RpcResult<Result<U256, String>> {
+    ) -> RpcResult<Result<(U256, u64), String>> {
         let res = self
             .validator
             .estimate_gas(is_book, is_internal, token_0, token_1)
@@ -450,7 +450,7 @@ mod tests {
             _token_0: Address,
             _token_1: Address
         ) -> GasEstimationFuture {
-            Box::pin(future::ready(Ok(U256::from(250_000u64))))
+            Box::pin(future::ready(Ok((U256::from(250_000u64), 10))))
         }
 
         fn valid_nonce_for_user(&self, _address: Address) -> validation::order::NonceFuture {
