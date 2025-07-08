@@ -40,7 +40,6 @@ abstract contract UnlockHook is
         bytes calldata optionalUnlockData
     ) external returns (bytes4 response, BeforeSwapDelta, uint24 swapFee) {
         _onlyUniV4();
-        _logFluxRewards();
 
         if (!_isUnlocked()) {
             if (optionalUnlockData.length < 20) {
@@ -98,8 +97,6 @@ abstract contract UnlockHook is
         poolRewards[id].updateAfterTickMove(
             id, UNI_V4, int24(currentTickBeforeSwap.get()), currentTick, key.tickSpacing
         );
-
-        _logFluxRewards();
 
         return (IAfterSwapHook.afterSwap.selector, fee);
     }

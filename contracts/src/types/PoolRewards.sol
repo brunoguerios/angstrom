@@ -6,9 +6,6 @@ import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {IUniV4} from "../interfaces/IUniV4.sol";
 import {TickLib} from "../libraries/TickLib.sol";
 
-import {console} from "forge-std/console.sol";
-import {FormatLib} from "super-sol/libraries/FormatLib.sol";
-
 /// @dev Should accommodate all possible tick values.
 uint256 constant REWARD_GROWTH_SIZE = 16777216;
 
@@ -25,34 +22,23 @@ library PoolRewardsLib {
     using IUniV4 for IPoolManager;
     using TickLib for uint256;
     using TickLib for int24;
-    using FormatLib for *;
 
     function getGrowthInside(PoolRewards storage self, int24 current, int24 lower, int24 upper)
         internal
         view
         returns (uint256 growthInside)
     {
-        console.log("getGrowthInside");
         unchecked {
             uint256 lowerGrowth = self.rewardGrowthOutside[uint24(lower)];
             uint256 upperGrowth = self.rewardGrowthOutside[uint24(upper)];
 
             if (current < lower) {
-                console.log("  Range Above");
-                console.log("  lowerGrowth (%s) - upperGrowth (%s)", lower.toStr(), upper.toStr());
-                console.log("  %s - %s", lowerGrowth, upperGrowth);
                 return lowerGrowth - upperGrowth;
             }
             if (upper <= current) {
-                console.log("  Range Below");
-                console.log("  upperGrowth (%s) - lowerGrowth (%s)", upper.toStr(), lower.toStr());
-                console.log("  %s - %s", upperGrowth, lowerGrowth);
                 return upperGrowth - lowerGrowth;
             }
 
-            console.log("  Range Overlaps");
-            console.log("  self.globalGrowth - lowerGrowth - upperGrowth");
-            console.log("  %s - %s - %s", self.globalGrowth, lowerGrowth, upperGrowth);
             return self.globalGrowth - lowerGrowth - upperGrowth;
         }
     }
@@ -68,14 +54,12 @@ library PoolRewardsLib {
         int24 newTick,
         int24 tickSpacing
     ) internal {
-        console.log("updateAfterTickMove");
         if (newTick > prevTick) {
             // We assume the ticks are valid so no risk of underflow with these calls.
             if (newTick.normalizeUnchecked(tickSpacing) > prevTick) {
                 _updateTickMoveUp(self, uniV4, id, prevTick, newTick, tickSpacing);
             }
         } else if (newTick < prevTick) {
-            console.log("moved down");
             // We assume the ticks are valid so no risk of underflow with these calls.
             if (newTick < prevTick.normalizeUnchecked(tickSpacing)) {
                 _updateTickMoveDown(self, uniV4, id, prevTick, newTick, tickSpacing);
@@ -91,18 +75,17 @@ library PoolRewardsLib {
         int24 newTick,
         int24 tickSpacing
     ) private {
+        uint256 globalGrowth = self.globalGrowth;
+
         while (true) {
             bool initialized;
-            console.log("  tick:   %s", tick.toStr());
             (initialized, tick) = uniV4.getNextTickGt(id, tick, tickSpacing);
-            console.log("  initialized: %s", initialized);
-            console.log("  nextGt: %s\n", tick.toStr());
 
             if (newTick < tick) break;
             if (initialized) {
                 unchecked {
                     self.rewardGrowthOutside[uint24(tick)] =
-                        self.globalGrowth - self.rewardGrowthOutside[uint24(tick)];
+                        globalGrowth - self.rewardGrowthOutside[uint24(tick)];
                 }
             }
         }

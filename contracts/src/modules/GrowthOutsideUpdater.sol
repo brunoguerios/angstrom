@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-// import {console} from "forge-std/console.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {PoolRewards, REWARD_GROWTH_SIZE} from "../types/PoolRewards.sol";
 import {CalldataReader} from "../types/CalldataReader.sol";
@@ -12,13 +11,9 @@ import {TickLib} from "../libraries/TickLib.sol";
 import {MixedSignLib} from "../libraries/MixedSignLib.sol";
 import {X128MathLib} from "../libraries/X128MathLib.sol";
 
-import {console} from "forge-std/console.sol";
-import {FormatLib} from "super-sol/libraries/FormatLib.sol";
-
 /// @author philogy <https://github.com/philogy>
 /// @dev Core logic responsible for updating reward accumulators to distribute rewards.
 abstract contract GrowthOutsideUpdater is UniConsumer {
-    using FormatLib for *;
     using IUniV4 for IPoolManager;
     using TickLib for uint256;
 
@@ -42,8 +37,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         int24 currentTick
     ) internal returns (CalldataReader, uint256) {
         if (currentOnly) {
-            console.log("CurrentOnly");
-
             uint128 amount;
             (reader, amount) = reader.readU128();
             uint128 expectedLiquidity;
@@ -56,7 +49,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
 
             uint128 pooLiquidity = UNI_V4.getPoolLiquidity(id);
             if (expectedLiquidity != pooLiquidity) {
-                // console.log("expectedLiquidity != pooLiquidity");
                 revert JustInTimeLiquidityChange();
             }
             unchecked {
@@ -65,8 +57,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
 
             return (reader, amount);
         }
-
-        console.log("MultiTick");
 
         uint256 cumulativeGrowth;
         uint128 endLiquidity;
@@ -105,7 +95,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
             uint160 expectedRewardChecksum;
             (newReader, expectedRewardChecksum) = newReader.readU160();
             if (expectedRewardChecksum != pool.rewardChecksum >> 96) {
-                // console.log("expectedRewardChecksum != pool.rewardChecksum >> 96");
                 revert JustInTimeLiquidityChange();
             }
         }
@@ -124,7 +113,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         uint128 liquidity,
         RewardParams memory pool
     ) internal returns (CalldataReader, uint256, uint256, uint128) {
-        console.log("rewardBelow");
         bool initialized = true;
         uint256 total = 0;
         uint256 cumulativeGrowth = 0;
@@ -132,17 +120,8 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
 
         do {
             if (initialized) {
-                console.log(
-                    "  rewardTick: %s [%s]%s",
-                    rewardTick.toStr(),
-                    197910 <= rewardTick && rewardTick < 198100
-                        ? " (hit)"
-                        : " (miss [197910, 198100))"
-                );
-
                 uint128 amount;
                 (reader, amount) = reader.readU128();
-                console.log("  amount: %s", amount);
 
                 total += amount;
                 unchecked {
@@ -153,7 +132,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
                 (, int128 netLiquidity) = UNI_V4.getTickLiquidity(pool.id, rewardTick);
                 liquidity = MixedSignLib.add(liquidity, netLiquidity);
 
-                // console.log("below", uint256(int256(rewardTick)), uint256(liquidity));
                 assembly ("memory-safe") {
                     mstore(0x13, rewardTick)
                     mstore(0x10, liquidity)
@@ -176,7 +154,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         uint128 liquidity,
         RewardParams memory pool
     ) internal returns (CalldataReader, uint256, uint256, uint128) {
-        console.log("rewardAbove");
         bool initialized = true;
         uint256 total = 0;
         uint256 cumulativeGrowth = 0;
@@ -196,7 +173,6 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
                 (, int128 netLiquidity) = UNI_V4.getTickLiquidity(pool.id, rewardTick);
                 liquidity = MixedSignLib.sub(liquidity, netLiquidity);
 
-                // console.log("above", uint256(int256(rewardTick)), uint256(liquidity));
                 assembly ("memory-safe") {
                     mstore(0x13, rewardTick)
                     mstore(0x10, liquidity)
