@@ -25,6 +25,9 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {X128MathLib} from "../libraries/X128MathLib.sol";
 import {SafeCastLib} from "solady/src/utils/SafeCastLib.sol";
 
+import {console} from "forge-std/console.sol";
+import {FormatLib} from "super-sol/libraries/FormatLib.sol";
+
 /// @author philogy <https://github.com/philogy>
 /// @dev Top-level entry point for updating any state related to the underlying hooked Uniswap V4
 /// pools. Updates individual positions rewards, initiates swaps and reward distribution.
@@ -36,6 +39,8 @@ abstract contract PoolUpdates is
     IBeforeAddLiquidityHook,
     IBeforeRemoveLiquidityHook
 {
+    using FormatLib for *;
+
     using SafeTransferLib for address;
     using X128MathLib for uint256;
     using SafeCastLib for uint256;
@@ -55,12 +60,18 @@ abstract contract PoolUpdates is
     ) external override returns (bytes4) {
         _onlyUniV4();
 
+        console.log("key.tickSpacing: %s", key.tickSpacing.toStr());
+
         PoolId id = _toId(key);
+        console.log("PoolId.unwrap(id): %x", uint256(PoolId.unwrap(id)));
         PoolRewards storage rewards = poolRewards[id];
 
         uint256 growthInside;
         {
             int24 currentTick = UNI_V4.getSlot0(id).tick();
+            console.log("currentTick: %s", currentTick.toStr());
+            console.log("params.tickLower: %s", params.tickLower.toStr());
+            console.log("params.tickUpper: %s", params.tickUpper.toStr());
             uint256 lowerGrowth = rewards.rewardGrowthOutside[uint24(params.tickLower)];
             uint256 upperGrowth = rewards.rewardGrowthOutside[uint24(params.tickUpper)];
 
@@ -92,13 +103,17 @@ abstract contract PoolUpdates is
                 }
             }
         }
+        console.log("growthInside: %s", growthInside);
 
         (Position storage position, bytes32 positionKey) =
             positions.get(id, sender, params.tickLower, params.tickUpper, params.salt);
+        console.log("positionKey: %x", uint256(positionKey));
 
         uint128 lastLiquidity = UNI_V4.getPositionLiquidity(id, positionKey);
+        console.log("lastLiquidity: %s", lastLiquidity);
         uint128 liquidityDelta = uint128(uint256(params.liquidityDelta));
         uint128 newLiquidity = lastLiquidity + liquidityDelta;
+        console.log("newLiquidity: %s", newLiquidity);
 
         if (lastLiquidity == 0) {
             position.lastGrowthInside = growthInside;
@@ -117,6 +132,24 @@ abstract contract PoolUpdates is
             }
         }
 
+        {
+            console.log("======= COMPUTE REWARDS ========");
+            int24 currentTick = UNI_V4.getSlot0(id).tick();
+            console.log("currentTick: %s", currentTick.toStr());
+            growthInside =
+                poolRewards[id].getGrowthInside(currentTick, params.tickLower, params.tickUpper);
+
+            uint128 positionTotalLiquidity = UNI_V4.getPositionLiquidity(id, positionKey);
+            console.log("growthInside:              %s", growthInside);
+            console.log("position.lastGrowthInside: %s", position.lastGrowthInside);
+            console.log("positionTotalLiquidity:    %s", positionTotalLiquidity);
+
+            uint256 rewardAmount = X128MathLib.fullMulX128(
+                growthInside - position.lastGrowthInside, positionTotalLiquidity
+            );
+            console.log("rewards:                   %s", rewardAmount);
+        }
+
         return this.beforeAddLiquidity.selector;
     }
 
@@ -133,13 +166,20 @@ abstract contract PoolUpdates is
             (Position storage position, bytes32 positionKey) =
                 positions.get(id, sender, params.tickLower, params.tickUpper, params.salt);
             int24 currentTick = UNI_V4.getSlot0(id).tick();
+            console.log("currentTick: %s", currentTick.toStr());
+            console.log("params.tickLower: %s", params.tickLower.toStr());
+            console.log("params.tickUpper: %s", params.tickUpper.toStr());
             uint256 growthInside =
                 poolRewards[id].getGrowthInside(currentTick, params.tickLower, params.tickUpper);
 
             uint128 positionTotalLiquidity = UNI_V4.getPositionLiquidity(id, positionKey);
+            console.log("growthInside:              %s", growthInside);
+            console.log("position.lastGrowthInside: %s", position.lastGrowthInside);
+            console.log("positionTotalLiquidity: %s", positionTotalLiquidity);
             uint256 rewards = X128MathLib.fullMulX128(
                 growthInside - position.lastGrowthInside, positionTotalLiquidity
             );
+            console.log("rewards:                   %s", rewards);
 
             if (rewards > 0) {
                 // Pay rewards to owner via uniswap delta => assumes that router is not malicious.
@@ -172,6 +212,7 @@ abstract contract PoolUpdates is
         internal
         returns (CalldataReader)
     {
+        _logFluxRewards();
         PoolUpdateVariantMap variantMap;
         {
             uint8 variantByte;
@@ -184,6 +225,11 @@ abstract contract PoolUpdates is
         (swapCall.asset0, swapCall.asset1, swapCall.tickSpacing) =
             pairs.get(pairIndex).getPoolInfo();
 
+        console.log("direction: %s", variantMap.zeroForOne() ? "0 -> 1" : "1 -> 0");
+        console.log("swapCall.asset0: %s", swapCall.asset0);
+        console.log("swapCall.asset1: %s", swapCall.asset1);
+        console.log("swapCall.tickSpacing: %s", swapCall.tickSpacing.toStr());
+
         PoolId id = swapCall.getId();
 
         uint256 amountIn;
@@ -191,7 +237,13 @@ abstract contract PoolUpdates is
 
         int24 currentTick;
         if (amountIn > 0) {
+            console.log("amountIn: %s", amountIn);
             int24 tickBefore = UNI_V4.getSlot0(id).tick();
+            console.log(
+                "tickBefore: %s",
+                tickBefore.toStr(),
+                197910 <= tickBefore && tickBefore < 198100 ? " (hit)" : " (miss)"
+            );
             swapCall.amountSpecified = SignedUnsignedLib.neg(amountIn);
             // The swap delta is tracked on Uniswap's side so we don't need to here. It's accounted for in the asset
             // take & settle steps.
@@ -205,6 +257,11 @@ abstract contract PoolUpdates is
         } else {
             currentTick = UNI_V4.getSlot0(id).tick();
         }
+        console.log(
+            "tickAfterSwap: %s",
+            currentTick.toStr(),
+            197910 <= currentTick && currentTick < 198100 ? " (hit)" : " (miss)"
+        );
 
         uint256 rewardTotal;
         (reader, rewardTotal) = _decodeAndReward(
@@ -212,7 +269,29 @@ abstract contract PoolUpdates is
         );
         bundleDeltas.sub(swapCall.asset0, rewardTotal);
 
+        console.log("rewardTotal: %s", rewardTotal.fmtD(6, 6));
+
+        _logFluxRewards();
+
         return reader;
+    }
+
+    function _logFluxRewards() internal view {
+        console.log("=== FLUX REWARDS ===");
+        bytes32 positionKey = 0x58fa8389cddecdccff1d25af13ba7109846b9c28196096bd8a4109f4be613d7a;
+        PoolId id = PoolId.wrap(0xf4cea555f4656f4561ecd2a74ec2673331779220cd60686514983edb16d027f3);
+
+        int24 currentTick = UNI_V4.getSlot0(id).tick();
+        int24 tickLower = 197910;
+        int24 tickUpper = 198100;
+
+        uint256 growthInside = poolRewards[id].getGrowthInside(currentTick, tickLower, tickUpper);
+        uint128 positionTotalLiquidity = UNI_V4.getPositionLiquidity(id, positionKey);
+
+        Position storage pos = positions.positions[id][positionKey];
+        uint256 rewards =
+            X128MathLib.fullMulX128(growthInside - pos.lastGrowthInside, positionTotalLiquidity);
+        console.log("  amount: %s", rewards.fmtD(6, 6));
     }
 
     function _toId(PoolKey calldata poolKey) internal pure returns (PoolId id) {

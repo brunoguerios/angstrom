@@ -17,6 +17,8 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {UnlockSwapFeeCollector} from "./UnlockSwapFeeCollector.sol";
 
+import {console} from "forge-std/console.sol";
+
 /// @dev Maximum fee that the `bundleFee` for any given pool should be settable to.
 uint256 constant MAX_UNLOCK_FEE_E6 = 0.4e6;
 
@@ -211,6 +213,8 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
     }
 
     function _isUnlocked() internal view returns (bool) {
+        console.log("block.number: %s", block.number);
+        console.log("_lastBlockUpdated: %s", _lastBlockUpdated);
         return _lastBlockUpdated == block.number;
     }
 

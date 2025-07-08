@@ -12,9 +12,13 @@ import {TickLib} from "../libraries/TickLib.sol";
 import {MixedSignLib} from "../libraries/MixedSignLib.sol";
 import {X128MathLib} from "../libraries/X128MathLib.sol";
 
+import {console} from "forge-std/console.sol";
+import {FormatLib} from "super-sol/libraries/FormatLib.sol";
+
 /// @author philogy <https://github.com/philogy>
 /// @dev Core logic responsible for updating reward accumulators to distribute rewards.
 abstract contract GrowthOutsideUpdater is UniConsumer {
+    using FormatLib for *;
     using IUniV4 for IPoolManager;
     using TickLib for uint256;
 
@@ -38,6 +42,8 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         int24 currentTick
     ) internal returns (CalldataReader, uint256) {
         if (currentOnly) {
+            console.log("CurrentOnly");
+
             uint128 amount;
             (reader, amount) = reader.readU128();
             uint128 expectedLiquidity;
@@ -59,6 +65,8 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
 
             return (reader, amount);
         }
+
+        console.log("MultiTick");
 
         uint256 cumulativeGrowth;
         uint128 endLiquidity;
@@ -116,6 +124,7 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         uint128 liquidity,
         RewardParams memory pool
     ) internal returns (CalldataReader, uint256, uint256, uint128) {
+        console.log("rewardBelow");
         bool initialized = true;
         uint256 total = 0;
         uint256 cumulativeGrowth = 0;
@@ -123,8 +132,17 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
 
         do {
             if (initialized) {
+                console.log(
+                    "  rewardTick: %s [%s]%s",
+                    rewardTick.toStr(),
+                    197910 <= rewardTick && rewardTick < 198100
+                        ? " (hit)"
+                        : " (miss [197910, 198100))"
+                );
+
                 uint128 amount;
                 (reader, amount) = reader.readU128();
+                console.log("  amount: %s", amount);
 
                 total += amount;
                 unchecked {
@@ -158,6 +176,7 @@ abstract contract GrowthOutsideUpdater is UniConsumer {
         uint128 liquidity,
         RewardParams memory pool
     ) internal returns (CalldataReader, uint256, uint256, uint128) {
+        console.log("rewardAbove");
         bool initialized = true;
         uint256 total = 0;
         uint256 cumulativeGrowth = 0;
