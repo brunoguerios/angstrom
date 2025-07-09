@@ -7,7 +7,7 @@ use std::{
 };
 
 use alloy_primitives::{Address, U256};
-use angstrom_types::pair_with_price::PairsWithPrice;
+use angstrom_types::{pair_with_price::PairsWithPrice, reth_db_wrapper::SetBlock};
 use futures::{FutureExt, Stream};
 use reth_provider::BlockNumReader;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -37,7 +37,7 @@ type ValidatorOperation<DB, T> =
 
 pub struct TestOrderValidator<DB>
 where
-    DB: BlockStateProviderFactory + revm::DatabaseRef + Clone + Unpin + 'static
+    DB: BlockStateProviderFactory + revm::DatabaseRef + Clone + Unpin + 'static + SetBlock
 {
     /// allows us to set values to ensure
     pub db:         Arc<DB>,
@@ -48,7 +48,13 @@ where
 
 impl<DB> TestOrderValidator<DB>
 where
-    DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static,
+    DB: BlockStateProviderFactory
+        + Clone
+        + Unpin
+        + revm::DatabaseRef
+        + BlockNumReader
+        + SetBlock
+        + 'static,
     <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
 {
     pub async fn new(
@@ -80,7 +86,13 @@ where
         let bundle_validator = BundleValidator::new(db.clone(), angstrom_address, node_address);
         let shared_utils = SharedTools::new(token_conversion, token_updates, thread_pool);
 
-        let val = Validator::new(validator_rx, order_validator, bundle_validator, shared_utils);
+        let val = Validator::new(
+            validator_rx,
+            order_validator,
+            bundle_validator,
+            shared_utils,
+            db.clone()
+        );
 
         Ok(Self { db, client: validation_client, underlying: val, node_id })
     }
@@ -108,7 +120,13 @@ where
 
 impl<DB> Future for TestOrderValidator<DB>
 where
-    DB: BlockStateProviderFactory + Clone + Unpin + revm::DatabaseRef + BlockNumReader + 'static,
+    DB: BlockStateProviderFactory
+        + Clone
+        + Unpin
+        + revm::DatabaseRef
+        + BlockNumReader
+        + 'static
+        + SetBlock,
     <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug + Unpin
 {
     type Output = ();
@@ -124,7 +142,7 @@ where
 
 pub struct OrderValidatorChain<DB, T>
 where
-    DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef,
+    DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef + SetBlock,
     T: 'static
 {
     validator:     TestOrderValidator<DB>,
@@ -135,7 +153,13 @@ where
 
 impl<DB, T> OrderValidatorChain<DB, T>
 where
-    DB: BlockStateProviderFactory + Clone + Unpin + 'static + revm::DatabaseRef + BlockNumReader,
+    DB: BlockStateProviderFactory
+        + Clone
+        + Unpin
+        + 'static
+        + revm::DatabaseRef
+        + BlockNumReader
+        + SetBlock,
     T: 'static,
     <DB as revm::DatabaseRef>::Error: Send + Sync + std::fmt::Debug
 {

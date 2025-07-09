@@ -3,7 +3,7 @@ use std::{future::IntoFuture, time::Duration};
 use alloy::{providers::Provider, rpc::types::Block};
 use alloy_primitives::{Address, B256, BlockNumber, U256};
 use alloy_rpc_types::{BlockId, TransactionReceipt};
-use angstrom_types::reth_db_wrapper::DBError;
+use angstrom_types::reth_db_wrapper::{DBError, SetBlock};
 use futures::stream::StreamExt;
 use reth_primitives::EthPrimitives;
 use reth_provider::{
@@ -25,6 +25,10 @@ pub struct AnvilStateProvider<P> {
     provider:           P,
     canon_state:        AnvilConsensusCanonStateNotification,
     pub canon_state_tx: broadcast::Sender<CanonStateNotification>
+}
+
+impl<P: WithWalletProvider> SetBlock for AnvilStateProvider<P> {
+    fn set_block(&self, _: u64) {}
 }
 
 impl<P: WithWalletProvider> AnvilStateProvider<P> {

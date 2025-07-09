@@ -1,7 +1,10 @@
 use std::{fmt::Debug, sync::Arc, task::Poll};
 
 use alloy::primitives::{Address, B256, U256};
-use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
+use angstrom_types::{
+    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    reth_db_wrapper::SetBlock
+};
 use futures_util::{Future, FutureExt};
 use telemetry_recorder::telemetry_event;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -61,12 +64,20 @@ pub struct Validator<DB, Pools, Fetch> {
     rx:               UnboundedReceiver<ValidationRequest>,
     order_validator:  OrderValidator<DB, Pools, Fetch>,
     bundle_validator: BundleValidator<DB>,
-    utils:            SharedTools
+    utils:            SharedTools,
+    db:               Arc<DB>
 }
 
 impl<DB, Pools, Fetch> Validator<DB, Pools, Fetch>
 where
-    DB: Unpin + Clone + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync + 'static,
+    DB: Unpin
+        + Clone
+        + reth_provider::BlockNumReader
+        + revm::DatabaseRef
+        + Send
+        + Sync
+        + 'static
+        + SetBlock,
     Pools: PoolsTracker + Send + Sync + 'static,
     Fetch: StateFetchUtils + Send + Sync + 'static,
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug
@@ -75,9 +86,10 @@ where
         rx: UnboundedReceiver<ValidationRequest>,
         order_validator: OrderValidator<DB, Pools, Fetch>,
         bundle_validator: BundleValidator<DB>,
-        utils: SharedTools
+        utils: SharedTools,
+        db: Arc<DB>
     ) -> Self {
-        Self { order_validator, rx, utils, bundle_validator }
+        Self { order_validator, rx, utils, bundle_validator, db }
     }
 
     pub fn set_user_account(&mut self, account: UserAccounts) {
@@ -124,6 +136,8 @@ where
                     self.order_validator
                         .on_new_block(block_number, orders, addresses);
                 });
+
+                self.db.set_block(block_number);
 
                 let gas_updates = self.utils.token_pricing_ref().generate_gas_updates();
                 sender
@@ -176,7 +190,14 @@ where
 
 impl<DB, Pools, Fetch> Future for Validator<DB, Pools, Fetch>
 where
-    DB: Unpin + Clone + 'static + revm::DatabaseRef + reth_provider::BlockNumReader + Send + Sync,
+    DB: Unpin
+        + Clone
+        + 'static
+        + revm::DatabaseRef
+        + reth_provider::BlockNumReader
+        + Send
+        + Sync
+        + SetBlock,
     <DB as revm::DatabaseRef>::Error: Send + Sync + Debug,
     Pools: PoolsTracker + Send + Sync + Unpin + 'static,
     Fetch: StateFetchUtils + Send + Sync + Unpin + 'static

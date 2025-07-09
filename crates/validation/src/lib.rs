@@ -12,7 +12,8 @@ use std::{
 
 use alloy::primitives::Address;
 use angstrom_types::{
-    contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice
+    contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice,
+    reth_db_wrapper::SetBlock
 };
 use bundle::BundleValidator;
 use common::SharedTools;
@@ -38,7 +39,14 @@ const MAX_VALIDATION_PER_ADDR: usize = 1;
 
 #[allow(clippy::too_many_arguments)]
 pub fn init_validation<
-    DB: Unpin + Clone + 'static + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync
+    DB: Unpin
+        + Clone
+        + 'static
+        + SetBlock
+        + reth_provider::BlockNumReader
+        + revm::DatabaseRef
+        + Send
+        + Sync
 >(
     db: DB,
     current_block: u64,
@@ -68,7 +76,14 @@ pub fn init_validation<
 
 #[allow(clippy::too_many_arguments)]
 pub fn init_validation_replay<
-    DB: Unpin + Clone + 'static + reth_provider::BlockNumReader + revm::DatabaseRef + Send + Sync
+    DB: Unpin
+        + Clone
+        + 'static
+        + SetBlock
+        + reth_provider::BlockNumReader
+        + revm::DatabaseRef
+        + Send
+        + Sync
 >(
     db: DB,
     current_block: u64,
@@ -108,8 +123,13 @@ pub fn init_validation_replay<
         let shared_utils = SharedTools::new(price_generator, update_stream, thread_pool);
 
         rt.block_on(async {
-            let mut validator =
-                Validator::new(validator_rx, order_validator, bundle_validator, shared_utils);
+            let mut validator = Validator::new(
+                validator_rx,
+                order_validator,
+                bundle_validator,
+                shared_utils,
+                revm_lru
+            );
             hook(&mut validator);
             validator.await
         })
