@@ -1,5 +1,5 @@
 use alloy::{
-    eips::{Encodable2718, eip1559::ETHEREUM_BLOCK_GAS_LIMIT_30M},
+    eips::Encodable2718,
     network::TransactionBuilder,
     providers::{Provider, ProviderBuilder, RootProvider}
 };

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY,
-    ETHEREUM_BLOCK_GAS_LIMIT_30M, EXTRA_GAS_LIMIT, TxFeatureInfo, Url
+    EXTRA_GAS_LIMIT, TxFeatureInfo, Url
 };
 use crate::{primitive::AngstromMetaSigner, sol_bindings::rpc_orders::AttestAngstromBlockEmpty};
 
