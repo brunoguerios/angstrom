@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY,
-    ETHEREUM_BLOCK_GAS_LIMIT_30M, EXTRA_GAS_LIMIT, TxFeatureInfo, Url
+    EXTRA_GAS_LIMIT, TxFeatureInfo, Url
 };
 use crate::{primitive::AngstromMetaSigner, sol_bindings::rpc_orders::AttestAngstromBlockEmpty};
 
@@ -59,9 +59,9 @@ impl ChainSubmitter for AngstromSubmitter {
                     client
                         .estimate_gas(tx.clone())
                         .await
-                        .unwrap_or(ETHEREUM_BLOCK_GAS_LIMIT_30M)
+                        .unwrap_or(bundle.crude_gas_estimation())
                         + EXTRA_GAS_LIMIT,
-                    ETHEREUM_BLOCK_GAS_LIMIT_30M
+                    bundle.crude_gas_estimation()
                 );
                 tx = tx.with_gas_limit(gas_used);
 

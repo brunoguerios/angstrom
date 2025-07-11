@@ -5,7 +5,7 @@ use std::{ops::Deref, pin::Pin, sync::Arc};
 
 use alloy::{
     consensus::{EthereumTxEnvelope, TxEip4844Variant},
-    eips::eip1559::{ETHEREUM_BLOCK_GAS_LIMIT_30M, Eip1559Estimation},
+    eips::eip1559::Eip1559Estimation,
     network::TransactionBuilder,
     primitives::Address,
     providers::Provider,
