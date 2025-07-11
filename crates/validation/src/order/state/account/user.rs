@@ -194,11 +194,11 @@ impl UserAccounts {
         // because tob orders are only valid for 1 block.
         // we can always clear
         self.pending_tob_actions.clear();
+        self.last_known_state.clear();
 
         // remove all user specific orders
         users.iter().for_each(|user| {
             self.pending_book_actions.remove(user);
-            self.last_known_state.remove(user);
         });
 
         // remove all singular orders
