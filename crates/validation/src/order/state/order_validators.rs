@@ -4,16 +4,20 @@ use gas_set::EnsureGasSet;
 use max_gas_lt_min::EnsureMaxGasLessThanMinAmount;
 use price_set::EnsurePriceSet;
 
+use crate::order::state::order_validators::partial_min_delta::PartialMinDelta;
+
 pub mod amount_set;
 pub mod gas_set;
 pub mod max_gas_lt_min;
+pub mod partial_min_delta;
 pub mod price_set;
 
-pub const ORDER_VALIDATORS: [OrderValidator; 4] = [
+pub const ORDER_VALIDATORS: [OrderValidator; 5] = [
     OrderValidator::EnsureAmountSet(EnsureAmountSet),
     OrderValidator::EnsureGasSet(EnsureGasSet),
     OrderValidator::EnsurePriceSet(EnsurePriceSet),
-    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount)
+    OrderValidator::EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
+    OrderValidator::PartialMinDelta(PartialMinDelta)
 ];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -58,7 +62,8 @@ pub enum OrderValidator {
     EnsureAmountSet(EnsureAmountSet),
     EnsureMaxGasLessThanMinAmount(EnsureMaxGasLessThanMinAmount),
     EnsurePriceSet(EnsurePriceSet),
-    EnsureGasSet(EnsureGasSet)
+    EnsureGasSet(EnsureGasSet),
+    PartialMinDelta(PartialMinDelta)
 }
 
 impl OrderValidation for OrderValidator {
@@ -72,7 +77,8 @@ impl OrderValidation for OrderValidator {
                 validator.validate_order(state)
             }
             OrderValidator::EnsureGasSet(validator) => validator.validate_order(state),
-            OrderValidator::EnsurePriceSet(validator) => validator.validate_order(state)
+            OrderValidator::EnsurePriceSet(validator) => validator.validate_order(state),
+            OrderValidator::PartialMinDelta(validator) => validator.validate_order(state)
         }
     }
 }

@@ -28,6 +28,8 @@ pub enum OrderValidationError {
     NoGasSpecified,
     #[error("no price was specified for this order")]
     NoPriceSpecified,
+    #[error("The delta for the parital order is to small. Check docs to see set mins")]
+    MinDeltaToSmall,
     #[error("the price was outside of the supported pool's range")]
     PriceOutOfPoolBounds,
     #[error("order was cancelled")]
