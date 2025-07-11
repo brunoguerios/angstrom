@@ -13,6 +13,10 @@ impl OrderValidation for EnsurePriceSet {
         &self,
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
+        if state.order().is_tob() {
+            return Ok(());
+        }
+
         if state.order().limit_price().is_zero() {
             Err(OrderValidationError::NoPriceSpecified)
         } else if !Ray::from(state.order().limit_price()).within_sqrt_price_bounds() {
