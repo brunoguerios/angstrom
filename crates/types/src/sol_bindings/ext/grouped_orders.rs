@@ -677,7 +677,7 @@ impl GroupedComposableOrder {
 
 impl RawPoolOrder for TopOfBlockOrder {
     fn min_qty_t0(&self) -> Option<u128> {
-        if self.is_bid() { Some(self.quantity_out) } else { Some(self.quantity_in) }
+        self.is_bid().then_some(self.quantity_out)
     }
 
     fn exact_in(&self) -> bool {
