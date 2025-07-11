@@ -351,7 +351,7 @@ where
     let block_height = node.provider.best_block_number().unwrap();
 
     init_validation(
-        RethDbWrapper::new(node.provider.clone()),
+        RethDbWrapper::new(node.provider.clone(), block_height),
         block_height,
         angstrom_address,
         node_address,

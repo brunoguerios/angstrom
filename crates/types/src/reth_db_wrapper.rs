@@ -1,3 +1,5 @@
+use std::sync::{Arc, atomic::AtomicU64};
+
 // Allows us to impl revm::DatabaseRef on the default provider type.
 use alloy::{
     primitives::{Address, B256, BlockHash, BlockNumber, Bytes, StorageKey, StorageValue, U256},
@@ -18,16 +20,29 @@ use revm::state::AccountInfo;
 use revm_bytecode::Bytecode;
 use revm_database::{BundleState, DBErrorMarker};
 
+pub trait SetBlock: Send + Sync + 'static {
+    fn set_block(&self, block: u64);
+}
+
 #[derive(Clone)]
-#[repr(transparent)]
-pub struct RethDbWrapper<DB: StateProviderFactory + Unpin + Clone + 'static>(DB);
+pub struct RethDbWrapper<DB: StateProviderFactory + Unpin + Clone + 'static> {
+    db:    DB,
+    block: Arc<AtomicU64>
+}
+
+impl<DB: StateProviderFactory + Unpin + Clone + 'static> SetBlock for RethDbWrapper<DB> {
+    fn set_block(&self, block: u64) {
+        self.block
+            .store(block, std::sync::atomic::Ordering::Relaxed);
+    }
+}
 
 impl<DB> RethDbWrapper<DB>
 where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
-    pub fn new(db: DB) -> Self {
-        Self(db)
+    pub fn new(db: DB, block: u64) -> Self {
+        Self { db, block: Arc::new(block.into()) }
     }
 }
 
@@ -83,7 +98,7 @@ where
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
         // Get the block hash or default hash with an attempt to convert U256 block
         // number to u64
-        Ok(self.0.block_hash(number)?.unwrap_or_default())
+        Ok(self.db.block_hash(number)?.unwrap_or_default())
     }
 }
 
@@ -92,33 +107,33 @@ where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn chain_info(&self) -> reth_provider::ProviderResult<ChainInfo> {
-        self.0.chain_info()
+        self.db.chain_info()
     }
 
     fn block_number(&self, hash: B256) -> reth_provider::ProviderResult<Option<BlockNumber>> {
-        self.0.block_number(hash)
+        self.db.block_number(hash)
     }
 
     fn convert_number(
         &self,
         id: alloy::eips::BlockHashOrNumber
     ) -> reth_provider::ProviderResult<Option<B256>> {
-        self.0.convert_number(id)
+        self.db.convert_number(id)
     }
 
     fn best_block_number(&self) -> reth_provider::ProviderResult<BlockNumber> {
-        self.0.best_block_number()
+        self.db.best_block_number()
     }
 
     fn last_block_number(&self) -> reth_provider::ProviderResult<BlockNumber> {
-        self.0.last_block_number()
+        self.db.last_block_number()
     }
 
     fn convert_hash_or_number(
         &self,
         id: alloy::eips::BlockHashOrNumber
     ) -> reth_provider::ProviderResult<Option<BlockNumber>> {
-        self.0.convert_hash_or_number(id)
+        self.db.convert_hash_or_number(id)
     }
 }
 
@@ -127,15 +142,15 @@ where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn pending_block_num_hash(&self) -> ProviderResult<Option<alloy::eips::BlockNumHash>> {
-        self.0.pending_block_num_hash()
+        self.db.pending_block_num_hash()
     }
 
     fn safe_block_num_hash(&self) -> ProviderResult<Option<alloy::eips::BlockNumHash>> {
-        self.0.safe_block_num_hash()
+        self.db.safe_block_num_hash()
     }
 
     fn finalized_block_num_hash(&self) -> ProviderResult<Option<alloy::eips::BlockNumHash>> {
-        self.0.finalized_block_num_hash()
+        self.db.finalized_block_num_hash()
     }
 }
 
@@ -144,53 +159,53 @@ where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn latest(&self) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
-        self.0.latest()
+        self.db.latest()
     }
 
     fn pending(&self) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
-        self.0.pending()
+        self.db.pending()
     }
 
     fn state_by_block_id(
         &self,
         block_id: alloy::eips::BlockId
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
-        self.0.state_by_block_id(block_id)
+        self.db.state_by_block_id(block_id)
     }
 
     fn state_by_block_hash(
         &self,
         block: BlockHash
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
-        self.0.state_by_block_hash(block)
+        self.db.state_by_block_hash(block)
     }
 
     fn history_by_block_hash(
         &self,
         block: BlockHash
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
-        self.0.history_by_block_hash(block)
+        self.db.history_by_block_hash(block)
     }
 
     fn pending_state_by_hash(
         &self,
         block_hash: B256
     ) -> reth_provider::ProviderResult<Option<reth_provider::StateProviderBox>> {
-        self.0.pending_state_by_hash(block_hash)
+        self.db.pending_state_by_hash(block_hash)
     }
 
     fn state_by_block_number_or_tag(
         &self,
         number_or_tag: alloy::eips::BlockNumberOrTag
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
-        self.0.state_by_block_number_or_tag(number_or_tag)
+        self.db.state_by_block_number_or_tag(number_or_tag)
     }
 
     fn history_by_block_number(
         &self,
         block: BlockNumber
     ) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
-        self.0.history_by_block_number(block)
+        self.db.history_by_block_number(block)
     }
 }
 
@@ -203,22 +218,30 @@ where
         account: Address,
         storage_key: StorageKey
     ) -> reth_provider::ProviderResult<Option<StorageValue>> {
-        self.0.latest()?.storage(account, storage_key)
+        self.db
+            .state_by_block_id(self.block.load(std::sync::atomic::Ordering::Relaxed).into())?
+            .storage(account, storage_key)
     }
 
     fn account_code(
         &self,
         addr: &Address
     ) -> reth_provider::ProviderResult<Option<reth_primitives::Bytecode>> {
-        self.0.latest()?.account_code(addr)
+        self.db
+            .state_by_block_id(self.block.load(std::sync::atomic::Ordering::Relaxed).into())?
+            .account_code(addr)
     }
 
     fn account_nonce(&self, addr: &Address) -> reth_provider::ProviderResult<Option<u64>> {
-        self.0.latest()?.account_nonce(addr)
+        self.db
+            .state_by_block_id(self.block.load(std::sync::atomic::Ordering::Relaxed).into())?
+            .account_nonce(addr)
     }
 
     fn account_balance(&self, addr: &Address) -> reth_provider::ProviderResult<Option<U256>> {
-        self.0.latest()?.account_balance(addr)
+        self.db
+            .state_by_block_id(self.block.load(std::sync::atomic::Ordering::Relaxed).into())?
+            .account_balance(addr)
     }
 }
 
@@ -230,7 +253,9 @@ where
         &self,
         address: &Address
     ) -> reth_provider::ProviderResult<Option<reth_primitives::Account>> {
-        self.0.latest()?.basic_account(address)
+        self.db
+            .state_by_block_id(self.block.load(std::sync::atomic::Ordering::Relaxed).into())?
+            .basic_account(address)
     }
 }
 
@@ -239,14 +264,14 @@ where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn block_hash(&self, number: BlockNumber) -> reth_provider::ProviderResult<Option<B256>> {
-        self.0.latest()?.block_hash(number)
+        self.db.latest()?.block_hash(number)
     }
 
     fn convert_block_hash(
         &self,
         hash_or_number: alloy::eips::BlockHashOrNumber
     ) -> reth_provider::ProviderResult<Option<B256>> {
-        self.0.latest()?.convert_block_hash(hash_or_number)
+        self.db.latest()?.convert_block_hash(hash_or_number)
     }
 
     fn canonical_hashes_range(
@@ -254,7 +279,7 @@ where
         start: BlockNumber,
         end: BlockNumber
     ) -> reth_provider::ProviderResult<Vec<B256>> {
-        self.0.latest()?.canonical_hashes_range(start, end)
+        self.db.latest()?.canonical_hashes_range(start, end)
     }
 }
 
@@ -263,7 +288,7 @@ where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn hashed_post_state(&self, bundle_state: &BundleState) -> HashedPostState {
-        self.0.latest().unwrap().hashed_post_state(bundle_state)
+        self.db.latest().unwrap().hashed_post_state(bundle_state)
     }
 }
 
@@ -272,25 +297,25 @@ where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
     fn state_root(&self, hashed_state: HashedPostState) -> reth_provider::ProviderResult<B256> {
-        self.0.latest()?.state_root(hashed_state)
+        self.db.latest()?.state_root(hashed_state)
     }
 
     fn state_root_from_nodes(&self, input: TrieInput) -> reth_provider::ProviderResult<B256> {
-        self.0.latest()?.state_root_from_nodes(input)
+        self.db.latest()?.state_root_from_nodes(input)
     }
 
     fn state_root_with_updates(
         &self,
         hashed_state: HashedPostState
     ) -> reth_provider::ProviderResult<(B256, TrieUpdates)> {
-        self.0.latest()?.state_root_with_updates(hashed_state)
+        self.db.latest()?.state_root_with_updates(hashed_state)
     }
 
     fn state_root_from_nodes_with_updates(
         &self,
         input: TrieInput
     ) -> reth_provider::ProviderResult<(B256, TrieUpdates)> {
-        self.0.latest()?.state_root_from_nodes_with_updates(input)
+        self.db.latest()?.state_root_from_nodes_with_updates(input)
     }
 }
 
@@ -304,7 +329,7 @@ where
         slot: B256,
         hashed_storage: HashedStorage
     ) -> ProviderResult<reth_trie::StorageProof> {
-        self.0
+        self.db
             .latest()?
             .storage_proof(address, slot, hashed_storage)
     }
@@ -314,7 +339,7 @@ where
         address: Address,
         hashed_storage: HashedStorage
     ) -> ProviderResult<B256> {
-        self.0.latest()?.storage_root(address, hashed_storage)
+        self.db.latest()?.storage_root(address, hashed_storage)
     }
 
     fn storage_multiproof(
@@ -323,7 +348,7 @@ where
         slots: &[B256],
         hashed_storage: HashedStorage
     ) -> ProviderResult<StorageMultiProof> {
-        self.0
+        self.db
             .latest()?
             .storage_multiproof(address, slots, hashed_storage)
     }
@@ -339,11 +364,11 @@ where
         address: Address,
         slots: &[B256]
     ) -> reth_provider::ProviderResult<AccountProof> {
-        self.0.latest()?.proof(input, address, slots)
+        self.db.latest()?.proof(input, address, slots)
     }
 
     fn witness(&self, input: TrieInput, target: HashedPostState) -> ProviderResult<Vec<Bytes>> {
-        self.0.latest()?.witness(input, target)
+        self.db.latest()?.witness(input, target)
     }
 
     fn multiproof(
@@ -351,7 +376,7 @@ where
         input: TrieInput,
         targets: reth_trie::MultiProofTargets
     ) -> ProviderResult<MultiProof> {
-        self.0.latest()?.multiproof(input, targets)
+        self.db.latest()?.multiproof(input, targets)
     }
 }
 
@@ -363,6 +388,8 @@ where
         &self,
         code_hash: &B256
     ) -> reth_provider::ProviderResult<Option<reth_primitives::Bytecode>> {
-        self.0.latest()?.bytecode_by_hash(code_hash)
+        self.db
+            .state_by_block_id(self.block.load(std::sync::atomic::Ordering::Relaxed).into())?
+            .bytecode_by_hash(code_hash)
     }
 }
