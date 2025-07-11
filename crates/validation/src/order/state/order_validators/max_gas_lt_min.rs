@@ -10,7 +10,19 @@ impl OrderValidation for EnsureMaxGasLessThanMinAmount {
         &self,
         state: &mut OrderValidationState<O>
     ) -> Result<(), OrderValidationError> {
-        if state.min_qty_in_t0() < state.order().max_gas_token_0() {
+        let max_gas = state.order().max_gas_token_0();
+
+        if let Some(min_qty) = state.order().min_qty_t0()
+            && state.order().is_tob()
+        {
+            if min_qty < max_gas {
+                return Err(OrderValidationError::MaxGasGreaterThanMinAmount);
+            }
+        } else if state.order().is_tob() {
+            return Ok(());
+        }
+
+        if state.min_qty_in_t0() < max_gas {
             Err(OrderValidationError::MaxGasGreaterThanMinAmount)
         } else {
             Ok(())

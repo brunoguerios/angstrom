@@ -676,6 +676,10 @@ impl GroupedComposableOrder {
 }
 
 impl RawPoolOrder for TopOfBlockOrder {
+    fn min_qty_t0(&self) -> Option<u128> {
+        self.is_bid().then_some(self.quantity_out)
+    }
+
     fn exact_in(&self) -> bool {
         true
     }
@@ -721,9 +725,7 @@ impl RawPoolOrder for TopOfBlockOrder {
     }
 
     fn limit_price(&self) -> U256 {
-        let mut top = Ray::scale_to_ray(U256::from(self.amount()));
-        top.div_ray_assign(Ray::scale_to_ray(U256::from(self.quantity_out)));
-        *top
+        U256::from(self.quantity_out) / U256::from(self.quantity_in)
     }
 
     fn token_in(&self) -> Address {
