@@ -60,9 +60,9 @@ impl ChainSubmitter for MempoolSubmitter {
                             .inspect_err(|e| {
                                 tracing::error!(err=%e, "failed to query gas");
                             })
-                            .unwrap_or(ETHEREUM_BLOCK_GAS_LIMIT_30M)
+                            .unwrap_or(bundle.crude_gas_estimation())
                             + EXTRA_GAS_LIMIT,
-                        ETHEREUM_BLOCK_GAS_LIMIT_30M
+                        bundle.crude_gas_estimation()
                     );
                     tx.with_gas_limit(gas)
                 })

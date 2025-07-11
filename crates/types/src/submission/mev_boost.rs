@@ -23,7 +23,7 @@ use reth::rpc::types::mev::PrivateTransactionRequest;
 
 use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY,
-    ETHEREUM_BLOCK_GAS_LIMIT_30M, EXTRA_GAS_LIMIT, TxFeatureInfo, Url
+    EXTRA_GAS_LIMIT, TxFeatureInfo, Url
 };
 use crate::primitive::AngstromMetaSigner;
 
@@ -73,9 +73,9 @@ impl ChainSubmitter for MevBoostSubmitter {
                         client
                             .estimate_gas(tx.clone())
                             .await
-                            .unwrap_or(ETHEREUM_BLOCK_GAS_LIMIT_30M)
+                            .unwrap_or(bundle.crude_gas_estimation())
                             + EXTRA_GAS_LIMIT,
-                        ETHEREUM_BLOCK_GAS_LIMIT_30M
+                        bundle.crude_gas_estimation()
                     );
                     tx.with_gas_limit(gas)
                 })

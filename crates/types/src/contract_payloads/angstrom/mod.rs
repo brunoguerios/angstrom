@@ -47,6 +47,7 @@ pub use order::{OrderQuantities, StandingValidation, UserOrder};
 pub use tob::*;
 
 const LP_DONATION_SPLIT: f64 = 0.75;
+const MAX_GAS_PER_ORDER: usize = 180_000;
 
 #[derive(
     Debug, PadeEncode, PadeDecode, Clone, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord,
@@ -66,6 +67,10 @@ impl AngstromBundle {
 
     pub fn get_prices_per_pair(&self) -> &[Pair] {
         &self.pairs
+    }
+
+    pub fn crude_gas_estimation(&self) -> u64 {
+        ((self.top_of_block_orders.len() + self.user_orders.len()) * MAX_GAS_PER_ORDER) as u64
     }
 
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
