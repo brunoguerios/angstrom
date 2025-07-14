@@ -55,14 +55,14 @@ impl ChainSubmitter for AngstromSubmitter {
                     .clone();
 
                 let mut tx = self.build_tx(signer, bundle, tx_features);
-                let gas_used = std::cmp::min(
-                    client
-                        .estimate_gas(tx.clone())
-                        .await
-                        .unwrap_or(bundle.crude_gas_estimation())
-                        + EXTRA_GAS_LIMIT,
-                    bundle.crude_gas_estimation()
-                );
+                let gas_used = client
+                    .estimate_gas(tx.clone())
+                    .await
+                    .inspect_err(|e| {
+                        tracing::error!(err=%e, "failed to query gas");
+                    })
+                    .unwrap_or(bundle.crude_gas_estimation())
+                    + EXTRA_GAS_LIMIT;
                 tx = tx.with_gas_limit(gas_used);
 
                 let gas = tx.max_priority_fee_per_gas.unwrap();

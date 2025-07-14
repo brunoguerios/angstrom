@@ -47,7 +47,9 @@ pub use order::{OrderQuantities, StandingValidation, UserOrder};
 pub use tob::*;
 
 const LP_DONATION_SPLIT: f64 = 0.75;
-const MAX_GAS_PER_ORDER: usize = 180_000;
+// We set high for ticks
+const BASE_GAS_FOR_POOL: usize = 350_000;
+const BASE_EST_FOR_USER: usize = 90_000;
 
 #[derive(
     Debug, PadeEncode, PadeDecode, Clone, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord,
@@ -70,7 +72,15 @@ impl AngstromBundle {
     }
 
     pub fn crude_gas_estimation(&self) -> u64 {
-        ((self.top_of_block_orders.len() + self.user_orders.len()) * MAX_GAS_PER_ORDER) as u64
+        let pool_swap_cnt = self
+            .pool_updates
+            .iter()
+            .filter(|update| update.swap_in_quantity != 0)
+            .unique_by(|f| f.pair_index)
+            .count();
+
+        ((self.top_of_block_orders.len() + self.user_orders.len()) * BASE_EST_FOR_USER) as u64
+            + (pool_swap_cnt * BASE_GAS_FOR_POOL) as u64
     }
 
     pub fn fetch_needed_overrides(&self, block_number: u64) -> TestnetStateOverrides {
