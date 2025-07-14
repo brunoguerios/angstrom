@@ -69,14 +69,15 @@ impl ChainSubmitter for MevBoostSubmitter {
 
             let tx = self
                 .build_and_sign_tx_with_gas(signer, bundle, tx_features, |tx| async move {
-                    let gas = std::cmp::min(
-                        client
-                            .estimate_gas(tx.clone())
-                            .await
-                            .unwrap_or(bundle.crude_gas_estimation())
-                            + EXTRA_GAS_LIMIT,
-                        bundle.crude_gas_estimation()
-                    );
+                    let gas = client
+                        .estimate_gas(tx.clone())
+                        .await
+                        .inspect_err(|e| {
+                            tracing::error!(err=%e, "failed to query gas");
+                        })
+                        .unwrap_or(bundle.crude_gas_estimation())
+                        + EXTRA_GAS_LIMIT;
+
                     tx.with_gas_limit(gas)
                 })
                 .await;
