@@ -41,7 +41,7 @@ impl ChainExt for Chain {
     }
 
     fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
-        self.tip().body().transactions.iter()
+        self.tip().body().transactions()
     }
 
     fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>> {
