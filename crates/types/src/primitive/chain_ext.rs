@@ -31,17 +31,20 @@ impl ChainExt for Chain {
     }
 
     fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&Receipt>> {
-        self.receipts_by_block_hash(block_hash)
+        Chain::receipts_by_block_hash(&self, block_hash)
     }
 
     fn successful_tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
+        let execution = self.execution_outcome_at_block(self.tip().number).unwrap();
+        let receipts = execution.receipts.last().unwrap().clone();
+
         self.tip_transactions()
-            .zip(self.receipts_by_block_hash(self.tip_hash()).unwrap())
+            .zip(receipts)
             .filter_map(|(tx, receipt)| receipt.success.then_some(tx))
     }
 
     fn tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
-        self.tip().body().transactions.iter()
+        self.tip().body().transactions()
     }
 
     fn reorged_range(&self, new: impl ChainExt) -> Option<RangeInclusive<u64>> {
