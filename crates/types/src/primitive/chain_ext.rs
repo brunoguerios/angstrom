@@ -36,7 +36,12 @@ impl ChainExt for Chain {
 
     fn successful_tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
         self.tip_transactions()
-            .zip(self.receipts_by_block_hash(self.tip_hash()).unwrap())
+            .zip(
+                self.receipts_by_block_hash(self.tip_hash())
+                    .unwrap()
+                    .into_iter()
+                    .rev()
+            )
             .filter_map(|(tx, receipt)| receipt.success.then_some(tx))
     }
 
