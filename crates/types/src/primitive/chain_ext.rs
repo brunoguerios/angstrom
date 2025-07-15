@@ -35,12 +35,11 @@ impl ChainExt for Chain {
     }
 
     fn successful_tip_transactions(&self) -> impl Iterator<Item = &TransactionSigned> + '_ {
+        let reciepts = self.receipts_by_block_hash(self.tip_hash()).unwrap();
+        tracing::info!("for tip, have reciepts cnt: {}", reciepts.len());
+
         self.tip_transactions()
-            .zip(
-                self.receipts_by_block_hash(self.tip_hash())
-                    .unwrap()
-                    .into_iter()
-            )
+            .zip(reciepts)
             .filter_map(|(tx, receipt)| {
                 tracing::info!("fitlering with receipts");
                 receipt.success.then_some(tx)
