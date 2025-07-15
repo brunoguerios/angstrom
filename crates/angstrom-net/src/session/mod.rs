@@ -99,7 +99,8 @@ impl StromSessionManager {
         if let Some(session) = self.active_sessions.get_mut(peer_id) {
             let _ = session
                 .commands_to_session
-                .try_send(SessionCommand::Message(msg));
+                .try_send(SessionCommand::Message(msg))
+                .inspect_err(|e| tracing::error!(%e));
         }
     }
 
@@ -107,7 +108,8 @@ impl StromSessionManager {
         self.active_sessions.values_mut().for_each(|cmd| {
             let _ = cmd
                 .commands_to_session
-                .try_send(SessionCommand::Message(msg.clone()));
+                .try_send(SessionCommand::Message(msg.clone()))
+                .inspect_err(|e| tracing::error!(%e));
         })
     }
 
