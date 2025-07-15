@@ -72,13 +72,10 @@ where
                     .ok_or_else(|| eyre::eyre!("failed to get conversion price"))?;
                 let gas_token_0 = conversion_factor.inverse_quantity(gas_in_wei as u128, false);
 
-                // convert to u256 for overflow cases.
+                // For TOB orders, given they are only valid for the current block,
+                // we return a error given the order will never be included.
                 if gas_token_0 > max_gas {
-                    let err = UserAccountVerificationError::NotEnoughGas {
-                        needed_gas: gas_token_0,
-                        set_gas:    max_gas
-                    };
-                    return Ok((Some((gas_in_wei, U256::from(gas_token_0))), Some(err)));
+                    return Err(eyre::eyre!("tob order doesn't have enough gas for target block"));
                 }
 
                 Ok((Some((gas_in_wei, U256::from(gas_token_0))), None))
