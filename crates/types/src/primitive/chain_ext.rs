@@ -42,7 +42,6 @@ impl ChainExt for Chain {
         tracing::info!(
             "for tip, have reciepts cnt: {} and execution block tip reciepts",
             reciepts.len(),
-            execution.receipts
         );
 
         self.tip_transactions()
