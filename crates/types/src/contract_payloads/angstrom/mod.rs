@@ -473,13 +473,7 @@ impl AngstromBundle {
 
         // Build our Pair featuring our uniform clearing price
         // This price is in Ray format as requested.
-        pairs.push(Pair {
-            index0: t0_idx,
-            index1: t1_idx,
-            store_index,
-            price_1over0: *solution.ucp
-        });
-        let pair_idx = pairs.len() - 1;
+        let pair_idx = pairs.len();
 
         // Log the indexes we found for the assets and pair of this solution
         trace!(t0_idx, t1_idx, pair_idx, "Found asset and pair indexes");
@@ -559,12 +553,19 @@ impl AngstromBundle {
         //// handling donate merge ////
         //////////////////////////////
 
+        let mut ucp = solution.ucp;
+
         // Now it's time to figure out what's happening with our AMM swap and pool
         // rewards
         // Let's get our swap and reward data out of our ToB order, if it exists
         let tob_swap_info = if let Some(ref tob) = solution.searcher {
             match TopOfBlockOrder::calc_vec_and_reward(tob, snapshot) {
                 Ok((v, reward_q)) => {
+                    // if we have a tob swap, and ucp == 0, we are going to want to update it
+                    if ucp.is_zero() {
+                        ucp = Ray::from(v.end_price);
+                    }
+
                     trace!(
                         net_t0 = v.total_d_t0,
                         net_t1 = v.total_d_t1,
@@ -584,6 +585,8 @@ impl AngstromBundle {
             trace!("No ToB Swap vs AMM");
             None
         };
+
+        pairs.push(Pair { index0: t0_idx, index1: t1_idx, store_index, price_1over0: *ucp });
 
         // If we have a ToB swap, our post-tob-price is the price at the end of that
         // swap, otherwise we're starting from the snapshot's current price
