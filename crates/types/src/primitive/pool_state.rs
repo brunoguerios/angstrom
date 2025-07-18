@@ -45,6 +45,8 @@ macro_rules! pool_key_to_id {
                 keccak256(value.abi_encode())
             }
         }
+
+        impl Copy for $contract::PoolKey {}
     };
 }
 
