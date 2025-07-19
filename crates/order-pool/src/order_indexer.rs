@@ -406,10 +406,10 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         telemetry_recorder::telemetry_event!(OrderPoolSnapshot::from((block_number, &*self)));
         // clear the invalid orders as they could of become valid.
         self.order_tracker.clear_invalid();
-        // deal with changed orders
-        self.eoa_state_change(&address_changes);
         // deal with filled orders
         self.filled_orders(block_number, &completed_orders);
+        // deal with changed orders
+        self.eoa_state_change(&address_changes);
         // add expired orders to completed
         let expired_orders = self
             .order_tracker
