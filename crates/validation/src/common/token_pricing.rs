@@ -370,7 +370,7 @@ impl TokenPriceGenerator {
         if token_1 == self.base_gas_token {
             // if so, just pull the price
             tracing::info!("getting pk");
-            let pool_key = self.pair_to_pool.get(&(token_0, token_1))?;
+            let pool_key = self.pair_to_pool.get(&(token_0, token_1)).unwrap();
             tracing::info!("got pk");
 
             let prices = self.prev_prices.get(pool_key)?;
