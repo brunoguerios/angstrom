@@ -339,10 +339,8 @@ impl TokenPriceGenerator {
         // we can source a routed swap thorugh it
 
         // returns GAS /t0
-        tracing::info!(?token_0, ?token_1, "getting pair1");
         let pair_1 = self.get_conversion_rate(token_0, token_1)?;
         // returns GAS / t1
-        tracing::info!(?token_1, ?token_0, "getting pair2");
         let pair_2 = self.get_conversion_rate(token_1, token_0)?;
 
         Some(pair_2.inv_ray().mul_ray(pair_1))
@@ -369,9 +367,7 @@ impl TokenPriceGenerator {
         // conversion factor will be 1-1
         if token_1 == self.base_gas_token {
             // if so, just pull the price
-            tracing::info!("getting pk");
             let pool_key = self.pair_to_pool.get(&(token_0, token_1)).unwrap();
-            tracing::info!("got pk");
 
             let prices = self.prev_prices.get(pool_key).unwrap();
             let size = prices.len() as u64;
@@ -399,7 +395,6 @@ impl TokenPriceGenerator {
 
         // check token_0 first for a weth pair. otherwise, check token_1.
         if let Some(key) = self.pair_to_pool.get(&(token_0_hop1, token_1_hop1)) {
-            tracing::info!("got pk for token_0_hop1");
             // there is a hop from token_0 to weth
             let prices = self.prev_prices.get(key).unwrap();
             let size = prices.len() as u64;
@@ -428,18 +423,14 @@ impl TokenPriceGenerator {
                     / U256::from(size)
             )
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
-            tracing::info!("got pk for token_0_hop2");
             // because we are going through token1 here and we want token zero, we need to
             // do some extra math
-            tracing::info!("getting default");
             let default_pool_key = self
                 .pair_to_pool
                 .get(&(token_0, token_1))
                 .expect("got pool update that we don't have stored");
 
-            tracing::info!("got deefault");
             let prices = self.prev_prices.get(default_pool_key).unwrap();
-            println!("{prices:?}");
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
