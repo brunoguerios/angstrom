@@ -100,6 +100,7 @@ impl TokenPriceGenerator {
             let pool = id.value();
             let pool = pool.read().unwrap();
             pair_to_pool.insert((pool.token0, pool.token1), *key);
+            pair_to_pool.insert((pool.token1, pool.token0), *key);
         }
         let new_gas_wei = provider.get_gas_price().await.unwrap_or_default();
 
@@ -235,6 +236,9 @@ impl TokenPriceGenerator {
 
                 self.pair_to_pool
                     .insert((pool_update.token0, pool_update.token1), pk);
+                self.pair_to_pool
+                    .insert((pool_update.token1, pool_update.token0), pk);
+
                 self.prev_prices.insert(pk, VecDeque::new());
                 pk
             };
