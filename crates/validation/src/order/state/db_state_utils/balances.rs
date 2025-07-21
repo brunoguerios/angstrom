@@ -92,3 +92,37 @@ impl Balances {
             .unwrap_or_default()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+
+    use alloy::{
+        providers::{Provider, ProviderBuilder},
+        transports::http::reqwest::Url
+    };
+
+    use super::*;
+
+    #[tokio::test]
+    async fn internal_balance_test() {
+        let wallet = alloy::primitives::address!("0x3Ac66Ac9EdDa9D19DeEEdEDf0F6cb8924E032A6c");
+        let token = alloy::primitives::address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
+        let rpc = ProviderBuilder::new().connect_http(
+            Url::from_str("http://angstrom-dev-dc0886bdc27d213a.elb.us-east-1.amazonaws.com:8489")
+                .unwrap()
+        );
+
+        let angstrom_addr =
+            alloy::primitives::address!("0xb9c4cE42C2e29132e207d29Af6a7719065Ca6AeC");
+
+        let token_slot = keccak256((token, ANGSTROM_BALANCE_SLOT_OFFSET).abi_encode());
+        let final_slot = keccak256((wallet, token_slot).abi_encode());
+
+        let data = rpc
+            .get_storage_at(angstrom_addr, final_slot.into())
+            .await
+            .unwrap();
+        println!("{data:?}");
+    }
+}
