@@ -82,12 +82,12 @@ impl Balances {
 
     pub fn fetch_balance_in_angstrom<DB: revm::DatabaseRef>(
         &self,
+        user: Address,
         token: Address,
-        account: Address,
         db: &DB
     ) -> U256 {
         let token_slot = keccak256((token, ANGSTROM_BALANCE_SLOT_OFFSET).abi_encode());
-        let final_slot = keccak256((account, token_slot).abi_encode());
+        let final_slot = keccak256((user, token_slot).abi_encode());
         db.storage_ref(self.angstrom_address, U256::from_be_bytes(*final_slot.as_ref()))
             .unwrap_or_default()
     }
