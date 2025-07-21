@@ -142,7 +142,7 @@ where
                                 let (mut t0, mut t1) = (order.token_in(), order.token_out());
 
                                 // ensure we are in order as it does matter here
-                                if t0 < t1 {
+                                if t0 > t1 {
                                     std::mem::swap(&mut t0, &mut t1);
                                 }
 
