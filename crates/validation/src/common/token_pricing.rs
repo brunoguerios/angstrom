@@ -373,7 +373,7 @@ impl TokenPriceGenerator {
             let pool_key = self.pair_to_pool.get(&(token_0, token_1)).unwrap();
             tracing::info!("got pk");
 
-            let prices = self.prev_prices.get(pool_key)?;
+            let prices = self.prev_prices.get(pool_key).unwrap();
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -401,7 +401,7 @@ impl TokenPriceGenerator {
         if let Some(key) = self.pair_to_pool.get(&(token_0_hop1, token_1_hop1)) {
             tracing::info!("got pk for token_0_hop1");
             // there is a hop from token_0 to weth
-            let prices = self.prev_prices.get(key)?;
+            let prices = self.prev_prices.get(key).unwrap();
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -438,7 +438,7 @@ impl TokenPriceGenerator {
                 .expect("got pool update that we don't have stored");
 
             tracing::info!("got deefault");
-            let prices = self.prev_prices.get(default_pool_key)?;
+            let prices = self.prev_prices.get(default_pool_key).unwrap();
             println!("{prices:?}");
             let size = prices.len() as u64;
 
@@ -450,7 +450,7 @@ impl TokenPriceGenerator {
                 prices.iter().map(|price| price.price_1_over_0).sum::<Ray>() / U256::from(size);
 
             // grab second hop
-            let prices = self.prev_prices.get(key)?;
+            let prices = self.prev_prices.get(key).unwrap();
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
