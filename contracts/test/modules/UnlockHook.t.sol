@@ -64,16 +64,18 @@ contract UnlookHookTest is BaseTest {
         actor.swap(pk, true, 1e18, 4295128740);
     }
 
-    function test_fuzzing_swapAfterUnlock(uint32 bn, uint24 unlockedFee, uint256 swapAmount)
-        public
-    {
+    function test_fuzzing_swapAfterUnlockZeroForOne(
+        uint32 bn,
+        uint24 unlockedFee,
+        uint256 swapAmount
+    ) public {
         vm.roll(boundBlock(bn));
 
         unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_E6));
         swapAmount = bound(swapAmount, 1e8, 10e18);
 
         // ------ PRE SNAPSHOT ------
-        uint256 snapshotId = vm.snapshot();
+        uint256 snapshotId = vm.snapshotState();
         uint248 liq = 100_000e21;
         PoolKey memory pk = _createPool(60, 0, liq);
 
@@ -81,7 +83,7 @@ contract UnlookHookTest is BaseTest {
         angstrom.execute("");
         int128 noFeeOut = actor.swap(pk, true, -int256(swapAmount), 4295128740).amount1();
 
-        vm.revertTo(snapshotId);
+        vm.revertToState(snapshotId);
 
         // ------ ACTUAL CALL ------
         pk = _createPool(60, unlockedFee, liq);
@@ -89,6 +91,47 @@ contract UnlookHookTest is BaseTest {
         vm.prank(node);
         angstrom.execute("");
         int128 withFeeOut = actor.swap(pk, true, -int256(swapAmount), 4295128740).amount1();
+
+        assertGe(noFeeOut, 0);
+        assertGe(withFeeOut, 0);
+
+        uint256 out = uint256(uint128(noFeeOut));
+        assertApproxEqAbs(
+            (out * (1e6 - unlockedFee)) / 1e6, uint256(uint128(withFeeOut)), out / 1e6
+        );
+    }
+
+    function test_fuzzing_swapAfterUnlockOneForZero(
+        uint32 bn,
+        uint24 unlockedFee,
+        uint256 swapAmount
+    ) public {
+        vm.roll(boundBlock(bn));
+
+        unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_E6));
+        swapAmount = bound(swapAmount, 1e8, 10e18);
+
+        // ------ PRE SNAPSHOT ------
+        uint256 snapshotId = vm.snapshotState();
+        uint248 liq = 100_000e21;
+        PoolKey memory pk = _createPool(60, 0, liq);
+
+        vm.prank(node);
+        angstrom.execute("");
+        int128 noFeeOut = actor.swap(
+            pk, false, -int256(swapAmount), 1461446703485210103287273052203988822378723970341
+        ).amount0();
+
+        vm.revertToState(snapshotId);
+
+        // ------ ACTUAL CALL ------
+        pk = _createPool(60, unlockedFee, liq);
+
+        vm.prank(node);
+        angstrom.execute("");
+        int128 withFeeOut = actor.swap(
+            pk, false, -int256(swapAmount), 1461446703485210103287273052203988822378723970341
+        ).amount0();
 
         assertGe(noFeeOut, 0);
         assertGe(withFeeOut, 0);
