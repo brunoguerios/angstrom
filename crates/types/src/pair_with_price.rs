@@ -57,7 +57,7 @@ impl PairsWithPrice {
                         .cloned()
                         .filter_map(|transaction| {
                             let input: &[u8] = transaction.input();
-                            let b = executeCall::abi_decode(input).unwrap().encoded;
+                            let b = executeCall::abi_decode(input).ok()?.encoded;
                             let mut bytes = b.as_ref();
 
                             AngstromBundle::pade_decode(&mut bytes, None).ok()
