@@ -327,6 +327,7 @@ impl TokenPriceGenerator {
         prev_prices: VecDeque<PairsWithPrice>
     ) {
         self.pair_to_pool.insert((token_0, token_1), pool_id);
+        self.pair_to_pool.insert((token_1, token_0), pool_id);
         self.prev_prices.insert(pool_id, prev_prices);
     }
 
@@ -366,9 +367,9 @@ impl TokenPriceGenerator {
         // conversion factor will be 1-1
         if token_1 == self.base_gas_token {
             // if so, just pull the price
-            let pool_key = self.pair_to_pool.get(&(token_0, token_1))?;
+            let pool_key = self.pair_to_pool.get(&(token_0, token_1)).unwrap();
 
-            let prices = self.prev_prices.get(pool_key)?;
+            let prices = self.prev_prices.get(pool_key).unwrap();
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -395,7 +396,7 @@ impl TokenPriceGenerator {
         // check token_0 first for a weth pair. otherwise, check token_1.
         if let Some(key) = self.pair_to_pool.get(&(token_0_hop1, token_1_hop1)) {
             // there is a hop from token_0 to weth
-            let prices = self.prev_prices.get(key)?;
+            let prices = self.prev_prices.get(key).unwrap();
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -429,8 +430,7 @@ impl TokenPriceGenerator {
                 .get(&(token_0, token_1))
                 .expect("got pool update that we don't have stored");
 
-            let prices = self.prev_prices.get(default_pool_key)?;
-            println!("{prices:?}");
+            let prices = self.prev_prices.get(default_pool_key).unwrap();
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -441,7 +441,7 @@ impl TokenPriceGenerator {
                 prices.iter().map(|price| price.price_1_over_0).sum::<Ray>() / U256::from(size);
 
             // grab second hop
-            let prices = self.prev_prices.get(key)?;
+            let prices = self.prev_prices.get(key).unwrap();
             let size = prices.len() as u64;
 
             if self.blocks_to_avg_price > 0 && size != self.blocks_to_avg_price {
@@ -463,8 +463,7 @@ impl TokenPriceGenerator {
             // t1 / t0 *  gas / t1 = gas / t0
             Some(first_hop_price.mul_ray(second_hop_price))
         } else {
-            tracing::error!("found a token that doesn't have a 1 hop to WETH");
-            None
+            panic!("found a token that doesn't have a 1 hop to WETH");
         }
     }
 
