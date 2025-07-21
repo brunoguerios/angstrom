@@ -31,6 +31,8 @@ abstract contract UnlockHook is
     error UnlockDataTooShort();
     error CannotSwapWhileLocked();
 
+    int24 internal constant ONE_E6 = 1e6;
+
     tint256 internal currentTickBeforeSwap;
 
     function beforeSwap(
@@ -81,9 +83,14 @@ abstract contract UnlockHook is
             int24 fee_rate_e6 = int24(_unlockedFees[storeKey].protocolUnlockedFee);
             bool exactIn = params.amountSpecified < 0;
 
-            int128 target_amount =
-                exactIn != params.zeroForOne ? swap_delta.amount0() : swap_delta.amount1();
-            fee = ((target_amount < 0 ? -target_amount : target_amount) * fee_rate_e6) / 1e6;
+            {
+                int128 target_amount =
+                    exactIn != params.zeroForOne ? swap_delta.amount0() : swap_delta.amount1();
+                int128 p_target_amount = target_amount < 0 ? -target_amount : target_amount;
+                fee = exactIn
+                    ? p_target_amount * fee_rate_e6 / ONE_E6
+                    : p_target_amount * ONE_E6 / (ONE_E6 - fee_rate_e6) - p_target_amount;
+            }
 
             UNI_V4.mint(
                 address(FEE_COLLECTOR),
