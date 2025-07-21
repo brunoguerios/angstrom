@@ -153,6 +153,12 @@ impl<S: StateFetchUtils> UserAccountProcessor<S> {
                 ))
             }
             Err(e) => {
+                // If tob, doesn't matter if we are blocked given we cannot
+                // be unblocked in this block so we reject.
+                if order.is_tob() {
+                    return Err(e);
+                }
+
                 let invalid_orders = conflicting_orders
                     .into_iter()
                     .map(|o| o.order_hash)
