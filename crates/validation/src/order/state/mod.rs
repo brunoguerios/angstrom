@@ -156,7 +156,6 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
                 .map_err(|_| UserAccountVerificationError::InvalidToBSwap)?;
             // given the price is always t1 / t0,
             let rewards_in_token_in = if order.is_bid() {
-                tracing::info!(?conversion_rate);
                 conversion_rate.quantity(total_reward, false)
             } else {
                 total_reward
