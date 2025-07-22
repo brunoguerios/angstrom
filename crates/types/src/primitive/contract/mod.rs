@@ -177,19 +177,19 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
     match chain_id {
         1 => {
             err |= ANGSTROM_ADDRESS
-                .set(address!("0xb9c4cE42C2e29132e207d29Af6a7719065Ca6AeC"))
+                .set(address!("0x0000000aa232009084Bd71A5797d089AA4Edfad4"))
                 .is_err();
             err |= POSITION_MANAGER_ADDRESS
                 .set(address!("0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e"))
                 .is_err();
             err |= CONTROLLER_V1_ADDRESS
-                .set(address!("0xFE77113460CF1833c4440FD17B4463f472010e10"))
+                .set(address!("0x1746484EA5e11C75e009252c102C8C33e0315fD4"))
                 .is_err();
             err |= POOL_MANAGER_ADDRESS
                 .set(address!("0x000000000004444c5dc75cB358380D2e3dE08A90"))
                 .is_err();
             err |= CHAIN_ID.set(1).is_err();
-            err |= ANGSTROM_DEPLOYED_BLOCK.set(22889569).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(22971781).is_err();
             err |= GAS_TOKEN_ADDRESS
                 .set(address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"))
                 .is_err();
@@ -198,7 +198,7 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
                     name: "Angstrom",
                     version: "v1",
                     chain_id: 1,
-                    verifying_contract: address!("0xb9c4cE42C2e29132e207d29Af6a7719065Ca6AeC"),
+                    verifying_contract: address!("0x0000000aa232009084Bd71A5797d089AA4Edfad4"),
                 ))
                 .is_err();
         }
