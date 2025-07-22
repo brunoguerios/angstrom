@@ -2,7 +2,7 @@
 solc = "0.8.26"
 bytecode_hash = "none"
 viaIR = false
-optimizer_runs = 22_000
+optimizer_runs = 21_000
 verbosity = 3
 fs_permissions = [{ access = "read-write", path = ".forge-snapshots/" }]
 ast = true
@@ -16,7 +16,6 @@ ignored_error_codes = [
   5574, # Contract size too large
 ]
 
-
 remappings = [
   "solady/src/=lib/solady/src/",
   "v4-core/src/=lib/v4-periphery/lib/v4-core/src/",
@@ -28,7 +27,6 @@ remappings = [
 
 [profile.default.fmt]
 line_length = 100
-
 
 [profile.default.invariant]
 fail_on_revert = true
