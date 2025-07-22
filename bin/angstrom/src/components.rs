@@ -2,6 +2,7 @@
 use std::{
     collections::{HashMap, HashSet},
     pin::Pin,
+    str::FromStr,
     sync::Arc,
     time::Duration
 };
@@ -63,6 +64,7 @@ use tokio::sync::{
     mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel}
 };
 use uniswap_v4::{DEFAULT_TICKS, configure_uniswap_manager, fetch_angstrom_pools};
+use url::Url;
 use validation::{
     common::TokenPriceGenerator,
     init_validation,
@@ -220,11 +222,29 @@ where
     let gas_token = *GAS_TOKEN_ADDRESS.get().unwrap();
     let pool_manager = *POOL_MANAGER_ADDRESS.get().unwrap();
 
+    let normal_nodes = config
+        .normal_nodes
+        .into_iter()
+        .map(|url| Url::from_str(&url).unwrap())
+        .collect::<Vec<_>>();
+
+    let angstrom_submission_nodes = config
+        .angstrom_submission_nodes
+        .into_iter()
+        .map(|url| Url::from_str(&url).unwrap())
+        .collect::<Vec<_>>();
+
+    let mev_boost_endpoints = config
+        .mev_boost_endpoints
+        .into_iter()
+        .map(|url| Url::from_str(&url).unwrap())
+        .collect::<Vec<_>>();
+
     let submission_handler = SubmissionHandler::new(
         querying_provider.clone(),
-        &config.normal_nodes,
-        &config.angstrom_submission_nodes,
-        &config.mev_boost_endpoints,
+        &normal_nodes,
+        &angstrom_submission_nodes,
+        &mev_boost_endpoints,
         angstrom_address,
         signer.clone()
     );

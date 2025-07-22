@@ -347,8 +347,7 @@ where
                 EthEvent::NewPool { pool } => {
                     tracing::info!(?pool, "adding pool");
                     let block = self.latest_synced_block;
-                    let pool =
-                        async_to_sync(self.factory.create_new_angstrom_pool(pool.clone(), block));
+                    let pool = async_to_sync(self.factory.create_new_angstrom_pool(pool, block));
                     let key = pool.public_address();
                     self.pools.insert(key, Arc::new(RwLock::new(pool)));
                     tracing::info!("configured new pool");

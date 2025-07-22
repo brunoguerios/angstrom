@@ -266,7 +266,7 @@ impl AnvilInitializer {
                 tickSpacing: I24::unchecked_from(c.tick_spacing),
                 hooks:       *self.angstrom.address()
             };
-            self.pending_state.add_pool_key(pool_key.clone());
+            self.pending_state.add_pool_key(pool_key);
         }
 
         Ok(cur)
@@ -287,7 +287,7 @@ impl AnvilInitializer {
             .get_transaction_count(self.provider.controller())
             .await?;
 
-        self.pending_state.add_pool_key(pool_key.clone());
+        self.pending_state.add_pool_key(pool_key);
 
         tracing::debug!("configuring pool");
         let controller_configure_pool = self

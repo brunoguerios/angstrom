@@ -41,7 +41,7 @@ impl Pool {
     }
 
     pub fn id(&self) -> PoolId {
-        self.key.clone().into()
+        self.key.into()
     }
 
     pub fn tob_recipient(&self) -> Address {
