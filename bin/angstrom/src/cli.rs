@@ -16,7 +16,7 @@ pub struct AngstromConfig {
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
     pub metrics_port:              u16,
-    #[clap(short, long,  num_args(0..=10), require_equals = true,default_values = ETH_MEV_RPC)]
+    #[clap(short, long, num_args(0..=10), require_equals = true, default_values = ETH_MEV_RPC)]
     pub mev_boost_endpoints:       Vec<String>,
     /// needed to properly setup the node as we need some chain state before
     /// starting the internal reth node
@@ -24,7 +24,7 @@ pub struct AngstromConfig {
     pub boot_node:                 String,
     #[clap(short, long, num_args(0..=5), require_equals = true, default_values = ETH_DEFAULT_RPC)]
     pub normal_nodes:              Vec<String>,
-    #[clap(short, long, num_args(0..=10),require_equals = true, default_values = ETH_ANGSTROM_RPC)]
+    #[clap(short, long, num_args(0..=10), require_equals = true, default_values = ETH_ANGSTROM_RPC)]
     pub angstrom_submission_nodes: Vec<String>,
     #[clap(flatten)]
     pub key_config:                KeyConfig
