@@ -6,7 +6,7 @@ check: check-format check-clippy test
 fix: fix-format fix-clippy
 
 test:
-    cargo test --workspace --all-features
+    cargo nextest run --workspace --all-targets
 
 check-format:
     cargo fmt --all -- --check
