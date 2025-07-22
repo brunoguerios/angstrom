@@ -23,28 +23,22 @@ macro_rules! telemetry_event {
     // Ext paths will only have 1 argument while non will have 2 or more
     ($update:expr) => {{
         if let Some(handle) = $crate::TELEMETRY_SENDER.get() {
-            let message = $crate::OrderTelemetryExt::into_message($update);
-            let _ = handle.send(message);
-        } else {
-            #[cfg(not(test))]
-            ::tracing::warn!("No Telemetry handle set.");
+            if let Some(message) = $crate::OrderTelemetryExt::into_message($update) {
+                let _ = handle.send(message);
+            }
         }
-
     }};
     ($($items:expr),*) => {{
         if let Some(handle) = $crate::TELEMETRY_SENDER.get() {
             let message = $crate::TelemetryMessage::from(($($items),*));
             let _ = handle.send(message);
-        } else {
-            #[cfg(not(test))]
-            ::tracing::warn!("No Telemetry handle set.");
         }
     }};
 
 }
 
 pub trait OrderTelemetryExt {
-    fn into_message(self) -> TelemetryMessage;
+    fn into_message(self) -> Option<TelemetryMessage>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

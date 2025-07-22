@@ -50,13 +50,13 @@ impl<Sync: BlockSyncProducer> From<(&EthDataCleanser<Sync>, CanonStateNotificati
 }
 
 impl OrderTelemetryExt for EthUpdaterSnapshot {
-    fn into_message(self) -> telemetry_recorder::TelemetryMessage {
+    fn into_message(self) -> Option<telemetry_recorder::TelemetryMessage> {
         let block = self.chain_update.get_block_number();
 
-        telemetry_recorder::TelemetryMessage::EthSnapshot {
+        Some(telemetry_recorder::TelemetryMessage::EthSnapshot {
             blocknum:     block,
-            eth_snapshot: serde_json::to_value(self).unwrap()
-        }
+            eth_snapshot: serde_json::to_value(self).ok()?
+        })
     }
 }
 

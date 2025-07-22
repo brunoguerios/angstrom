@@ -16,10 +16,10 @@ impl From<(u64, UserAccounts)> for ValidationSnapshot {
 }
 
 impl OrderTelemetryExt for ValidationSnapshot {
-    fn into_message(self) -> telemetry_recorder::TelemetryMessage {
-        telemetry_recorder::TelemetryMessage::ValidationSnapshot {
+    fn into_message(self) -> Option<telemetry_recorder::TelemetryMessage> {
+        Some(telemetry_recorder::TelemetryMessage::ValidationSnapshot {
             blocknum:            self.block_number,
-            validation_snapshot: serde_json::to_value(self).unwrap()
-        }
+            validation_snapshot: serde_json::to_value(self).ok()?
+        })
     }
 }
