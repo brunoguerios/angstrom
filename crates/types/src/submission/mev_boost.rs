@@ -19,7 +19,7 @@ use alloy::{
 use alloy_primitives::{Address, TxHash};
 use futures::stream::{StreamExt, iter};
 use itertools::Itertools;
-use reth::rpc::types::mev::PrivateTransactionRequest;
+use reth::rpc::types::mev::EthSendPrivateTransaction;
 
 use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY,
@@ -84,7 +84,7 @@ impl ChainSubmitter for MevBoostSubmitter {
 
             let hash = *tx.tx_hash();
 
-            let private_tx = PrivateTransactionRequest::new(&tx)
+            let private_tx = EthSendPrivateTransaction::new(&tx)
                 .max_block_number(tx_features.target_block)
                 .with_preferences(
                     reth::rpc::types::mev::PrivateTransactionPreferences::default().into_fast()
@@ -94,7 +94,7 @@ impl ChainSubmitter for MevBoostSubmitter {
             let _: Vec<_> = iter(self.clients.clone())
                 .map(async |client| {
                     client
-                        .raw_request::<(&PrivateTransactionRequest,), TxHash>(
+                        .raw_request::<(&EthSendPrivateTransaction,), TxHash>(
                             "eth_sendPrivateTransaction".into(),
                             (&private_tx,)
                         )
