@@ -581,7 +581,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
+        let pool_id = PoolId::from(pool_key);
 
         // Create an order that expires in the next block
         let validity = OrderValidity {
@@ -674,7 +674,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
+        let pool_id = PoolId::from(pool_key);
         let validity = OrderValidity {
             valid_until: Some(U256::from(
                 SystemTime::now()
@@ -692,7 +692,7 @@ mod tests {
             id:           pool_id
         });
 
-        let order = create_test_order(from, pool_key.clone(), Some(validity), None);
+        let order = create_test_order(from, pool_key, Some(validity), None);
         let order_hash = order.order_hash();
 
         // Submit and validate order
@@ -746,7 +746,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
+        let pool_id = PoolId::from(pool_key);
 
         let validity = OrderValidity {
             valid_until: Some(U256::from(
@@ -759,7 +759,7 @@ mod tests {
             flash_block: None,
             is_standing: true
         };
-        let order = create_test_order(from, pool_key.clone(), Some(validity), None);
+        let order = create_test_order(from, pool_key, Some(validity), None);
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
             currency_in:  pool_key.currency1,
@@ -823,12 +823,12 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let order = create_test_order(from, pool_key.clone(), None, None);
+        let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
             currency_in:  pool_key.currency1,
-            id:           PoolId::from(pool_key.clone())
+            id:           PoolId::from(pool_key)
         });
 
         // Submit order and mark as invalid
@@ -861,12 +861,12 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let order = create_test_order(from, pool_key.clone(), None, None);
+        let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
             currency_in:  pool_key.currency1,
-            id:           PoolId::from(pool_key.clone())
+            id:           PoolId::from(pool_key)
         });
 
         // Submit order and mark as invalid
@@ -902,7 +902,7 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
+        let pool_id = PoolId::from(pool_key);
 
         // Create a new pool
         let new_pool = NewInitializedPool {
@@ -967,11 +967,11 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
+        let pool_id = PoolId::from(pool_key);
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
             currency_in:  pool_key.currency1,
-            id:           PoolId::from(pool_key.clone())
+            id:           PoolId::from(pool_key)
         });
         let validity = OrderValidity {
             valid_until: Some(U256::from(
@@ -1036,11 +1036,11 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
+        let pool_id = PoolId::from(pool_key);
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
             currency_in:  pool_key.currency1,
-            id:           PoolId::from(pool_key.clone())
+            id:           PoolId::from(pool_key)
         });
         let signer = AngstromSigner::random();
         let from = signer.address();
@@ -1102,8 +1102,8 @@ mod tests {
             currency1: Address::random(),
             ..Default::default()
         };
-        let pool_id = PoolId::from(pool_key.clone());
-        let order = create_test_order(from, pool_key.clone(), None, None);
+        let pool_id = PoolId::from(pool_key);
+        let order = create_test_order(from, pool_key, None, None);
         let order_hash = order.order_hash();
 
         let mut indexer = setup_test_indexer_with_fn(|validator| {
@@ -1119,7 +1119,7 @@ mod tests {
         indexer.new_pool(NewInitializedPool {
             currency_out: pool_key.currency0,
             currency_in:  pool_key.currency1,
-            id:           PoolId::from(pool_key.clone())
+            id:           PoolId::from(pool_key)
         });
 
         // Submit the order first time

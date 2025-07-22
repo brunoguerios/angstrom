@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use alloy::signers::local::PrivateKeySigner;
 use angstrom_metrics::initialize_prometheus_metrics;
-use angstrom_types::primitive::{AngstromSigner, CHAIN_ID};
+use angstrom_types::primitive::{
+    AngstromSigner, CHAIN_ID, ETH_ANGSTROM_RPC, ETH_DEFAULT_RPC, ETH_MEV_RPC
+};
 use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
-use url::Url;
 
 #[derive(Debug, Clone, Default, clap::Args)]
 pub struct AngstromConfig {
@@ -15,16 +16,16 @@ pub struct AngstromConfig {
     /// Default: 6969
     #[clap(long, default_value = "6969", global = true)]
     pub metrics_port:              u16,
-    #[clap(short, long)]
-    pub mev_boost_endpoints:       Vec<Url>,
+    #[clap(short, long, num_args(0..=10), require_equals = true, default_values = ETH_MEV_RPC)]
+    pub mev_boost_endpoints:       Vec<String>,
     /// needed to properly setup the node as we need some chain state before
     /// starting the internal reth node
     #[clap(short, long, default_value = "https://eth.drpc.org")]
     pub boot_node:                 String,
-    #[clap(short, long)]
-    pub normal_nodes:              Vec<Url>,
-    #[clap(short, long)]
-    pub angstrom_submission_nodes: Vec<Url>,
+    #[clap(short, long, num_args(0..=5), require_equals = true, default_values = ETH_DEFAULT_RPC)]
+    pub normal_nodes:              Vec<String>,
+    #[clap(short, long, num_args(0..=10), require_equals = true, default_values = ETH_ANGSTROM_RPC)]
+    pub angstrom_submission_nodes: Vec<String>,
     #[clap(flatten)]
     pub key_config:                KeyConfig
 }
@@ -46,6 +47,8 @@ impl AngstromConfig {
     }
 
     pub fn get_hsm_signer(&self) -> eyre::Result<Option<AngstromSigner<Pkcs11Signer>>> {
+        tracing::info!(?self);
+
         Ok((self.key_config.hsm_enabled)
             .then(|| {
                 Pkcs11Signer::new(

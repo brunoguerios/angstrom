@@ -2,7 +2,7 @@
 //!
 //! ## Feature Flags
 
-use std::{collections::HashSet, str::FromStr, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
 use alloy::providers::{ProviderBuilder, network::Ethereum};
 use alloy_chains::NamedChain;
@@ -18,7 +18,6 @@ use angstrom_types::{
     contract_bindings::controller_v_1::ControllerV1,
     primitive::{
         ANGSTROM_DOMAIN, AngstromMetaSigner, AngstromSigner, CONTROLLER_V1_ADDRESS,
-        ETH_ANGSTROM_RPC, ETH_DEFAULT_RPC, ETH_MEV_RPC, SEPOLIA_DEFAULT_RPC, SEPOLIA_MEV_RPC,
         init_with_chain_id
     }
 };
@@ -34,7 +33,6 @@ use reth::{
 use reth_db::DatabaseEnv;
 use reth_node_builder::{Node, NodeBuilder, NodeHandle, WithLaunchContext};
 use reth_node_ethereum::node::{EthereumAddOns, EthereumNode};
-use url::Url;
 use validation::validator::ValidationClient;
 
 use crate::components::{
@@ -48,47 +46,15 @@ pub mod components;
 /// chosen command.
 #[inline]
 pub fn run() -> eyre::Result<()> {
-    Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, mut args| async move {
+    Cli::<EthereumChainSpecParser, AngstromConfig>::parse().run(|builder, args| async move {
         let executor = builder.task_executor().clone();
         let chain = builder.config().chain.chain().named().unwrap();
 
         match chain {
             NamedChain::Sepolia => {
-                if args.mev_boost_endpoints.is_empty() {
-                    args.mev_boost_endpoints = SEPOLIA_MEV_RPC
-                        .into_iter()
-                        .map(|url| Url::from_str(url).unwrap())
-                        .collect();
-                }
-                if args.normal_nodes.is_empty() {
-                    args.normal_nodes = SEPOLIA_DEFAULT_RPC
-                        .into_iter()
-                        .map(|url| Url::from_str(url).unwrap())
-                        .collect();
-                }
-
                 init_with_chain_id(NamedChain::Sepolia as u64);
             }
             NamedChain::Mainnet => {
-                if args.mev_boost_endpoints.is_empty() {
-                    args.mev_boost_endpoints = ETH_MEV_RPC
-                        .into_iter()
-                        .map(|url| Url::from_str(url).unwrap())
-                        .collect();
-                }
-                if args.normal_nodes.is_empty() {
-                    args.normal_nodes = ETH_DEFAULT_RPC
-                        .into_iter()
-                        .map(|url| Url::from_str(url).unwrap())
-                        .collect();
-                }
-                if args.angstrom_submission_nodes.is_empty() {
-                    args.angstrom_submission_nodes = ETH_ANGSTROM_RPC
-                        .into_iter()
-                        .map(|url| Url::from_str(url).unwrap())
-                        .collect();
-                }
-
                 init_with_chain_id(NamedChain::Mainnet as u64);
             }
             chain => panic!("we do not support chain {chain}")
