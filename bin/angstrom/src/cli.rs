@@ -47,8 +47,6 @@ impl AngstromConfig {
     }
 
     pub fn get_hsm_signer(&self) -> eyre::Result<Option<AngstromSigner<Pkcs11Signer>>> {
-        tracing::info!(?self);
-
         Ok((self.key_config.hsm_enabled)
             .then(|| {
                 Pkcs11Signer::new(
