@@ -32,18 +32,19 @@ use tokio::{
     time::{Interval, interval}
 };
 use tokio_stream::wrappers::ReceiverStream;
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
+use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Slot0Update {
     /// there will be 120 updates per block or per 100ms
-    pub seq_id:        u16,
+    pub seq_id:           u16,
     /// in case of block lag on node
-    pub current_block: u64,
-    /// basic identifier
-    pub pool_id:       PoolId,
+    pub current_block:    u64,
+    pub angstrom_pool_id: PoolId,
+    pub uni_pool_id:      PoolId,
 
     pub sqrt_price_x96: U160,
+    pub liquidity:      u128,
     pub tick:           i32
 }
 
@@ -77,7 +78,7 @@ pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
     amms: SyncedUniswapPools,
     threadpool: ThreadPool,
     recv: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
-    book_snapshots: HashMap<PoolId, BaselinePoolState>,
+    book_snapshots: HashMap<PoolId, (PoolId, BaselinePoolState)>,
     pending_tasks: FuturesUnordered<BoxFuture<'static, eyre::Result<Slot0Update>>>,
     pool_to_subscribers: HashMap<PoolId, Vec<mpsc::Sender<Slot0Update>>>,
     consensus_stream: Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>>,
@@ -109,8 +110,9 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
                 let pool_lock = entry.value().read().unwrap();
 
                 let pk = pool_lock.public_address();
+                let uni_key = pool_lock.data_loader().private_address();
                 let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
-                (pk, snapshot_data)
+                (pk, (uni_key, snapshot_data))
             })
             .collect();
 
@@ -137,7 +139,13 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn handle_new_subscription(&mut self, pools: HashSet<PoolId>, chan: mpsc::Sender<Slot0Update>) {
-        let keys = self.book_snapshots.keys().copied().collect::<HashSet<_>>();
+        let keys = self
+            .book_snapshots
+            .iter()
+            .flat_map(|(ang_key, (uni_key, _))| [ang_key, uni_key])
+            .copied()
+            .collect::<HashSet<_>>();
+
         for pool in &pools {
             if !keys.contains(pool) {
                 // invalid subscription
@@ -189,7 +197,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
                 acc
             });
 
-        for (book_id, amm) in &self.book_snapshots {
+        for (book_id, (uni_pool_id, amm)) in &self.book_snapshots {
             // Default as if we don't have a book, we want to still send update.
             let mut book = books.remove(book_id).unwrap_or_default();
             book.id = *book_id;
@@ -199,19 +207,25 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             let (tx, rx) = oneshot::channel();
             let block = self.cur_block;
 
+            let uni_pool_id = *uni_pool_id;
+
             self.threadpool.spawn(move || {
                 let b = book;
-                let (sqrt_price, tick) = BinarySearchStrategy::give_end_amm_state(&b, searcher);
+                let (sqrt_price, tick, liquidity) =
+                    BinarySearchStrategy::give_end_amm_state(&b, searcher);
                 let update = Slot0Update {
                     current_block: block,
                     seq_id,
-                    pool_id: b.id(),
+                    angstrom_pool_id: b.id(),
+                    uni_pool_id,
+                    liquidity,
                     sqrt_price_x96: sqrt_price,
                     tick
                 };
 
                 tx.send(update).unwrap()
             });
+
             self.pending_tasks.push(rx.map_err(Into::into).boxed())
         }
     }
@@ -222,8 +236,9 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             .iter()
             .map(|entry| {
                 let pool_lock = entry.value().read().unwrap();
+                let uni_key = pool_lock.data_loader().private_address();
                 let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
-                (*entry.key(), snapshot_data)
+                (*entry.key(), (uni_key, snapshot_data))
             })
             .collect();
     }
@@ -235,11 +250,19 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn send_out_result(&mut self, slot_update: Slot0Update) {
-        let Some(pool_subs) = self.pool_to_subscribers.get_mut(&slot_update.pool_id) else {
-            return;
+        if let Some(ang_pool_subs) = self
+            .pool_to_subscribers
+            .get_mut(&slot_update.angstrom_pool_id)
+        {
+            ang_pool_subs.retain(|subscriber| subscriber.try_send(slot_update.clone()).is_ok());
         };
 
-        pool_subs.retain(|subscriber| subscriber.try_send(slot_update.clone()).is_ok());
+        if let Some(uni_pool_subs) = self
+            .pool_to_subscribers
+            .get_mut(&slot_update.angstrom_pool_id)
+        {
+            uni_pool_subs.retain(|subscriber| subscriber.try_send(slot_update.clone()).is_ok());
+        };
     }
 }
 
@@ -294,14 +317,14 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
 
 pub fn build_non_proposal_books(
     limit: Vec<BookOrder>,
-    pool_snapshots: &HashMap<PoolId, BaselinePoolState>
+    pool_snapshots: &HashMap<PoolId, (PoolId, BaselinePoolState)>
 ) -> HashMap<PoolId, OrderBook> {
     let book_sources = orders_sorted_by_pool_id(limit);
 
     book_sources
         .into_iter()
         .map(|(id, orders)| {
-            let amm = pool_snapshots.get(&id).cloned();
+            let amm = pool_snapshots.get(&id).map(|(_, pool)| pool).cloned();
             (id, build_book(id, amm, orders))
         })
         .collect()

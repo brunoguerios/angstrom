@@ -166,6 +166,10 @@ impl LiquidityAtPoint<'_> {
         SqrtPriceX96::at_tick(self.max_tick_init - 1).unwrap()
     }
 
+    pub fn liquidity(&self) -> u128 {
+        self.current_liquidity
+    }
+
     /// moves to the next tick initialized within one word returning
     /// the tick and the liquidity to swap with
     pub fn get_to_next_initialized_tick_within_one_word(

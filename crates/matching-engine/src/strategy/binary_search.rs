@@ -21,11 +21,15 @@ impl BinarySearchStrategy {
     pub fn give_end_amm_state(
         book: &OrderBook,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
-    ) -> (U160, i32) {
+    ) -> (U160, i32, u128) {
         let snapshot = book.amm().unwrap();
 
         if book.is_empty_book() {
-            return (*snapshot.current_price(), snapshot.current_tick());
+            return (
+                *snapshot.current_price(),
+                snapshot.current_tick(),
+                snapshot.current_liquidity()
+            );
         }
 
         let mut matcher = DeltaMatcher::new(book, searcher.clone().into(), false);
@@ -34,7 +38,7 @@ impl BinarySearchStrategy {
         // we have no book currently attached
         if solution.ucp.is_zero() {
             let amm = matcher.try_get_amm_location();
-            (*amm.end_price, amm.end_tick)
+            (*amm.end_price, amm.end_tick, amm.end_liquidity.liquidity())
         } else {
             // same flow as bundle building
             let post_tob_swap = matcher.try_get_amm_location();
@@ -69,7 +73,7 @@ impl BinarySearchStrategy {
                 .unwrap()
                 .clone();
 
-            (*res.end_price, res.end_tick)
+            (*res.end_price, res.end_tick, res.end_liquidity.liquidity())
         }
     }
 }
