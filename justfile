@@ -6,7 +6,10 @@ check: check-format check-clippy test
 fix: fix-format fix-clippy
 
 test:
-    cargo nextest run --workspace --all-targets
+    cargo nextest run --workspace --lib
+
+test-integration:
+    cargo nextest run --workspace --tests
 
 check-format:
     cargo fmt --all -- --check
