@@ -1,6 +1,8 @@
 default:
     @just --list
 
+ci: check-format check-clippy test test-integration
+
 check: check-format check-clippy test
 
 fix: fix-format fix-clippy
