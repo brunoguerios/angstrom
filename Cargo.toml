@@ -197,7 +197,7 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 serde_json = "1"
 serde_with = "3.13.0"
 serial_test = "3"
-strum = "0"
+strum = "0.27"
 telemetry = { path = "./crates/telemetry/" }
 telemetry-recorder = { path = "./crates/telemetry-recorder/" }
 tempfile = "3"
