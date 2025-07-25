@@ -172,7 +172,7 @@ impl TokenPriceGenerator {
         self.pair_to_pool
             .iter()
             .filter_map(|(&(token0, token1), pool_id)| {
-                let price = self.get_eth_conversion_price(token0, token1)?;
+                let price = self.get_conversion_rate(token0, token1)?;
 
                 let book_internal = price.inverse_quantity(BOOK_GAS_INTERNAL as u128, false);
                 let book_external = price.inverse_quantity(BOOK_GAS as u128, false);
@@ -186,17 +186,6 @@ impl TokenPriceGenerator {
                     gas_external_tob:  tob_external,
                     gas_external_book: book_external
                 })
-            })
-            .collect()
-    }
-
-    pub fn generate_lookup_map(&self) -> HashMap<(Address, Address), Ray> {
-        self.pair_to_pool
-            .keys()
-            .filter_map(|&(token0, token1)| {
-                let price = self.get_eth_conversion_price(token0, token1)?;
-
-                Some(((token0, token1), price))
             })
             .collect()
     }
@@ -349,11 +338,23 @@ impl TokenPriceGenerator {
     /// NOTE: assumes tokens are properly sorted.
     /// the previous prices are stored in RAY (1e27).
     /// returns price in GAS / t0
-    pub fn get_eth_conversion_price(&self, token_0: Address, token_1: Address) -> Option<Ray> {
-        let wei = if self.base_wei == 0 { 1e18 as u128 } else { self.base_wei };
-        let rate = self
-            .get_conversion_rate(token_0, token_1)
-            .map(|val| val.mul_wad(wei, 18));
+    pub fn get_eth_conversion_price(
+        &self,
+        token_0: Address,
+        token_1: Address,
+        gas_units: u64
+    ) -> Option<u128> {
+        let mut wei = if self.base_wei == 0 { 1e9 as u128 } else { self.base_wei };
+        wei *= gas_units as u128;
+
+        // wei in gas units
+
+        let rate = self.get_conversion_rate(token_0, token_1).map(|val| {
+            val.inv_ray()
+                .mul_wad(wei, 18)
+                .scale_out_of_ray()
+                .to::<u128>()
+        });
         tracing::trace!(?token_0, ?token_1, ?rate, "Getting conversion rate");
         rate
     }
@@ -592,7 +593,7 @@ pub mod test {
     fn test_direct_conversion() {
         let token_conversion = setup();
         let rate = token_conversion
-            .get_eth_conversion_price(TOKEN2, TOKEN0)
+            .get_conversion_rate(TOKEN2, TOKEN0)
             .unwrap();
 
         let expected_rate = Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER);
@@ -604,7 +605,7 @@ pub mod test {
     fn test_multi_hop_where_token0_matches() {
         let token_conversion = setup();
         let rate = token_conversion
-            .get_eth_conversion_price(TOKEN2, TOKEN3)
+            .get_conversion_rate(TOKEN2, TOKEN3)
             .unwrap();
 
         // t3 / t2 = pair 1 = 2e45
@@ -625,7 +626,7 @@ pub mod test {
 
         let token_conversion = setup();
         let rate = token_conversion
-            .get_eth_conversion_price(TOKEN4, TOKEN1)
+            .get_conversion_rate(TOKEN4, TOKEN1)
             .unwrap();
 
         // we have a  t1 / t4 pair and a t1 / weth pair
@@ -661,30 +662,16 @@ pub mod test {
 
         // WETH as token0 should return 1
         let rate = token_conversion
-            .get_eth_conversion_price(WETH_ADDRESS, TOKEN1)
+            .get_conversion_rate(WETH_ADDRESS, TOKEN1)
             .unwrap();
         assert_eq!(rate, Ray::scale_to_ray(U256::from(1)));
 
         // 5 weth .inv
         let rate = token_conversion
-            .get_eth_conversion_price(TOKEN2, WETH_ADDRESS)
+            .get_conversion_rate(TOKEN2, WETH_ADDRESS)
             .unwrap();
 
         assert_eq!(rate, Ray::scale_to_ray(U256::from(5) * WEI_IN_ETHER));
-    }
-
-    #[test]
-    fn test_generate_lookup_map() {
-        let token_conversion = setup();
-        let lookup_map = token_conversion.generate_lookup_map();
-
-        // Check that all pairs are properly ordered (token0 < token1)
-        for ((token0, token1), _) in lookup_map.iter() {
-            assert!(token0 < token1, "Tokens should be ordered in lookup map");
-        }
-
-        // Verify expected number of pairs
-        assert_eq!(lookup_map.len(), 4, "Should have all valid pairs in lookup map");
     }
 
     #[test]
@@ -692,7 +679,7 @@ pub mod test {
         let token_conversion = setup();
 
         // Try to get price for non-existent pool
-        let rate = token_conversion.get_eth_conversion_price(
+        let rate = token_conversion.get_conversion_rate(
             address!("1111111111111111111111111111111111111111"),
             address!("2222222222222222222222222222222222222222")
         );
@@ -719,7 +706,7 @@ pub mod test {
         token_conversion.prev_prices.insert(pool_id, queue);
 
         let rate = token_conversion
-            .get_eth_conversion_price(TOKEN5, WETH_ADDRESS)
+            .get_conversion_rate(TOKEN5, WETH_ADDRESS)
             .unwrap();
 
         assert_eq!(rate, Ray::scale_to_ray(U256::from(1) * WEI_IN_ETHER));
@@ -742,7 +729,7 @@ pub mod test {
         };
 
         // Test direct WETH case (should still work)
-        let rate = token_conversion.get_eth_conversion_price(WETH_ADDRESS, TOKEN1);
+        let rate = token_conversion.get_conversion_rate(WETH_ADDRESS, TOKEN1);
         assert_eq!(
             rate,
             Some(Ray::scale_to_ray(U256::from(1))),
@@ -753,14 +740,10 @@ pub mod test {
         let random_token1 = address!("1111111111111111111111111111111111111111");
         let random_token2 = address!("2222222222222222222222222222222222222222");
 
-        let rate = token_conversion.get_eth_conversion_price(random_token1, random_token2);
+        let rate = token_conversion.get_conversion_rate(random_token1, random_token2);
         assert!(rate.is_none(), "Should return None when no pools exist");
 
-        let rate = token_conversion.get_eth_conversion_price(random_token1, WETH_ADDRESS);
+        let rate = token_conversion.get_conversion_rate(random_token1, WETH_ADDRESS);
         assert!(rate.is_none(), "Should return None for direct WETH pair when no pools exist");
-
-        // Test generate_lookup_map with no pools
-        let lookup_map = token_conversion.generate_lookup_map();
-        assert!(lookup_map.is_empty(), "Lookup map should be empty when no pools exist");
     }
 }

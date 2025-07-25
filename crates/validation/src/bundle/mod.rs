@@ -76,7 +76,6 @@ where
         &self,
         sender: tokio::sync::oneshot::Sender<eyre::Result<BundleGasDetails>>,
         bundle: AngstromBundle,
-        price_gen: &TokenPriceGenerator,
         thread_pool: &mut KeySplitThreadpool<
             Address,
             Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
@@ -88,8 +87,6 @@ where
         let node_address = self.node_address;
         let angstrom_address = self.angstrom_address;
         let mut db = self.db.clone();
-
-        let conversion_lookup = price_gen.generate_lookup_map();
 
         thread_pool.spawn_raw(Box::pin(async move {
             let pool_manager_addr = *angstrom_types::primitive::POOL_MANAGER_ADDRESS.get().unwrap();
@@ -175,7 +172,7 @@ where
                     return;
                 }
 
-                let res = BundleGasDetails::new(conversion_lookup,result.gas_used());
+                let res = BundleGasDetails::new(result.gas_used());
                 let _ = sender.send(Ok(res));
             });
         }))

@@ -360,6 +360,20 @@ impl Ray {
         Ray::from(this)
     }
 
+    pub fn div_wad<T: Into<Natural>>(&self, div: T, decimals: u8) -> Self {
+        let div_val: Natural = div.into();
+        let decimals = Natural::from(10u128).pow(decimals as u64);
+        let numerator = Natural::from_limbs_asc(self.0.as_limbs());
+
+        let num = numerator * decimals;
+        let res = Rational::from_naturals(num, div_val);
+        let (n, _): (Natural, _) = res.rounding_into(RoundingMode::Floor);
+
+        let this = U256::from_limbs_slice(&n.to_limbs_asc());
+
+        Ray::from(this)
+    }
+
     /// 1e54 / self
     pub fn inv_ray_assign(&mut self) {
         *self = self.invert(RoundingMode::Floor);
