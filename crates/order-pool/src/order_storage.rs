@@ -43,14 +43,8 @@ pub struct OrderStorage {
 
 impl OrderStorage {
     pub fn new(config: &PoolConfig) -> Self {
-        let limit_orders = Arc::new(Mutex::new(LimitOrderPool::new(
-            &config.ids,
-            Some(config.lo_pending_limit.max_size)
-        )));
-        let searcher_orders = Arc::new(Mutex::new(SearcherPool::new(
-            &config.ids,
-            Some(config.s_pending_limit.max_size)
-        )));
+        let limit_orders = Arc::new(Mutex::new(LimitOrderPool::new(&config.ids)));
+        let searcher_orders = Arc::new(Mutex::new(SearcherPool::new(&config.ids)));
 
         let pending_finalization_orders = Arc::new(Mutex::new(FinalizationPool::new()));
 

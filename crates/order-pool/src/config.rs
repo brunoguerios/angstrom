@@ -4,13 +4,13 @@ use angstrom_types::primitive::PoolId;
 pub const ORDER_POOL_MAX_ACCOUNT_SLOTS_PER_SENDER: usize = 200;
 
 /// The default maximum allowed number of orders in the given subpool;
-pub const LIMIT_SUBPOOL_MAX_ORDERS_DEFAULT: usize = 1_000;
+pub const LIMIT_SUBPOOL_MAX_ORDERS_DEFAULT: usize = 10_000;
 
 /// The default maximum allowed size of the given subpool.
 pub const LIMIT_SUBPOOL_MAX_SIZE_MB_DEFAULT: usize = 20;
 
 /// The default maximum allowed number of orders in the searcher subpool.
-pub const SEARCHER_SUBPOOL_MAX_ORDERS_DEFAULT: usize = 100;
+pub const SEARCHER_SUBPOOL_MAX_ORDERS_DEFAULT: usize = 10_000;
 
 /// The default maximum allowed size of the searcher subpool.
 pub const SEARCHER_SUBPOOL_MAX_SIZE_MB_DEFAULT: usize = 5;

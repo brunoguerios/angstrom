@@ -12,12 +12,9 @@ use pending::PendingPool;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{AllOrders, common::SizeTracker};
+use crate::AllOrders;
 
 mod pending;
-
-#[allow(dead_code)]
-pub const SEARCHER_POOL_MAX_SIZE: usize = 15;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde_as]
@@ -25,20 +22,14 @@ pub struct SearcherPool {
     /// Holds all non composable searcher order pools
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     searcher_orders: HashMap<PoolId, PendingPool>,
-    /// The size of the current transactions.
-    size:            SizeTracker,
     #[serde(skip)]
     metrics:         SearcherOrderPoolMetricsWrapper
 }
 
 impl SearcherPool {
-    pub fn new(ids: &[PoolId], max_size: Option<usize>) -> Self {
+    pub fn new(ids: &[PoolId]) -> Self {
         let searcher_orders = ids.iter().map(|id| (*id, PendingPool::new())).collect();
-        Self {
-            searcher_orders,
-            size: SizeTracker { max: max_size, current: 0 },
-            metrics: SearcherOrderPoolMetricsWrapper::default()
-        }
+        Self { searcher_orders, metrics: SearcherOrderPoolMetricsWrapper::default() }
     }
 
     pub fn get_all_orders_from_pool(&self, pool: FixedBytes<32>) -> Vec<AllOrders> {
@@ -75,11 +66,6 @@ impl SearcherPool {
         &mut self,
         order: OrderWithStorageData<TopOfBlockOrder>
     ) -> Result<(), SearcherPoolError> {
-        let size = order.size();
-        if !self.size.has_space(size) {
-            return Err(SearcherPoolError::MaxSize);
-        }
-
         let pool_id = order.pool_id;
         self.searcher_orders
             .get_mut(&pool_id)
@@ -95,7 +81,9 @@ impl SearcherPool {
         self.searcher_orders
             .get_mut(&id.pool_id)
             .and_then(|pool| pool.remove_order(id.hash))
-            .owned_map(|| self.metrics.decr_all_orders(id.pool_id, 1))
+            .owned_map(|| {
+                self.metrics.decr_all_orders(id.pool_id, 1);
+            })
     }
 
     pub fn get_all_pool_ids(&self) -> impl Iterator<Item = PoolId> + '_ {
@@ -137,22 +125,24 @@ impl SearcherPool {
     }
 
     pub fn remove_pool(&mut self, key: &PoolId) -> Vec<OrderWithStorageData<AllOrders>> {
-        self.searcher_orders
+        let orders = self
+            .searcher_orders
             .remove(key)
             .map(|pool| {
                 pool.get_all_orders()
                     .into_iter()
                     .map(|o| o.try_map_inner(|o| Ok(AllOrders::TOB(o))).unwrap())
-                    .collect()
+                    .collect::<Vec<_>>()
             })
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        orders
     }
 
     pub fn remove_invalid_order(&mut self, order_hash: B256) {
         self.searcher_orders.iter_mut().for_each(|(pool_id, pool)| {
             if pool.remove_order(order_hash).is_some() {
                 self.metrics.decr_all_orders(*pool_id, 1);
-                self.size.remove_order(1);
             }
         });
     }
