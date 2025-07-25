@@ -102,8 +102,7 @@ impl BreachTestScenario {
                 priority,
                 nonce: i as u64 + 1,
                 tob_bid_amount,
-                pool_id: order_pool_id,
-                expected_validity: None
+                pool_id: order_pool_id
             });
         }
         let signer = AngstromSigner::random();
@@ -238,7 +237,7 @@ impl BreachTestScenario {
             println!("{:#?}", processor.user_accounts);
         }
 
-        Ok(ValidationResult { valid_orders, invalid_orders, total_valid_consumption })
+        Ok(ValidationResult { valid_orders, total_valid_consumption })
     }
 }
 

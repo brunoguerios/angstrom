@@ -250,7 +250,7 @@ impl TokenPriceGenerator {
             }
 
             // only pop front if we extend
-            if prev_prices.len() as u64 >= self.blocks_to_avg_price + 1 {
+            if prev_prices.len() as u64 > self.blocks_to_avg_price {
                 prev_prices.pop_front();
             }
         }
@@ -265,7 +265,7 @@ impl TokenPriceGenerator {
                 queue.push_back(new_back);
 
                 // only pop front if we extend
-                if queue.len() as u64 >= self.blocks_to_avg_price + 1 {
+                if queue.len() as u64 > self.blocks_to_avg_price {
                     queue.pop_front();
                 }
             });
@@ -813,7 +813,7 @@ pub mod test {
             100 * 1e9 as u128,   // 100 gwei
             50 * 1e9 as u128,    // 50 gwei
             10 * 1e9 as u128,    // 10 gwei
-            1 * 1e9 as u128,     // 10 gwei
+            (1e9 as u128),       // 10 gwei
             (0.3 * 1e9) as u128, // 10 gwei
         ];
 
