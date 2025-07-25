@@ -12,11 +12,11 @@ use matching_engine::{
     matcher::delta::{DeltaMatcher, DeltaMatcherToB}
 };
 use testing_tools::type_generator::orders::UserOrderBuilder;
-use tracing::Level;
+use tracing_subscriber::EnvFilter;
 
 pub fn with_tracing<T>(f: impl FnOnce() -> T) -> T {
     let subscriber = tracing_subscriber::fmt()
-        .with_max_level(Level::TRACE)
+        .with_env_filter(EnvFilter::from_default_env())
         .with_line_number(true)
         .with_file(true)
         .finish();
