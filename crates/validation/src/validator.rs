@@ -124,7 +124,6 @@ where
                 self.bundle_validator.simulate_bundle(
                     sender,
                     bundle,
-                    &self.utils.token_pricing,
                     &mut self.utils.thread_pool,
                     self.utils.metrics.clone(),
                     bn
@@ -160,14 +159,6 @@ where
                     std::mem::swap(&mut token_0, &mut token_1);
                 }
 
-                let Some(cvrt) = self
-                    .utils
-                    .token_pricing_ref()
-                    .get_eth_conversion_price(token_0, token_1)
-                else {
-                    let _ = sender.send(Err(eyre::eyre!("not valid token pair")));
-                    return;
-                };
                 let gas_in_wei = match (is_book, is_internal) {
                     (true, true) => BOOK_GAS_INTERNAL,
                     (false, true) => TOB_GAS_INTERNAL,
@@ -175,8 +166,15 @@ where
                     (false, false) => TOB_GAS
                 };
 
+                let Some(amount) = self
+                    .utils
+                    .token_pricing_ref()
+                    .get_eth_conversion_price(token_0, token_1, gas_in_wei)
+                else {
+                    let _ = sender.send(Err(eyre::eyre!("not valid token pair")));
+                    return;
+                };
                 let block = self.utils.token_pricing_ref().current_block();
-                let amount = cvrt.inverse_quantity(gas_in_wei as u128, false);
 
                 let _ = sender.send(Ok((U256::from(amount), block)));
             }

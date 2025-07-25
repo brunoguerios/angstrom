@@ -14,7 +14,6 @@ use angstrom_types::{
     primitive::{AngstromAddressConfig, AngstromSigner, PoolId},
     sol_bindings::grouped_orders::AllOrders
 };
-use proptest::prelude::*;
 use testing_tools::type_generator::orders::{ToBOrderBuilder, UserOrderBuilder};
 
 use super::UserAccountProcessor;
@@ -44,19 +43,17 @@ enum OrderPriority {
 /// Test order structure for breach testing
 #[derive(Debug, Clone)]
 struct TestOrder {
-    amount:            u128,
-    priority:          OrderPriority,
-    nonce:             u64,
-    tob_bid_amount:    u128, // For TOB orders, the bid amount for priority
-    pool_id:           Option<PoolId>, // Pool ID for TOB orders
-    expected_validity: Option<bool>  // None = determined by test
+    amount:         u128,
+    priority:       OrderPriority,
+    nonce:          u64,
+    tob_bid_amount: u128, // For TOB orders, the bid amount for priority
+    pool_id:        Option<PoolId>  // Pool ID for TOB orders
 }
 
 /// Validation result tracking
 #[derive(Debug, Clone)]
 struct ValidationResult {
     valid_orders:            Vec<B256>,
-    invalid_orders:          Vec<B256>,
     total_valid_consumption: u128
 }
 
@@ -105,8 +102,7 @@ impl BreachTestScenario {
                 priority,
                 nonce: i as u64 + 1,
                 tob_bid_amount,
-                pool_id: order_pool_id,
-                expected_validity: None
+                pool_id: order_pool_id
             });
         }
         let signer = AngstromSigner::random();
@@ -241,7 +237,7 @@ impl BreachTestScenario {
             println!("{:#?}", processor.user_accounts);
         }
 
-        Ok(ValidationResult { valid_orders, invalid_orders, total_valid_consumption })
+        Ok(ValidationResult { valid_orders, total_valid_consumption })
     }
 }
 

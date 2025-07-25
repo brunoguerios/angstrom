@@ -26,7 +26,6 @@ use crate::{
     primitive::{AngstromMetaSigner, AngstromSigner}
 };
 
-pub(super) const EXTRA_GAS: u128 = 1e9 as u128;
 const DEFAULT_SUBMISSION_CONCURRENCY: usize = 10;
 
 pub(super) const EXTRA_GAS_LIMIT: u64 = 100_000;
@@ -63,8 +62,8 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
             .with_input(encoded)
             .with_chain_id(tx_features.chain_id)
             .with_nonce(tx_features.nonce)
-            .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas + EXTRA_GAS)
-            .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas + EXTRA_GAS)
+            .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas)
     }
 
     fn build_and_sign_tx_with_gas<'a, S: AngstromMetaSigner, F>(

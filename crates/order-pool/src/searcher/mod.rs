@@ -125,8 +125,7 @@ impl SearcherPool {
     }
 
     pub fn remove_pool(&mut self, key: &PoolId) -> Vec<OrderWithStorageData<AllOrders>> {
-        let orders = self
-            .searcher_orders
+        self.searcher_orders
             .remove(key)
             .map(|pool| {
                 pool.get_all_orders()
@@ -134,9 +133,7 @@ impl SearcherPool {
                     .map(|o| o.try_map_inner(|o| Ok(AllOrders::TOB(o))).unwrap())
                     .collect::<Vec<_>>()
             })
-            .unwrap_or_default();
-
-        orders
+            .unwrap_or_default()
     }
 
     pub fn remove_invalid_order(&mut self, order_hash: B256) {

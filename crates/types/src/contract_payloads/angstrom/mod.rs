@@ -1027,19 +1027,13 @@ impl AngstromBundle {
 #[allow(unused)]
 #[derive(Debug, Clone, Default)]
 pub struct BundleGasDetails {
-    /// a map (sorted tokens) of how much of token0 in gas is needed per unit of
-    /// gas
-    token_price_per_wei: HashMap<(Address, Address), Ray>,
     /// total gas to execute the bundle on angstrom
-    total_gas_cost_wei:  u64
+    total_gas_cost_wei: u64
 }
 
 impl BundleGasDetails {
-    pub fn new(
-        token_price_per_wei: HashMap<(Address, Address), Ray>,
-        total_gas_cost_wei: u64
-    ) -> Self {
-        Self { token_price_per_wei, total_gas_cost_wei }
+    pub fn new(total_gas_cost_wei: u64) -> Self {
+        Self { total_gas_cost_wei }
     }
 }
 
