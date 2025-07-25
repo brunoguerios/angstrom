@@ -229,6 +229,24 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
                 ))
                 .is_err();
         }
+        // Unichain
+        130 => {
+            err |= ANGSTROM_ADDRESS.set(Address::ZERO).is_err();
+            err |= POSITION_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CONTROLLER_V1_ADDRESS.set(Address::ZERO).is_err();
+            err |= POOL_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CHAIN_ID.set(130).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(0).is_err();
+            err |= GAS_TOKEN_ADDRESS.set(Address::ZERO).is_err();
+            err |= ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 130,
+                    verifying_contract: Address::ZERO,
+                ))
+                .is_err();
+        }
         id => panic!("unsupported chain_id: {id}")
     }
     if err {
