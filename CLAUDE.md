@@ -8,24 +8,40 @@ Angstrom is a trustless, hybrid AMM/Orderbook exchange that settles on Ethereum 
 
 ## Key Commands
 
-### Rust Development
+### Rust Development (via justfile)
+
+**Recommended**: Use `just` commands when available for consistency and convenience.
+
+```bash
+# Quick Commands (preferred)
+just                  # Show available commands
+just ci               # Run full CI suite (format check, clippy, all tests)
+just check            # Check format, clippy, and run unit tests
+just fix              # Auto-fix formatting and clippy issues
+just test             # Run unit tests
+just test-integration # Run integration tests
+just build            # Build release version
+just clean            # Clean build artifacts
+
+# Detailed just commands
+just check-format     # Check code formatting
+just fix-format       # Auto-fix formatting issues
+just check-clippy     # Run clippy linter
+just fix-clippy       # Auto-fix clippy issues
+```
+
+### Direct Cargo Commands (when needed)
+
+Use these when the justfile doesn't provide the specific functionality:
 
 ```bash
 # Building
 cargo build --workspace                    # Build all workspace members
 cargo build --workspace --all-features     # Build with all features
-cargo build --release                      # Build release version
 cargo build --profile maxperf              # Build with maximum performance
 
-# Testing
-cargo test --workspace                     # Run all tests
+# Testing with specific options
 cargo test --workspace -- --nocapture      # Run tests with output
-
-# Linting & Formatting
-cargo +nightly fmt --all                   # Format code (requires nightly)
-cargo +nightly fmt --all -- --check        # Check formatting
-cargo clippy --workspace --all-features    # Run clippy linter
-cargo check --workspace --all-features     # Check code without building
 
 # Running binaries
 cargo run --bin angstrom                   # Run main node
@@ -89,11 +105,12 @@ forge fmt --check                          # Check formatting
 
 ## Important Notes
 
-1. **Dependencies**: 
+1. **Dependencies**:
    - Requires Rust 1.88.0+ (edition 2024)
    - Requires Foundry for contracts
    - Requires Python 3.12 for FFI tests
    - Requires nightly Rust for formatting
+   - Requires `just` command runner for simplified development workflow
 
 2. **Assumptions**:
    - Only standard ERC20 tokens (no fee-on-transfer)
