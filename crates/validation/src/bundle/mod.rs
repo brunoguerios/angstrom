@@ -21,8 +21,7 @@ use revm::{
 use tokio::runtime::Handle;
 
 use crate::{
-    common::{TokenPriceGenerator, key_split_threadpool::KeySplitThreadpool},
-    order::sim::console_log::CallDataInspector
+    common::key_split_threadpool::KeySplitThreadpool, order::sim::console_log::CallDataInspector
 };
 
 pub mod validator;

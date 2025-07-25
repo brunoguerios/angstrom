@@ -47,13 +47,8 @@ impl PairsWithPrice {
                     reth_provider::CanonStateNotification::Reorg { new, .. } => new,
                     reth_provider::CanonStateNotification::Commit { new } => new
                 };
-                let history = provider
-                    // Reth values.
-                    .get_fee_history(10, new_cannon_chain.tip_number().into(), &[20.0])
-                    .await
-                    .unwrap_or_default();
+                let gas_wei = provider.get_gas_price().await.unwrap_or_default();
 
-                let gas_wei = history.next_block_base_fee().unwrap_or_default();
                 (
                     new_cannon_chain.tip_number(),
                     gas_wei,

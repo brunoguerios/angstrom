@@ -349,12 +349,9 @@ impl TokenPriceGenerator {
 
         // wei in gas units
 
-        let rate = self.get_conversion_rate(token_0, token_1).map(|val| {
-            val.inv_ray()
-                .mul_wad(wei, 18)
-                .scale_out_of_ray()
-                .to::<u128>()
-        });
+        let rate = self
+            .get_conversion_rate(token_0, token_1)
+            .map(|val| val.inv_ray().mul_wad(wei, 27).0.to::<u128>());
         tracing::trace!(?token_0, ?token_1, ?rate, "Getting conversion rate");
         rate
     }
@@ -745,5 +742,154 @@ pub mod test {
 
         let rate = token_conversion.get_conversion_rate(random_token1, WETH_ADDRESS);
         assert!(rate.is_none(), "Should return None for direct WETH pair when no pools exist");
+    }
+
+    /// Custom setup with WETH as both token0 and token1 in different pools
+    /// WETH/TOKEN price = 3700 (when WETH is token0)
+    /// TOKEN/WETH price = 0.0002702702702702703 (when WETH is token1)
+    fn setup_weth_pairs() -> TokenPriceGenerator {
+        let mut pairs_to_key = HashMap::default();
+        let mut prices = HashMap::default();
+
+        // Test token that pairs with WETH
+        const TEST_TOKEN: Address = address!("a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"); // USDC address as example
+
+        // Pool 1: WETH as token0, TEST_TOKEN as token1
+        // Price represents TEST_TOKEN/WETH = 3700 (meaning 1 WETH = 3700 TEST_TOKEN)
+        pairs_to_key.insert((WETH_ADDRESS, TEST_TOKEN), FixedBytes::<32>::with_last_byte(1));
+
+        // token 1 usdc, token 0 weth
+        let price = 2986678470.0 / 803080000000000000.0;
+
+        let weth_as_t0_price = Ray::from(price);
+        let pair1 = PairsWithPrice {
+            token0:         WETH_ADDRESS,
+            token1:         TEST_TOKEN,
+            price_1_over_0: weth_as_t0_price
+        };
+        let queue1 = VecDeque::from([pair1; 5]);
+        prices.insert(FixedBytes::<32>::with_last_byte(1), queue1);
+
+        // Pool 2: TEST_TOKEN as token0, WETH as token1
+        // Price represents WETH/TEST_TOKEN = 0.0002702702702702703 (meaning 1
+        // TEST_TOKEN = 0.00027... WETH)
+        pairs_to_key.insert((TEST_TOKEN, WETH_ADDRESS), FixedBytes::<32>::with_last_byte(2));
+
+        // Convert the decimal to a U256 with proper scaling
+        // 0.0002702702702702703 * 10^18 = 270270270270270.3
+
+        let price = 803080000000000000.0 / 2986678470.0;
+        let weth_as_t1_price = Ray::from(price);
+        let pair2 = PairsWithPrice {
+            token0:         TEST_TOKEN,
+            token1:         WETH_ADDRESS,
+            price_1_over_0: weth_as_t1_price
+        };
+        let queue2 = VecDeque::from([pair2; 5]);
+        prices.insert(FixedBytes::<32>::with_last_byte(2), queue2);
+
+        TokenPriceGenerator {
+            current_block:       0,
+            base_wei:            0,
+            prev_prices:         prices,
+            base_gas_token:      WETH_ADDRESS,
+            pair_to_pool:        pairs_to_key,
+            blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
+            uniswap_pools:       SyncedUniswapPools::new(
+                Default::default(),
+                tokio::sync::mpsc::channel(1).0
+            )
+        }
+    }
+
+    #[test]
+    fn test_weth_pair_gas_behavior() {
+        // Test the specific WETH pair setup with realistic prices
+        let mut token_conversion = setup_weth_pairs();
+        const TEST_TOKEN: Address = address!("a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+
+        // Test with different gas prices
+        let gas_prices = vec![
+            100 * 1e9 as u128,   // 100 gwei
+            50 * 1e9 as u128,    // 50 gwei
+            10 * 1e9 as u128,    // 10 gwei
+            1 * 1e9 as u128,     // 10 gwei
+            (0.3 * 1e9) as u128, // 10 gwei
+        ];
+
+        use crate::order::sim::BOOK_GAS;
+
+        println!("\nTesting WETH as token0 (WETH/TEST_TOKEN pair):");
+        let mut weth_t0_results = Vec::new();
+
+        for gas_wei in &gas_prices {
+            token_conversion.base_wei = *gas_wei;
+
+            // Get conversion price for WETH/TEST_TOKEN pair
+            let book_gas = token_conversion
+                .get_eth_conversion_price(WETH_ADDRESS, TEST_TOKEN, BOOK_GAS)
+                .expect("Should have conversion price");
+
+            weth_t0_results.push((*gas_wei, book_gas));
+
+            println!(
+                "  Gas price: {} gwei -> Book gas in TEST_TOKEN: {}",
+                gas_wei / 1e9 as u128,
+                book_gas
+            );
+        }
+
+        println!("\nTesting WETH as token1 (TEST_TOKEN/WETH pair):");
+        let mut weth_t1_results = Vec::new();
+
+        for gas_wei in &gas_prices {
+            token_conversion.base_wei = *gas_wei;
+
+            // Get conversion price for TEST_TOKEN/WETH pair
+            let book_gas = token_conversion
+                .get_eth_conversion_price(TEST_TOKEN, WETH_ADDRESS, BOOK_GAS)
+                .expect("Should have conversion price");
+
+            weth_t1_results.push((*gas_wei, book_gas));
+
+            println!(
+                "  Gas price: {} gwei -> Book gas in TEST_TOKEN: {}",
+                gas_wei / 1e9 as u128,
+                book_gas
+            );
+        }
+
+        // Verify decreasing gas prices lead to decreasing token amounts for both pairs
+        for i in 1..weth_t0_results.len() {
+            let (prev_gas, prev_amount) = weth_t0_results[i - 1];
+            let (curr_gas, curr_amount) = weth_t0_results[i];
+
+            assert!(curr_gas < prev_gas);
+            assert!(
+                curr_amount < prev_amount,
+                "WETH as token0: Lower gas should mean lower token amount. {} gwei -> {}, {} gwei \
+                 -> {}",
+                prev_gas / 1e9 as u128,
+                prev_amount,
+                curr_gas / 1e9 as u128,
+                curr_amount
+            );
+        }
+
+        for i in 1..weth_t1_results.len() {
+            let (prev_gas, prev_amount) = weth_t1_results[i - 1];
+            let (curr_gas, curr_amount) = weth_t1_results[i];
+
+            assert!(curr_gas < prev_gas);
+            assert!(
+                curr_amount < prev_amount,
+                "WETH as token1: Lower gas should mean lower token amount. {} gwei -> {}, {} gwei \
+                 -> {}",
+                prev_gas / 1e9 as u128,
+                prev_amount,
+                curr_gas / 1e9 as u128,
+                curr_amount
+            );
+        }
     }
 }
