@@ -261,7 +261,7 @@ impl TokenPriceGenerator {
             }
 
             // only pop front if we extend
-            if prev_prices.len() as u64 == self.blocks_to_avg_price + 1 {
+            if prev_prices.len() as u64 >= self.blocks_to_avg_price + 1 {
                 prev_prices.pop_front();
             }
         }
@@ -276,7 +276,7 @@ impl TokenPriceGenerator {
                 queue.push_back(new_back);
 
                 // only pop front if we extend
-                if queue.len() as u64 == self.blocks_to_avg_price + 1 {
+                if queue.len() as u64 >= self.blocks_to_avg_price + 1 {
                     queue.pop_front();
                 }
             });

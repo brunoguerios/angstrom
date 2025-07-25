@@ -275,4 +275,15 @@ mod test {
 
         assert!(cancel.is_valid());
     }
+
+    #[test]
+    fn test_new_funcion() {
+        let wallet = AngstromSigner::random();
+        let order_id = alloy::primitives::b256!(
+            "0xbfef52d152545f5576f577dfe6f42984658c60ee39bdbbfa7d075d96d40a26c7"
+        );
+        let request = CancelOrderRequest::new(wallet.address(), order_id, &wallet);
+
+        assert!(request.is_valid())
+    }
 }
