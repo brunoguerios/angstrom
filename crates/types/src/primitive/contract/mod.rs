@@ -175,6 +175,7 @@ impl AngstromAddressConfig {
 pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
     let mut err = false;
     match chain_id {
+        // Mainnet
         1 => {
             err |= ANGSTROM_ADDRESS
                 .set(address!("0x0000000aa232009084Bd71A5797d089AA4Edfad4"))
@@ -202,6 +203,7 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
                 ))
                 .is_err();
         }
+        // Sepolia
         11155111 => {
             err |= ANGSTROM_ADDRESS
                 .set(address!("0x3B9172ef12bd245A07DA0d43dE29e09036626AFC"))
@@ -226,6 +228,78 @@ pub fn try_init_with_chain_id(chain_id: ChainId) -> eyre::Result<()> {
                     version: "v1",
                     chain_id: 11155111,
                     verifying_contract: address!("0x3B9172ef12bd245A07DA0d43dE29e09036626AFC"),
+                ))
+                .is_err();
+        }
+        // Unichain
+        130 => {
+            err |= ANGSTROM_ADDRESS.set(Address::ZERO).is_err();
+            err |= POSITION_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CONTROLLER_V1_ADDRESS.set(Address::ZERO).is_err();
+            err |= POOL_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CHAIN_ID.set(130).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(0).is_err();
+            err |= GAS_TOKEN_ADDRESS.set(Address::ZERO).is_err();
+            err |= ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 130,
+                    verifying_contract: Address::ZERO,
+                ))
+                .is_err();
+        }
+        // Unichain Sepolia
+        1301 => {
+            err |= ANGSTROM_ADDRESS.set(Address::ZERO).is_err();
+            err |= POSITION_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CONTROLLER_V1_ADDRESS.set(Address::ZERO).is_err();
+            err |= POOL_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CHAIN_ID.set(1301).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(0).is_err();
+            err |= GAS_TOKEN_ADDRESS.set(Address::ZERO).is_err();
+            err |= ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 1301,
+                    verifying_contract: Address::ZERO,
+                ))
+                .is_err();
+        }
+        // Base
+        8453 => {
+            err |= ANGSTROM_ADDRESS.set(Address::ZERO).is_err();
+            err |= POSITION_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CONTROLLER_V1_ADDRESS.set(Address::ZERO).is_err();
+            err |= POOL_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CHAIN_ID.set(8453).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(0).is_err();
+            err |= GAS_TOKEN_ADDRESS.set(Address::ZERO).is_err();
+            err |= ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 8453,
+                    verifying_contract: Address::ZERO,
+                ))
+                .is_err();
+        }
+        // Base Sepolia
+        84532 => {
+            err |= ANGSTROM_ADDRESS.set(Address::ZERO).is_err();
+            err |= POSITION_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CONTROLLER_V1_ADDRESS.set(Address::ZERO).is_err();
+            err |= POOL_MANAGER_ADDRESS.set(Address::ZERO).is_err();
+            err |= CHAIN_ID.set(84532).is_err();
+            err |= ANGSTROM_DEPLOYED_BLOCK.set(0).is_err();
+            err |= GAS_TOKEN_ADDRESS.set(Address::ZERO).is_err();
+            err |= ANGSTROM_DOMAIN
+                .set(alloy::sol_types::eip712_domain!(
+                    name: "Angstrom",
+                    version: "v1",
+                    chain_id: 84532,
+                    verifying_contract: Address::ZERO,
                 ))
                 .is_err();
         }
