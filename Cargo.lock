@@ -1098,7 +1098,7 @@ dependencies = [
  "chrono",
  "futures",
  "futures-util",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "pade",
  "rand 0.9.1",
  "reth-ethereum-primitives",
@@ -1149,7 +1149,7 @@ dependencies = [
  "eyre",
  "futures",
  "homedir",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "linked_hash_set",
  "once_cell",
  "order-pool",
@@ -1225,7 +1225,7 @@ dependencies = [
  "eyre",
  "futures",
  "hsm-signer",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "k256",
  "malachite",
  "pade",
@@ -2298,7 +2298,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.11.0",
  "lazy_static",
  "lazycell",
  "log",
@@ -2321,7 +2321,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -3077,7 +3077,7 @@ dependencies = [
  "dashmap 6.1.0",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "matching-engine",
  "order-pool",
  "rand 0.9.1",
@@ -3205,7 +3205,7 @@ dependencies = [
  "clap",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "pade",
  "reth",
@@ -5081,7 +5081,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.57.0",
 ]
 
 [[package]]
@@ -5540,15 +5540,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
@@ -5901,7 +5892,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.53.2",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -6226,7 +6217,7 @@ dependencies = [
  "eyre",
  "futures",
  "futures-util",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "pade",
  "pade-macro",
@@ -7046,11 +7037,13 @@ dependencies = [
 [[package]]
 name = "pade"
 version = "0.1.0"
-source = "git+https://github.com/SorellaLabs/pade#d19ce62486c7e9d33aa81fe560f03a4c6a3abce7"
+source = "git+https://github.com/SorellaLabs/pade#f4b0f250df24cbb739dddcb9ad505492acb7f39d"
 dependencies = [
  "alloy",
+ "alloy-sol-types",
  "bitvec",
  "bytes",
+ "getrandom 0.2.16",
  "pade-macro",
  "thiserror 1.0.69",
 ]
@@ -7058,9 +7051,9 @@ dependencies = [
 [[package]]
 name = "pade-macro"
 version = "0.1.0"
-source = "git+https://github.com/SorellaLabs/pade#d19ce62486c7e9d33aa81fe560f03a4c6a3abce7"
+source = "git+https://github.com/SorellaLabs/pade#f4b0f250df24cbb739dddcb9ad505492acb7f39d"
 dependencies = [
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.104",
@@ -11487,7 +11480,7 @@ dependencies = [
  "clap",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "reth",
  "serde",
@@ -12139,7 +12132,7 @@ dependencies = [
  "enr",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "matching-engine",
  "order-pool",
@@ -12195,7 +12188,7 @@ dependencies = [
  "enr",
  "eyre",
  "futures",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "jsonrpsee",
  "pade",
  "reth",
@@ -12919,7 +12912,7 @@ dependencies = [
  "futures",
  "futures-util",
  "hex",
- "itertools 0.14.0",
+ "itertools 0.11.0",
  "malachite",
  "pade",
  "pade-macro",
@@ -13396,7 +13389,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
