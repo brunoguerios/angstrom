@@ -148,7 +148,7 @@ where
 
                                 let conversion_rate = token_conversion
                                     .conversion_rate_of_pair(t0, t1)
-                                    .expect("no pair to convert");
+                                    .unwrap_or_default();
 
                                 let mut results = cloned_state
                                     .handle_tob_order(
