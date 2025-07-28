@@ -27,7 +27,7 @@ jobs:
           rustup toolchain install nightly
           rustup component add --toolchain nightly-x86_64-unknown-linux-gnu rustfmt
 
-      - name: cargo +nightly fmt
+      - name: Run formatting
         run: cargo +nightly fmt --all -- --check
 
   cargo-clippy:
@@ -52,8 +52,8 @@ jobs:
           shared-key: "rust-cache-v1"
           save-if: true
 
-      - name: cargo clippy --workspace --all-features
-        run: cargo clippy --workspace --all-features
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-features --profile debug-fast
 
   cargo-test-unit:
     name: cargo test (unit)
@@ -80,7 +80,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: Run unit tests
-        run: cargo nextest run --workspace --exclude testnet --retries 3 --no-tests=warn
+        run: cargo nextest run --workspace --exclude testnet --retries 3 --no-tests=warn --profile debug-fast
 
   cargo-test-integration:
     name: cargo test (integration)
@@ -107,7 +107,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: Run integration tests
-        run: cargo nextest run --package testnet --retries 1 --no-tests=warn
+        run: cargo nextest run --package testnet --retries 1 --no-tests=warn --profile debug-fast
 
   contracts:
     name: forge fmt && forge test
