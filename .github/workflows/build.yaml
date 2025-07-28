@@ -80,7 +80,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: Run unit tests
-        run: cargo nextest run --workspace --exclude testnet --retries 3 --no-tests=warn --profile debug-fast
+        run: cargo nextest run --workspace --exclude testnet --retries 3 --no-tests=warn --cargo-profile debug-fast
 
   cargo-test-integration:
     name: cargo test (integration)
@@ -107,7 +107,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: Run integration tests
-        run: cargo nextest run --package testnet --retries 1 --no-tests=warn --profile debug-fast
+        run: cargo nextest run --package testnet --retries 1 --no-tests=warn --cargo-profile debug-fast
 
   contracts:
     name: forge fmt && forge test
