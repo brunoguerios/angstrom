@@ -23,7 +23,8 @@ use reqwest::Url;
 use crate::{
     contract_bindings::angstrom::Angstrom,
     contract_payloads::angstrom::AngstromBundle,
-    primitive::{AngstromMetaSigner, AngstromSigner}
+    primitive::{ANGSTROM_ADDRESS, AngstromMetaSigner, AngstromSigner, CHAIN_ID},
+    submission::Angstrom::unlockWithEmptyAttestationCall
 };
 
 const DEFAULT_SUBMISSION_CONCURRENCY: usize = 10;
@@ -64,6 +65,33 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
             .with_nonce(tx_features.nonce)
             .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas)
             .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas)
+    }
+
+    fn build_and_sign_unlock<'a, S: AngstromMetaSigner>(
+        &'a self,
+        signer: &'a AngstromSigner<S>,
+        sig: Vec<u8>,
+        tx_features: &'a TxFeatureInfo
+    ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + 'a>> {
+        Box::pin(async move {
+            let unlock_call = unlockWithEmptyAttestationCall {
+                node:      signer.address(),
+                signature: sig.into()
+            };
+            // getting invalid signature
+            alloy::rpc::types::TransactionRequest::default()
+                .to(*ANGSTROM_ADDRESS.get().unwrap())
+                .with_from(signer.address())
+                .with_input(unlock_call.abi_encode())
+                .with_chain_id(*CHAIN_ID.get().unwrap())
+                .with_nonce(tx_features.nonce)
+                .gas_limit(100_000)
+                .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas)
+                .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas)
+                .build(&signer)
+                .await
+                .unwrap()
+        })
     }
 
     fn build_and_sign_tx_with_gas<'a, S: AngstromMetaSigner, F>(
