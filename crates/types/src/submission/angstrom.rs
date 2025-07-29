@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use alloy::{
     eips::Encodable2718,
-    network::TransactionBuilder,
+    network::{TransactionBuilder, TransactionResponse},
     primitives::Bytes,
     providers::{Provider, RootProvider},
     rpc::client::ClientBuilder
@@ -79,11 +79,14 @@ impl ChainSubmitter for AngstromSubmitter {
             } else {
                 let unlock_data =
                     AttestAngstromBlockEmpty::sign_and_encode(tx_features.target_block, signer);
-                AngstromIntegrationSubmission {
-                    tx: Bytes::new(),
-                    unlock_data,
-                    ..Default::default()
-                }
+                let unlock_sig = AttestAngstromBlockEmpty::sign(tx_features.target_block, signer);
+
+                let signed_tx = self
+                    .build_and_sign_unlock(signer, unlock_sig, tx_features)
+                    .await;
+                let tx_payload = Bytes::from(signed_tx.encoded_2718());
+
+                AngstromIntegrationSubmission { tx: tx_payload, unlock_data, ..Default::default() }
             };
 
             Ok(iter(self.clients.clone())
