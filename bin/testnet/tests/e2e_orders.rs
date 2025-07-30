@@ -1,11 +1,9 @@
 use std::{pin::Pin, sync::atomic::AtomicBool, time::Duration};
 
 use alloy::{consensus::BlockHeader, providers::Provider, sol_types::SolCall};
-use alloy_primitives::aliases::U24;
-use alloy_rpc_types::{BlockTransactionsKind, TransactionTrait};
+use alloy_rpc_types::TransactionTrait;
 use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::{
-    contract_bindings::{angstrom::Angstrom::configurePoolCall, controller_v_1::ControllerV1},
     contract_payloads::angstrom::AngstromBundle,
     primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig, ChainExt},
     sol_bindings::grouped_orders::AllOrders,
@@ -262,7 +260,7 @@ where
             .filter(|tx| tx.to() == Some(*ANGSTROM_ADDRESS.get().unwrap()))
             .filter_map(|tx| {
                 let calldata = tx.input().to_vec();
-                let mut slice = calldata.as_slice();
+                let slice = calldata.as_slice();
                 let bytes =
                     angstrom_types::contract_bindings::angstrom::Angstrom::executeCall::abi_decode(
                         slice
