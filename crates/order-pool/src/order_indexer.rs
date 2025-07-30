@@ -177,7 +177,9 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         // if the order has been canceled, we just notify the validation subscribers
         // that its a cancelled order
         if self.order_tracker.is_valid_cancel(&hash, order.from()) {
-            self.subscribers.notify_validation_subscribers(
+            // we only try to notify here as there is a condition where a cancel occurs
+            // while we are validating.
+            self.subscribers.try_notify_validation_subscribers(
                 &hash,
                 OrderValidationResults::Invalid {
                     hash,
