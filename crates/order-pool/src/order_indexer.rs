@@ -436,7 +436,9 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         // deal with filled orders
         self.filled_orders(block_number, &completed_orders);
 
-        //
+        // Given we retain cancelled tobs given we want to look them up
+        // if the cancel occured after consensus, we want to ensure
+        // we properly clear them out now that they are no longer needed.
         self.purge_tob();
 
         // deal with changed orders

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use alloy::{
     eips::Encodable2718,
-    network::{TransactionBuilder, TransactionResponse},
+    network::TransactionBuilder,
     primitives::Bytes,
     providers::{Provider, RootProvider},
     rpc::client::ClientBuilder

@@ -55,7 +55,12 @@ impl PendingPool {
 
     pub fn remove_all_cancelled_orders(&mut self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
         let mut res = vec![];
-        let ids = self.orders.keys().cloned().collect::<Vec<_>>();
+        let ids = self
+            .orders
+            .iter()
+            .filter(|(_, (is_cancelled, _))| *is_cancelled)
+            .map(|(key, _)| *key)
+            .collect::<Vec<_>>();
         for id in ids {
             if let Some(order) = self.remove_order(id) {
                 res.push(order);
