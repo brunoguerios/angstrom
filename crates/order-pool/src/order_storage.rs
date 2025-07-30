@@ -407,7 +407,13 @@ impl OrderStorage {
     pub fn get_all_orders_with_ingoing_tob_cancellations(
         &self
     ) -> OrderSet<AllOrders, TopOfBlockOrder> {
-        let limit = self.limit_orders.lock().expect("poisoned").get_all_orders();
+        // Given that this is used for generating the proposal, we also
+        // don't wanna ignore newly blocked orders.
+        let limit = self
+            .limit_orders
+            .lock()
+            .expect("poisoned")
+            .get_all_orders_with_parked();
         let searcher = self.all_top_tob_orders();
 
         OrderSet { limit, searcher }
