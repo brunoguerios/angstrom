@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::atomic::AtomicBool, time::Duration};
 
-use alloy::providers::Provider;
+use alloy::{consensus::BlockHeader, providers::Provider, sol_types::SolCall};
 use alloy_primitives::aliases::U24;
 use alloy_rpc_types::{BlockTransactionsKind, TransactionTrait};
 use angstrom_rpc::api::OrderApiClient;
