@@ -194,7 +194,7 @@ impl OrderTracker {
         self.insert_cancel_with_deadline(from, order_hash, Some(U256::from(deadline)));
     }
 
-    fn insert_cancel_with_deadline(
+    pub(crate) fn insert_cancel_with_deadline(
         &mut self,
         from: Address,
         order_hash: &B256,
@@ -218,6 +218,31 @@ impl OrderTracker {
     }
 
     pub fn cancel_order(
+        &mut self,
+        from: Address,
+        hash: B256,
+        storage: &OrderStorage
+    ) -> Option<(bool, PoolId)> {
+        self.order_hash_to_order_id
+            .remove(&hash)
+            .and_then(|v| storage.cancel_order(&v))
+            .map(|order| {
+                self.order_hash_to_order_id.remove(&order.order_hash());
+                self.order_hash_to_peer_id.remove(&order.order_hash());
+                self.insert_cancel_with_deadline(order.from(), &hash, order.deadline());
+
+                (order.is_tob(), order.pool_id)
+            })
+            .or_else(|| {
+                // in the case we haven't index the order yet, we are going to add it
+                // in the cancel to register
+                self.cancel_with_next_block_deadline(from, &hash);
+
+                None
+            })
+    }
+
+    pub fn cancel_tob_orders(
         &mut self,
         from: Address,
         hash: B256,

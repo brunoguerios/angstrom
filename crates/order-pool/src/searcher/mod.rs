@@ -78,12 +78,16 @@ impl SearcherPool {
     }
 
     pub fn cancel_order(&mut self, id: &OrderId) {
+        if let Some(pool) = self.searcher_orders.get_mut(&id.pool_id) {
+            pool.cancel_order(id.hash);
+        }
+    }
+
+    pub fn remove_all_cancelled_orders(&mut self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
         self.searcher_orders
-            .get_mut(&id.pool_id)
-            .and_then(|pool| pool.remove_order(id.hash))
-            .owned_map(|| {
-                self.metrics.decr_all_orders(id.pool_id, 1);
-            })
+            .values_mut()
+            .flat_map(|pool| pool.remove_all_cancelled_orders())
+            .collect()
     }
 
     pub fn remove_order(&mut self, id: &OrderId) -> Option<OrderWithStorageData<TopOfBlockOrder>> {
@@ -114,7 +118,7 @@ impl SearcherPool {
     ) -> Option<Vec<OrderWithStorageData<TopOfBlockOrder>>> {
         self.searcher_orders
             .get(pool_id)
-            .map(|pool| pool.get_all_orders())
+            .map(|pool| pool.get_all_orders_with_cancelled())
     }
 
     pub fn get_orders_for_pool_with_hashes(

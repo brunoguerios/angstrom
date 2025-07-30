@@ -47,9 +47,22 @@ impl PendingPool {
     }
 
     pub fn cancel_order(&mut self, id: FixedBytes<32>) {
-        if let Some((canceled, _)) = self.orders.get_mut(&id) {
+        if let Some((canceled, order)) = self.orders.get_mut(&id) {
+            tracing::info!(?order, "canceled tob order");
             *canceled = true;
         }
+    }
+
+    pub fn remove_all_cancelled_orders(&mut self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
+        let mut res = vec![];
+        let ids = self.orders.keys().cloned().collect::<Vec<_>>();
+        for id in ids {
+            if let Some(order) = self.remove_order(id) {
+                res.push(order);
+            }
+        }
+
+        res
     }
 
     pub fn remove_order(

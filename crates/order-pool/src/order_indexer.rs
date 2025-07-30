@@ -406,6 +406,23 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .on_new_block(block_number, completed_orders, address_changes);
     }
 
+    // given that we cant acutally remove top
+    pub fn purge_tob(&mut self) {
+        for order in self.order_storage.purge_tob_orders() {
+            self.order_tracker
+                .order_hash_to_order_id
+                .remove(&order.order_hash());
+            self.order_tracker
+                .order_hash_to_peer_id
+                .remove(&order.order_hash());
+            self.order_tracker.insert_cancel_with_deadline(
+                order.from(),
+                &order.order_hash(),
+                order.deadline()
+            );
+        }
+    }
+
     fn finish_new_block_processing(
         &mut self,
         block_number: BlockNumber,
@@ -418,6 +435,10 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.order_tracker.clear_invalid();
         // deal with filled orders
         self.filled_orders(block_number, &completed_orders);
+
+        //
+        self.purge_tob();
+
         // deal with changed orders
         self.eoa_state_change(&address_changes);
         // add expired orders to completed
