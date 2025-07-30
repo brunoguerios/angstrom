@@ -375,6 +375,14 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         }
     }
 
+    /// This should only be used when building the Proposal. This is because
+    /// we want to ignore cancelled orders as if the cancellation happend after
+    /// consensus closed. we ignore these.
+    pub fn get_all_orders_with_cancelled(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
+        self.order_storage
+            .get_all_orders_with_ingoing_tob_cancellations()
+    }
+
     pub fn get_all_orders_with_parked(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
         self.order_storage.get_all_orders_with_parked()
     }

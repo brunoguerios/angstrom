@@ -237,6 +237,18 @@ impl OrderStorage {
             });
     }
 
+    pub fn all_top_tob_orders(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
+        let searcher_orders = self.searcher_orders.lock().expect("lock poisoned");
+        searcher_orders
+            .get_all_pool_ids()
+            .flat_map(|pool_id| {
+                searcher_orders
+                    .get_orders_for_pool_including_canceled(&pool_id)
+                    .unwrap_or_else(|| panic!("pool {pool_id} does not exist"))
+            })
+            .collect()
+    }
+
     pub fn top_tob_orders(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
         let searcher_orders = self.searcher_orders.lock().expect("lock poisoned");
 
@@ -386,6 +398,15 @@ impl OrderStorage {
                     self.metrics.decr_composable_limit_orders(1);
                 }
             })
+    }
+
+    pub fn get_all_orders_with_ignoing_tob_cancelations(
+        &self
+    ) -> OrderSet<AllOrders, TopOfBlockOrder> {
+        let limit = self.limit_orders.lock().expect("poisoned").get_all_orders();
+        let searcher = self.top_tob_orders();
+
+        OrderSet { limit, searcher }
     }
 
     pub fn get_all_orders(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
