@@ -252,7 +252,6 @@ impl OrderTracker {
             .remove(&hash)
             .and_then(|v| storage.cancel_order(&v))
             .map(|order| {
-                tracing::info!(?order, "canceled order");
                 self.order_hash_to_order_id.remove(&order.order_hash());
                 self.order_hash_to_peer_id.remove(&order.order_hash());
                 self.insert_cancel_with_deadline(order.from(), &hash, order.deadline());
