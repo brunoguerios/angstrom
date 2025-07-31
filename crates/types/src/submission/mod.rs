@@ -87,7 +87,8 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
                 .with_nonce(tx_features.nonce)
                 .gas_limit(100_000)
                 .with_max_fee_per_gas(tx_features.fees.max_fee_per_gas)
-                .with_max_priority_fee_per_gas(tx_features.fees.max_priority_fee_per_gas)
+                // We can put zero here as this is only for angstrom integrators.
+                .with_max_priority_fee_per_gas(0)
                 .build(&signer)
                 .await
                 .unwrap()

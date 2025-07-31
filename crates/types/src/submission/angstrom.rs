@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use alloy::{
     eips::Encodable2718,
-    network::{TransactionBuilder, TransactionResponse},
+    network::TransactionBuilder,
     primitives::Bytes,
     providers::{Provider, RootProvider},
     rpc::client::ClientBuilder
@@ -64,6 +64,8 @@ impl ChainSubmitter for AngstromSubmitter {
                     .unwrap_or(bundle.crude_gas_estimation())
                     + EXTRA_GAS_LIMIT;
                 tx = tx.with_gas_limit(gas_used);
+                // Angstrom integrators have max priority gas set to 0.
+                tx.set_max_priority_fee_per_gas(0);
 
                 let gas = tx.max_priority_fee_per_gas.unwrap();
                 // TODO: manipulate gas before signing based of off defined rebate spec.
