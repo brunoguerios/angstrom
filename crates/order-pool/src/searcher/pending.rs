@@ -77,9 +77,9 @@ impl PendingPool {
         let order = self.orders.remove(&id)?.1;
 
         if order.is_bid {
-            self.bids.remove(&Reverse(order.priority_data))?;
+            let _ = self.bids.remove(&Reverse(order.priority_data));
         } else {
-            self.asks.remove(&order.priority_data)?;
+            let _ = self.asks.remove(&order.priority_data);
         }
 
         // probably fine to strip extra data here
