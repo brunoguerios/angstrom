@@ -177,7 +177,9 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         // if the order has been canceled, we just notify the validation subscribers
         // that its a cancelled order
         if self.order_tracker.is_valid_cancel(&hash, order.from()) {
-            self.subscribers.notify_validation_subscribers(
+            // we only try to notify here as there is a condition where a cancel occurs
+            // while we are validating.
+            self.subscribers.try_notify_validation_subscribers(
                 &hash,
                 OrderValidationResults::Invalid {
                     hash,
@@ -373,6 +375,14 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         }
     }
 
+    /// This should only be used when building the Proposal. This is because
+    /// we want to ignore cancelled orders as if the cancellation happend after
+    /// consensus closed. we ignore these.
+    pub fn get_all_orders_with_cancelled(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
+        self.order_storage
+            .get_all_orders_with_ingoing_tob_cancellations()
+    }
+
     pub fn get_all_orders_with_parked(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
         self.order_storage.get_all_orders_with_parked()
     }
@@ -396,6 +406,23 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .on_new_block(block_number, completed_orders, address_changes);
     }
 
+    // given that we cant acutally remove top
+    pub fn purge_tob(&mut self) {
+        for order in self.order_storage.purge_tob_orders() {
+            self.order_tracker
+                .order_hash_to_order_id
+                .remove(&order.order_hash());
+            self.order_tracker
+                .order_hash_to_peer_id
+                .remove(&order.order_hash());
+            self.order_tracker.insert_cancel_with_deadline(
+                order.from(),
+                &order.order_hash(),
+                order.deadline()
+            );
+        }
+    }
+
     fn finish_new_block_processing(
         &mut self,
         block_number: BlockNumber,
@@ -408,6 +435,12 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         self.order_tracker.clear_invalid();
         // deal with filled orders
         self.filled_orders(block_number, &completed_orders);
+
+        // Given we retain cancelled tobs given we want to look them up
+        // if the cancel occured after consensus, we want to ensure
+        // we properly clear them out now that they are no longer needed.
+        self.purge_tob();
+
         // deal with changed orders
         self.eoa_state_change(&address_changes);
         // add expired orders to completed

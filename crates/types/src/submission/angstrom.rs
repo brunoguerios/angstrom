@@ -64,6 +64,8 @@ impl ChainSubmitter for AngstromSubmitter {
                     .unwrap_or(bundle.crude_gas_estimation())
                     + EXTRA_GAS_LIMIT;
                 tx = tx.with_gas_limit(gas_used);
+                // Angstrom integrators have max priority gas set to 0.
+                tx.set_max_priority_fee_per_gas(0);
 
                 let gas = tx.max_priority_fee_per_gas.unwrap();
                 // TODO: manipulate gas before signing based of off defined rebate spec.
@@ -79,11 +81,14 @@ impl ChainSubmitter for AngstromSubmitter {
             } else {
                 let unlock_data =
                     AttestAngstromBlockEmpty::sign_and_encode(tx_features.target_block, signer);
-                AngstromIntegrationSubmission {
-                    tx: Bytes::new(),
-                    unlock_data,
-                    ..Default::default()
-                }
+                let unlock_sig = AttestAngstromBlockEmpty::sign(tx_features.target_block, signer);
+
+                let signed_tx = self
+                    .build_and_sign_unlock(signer, unlock_sig, tx_features)
+                    .await;
+                let tx_payload = Bytes::from(signed_tx.encoded_2718());
+
+                AngstromIntegrationSubmission { tx: tx_payload, unlock_data, ..Default::default() }
             };
 
             Ok(iter(self.clients.clone())

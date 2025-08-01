@@ -17,7 +17,7 @@ pub struct PendingPool {
     /// all order hashes
 
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-    orders: HashMap<FixedBytes<32>, OrderWithStorageData<TopOfBlockOrder>>,
+    orders: HashMap<FixedBytes<32>, (bool, OrderWithStorageData<TopOfBlockOrder>)>,
     /// bids are sorted descending by price,
     #[serde_as(as = "Vec<(_, _)>")]
     bids:   BTreeMap<Reverse<OrderPriorityData>, FixedBytes<32>>,
@@ -33,7 +33,7 @@ impl PendingPool {
     }
 
     pub fn get_order(&self, id: FixedBytes<32>) -> Option<OrderWithStorageData<TopOfBlockOrder>> {
-        self.orders.get(&id).cloned()
+        self.orders.get(&id).cloned().map(|order| order.1)
     }
 
     pub fn add_order(&mut self, order: OrderWithStorageData<TopOfBlockOrder>) {
@@ -43,19 +43,43 @@ impl PendingPool {
         } else {
             self.asks.insert(order.priority_data, order.order_id.hash);
         }
-        self.orders.insert(order.order_id.hash, order);
+        self.orders.insert(order.order_id.hash, (false, order));
+    }
+
+    pub fn cancel_order(&mut self, id: FixedBytes<32>) {
+        if let Some((canceled, order)) = self.orders.get_mut(&id) {
+            tracing::info!(?order, "canceled tob order");
+            *canceled = true;
+        }
+    }
+
+    pub fn remove_all_cancelled_orders(&mut self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
+        let mut res = vec![];
+        let ids = self
+            .orders
+            .iter()
+            .filter(|(_, (is_cancelled, _))| *is_cancelled)
+            .map(|(key, _)| *key)
+            .collect::<Vec<_>>();
+        for id in ids {
+            if let Some(order) = self.remove_order(id) {
+                res.push(order);
+            }
+        }
+
+        res
     }
 
     pub fn remove_order(
         &mut self,
         id: FixedBytes<32>
     ) -> Option<OrderWithStorageData<TopOfBlockOrder>> {
-        let order = self.orders.remove(&id)?;
+        let order = self.orders.remove(&id)?.1;
 
         if order.is_bid {
-            self.bids.remove(&Reverse(order.priority_data))?;
+            let _ = self.bids.remove(&Reverse(order.priority_data));
         } else {
-            self.asks.remove(&order.priority_data)?;
+            let _ = self.asks.remove(&order.priority_data);
         }
 
         // probably fine to strip extra data here
@@ -63,7 +87,16 @@ impl PendingPool {
     }
 
     pub fn get_all_orders(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
-        self.orders.values().cloned().collect()
+        self.orders
+            .values()
+            .filter(|(is_cancelled, _)| !is_cancelled)
+            .cloned()
+            .map(|order| order.1)
+            .collect()
+    }
+
+    pub fn get_all_orders_with_cancelled(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
+        self.orders.values().cloned().map(|order| order.1).collect()
     }
 
     pub fn get_all_orders_with_hashes(
@@ -72,7 +105,7 @@ impl PendingPool {
     ) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
         self.orders
             .values()
-            .filter_map(|order| hashes.contains(&order.order_id.hash).then_some(order))
+            .filter_map(|(_, order)| hashes.contains(&order.order_id.hash).then_some(order))
             .cloned()
             .collect()
     }
