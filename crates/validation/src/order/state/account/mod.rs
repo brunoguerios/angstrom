@@ -219,7 +219,7 @@ pub mod tests {
 
     use alloy::primitives::{Address, U256};
     use angstrom_types::{
-        primitive::{AngstromSigner, PoolId},
+        primitive::{AngstromAddressConfig, AngstromSigner, PoolId},
         sol_bindings::RawPoolOrder
     };
     use testing_tools::type_generator::orders::UserOrderBuilder;
@@ -245,6 +245,7 @@ pub mod tests {
 
     fn setup_test_account_processor() -> UserAccountProcessor<MockFetch> {
         init_tracing();
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
         UserAccountProcessor {
             user_accounts: UserAccounts::new(),
             fetch_utils:   MockFetch::default()

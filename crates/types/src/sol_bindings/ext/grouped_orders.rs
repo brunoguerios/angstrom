@@ -208,12 +208,6 @@ impl AllOrders {
         if self.is_bid() { self.price().inv_ray_round(true) } else { self.price() }
     }
 
-    /// Provides a price that, post fee scaling, will be equal to this price.
-    /// Used for matching.
-    pub fn pre_fee_price(&self, fee: u128) -> Ray {
-        self.price().unscale_to_fee(fee)
-    }
-
     pub fn pre_fee_and_gas_price(&self, fee: u128, gas_t0: u128) -> Ray {
         let price = self.price().unscale_to_fee(fee);
 
