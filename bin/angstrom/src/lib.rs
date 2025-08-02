@@ -61,6 +61,7 @@ pub fn run() -> eyre::Result<()> {
         }
 
         if args.metrics_enabled {
+            executor.spawn_critical("metrics", crate::cli::init_metrics(args.metrics_port));
             METRICS_ENABLED.set(true).unwrap();
         } else {
             METRICS_ENABLED.set(false).unwrap();
