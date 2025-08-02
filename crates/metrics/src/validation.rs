@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, time::Instant};
+use std::{future::Future, pin::Pin, sync::OnceLock, time::Instant};
 
 use prometheus::{Histogram, HistogramVec, IntGauge};
 
@@ -181,6 +181,8 @@ impl ValidationMetricsInner {
     }
 }
 
+static METRICS_INSTANCE: OnceLock<ValidationMetrics> = OnceLock::new();
+
 #[derive(Clone)]
 pub struct ValidationMetrics(Option<ValidationMetricsInner>);
 
@@ -210,13 +212,17 @@ impl ValidationMetrics {
     delegate_metric!(eth_transition_updates, simulate_bundle, loading_approvals, loading_balances);
 
     pub fn new() -> Self {
-        Self(
-            METRICS_ENABLED
-                .get()
-                .copied()
-                .unwrap_or_default()
-                .then(ValidationMetricsInner::default)
-        )
+        METRICS_INSTANCE
+            .get_or_init(|| {
+                Self(
+                    METRICS_ENABLED
+                        .get()
+                        .copied()
+                        .unwrap_or_default()
+                        .then(ValidationMetricsInner::default)
+                )
+            })
+            .clone()
     }
 
     pub async fn applying_state_transitions<T>(&self, f: impl AsyncFnOnce() -> T) -> T {

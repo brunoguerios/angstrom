@@ -10,7 +10,7 @@ use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
 #[derive(Debug, Clone, Default, clap::Args)]
 pub struct AngstromConfig {
     /// enables the metrics
-    #[clap(long, default_value = "false", global = true)]
+    #[clap(long, default_value = "true", global = true)]
     pub metrics_enabled:           bool,
     /// spawns the prometheus metrics exporter at the specified port
     /// Default: 6969
