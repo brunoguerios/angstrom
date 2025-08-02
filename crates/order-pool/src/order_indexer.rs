@@ -179,7 +179,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         if self.order_tracker.is_valid_cancel(&hash, order.from()) {
             // we only try to notify here as there is a condition where a cancel occurs
             // while we are validating.
-            self.subscribers.try_notify_validation_subscribers(
+            self.subscribers.notify_validation_subscribers(
                 &hash,
                 OrderValidationResults::Invalid {
                     hash,
@@ -274,7 +274,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                 self.order_tracker.stop_validating(&hash);
 
                 if valid.valid_block != self.block_number {
-                    self.subscribers.notify_validation_subscribers(
+                    self.subscribers.try_notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Invalid {
                             hash,
@@ -291,7 +291,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
 
                 // check to see if the transaction is parked.
                 if let Some(ref error) = valid.is_currently_valid {
-                    self.subscribers.notify_validation_subscribers(
+                    self.subscribers.try_notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Invalid {
                             hash,
@@ -301,7 +301,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
                         }
                     );
                 } else {
-                    self.subscribers.notify_validation_subscribers(
+                    self.subscribers.try_notify_validation_subscribers(
                         &hash,
                         OrderValidationResults::Valid(valid.clone())
                     );
@@ -337,7 +337,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             }
             this @ OrderValidationResults::Invalid { hash, .. } => {
                 self.order_tracker.stop_validating(&hash);
-                self.subscribers.notify_validation_subscribers(&hash, this);
+                self.subscribers
+                    .try_notify_validation_subscribers(&hash, this);
                 self.order_storage.remove_invalid_order(hash);
                 let peers = self.order_tracker.invalid_verification(hash);
                 Ok(PoolInnerEvent::BadOrderMessages(peers))
