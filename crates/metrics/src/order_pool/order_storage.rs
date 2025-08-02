@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use prometheus::IntGauge;
 
 use crate::METRICS_ENABLED;
@@ -122,6 +124,8 @@ impl OrderStorageMetrics {
     }
 }
 
+static METRICS_INSTANCE: OnceLock<OrderStorageMetricsWrapper> = OnceLock::new();
+
 #[derive(Debug, Clone)]
 pub struct OrderStorageMetricsWrapper(Option<OrderStorageMetrics>);
 
@@ -137,13 +141,17 @@ impl OrderStorageMetricsWrapper {
     }
 
     pub fn new() -> Self {
-        Self(
-            METRICS_ENABLED
-                .get()
-                .copied()
-                .unwrap_or_default()
-                .then(OrderStorageMetrics::default)
-        )
+        METRICS_INSTANCE
+            .get_or_init(|| {
+                Self(
+                    METRICS_ENABLED
+                        .get()
+                        .copied()
+                        .unwrap_or_default()
+                        .then(OrderStorageMetrics::default)
+                )
+            })
+            .clone()
     }
 
     pub fn incr_vanilla_limit_orders(&self, count: usize) {
