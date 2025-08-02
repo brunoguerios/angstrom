@@ -181,12 +181,12 @@ impl<'a> DeltaMatcher<'a> {
         self.book
             .bids()
             .iter()
-            .filter(|o| price <= o.pre_fee_price(self.fee).inv_ray_round(false))
+            .filter(|o| price <= o.pre_fee_and_gas_price(self.fee).inv_ray_round(false))
             .chain(
                 self.book
                     .asks()
                     .iter()
-                    .filter(|o| price >= o.pre_fee_price(self.fee))
+                    .filter(|o| price >= o.pre_fee_and_gas_price(self.fee))
             )
             .filter(|o| !killed.contains(&o.order_id))
             .for_each(|o| {
