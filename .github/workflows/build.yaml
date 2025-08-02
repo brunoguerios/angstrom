@@ -104,6 +104,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-test
