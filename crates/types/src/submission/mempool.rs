@@ -72,7 +72,7 @@ impl ChainSubmitter for MempoolSubmitter {
                         .send_raw_transaction(&encoded_tx)
                         .await
                         .inspect_err(|e| {
-                            tracing::info!(url=?url, err=?e, "failed to send mempool tx");
+                            tracing::info!(url=%url.as_str(), err=%e, "failed to send mempool tx");
                         })
                 })
                 .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)

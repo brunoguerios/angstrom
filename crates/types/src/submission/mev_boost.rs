@@ -97,7 +97,7 @@ impl ChainSubmitter for MevBoostSubmitter {
                         )
                         .await
                         .inspect_err(|e| {
-                            tracing::warn!(err=?e, "failed to submit to mev-boost");
+                            tracing::warn!(err=%e, "failed to submit to mev-boost");
                         })
                 })
                 .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)
