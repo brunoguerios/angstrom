@@ -166,6 +166,7 @@ reth-network-api = { git = "https://github.com/paradigmxyz/reth", version = "1.6
 reth-network-peers = { git = "https://github.com/paradigmxyz/reth", version = "1.6.0", tag = "v1.6.0" }
 reth-node-builder = { git = "https://github.com/paradigmxyz/reth", version = "1.6.0", tag = "v1.6.0" }
 reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", version = "1.6.0", tag = "v1.6.0" }
+reth-node-metrics = { git = "https://github.com/paradigmxyz/reth", version = "1.6.0", tag = "v1.6.0" }
 reth-node-types = { git = "https://github.com/paradigmxyz/reth", version = "1.6.0", tag = "v1.6.0" }
 reth-payload-builder = { git = "https://github.com/paradigmxyz/reth", version = "1.6.0", tag = "v1.6.0" }
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", version = "1.6.0", tag = "v1.6.0", default-features = false }
