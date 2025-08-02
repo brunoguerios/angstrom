@@ -186,14 +186,12 @@ where
             return;
         }
 
-        if let StromConsensusEvent::BundleUnlockAttestation(addr, block, bytes) = &event {
+        if let StromConsensusEvent::BundleUnlockAttestation(_, block, bytes) = &event {
             // verify is correct
             if AttestAngstromBlockEmpty::is_valid_attestation(block + 1, bytes) {
                 let data =
                     ConsensusDataWithBlock { data: bytes.clone(), block: self.current_height };
                 self.subscribers.subscription_send_attestations(data);
-            } else {
-                tracing::warn!(?addr, "got invalid bundle unlock attestation from");
             }
         }
 

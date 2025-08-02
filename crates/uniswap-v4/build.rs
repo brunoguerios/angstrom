@@ -48,7 +48,7 @@ fn main() {
     };
     let res = res.wait().unwrap();
 
-    let _ = std::fs::read_dir(&out_dir)
+    std::fs::read_dir(&out_dir)
         .unwrap()
         .filter_map(|entry| entry.ok())
         .filter(|entry| {

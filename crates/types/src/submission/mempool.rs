@@ -56,9 +56,6 @@ impl ChainSubmitter for MempoolSubmitter {
                     let gas = client
                         .estimate_gas(tx.clone())
                         .await
-                        .inspect_err(|e| {
-                            tracing::error!(err=%e, "failed to query gas");
-                        })
                         .unwrap_or(bundle.crude_gas_estimation())
                         + EXTRA_GAS_LIMIT;
                     tx.with_gas_limit(gas)
@@ -75,7 +72,7 @@ impl ChainSubmitter for MempoolSubmitter {
                         .send_raw_transaction(&encoded_tx)
                         .await
                         .inspect_err(|e| {
-                            tracing::warn!(url=?url, err=?e, "failed to send mempool tx");
+                            tracing::info!(url=?url, err=?e, "failed to send mempool tx");
                         })
                 })
                 .buffer_unordered(DEFAULT_SUBMISSION_CONCURRENCY)

@@ -72,9 +72,6 @@ impl ChainSubmitter for MevBoostSubmitter {
                     let gas = client
                         .estimate_gas(tx.clone())
                         .await
-                        .inspect_err(|e| {
-                            tracing::error!(err=%e, "failed to query gas");
-                        })
                         .unwrap_or(bundle.crude_gas_estimation())
                         + EXTRA_GAS_LIMIT;
 
