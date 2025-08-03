@@ -62,9 +62,7 @@ async fn start_endpoint<F: Hook + 'static>(
             let h_clone = handle.clone();
             let service = tower::service_fn(move |_| {
                 (hook)();
-                h_clone.run_upkeep();
-
-                let mut metrics_render = h_clone.render();
+                let mut metrics_render = String::new();
 
                 let mut buffer = Vec::new();
                 let encoder = TextEncoder::new();
@@ -72,7 +70,6 @@ async fn start_endpoint<F: Hook + 'static>(
                 let metric_families = prometheus::gather();
                 // Encode them to send.
                 encoder.encode(&metric_families, &mut buffer).unwrap();
-                metrics_render += &String::from_utf8(buffer.clone()).unwrap();
 
                 let mut response = Response::new(metrics_render);
 
