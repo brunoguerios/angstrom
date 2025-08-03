@@ -225,6 +225,10 @@ impl ValidationMetrics {
             .clone();
         println!("validation metrics: {}", this.0.is_some());
 
+        this.loading_approvals(|| {
+            println!("balls");
+        });
+
         this
     }
 
