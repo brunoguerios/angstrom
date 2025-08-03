@@ -13,6 +13,7 @@ use hyper::{
 #[allow(unused_imports)]
 use metrics::Unit;
 use metrics_exporter_prometheus::PrometheusHandle;
+use prometheus::{Encoder, TextEncoder};
 use reth_node_metrics::recorder::install_prometheus_recorder;
 
 pub(crate) trait Hook: Fn() + Send + Sync {}
@@ -62,8 +63,19 @@ async fn start_endpoint<F: Hook + 'static>(
             let service = tower::service_fn(move |_| {
                 (hook)();
                 h_clone.run_upkeep();
-                let metrics = h_clone.render();
-                let mut response = Response::new(metrics);
+
+                let mut metrics_render = h_clone.render();
+
+                let mut buffer = Vec::new();
+                let encoder = TextEncoder::new();
+                // Gather the metrics.
+                let metric_families = prometheus::gather();
+                // Encode them to send.
+                encoder.encode(&metric_families, &mut buffer).unwrap();
+                metrics_render += &String::from_utf8(buffer.clone()).unwrap();
+
+                let mut response = Response::new(metrics_render);
+
                 response
                     .headers_mut()
                     .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
