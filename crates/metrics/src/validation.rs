@@ -12,11 +12,13 @@ struct ValidationMetricsInner {
     eth_transition_updates:     Histogram,
     /// doesn't include the time waiting in the pending verification queue
     processing_time:            HistogramVec,
+    v4_sim:                     Histogram,
     // simulation
     simulate_bundle:            Histogram,
     fetch_gas_for_user:         HistogramVec,
     // state
     loading_balances:           Histogram,
+    loading_angstrom_balances:  Histogram,
     loading_approvals:          Histogram,
     applying_state_transitions: Histogram
 }
@@ -60,6 +62,13 @@ impl Default for ValidationMetricsInner {
         )
         .unwrap();
 
+        let v4_sim = prometheus::register_histogram!(
+            "ang_v4_sim_validation",
+            "how long we take to simulate a v4 swap",
+            buckets.clone()
+        )
+        .unwrap();
+
         let fetch_gas_for_user = prometheus::register_histogram_vec!(
             "ang_fetch_user_gas_speed",
             "time to calculate how much gas a user needs to pay",
@@ -71,6 +80,13 @@ impl Default for ValidationMetricsInner {
         let loading_balances = prometheus::register_histogram!(
             "ang_loading_balance_time",
             "time to load balanace from db",
+            buckets.clone()
+        )
+        .unwrap();
+
+        let loading_angstrom_balances = prometheus::register_histogram!(
+            "ang_loading_angstrom_balances",
+            "time to load angstrom balanace from db",
             buckets.clone()
         )
         .unwrap();
@@ -90,6 +106,8 @@ impl Default for ValidationMetricsInner {
         .unwrap();
 
         Self {
+            v4_sim,
+            loading_angstrom_balances,
             pending_verification,
             verification_wait_time,
             eth_transition_updates,
@@ -108,9 +126,8 @@ macro_rules! default_time_metric {
             fn $name<T>(&self, f: impl FnOnce() ->T) -> T {
                 let start = Instant::now();
                 let r = f();
-                let elapsed = start.elapsed().as_nanos() as f64;
+                let elapsed = start.elapsed().as_micros() as f64;
                 self.$name.observe(elapsed);
-                tracing::info!("observed {}", stringify!($name));
 
                 r
             }
@@ -123,14 +140,24 @@ impl ValidationMetricsInner {
         eth_transition_updates,
         simulate_bundle,
         loading_approvals,
-        loading_balances
+        loading_balances,
+        loading_angstrom_balances
     );
 
     async fn applying_state_transitions<T>(&self, f: impl AsyncFnOnce() -> T) -> T {
         let start = Instant::now();
         let r = f().await;
-        let elapsed = start.elapsed().as_nanos() as f64;
+        let elapsed = start.elapsed().as_micros() as f64;
         self.applying_state_transitions.observe(elapsed);
+
+        r
+    }
+
+    async fn v4_sim<T>(&self, f: impl AsyncFnOnce() -> T) -> T {
+        let start = Instant::now();
+        let r = f().await;
+        let elapsed = start.elapsed().as_micros() as f64;
+        self.v4_sim.observe(elapsed);
 
         r
     }
@@ -150,7 +177,7 @@ impl ValidationMetricsInner {
         self.inc_pending();
         let start = Instant::now();
         let r = f().await;
-        let elapsed = start.elapsed().as_nanos() as f64;
+        let elapsed = start.elapsed().as_micros() as f64;
         self.verification_wait_time.observe(elapsed);
         self.dec_pending();
 
@@ -175,7 +202,7 @@ impl ValidationMetricsInner {
     {
         let start = Instant::now();
         f().await;
-        let elapsed = start.elapsed().as_nanos() as f64;
+        let elapsed = start.elapsed().as_micros() as f64;
         self.processing_time
             .with_label_values(&[if is_searcher { "searcher" } else { "limit" }])
             .observe(elapsed);
@@ -210,10 +237,16 @@ impl Default for ValidationMetrics {
 }
 
 impl ValidationMetrics {
-    delegate_metric!(eth_transition_updates, simulate_bundle, loading_approvals, loading_balances);
+    delegate_metric!(
+        eth_transition_updates,
+        simulate_bundle,
+        loading_approvals,
+        loading_balances,
+        loading_angstrom_balances
+    );
 
     pub fn new() -> Self {
-        let this = METRICS_INSTANCE
+        METRICS_INSTANCE
             .get_or_init(|| {
                 Self(
                     METRICS_ENABLED
@@ -223,14 +256,7 @@ impl ValidationMetrics {
                         .then(ValidationMetricsInner::default)
                 )
             })
-            .clone();
-        println!("validation metrics: {}", this.0.is_some());
-
-        this.loading_approvals(|| {
-            println!("balls");
-        });
-
-        this
+            .clone()
     }
 
     pub async fn applying_state_transitions<T>(&self, f: impl AsyncFnOnce() -> T) -> T {
@@ -247,6 +273,14 @@ impl ValidationMetrics {
     ) -> T {
         if let Some(inner) = self.0.as_ref() {
             return inner.handle_pending(f).await;
+        }
+
+        f().await
+    }
+
+    pub async fn v4_sim<T>(&self, f: impl AsyncFnOnce() -> T) -> T {
+        if let Some(inner) = self.0.as_ref() {
+            return inner.v4_sim(f).await;
         }
 
         f().await

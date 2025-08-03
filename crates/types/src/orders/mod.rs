@@ -1,15 +1,10 @@
 mod fillstate;
 mod origin;
-use alloy::{
-    network::Ethereum,
-    primitives::{Address, B256, Signature},
-    providers::{Provider, ProviderBuilder}
-};
+use alloy::primitives::{Address, B256, Signature};
 pub mod orderpool;
 
 use alloy_primitives::{Bytes, I256};
 pub use fillstate::*;
-use futures::stream::FuturesUnordered;
 pub use orderpool::*;
 pub use origin::*;
 use pade::{PadeDecode, PadeEncode};
