@@ -69,7 +69,7 @@ impl OrderStorage {
             pending_finalization_orders,
             searcher_orders,
             filled_orders,
-            metrics: OrderStorageMetricsWrapper::empty()
+            metrics: OrderStorageMetricsWrapper::new()
         }
     }
 

@@ -25,43 +25,43 @@ struct OrderStorageMetrics {
 impl Default for OrderStorageMetrics {
     fn default() -> Self {
         let vanilla_limit_orders = prometheus::register_int_gauge!(
-            "order_storage_vanilla_limit_orders",
+            "ang_order_storage_vanilla_limit_orders",
             "number of vanilla limit orders",
         )
         .unwrap();
 
         let composable_limit_orders = prometheus::register_int_gauge!(
-            "order_storage_composable_limit_orders",
+            "ang_order_storage_composable_limit_orders",
             "number of composable limit orders",
         )
         .unwrap();
 
         let searcher_orders = prometheus::register_int_gauge!(
-            "order_storage_searcher_orders",
+            "ang_order_storage_searcher_orders",
             "number of searcher orders",
         )
         .unwrap();
 
         let pending_finalization_orders = prometheus::register_int_gauge!(
-            "order_storage_pending_finalization_orders",
+            "ang_order_storage_pending_finalization_orders",
             "number of pending finalization orders",
         )
         .unwrap();
 
         let cancelled_vanilla_orders = prometheus::register_int_gauge!(
-            "order_storage_cancelled_vanilla_orders",
+            "ang_order_storage_cancelled_vanilla_orders",
             "number of cancelled vanilla orders",
         )
         .unwrap();
 
         let cancelled_composable_orders = prometheus::register_int_gauge!(
-            "order_storage_cancelled_composable_orders",
+            "ang_order_storage_cancelled_composable_orders",
             "number of cancelled composable orders",
         )
         .unwrap();
 
         let cancelled_searcher_orders = prometheus::register_int_gauge!(
-            "order_storage_cancelled_searcher_orders",
+            "ang_order_storage_cancelled_searcher_orders",
             "number of cancelled searcher orders",
         )
         .unwrap();
@@ -136,10 +136,6 @@ impl Default for OrderStorageMetricsWrapper {
 }
 
 impl OrderStorageMetricsWrapper {
-    pub fn empty() -> Self {
-        Self(None)
-    }
-
     pub fn new() -> Self {
         METRICS_INSTANCE
             .get_or_init(|| {
