@@ -110,6 +110,7 @@ macro_rules! default_time_metric {
                 let r = f();
                 let elapsed = start.elapsed().as_nanos() as f64;
                 self.$name.observe(elapsed);
+                tracing::info!("observed {}", stringify!($name));
 
                 r
             }
