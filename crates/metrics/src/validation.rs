@@ -26,27 +26,27 @@ impl Default for ValidationMetricsInner {
         let buckets = prometheus::exponential_buckets(1.0, 2.0, 15).unwrap();
 
         let pending_verification = prometheus::register_int_gauge!(
-            "pending_order_verification",
+            "ang_pending_order_verification",
             "the amount of orders, currently in queue to be verified"
         )
         .unwrap();
 
         let verification_wait_time = prometheus::register_histogram!(
-            "verification_wait_time",
+            "ang_verification_wait_time",
             "the amount of time a order spent in the verification queue",
             buckets.clone()
         )
         .unwrap();
 
         let eth_transition_updates = prometheus::register_histogram!(
-            "verification_update_time",
+            "ang_verification_update_time",
             "How long it takes to handle a new block update",
             buckets.clone()
         )
         .unwrap();
 
         let processing_time = prometheus::register_histogram_vec!(
-            "verification_processing_time",
+            "ang_verification_processing_time",
             "the total processing time of a order based on it's type",
             &["order_type"],
             buckets.clone()
@@ -54,14 +54,14 @@ impl Default for ValidationMetricsInner {
         .unwrap();
 
         let simulate_bundle = prometheus::register_histogram!(
-            "simulate_bundles_time",
+            "ang_simulate_bundles_time",
             "how long it takes to simulate a bundle",
             buckets.clone()
         )
         .unwrap();
 
         let fetch_gas_for_user = prometheus::register_histogram_vec!(
-            "fetch_user_gas_speed",
+            "ang_fetch_user_gas_speed",
             "time to calculate how much gas a user needs to pay",
             &["order_type"],
             buckets.clone()
@@ -69,21 +69,21 @@ impl Default for ValidationMetricsInner {
         .unwrap();
 
         let loading_balances = prometheus::register_histogram!(
-            "loading_balance_time",
+            "ang_loading_balance_time",
             "time to load balanace from db",
             buckets.clone()
         )
         .unwrap();
 
         let loading_approvals = prometheus::register_histogram!(
-            "loading_approval_time",
+            "ang_loading_approval_time",
             "time to load approvals from db",
             buckets.clone()
         )
         .unwrap();
 
         let applying_state_transitions = prometheus::register_histogram!(
-            "applying_state_transitions_time",
+            "ang_applying_state_transitions_time",
             "how long does it take to apply the new balances and check for expired orders.",
             buckets
         )
@@ -212,7 +212,7 @@ impl ValidationMetrics {
     delegate_metric!(eth_transition_updates, simulate_bundle, loading_approvals, loading_balances);
 
     pub fn new() -> Self {
-        METRICS_INSTANCE
+        let this = METRICS_INSTANCE
             .get_or_init(|| {
                 Self(
                     METRICS_ENABLED
@@ -222,7 +222,10 @@ impl ValidationMetrics {
                         .then(ValidationMetricsInner::default)
                 )
             })
-            .clone()
+            .clone();
+        println!("validation metrics: {}", this.0.is_some());
+
+        this
     }
 
     pub async fn applying_state_transitions<T>(&self, f: impl AsyncFnOnce() -> T) -> T {

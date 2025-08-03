@@ -16,13 +16,13 @@ struct SearcherOrderPoolMetrics {
 impl Default for SearcherOrderPoolMetrics {
     fn default() -> Self {
         let total_orders = prometheus::register_int_gauge!(
-            "searcher_order_pool_total_orders",
+            "ang_searcher_order_pool_total_orders",
             "number of searcher orders",
         )
         .unwrap();
 
         let all_orders = prometheus::register_int_gauge_vec!(
-            "searcher_order_pool_all_orders",
+            "ang_searcher_order_pool_all_orders",
             " number of orders per pool",
             &["pool_id"]
         )
