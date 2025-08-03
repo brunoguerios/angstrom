@@ -2,7 +2,8 @@ use std::{
     collections::{HashMap, HashSet},
     ops::RangeInclusive,
     sync::Arc,
-    task::{Context, Poll}
+    task::{Context, Poll},
+    time::Duration
 };
 
 use alloy::{
@@ -99,7 +100,14 @@ where
                 .retain(|e| e.send(EthEvent::AddedNode(*n)).is_ok());
         }
 
-        tp.spawn_critical("eth handle", this.boxed());
+        tp.spawn_critical(
+            "eth handle",
+            async move {
+                tokio::time::sleep(Duration::from_secs(4)).await;
+                this.await
+            }
+            .boxed()
+        );
 
         let handle = EthHandle::new(tx);
 
