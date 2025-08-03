@@ -65,8 +65,6 @@ async fn start_endpoint<F: Hook + 'static>(
                 h_clone.run_upkeep();
                 let mut metrics_render = h_clone.render();
 
-                let mut metrics_render = handle.render();
-
                 let mut buffer = Vec::new();
                 let encoder = TextEncoder::new();
                 // Gather the metrics.
