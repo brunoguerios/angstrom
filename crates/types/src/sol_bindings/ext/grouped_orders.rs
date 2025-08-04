@@ -77,7 +77,8 @@ pub struct OrderWithStorageData<Order> {
     pub valid_block:        u64,
     /// holds expiry data
     pub order_id:           OrderId,
-    pub tob_reward:         U256
+    pub tob_reward:         U256,
+    pub cancel_requested:   bool
 }
 
 impl<O: RawPoolOrder> OrderWithStorageData<O> {
@@ -96,7 +97,8 @@ impl<O: RawPoolOrder> OrderWithStorageData<O> {
             is_valid: true,
             valid_block: 0,
             order_id: OrderId::default(),
-            tob_reward: U256::default()
+            tob_reward: U256::default(),
+            cancel_requested: false
         }
     }
 }
@@ -157,7 +159,8 @@ impl<Order> OrderWithStorageData<Order> {
             is_currently_valid: self.is_currently_valid,
             is_valid:           self.is_valid,
             order_id:           self.order_id,
-            tob_reward:         self.tob_reward
+            tob_reward:         self.tob_reward,
+            cancel_requested:   self.cancel_requested
         })
     }
 }

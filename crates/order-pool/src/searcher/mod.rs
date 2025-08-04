@@ -77,10 +77,12 @@ impl SearcherPool {
         Ok(())
     }
 
-    pub fn cancel_order(&mut self, id: &OrderId) {
+    pub fn cancel_order(&mut self, id: &OrderId) -> bool {
         if let Some(pool) = self.searcher_orders.get_mut(&id.pool_id) {
-            pool.cancel_order(id.hash);
+            return pool.cancel_order(id.hash);
         }
+
+        false
     }
 
     pub fn remove_all_cancelled_orders(&mut self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
