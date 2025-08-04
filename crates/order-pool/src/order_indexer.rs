@@ -677,6 +677,7 @@ mod tests {
                 },
                 valid_block: 1,
                 pool_id,
+                cancel_requested: false,
                 is_bid: true,
                 is_currently_valid: None,
                 is_valid: true,
@@ -752,6 +753,9 @@ mod tests {
         indexer
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
                 order: order.clone(),
+
+                cancel_requested: false,
+
                 order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
@@ -834,6 +838,7 @@ mod tests {
         // Validate order
         indexer
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                cancel_requested: false,
                 order: order.clone(),
                 order_id: OrderId {
                     hash: order_hash,
@@ -973,6 +978,7 @@ mod tests {
         let order_hash = order.order_hash();
         indexer
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                cancel_requested: false,
                 order: order.clone(),
                 order_id: OrderId {
                     address: from,
@@ -1046,6 +1052,7 @@ mod tests {
         // Simulate validation completion
         indexer
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
+                cancel_requested: false,
                 order: order.clone(),
                 order_id: OrderId {
                     address: from,
@@ -1105,6 +1112,7 @@ mod tests {
         indexer
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
                 order: order.clone(),
+                cancel_requested: false,
                 order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),
@@ -1180,6 +1188,7 @@ mod tests {
         indexer
             .handle_validated_order(OrderValidationResults::Valid(OrderWithStorageData {
                 order: order.clone(),
+                cancel_requested: false,
                 order_id: OrderId {
                     address: from,
                     reuse_avoidance: RespendAvoidanceMethod::Nonce(1),

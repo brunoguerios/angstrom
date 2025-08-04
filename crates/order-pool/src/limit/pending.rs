@@ -1,6 +1,7 @@
 use std::{
     cmp::Reverse,
-    collections::{BTreeMap, HashMap, HashSet}
+    collections::{BTreeMap, HashMap, HashSet},
+    fmt::Debug
 };
 
 use alloy::primitives::{B256, FixedBytes};
@@ -26,7 +27,7 @@ pub struct PendingPool<Order: Clone + Serialize + for<'a> Deserialize<'a>> {
     asks:              BTreeMap<OrderPriorityData, FixedBytes<32>>
 }
 
-impl<Order: Clone + Serialize + for<'a> Deserialize<'a>> PendingPool<Order> {
+impl<Order: Clone + Serialize + for<'a> Deserialize<'a> + Debug> PendingPool<Order> {
     pub fn new() -> Self {
         Self { orders: HashMap::new(), bids: BTreeMap::new(), asks: BTreeMap::new() }
     }
@@ -61,7 +62,7 @@ impl<Order: Clone + Serialize + for<'a> Deserialize<'a>> PendingPool<Order> {
         let ids = self
             .orders
             .iter()
-            .filter(|(_, orders)| *orders.cancel_requested)
+            .filter(|(_, orders)| orders.cancel_requested)
             .map(|(key, _)| *key)
             .collect::<Vec<_>>();
 
@@ -95,7 +96,7 @@ impl<Order: Clone + Serialize + for<'a> Deserialize<'a>> PendingPool<Order> {
     }
 
     pub fn get_all_orders_with_cancelled(&self) -> Vec<OrderWithStorageData<Order>> {
-        self.orders.values().cloned().map(|order| order).collect()
+        self.orders.values().cloned().collect()
     }
 
     pub fn get_all_orders_with_hashes(

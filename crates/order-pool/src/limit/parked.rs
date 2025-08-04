@@ -42,7 +42,7 @@ impl ParkedPool {
         let ids = self
             .0
             .iter()
-            .filter(|(_, orders)| *orders.cancel_requested)
+            .filter(|(_, orders)| orders.cancel_requested)
             .map(|(key, _)| *key)
             .collect::<Vec<_>>();
         for id in ids {
@@ -55,7 +55,7 @@ impl ParkedPool {
     }
 
     pub fn get_all_orders_with_cancelled(&self) -> Vec<OrderWithStorageData<AllOrders>> {
-        self.0.values().cloned().map(|order| order).collect()
+        self.0.values().cloned().collect()
     }
 
     pub fn remove_order(

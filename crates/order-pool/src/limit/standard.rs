@@ -99,6 +99,8 @@ impl LimitPool {
         if let Some(pool) = self.parked_orders.get_mut(&id.pool_id) {
             return pool.cancel_order(id.hash);
         }
+
+        false
     }
 
     pub fn remove_all_cancelled_orders(&mut self) -> Vec<OrderWithStorageData<AllOrders>> {

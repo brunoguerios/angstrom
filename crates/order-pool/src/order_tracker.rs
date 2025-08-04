@@ -7,9 +7,7 @@ use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
     orders::{OrderId, OrderLocation},
     primitive::{PeerId, PoolId},
-    sol_bindings::{
-        RawPoolOrder, ext::grouped_orders::AllOrders, grouped_orders::OrderWithStorageData
-    }
+    sol_bindings::{ext::grouped_orders::AllOrders, grouped_orders::OrderWithStorageData}
 };
 use serde_with::{DisplayFromStr, serde_as};
 use validation::order::OrderValidatorHandle;
@@ -234,9 +232,9 @@ impl OrderTracker {
         if !canceled {
             // When we purge our cancelled orders, this will update with actual deadline.
             self.cancel_with_next_block_deadline(from, &hash);
-            return None;
+            None
         } else {
-            return Some((is_tob, pool_id));
+            Some((is_tob, pool_id))
         }
     }
 

@@ -32,7 +32,7 @@ impl PendingPool {
     }
 
     pub fn get_order(&self, id: FixedBytes<32>) -> Option<OrderWithStorageData<TopOfBlockOrder>> {
-        self.orders.get(&id).cloned().map(|order| order)
+        self.orders.get(&id).cloned()
     }
 
     pub fn add_order(&mut self, order: OrderWithStorageData<TopOfBlockOrder>) {
@@ -97,7 +97,7 @@ impl PendingPool {
     }
 
     pub fn get_all_orders_with_cancelled(&self) -> Vec<OrderWithStorageData<TopOfBlockOrder>> {
-        self.orders.values().cloned().map(|order| order).collect()
+        self.orders.values().cloned().collect()
     }
 
     pub fn get_all_orders_with_hashes(
