@@ -48,7 +48,7 @@ impl PendingPool {
 
     pub fn cancel_order(&mut self, id: FixedBytes<32>) {
         if let Some((canceled, order)) = self.orders.get_mut(&id) {
-            tracing::info!(?order, "canceled tob order");
+            tracing::trace!(?order, "canceled tob order");
             *canceled = true;
         }
     }

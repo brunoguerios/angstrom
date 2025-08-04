@@ -246,6 +246,7 @@ mod tests {
     fn setup_test_account_processor() -> UserAccountProcessor<MockFetch> {
         AngstromAddressConfig::INTERNAL_TESTNET.try_init();
         init_tracing();
+        AngstromAddressConfig::INTERNAL_TESTNET.try_init();
         UserAccountProcessor {
             user_accounts: UserAccounts::new(),
             fetch_utils:   MockFetch::default()
