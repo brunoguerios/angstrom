@@ -256,7 +256,7 @@ where
         let valid_searcher = self.filter_quorum_orders(searcher);
         let orders = self
             .order_storage
-            .get_all_orders_with_ingoing_tob_cancellations();
+            .get_all_orders_with_ingoing_cancellations();
 
         let (limit, searcher) = orders.into_book_and_searcher(valid_limit, valid_searcher);
 

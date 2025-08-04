@@ -208,7 +208,8 @@ pub trait StorageWithData: RawPoolOrder {
             order_id: OrderId::from_all_orders(&self, pool_info.pool_id),
             invalidates,
             order: self,
-            tob_reward
+            tob_reward,
+            cancel_requested: false
         }
     }
 }

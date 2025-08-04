@@ -191,14 +191,21 @@ impl OrderStorage {
             .remove_all_cancelled_orders()
     }
 
-    pub fn cancel_order(&self, order_id: &OrderId) -> Option<OrderWithStorageData<AllOrders>> {
+    pub fn purge_user_orders(&self) -> Vec<OrderWithStorageData<AllOrders>> {
+        self.limit_orders
+            .lock()
+            .expect("lock poisoned")
+            .remove_all_cancelled_orders()
+    }
+
+    pub fn cancel_order(&self, order_id: &OrderId) -> bool {
         if self
             .pending_finalization_orders
             .lock()
             .expect("poisoned")
             .has_order(&order_id.hash)
         {
-            return None;
+            return true;
         }
 
         match order_id.location {
@@ -206,22 +213,12 @@ impl OrderStorage {
                 .limit_orders
                 .lock()
                 .expect("lock poisoned")
-                .remove_order(order_id)
-                .inspect(|order| {
-                    if order.is_vanilla() {
-                        self.metrics.incr_cancelled_vanilla_orders()
-                    } else {
-                        self.metrics.incr_cancelled_composable_orders()
-                    }
-                }),
-            angstrom_types::orders::OrderLocation::Searcher => {
-                self.searcher_orders
-                    .lock()
-                    .expect("lock poisoned")
-                    .cancel_order(order_id);
-
-                None
-            }
+                .cancel_order(order_id),
+            angstrom_types::orders::OrderLocation::Searcher => self
+                .searcher_orders
+                .lock()
+                .expect("lock poisoned")
+                .cancel_order(order_id)
         }
     }
 
@@ -404,7 +401,7 @@ impl OrderStorage {
             })
     }
 
-    pub fn get_all_orders_with_ingoing_tob_cancellations(
+    pub fn get_all_orders_with_ingoing_cancellations(
         &self
     ) -> OrderSet<AllOrders, TopOfBlockOrder> {
         // Given that this is used for generating the proposal, we also
@@ -413,7 +410,7 @@ impl OrderStorage {
             .limit_orders
             .lock()
             .expect("poisoned")
-            .get_all_orders_with_parked();
+            .get_all_orders_with_parked_and_cancelled();
         let searcher = self.all_top_tob_orders();
 
         OrderSet { limit, searcher }

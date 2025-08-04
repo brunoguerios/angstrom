@@ -377,11 +377,11 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
     }
 
     /// This should only be used when building the Proposal. This is because
-    /// we want to ignore cancelled orders as if the cancellation happend after
+    /// we want to ignore cancelled orders as if the cancellation happened after
     /// consensus closed. we ignore these.
     pub fn get_all_orders_with_cancelled(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
         self.order_storage
-            .get_all_orders_with_ingoing_tob_cancellations()
+            .get_all_orders_with_ingoing_cancellations()
     }
 
     pub fn get_all_orders_with_parked(&self) -> OrderSet<AllOrders, TopOfBlockOrder> {
@@ -407,8 +407,8 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             .on_new_block(block_number, completed_orders, address_changes);
     }
 
-    // given that we cant acutally remove top
-    pub fn purge_tob(&mut self) {
+    // given that we cant acutally remove orders on cancel.
+    pub fn purge_cancelled(&mut self) {
         for order in self.order_storage.purge_tob_orders() {
             self.order_tracker
                 .order_hash_to_order_id
@@ -416,6 +416,22 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
             self.order_tracker
                 .order_hash_to_peer_id
                 .remove(&order.order_hash());
+
+            self.order_tracker.insert_cancel_with_deadline(
+                order.from(),
+                &order.order_hash(),
+                order.deadline()
+            );
+        }
+
+        for order in self.order_storage.purge_user_orders() {
+            self.order_tracker
+                .order_hash_to_order_id
+                .remove(&order.order_hash());
+            self.order_tracker
+                .order_hash_to_peer_id
+                .remove(&order.order_hash());
+
             self.order_tracker.insert_cancel_with_deadline(
                 order.from(),
                 &order.order_hash(),
@@ -440,7 +456,7 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         // Given we retain cancelled tobs given we want to look them up
         // if the cancel occured after consensus, we want to ensure
         // we properly clear them out now that they are no longer needed.
-        self.purge_tob();
+        self.purge_cancelled();
 
         // deal with changed orders
         self.eoa_state_change(&address_changes);

@@ -223,48 +223,21 @@ impl OrderTracker {
         hash: B256,
         storage: &OrderStorage
     ) -> Option<(bool, PoolId)> {
-        self.order_hash_to_order_id
+        let (canceled, pool_id, is_tob) = self
+            .order_hash_to_order_id
             .remove(&hash)
-            .and_then(|v| storage.cancel_order(&v))
-            .map(|order| {
-                self.order_hash_to_order_id.remove(&order.order_hash());
-                self.order_hash_to_peer_id.remove(&order.order_hash());
-                self.insert_cancel_with_deadline(order.from(), &hash, order.deadline());
-
-                (order.is_tob(), order.pool_id)
+            .map(|v| {
+                (storage.cancel_order(&v), v.pool_id, matches!(v.location, OrderLocation::Searcher))
             })
-            .or_else(|| {
-                // in the case we haven't index the order yet, we are going to add it
-                // in the cancel to register
-                self.cancel_with_next_block_deadline(from, &hash);
+            .unwrap_or_default();
 
-                None
-            })
-    }
-
-    pub fn cancel_tob_orders(
-        &mut self,
-        from: Address,
-        hash: B256,
-        storage: &OrderStorage
-    ) -> Option<(bool, PoolId)> {
-        self.order_hash_to_order_id
-            .remove(&hash)
-            .and_then(|v| storage.cancel_order(&v))
-            .map(|order| {
-                self.order_hash_to_order_id.remove(&order.order_hash());
-                self.order_hash_to_peer_id.remove(&order.order_hash());
-                self.insert_cancel_with_deadline(order.from(), &hash, order.deadline());
-
-                (order.is_tob(), order.pool_id)
-            })
-            .or_else(|| {
-                // in the case we haven't index the order yet, we are going to add it
-                // in the cancel to register
-                self.cancel_with_next_block_deadline(from, &hash);
-
-                None
-            })
+        if !canceled {
+            // When we purge our cancelled orders, this will update with actual deadline.
+            self.cancel_with_next_block_deadline(from, &hash);
+            return None;
+        } else {
+            return Some((is_tob, pool_id));
+        }
     }
 
     pub fn pending_orders_for_address<F>(
