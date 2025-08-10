@@ -166,7 +166,7 @@ where
                 };
 
                 if !result.is_success() {
-                    tracing::error!(?result, block_number=%number + 1, "{:#?}",  bundle);
+                    tracing::error!(?result, block_number=%number + 1);
                     let _ = sender.send(Err(eyre!("transaction simulation failed")));
                     return;
                 }
