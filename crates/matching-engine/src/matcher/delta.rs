@@ -507,7 +507,12 @@ impl<'a> DeltaMatcher<'a> {
                     // Killed orders are killed
                     OrderFillState::Killed
                 } else {
-                    match (o.price_t1_over_t0().cmp(&fetch.ucp), o.is_bid) {
+                    let price = if o.is_bid {
+                        o.pre_fee_and_gas_price(self.fee).inv_ray_round(false)
+                    } else {
+                        o.pre_fee_and_gas_price(self.fee)
+                    };
+                    match (price.cmp(&fetch.ucp), o.is_bid) {
                         // A bid with a higher price than UCP or an ask with a lower price than UCP
                         // is filled
                         (Ordering::Greater, true) | (Ordering::Less, false) => {
