@@ -29,7 +29,10 @@ use order_pool::order_storage::OrderStorage;
 use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-use crate::AngstromValidator;
+use crate::{
+    AngstromValidator,
+    slot_clock::{SlotClock, SystemTimeSlotClock}
+};
 
 mod bid_aggregation;
 mod finalization;
@@ -78,7 +81,8 @@ where
     /// for consensus, on a new block we wait a duration of time before signing
     /// our pre-proposal. this is the time
     consensus_wait_duration: PreProposalWaitTrigger,
-    shared_state:            SharedRoundState<P, Matching, S>
+    shared_state:            SharedRoundState<P, Matching, S>,
+    slot_clock:              SystemTimeSlotClock
 }
 
 impl<P, Matching, S> RoundStateMachine<P, Matching, S>
@@ -87,16 +91,23 @@ where
     Matching: MatchingEngineHandle,
     S: AngstromMetaSigner
 {
-    pub fn new(shared_state: SharedRoundState<P, Matching, S>) -> Self {
+    pub fn new(
+        shared_state: SharedRoundState<P, Matching, S>,
+        slot_clock: SystemTimeSlotClock
+    ) -> Self {
         let mut consensus_wait_duration =
             PreProposalWaitTrigger::new(shared_state.order_storage.clone());
 
+        let next_slot_duration = slot_clock.duration_to_next_slot().unwrap();
+        let elapsed_time = slot_clock.slot_duration() - next_slot_duration;
+
         Self {
             current_state: Box::new(BidAggregationState::new(
-                consensus_wait_duration.update_for_new_round(None)
+                consensus_wait_duration.update_for_new_round(None, elapsed_time)
             )),
             consensus_wait_duration,
-            shared_state
+            shared_state,
+            slot_clock
         }
     }
 
@@ -105,6 +116,9 @@ where
     }
 
     pub fn reset_round(&mut self, new_block: u64, new_leader: Address) {
+        let next_slot_duration = self.slot_clock.duration_to_next_slot().unwrap();
+        let elapsed_time = self.slot_clock.slot_duration() - next_slot_duration;
+
         // grab the last round info if we were the leader.
         let info = self.current_state.last_round_info();
 
@@ -119,7 +133,8 @@ where
         self.shared_state.round_leader = new_leader;
 
         self.current_state = Box::new(BidAggregationState::new(
-            self.consensus_wait_duration.update_for_new_round(info)
+            self.consensus_wait_duration
+                .update_for_new_round(info, elapsed_time)
         ));
     }
 
@@ -508,7 +523,8 @@ pub mod tests {
     };
     use crate::{
         AngstromValidator,
-        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
+        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState},
+        slot_clock::SlotClock
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine, PrivateKeySigner> {
@@ -573,7 +589,6 @@ pub mod tests {
             provider,
             MockMatchingEngine {}
         );
-        RoundStateMachine::new(shared_state)
     }
 
     #[tokio::test]
