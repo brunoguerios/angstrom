@@ -334,7 +334,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             matching_handle,
             block_sync.clone(),
             strom_handles.consensus_rx_rpc,
-            state_updates
+            state_updates,
+            consensus::ConsensusTimingConfig::default()
         );
 
         // spin up amm quoter

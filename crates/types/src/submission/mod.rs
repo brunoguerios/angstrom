@@ -32,10 +32,12 @@ const DEFAULT_SUBMISSION_CONCURRENCY: usize = 10;
 pub(super) const EXTRA_GAS_LIMIT: u64 = 100_000;
 
 pub struct TxFeatureInfo {
-    pub nonce:        u64,
-    pub fees:         Eip1559Estimation,
-    pub chain_id:     u64,
-    pub target_block: u64
+    pub nonce:           u64,
+    pub fees:            Eip1559Estimation,
+    pub chain_id:        u64,
+    pub target_block:    u64,
+    pub bundle_gas_used:
+        Box<dyn Fn(TransactionRequest) -> Pin<Box<dyn Future<Output = u64> + Send>> + Send + Sync>
 }
 
 /// a chain submitter is a trait that deals with submitting a bundle to the
@@ -95,19 +97,17 @@ pub trait ChainSubmitter: Send + Sync + Unpin + 'static {
         })
     }
 
-    fn build_and_sign_tx_with_gas<'a, S: AngstromMetaSigner, F>(
+    fn build_and_sign_tx_with_gas<'a, S: AngstromMetaSigner>(
         &'a self,
         signer: &'a AngstromSigner<S>,
         bundle: &'a AngstromBundle,
-        tx_features: &'a TxFeatureInfo,
-        gas: impl FnOnce(TransactionRequest) -> F + Send + Sync + 'a
-    ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + 'a>>
-    where
-        F: Future<Output = TransactionRequest> + Send + 'a
-    {
+        tx_features: &'a TxFeatureInfo
+    ) -> Pin<Box<dyn Future<Output = EthereumTxEnvelope<TxEip4844Variant>> + Send + 'a>> {
         Box::pin(async move {
-            gas(self.build_tx(signer, bundle, tx_features))
-                .await
+            let tx = self.build_tx(signer, bundle, tx_features);
+            let gas = (tx_features.bundle_gas_used)(tx.clone()).await;
+
+            tx.gas_limit(gas + EXTRA_GAS_LIMIT)
                 .build(signer)
                 .await
                 .unwrap()
@@ -178,7 +178,19 @@ where
         let fees = self.node_provider.estimate_eip1559_fees().await?;
         let chain_id = self.node_provider.get_chain_id().await?;
 
-        let tx_features = TxFeatureInfo { nonce, fees, chain_id, target_block };
+        let node_provider = self.node_provider.clone();
+        let tx_features = TxFeatureInfo {
+            nonce,
+            fees,
+            chain_id,
+            target_block,
+            bundle_gas_used: Box::new(move |tx| {
+                let node_provider = node_provider.clone();
+                Box::pin(
+                    async move { node_provider.estimate_gas(tx).await.unwrap() + EXTRA_GAS_LIMIT }
+                )
+            })
+        };
 
         let mut futs = Vec::new();
         for submitter in &self.submitters {

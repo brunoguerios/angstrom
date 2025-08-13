@@ -34,7 +34,7 @@ use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
     AngstromValidator, ConsensusDataWithBlock, ConsensusRequest, ConsensusSubscriptionData,
-    ConsensusSubscriptionRequestKind,
+    ConsensusSubscriptionRequestKind, ConsensusTimingConfig,
     leader_selection::WeightedRoundRobin,
     rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState}
 };
@@ -81,7 +81,8 @@ where
         matching_engine: Matching,
         block_sync: BlockSync,
         rpc_rx: mpsc::UnboundedReceiver<ConsensusRequest>,
-        state_updates: Option<mpsc::UnboundedSender<ConsensusRoundName>>
+        state_updates: Option<mpsc::UnboundedSender<ConsensusRoundName>>,
+        timing_config: ConsensusTimingConfig
     ) -> Self {
         let ManagerNetworkDeps { network, canonical_block_stream, strom_consensus_event } = netdeps;
         let wrapped_broadcast_stream = BroadcastStream::new(canonical_block_stream);
@@ -104,7 +105,8 @@ where
                 pool_registry,
                 uniswap_pools,
                 provider,
-                matching_engine
+                matching_engine,
+                timing_config
             )),
             rpc_rx,
             state_updates,
@@ -171,6 +173,20 @@ where
             ConsensusRequest::SubscribeRoundEventOrders(tx) => {
                 self.subscribers
                     .add_subscription(ConsensusSubscriptionRequestKind::RoundEventOrders, tx);
+            }
+            ConsensusRequest::Timing(tx) => {
+                let block = self.current_height;
+                let _ = tx.send(ConsensusDataWithBlock {
+                    data: self.consensus_round_state.timing(),
+                    block
+                });
+            }
+            ConsensusRequest::IsRoundClosed(tx) => {
+                let block = self.current_height;
+                let _ = tx.send(ConsensusDataWithBlock {
+                    data: self.consensus_round_state.is_auction_closed(),
+                    block
+                });
             }
         }
     }

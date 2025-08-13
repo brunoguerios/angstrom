@@ -199,6 +199,9 @@ where
     <<Node as FullNodeTypes>::Provider as DatabaseProviderFactory>::Provider: BlockNumReader,
     S: AngstromMetaSigner
 {
+    // Check to assert that the timeing config is valid.
+    assert!(config.consensus_timing.is_valid(), "consensus timing config is invalid");
+
     let node_address = signer.address();
 
     // NOTE:
@@ -455,7 +458,8 @@ where
         matching_handle,
         global_block_sync.clone(),
         handles.consensus_rx_rpc,
-        None
+        None,
+        config.consensus_timing
     );
 
     executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {

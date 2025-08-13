@@ -5,6 +5,7 @@ use angstrom_metrics::initialize_prometheus_metrics;
 use angstrom_types::primitive::{
     AngstromSigner, CHAIN_ID, ETH_ANGSTROM_RPC, ETH_DEFAULT_RPC, ETH_MEV_RPC
 };
+use consensus::ConsensusTimingConfig;
 use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
 
 #[derive(Debug, Clone, Default, clap::Args)]
@@ -27,7 +28,9 @@ pub struct AngstromConfig {
     #[clap(short, long, num_args(0..=10), require_equals = true, default_values = ETH_ANGSTROM_RPC)]
     pub angstrom_submission_nodes: Vec<String>,
     #[clap(flatten)]
-    pub key_config:                KeyConfig
+    pub key_config:                KeyConfig,
+    #[clap(flatten)]
+    pub consensus_timing:          ConsensusTimingConfig
 }
 
 impl AngstromConfig {

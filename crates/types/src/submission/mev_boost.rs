@@ -22,8 +22,8 @@ use itertools::Itertools;
 use reth::rpc::types::mev::EthSendPrivateTransaction;
 
 use super::{
-    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY,
-    EXTRA_GAS_LIMIT, TxFeatureInfo, Url
+    AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
+    Url
 };
 use crate::primitive::AngstromMetaSigner;
 
@@ -62,22 +62,8 @@ impl ChainSubmitter for MevBoostSubmitter {
         Box::pin(async move {
             let bundle = bundle.ok_or_else(|| eyre::eyre!("no bundle was past in"))?;
 
-            let client = self
-                .clients
-                .first()
-                .ok_or(eyre::eyre!("no mev-boost clients found"))?
-                .clone();
-
             let tx = self
-                .build_and_sign_tx_with_gas(signer, bundle, tx_features, |tx| async move {
-                    let gas = client
-                        .estimate_gas(tx.clone())
-                        .await
-                        .unwrap_or(bundle.crude_gas_estimation())
-                        + EXTRA_GAS_LIMIT;
-
-                    tx.with_gas_limit(gas)
-                })
+                .build_and_sign_tx_with_gas(signer, bundle, tx_features)
                 .await;
 
             let hash = *tx.tx_hash();
