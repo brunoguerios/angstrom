@@ -29,7 +29,7 @@ use order_pool::order_storage::OrderStorage;
 use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-use crate::AngstromValidator;
+use crate::{AngstromValidator, ConsensusTimingConfig};
 
 mod bid_aggregation;
 mod finalization;
@@ -37,8 +37,6 @@ mod pre_proposal;
 mod pre_proposal_aggregation;
 mod preproposal_wait_trigger;
 mod proposal;
-
-pub use preproposal_wait_trigger::{MAX_WAIT_DURATION, MIN_WAIT_DURATION};
 
 type PollTransition<P, Matching, S> = Poll<Option<Box<dyn ConsensusState<P, Matching, S>>>>;
 
@@ -88,8 +86,10 @@ where
     S: AngstromMetaSigner
 {
     pub fn new(shared_state: SharedRoundState<P, Matching, S>) -> Self {
-        let mut consensus_wait_duration =
-            PreProposalWaitTrigger::new(shared_state.order_storage.clone());
+        let mut consensus_wait_duration = PreProposalWaitTrigger::new(
+            shared_state.order_storage.clone(),
+            shared_state.consensus_config
+        );
 
         Self {
             current_state: Box::new(BidAggregationState::new(
@@ -102,6 +102,14 @@ where
 
     pub fn current_leader(&self) -> Address {
         self.shared_state.round_leader
+    }
+
+    pub fn timing(&self) -> ConsensusTimingConfig {
+        self.shared_state.consensus_config
+    }
+
+    pub fn is_auction_closed(&self) -> bool {
+        self.current_state.name().is_closed()
     }
 
     pub fn reset_round(&mut self, new_block: u64, new_leader: Address) {
@@ -159,17 +167,18 @@ where
 }
 
 pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching, S: AngstromMetaSigner> {
-    block_height:    BlockNumber,
-    matching_engine: Matching,
-    signer:          AngstromSigner<S>,
-    round_leader:    Address,
-    validators:      Vec<AngstromValidator>,
-    order_storage:   Arc<OrderStorage>,
-    _metrics:        ConsensusMetricsWrapper,
-    pool_registry:   UniswapAngstromRegistry,
-    uniswap_pools:   SyncedUniswapPools,
-    provider:        Arc<SubmissionHandler<P>>,
-    messages:        VecDeque<ConsensusMessage>
+    block_height:     BlockNumber,
+    matching_engine:  Matching,
+    signer:           AngstromSigner<S>,
+    round_leader:     Address,
+    validators:       Vec<AngstromValidator>,
+    order_storage:    Arc<OrderStorage>,
+    _metrics:         ConsensusMetricsWrapper,
+    pool_registry:    UniswapAngstromRegistry,
+    uniswap_pools:    SyncedUniswapPools,
+    provider:         Arc<SubmissionHandler<P>>,
+    messages:         VecDeque<ConsensusMessage>,
+    consensus_config: ConsensusTimingConfig
 }
 
 // contains shared impls
@@ -190,7 +199,8 @@ where
         pool_registry: UniswapAngstromRegistry,
         uniswap_pools: SyncedUniswapPools,
         provider: SubmissionHandler<P>,
-        matching_engine: Matching
+        matching_engine: Matching,
+        consensus_config: ConsensusTimingConfig
     ) -> Self {
         Self {
             block_height,
@@ -203,7 +213,8 @@ where
             _metrics: metrics,
             matching_engine,
             messages: VecDeque::new(),
-            provider: Arc::new(provider)
+            provider: Arc::new(provider),
+            consensus_config
         }
     }
 
@@ -507,7 +518,7 @@ pub mod tests {
         ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState
     };
     use crate::{
-        AngstromValidator,
+        AngstromValidator, ConsensusTimingConfig,
         rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
@@ -571,7 +582,8 @@ pub mod tests {
             pool_registry,
             uniswap_pools,
             provider,
-            MockMatchingEngine {}
+            MockMatchingEngine {},
+            ConsensusTimingConfig::default()
         );
         RoundStateMachine::new(shared_state)
     }

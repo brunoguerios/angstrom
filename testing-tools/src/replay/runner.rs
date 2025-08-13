@@ -31,7 +31,10 @@ use angstrom_types::{
     primitive::{AngstromSigner, UniswapPoolRegistry, try_init_with_chain_id, *},
     submission::{ChainSubmitterHolder, SubmissionHandler}
 };
-use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
+use consensus::{
+    AngstromValidator, ConsensusHandler, ConsensusManager, ConsensusTimingConfig,
+    ManagerNetworkDeps
+};
 use futures::{Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::MatchingManager;
@@ -437,7 +440,8 @@ impl ReplayRunner {
             matching_handle,
             global_block_sync.clone(),
             strom_handles.consensus_rx_rpc,
-            None
+            None,
+            ConsensusTimingConfig::default()
         );
         executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
             consensus.run_till_shutdown(grace)

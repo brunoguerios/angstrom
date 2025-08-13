@@ -10,7 +10,7 @@ use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
     Url
 };
-use crate::{primitive::AngstromMetaSigner, submission::EXTRA_GAS_LIMIT};
+use crate::primitive::AngstromMetaSigner;
 
 /// handles submitting transaction to
 pub struct MempoolSubmitter {
@@ -44,22 +44,8 @@ impl ChainSubmitter for MempoolSubmitter {
         Box::pin(async move {
             let bundle = bundle.ok_or_else(|| eyre::eyre!("no bundle was past in"))?;
 
-            let client = self
-                .clients
-                .first()
-                .ok_or(eyre::eyre!("no mempool clients found"))?
-                .0
-                .clone();
-
             let tx = self
-                .build_and_sign_tx_with_gas(signer, bundle, tx_features, |tx| async move {
-                    let gas = client
-                        .estimate_gas(tx.clone())
-                        .await
-                        .unwrap_or(bundle.crude_gas_estimation())
-                        + EXTRA_GAS_LIMIT;
-                    tx.with_gas_limit(gas)
-                })
+                .build_and_sign_tx_with_gas(signer, bundle, tx_features)
                 .await;
 
             let encoded_tx = tx.encoded_2718();
