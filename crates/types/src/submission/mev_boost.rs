@@ -5,6 +5,7 @@ use std::{
 };
 
 use alloy::{
+    eips::Encodable2718,
     hex,
     primitives::keccak256,
     providers::{Provider, RootProvider},
@@ -12,13 +13,13 @@ use alloy::{
         client::ClientBuilder,
         json_rpc::{RequestPacket, ResponsePacket}
     },
-    signers::{Signer, local::PrivateKeySigner},
+    signers::Signer,
     transports::{TransportError, TransportErrorKind, TransportFut}
 };
 use alloy_primitives::{Address, TxHash};
 use futures::stream::{StreamExt, iter};
 use itertools::Itertools;
-use reth::rpc::types::mev::EthSendPrivateTransaction;
+use reth::rpc::types::mev::{EthBundleHash, EthSendBundle};
 
 use super::{
     AngstromBundle, AngstromSigner, ChainSubmitter, DEFAULT_SUBMISSION_CONCURRENCY, TxFeatureInfo,
@@ -67,19 +68,19 @@ impl ChainSubmitter for MevBoostSubmitter {
 
             let hash = *tx.tx_hash();
 
-            let private_tx = EthSendPrivateTransaction::new(&tx)
-                .max_block_number(tx_features.target_block)
-                .with_preferences(
-                    reth::rpc::types::mev::PrivateTransactionPreferences::default().into_fast()
-                );
+            let bundle = EthSendBundle {
+                txs: vec![tx.encoded_2718().into()],
+                block_number: tx_features.target_block,
+                ..Default::default()
+            };
 
             // Clone here is fine as its in a Arc
             let _: Vec<_> = iter(self.clients.clone())
                 .map(async |client| {
                     client
-                        .raw_request::<(&EthSendPrivateTransaction,), TxHash>(
-                            "eth_sendPrivateTransaction".into(),
-                            (&private_tx,)
+                        .raw_request::<(&EthSendBundle,), EthBundleHash>(
+                            "eth_sendBundle".into(),
+                            (&bundle,)
                         )
                         .await
                         .inspect_err(|e| {
@@ -144,12 +145,10 @@ struct MevHttp {
 }
 
 impl MevHttp {
-    pub fn new_flashbots<S>(endpoint: Url, _: S) -> Self
+    pub fn new_flashbots<S>(endpoint: Url, signer: S) -> Self
     where
         S: Signer + Send + Sync + 'static
     {
-        let signer = PrivateKeySigner::random();
-        let signer = BundleSigner::flashbots(signer);
         Self { signer, endpoint, http: reqwest::Client::new() }
     }
 
