@@ -149,7 +149,7 @@ impl MevHttp {
     where
         S: Signer + Send + Sync + 'static
     {
-        Self { signer, endpoint, http: reqwest::Client::new() }
+        Self { signer: BundleSigner::flashbots(signer), endpoint, http: reqwest::Client::new() }
     }
 
     fn send_request(&self, req: RequestPacket) -> TransportFut<'static> {
