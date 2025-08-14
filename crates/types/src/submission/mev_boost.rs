@@ -6,14 +6,13 @@ use std::{
 
 use alloy::{
     hex,
-    network::TransactionBuilder,
     primitives::keccak256,
     providers::{Provider, RootProvider},
     rpc::{
         client::ClientBuilder,
         json_rpc::{RequestPacket, ResponsePacket}
     },
-    signers::Signer,
+    signers::{Signer, local::PrivateKeySigner},
     transports::{TransportError, TransportErrorKind, TransportFut}
 };
 use alloy_primitives::{Address, TxHash};
@@ -145,10 +144,11 @@ struct MevHttp {
 }
 
 impl MevHttp {
-    pub fn new_flashbots<S>(endpoint: Url, signer: S) -> Self
+    pub fn new_flashbots<S>(endpoint: Url, _: S) -> Self
     where
         S: Signer + Send + Sync + 'static
     {
+        let signer = PrivateKeySigner::random();
         let signer = BundleSigner::flashbots(signer);
         Self { signer, endpoint, http: reqwest::Client::new() }
     }

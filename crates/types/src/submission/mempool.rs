@@ -1,6 +1,5 @@
 use alloy::{
     eips::Encodable2718,
-    network::TransactionBuilder,
     providers::{Provider, ProviderBuilder, RootProvider}
 };
 use alloy_primitives::{Address, TxHash};
