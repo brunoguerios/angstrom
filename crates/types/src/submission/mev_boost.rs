@@ -14,7 +14,7 @@ use alloy::{
         json_rpc::{RequestPacket, ResponsePacket}
     },
     signers::Signer,
-    transports::{TransportError, TransportErrorKind, TransportFut}
+    transports::{TransportError, TransportErrorKind, TransportFut, TransportResult}
 };
 use alloy_primitives::{Address, TxHash};
 use futures::stream::{StreamExt, iter};
