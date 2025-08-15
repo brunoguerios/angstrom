@@ -14,7 +14,7 @@ use alloy::{
         json_rpc::{RequestPacket, ResponsePacket}
     },
     signers::Signer,
-    transports::{TransportError, TransportErrorKind, TransportFut, TransportResult}
+    transports::{TransportError, TransportErrorKind, TransportFut}
 };
 use alloy_primitives::{Address, TxHash};
 use futures::stream::{StreamExt, iter};
@@ -164,7 +164,6 @@ impl MevHttp {
                 .sign_message(format!("{:?}", keccak256(&body)).as_bytes())
                 .await
                 .map_err(TransportErrorKind::custom)?;
-            tracing::info!("signed");
 
             this.http
                 .post(this.endpoint)
