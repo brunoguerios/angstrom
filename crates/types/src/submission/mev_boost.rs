@@ -164,6 +164,7 @@ impl MevHttp {
                 .sign_message(format!("{:?}", keccak256(&body)).as_bytes())
                 .await
                 .map_err(TransportErrorKind::custom)?;
+            tracing::info!("signed");
 
             this.http
                 .post(this.endpoint)

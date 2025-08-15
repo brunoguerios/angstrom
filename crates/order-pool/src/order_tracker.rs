@@ -207,6 +207,8 @@ impl OrderTracker {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_secs()
+                        - ETH_BLOCK_TIME.as_secs()
+                        - 1
                 )
             },
             |deadline| deadline
