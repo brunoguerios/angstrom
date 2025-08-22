@@ -1124,12 +1124,14 @@ mod tests {
 
         let result = indexer.cancel_order(&cancel_request);
         assert!(result);
+
         assert!(
             indexer
                 .order_tracker
                 .cancelled_orders
                 .contains_key(&order_hash)
         );
+
         assert!(
             !indexer
                 .order_tracker
