@@ -10,6 +10,8 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   FOUNDRY_PROFILE: ci
+  CARGO_INCREMENTAL: "0"
+  RUSTFLAGS: "-C debuginfo=0"
 
 jobs:
   cargo-fmt:
@@ -28,7 +30,7 @@ jobs:
           rustup component add --toolchain nightly-x86_64-unknown-linux-gnu rustfmt
 
       - name: Run formatting
-        run: cargo +nightly fmt --all -- --check
+        run: cargo +nightly fmt --all -- --check --profile ci
 
   cargo-clippy:
     name: cargo clippy
@@ -53,7 +55,7 @@ jobs:
           save-if: true
 
       - name: Run Clippy
-        run: cargo clippy --workspace --all-features --profile debug-fast
+        run: cargo clippy --workspace --all-features --profile ci
 
   cargo-test-unit:
     name: cargo test (unit)
@@ -80,7 +82,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: Run unit tests
-        run: cargo nextest run --workspace --exclude testnet --retries 3 --no-tests=warn --cargo-profile debug-fast
+        run: cargo nextest run --workspace --exclude testnet --retries 3 --no-tests=warn --cargo-profile ci
 
   cargo-test-integration:
     name: cargo test (integration)
@@ -107,7 +109,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: Run integration tests
-        run: cargo nextest run --package testnet --retries 1 --no-tests=warn --cargo-profile debug-fast
+        run: cargo nextest run --package testnet --retries 1 --no-tests=warn --cargo-profile ci
 
   contracts:
     name: forge fmt && forge test
