@@ -30,7 +30,7 @@ jobs:
           rustup component add --toolchain nightly-x86_64-unknown-linux-gnu rustfmt
 
       - name: Run formatting
-        run: cargo +nightly fmt --all --profile ci -- --check
+        run: cargo +nightly fmt --all -- --check
 
   cargo-clippy:
     name: cargo clippy
