@@ -35,7 +35,7 @@ codegen-units = 15
 [profile.maxperf]
 inherits = "release"
 lto = "fat"
-codegen-units = 1
+codegen-units = 3
 incremental = false
 
 [workspace.dependencies]
