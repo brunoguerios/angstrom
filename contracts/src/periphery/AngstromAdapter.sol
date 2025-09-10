@@ -24,6 +24,7 @@ contract AngstromAdapter is IAngstromAdapter {
         uint128 minAmountOut;
         bytes hookData;
         address recipient;
+        address payer;  // Original caller who pays for the swap
     }
 
     constructor(IPoolManager _poolManager) {
@@ -47,10 +48,6 @@ contract AngstromAdapter is IAngstromAdapter {
         // Select the correct attestation for the current block
         bytes memory attestation = _selectAttestation(bundle);
         
-        // Pull input tokens from msg.sender
-        Currency inputCurrency = zeroForOne ? key.currency0 : key.currency1;
-        IERC20(Currency.unwrap(inputCurrency)).transferFrom(msg.sender, address(this), amountIn);
-        
         // Package swap parameters and initiate unlock
         SwapCallbackData memory callbackData = SwapCallbackData({
             poolKey: key,
@@ -58,7 +55,8 @@ contract AngstromAdapter is IAngstromAdapter {
             amountIn: amountIn,
             minAmountOut: minAmountOut,
             hookData: attestation,
-            recipient: recipient
+            recipient: recipient,
+            payer: msg.sender  // store the original caller
         });
         
         bytes memory encodedData = abi.encode(callbackData);
@@ -77,8 +75,16 @@ contract AngstromAdapter is IAngstromAdapter {
         // Decode the parameters we encoded in swap()
         SwapCallbackData memory params = abi.decode(data, (SwapCallbackData));
         
-        // TODO: Execute swap with attestation as hookData
-        // TODO: Settle input tokens (pay debt)
+        // Execute swap with attestation as hookData
+        BalanceDelta delta = _performSwap(params.poolKey, params.zeroForOne, params.amountIn, params.hookData);
+        
+        // Settle input tokens (pay the debt)
+        // The input currency has a negative delta (we owe tokens)
+        Currency inputCurrency = params.zeroForOne ? params.poolKey.currency0 : params.poolKey.currency1;
+        int128 inputDelta = params.zeroForOne ? delta.amount0() : delta.amount1();
+        require(inputDelta < 0, "INVALID_INPUT_DELTA");
+        _settle(inputCurrency, uint256(uint128(-inputDelta)), params.payer);
+        
         // TODO: Take output tokens (claim credit)
         // TODO: Verify minimum output satisfied
         // TODO: Store output amount for return
@@ -129,9 +135,13 @@ contract AngstromAdapter is IAngstromAdapter {
     /// @notice Settles the input token debt with the PoolManager
     /// @param currency The currency to settle
     /// @param amount The amount to settle
-    function _settle(Currency currency, uint256 amount) internal {
-        // TODO: Implement settlement
-        // Transfer tokens to poolManager and call settle
+    /// @param payer The address to pull tokens from
+    function _settle(Currency currency, uint256 amount, address payer) internal {
+        // Transfer tokens directly from payer to PoolManager (single transfer!)
+        IERC20(Currency.unwrap(currency)).transferFrom(payer, address(poolManager), amount);
+        
+        // Notify the PoolManager of the settlement
+        poolManager.settle();
     }
 
     /// @notice Takes the output tokens from the PoolManager
