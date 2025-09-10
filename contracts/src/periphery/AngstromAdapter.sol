@@ -71,7 +71,18 @@ contract AngstromAdapter is IAngstromAdapter {
     /// @param data Encoded swap parameters
     /// @return bytes Empty bytes to satisfy interface
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
-
+        // Security check - only PoolManager can call this
+        require(msg.sender == address(poolManager), "UNAUTHORIZED_CALLBACK");
+        
+        // Decode the parameters we encoded in swap()
+        SwapCallbackData memory params = abi.decode(data, (SwapCallbackData));
+        
+        // TODO: Execute swap with attestation as hookData
+        // TODO: Settle input tokens (pay debt)
+        // TODO: Take output tokens (claim credit)
+        // TODO: Verify minimum output satisfied
+        // TODO: Store output amount for return
+        return "";
     }
 
     /// @notice Selects the correct attestation for the current block
@@ -101,8 +112,18 @@ contract AngstromAdapter is IAngstromAdapter {
         uint128 amountIn,
         bytes memory hookData
     ) internal returns (BalanceDelta delta) {
-        // TODO: Implement swap execution
-        // Call poolManager.swap with proper parameters
+        // Execute the swap on the PoolManager
+        delta = poolManager.swap(
+            key,
+            IPoolManager.SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: -int256(uint256(amountIn)), // Negative for exact input
+                sqrtPriceLimitX96: zeroForOne 
+                    ? TickMath.MIN_SQRT_PRICE + 1 
+                    : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            hookData // The attestation that unlocks the pool!
+        );
     }
 
     /// @notice Settles the input token debt with the PoolManager
