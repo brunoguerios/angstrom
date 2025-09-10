@@ -16,8 +16,8 @@ contract AngstromAdapter is IAngstromAdapter {
     /// @notice The Uniswap v4 PoolManager
     IPoolManager public immutable poolManager;
     
-    /// @notice Transient storage for output amount across callback
-    uint256 tempOutputAmount;
+    /// @notice Transient storage slot for output amount
+    uint256 constant OUTPUT_AMOUNT_SLOT = 0x5f3b5dfeb7b28cdbd77aba78963ee202a494e2a2cc8c7bdec5a6b4d0b8a6b9e1;
 
     /// @notice Temporary storage for swap parameters during unlock callback
     struct SwapCallbackData {
@@ -65,7 +65,9 @@ contract AngstromAdapter is IAngstromAdapter {
         poolManager.unlock(encodedData);
         
         // Return the output amount stored during callback
-        amountOut = tempOutputAmount;
+        assembly {
+            amountOut := tload(OUTPUT_AMOUNT_SLOT)
+        }
     }
 
     /// @notice Callback function called by PoolManager during unlock
@@ -100,7 +102,9 @@ contract AngstromAdapter is IAngstromAdapter {
         require(outputAmount >= params.minAmountOut, "MIN_OUT_NOT_SATISFIED");
         
         // Store output amount in transient storage for return
-        tempOutputAmount = outputAmount;
+        assembly {
+            tstore(OUTPUT_AMOUNT_SLOT, outputAmount)
+        }
         
         return "";
     }
