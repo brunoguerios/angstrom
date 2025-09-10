@@ -17,7 +17,7 @@ contract AngstromAdapter is IAngstromAdapter {
     IPoolManager public immutable poolManager;
     
     /// @notice Transient storage slot for output amount
-    uint256 constant OUTPUT_AMOUNT_SLOT = 0x5f3b5dfeb7b28cdbd77aba78963ee202a494e2a2cc8c7bdec5a6b4d0b8a6b9e1;
+    uint256 constant OUTPUT_AMOUNT_SLOT = 0x11a4bf252ef2af0b3b82d33f29aed7b70750fd50465a124b21f3c7b84f34ff8e;
 
     /// @notice Temporary storage for swap parameters during unlock callback
     struct SwapCallbackData {
@@ -61,7 +61,11 @@ contract AngstromAdapter is IAngstromAdapter {
             payer: msg.sender  // store the original caller
         });
         
+        // Encode the callback data
         bytes memory encodedData = abi.encode(callbackData);
+
+        // Unlock the pool
+        // This will call the unlockCallback function
         poolManager.unlock(encodedData);
         
         // Return the output amount stored during callback
@@ -121,6 +125,7 @@ contract AngstromAdapter is IAngstromAdapter {
             }
         }
         
+        // Revert if no attestation is found for the current block
         revert("MISSING_ATTESTATION_FOR_CURRENT_BLOCK");
     }
 
