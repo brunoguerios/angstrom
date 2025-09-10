@@ -85,7 +85,14 @@ contract AngstromAdapter is IAngstromAdapter {
         require(inputDelta < 0, "INVALID_INPUT_DELTA");
         _settle(inputCurrency, uint256(uint128(-inputDelta)), params.payer);
         
-        // TODO: Take output tokens (claim credit)
+        // Take output tokens (claim the credit)
+        // The output currency has a positive delta (we're owed tokens)
+        Currency outputCurrency = params.zeroForOne ? params.poolKey.currency1 : params.poolKey.currency0;
+        int128 outputDelta = params.zeroForOne ? delta.amount1() : delta.amount0();
+        require(outputDelta > 0, "INVALID_OUTPUT_DELTA");
+        uint256 outputAmount = uint256(uint128(outputDelta));
+        _take(outputCurrency, params.recipient, outputAmount);
+        
         // TODO: Verify minimum output satisfied
         // TODO: Store output amount for return
         return "";
@@ -149,7 +156,7 @@ contract AngstromAdapter is IAngstromAdapter {
     /// @param recipient The recipient address
     /// @param amount The amount to take
     function _take(Currency currency, address recipient, uint256 amount) internal {
-        // TODO: Implement take
-        // Call poolManager.take to claim tokens
+        // Claim the output tokens from the PoolManager
+        poolManager.take(currency, recipient, amount);
     }
 }
