@@ -93,7 +93,9 @@ contract AngstromAdapter is IAngstromAdapter {
         uint256 outputAmount = uint256(uint128(outputDelta));
         _take(outputCurrency, params.recipient, outputAmount);
         
-        // TODO: Verify minimum output satisfied
+        // Verify minimum output satisfied (slippage protection)
+        require(outputAmount >= params.minAmountOut, "MIN_OUT_NOT_SATISFIED");
+        
         // TODO: Store output amount for return
         return "";
     }
