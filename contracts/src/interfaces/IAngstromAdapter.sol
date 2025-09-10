@@ -14,7 +14,6 @@ interface IAngstromAdapter {
     }
 
     /// @notice Executes a swap on an Angstrom-protected pool with attestation selection
-    /// @param router The Uniswap v4 router address (may not be used if calling PoolManager directly)
     /// @param key The pool key identifying the pool to swap in
     /// @param zeroForOne The direction of the swap (true = token0 -> token1)
     /// @param amountIn The exact input amount
@@ -24,7 +23,6 @@ interface IAngstromAdapter {
     /// @param deadline The deadline for the swap to be executed
     /// @return amountOut The actual output amount received
     function swap(
-        address router,
         PoolKey calldata key,
         bool zeroForOne,
         uint128 amountIn,

@@ -15,6 +15,9 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 contract AngstromAdapter is IAngstromAdapter {
     /// @notice The Uniswap v4 PoolManager
     IPoolManager public immutable poolManager;
+    
+    /// @notice Transient storage for output amount across callback
+    uint256 tempOutputAmount;
 
     /// @notice Temporary storage for swap parameters during unlock callback
     struct SwapCallbackData {
@@ -33,7 +36,6 @@ contract AngstromAdapter is IAngstromAdapter {
 
     /// @inheritdoc IAngstromAdapter
     function swap(
-        address router,
         PoolKey calldata key,
         bool zeroForOne,
         uint128 amountIn,
@@ -62,7 +64,8 @@ contract AngstromAdapter is IAngstromAdapter {
         bytes memory encodedData = abi.encode(callbackData);
         poolManager.unlock(encodedData);
         
-        // TODO: Return output amount
+        // Return the output amount stored during callback
+        amountOut = tempOutputAmount;
     }
 
     /// @notice Callback function called by PoolManager during unlock
@@ -96,7 +99,9 @@ contract AngstromAdapter is IAngstromAdapter {
         // Verify minimum output satisfied (slippage protection)
         require(outputAmount >= params.minAmountOut, "MIN_OUT_NOT_SATISFIED");
         
-        // TODO: Store output amount for return
+        // Store output amount in transient storage for return
+        tempOutputAmount = outputAmount;
+        
         return "";
     }
 
