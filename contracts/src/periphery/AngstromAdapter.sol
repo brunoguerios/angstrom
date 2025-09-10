@@ -41,35 +41,52 @@ contract AngstromAdapter is IAngstromAdapter {
         address recipient,
         uint256 deadline
     ) external returns (uint256 amountOut) {
-        // TODO: Implement swap logic
-        // 1. Check deadline
-        // 2. Select correct attestation for current block
-        // 3. Pull input tokens from msg.sender
-        // 4. Encode data and call poolManager.unlock()
-        // 5. Return output amount
+        // check deadline
+        require(block.timestamp <= deadline, "DEADLINE_EXPIRED");
+        
+        // Select the correct attestation for the current block
+        bytes memory attestation = _selectAttestation(bundle);
+        
+        // Pull input tokens from msg.sender
+        Currency inputCurrency = zeroForOne ? key.currency0 : key.currency1;
+        IERC20(Currency.unwrap(inputCurrency)).transferFrom(msg.sender, address(this), amountIn);
+        
+        // Package swap parameters and initiate unlock
+        SwapCallbackData memory callbackData = SwapCallbackData({
+            poolKey: key,
+            zeroForOne: zeroForOne,
+            amountIn: amountIn,
+            minAmountOut: minAmountOut,
+            hookData: attestation,
+            recipient: recipient
+        });
+        
+        bytes memory encodedData = abi.encode(callbackData);
+        poolManager.unlock(encodedData);
+        
+        // TODO: Return output amount
     }
 
     /// @notice Callback function called by PoolManager during unlock
     /// @param data Encoded swap parameters
     /// @return bytes Empty bytes to satisfy interface
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
-        // TODO: Implement callback logic
-        // 1. Verify caller is poolManager
-        // 2. Decode swap parameters
-        // 3. Execute swap with attestation as hookData
-        // 4. Settle input tokens (pay debt)
-        // 5. Take output tokens (claim credit)
-        // 6. Verify minimum output satisfied
-        return "";
+
     }
 
     /// @notice Selects the correct attestation for the current block
     /// @param bundle Array of attestations to choose from
     /// @return unlockData The attestation data for the current block
     function _selectAttestation(Attestation[] calldata bundle) internal view returns (bytes memory unlockData) {
-        // TODO: Implement attestation selection
-        // Loop through bundle and find matching blockNumber
-        // Revert if no match found
+        uint256 currentBlock = block.number;
+        
+        for (uint256 i = 0; i < bundle.length; i++) {
+            if (bundle[i].blockNumber == currentBlock) {
+                return bundle[i].unlockData;
+            }
+        }
+        
+        revert("MISSING_ATTESTATION_FOR_CURRENT_BLOCK");
     }
 
     /// @notice Executes the actual swap on the PoolManager
