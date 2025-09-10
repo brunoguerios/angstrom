@@ -160,6 +160,9 @@ contract AngstromAdapter is IAngstromAdapter {
     /// @param amount The amount to settle
     /// @param payer The address to pull tokens from
     function _settle(Currency currency, uint256 amount, address payer) internal {
+        // Sync the currency balance first
+        poolManager.sync(currency);
+        
         // Transfer tokens directly from payer to PoolManager (single transfer!)
         IERC20(Currency.unwrap(currency)).transferFrom(payer, address(poolManager), amount);
         
