@@ -31,13 +31,4 @@ interface IAngstromAdapter {
         address recipient,
         uint256 deadline
     ) external returns (uint256 amountOut);
-
-    /// @notice Error thrown when no attestation matches the current block
-    error MissingAttestationForCurrentBlock();
-    
-    /// @notice Error thrown when the output amount is less than the minimum
-    error MinOutNotSatisfied();
-    
-    /// @notice Error thrown when the deadline has passed
-    error DeadlineExpired();
 }
