@@ -76,7 +76,7 @@ impl PreProposalWaitTrigger {
         }
 
         let mut this = self.clone();
-        this.wait_duration -= slot_elapsed_time;
+        this.wait_duration = this.wait_duration.saturating_sub(slot_elapsed_time);
 
         this
     }
