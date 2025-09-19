@@ -21,7 +21,7 @@ use angstrom_rpc::{
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
-    consensus::ConsensusRoundName,
+    consensus::{ConsensusRoundName, SlotClock, SystemTimeSlotClock},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
     primitive::{PoolId, UniswapPoolRegistry},
@@ -335,7 +335,8 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             block_sync.clone(),
             strom_handles.consensus_rx_rpc,
             state_updates,
-            consensus::ConsensusTimingConfig::default()
+            consensus::ConsensusTimingConfig::default(),
+            SystemTimeSlotClock::new_default().unwrap()
         );
 
         // spin up amm quoter

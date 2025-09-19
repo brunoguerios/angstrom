@@ -26,7 +26,7 @@ use angstrom_network::{
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
-    consensus::StromConsensusEvent,
+    consensus::{SlotClock, StromConsensusEvent, SystemTimeSlotClock},
     contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
     pair_with_price::PairsWithPrice,
     primitive::{
@@ -459,7 +459,8 @@ where
         global_block_sync.clone(),
         handles.consensus_rx_rpc,
         None,
-        config.consensus_timing
+        config.consensus_timing,
+        SystemTimeSlotClock::new_default().unwrap()
     );
 
     executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {

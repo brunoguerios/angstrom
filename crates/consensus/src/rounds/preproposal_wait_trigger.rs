@@ -66,12 +66,19 @@ impl PreProposalWaitTrigger {
         }
     }
 
-    pub fn update_for_new_round(&mut self, info: Option<LastRoundInfo>) -> Self {
+    pub fn update_for_new_round(
+        &mut self,
+        info: Option<LastRoundInfo>,
+        slot_elapsed_time: Duration
+    ) -> Self {
         if let Some(info) = info {
             self.update_wait_duration_base(info);
         }
 
-        self.clone()
+        let mut this = self.clone();
+        this.wait_duration = this.wait_duration.saturating_sub(slot_elapsed_time);
+
+        this
     }
 
     pub fn reset_before_submission(&mut self) {

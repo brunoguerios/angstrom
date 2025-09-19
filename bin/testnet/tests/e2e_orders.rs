@@ -66,7 +66,7 @@ fn internal_balance_agent<'a>(
                             tracing::info!("generated new internal balance orders. submitting to rpc");
 
                             for orders in new_orders {
-                                let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                                let GeneratedPoolOrders { pool_id: _, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter().chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
@@ -74,7 +74,7 @@ fn internal_balance_agent<'a>(
                                  pending_orders.push(client.send_orders(all_orders));
                             }
                         }
-                        Some(resolved_order) = pending_orders.next() => {
+                        Some(_resolved_order) = pending_orders.next() => {
                             tracing::info!("internal balance orders resolved");
                         }
 
@@ -130,7 +130,7 @@ fn testing_end_to_end_agent<'a>(
                             tracing::info!("generated new orders. submitting to rpc");
 
                             for orders in new_orders {
-                                let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                                let GeneratedPoolOrders { pool_id:_, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter().chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
@@ -138,7 +138,7 @@ fn testing_end_to_end_agent<'a>(
                                  pending_orders.push(client.send_orders(all_orders));
                             }
                         }
-                        Some(resolved_order) = pending_orders.next() => {
+                        Some(_resolved_order) = pending_orders.next() => {
                             tracing::info!("orders resolved");
                         }
 
@@ -170,7 +170,8 @@ where
     V: Fn(WalletProviderRpc) -> Pin<Box<dyn Future<Output = ()> + Send>>
 {
     let config = TestnetCli {
-        eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
+        eth_fork_url: std::env::var("ETH_WS_URL")
+            .unwrap_or_else(|_| "wss://ethereum-rpc.publicnode.com".to_string()),
         ..Default::default()
     };
 
@@ -207,7 +208,7 @@ fn test_internal_balances_land() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner.run_command_until_exit(|ctx| async move {
+    let _ = runner.run_command_until_exit(|ctx| async move {
         run_testnet_with_validation(
             internal_balance_agent,
             "internal balance testing",
@@ -225,7 +226,7 @@ fn testnet_lands_block() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner.run_command_until_exit(|ctx| async move {
+    let _ = runner.run_command_until_exit(|ctx| async move {
         run_testnet_with_validation(
             testing_end_to_end_agent,
             "angstrom",
@@ -328,9 +329,10 @@ fn test_remove_add_pool() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner.run_command_until_exit(|ctx| async move {
+    let _ = runner.run_command_until_exit(|ctx| async move {
         let config = TestnetCli {
-            eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
+            eth_fork_url: std::env::var("ETH_WS_URL")
+                .unwrap_or_else(|_| "wss://ethereum-rpc.publicnode.com".to_string()),
             ..Default::default()
         };
 
@@ -377,7 +379,7 @@ fn test_remove_add_pool() {
 }
 
 fn add_remove_agent<'a>(
-    init: &'a InitialTestnetState,
+    _init: &'a InitialTestnetState,
     agent_config: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async move {
@@ -418,7 +420,7 @@ fn add_remove_agent<'a>(
                             tracing::info!("generated new orders. submitting to rpc");
 
                             for orders in new_orders {
-                                let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                                let GeneratedPoolOrders { pool_id: _, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter().chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
@@ -426,7 +428,7 @@ fn add_remove_agent<'a>(
                                  pending_orders.push(client.send_orders(all_orders));
                             }
                         }
-                        Some(resolved_order) = pending_orders.next() => {
+                        Some(_resolved_order) = pending_orders.next() => {
                             tracing::info!("orders resolved");
                             WORKED.store(true, std::sync::atomic::Ordering::SeqCst);
                         }

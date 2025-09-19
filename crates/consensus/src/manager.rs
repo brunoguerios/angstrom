@@ -15,7 +15,9 @@ use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{StromMessage, StromNetworkHandle};
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
-    consensus::{ConsensusRoundName, ConsensusRoundOrderHashes, StromConsensusEvent},
+    consensus::{
+        ConsensusRoundName, ConsensusRoundOrderHashes, StromConsensusEvent, SystemTimeSlotClock
+    },
     contract_payloads::angstrom::UniswapAngstromRegistry,
     primitive::{AngstromMetaSigner, AngstromSigner, ChainExt},
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty,
@@ -82,7 +84,8 @@ where
         block_sync: BlockSync,
         rpc_rx: mpsc::UnboundedReceiver<ConsensusRequest>,
         state_updates: Option<mpsc::UnboundedSender<ConsensusRoundName>>,
-        timing_config: ConsensusTimingConfig
+        timing_config: ConsensusTimingConfig,
+        slot_clock: SystemTimeSlotClock
     ) -> Self {
         let ManagerNetworkDeps { network, canonical_block_stream, strom_consensus_event } = netdeps;
         let wrapped_broadcast_stream = BroadcastStream::new(canonical_block_stream);
@@ -95,19 +98,22 @@ where
             strom_consensus_event,
             current_height,
             leader_selection,
-            consensus_round_state: RoundStateMachine::new(SharedRoundState::<_, _, S>::new(
-                current_height,
-                order_storage,
-                signer,
-                leader,
-                validators.clone(),
-                ConsensusMetricsWrapper::new(),
-                pool_registry,
-                uniswap_pools,
-                provider,
-                matching_engine,
-                timing_config
-            )),
+            consensus_round_state: RoundStateMachine::new(
+                SharedRoundState::<_, _, S>::new(
+                    current_height,
+                    order_storage,
+                    signer,
+                    leader,
+                    validators.clone(),
+                    ConsensusMetricsWrapper::new(),
+                    pool_registry,
+                    uniswap_pools,
+                    provider,
+                    matching_engine,
+                    timing_config
+                ),
+                slot_clock
+            ),
             rpc_rx,
             state_updates,
             block_sync,
