@@ -158,6 +158,10 @@ impl<DB> StateProviderFactory for RethDbWrapper<DB>
 where
     DB: StateProviderFactory + Unpin + Clone + 'static
 {
+    fn maybe_pending(&self) -> ProviderResult<Option<reth_provider::StateProviderBox>> {
+        self.db.maybe_pending()
+    }
+
     fn latest(&self) -> reth_provider::ProviderResult<reth_provider::StateProviderBox> {
         self.db.latest()
     }

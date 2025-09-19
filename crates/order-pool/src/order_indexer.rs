@@ -410,13 +410,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
     // given that we cant acutally remove orders on cancel.
     pub fn purge_cancelled(&mut self) {
         for order in self.order_storage.purge_tob_orders() {
-            self.order_tracker
-                .order_hash_to_order_id
-                .remove(&order.order_hash());
-            self.order_tracker
-                .order_hash_to_peer_id
-                .remove(&order.order_hash());
-
             self.order_tracker.insert_cancel_with_deadline(
                 order.from(),
                 &order.order_hash(),
@@ -425,13 +418,6 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         }
 
         for order in self.order_storage.purge_user_orders() {
-            self.order_tracker
-                .order_hash_to_order_id
-                .remove(&order.order_hash());
-            self.order_tracker
-                .order_hash_to_peer_id
-                .remove(&order.order_hash());
-
             self.order_tracker.insert_cancel_with_deadline(
                 order.from(),
                 &order.order_hash(),
@@ -453,18 +439,18 @@ impl<V: OrderValidatorHandle<Order = AllOrders>> OrderIndexer<V> {
         // deal with filled orders
         self.filled_orders(block_number, &completed_orders);
 
-        // Given we retain cancelled tobs given we want to look them up
-        // if the cancel occured after consensus, we want to ensure
-        // we properly clear them out now that they are no longer needed.
         self.purge_cancelled();
-
-        // deal with changed orders
-        self.eoa_state_change(&address_changes);
-        // add expired orders to completed
         let expired_orders = self
             .order_tracker
             .remove_expired_orders(block_number, &self.order_storage);
         self.subscribers.notify_expired_orders(&expired_orders);
+
+        // deal with changed orders
+        self.eoa_state_change(&address_changes);
+
+        // Given we retain cancelled tobs given we want to look them up
+        // if the cancel occured after consensus, we want to ensure
+        // we properly clear them out now that they are no longer needed.
 
         completed_orders.extend(expired_orders.into_iter().map(|o| o.order_id.hash));
 
@@ -1138,12 +1124,14 @@ mod tests {
 
         let result = indexer.cancel_order(&cancel_request);
         assert!(result);
+
         assert!(
             indexer
                 .order_tracker
                 .cancelled_orders
                 .contains_key(&order_hash)
         );
+
         assert!(
             !indexer
                 .order_tracker

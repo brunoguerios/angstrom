@@ -207,6 +207,8 @@ impl OrderTracker {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_secs()
+                        - ETH_BLOCK_TIME.as_secs()
+                        - 1
                 )
             },
             |deadline| deadline
@@ -229,13 +231,9 @@ impl OrderTracker {
             })
             .unwrap_or_default();
 
-        if !canceled {
-            // When we purge our cancelled orders, this will update with actual deadline.
-            self.cancel_with_next_block_deadline(from, &hash);
-            None
-        } else {
-            Some((is_tob, pool_id))
-        }
+        self.cancel_with_next_block_deadline(from, &hash);
+
+        canceled.then_some((is_tob, pool_id))
     }
 
     pub fn pending_orders_for_address<F>(

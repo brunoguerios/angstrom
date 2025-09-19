@@ -48,19 +48,8 @@ impl ChainSubmitter for AngstromSubmitter {
         Box::pin(async move {
             let mut tx_hash = None;
             let payload = if let Some(bundle) = bundle {
-                let client = self
-                    .clients
-                    .first()
-                    .ok_or(eyre::eyre!("no angstrom submission clients found"))?
-                    .0
-                    .clone();
-
                 let mut tx = self.build_tx(signer, bundle, tx_features);
-                let gas_used = client
-                    .estimate_gas(tx.clone())
-                    .await
-                    .unwrap_or(bundle.crude_gas_estimation())
-                    + EXTRA_GAS_LIMIT;
+                let gas_used = (tx_features.bundle_gas_used)(tx.clone()).await + EXTRA_GAS_LIMIT;
                 tx = tx.with_gas_limit(gas_used);
                 // Angstrom integrators have max priority gas set to 0.
                 tx.set_max_priority_fee_per_gas(0);
