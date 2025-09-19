@@ -533,7 +533,7 @@ pub mod tests {
         ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState
     };
     use crate::{
-        AngstromValidator,
+        AngstromValidator, ConsensusTimingConfig,
         rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
