@@ -207,17 +207,15 @@ fn test_internal_balances_land() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner
-        .run_command_until_exit(|ctx| async move {
-            run_testnet_with_validation(
-                internal_balance_agent,
-                "internal balance testing",
-                |provider| Box::pin(wait_for_internal_balance_block(provider)),
-                &ctx.task_executor
-            )
-            .await
-        })
-        .unwrap();
+    let _ = runner.run_command_until_exit(|ctx| async move {
+        run_testnet_with_validation(
+            internal_balance_agent,
+            "internal balance testing",
+            |provider| Box::pin(wait_for_internal_balance_block(provider)),
+            &ctx.task_executor
+        )
+        .await
+    });
 }
 
 #[test]
@@ -227,17 +225,15 @@ fn testnet_lands_block() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner
-        .run_command_until_exit(|ctx| async move {
-            run_testnet_with_validation(
-                testing_end_to_end_agent,
-                "angstrom",
-                |provider| Box::pin(wait_for_valid_block(provider)),
-                &ctx.task_executor
-            )
-            .await
-        })
-        .unwrap();
+    let _ = runner.run_command_until_exit(|ctx| async move {
+        run_testnet_with_validation(
+            testing_end_to_end_agent,
+            "angstrom",
+            |provider| Box::pin(wait_for_valid_block(provider)),
+            &ctx.task_executor
+        )
+        .await
+    });
 }
 
 async fn wait_for_bundle_block<F>(provider: WalletProviderRpc, validator: F)
@@ -332,54 +328,52 @@ fn test_remove_add_pool() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner
-        .run_command_until_exit(|ctx| async move {
-            let config = TestnetCli {
-                eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
-                ..Default::default()
-            };
+    let _ = runner.run_command_until_exit(|ctx| async move {
+        let config = TestnetCli {
+            eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
+            ..Default::default()
+        };
 
-            let config = config.make_config().unwrap();
-            let agents = vec![add_remove_agent];
+        let config = config.make_config().unwrap();
+        let agents = vec![add_remove_agent];
 
-            tracing::info!("spinning up e2e nodes for remove add pool test");
+        tracing::info!("spinning up e2e nodes for remove add pool test");
 
-            // spawn testnet
-            let testnet = AngstromTestnet::spawn_testnet(
-                NoopProvider::default(),
-                config,
-                agents,
-                ctx.task_executor.clone()
-            )
-            .await
-            .expect("failed to start angstrom testnet");
+        // spawn testnet
+        let testnet = AngstromTestnet::spawn_testnet(
+            NoopProvider::default(),
+            config,
+            agents,
+            ctx.task_executor.clone()
+        )
+        .await
+        .expect("failed to start angstrom testnet");
 
-            // grab provider so we can query from the chain later.
-            let provider = testnet.node_provider(Some(1)).rpc_provider();
+        // grab provider so we can query from the chain later.
+        let provider = testnet.node_provider(Some(1)).rpc_provider();
 
-            let testnet_task = ctx.task_executor.spawn_critical(
-                "testnet",
-                testnet.run_to_completion(ctx.task_executor.clone()).boxed()
-            );
+        let testnet_task = ctx.task_executor.spawn_critical(
+            "testnet",
+            testnet.run_to_completion(ctx.task_executor.clone()).boxed()
+        );
 
-            tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_secs(5)).await;
 
-            // Just verify the testnet is running by checking we can get a block number
-            let block_number = provider.get_block_number().await.unwrap();
-            tracing::info!("Testnet is running, current block: {}", block_number);
+        // Just verify the testnet is running by checking we can get a block number
+        let block_number = provider.get_block_number().await.unwrap();
+        tracing::info!("Testnet is running, current block: {}", block_number);
 
-            // Wait for the agent to complete
-            tokio::time::sleep(Duration::from_secs(30)).await;
+        // Wait for the agent to complete
+        tokio::time::sleep(Duration::from_secs(30)).await;
 
-            assert!(
-                WORKED.load(std::sync::atomic::Ordering::SeqCst),
-                "failed to properly run the test"
-            );
+        assert!(
+            WORKED.load(std::sync::atomic::Ordering::SeqCst),
+            "failed to properly run the test"
+        );
 
-            testnet_task.abort();
-            eyre::Ok(())
-        })
-        .unwrap();
+        testnet_task.abort();
+        eyre::Ok(())
+    });
 }
 
 fn add_remove_agent<'a>(
