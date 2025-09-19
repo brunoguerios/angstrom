@@ -22,6 +22,7 @@ use angstrom_rpc::{
 };
 use angstrom_types::{
     block_sync::{BlockSyncProducer, GlobalBlockSync},
+    consensus::{SlotClock, SystemTimeSlotClock},
     contract_bindings::{
         angstrom::Angstrom::PoolKey,
         controller_v_1::ControllerV1::{self, PoolConfigured, PoolRemoved}
@@ -441,7 +442,8 @@ impl ReplayRunner {
             global_block_sync.clone(),
             strom_handles.consensus_rx_rpc,
             None,
-            ConsensusTimingConfig::default()
+            ConsensusTimingConfig::default(),
+            SystemTimeSlotClock::new_default().unwrap()
         );
         executor.spawn_critical_with_graceful_shutdown_signal("consensus", move |grace| {
             consensus.run_till_shutdown(grace)

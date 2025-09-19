@@ -14,7 +14,7 @@ use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_types::{
     consensus::{
         ConsensusRoundEvent, ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal,
-        StromConsensusEvent
+        SlotClock, StromConsensusEvent, SystemTimeSlotClock
     },
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     orders::PoolSolution,
@@ -29,10 +29,7 @@ use order_pool::order_storage::OrderStorage;
 use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-use crate::{
-    AngstromValidator, ConsensusTimingConfig,
-    slot_clock::{SlotClock, SystemTimeSlotClock}
-};
+use crate::{AngstromValidator, ConsensusTimingConfig};
 
 mod bid_aggregation;
 mod finalization;
@@ -535,7 +532,7 @@ pub mod tests {
     use crate::{
         AngstromValidator,
         rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState},
-        slot_clock::SlotClock
+        slot_clock::{SlotClock, SystemTimeSlotClock}
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine, PrivateKeySigner> {
@@ -588,6 +585,12 @@ pub mod tests {
         let provider =
             SubmissionHandler { node_provider: querying_provider, submitters: vec![] };
 
+        let slot_clock = SystemTimeSlotClock::new(
+            genesis_slot,
+            genesis_duration,
+            std::time::Duration::from_secs(12)
+        );
+
         let shared_state = SharedRoundState::new(
             1, // block height
             order_storage,
@@ -601,6 +604,7 @@ pub mod tests {
             MockMatchingEngine {},
             ConsensusTimingConfig::default()
         );
+        RoundStateMachine::new(shared_state, slot_clock)
     }
 
     #[tokio::test]

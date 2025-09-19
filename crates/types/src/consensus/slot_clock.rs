@@ -5,25 +5,27 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
+use crate::primitive::CHAIN_ID;
+
 pub const INTERVALS_PER_SLOT: u64 = 3;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Slot(u64);
 
-impl Slot {
-    pub fn new(slot: u64) -> Self {
-        Self(slot)
-    }
-}
 /// A clock that reports the current slot.
 ///
 /// The clock is not required to be monotonically increasing and may go
 /// backwards.
 pub trait SlotClock: Send + Sync + Sized + Clone {
-    /// Creates a new slot clock where the first slot is `genesis_slot`, genesis
-    /// occurred `genesis_duration` after the `UNIX_EPOCH` and each slot is
-    /// `slot_duration` apart.
-    fn new(genesis_slot: Slot, genesis_duration: Duration, slot_duration: Duration) -> Self;
+    /// Creates a new system slot clock using the parameters for the staticly
+    /// set `CHAIN_ID`
+    fn new_default() -> Option<Self> {
+        Self::new_with_chain_id(*CHAIN_ID.get().expect("CHAIN_ID has not been set yet"))
+    }
+
+    /// Creates a new system slot clock using the parameters for a specific
+    /// chain id. Some chain ids will not have one
+    fn new_with_chain_id(chain_id: u64) -> Option<Self>;
 
     /// Returns the slot at this present time.
     fn now(&self) -> Option<Slot>;
@@ -107,9 +109,31 @@ pub struct SystemTimeSlotClock {
     clock: ManualSlotClock
 }
 
-impl SlotClock for SystemTimeSlotClock {
+impl SystemTimeSlotClock {
+    /// Creates a new slot clock where the first slot is `genesis_slot`, genesis
+    /// occurred `genesis_duration` after the `UNIX_EPOCH` and each slot is
+    /// `slot_duration` apart.
     fn new(genesis_slot: Slot, genesis_duration: Duration, slot_duration: Duration) -> Self {
         Self { clock: ManualSlotClock::new(genesis_slot, genesis_duration, slot_duration) }
+    }
+}
+
+impl SlotClock for SystemTimeSlotClock {
+    fn new_with_chain_id(chain_id: u64) -> Option<Self> {
+        let genesis_slot = Slot(0);
+        match chain_id {
+            1 => Some(SystemTimeSlotClock::new(
+                genesis_slot,
+                Duration::from_secs(1606824023),
+                Duration::from_secs(12)
+            )),
+            11155111 => Some(SystemTimeSlotClock::new(
+                genesis_slot,
+                Duration::from_secs(1655733600),
+                Duration::from_secs(12)
+            )),
+            _ => None
+        }
     }
 
     fn now(&self) -> Option<Slot> {
@@ -176,6 +200,17 @@ impl Clone for ManualSlotClock {
 }
 
 impl ManualSlotClock {
+    /// Creates a new slot clock where the first slot is `genesis_slot`, genesis
+    /// occurred `genesis_duration` after the `UNIX_EPOCH` and each slot is
+    /// `slot_duration` apart.
+    fn new(genesis_slot: Slot, genesis_duration: Duration, slot_duration: Duration) -> Self {
+        if slot_duration.as_millis() == 0 {
+            panic!("ManualSlotClock cannot have a < 1ms slot duration");
+        }
+
+        Self { genesis_slot, current_time: genesis_duration, genesis_duration, slot_duration }
+    }
+
     pub fn set_slot(&mut self, slot: u64) {
         let slots_since_genesis = slot
             .checked_sub(self.genesis_slot.0)
@@ -220,12 +255,21 @@ impl ManualSlotClock {
 }
 
 impl SlotClock for ManualSlotClock {
-    fn new(genesis_slot: Slot, genesis_duration: Duration, slot_duration: Duration) -> Self {
-        if slot_duration.as_millis() == 0 {
-            panic!("ManualSlotClock cannot have a < 1ms slot duration");
+    fn new_with_chain_id(chain_id: u64) -> Option<Self> {
+        let genesis_slot = Slot(0);
+        match chain_id {
+            1 => Some(ManualSlotClock::new(
+                genesis_slot,
+                Duration::from_secs(1606824023),
+                Duration::from_secs(12)
+            )),
+            11155111 => Some(ManualSlotClock::new(
+                genesis_slot,
+                Duration::from_secs(1655733600),
+                Duration::from_secs(12)
+            )),
+            _ => None
         }
-
-        Self { genesis_slot, current_time: genesis_duration, genesis_duration, slot_duration }
     }
 
     fn now(&self) -> Option<Slot> {

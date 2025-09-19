@@ -1,6 +1,5 @@
 mod leader_selection;
 mod manager;
-pub mod slot_clock;
 
 use angstrom_types::consensus::ConsensusRoundOrderHashes;
 pub use manager::*;

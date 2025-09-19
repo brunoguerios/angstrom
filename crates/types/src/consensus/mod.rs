@@ -8,9 +8,11 @@ use alloy::primitives::{Address, BlockNumber, Bytes};
 pub use evidence::*;
 pub use pre_prepose::*;
 pub use pre_propose_agg::*;
+pub mod slot_clock;
 pub use proposal::*;
 pub use round_data::*;
 use serde::{Deserialize, Serialize};
+pub use slot_clock::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConsensusRoundName {

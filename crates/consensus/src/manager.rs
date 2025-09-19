@@ -3,8 +3,7 @@ use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker},
-    time::Duration
+    task::{Context, Poll, Waker}
 };
 
 use alloy::{
@@ -16,7 +15,9 @@ use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_network::{StromMessage, StromNetworkHandle};
 use angstrom_types::{
     block_sync::BlockSyncConsumer,
-    consensus::{ConsensusRoundName, ConsensusRoundOrderHashes, StromConsensusEvent},
+    consensus::{
+        ConsensusRoundName, ConsensusRoundOrderHashes, StromConsensusEvent, SystemTimeSlotClock
+    },
     contract_payloads::angstrom::UniswapAngstromRegistry,
     primitive::{AngstromMetaSigner, AngstromSigner, ChainExt},
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty,
@@ -37,8 +38,7 @@ use crate::{
     AngstromValidator, ConsensusDataWithBlock, ConsensusRequest, ConsensusSubscriptionData,
     ConsensusSubscriptionRequestKind, ConsensusTimingConfig,
     leader_selection::WeightedRoundRobin,
-    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
-    slot_clock::{Slot, SlotClock, SystemTimeSlotClock}
+    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState}
 };
 
 const MODULE_NAME: &str = "Consensus";
@@ -84,7 +84,8 @@ where
         block_sync: BlockSync,
         rpc_rx: mpsc::UnboundedReceiver<ConsensusRequest>,
         state_updates: Option<mpsc::UnboundedSender<ConsensusRoundName>>,
-        timing_config: ConsensusTimingConfig
+        timing_config: ConsensusTimingConfig,
+        slot_clock: SystemTimeSlotClock
     ) -> Self {
         let ManagerNetworkDeps { network, canonical_block_stream, strom_consensus_event } = netdeps;
         let wrapped_broadcast_stream = BroadcastStream::new(canonical_block_stream);
@@ -111,11 +112,7 @@ where
                     matching_engine,
                     timing_config
                 ),
-                SystemTimeSlotClock::new(
-                    Slot::new(0),
-                    Duration::from_secs(0),
-                    Duration::from_secs(12)
-                )
+                slot_clock
             ),
             rpc_rx,
             state_updates,
