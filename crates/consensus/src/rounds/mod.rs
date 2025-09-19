@@ -29,14 +29,10 @@ use order_pool::order_storage::OrderStorage;
 use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-<<<<<<< HEAD
 use crate::{
     AngstromValidator,
     slot_clock::{SlotClock, SystemTimeSlotClock}
 };
-=======
-use crate::{AngstromValidator, ConsensusTimingConfig};
->>>>>>> main
 
 mod bid_aggregation;
 mod finalization;
@@ -97,8 +93,10 @@ where
         shared_state: SharedRoundState<P, Matching, S>,
         slot_clock: SystemTimeSlotClock
     ) -> Self {
-        let mut consensus_wait_duration =
-            PreProposalWaitTrigger::new(shared_state.order_storage.clone(),             shared_state.consensus_config);
+        let mut consensus_wait_duration = PreProposalWaitTrigger::new(
+            shared_state.order_storage.clone(),
+            shared_state.consensus_config
+        );
 
         let next_slot_duration = slot_clock.duration_to_next_slot().unwrap();
         let elapsed_time = slot_clock.slot_duration() - next_slot_duration;
@@ -535,14 +533,9 @@ pub mod tests {
         ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState
     };
     use crate::{
-<<<<<<< HEAD
         AngstromValidator,
         rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState},
         slot_clock::SlotClock
-=======
-        AngstromValidator, ConsensusTimingConfig,
-        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
->>>>>>> main
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine, PrivateKeySigner> {
