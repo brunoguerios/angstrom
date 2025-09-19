@@ -25,7 +25,8 @@ fn testnet_deploy() {
     runner
         .run_command_until_exit(|ctx| async move {
             let cli = TestnetCli {
-                eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
+                eth_fork_url: std::env::var("ETH_WS_URL")
+                    .unwrap_or_else(|_| "wss://ethereum-rpc.publicnode.com".to_string()),
                 ..Default::default()
             };
 
@@ -54,7 +55,8 @@ fn testnet_bundle_unlock() {
     runner
         .run_command_until_exit(|ctx| async move {
             let config = TestnetCli {
-                eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
+                eth_fork_url: std::env::var("ETH_WS_URL")
+                    .unwrap_or_else(|_| "wss://ethereum-rpc.publicnode.com".to_string()),
                 ..Default::default()
             };
 

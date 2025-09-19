@@ -170,7 +170,8 @@ where
     V: Fn(WalletProviderRpc) -> Pin<Box<dyn Future<Output = ()> + Send>>
 {
     let config = TestnetCli {
-        eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
+        eth_fork_url: std::env::var("ETH_WS_URL")
+            .unwrap_or_else(|_| "wss://ethereum-rpc.publicnode.com".to_string()),
         ..Default::default()
     };
 
@@ -335,7 +336,8 @@ fn test_remove_add_pool() {
     runner
         .run_command_until_exit(|ctx| async move {
             let config = TestnetCli {
-                eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
+                eth_fork_url: std::env::var("ETH_WS_URL")
+                    .unwrap_or_else(|_| "wss://ethereum-rpc.publicnode.com".to_string()),
                 ..Default::default()
             };
 
