@@ -10,6 +10,11 @@ pub const INTERVALS_PER_SLOT: u64 = 3;
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Slot(u64);
 
+impl Slot {
+    pub fn new(slot: u64) -> Self {
+        Self(slot)
+    }
+}
 /// A clock that reports the current slot.
 ///
 /// The clock is not required to be monotonically increasing and may go

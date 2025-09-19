@@ -111,7 +111,11 @@ where
                     matching_engine,
                     timing_config
                 ),
-                SystemTimeSlotClock::new(Slot(0), Duration::from_secs(0), Duration::from_secs(12))
+                SystemTimeSlotClock::new(
+                    Slot::new(0),
+                    Duration::from_secs(0),
+                    Duration::from_secs(12)
+                )
             ),
             rpc_rx,
             state_updates,
