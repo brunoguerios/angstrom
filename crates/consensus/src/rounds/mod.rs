@@ -587,8 +587,6 @@ pub mod tests {
         let provider =
             SubmissionHandler { node_provider: querying_provider, submitters: vec![] };
 
-        let slot_clock = SystemTimeSlotClock::new_with_chain_id(1).unwrap();
-
         let shared_state = SharedRoundState::new(
             1, // block height
             order_storage,
@@ -600,7 +598,8 @@ pub mod tests {
             uniswap_pools,
             provider,
             MockMatchingEngine {},
-            ConsensusTimingConfig::default()
+            ConsensusTimingConfig::default(),
+            SystemTimeSlotClock::new_with_chain_id(1).unwrap()
         );
         RoundStateMachine::new(shared_state, slot_clock)
     }
