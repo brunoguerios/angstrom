@@ -598,10 +598,9 @@ pub mod tests {
             uniswap_pools,
             provider,
             MockMatchingEngine {},
-            ConsensusTimingConfig::default(),
-            SystemTimeSlotClock::new_with_chain_id(1).unwrap()
+            ConsensusTimingConfig::default()
         );
-        RoundStateMachine::new(shared_state, slot_clock)
+        RoundStateMachine::new(shared_state, SystemTimeSlotClock::new_with_chain_id(1).unwrap())
     }
 
     #[tokio::test]
