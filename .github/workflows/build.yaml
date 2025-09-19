@@ -12,7 +12,7 @@ env:
   FOUNDRY_PROFILE: ci
   CARGO_INCREMENTAL: "0"
   RUSTFLAGS: "-C debuginfo=0"
-  RUST_BACKTRACE: "full"
+  RUST_BACKTRACE: full
 
 jobs:
   cargo-fmt:
