@@ -3,7 +3,8 @@ use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
+    time::Duration
 };
 
 use alloy::{
@@ -36,7 +37,8 @@ use crate::{
     AngstromValidator, ConsensusDataWithBlock, ConsensusRequest, ConsensusSubscriptionData,
     ConsensusSubscriptionRequestKind, ConsensusTimingConfig,
     leader_selection::WeightedRoundRobin,
-    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState}
+    rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState},
+    slot_clock::{Slot, SlotClock, SystemTimeSlotClock}
 };
 
 const MODULE_NAME: &str = "Consensus";
@@ -95,19 +97,22 @@ where
             strom_consensus_event,
             current_height,
             leader_selection,
-            consensus_round_state: RoundStateMachine::new(SharedRoundState::<_, _, S>::new(
-                current_height,
-                order_storage,
-                signer,
-                leader,
-                validators.clone(),
-                ConsensusMetricsWrapper::new(),
-                pool_registry,
-                uniswap_pools,
-                provider,
-                matching_engine,
-                timing_config
-            )),
+            consensus_round_state: RoundStateMachine::new(
+                SharedRoundState::<_, _, S>::new(
+                    current_height,
+                    order_storage,
+                    signer,
+                    leader,
+                    validators.clone(),
+                    ConsensusMetricsWrapper::new(),
+                    pool_registry,
+                    uniswap_pools,
+                    provider,
+                    matching_engine,
+                    timing_config
+                ),
+                SystemTimeSlotClock::new(Slot(0), Duration::from_secs(0), Duration::from_secs(12))
+            ),
             rpc_rx,
             state_updates,
             block_sync,

@@ -30,7 +30,7 @@ use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
 use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
-    AngstromValidator,
+    AngstromValidator, ConsensusTimingConfig,
     slot_clock::{SlotClock, SystemTimeSlotClock}
 };
 
