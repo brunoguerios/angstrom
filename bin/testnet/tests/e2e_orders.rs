@@ -66,7 +66,7 @@ fn internal_balance_agent<'a>(
                             tracing::info!("generated new internal balance orders. submitting to rpc");
 
                             for orders in new_orders {
-                                let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                                let GeneratedPoolOrders { pool_id: _, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter().chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
@@ -74,7 +74,7 @@ fn internal_balance_agent<'a>(
                                  pending_orders.push(client.send_orders(all_orders));
                             }
                         }
-                        Some(resolved_order) = pending_orders.next() => {
+                        Some(_resolved_order) = pending_orders.next() => {
                             tracing::info!("internal balance orders resolved");
                         }
 
@@ -130,7 +130,7 @@ fn testing_end_to_end_agent<'a>(
                             tracing::info!("generated new orders. submitting to rpc");
 
                             for orders in new_orders {
-                                let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                                let GeneratedPoolOrders { pool_id:_, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter().chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
@@ -138,7 +138,7 @@ fn testing_end_to_end_agent<'a>(
                                  pending_orders.push(client.send_orders(all_orders));
                             }
                         }
-                        Some(resolved_order) = pending_orders.next() => {
+                        Some(_resolved_order) = pending_orders.next() => {
                             tracing::info!("orders resolved");
                         }
 
@@ -170,7 +170,7 @@ where
     V: Fn(WalletProviderRpc) -> Pin<Box<dyn Future<Output = ()> + Send>>
 {
     let config = TestnetCli {
-        eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
+        eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
         ..Default::default()
     };
 
@@ -207,15 +207,17 @@ fn test_internal_balances_land() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner.run_command_until_exit(|ctx| async move {
-        run_testnet_with_validation(
-            internal_balance_agent,
-            "internal balance testing",
-            |provider| Box::pin(wait_for_internal_balance_block(provider)),
-            &ctx.task_executor
-        )
-        .await
-    });
+    runner
+        .run_command_until_exit(|ctx| async move {
+            run_testnet_with_validation(
+                internal_balance_agent,
+                "internal balance testing",
+                |provider| Box::pin(wait_for_internal_balance_block(provider)),
+                &ctx.task_executor
+            )
+            .await
+        })
+        .unwrap();
 }
 
 #[test]
@@ -225,15 +227,17 @@ fn testnet_lands_block() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner.run_command_until_exit(|ctx| async move {
-        run_testnet_with_validation(
-            testing_end_to_end_agent,
-            "angstrom",
-            |provider| Box::pin(wait_for_valid_block(provider)),
-            &ctx.task_executor
-        )
-        .await
-    });
+    runner
+        .run_command_until_exit(|ctx| async move {
+            run_testnet_with_validation(
+                testing_end_to_end_agent,
+                "angstrom",
+                |provider| Box::pin(wait_for_valid_block(provider)),
+                &ctx.task_executor
+            )
+            .await
+        })
+        .unwrap();
 }
 
 async fn wait_for_bundle_block<F>(provider: WalletProviderRpc, validator: F)
@@ -328,56 +332,58 @@ fn test_remove_add_pool() {
     AngstromAddressConfig::INTERNAL_TESTNET.try_init();
     let runner = reth::CliRunner::try_default_runtime().unwrap();
 
-    runner.run_command_until_exit(|ctx| async move {
-        let config = TestnetCli {
-            eth_fork_url: "wss://ethereum-rpc.publicnode.com".to_string(),
-            ..Default::default()
-        };
+    runner
+        .run_command_until_exit(|ctx| async move {
+            let config = TestnetCli {
+                eth_fork_url: std::env::var("ETH_WS_URL").expect("no ETH_WS_URL in .env"),
+                ..Default::default()
+            };
 
-        let config = config.make_config().unwrap();
-        let agents = vec![add_remove_agent];
+            let config = config.make_config().unwrap();
+            let agents = vec![add_remove_agent];
 
-        tracing::info!("spinning up e2e nodes for remove add pool test");
+            tracing::info!("spinning up e2e nodes for remove add pool test");
 
-        // spawn testnet
-        let testnet = AngstromTestnet::spawn_testnet(
-            NoopProvider::default(),
-            config,
-            agents,
-            ctx.task_executor.clone()
-        )
-        .await
-        .expect("failed to start angstrom testnet");
+            // spawn testnet
+            let testnet = AngstromTestnet::spawn_testnet(
+                NoopProvider::default(),
+                config,
+                agents,
+                ctx.task_executor.clone()
+            )
+            .await
+            .expect("failed to start angstrom testnet");
 
-        // grab provider so we can query from the chain later.
-        let provider = testnet.node_provider(Some(1)).rpc_provider();
+            // grab provider so we can query from the chain later.
+            let provider = testnet.node_provider(Some(1)).rpc_provider();
 
-        let testnet_task = ctx.task_executor.spawn_critical(
-            "testnet",
-            testnet.run_to_completion(ctx.task_executor.clone()).boxed()
-        );
+            let testnet_task = ctx.task_executor.spawn_critical(
+                "testnet",
+                testnet.run_to_completion(ctx.task_executor.clone()).boxed()
+            );
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
 
-        // Just verify the testnet is running by checking we can get a block number
-        let block_number = provider.get_block_number().await.unwrap();
-        tracing::info!("Testnet is running, current block: {}", block_number);
+            // Just verify the testnet is running by checking we can get a block number
+            let block_number = provider.get_block_number().await.unwrap();
+            tracing::info!("Testnet is running, current block: {}", block_number);
 
-        // Wait for the agent to complete
-        tokio::time::sleep(Duration::from_secs(30)).await;
+            // Wait for the agent to complete
+            tokio::time::sleep(Duration::from_secs(30)).await;
 
-        assert!(
-            WORKED.load(std::sync::atomic::Ordering::SeqCst),
-            "failed to properly run the test"
-        );
+            assert!(
+                WORKED.load(std::sync::atomic::Ordering::SeqCst),
+                "failed to properly run the test"
+            );
 
-        testnet_task.abort();
-        eyre::Ok(())
-    });
+            testnet_task.abort();
+            eyre::Ok(())
+        })
+        .unwrap();
 }
 
 fn add_remove_agent<'a>(
-    init: &'a InitialTestnetState,
+    _init: &'a InitialTestnetState,
     agent_config: AgentConfig
 ) -> Pin<Box<dyn Future<Output = eyre::Result<()>> + Send + 'a>> {
     Box::pin(async move {
@@ -418,7 +424,7 @@ fn add_remove_agent<'a>(
                             tracing::info!("generated new orders. submitting to rpc");
 
                             for orders in new_orders {
-                                let GeneratedPoolOrders { pool_id, tob, book } = orders;
+                                let GeneratedPoolOrders { pool_id: _, tob, book } = orders;
                                 let all_orders = book
                                     .into_iter().chain(vec![tob.into()])
                                     .collect::<Vec<AllOrders>>();
@@ -426,7 +432,7 @@ fn add_remove_agent<'a>(
                                  pending_orders.push(client.send_orders(all_orders));
                             }
                         }
-                        Some(resolved_order) = pending_orders.next() => {
+                        Some(_resolved_order) = pending_orders.next() => {
                             tracing::info!("orders resolved");
                             WORKED.store(true, std::sync::atomic::Ordering::SeqCst);
                         }
