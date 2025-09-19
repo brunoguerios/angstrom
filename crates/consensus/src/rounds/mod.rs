@@ -509,7 +509,10 @@ pub mod tests {
     };
     use angstrom_metrics::ConsensusMetricsWrapper;
     use angstrom_types::{
-        consensus::StromConsensusEvent,
+        consensus::{
+            StromConsensusEvent,
+            slot_clock::{SlotClock, SystemTimeSlotClock}
+        },
         contract_payloads::angstrom::{AngstromPoolConfigStore, UniswapAngstromRegistry},
         primitive::{AngstromSigner, UniswapPoolRegistry},
         submission::SubmissionHandler
@@ -531,8 +534,7 @@ pub mod tests {
     };
     use crate::{
         AngstromValidator,
-        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState},
-        slot_clock::{SlotClock, SystemTimeSlotClock}
+        rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
     impl RoundStateMachine<ProviderDef, MockMatchingEngine, PrivateKeySigner> {
@@ -585,11 +587,7 @@ pub mod tests {
         let provider =
             SubmissionHandler { node_provider: querying_provider, submitters: vec![] };
 
-        let slot_clock = SystemTimeSlotClock::new(
-            genesis_slot,
-            genesis_duration,
-            std::time::Duration::from_secs(12)
-        );
+        let slot_clock = SystemTimeSlotClock::new_with_chain_id(1).unwrap();
 
         let shared_state = SharedRoundState::new(
             1, // block height
