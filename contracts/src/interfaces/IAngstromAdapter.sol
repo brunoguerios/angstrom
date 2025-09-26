@@ -9,8 +9,8 @@ import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 interface IAngstromAdapter {
     /// @notice Attestation data for a specific block
     struct Attestation {
-        uint64 blockNumber;  // The block number this attestation is valid for
-        bytes unlockData;    // 20 bytes validator address + signature bytes
+        uint64 blockNumber; // The block number this attestation is valid for
+        bytes unlockData; // 20 bytes validator address + signature bytes
     }
 
     /// @notice Executes a swap on an Angstrom-protected pool with attestation selection
