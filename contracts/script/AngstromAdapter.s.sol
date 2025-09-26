@@ -30,8 +30,6 @@ contract AngstromAdapterScript is BaseScript {
         if (isChain("mainnet")) {
             return 0x000000000004444c5dc75cB358380D2e3dE08A90;
         }
-        revert(
-            string.concat("Unsupported chain: ", getChain(block.chainid).name)
-        );
+        revert(string.concat("Unsupported chain: ", getChain(block.chainid).name));
     }
 }
