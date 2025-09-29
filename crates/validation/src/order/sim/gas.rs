@@ -17,8 +17,14 @@ use super::GasUsed;
 // internal balance on book should be 27k gas cheaper
 pub const BOOK_GAS: u64 = 92_000;
 pub const BOOK_GAS_INTERNAL: u64 = 65_000;
-pub const TOB_GAS: u64 = 1;
-pub const TOB_GAS_INTERNAL: u64 = 1;
+pub const TOB_GAS_NORMAL: u64 = 160_000;
+pub const TOB_GAS_INTERNAL_NORMAL: u64 = 150_000;
+pub const TOB_GAS_SUB: u64 = 1;
+pub const TOB_GAS_INTERNAL_SUB: u64 = 1;
+
+/// 0.7 gwei gas.
+pub const SWITCH_WEI: u128 = 700000000;
+
 /// deals with the calculation of gas for a given type of order.
 /// user orders and tob orders take different paths and are different size and
 /// as such, pay different amount of gas in order to execute.
@@ -72,7 +78,8 @@ where
     pub fn gas_of_tob_order(
         &self,
         tob: &OrderWithStorageData<TopOfBlockOrder>,
-        _block: u64
+        _block: u64,
+        wei_price: u128
     ) -> eyre::Result<GasUsed> {
         // need to grab the order hash
         // self.execute_on_revm(
@@ -104,7 +111,13 @@ where
         //     }
         // )
         // .map_err(|e| eyre!("tob order err={} {:?}", e, tob.order_hash()))
-        if tob.use_internal() { Ok(TOB_GAS_INTERNAL) } else { Ok(TOB_GAS) }
+        let (internal, normal) = if wei_price > SWITCH_WEI {
+            (TOB_GAS_INTERNAL_NORMAL, TOB_GAS_NORMAL)
+        } else {
+            (TOB_GAS_INTERNAL_SUB, TOB_GAS_SUB)
+        };
+
+        if tob.use_internal() { Ok(internal) } else { Ok(normal) }
     }
 
     pub fn gas_of_book_order(

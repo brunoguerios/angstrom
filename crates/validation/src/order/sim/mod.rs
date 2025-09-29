@@ -18,7 +18,10 @@ use crate::common::TokenPriceGenerator;
 
 pub mod console_log;
 mod gas;
-pub use gas::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL};
+pub use gas::{
+    BOOK_GAS, BOOK_GAS_INTERNAL, SWITCH_WEI, TOB_GAS_INTERNAL_NORMAL, TOB_GAS_INTERNAL_SUB,
+    TOB_GAS_NORMAL, TOB_GAS_SUB
+};
 
 pub type GasUsed = u64;
 // needed for future use
@@ -59,7 +62,8 @@ where
         let span = error_span!("tob", ?hash, ?user);
         span.in_scope(|| {
             self.metrics.fetch_gas_for_user(true, || {
-                let gas_in_wei = self.gas_calculator.gas_of_tob_order(order, block)?;
+                let wei = conversion.base_wei;
+                let gas_in_wei = self.gas_calculator.gas_of_tob_order(order, block, wei)?;
                 // grab order tokens;
                 let (token0, token1, max_gas) = if order.asset_in < order.asset_out {
                     (order.asset_in, order.asset_out, order.max_gas_token_0())
