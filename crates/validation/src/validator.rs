@@ -15,7 +15,10 @@ use crate::{
     order::{
         OrderValidationRequest, OrderValidationResults,
         order_validator::OrderValidator,
-        sim::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL},
+        sim::{
+            BOOK_GAS, BOOK_GAS_INTERNAL, SWITCH_WEI, TOB_GAS_INTERNAL_NORMAL, TOB_GAS_INTERNAL_SUB,
+            TOB_GAS_NORMAL, TOB_GAS_SUB
+        },
         state::{
             account::{UserAccountProcessor, user::UserAccounts},
             db_state_utils::StateFetchUtils,
@@ -159,11 +162,19 @@ where
                     std::mem::swap(&mut token_0, &mut token_1);
                 }
 
+                let wei_price = self.utils.token_pricing_ref().base_wei;
+
+                let (internal, normal) = if wei_price > SWITCH_WEI {
+                    (TOB_GAS_INTERNAL_NORMAL, TOB_GAS_NORMAL)
+                } else {
+                    (TOB_GAS_INTERNAL_SUB, TOB_GAS_SUB)
+                };
+
                 let gas_in_wei = match (is_book, is_internal) {
                     (true, true) => BOOK_GAS_INTERNAL,
-                    (false, true) => TOB_GAS_INTERNAL,
                     (true, false) => BOOK_GAS,
-                    (false, false) => TOB_GAS
+                    (false, true) => internal,
+                    (false, false) => normal
                 };
 
                 let Some(mut amount) = self

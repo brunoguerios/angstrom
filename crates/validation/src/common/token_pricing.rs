@@ -15,7 +15,10 @@ use futures::StreamExt;
 use tracing::warn;
 use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
 
-use crate::order::sim::{BOOK_GAS, BOOK_GAS_INTERNAL, TOB_GAS, TOB_GAS_INTERNAL};
+use crate::order::sim::{
+    BOOK_GAS, BOOK_GAS_INTERNAL, SWITCH_WEI, TOB_GAS_INTERNAL_NORMAL, TOB_GAS_INTERNAL_SUB,
+    TOB_GAS_NORMAL, TOB_GAS_SUB
+};
 
 const BLOCKS_TO_AVG_PRICE: u64 = 15;
 pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
@@ -37,7 +40,7 @@ pub struct TokenPriceGenerator {
     /// chain
     base_gas_token:      Address,
     blocks_to_avg_price: u64,
-    base_wei:            u128,
+    pub base_wei:        u128,
     current_block:       u64
 }
 
@@ -174,10 +177,16 @@ impl TokenPriceGenerator {
             .filter_map(|(&(token0, token1), pool_id)| {
                 let price = self.get_conversion_rate(token0, token1)?;
 
+                let (internal, normal) = if self.base_wei > SWITCH_WEI {
+                    (TOB_GAS_INTERNAL_NORMAL, TOB_GAS_NORMAL)
+                } else {
+                    (TOB_GAS_INTERNAL_SUB, TOB_GAS_SUB)
+                };
+
                 let book_internal = price.inverse_quantity(BOOK_GAS_INTERNAL as u128, false);
                 let book_external = price.inverse_quantity(BOOK_GAS as u128, false);
-                let tob_internal = price.inverse_quantity(TOB_GAS_INTERNAL as u128, false);
-                let tob_external = price.inverse_quantity(TOB_GAS as u128, false);
+                let tob_internal = price.inverse_quantity(internal as u128, false);
+                let tob_external = price.inverse_quantity(normal as u128, false);
 
                 Some(UpdatedGas {
                     pool_id:           *pool_id,
