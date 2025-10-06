@@ -8,7 +8,7 @@ use angstrom_types::{
     sol_bindings::{
         RawPoolOrder, grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder
     },
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use book::{BookOrder, OrderBook};
 use futures_util::future::BoxFuture;
@@ -28,13 +28,13 @@ pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools: HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
+        pools: HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
     ) -> BoxFuture<Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>>;
 }
 
 pub fn build_book(
     id: PoolId,
-    amm: Option<BaselinePoolState>,
+    amm: Option<UniswapPoolState>,
     orders: HashSet<BookOrder>
 ) -> OrderBook {
     let (mut bids, mut asks): (Vec<BookOrder>, Vec<BookOrder>) =

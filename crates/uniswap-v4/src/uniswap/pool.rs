@@ -10,7 +10,7 @@ use alloy::{
 use angstrom_types::{
     matching::uniswap::TickInfo,
     primitive::PoolId,
-    uni_structure::{BaselinePoolState, liquidity_base::BaselineLiquidity}
+    uni_structure::{UniswapPoolState, liquidity_base::BaselineLiquidity}
 };
 use itertools::Itertools;
 use thiserror::Error;
@@ -108,7 +108,7 @@ where
         self.block_number
     }
 
-    pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, BaselinePoolState), PoolError> {
+    pub fn fetch_pool_snapshot(&self) -> Result<(Address, Address, UniswapPoolState), PoolError> {
         if !self.data_is_populated() {
             return Err(PoolError::PoolNotInitialized);
         }
@@ -116,7 +116,7 @@ where
         Ok((
             self.token0,
             self.token1,
-            BaselinePoolState::new(
+            UniswapPoolState::new(
                 BaselineLiquidity::new(
                     self.tick_spacing,
                     self.tick,

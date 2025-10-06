@@ -12,13 +12,13 @@ pub mod liquidity_base;
 pub mod pool_swap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BaselinePoolState {
+pub struct UniswapPoolState {
     liquidity: BaselineLiquidity,
     block:     u64,
     fee:       u32
 }
 
-impl BaselinePoolState {
+impl UniswapPoolState {
     pub fn new(liquidity: BaselineLiquidity, block: u64, fee: u32) -> Self {
         Self { liquidity, fee, block }
     }
@@ -112,7 +112,7 @@ impl BaselinePoolState {
     }
 }
 
-impl<'a> Add<Quantity> for &'a BaselinePoolState {
+impl<'a> Add<Quantity> for &'a UniswapPoolState {
     type Output = eyre::Result<PoolSwapResult<'a>>;
 
     fn add(self, rhs: Quantity) -> Self::Output {
@@ -122,7 +122,7 @@ impl<'a> Add<Quantity> for &'a BaselinePoolState {
     }
 }
 
-impl<'a> Sub<Quantity> for &'a BaselinePoolState {
+impl<'a> Sub<Quantity> for &'a UniswapPoolState {
     type Output = eyre::Result<PoolSwapResult<'a>>;
 
     fn sub(self, rhs: Quantity) -> Self::Output {

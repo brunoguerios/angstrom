@@ -7,7 +7,7 @@ use alloy_primitives::{FixedBytes, keccak256};
 use angstrom_eth::telemetry::EthUpdaterSnapshot;
 use angstrom_types::{
     contract_bindings::angstrom::Angstrom::PoolKey, pair_with_price::PairsWithPrice,
-    primitive::PoolId, uni_structure::BaselinePoolState
+    primitive::PoolId, uni_structure::UniswapPoolState
 };
 use base64::Engine;
 use chrono::{DateTime, Utc};
@@ -26,7 +26,7 @@ pub struct BlockLog {
     pub validation_snapshot: Option<ValidationSnapshot>,
     pub constants:           Option<NodeConstants>,
     pub pool_keys:           Option<Vec<PoolKey>>,
-    pub pool_snapshots:      Option<HashMap<PoolId, BaselinePoolState>>,
+    pub pool_snapshots:      Option<HashMap<PoolId, UniswapPoolState>>,
     pub events:              Vec<TelemetryMessage>,
     pub gas_price_snapshot:  Option<(HashMap<PoolId, VecDeque<PairsWithPrice>>, u128)>,
     pub error:               Option<(String, chrono::DateTime<Utc>)>,
@@ -108,7 +108,7 @@ impl BlockLog {
         self.gas_price_snapshot.as_ref()
     }
 
-    pub fn set_pool_snapshots(&mut self, pool_snapshots: HashMap<PoolId, BaselinePoolState>) {
+    pub fn set_pool_snapshots(&mut self, pool_snapshots: HashMap<PoolId, UniswapPoolState>) {
         self.pool_snapshots = Some(pool_snapshots);
     }
 

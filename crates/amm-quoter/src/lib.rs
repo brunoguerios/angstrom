@@ -14,7 +14,7 @@ use angstrom_types::{
     orders::OrderSet,
     primitive::PoolId,
     sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder},
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use futures::{
     FutureExt, Stream, StreamExt, TryFutureExt, future::BoxFuture, stream::FuturesUnordered
@@ -78,7 +78,7 @@ pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
     amms: SyncedUniswapPools,
     threadpool: ThreadPool,
     recv: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
-    book_snapshots: HashMap<PoolId, (PoolId, BaselinePoolState)>,
+    book_snapshots: HashMap<PoolId, (PoolId, UniswapPoolState)>,
     pending_tasks: FuturesUnordered<BoxFuture<'static, eyre::Result<Slot0Update>>>,
     pool_to_subscribers: HashMap<PoolId, Vec<mpsc::Sender<Slot0Update>>>,
     consensus_stream: Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>>,
@@ -315,7 +315,7 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
 
 pub fn build_non_proposal_books(
     limit: Vec<BookOrder>,
-    pool_snapshots: &HashMap<PoolId, (PoolId, BaselinePoolState)>
+    pool_snapshots: &HashMap<PoolId, (PoolId, UniswapPoolState)>
 ) -> HashMap<PoolId, OrderBook> {
     let book_sources = orders_sorted_by_pool_id(limit);
 

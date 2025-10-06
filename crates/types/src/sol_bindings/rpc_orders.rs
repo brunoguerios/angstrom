@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::RawPoolOrder;
 use crate::{
     primitive::{ANGSTROM_DOMAIN, AngstromMetaSigner, AngstromSigner},
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 
 sol! {
@@ -111,7 +111,7 @@ sol! {
 
 impl TopOfBlockOrder {
     /// returns the amount in t0 that this order is bidding in the auction.
-    pub fn get_auction_bid(&self, snapshot: &BaselinePoolState) -> eyre::Result<u128> {
+    pub fn get_auction_bid(&self, snapshot: &UniswapPoolState) -> eyre::Result<u128> {
         // Cefi Sell
         if self.is_bid() {
             let res =

@@ -20,7 +20,7 @@ use angstrom_types::{
     orders::PoolSolution,
     primitive::{AngstromMetaSigner, AngstromSigner},
     submission::SubmissionHandler,
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use bid_aggregation::BidAggregationState;
 use futures::{FutureExt, Stream, future::BoxFuture};
@@ -244,7 +244,7 @@ where
 
     fn fetch_pool_snapshot(
         &self
-    ) -> HashMap<FixedBytes<32>, (Address, Address, BaselinePoolState, u16)> {
+    ) -> HashMap<FixedBytes<32>, (Address, Address, UniswapPoolState, u16)> {
         self.uniswap_pools
             .iter()
             .filter_map(|item| {

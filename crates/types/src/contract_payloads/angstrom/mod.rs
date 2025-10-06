@@ -38,7 +38,7 @@ use crate::{
         rpc_orders::TopOfBlockOrder as RpcTopOfBlockOrder
     },
     testnet::TestnetStateOverrides,
-    uni_structure::{BaselinePoolState, donation::DonationCalculation}
+    uni_structure::{UniswapPoolState, donation::DonationCalculation}
 };
 
 mod order;
@@ -436,7 +436,7 @@ impl AngstromBundle {
         top_of_block_orders: &mut Vec<TopOfBlockOrder>,
         pool_updates: &mut Vec<PoolUpdate>,
         solution: &PoolSolution,
-        snapshot: &BaselinePoolState,
+        snapshot: &UniswapPoolState,
         t0: Address,
         t1: Address,
         store_index: u16,
@@ -843,7 +843,7 @@ impl AngstromBundle {
         proposal: &Proposal,
         orders: OrderSet<AllOrders, RpcTopOfBlockOrder>,
         _gas_details: BundleGasDetails,
-        pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
+        pools: &HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
     ) -> eyre::Result<Self> {
         trace!("Starting from_proposal");
         let mut top_of_block_orders = Vec::new();
@@ -941,7 +941,7 @@ impl AngstromBundle {
     pub fn for_gas_finalization(
         limit: Vec<OrderWithStorageData<AllOrders>>,
         solutions: Vec<PoolSolution>,
-        pools: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
+        pools: &HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
     ) -> eyre::Result<Self> {
         let mut top_of_block_orders = Vec::new();
         let mut pool_updates = Vec::new();

@@ -168,7 +168,7 @@ pub mod fuzz_uniswap {
         matching::uniswap::Quantity,
         primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig, CHAIN_ID, POOL_MANAGER_ADDRESS},
         reth_db_wrapper::DBError,
-        uni_structure::BaselinePoolState
+        uni_structure::UniswapPoolState
     };
     use futures::StreamExt;
     use rand::Rng;

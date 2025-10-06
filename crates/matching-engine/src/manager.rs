@@ -12,7 +12,7 @@ use angstrom_types::{
     orders::PoolSolution,
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use futures::{Future, stream::FuturesUnordered};
 use futures_util::FutureExt;
@@ -46,13 +46,13 @@ pub enum MatcherCommand {
     BuildProposal(
         Vec<BookOrder>,
         Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>,
+        HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>,
         oneshot::Sender<Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>>
     ),
     EstimateGasPerPool {
         limit:    Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools:    HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>,
+        pools:    HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>,
         tx:       oneshot::Sender<eyre::Result<BundleEstimate>>
     }
 }
@@ -78,7 +78,7 @@ impl MatchingEngineHandle for MatcherHandle {
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools: HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
+        pools: HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
     ) -> futures_util::future::BoxFuture<
         Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>
     > {
@@ -117,7 +117,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
 
     pub fn build_non_proposal_books(
         limit: Vec<BookOrder>,
-        pool_snapshots: &HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
+        pool_snapshots: &HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
     ) -> Vec<OrderBook> {
         let book_sources = Self::orders_sorted_by_pool_id(limit);
 
@@ -134,7 +134,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pool_snapshots: HashMap<PoolId, (Address, Address, BaselinePoolState, u16)>
+        pool_snapshots: HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
     ) -> Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError> {
         // Pull all the orders out of all the preproposals and build OrderPools out of
         // them.  This is ugly and inefficient right now

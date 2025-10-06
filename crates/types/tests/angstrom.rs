@@ -5,7 +5,7 @@ mod solutionlib;
 use angstrom_types::{
     contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder},
     orders::PoolSolution,
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use base64::Engine;
 use solutionlib::ANOTHER_BAD;
@@ -30,7 +30,7 @@ fn build_bundle() {
         let (solution, orders_by_pool, snapshot, t0, t1, store_index, shared_gas): (
             PoolSolution,
             _,
-            BaselinePoolState,
+            UniswapPoolState,
             _,
             _,
             _,
