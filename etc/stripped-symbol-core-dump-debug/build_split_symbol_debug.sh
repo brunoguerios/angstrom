@@ -11,7 +11,7 @@ BIN=${PROD_BIN}/angstrom-new
 DBG=${BIN}.debug
 
 cp ${BIN} ${PROD_BIN}/angstrom-old
-cp ${ANG_DIR}/target/maxperf-ss-debug/angstrom-new ${BIN}
+cp ${ANG_DIR}/target/maxperf-ss-debug/angstrom ${BIN}
 
 # Extract symbols to a separate file
 objcopy --only-keep-debug "$BIN" "$DBG"
