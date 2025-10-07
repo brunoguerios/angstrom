@@ -4,7 +4,7 @@
 ANG_DIR=/home/shared/angstrom
 PROD_BIN=/root/prod-bin-debug
 
-RUSTFLAGS="-C target-cpu=native -C force-frame-pointers=yes" cargo build --bin angstrom --profile maxperf-ss-debug --bin angstrom --features jemalloc --manifest-path ${ANG_DIR}/Cargo.toml -j 11
+# RUSTFLAGS="-C target-cpu=native -C force-frame-pointers=yes" cargo build --bin angstrom --profile maxperf-ss-debug --bin angstrom --features jemalloc --manifest-path ${ANG_DIR}/Cargo.toml -j 11
 
 
 BIN=${PROD_BIN}/angstrom-new
