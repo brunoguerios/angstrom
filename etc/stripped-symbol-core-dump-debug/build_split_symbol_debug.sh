@@ -1,12 +1,15 @@
 #!/bin/bash
 
 
-ANG_DIR=/home/shared/angstrom
-PROD_BIN=/root/prod-bin-debug
-
-# RUSTFLAGS="-C target-cpu=native -C force-frame-pointers=yes" cargo build --bin angstrom --profile maxperf-ss-debug --bin angstrom --features jemalloc --manifest-path ${ANG_DIR}/Cargo.toml -j 11
+ANG_DIR=/root/angstrom
+PROD_BIN=/root/prod-bin
 
 
+
+RUSTFLAGS="-C target-cpu=native -C force-frame-pointers=yes" cargo build --bin angstrom --profile maxperf-ss-debug --bin angstrom --features jemalloc --manifest-path ${ANG_DIR}/Cargo.toml -j 11
+
+
+systemctl stop angstrom
 BIN=${PROD_BIN}/angstrom-new
 DBG=${BIN}.debug
 
@@ -32,9 +35,7 @@ install -D "$DBG" "${INSTALL_DEBUG_DIR}/${prefix}/${rest}.debug"
 ulimit -c unlimited
 
 
-coredumpctl gdb "$BIN" -- \
-  -batch \
-  -ex "set pagination off" \
-  -ex "thread apply all bt full" \
-  -ex "info registers" \
-  -ex "quit" | sed -n '1,200p'
+systemctl restart systemd-coredump
+systemctl restart angstrom
+
+
