@@ -32,8 +32,9 @@ install -D "$DBG" "${INSTALL_DEBUG_DIR}/${prefix}/${rest}.debug"
 ulimit -c unlimited
 
 
-coredumpctl gdb ${BIN} \
-  --batch -ex "set pagination off" \
+coredumpctl gdb "$BIN" -- \
+  -batch \
+  -ex "set pagination off" \
   -ex "thread apply all bt full" \
   -ex "info registers" \
   -ex "quit" | sed -n '1,200p'
