@@ -46,6 +46,14 @@ lto = "fat"
 codegen-units = 3
 incremental = false
 
+[profile.maxperf-ss-debug]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+incremental = false
+debug = 2
+opt-level = 3
+
 [workspace.dependencies]
 alloy = { version = "1.0.35", features = [
   "rlp",
