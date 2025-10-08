@@ -1,6 +1,7 @@
 #![allow(clippy::too_long_first_doc_paragraph)]
 #![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]
 
+pub mod amm;
 pub mod block_sync;
 pub mod consensus;
 pub mod contract_bindings;
