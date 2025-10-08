@@ -10,7 +10,7 @@ use crate::{matching::SqrtPriceX96, sol_bindings::Ray};
 const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
 #[derive(Debug, Clone)]
-pub struct PoolSwap<'a> {
+pub struct UniswapPoolSwap<'a> {
     pub(super) liquidity:     LiquidityAtPoint<'a>,
     /// swap to sqrt price limit
     pub(super) target_price:  Option<SqrtPriceX96>,
@@ -22,8 +22,8 @@ pub struct PoolSwap<'a> {
     pub(super) fee:           u32
 }
 
-impl<'a> PoolSwap<'a> {
-    pub fn swap(mut self) -> eyre::Result<PoolSwapResult<'a>> {
+impl<'a> UniswapPoolSwap<'a> {
+    pub fn swap(mut self) -> eyre::Result<UniswapPoolSwapResult<'a>> {
         // We want to ensure that we set the right limits and are swapping the correct
         // way.
 
@@ -106,7 +106,7 @@ impl<'a> PoolSwap<'a> {
                 sqrt_price_x96 != sqrt_price_start_x_96
             )?;
 
-            steps.push(PoolSwapStep { end_tick: next_tick, init, liquidity, d_t0, d_t1 });
+            steps.push(UniswapPoolSwapStep { end_tick: next_tick, init, liquidity, d_t0, d_t1 });
         }
 
         // the final sqrt price
@@ -118,7 +118,7 @@ impl<'a> PoolSwap<'a> {
             (t0, t1)
         });
 
-        Ok(PoolSwapResult {
+        Ok(UniswapPoolSwapResult {
             fee: self.fee,
             start_price: range_start,
             start_tick: range_start_tick,
@@ -133,7 +133,7 @@ impl<'a> PoolSwap<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PoolSwapResult<'a> {
+pub struct UniswapPoolSwapResult<'a> {
     pub fee:           u32,
     pub start_price:   SqrtPriceX96,
     pub start_tick:    i32,
@@ -141,18 +141,18 @@ pub struct PoolSwapResult<'a> {
     pub end_tick:      i32,
     pub total_d_t0:    u128,
     pub total_d_t1:    u128,
-    pub steps:         Vec<PoolSwapStep>,
+    pub steps:         Vec<UniswapPoolSwapStep>,
     pub end_liquidity: LiquidityAtPoint<'a>
 }
 
-impl<'a> PoolSwapResult<'a> {
+impl<'a> UniswapPoolSwapResult<'a> {
     /// initialize a swap from the end of this swap into a new swap.
     pub fn swap_to_amount(
         &'a self,
         amount: I256,
         direction: bool
-    ) -> eyre::Result<PoolSwapResult<'a>> {
-        PoolSwap {
+    ) -> eyre::Result<UniswapPoolSwapResult<'a>> {
+        UniswapPoolSwap {
             liquidity: self.end_liquidity.clone(),
             target_price: None,
             direction,
@@ -162,10 +162,13 @@ impl<'a> PoolSwapResult<'a> {
         .swap()
     }
 
-    pub fn swap_to_price(&'a self, price_limit: SqrtPriceX96) -> eyre::Result<PoolSwapResult<'a>> {
+    pub fn swap_to_price(
+        &'a self,
+        price_limit: SqrtPriceX96
+    ) -> eyre::Result<UniswapPoolSwapResult<'a>> {
         let direction = self.end_price >= price_limit;
 
-        let price_swap = PoolSwap {
+        let price_swap = UniswapPoolSwap {
             liquidity: self.end_liquidity.clone(),
             target_price: Some(price_limit),
             direction,
@@ -385,7 +388,7 @@ impl<'a> PoolSwapResult<'a> {
 
 /// the step of swapping across this pool
 #[derive(Clone, Debug)]
-pub struct PoolSwapStep {
+pub struct UniswapPoolSwapStep {
     end_tick:  i32,
     init:      bool,
     liquidity: u128,
@@ -393,7 +396,7 @@ pub struct PoolSwapStep {
     d_t1:      u128
 }
 
-impl PoolSwapStep {
+impl UniswapPoolSwapStep {
     pub fn avg_price(&self) -> Option<Ray> {
         if self.empty() {
             None
