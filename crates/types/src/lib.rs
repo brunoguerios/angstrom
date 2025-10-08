@@ -2,6 +2,7 @@
 #![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]
 
 pub mod amm;
+pub mod balancer_structure;
 pub mod block_sync;
 pub mod consensus;
 pub mod contract_bindings;
