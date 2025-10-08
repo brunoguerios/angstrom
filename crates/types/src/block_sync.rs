@@ -98,7 +98,7 @@ impl BlockSyncProducer for GlobalBlockSync {
         !self.registered_modules.iter().all(|val| {
             val.value()
                 .front()
-                .map(|v| matches!(v.value().front(), Some(SignOffState::ReadyForNextBlock(_))))
+                .map(|v| matches!(v, Some(SignOffState::ReadyForNextBlock(_))))
                 .unwrap_or(true)
         })
     }
