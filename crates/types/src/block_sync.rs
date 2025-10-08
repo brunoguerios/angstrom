@@ -25,6 +25,10 @@ pub trait BlockSyncProducer: Debug + Clone + Send + Sync + Unpin + 'static {
     /// this ensures that we can't have race conditions caused by the sign off
     /// set changing.
     fn finalize_modules(&self);
+
+    /// returns whether or not any modules are currently transitioning
+    /// helps with lagging reth issues
+    fn is_transitioning(&self) -> bool;
 }
 
 /// Consumer to block sync producer
@@ -90,7 +94,18 @@ impl GlobalBlockSync {
     }
 }
 impl BlockSyncProducer for GlobalBlockSync {
+    fn is_transitioning(&self) -> bool {
+        !self
+            .registered_modules
+            .iter()
+            .all(|v| matches!(v.value().front(), SignOffState::ReadyForNextBlock(_)))
+    }
+
     fn new_block(&self, block_number: u64) {
+        while self.is_transitioning() {
+            std::hint::spin_loop();
+        }
+
         let modules = self.registered_modules.len();
         tracing::info!(%block_number, mod_cnt=modules,"new block proposal");
 
@@ -104,6 +119,9 @@ impl BlockSyncProducer for GlobalBlockSync {
     }
 
     fn reorg(&self, reorg_range: RangeInclusive<u64>) {
+        while self.validation_transitioning() {
+            std::hint::spin_loop();
+        }
         self.pending_state
             .write()
             .unwrap()
