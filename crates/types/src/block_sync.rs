@@ -119,7 +119,7 @@ impl BlockSyncProducer for GlobalBlockSync {
     }
 
     fn reorg(&self, reorg_range: RangeInclusive<u64>) {
-        while self.validation_transitioning() {
+        while self.is_transitioning() {
             std::hint::spin_loop();
         }
         self.pending_state
