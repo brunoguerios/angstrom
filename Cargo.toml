@@ -232,3 +232,4 @@ uniswap-v4 = { path = "./crates/uniswap-v4/" }
 uniswap_v3_math = { git = "https://github.com/SorellaLabs/v3-math", branch = "main" }
 url = "2"
 validation = { path = "./crates/validation/" }
+balancer-maths-rust = "=0.2.1"

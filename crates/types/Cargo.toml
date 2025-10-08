@@ -45,6 +45,7 @@ tower = "0.5.2"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 uniswap_v3_math.workspace = true
+balancer-maths-rust.workspace = true
 
 [build-dependencies]
 convert_case.workspace = true

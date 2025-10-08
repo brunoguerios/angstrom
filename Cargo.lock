@@ -1260,6 +1260,7 @@ dependencies = [
  "alloy-primitives",
  "angstrom-types",
  "auto_impl",
+ "balancer-maths-rust",
  "base64 0.22.1",
  "bincode",
  "bytes",
@@ -2257,6 +2258,19 @@ dependencies = [
  "object",
  "rustc-demangle",
  "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "balancer-maths-rust"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e85fed98aa59a603b294384a394d7db5edd99c8936da411e721117d7f6a296d5"
+dependencies = [
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
