@@ -95,10 +95,12 @@ impl GlobalBlockSync {
 }
 impl BlockSyncProducer for GlobalBlockSync {
     fn is_transitioning(&self) -> bool {
-        !self
-            .registered_modules
-            .iter()
-            .all(|v| matches!(v.value().front(), Some(SignOffState::ReadyForNextBlock(_))))
+        !self.registered_modules.iter().all(|val| {
+            val.value()
+                .front()
+                .map(|v| matches!(v.value().front(), Some(SignOffState::ReadyForNextBlock(_))))
+                .unwrap_or(true)
+        })
     }
 
     fn new_block(&self, block_number: u64) {
