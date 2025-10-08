@@ -98,7 +98,7 @@ impl BlockSyncProducer for GlobalBlockSync {
         !self
             .registered_modules
             .iter()
-            .all(|v| matches!(v.value().front(), SignOffState::ReadyForNextBlock(_)))
+            .all(|v| matches!(v.value().front(), Some(SignOffState::ReadyForNextBlock(_))))
     }
 
     fn new_block(&self, block_number: u64) {
