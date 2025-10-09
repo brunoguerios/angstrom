@@ -1,16 +1,17 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     task::{Context, Poll, Waker},
     time::{Duration, Instant}
 };
 
-use alloy::providers::Provider;
+use alloy::{primitives::Address, providers::Provider};
 use angstrom_types::{
     consensus::{ConsensusRoundName, PreProposalAggregation, Proposal, StromConsensusEvent},
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     orders::PoolSolution,
-    primitive::AngstromMetaSigner,
-    sol_bindings::rpc_orders::AttestAngstromBlockEmpty
+    primitive::{AngstromMetaSigner, PoolId},
+    sol_bindings::rpc_orders::AttestAngstromBlockEmpty,
+    uni_structure::UniswapPoolState
 };
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use matching_engine::{MatchingEngineHandle, manager::MatchingEngineError};
@@ -98,7 +99,25 @@ impl ProposalState {
                 );
 
                 self.proposal = Some(proposal.clone());
-                let snapshot = handles.fetch_pool_snapshot();
+                let snapshots = handles.fetch_pool_snapshot();
+                // Build Uniswap-only snapshot view for AngstromBundle (downcast)
+                let snapshot: HashMap<
+                    PoolId,
+                    (
+                        Address,
+                        Address,
+                        UniswapPoolState,
+                        u16
+                    )
+                > = snapshots
+                    .iter()
+                    .filter_map(|(pool_id, (a0, a1, boxed, idx))| {
+                        boxed
+                            .as_any()
+                            .downcast_ref::<UniswapPoolState>()
+                            .map(|u| (*pool_id, (*a0, *a1, u.clone(), *idx)))
+                    })
+                    .collect();
                 let all_orders = handles.order_storage.get_all_orders();
 
                      AngstromBundle::from_proposal(&proposal,all_orders, gas_info, &snapshot).inspect_err(|e| {

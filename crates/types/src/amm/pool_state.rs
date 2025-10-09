@@ -4,6 +4,10 @@
 //! interface for pool operations across different AMM implementations
 //! (UniswapPoolState, BalancerPoolState, etc.).
 
+use std::{any::Any, fmt::Debug};
+
+use serde::{Deserialize, Serialize};
+
 use super::{pool_swap::PoolSwapResult, price::Price};
 
 /// A trait for pool state that abstracts over different AMM implementations
@@ -15,12 +19,24 @@ use super::{pool_swap::PoolSwapResult, price::Price};
 /// Implementations:
 /// - `UniswapPoolState` in `uni_structure/`
 /// - `BalancerPoolState` in `balancer_structure/`
-pub trait PoolState: Send + Sync {
+pub trait PoolState: Send + Sync + Debug {
+    /// Downcast helper for accessing concrete pool types
+    ///
+    /// This allows downcasting to specific pool types when needed
+    /// (e.g., for venue-specific operations like ToB orders)
+    fn as_any(&self) -> &dyn Any;
+
+    /// Clone this pool state into a new Box
+    ///
+    /// This is needed because Box<dyn PoolState> doesn't automatically
+    /// implement Clone
+    fn clone_box(&self) -> Box<dyn PoolState>;
+
     /// Get the current block number
     fn block_number(&self) -> u64;
 
     /// Get the pool fee in parts per million
-    fn fee_ppm(&self) -> u32;
+    fn fee(&self) -> u32;
 
     /// Get the current price
     fn current_price(&self) -> Price;
@@ -50,6 +66,13 @@ pub trait PoolState: Send + Sync {
     fn noop(&self) -> PoolSwapResult;
 }
 
+/// Implement Clone for Box<dyn PoolState> using the clone_box method
+impl Clone for Box<dyn PoolState> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
 /// A wrapper that provides ergonomic arithmetic operations for
 /// PoolState
 ///
@@ -61,6 +84,29 @@ impl<'a> PoolStateRef<'a> {
     /// Create a new PoolStateRef wrapper
     pub fn new(pool_state: &'a dyn PoolState) -> Self {
         Self(pool_state)
+    }
+}
+
+/// Serializable, venue-neutral snapshot of a PoolState based on a noop swap
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PoolStateSnapshot {
+    pub fee:          u32,
+    pub start_price:  u128,
+    pub end_price:    u128,
+    pub amount_in_t0: u128,
+    pub amount_in_t1: u128
+}
+
+impl From<&dyn PoolState> for PoolStateSnapshot {
+    fn from(ps: &dyn PoolState) -> Self {
+        let psr = ps.noop();
+        Self {
+            fee:          ps.fee(),
+            start_price:  psr.start_price.value(),
+            end_price:    psr.end_price.value(),
+            amount_in_t0: psr.amount_in_t0,
+            amount_in_t1: psr.amount_in_t1
+        }
     }
 }
 

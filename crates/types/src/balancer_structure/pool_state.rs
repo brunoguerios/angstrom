@@ -38,9 +38,9 @@ pub struct BalancerPoolState {
     pub block_number: u64,
 
     /// Swap fee in parts per million
-    pub fee_ppm: u32 /* TODO: Add the actual balancer-maths-rust pool state here
-                      * Expected something like:
-                      * pub inner: balancer_maths_rust::PoolState, */
+    pub fee: u32 /* TODO: Add the actual balancer-maths-rust pool state here
+                  * Expected something like:
+                  * pub inner: balancer_maths_rust::PoolState, */
 }
 
 impl BalancerPoolState {
@@ -48,8 +48,8 @@ impl BalancerPoolState {
     ///
     /// TODO: This constructor will need to be updated once we understand
     /// how to construct balancer-maths-rust pool states
-    pub fn new(pool_id: String, block_number: u64, fee_ppm: u32) -> Self {
-        Self { pool_id, block_number, fee_ppm }
+    pub fn new(pool_id: String, block_number: u64, fee: u32) -> Self {
+        Self { pool_id, block_number, fee }
     }
 }
 
@@ -57,19 +57,27 @@ impl Display for BalancerPoolState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "BalancerPool(id={}, block={}, fee={}ppm)",
-            self.pool_id, self.block_number, self.fee_ppm
+            "BalancerPool(id={}, block={}, fee={})",
+            self.pool_id, self.block_number, self.fee
         )
     }
 }
 
 impl PoolState for BalancerPoolState {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn PoolState> {
+        Box::new(self.clone())
+    }
+
     fn block_number(&self) -> u64 {
         self.block_number
     }
 
-    fn fee_ppm(&self) -> u32 {
-        self.fee_ppm
+    fn fee(&self) -> u32 {
+        self.fee
     }
 
     fn current_price(&self) -> Price {
@@ -113,7 +121,7 @@ impl PoolState for BalancerPoolState {
 
     fn noop(&self) -> PoolSwapResult {
         let current_price = self.current_price();
-        PoolSwapResult::new(self.fee_ppm, current_price, current_price, 0, 0)
+        PoolSwapResult::new(self.fee, current_price, current_price, 0, 0)
     }
 }
 
@@ -126,7 +134,7 @@ mod tests {
         let pool = BalancerPoolState::new("test-pool".to_string(), 12345, 3000);
         assert_eq!(pool.pool_id, "test-pool");
         assert_eq!(pool.block_number(), 12345);
-        assert_eq!(pool.fee_ppm(), 3000);
+        assert_eq!(pool.fee(), 3000);
     }
 
     #[test]
@@ -134,7 +142,7 @@ mod tests {
         let pool = BalancerPoolState::new("test-pool".to_string(), 12345, 3000);
         let outcome = pool.noop();
         assert!(outcome.is_empty());
-        assert_eq!(outcome.fee_ppm, 3000);
+        assert_eq!(outcome.fee, 3000);
     }
 
     #[test]

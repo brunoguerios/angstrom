@@ -13,6 +13,6 @@ pub mod pool_state;
 pub mod pool_swap;
 pub mod price;
 
-pub use pool_state::PoolState;
+pub use pool_state::{PoolState, PoolStateSnapshot};
 pub use pool_swap::PoolSwapResult;
 pub use price::Price;

@@ -7,6 +7,7 @@ use std::{
 use alloy::hex;
 use alloy_primitives::Address;
 use angstrom_types::{
+    amm::PoolState,
     contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
     matching::match_estimate_response::BundleEstimate,
     orders::PoolSolution,
@@ -46,13 +47,13 @@ pub enum MatcherCommand {
     BuildProposal(
         Vec<BookOrder>,
         Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>,
+        HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>,
         oneshot::Sender<Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>>
     ),
     EstimateGasPerPool {
         limit:    Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools:    HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>,
+        pools:    HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>,
         tx:       oneshot::Sender<eyre::Result<BundleEstimate>>
     }
 }
@@ -78,7 +79,7 @@ impl MatchingEngineHandle for MatcherHandle {
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools: HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
+        pools: HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
     ) -> futures_util::future::BoxFuture<
         Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>
     > {
@@ -117,7 +118,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
 
     pub fn build_non_proposal_books(
         limit: Vec<BookOrder>,
-        pool_snapshots: &HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
+        pool_snapshots: &HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
     ) -> Vec<OrderBook> {
         let book_sources = Self::orders_sorted_by_pool_id(limit);
 
@@ -134,7 +135,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pool_snapshots: HashMap<PoolId, (Address, Address, UniswapPoolState, u16)>
+        pool_snapshots: HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
     ) -> Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError> {
         // Pull all the orders out of all the preproposals and build OrderPools out of
         // them.  This is ugly and inefficient right now
@@ -180,9 +181,26 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
 
         // generate bundle without final gas known.
         trace!("Building bundle for gas finalization");
-        let bundle =
-            AngstromBundle::for_gas_finalization(limit.clone(), solutions.clone(), &pool_snapshots)
-                .map_err(|_| MatchingEngineError::NoOrdersFilled)?;
+
+        // TODO: multi-AMM support
+        // Downcast to Uniswap-only pools for AngstromBundle
+        let uniswap_pool_snapshots: HashMap<PoolId, (Address, Address, UniswapPoolState, u16)> =
+            pool_snapshots
+                .iter()
+                .filter_map(|(pool_id, (a0, a1, boxed, idx))| {
+                    boxed
+                        .as_any()
+                        .downcast_ref::<UniswapPoolState>()
+                        .map(|u| (*pool_id, (*a0, *a1, u.clone(), *idx)))
+                })
+                .collect();
+
+        let bundle = AngstromBundle::for_gas_finalization(
+            limit.clone(),
+            solutions.clone(),
+            &uniswap_pool_snapshots
+        )
+        .map_err(|_| MatchingEngineError::NoOrdersFilled)?;
 
         let gas_response = self
             .validation_handle
@@ -190,7 +208,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
             .await
             .map_err(|e| {
                 let proposal_snapshot =
-                    serde_json::to_vec(&(limit, searcher, pool_snapshots)).unwrap();
+                    serde_json::to_vec(&(limit, searcher, uniswap_pool_snapshots)).unwrap();
                 let hex = hex::encode(proposal_snapshot);
                 tracing::error!(bad_bundle=%hex);
                 MatchingEngineError::SimulationFailed(e)

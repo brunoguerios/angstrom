@@ -149,8 +149,8 @@ impl<'a> VolumeFillMatcher<'a> {
     }
 
     pub fn run_match(&mut self) -> VolumeFillMatchEndReason {
-        // Output our book data so we can do stuff with it
-        let json = serde_json::to_string(self.book).unwrap();
+        // Output serializable OrderBook snapshot (includes neutral AMM snapshot)
+        let json = serde_json::to_string(&self.book.snapshot()).unwrap();
         let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
         trace!(data = b64_output, "Raw book data");
         // Run our match over and over until we get an end reason

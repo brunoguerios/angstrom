@@ -2,13 +2,13 @@
 use std::{iter::Chain, slice::Iter};
 
 use angstrom_types::{
+    amm::{PoolState, PoolStateSnapshot},
     matching::SqrtPriceX96,
     primitive::PoolId,
     sol_bindings::{
         RawPoolOrder, Ray,
         grouped_orders::{AllOrders, OrderWithStorageData}
-    },
-    uni_structure::UniswapPoolState
+    }
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
@@ -21,18 +21,28 @@ pub type BookOrder = OrderWithStorageData<AllOrders>;
 pub mod order;
 pub mod sort;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct OrderBook {
     pub id: PoolId,
-    amm:    Option<UniswapPoolState>,
+    amm:    Option<Box<dyn PoolState>>,
     bids:   Vec<BookOrder>,
     asks:   Vec<BookOrder>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OrderBookSnapshot {
+    pub id:                     PoolId,
+    pub bids:                   Vec<BookOrder>,
+    pub asks:                   Vec<BookOrder>,
+    pub lowest_clearing_price:  Ray,
+    pub highest_clearing_price: Ray,
+    pub amm_snapshot:           Option<PoolStateSnapshot>
 }
 
 impl OrderBook {
     pub fn new(
         id: PoolId,
-        amm: Option<UniswapPoolState>,
+        amm: Option<Box<dyn PoolState>>,
         mut bids: Vec<BookOrder>,
         mut asks: Vec<BookOrder>,
         sort: Option<SortStrategy>
@@ -64,17 +74,29 @@ impl OrderBook {
         self.bids.iter().chain(self.asks.iter())
     }
 
-    pub fn amm(&self) -> Option<&UniswapPoolState> {
-        self.amm.as_ref()
+    pub fn amm(&self) -> Option<&dyn PoolState> {
+        self.amm.as_ref().map(|boxed| &**boxed)
     }
 
     pub fn is_empty_book(&self) -> bool {
         self.bids().is_empty() && self.asks().is_empty()
     }
 
-    pub fn set_amm_if_missing(&mut self, apply: impl FnOnce() -> UniswapPoolState) {
+    pub fn set_amm_if_missing(&mut self, apply: impl FnOnce() -> Box<dyn PoolState>) {
         if self.amm().is_none() {
             self.amm = Some(apply());
+        }
+    }
+
+    /// Return a serializable snapshot of the book and its AMM state
+    pub fn snapshot(&self) -> OrderBookSnapshot {
+        OrderBookSnapshot {
+            id:                     self.id,
+            bids:                   self.bids.clone(),
+            asks:                   self.asks.clone(),
+            lowest_clearing_price:  self.lowest_clearing_price(),
+            highest_clearing_price: self.highest_clearing_price(),
+            amm_snapshot:           self.amm().map(|ps| PoolStateSnapshot::from(ps))
         }
     }
 

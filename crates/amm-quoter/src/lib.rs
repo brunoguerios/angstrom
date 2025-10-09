@@ -9,6 +9,7 @@ use std::{
 
 use alloy::primitives::U160;
 use angstrom_types::{
+    amm::PoolState,
     block_sync::BlockSyncConsumer,
     consensus::{ConsensusRoundEvent, ConsensusRoundOrderHashes},
     orders::OrderSet,
@@ -201,7 +202,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             // Default as if we don't have a book, we want to still send update.
             let mut book = books.remove(book_id).unwrap_or_default();
             book.id = *book_id;
-            book.set_amm_if_missing(|| amm.clone());
+            book.set_amm_if_missing(|| Box::new(amm.clone()));
 
             let searcher = searcher_orders.get(&book.id()).cloned();
             let (tx, rx) = oneshot::channel();
@@ -322,7 +323,9 @@ pub fn build_non_proposal_books(
     book_sources
         .into_iter()
         .map(|(id, orders)| {
-            let amm = pool_snapshots.get(&id).map(|(_, pool)| pool).cloned();
+            let amm = pool_snapshots
+                .get(&id)
+                .map(|(_, pool)| Box::new(pool.clone()) as Box<dyn PoolState>);
             (id, build_book(id, amm, orders))
         })
         .collect()

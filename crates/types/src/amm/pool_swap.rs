@@ -20,7 +20,7 @@ use super::price::Price;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PoolSwapResult {
     /// Fee in parts per million
-    pub fee_ppm:      u32,
+    pub fee:          u32,
     /// Starting price of the swap
     pub start_price:  Price,
     /// Ending price of the swap
@@ -34,13 +34,13 @@ pub struct PoolSwapResult {
 impl PoolSwapResult {
     /// Create a new PoolSwapResult
     pub fn new(
-        fee_ppm: u32,
+        fee: u32,
         start_price: Price,
         end_price: Price,
         amount_in_t0: u128,
         amount_in_t1: u128
     ) -> Self {
-        Self { fee_ppm, start_price, end_price, amount_in_t0, amount_in_t1 }
+        Self { fee, start_price, end_price, amount_in_t0, amount_in_t1 }
     }
 
     /// Check if this was an empty swap (no actual trading occurred)
@@ -59,7 +59,7 @@ impl Display for PoolSwapResult {
         write!(
             f,
             "PoolSwapResult(fee={}ppm, t0_in={}, t1_in={}, price: {} -> {})",
-            self.fee_ppm, self.amount_in_t0, self.amount_in_t1, self.start_price, self.end_price
+            self.fee, self.amount_in_t0, self.amount_in_t1, self.start_price, self.end_price
         )
     }
 }
@@ -81,7 +81,7 @@ impl From<&crate::uni_structure::pool_swap::UniswapPoolSwapResult<'_>> for PoolS
 // implemented) impl From<&BalancerPoolSwapResult> for PoolSwapResult {
 //     fn from(result: &BalancerPoolSwapResult) -> Self {
 //         Self::new(
-//             result.fee_ppm,
+//             result.fee,
 //             result.start_price.into(),
 //             result.end_price.into(),
 //             result.amount_in_t0,

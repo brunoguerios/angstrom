@@ -144,11 +144,19 @@ impl<'a> Sub<Quantity> for &'a UniswapPoolState {
 
 // Implement PoolState trait for UniswapPoolState
 impl PoolState for UniswapPoolState {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn PoolState> {
+        Box::new(self.clone())
+    }
+
     fn block_number(&self) -> u64 {
         self.block
     }
 
-    fn fee_ppm(&self) -> u32 {
+    fn fee(&self) -> u32 {
         self.fee
     }
 

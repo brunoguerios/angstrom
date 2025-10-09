@@ -16,7 +16,7 @@ use angstrom_types::{
         grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     },
-    uni_structure::pool_swap::PoolSwapResult
+    uni_structure::{UniswapPoolState, pool_swap::UniswapPoolSwapResult}
 };
 use base64::Engine;
 use itertools::Itertools;
@@ -68,8 +68,9 @@ pub struct DeltaMatcher<'a> {
     fee:                u128,
     /// If true, we solve for T0.  If false we solve for T1.
     solve_for_t0:       bool,
+    // TODO: refactor to use PoolSwapResult instead of UniswapPoolSwapResult (not trivial)
     /// changes if there is a tob or not
-    amm_start_location: Option<PoolSwapResult<'a>>
+    amm_start_location: Option<UniswapPoolSwapResult<'a>>
 }
 
 impl<'a> DeltaMatcher<'a> {
@@ -77,7 +78,9 @@ impl<'a> DeltaMatcher<'a> {
         // Dump if matcher dumps are enabled
         if tracing::event_enabled!(target: "dump::delta_matcher", Level::TRACE) {
             // Dump the solution
-            let json = serde_json::to_string(&(book, tob.clone(), solve_for_t0)).unwrap();
+            let json =
+                serde_json::to_string(&(book.snapshot(), tob.clone(), solve_for_t0)).unwrap();
+
             let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
             trace!(target: "dump::delta_matcher", data = b64_output, "Raw DeltaMatcher data");
         }
@@ -85,22 +88,40 @@ impl<'a> DeltaMatcher<'a> {
         let fee = book.amm().map(|amm| amm.fee()).unwrap_or_default() as u128;
         let amm_start_location = match tob {
             // If we have an order, apply that to the AMM start price
-            DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
-                ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot)
-                    .expect("Order structure should be valid and never fail")
-                    .0
+            DeltaMatcherToB::Order(ref tob) => book.amm().and_then(|snapshot| {
+                // Downcast to UniswapPoolState for ToB calculation
+                // TODO: This assumes Uniswap - will need to handle Balancer differently
+                let uniswap_snapshot = snapshot
+                    .as_any()
+                    .downcast_ref::<UniswapPoolState>()
+                    .expect("ToB orders currently only supported for Uniswap pools");
+
+                Some(
+                    ContractTopOfBlockOrder::calc_vec_and_reward(tob, uniswap_snapshot)
+                        .expect("Order structure should be valid and never fail")
+                        .0
+                )
             }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(..) => panic!("not implemented"),
             // If we have no order or shift, we just use the AMM start price as-is
-            DeltaMatcherToB::None => book.amm().map(|book| book.noop())
+            DeltaMatcherToB::None => book.amm().and_then(|amm_state| {
+                // Downcast to UniswapPoolState to get the detailed result
+                // TODO: This assumes Uniswap - will need to handle Balancer differently
+                let uniswap_snapshot = amm_state
+                    .as_any()
+                    .downcast_ref::<UniswapPoolState>()
+                    .expect("Currently only Uniswap pools supported");
+
+                Some(uniswap_snapshot.noop())
+            })
         };
 
         Self { book, amm_start_location, fee, solve_for_t0 }
     }
 
     /// panics if there is no amm swap
-    pub fn try_get_amm_location(&self) -> &PoolSwapResult<'_> {
+    pub fn try_get_amm_location(&self) -> &UniswapPoolSwapResult<'_> {
         self.amm_start_location.as_ref().unwrap()
     }
 
