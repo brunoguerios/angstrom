@@ -88,7 +88,10 @@ impl<'a> DeltaMatcher<'a> {
             DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
                 ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot)
                     .inspect_err(|e| {
-                        tracing::error!("reorg caused tob invalidation, running matcher without")
+                        tracing::error!(
+                            "reorg caused tob invalidation, running matcher without. {}",
+                            e.to_string()
+                        )
                     })
                     .map(|e| e.0)
                     .unwrap_or_else(|_| snapshot.noop())
