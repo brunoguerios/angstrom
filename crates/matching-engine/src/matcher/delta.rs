@@ -87,8 +87,11 @@ impl<'a> DeltaMatcher<'a> {
             // If we have an order, apply that to the AMM start price
             DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
                 ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot)
-                    .expect("Order structure should be valid and never fail")
-                    .0
+                    .inspect_err(|e| {
+                        tracing::error!("reorg caused tob invalidation, running matcher without")
+                    })
+                    .map(|e| e.0)
+                    .unwrap_or_else(|_| book.amm().map(|book| book.noop()))
             }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(..) => panic!("not implemented"),
