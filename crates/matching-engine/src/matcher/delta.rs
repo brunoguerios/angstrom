@@ -91,7 +91,7 @@ impl<'a> DeltaMatcher<'a> {
                         tracing::error!("reorg caused tob invalidation, running matcher without")
                     })
                     .map(|e| e.0)
-                    .unwrap_or_else(|_| book.amm().map(|book| book.noop()))
+                    .unwrap_or_else(|_| snapshot.noop())
             }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(..) => panic!("not implemented"),
