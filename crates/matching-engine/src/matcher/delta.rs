@@ -87,18 +87,16 @@ impl<'a> DeltaMatcher<'a> {
         let fee = book.amm().map(|amm| amm.fee()).unwrap_or_default() as u128;
         let amm_start_location = match tob {
             // If we have an order, apply that to the AMM start price
-            DeltaMatcherToB::Order(ref tob) => book.amm().and_then(|snapshot| {
-                // Access UniswapPoolState for ToB calculation
-                // TODO: This assumes Uniswap - will need to handle Balancer differently
-                let uniswap_snapshot = snapshot
-                    .as_uniswap()
-                    .expect("ToB orders currently only supported for Uniswap pools");
-
-                Some(
-                    ContractTopOfBlockOrder::calc_vec_and_reward(tob, uniswap_snapshot)
-                        .expect("Order structure should be valid and never fail")
-                        .0
-                )
+            DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
+                ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot.as_uniswap().unwrap())
+                    .inspect_err(|e| {
+                        tracing::error!(
+                            "reorg caused tob invalidation, running matcher without. {}",
+                            e.to_string()
+                        )
+                    })
+                    .map(|e| e.0)
+                    .unwrap_or_else(|_| snapshot.as_uniswap().unwrap().noop())
             }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(..) => panic!("not implemented"),
