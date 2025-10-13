@@ -32,11 +32,7 @@ pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
     ) -> BoxFuture<Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>>;
 }
 
-pub fn build_book(
-    id: PoolId,
-    amm: Option<PoolState>,
-    orders: HashSet<BookOrder>
-) -> OrderBook {
+pub fn build_book(id: PoolId, amm: Option<PoolState>, orders: HashSet<BookOrder>) -> OrderBook {
     let (mut bids, mut asks): (Vec<BookOrder>, Vec<BookOrder>) =
         orders.into_iter().partition(|o| o.is_bid);
 

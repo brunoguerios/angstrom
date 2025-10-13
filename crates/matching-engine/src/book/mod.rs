@@ -2,7 +2,7 @@
 use std::{iter::Chain, slice::Iter};
 
 use angstrom_types::{
-    amm::{PoolState, PoolStateSnapshot},
+    amm::PoolState,
     matching::SqrtPriceX96,
     primitive::PoolId,
     sol_bindings::{
@@ -21,22 +21,12 @@ pub type BookOrder = OrderWithStorageData<AllOrders>;
 pub mod order;
 pub mod sort;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct OrderBook {
     pub id: PoolId,
     amm:    Option<PoolState>,
     bids:   Vec<BookOrder>,
     asks:   Vec<BookOrder>
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OrderBookSnapshot {
-    pub id:                     PoolId,
-    pub bids:                   Vec<BookOrder>,
-    pub asks:                   Vec<BookOrder>,
-    pub lowest_clearing_price:  Ray,
-    pub highest_clearing_price: Ray,
-    pub amm_snapshot:           Option<PoolStateSnapshot>
 }
 
 impl OrderBook {
@@ -85,18 +75,6 @@ impl OrderBook {
     pub fn set_amm_if_missing(&mut self, apply: impl FnOnce() -> PoolState) {
         if self.amm().is_none() {
             self.amm = Some(apply());
-        }
-    }
-
-    /// Return a serializable snapshot of the book and its AMM state
-    pub fn snapshot(&self) -> OrderBookSnapshot {
-        OrderBookSnapshot {
-            id:                     self.id,
-            bids:                   self.bids.clone(),
-            asks:                   self.asks.clone(),
-            lowest_clearing_price:  self.lowest_clearing_price(),
-            highest_clearing_price: self.highest_clearing_price(),
-            amm_snapshot:           self.amm().map(|ps| PoolStateSnapshot::from(ps))
         }
     }
 

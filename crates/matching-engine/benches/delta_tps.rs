@@ -222,7 +222,7 @@ fn setup_inputs(
 
     let book = OrderBook::new(
         pool_id,
-        Some(Box::new(amm) as Box<dyn PoolState>),
+        Some(PoolState::Uniswap(amm)),
         bids,
         asks,
         Some(SortStrategy::PricePartialVolume)

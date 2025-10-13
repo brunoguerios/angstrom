@@ -242,9 +242,7 @@ where
         (2 * self.validators.len()).div_ceil(3)
     }
 
-    fn fetch_pool_snapshot(
-        &self
-    ) -> HashMap<FixedBytes<32>, (Address, Address, PoolState, u16)> {
+    fn fetch_pool_snapshot(&self) -> HashMap<FixedBytes<32>, (Address, Address, PoolState, u16)> {
         self.uniswap_pools
             .iter()
             .filter_map(|item| {
@@ -257,12 +255,7 @@ where
 
                 Some((
                     *key,
-                    (
-                        token_a,
-                        token_b,
-                        PoolState::Uniswap(snapshot),
-                        entry.store_index as u16
-                    )
+                    (token_a, token_b, PoolState::Uniswap(snapshot), entry.store_index as u16)
                 ))
             })
             .collect::<HashMap<_, _>>()

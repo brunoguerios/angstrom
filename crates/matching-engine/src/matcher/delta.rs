@@ -78,8 +78,7 @@ impl<'a> DeltaMatcher<'a> {
         // Dump if matcher dumps are enabled
         if tracing::event_enabled!(target: "dump::delta_matcher", Level::TRACE) {
             // Dump the solution
-            let json =
-                serde_json::to_string(&(book.snapshot(), tob.clone(), solve_for_t0)).unwrap();
+            let json = serde_json::to_string(&(book, tob.clone(), solve_for_t0)).unwrap();
 
             let b64_output = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
             trace!(target: "dump::delta_matcher", data = b64_output, "Raw DeltaMatcher data");

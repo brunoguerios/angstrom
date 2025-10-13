@@ -123,26 +123,3 @@ impl PoolState {
         }
     }
 }
-
-/// Serializable, venue-neutral snapshot of a PoolState based on a noop swap
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PoolStateSnapshot {
-    pub fee:          u32,
-    pub start_price:  u128,
-    pub end_price:    u128,
-    pub amount_in_t0: u128,
-    pub amount_in_t1: u128
-}
-
-impl From<&PoolState> for PoolStateSnapshot {
-    fn from(ps: &PoolState) -> Self {
-        let psr = ps.noop();
-        Self {
-            fee:          ps.fee(),
-            start_price:  psr.start_price.value(),
-            end_price:    psr.end_price.value(),
-            amount_in_t0: psr.amount_in_t0,
-            amount_in_t1: psr.amount_in_t1
-        }
-    }
-}
