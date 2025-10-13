@@ -99,8 +99,9 @@ impl ProposalState {
                 );
 
                 self.proposal = Some(proposal.clone());
+                // TODO: multi-AMM support
+                // Build Uniswap-only snapshot view for AngstromBundle
                 let snapshots = handles.fetch_pool_snapshot();
-                // Build Uniswap-only snapshot view for AngstromBundle (downcast)
                 let snapshot: HashMap<
                     PoolId,
                     (
@@ -111,10 +112,9 @@ impl ProposalState {
                     )
                 > = snapshots
                     .iter()
-                    .filter_map(|(pool_id, (a0, a1, boxed, idx))| {
-                        boxed
-                            .as_any()
-                            .downcast_ref::<UniswapPoolState>()
+                    .filter_map(|(pool_id, (a0, a1, pool_state, idx))| {
+                        pool_state
+                            .as_uniswap()
                             .map(|u| (*pool_id, (*a0, *a1, u.clone(), *idx)))
                     })
                     .collect();

@@ -28,13 +28,13 @@ pub trait MatchingEngineHandle: Send + Sync + Clone + Unpin + 'static {
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools: HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
+        pools: HashMap<PoolId, (Address, Address, PoolState, u16)>
     ) -> BoxFuture<Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>>;
 }
 
 pub fn build_book(
     id: PoolId,
-    amm: Option<Box<dyn PoolState>>,
+    amm: Option<PoolState>,
     orders: HashSet<BookOrder>
 ) -> OrderBook {
     let (mut bids, mut asks): (Vec<BookOrder>, Vec<BookOrder>) =

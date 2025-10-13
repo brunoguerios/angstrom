@@ -13,7 +13,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-use crate::amm::{PoolState, PoolSwapResult, Price};
+use crate::amm::{PoolSwapResult, Price};
 
 /// Wrapper around balancer-maths-rust pool state
 ///
@@ -51,42 +51,22 @@ impl BalancerPoolState {
     pub fn new(pool_id: String, block_number: u64, fee: u32) -> Self {
         Self { pool_id, block_number, fee }
     }
-}
 
-impl Display for BalancerPoolState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "BalancerPool(id={}, block={}, fee={})",
-            self.pool_id, self.block_number, self.fee
-        )
-    }
-}
-
-impl PoolState for BalancerPoolState {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn PoolState> {
-        Box::new(self.clone())
-    }
-
-    fn block_number(&self) -> u64 {
+    pub fn block_number(&self) -> u64 {
         self.block_number
     }
 
-    fn fee(&self) -> u32 {
+    pub fn fee(&self) -> u32 {
         self.fee
     }
 
-    fn current_price(&self) -> Price {
+    pub fn current_price(&self) -> Price {
         // TODO: Use balancer-maths-rust to calculate current price
         // Expected API: balancer_maths_rust::get_spot_price(&self.inner)
         Price::new(1_000_000_000_000_000_000) // Placeholder
     }
 
-    fn swap_with_amount(
+    pub fn swap_with_amount(
         &self,
         _amount_in: u128,
         _zero_for_one: bool
@@ -107,7 +87,7 @@ impl PoolState for BalancerPoolState {
         ))
     }
 
-    fn swap_to_price(&self, _price_limit: Price) -> eyre::Result<PoolSwapResult> {
+    pub fn swap_to_price(&self, _price_limit: Price) -> eyre::Result<PoolSwapResult> {
         // TODO: Use balancer-maths-rust to swap to target price
         // This might require:
         // 1. Binary search on amount
@@ -119,9 +99,19 @@ impl PoolState for BalancerPoolState {
         ))
     }
 
-    fn noop(&self) -> PoolSwapResult {
+    pub fn noop(&self) -> PoolSwapResult {
         let current_price = self.current_price();
         PoolSwapResult::new(self.fee, current_price, current_price, 0, 0)
+    }
+}
+
+impl Display for BalancerPoolState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BalancerPool(id={}, block={}, fee={})",
+            self.pool_id, self.block_number, self.fee
+        )
     }
 }
 

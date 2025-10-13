@@ -16,7 +16,7 @@ use angstrom_types::{
         grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
     },
-    uni_structure::{UniswapPoolState, pool_swap::UniswapPoolSwapResult}
+    uni_structure::pool_swap::UniswapPoolSwapResult
 };
 use base64::Engine;
 use itertools::Itertools;
@@ -89,11 +89,10 @@ impl<'a> DeltaMatcher<'a> {
         let amm_start_location = match tob {
             // If we have an order, apply that to the AMM start price
             DeltaMatcherToB::Order(ref tob) => book.amm().and_then(|snapshot| {
-                // Downcast to UniswapPoolState for ToB calculation
+                // Access UniswapPoolState for ToB calculation
                 // TODO: This assumes Uniswap - will need to handle Balancer differently
                 let uniswap_snapshot = snapshot
-                    .as_any()
-                    .downcast_ref::<UniswapPoolState>()
+                    .as_uniswap()
                     .expect("ToB orders currently only supported for Uniswap pools");
 
                 Some(
@@ -106,11 +105,10 @@ impl<'a> DeltaMatcher<'a> {
             DeltaMatcherToB::FixedShift(..) => panic!("not implemented"),
             // If we have no order or shift, we just use the AMM start price as-is
             DeltaMatcherToB::None => book.amm().and_then(|amm_state| {
-                // Downcast to UniswapPoolState to get the detailed result
+                // Access UniswapPoolState to get the detailed result
                 // TODO: This assumes Uniswap - will need to handle Balancer differently
                 let uniswap_snapshot = amm_state
-                    .as_any()
-                    .downcast_ref::<UniswapPoolState>()
+                    .as_uniswap()
                     .expect("Currently only Uniswap pools supported");
 
                 Some(uniswap_snapshot.noop())

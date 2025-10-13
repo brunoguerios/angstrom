@@ -47,13 +47,13 @@ pub enum MatcherCommand {
     BuildProposal(
         Vec<BookOrder>,
         Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>,
+        HashMap<PoolId, (Address, Address, PoolState, u16)>,
         oneshot::Sender<Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>>
     ),
     EstimateGasPerPool {
         limit:    Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools:    HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>,
+        pools:    HashMap<PoolId, (Address, Address, PoolState, u16)>,
         tx:       oneshot::Sender<eyre::Result<BundleEstimate>>
     }
 }
@@ -79,7 +79,7 @@ impl MatchingEngineHandle for MatcherHandle {
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pools: HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
+        pools: HashMap<PoolId, (Address, Address, PoolState, u16)>
     ) -> futures_util::future::BoxFuture<
         Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>
     > {
@@ -118,7 +118,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
 
     pub fn build_non_proposal_books(
         limit: Vec<BookOrder>,
-        pool_snapshots: &HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
+        pool_snapshots: &HashMap<PoolId, (Address, Address, PoolState, u16)>
     ) -> Vec<OrderBook> {
         let book_sources = Self::orders_sorted_by_pool_id(limit);
 
@@ -135,7 +135,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         &self,
         limit: Vec<BookOrder>,
         searcher: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        pool_snapshots: HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
+        pool_snapshots: HashMap<PoolId, (Address, Address, PoolState, u16)>
     ) -> Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError> {
         // Pull all the orders out of all the preproposals and build OrderPools out of
         // them.  This is ugly and inefficient right now
@@ -183,14 +183,13 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
         trace!("Building bundle for gas finalization");
 
         // TODO: multi-AMM support
-        // Downcast to Uniswap-only pools for AngstromBundle
+        // Extract Uniswap-only pools for AngstromBundle
         let uniswap_pool_snapshots: HashMap<PoolId, (Address, Address, UniswapPoolState, u16)> =
             pool_snapshots
                 .iter()
-                .filter_map(|(pool_id, (a0, a1, boxed, idx))| {
-                    boxed
-                        .as_any()
-                        .downcast_ref::<UniswapPoolState>()
+                .filter_map(|(pool_id, (a0, a1, pool_state, idx))| {
+                    pool_state
+                        .as_uniswap()
                         .map(|u| (*pool_id, (*a0, *a1, u.clone(), *idx)))
                 })
                 .collect();

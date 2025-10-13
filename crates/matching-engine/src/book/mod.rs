@@ -24,7 +24,7 @@ pub mod sort;
 #[derive(Debug, Default)]
 pub struct OrderBook {
     pub id: PoolId,
-    amm:    Option<Box<dyn PoolState>>,
+    amm:    Option<PoolState>,
     bids:   Vec<BookOrder>,
     asks:   Vec<BookOrder>
 }
@@ -42,7 +42,7 @@ pub struct OrderBookSnapshot {
 impl OrderBook {
     pub fn new(
         id: PoolId,
-        amm: Option<Box<dyn PoolState>>,
+        amm: Option<PoolState>,
         mut bids: Vec<BookOrder>,
         mut asks: Vec<BookOrder>,
         sort: Option<SortStrategy>
@@ -74,15 +74,15 @@ impl OrderBook {
         self.bids.iter().chain(self.asks.iter())
     }
 
-    pub fn amm(&self) -> Option<&dyn PoolState> {
-        self.amm.as_ref().map(|boxed| &**boxed)
+    pub fn amm(&self) -> Option<&PoolState> {
+        self.amm.as_ref()
     }
 
     pub fn is_empty_book(&self) -> bool {
         self.bids().is_empty() && self.asks().is_empty()
     }
 
-    pub fn set_amm_if_missing(&mut self, apply: impl FnOnce() -> Box<dyn PoolState>) {
+    pub fn set_amm_if_missing(&mut self, apply: impl FnOnce() -> PoolState) {
         if self.amm().is_none() {
             self.amm = Some(apply());
         }

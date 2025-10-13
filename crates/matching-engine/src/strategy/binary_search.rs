@@ -2,8 +2,7 @@ use alloy::primitives::{I256, U160};
 use angstrom_types::{
     matching::SqrtPriceX96,
     orders::PoolSolution,
-    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder},
-    uni_structure::UniswapPoolState
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
 use crate::{book::OrderBook, matcher::delta::DeltaMatcher};
@@ -26,10 +25,9 @@ impl BinarySearchStrategy {
     ) -> (U160, i32, u128) {
         let pool_state = book.amm().unwrap();
 
-        // Downcast to UniswapPoolState to access Uniswap-specific methods
+        // Access UniswapPoolState to use Uniswap-specific methods
         let snapshot = pool_state
-            .as_any()
-            .downcast_ref::<UniswapPoolState>()
+            .as_uniswap()
             .expect("give_end_amm_state currently only supports Uniswap pools");
 
         if book.is_empty_book() {

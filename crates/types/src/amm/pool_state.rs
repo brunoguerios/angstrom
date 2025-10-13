@@ -1,45 +1,54 @@
-//! Angstrom pool state trait for AMM-agnostic operations
+//! Angstrom pool state enum for AMM operations
 //!
-//! This module defines the PoolState trait that provides a common
-//! interface for pool operations across different AMM implementations
+//! This module defines the PoolState enum that provides a unified interface
+//! for pool operations across different AMM implementations
 //! (UniswapPoolState, BalancerPoolState, etc.).
 
-use std::{any::Any, fmt::Debug};
+use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
 use super::{pool_swap::PoolSwapResult, price::Price};
+use crate::{balancer_structure::BalancerPoolState, uni_structure::UniswapPoolState};
 
-/// A trait for pool state that abstracts over different AMM implementations
+/// An enum for pool state that abstracts over different AMM implementations
 ///
-/// This trait provides the minimal interface needed by downstream consumers
-/// (matching engine, quoter, consensus, telemetry) without exposing
-/// venue-specific details like ticks, bitmaps, or weights.
+/// This enum provides a zero-cost abstraction for working with different
+/// AMM types while maintaining type safety and avoiding vtable overhead.
 ///
-/// Implementations:
-/// - `UniswapPoolState` in `uni_structure/`
-/// - `BalancerPoolState` in `balancer_structure/`
-pub trait PoolState: Send + Sync + Debug {
-    /// Downcast helper for accessing concrete pool types
-    ///
-    /// This allows downcasting to specific pool types when needed
-    /// (e.g., for venue-specific operations like ToB orders)
-    fn as_any(&self) -> &dyn Any;
+/// Variants:
+/// - `Uniswap` - Uniswap V4 pools with tick-based concentrated liquidity
+/// - `Balancer` - Balancer V3 pools (weighted, stable, concentrated)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PoolState {
+    Uniswap(UniswapPoolState),
+    Balancer(BalancerPoolState)
+}
 
-    /// Clone this pool state into a new Box
-    ///
-    /// This is needed because Box<dyn PoolState> doesn't automatically
-    /// implement Clone
-    fn clone_box(&self) -> Box<dyn PoolState>;
-
+impl PoolState {
     /// Get the current block number
-    fn block_number(&self) -> u64;
+    pub fn block_number(&self) -> u64 {
+        match self {
+            PoolState::Uniswap(u) => u.block_number(),
+            PoolState::Balancer(b) => b.block_number()
+        }
+    }
 
     /// Get the pool fee in parts per million
-    fn fee(&self) -> u32;
+    pub fn fee(&self) -> u32 {
+        match self {
+            PoolState::Uniswap(u) => u.fee(),
+            PoolState::Balancer(b) => b.fee()
+        }
+    }
 
     /// Get the current price
-    fn current_price(&self) -> Price;
+    pub fn current_price(&self) -> Price {
+        match self {
+            PoolState::Uniswap(u) => u.current_price().into(),
+            PoolState::Balancer(b) => b.current_price()
+        }
+    }
 
     /// Swap with a given input amount
     ///
@@ -50,8 +59,20 @@ pub trait PoolState: Send + Sync + Debug {
     ///
     /// # Returns
     /// The swap result or an error if the swap fails
-    fn swap_with_amount(&self, amount_in: u128, zero_for_one: bool)
-    -> eyre::Result<PoolSwapResult>;
+    pub fn swap_with_amount(
+        &self,
+        amount_in: u128,
+        zero_for_one: bool
+    ) -> eyre::Result<PoolSwapResult> {
+        match self {
+            PoolState::Uniswap(u) => {
+                let amount = alloy::primitives::I256::unchecked_from(amount_in);
+                let result = u.swap_current_with_amount(amount, zero_for_one)?;
+                Ok(PoolSwapResult::from(&result))
+            }
+            PoolState::Balancer(b) => b.swap_with_amount(amount_in, zero_for_one)
+        }
+    }
 
     /// Swap to a target price
     ///
@@ -60,30 +81,46 @@ pub trait PoolState: Send + Sync + Debug {
     ///
     /// # Returns
     /// The swap result or an error if the swap fails
-    fn swap_to_price(&self, price_limit: Price) -> eyre::Result<PoolSwapResult>;
+    pub fn swap_to_price(&self, price_limit: Price) -> eyre::Result<PoolSwapResult> {
+        match self {
+            PoolState::Uniswap(u) => {
+                let sqrt_price_limit: crate::matching::SqrtPriceX96 = price_limit
+                    .try_into()
+                    .map_err(|_| eyre::eyre!("Invalid price for Uniswap"))?;
+                let result = u.swap_current_to_price(sqrt_price_limit)?;
+                Ok(PoolSwapResult::from(&result))
+            }
+            PoolState::Balancer(b) => b.swap_to_price(price_limit)
+        }
+    }
 
     /// Get a no-op swap result (no trading, same start/end price)
-    fn noop(&self) -> PoolSwapResult;
-}
-
-/// Implement Clone for Box<dyn PoolState> using the clone_box method
-impl Clone for Box<dyn PoolState> {
-    fn clone(&self) -> Self {
-        self.clone_box()
+    pub fn noop(&self) -> PoolSwapResult {
+        match self {
+            PoolState::Uniswap(u) => {
+                let result = u.noop();
+                PoolSwapResult::from(&result)
+            }
+            PoolState::Balancer(b) => b.noop()
+        }
     }
-}
 
-/// A wrapper that provides ergonomic arithmetic operations for
-/// PoolState
-///
-/// This allows existing code that uses `Add<Quantity>` and `Sub<Quantity>`
-/// to continue working with the new trait-based approach.
-pub struct PoolStateRef<'a>(pub &'a dyn PoolState);
+    /// Get a reference to the underlying Uniswap pool state if this is a
+    /// Uniswap pool
+    pub fn as_uniswap(&self) -> Option<&UniswapPoolState> {
+        match self {
+            PoolState::Uniswap(u) => Some(u),
+            _ => None
+        }
+    }
 
-impl<'a> PoolStateRef<'a> {
-    /// Create a new PoolStateRef wrapper
-    pub fn new(pool_state: &'a dyn PoolState) -> Self {
-        Self(pool_state)
+    /// Get a reference to the underlying Balancer pool state if this is a
+    /// Balancer pool
+    pub fn as_balancer(&self) -> Option<&BalancerPoolState> {
+        match self {
+            PoolState::Balancer(b) => Some(b),
+            _ => None
+        }
     }
 }
 
@@ -97,8 +134,8 @@ pub struct PoolStateSnapshot {
     pub amount_in_t1: u128
 }
 
-impl From<&dyn PoolState> for PoolStateSnapshot {
-    fn from(ps: &dyn PoolState) -> Self {
+impl From<&PoolState> for PoolStateSnapshot {
+    fn from(ps: &PoolState) -> Self {
         let psr = ps.noop();
         Self {
             fee:          ps.fee(),
@@ -109,26 +146,3 @@ impl From<&dyn PoolState> for PoolStateSnapshot {
         }
     }
 }
-
-// Implement arithmetic operations for ergonomic usage
-// Note: These would need to be implemented based on the specific Quantity type
-// and how the existing arithmetic operations work. This is a placeholder
-// for the actual implementation.
-
-// impl<'a> core::ops::Add<crate::matching::uniswap::Quantity> for
-// PoolStateRef<'a> {     type Output = eyre::Result<SwapOutcome>;
-//
-//     fn add(self, quantity: crate::matching::uniswap::Quantity) ->
-// Self::Output {         // Delegate to swap_with_amount based on quantity
-// direction and amount         self.0.swap_with_amount(quantity.amount(),
-// quantity.zero_for_one())     }
-// }
-
-// impl<'a> core::ops::Sub<crate::matching::uniswap::Quantity> for
-// PoolStateRef<'a> {     type Output = eyre::Result<SwapOutcome>;
-//
-//     fn sub(self, quantity: crate::matching::uniswap::Quantity) ->
-// Self::Output {         // Delegate to swap_with_amount with opposite
-// direction         self.0.swap_with_amount(quantity.amount(),
-// !quantity.zero_for_one())     }
-// }

@@ -19,7 +19,7 @@ impl MatchingEngineHandle for MockMatchingEngine {
         &self,
         _: Vec<BookOrder>,
         _: Vec<OrderWithStorageData<TopOfBlockOrder>>,
-        _: HashMap<PoolId, (Address, Address, Box<dyn PoolState>, u16)>
+        _: HashMap<PoolId, (Address, Address, PoolState, u16)>
     ) -> BoxFuture<Result<(Vec<PoolSolution>, BundleGasDetails), MatchingEngineError>> {
         async move { Ok((vec![], BundleGasDetails::default())) }.boxed()
     }

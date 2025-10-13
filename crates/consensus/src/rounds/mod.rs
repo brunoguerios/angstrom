@@ -244,7 +244,7 @@ where
 
     fn fetch_pool_snapshot(
         &self
-    ) -> HashMap<FixedBytes<32>, (Address, Address, Box<dyn PoolState>, u16)> {
+    ) -> HashMap<FixedBytes<32>, (Address, Address, PoolState, u16)> {
         self.uniswap_pools
             .iter()
             .filter_map(|item| {
@@ -260,7 +260,7 @@ where
                     (
                         token_a,
                         token_b,
-                        Box::new(snapshot) as Box<dyn PoolState>,
+                        PoolState::Uniswap(snapshot),
                         entry.store_index as u16
                     )
                 ))

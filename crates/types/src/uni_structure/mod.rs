@@ -5,10 +5,7 @@ use liquidity_base::BaselineLiquidity;
 use pool_swap::{UniswapPoolSwap, UniswapPoolSwapResult};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    amm::{PoolState, PoolSwapResult, Price},
-    matching::{SqrtPriceX96, uniswap::Quantity}
-};
+use crate::matching::{SqrtPriceX96, uniswap::Quantity};
 
 pub mod donation;
 pub mod liquidity_base;
@@ -139,53 +136,5 @@ impl<'a> Sub<Quantity> for &'a UniswapPoolState {
         let amount = I256::unchecked_from(rhs.magnitude()).saturating_neg();
         let direction = rhs.as_output();
         self.swap_current_with_amount(amount, direction.is_ask())
-    }
-}
-
-// Implement PoolState trait for UniswapPoolState
-impl PoolState for UniswapPoolState {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn PoolState> {
-        Box::new(self.clone())
-    }
-
-    fn block_number(&self) -> u64 {
-        self.block
-    }
-
-    fn fee(&self) -> u32 {
-        self.fee
-    }
-
-    fn current_price(&self) -> Price {
-        self.liquidity.start_sqrt_price.into()
-    }
-
-    fn swap_with_amount(
-        &self,
-        amount_in: u128,
-        zero_for_one: bool
-    ) -> eyre::Result<PoolSwapResult> {
-        let amount = I256::unchecked_from(amount_in);
-        let result = self.swap_current_with_amount(amount, zero_for_one)?;
-        Ok(PoolSwapResult::from(&result))
-    }
-
-    fn swap_to_price(&self, price_limit: Price) -> eyre::Result<PoolSwapResult> {
-        // Convert Price back to SqrtPriceX96 for Uniswap-specific logic
-        let sqrt_price_limit: SqrtPriceX96 = price_limit
-            .try_into()
-            .map_err(|_| eyre::eyre!("Invalid price for Uniswap"))?;
-
-        let result = self.swap_current_to_price(sqrt_price_limit)?;
-        Ok(PoolSwapResult::from(&result))
-    }
-
-    fn noop(&self) -> PoolSwapResult {
-        let result = self.noop();
-        PoolSwapResult::from(&result)
     }
 }
