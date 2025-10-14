@@ -7,9 +7,15 @@ INSTALL_DEBUG_DIR=/usr/lib/debug/.build-id
 
 # Build with full debuginfo + frame pointers + a guaranteed Build-ID note.
 # (Don't rely on profile defaults; force it here so symbols always line up.)
-RUSTFLAGS="-C target-cpu=native -C force-frame-pointers=yes -C debuginfo=2 -C link-arg=-Wl,--build-id" \
-  cargo build --bin angstrom --profile maxperf-ss-debug --features jemalloc \
-  --manifest-path "${ANG_DIR}/Cargo.toml" -j 11
+RUSTFLAGS="-C target-cpu=native -C force-frame-pointers=yes -C debuginfo=2 -C link-arg=-Wl,--build-id -C link-arg=-Wl,--no-keep-memory" \
+  cargo build \
+  --bin angstrom \
+  --profile maxperf-ss-debug \
+  --features jemalloc \
+  --manifest-path ${ANG_DIR}/Cargo.toml \
+  --config 'profile.maxperf-ss-debug.lto="thin"' \
+  --config profile.maxperf-ss-debug.codegen-units=4 \
+  -j 4
 
 # Ensure core dumps are captured by systemd-coredump
 ulimit -c unlimited
