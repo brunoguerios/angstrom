@@ -108,8 +108,8 @@ impl BlockSyncProducer for GlobalBlockSync {
                         false
                     }
                 })
-                .unwrap_or_default()
-        }) && self.all_modules_registered.load(Ordering::Relaxed)
+                .unwrap_or(true)
+        })
     }
 
     fn new_block(&self, block_number: u64) {
