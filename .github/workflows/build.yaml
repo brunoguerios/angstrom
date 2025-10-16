@@ -123,9 +123,6 @@ jobs:
     name: forge fmt && forge test
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    defaults:
-      run:
-        working-directory: ./contracts
     steps:
       - uses: actions/checkout@v4
         with:
@@ -143,12 +140,15 @@ jobs:
           version: 0.4.18
 
       - name: Setup python virtual environment
+        working-directory: ./contracts
         run: uv venv .venv --python 3.12
 
       - name: Sync python dependencies
+        working-directory: ./contracts
         run: uv pip install -r requirements.txt
 
       - name: Show Forge version
+        working-directory: ./contracts
         run: forge --version
 
       - uses: rui314/setup-mold@v1
@@ -162,9 +162,11 @@ jobs:
           workspaces: "./contracts -> target"
 
       - name: Run Forge fmt
+        working-directory: ./contracts
         run: forge fmt --check
         id: fmt
 
       - name: Run Forge tests
+        working-directory: ./contracts
         run: forge test -vvv --ffi
         id: test
