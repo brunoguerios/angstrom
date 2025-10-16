@@ -39,7 +39,10 @@ library X128MathLib {
 
                     // We check the final result doesn't overflow by checking that p1_0 = 0.
                     if iszero(lt(p1, shl(128, 1))) {
-                        mstore(0x00, 0xc56a0159 /* FullMulX128Failed() */ )
+                        mstore(
+                            0x00,
+                            0xc56a0159 /* FullMulX128Failed() */
+                        )
                         revert(0x1c, 0x04)
                     }
 

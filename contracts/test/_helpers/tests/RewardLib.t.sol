@@ -168,9 +168,7 @@ contract RewardLibTest is BaseTest {
         );
     }
 
-    function test_fuzzing_rewardAbove_many_tickAtBoundary(uint128 amount1, uint128 amount2)
-        public
-    {
+    function test_fuzzing_rewardAbove_many_tickAtBoundary(uint128 amount1, uint128 amount2) public {
         uni.setCurrentTick(tick = -120);
         assertCreatesUpdates(
             re(TickReward(0, amount1), TickReward(60, amount2)),
@@ -239,16 +237,12 @@ contract RewardLibTest is BaseTest {
         RewardsUpdate memory update = updates[0];
         assertTrue(
             update.onlyCurrent == expected.onlyCurrent
-                && (
-                    update.onlyCurrent
+                && (update.onlyCurrent
                         ? (update.onlyCurrentQuantity == expected.onlyCurrentQuantity)
-                        : (
-                            update.startTick == expected.startTick
-                                && update.startLiquidity == expected.startLiquidity
-                                && update.quantities.length == expected.quantities.length
-                                && arraysEqual(update.quantities, expected.quantities)
-                        )
-                ),
+                        : (update.startTick == expected.startTick
+                            && update.startLiquidity == expected.startLiquidity
+                            && update.quantities.length == expected.quantities.length
+                            && arraysEqual(update.quantities, expected.quantities))),
             string.concat("returned != expected: ", update.toStr(), " != ", expected.toStr())
         );
     }
@@ -261,11 +255,7 @@ contract RewardLibTest is BaseTest {
         return true;
     }
 
-    function CurrentOnlyReward(uint128 amount)
-        internal
-        pure
-        returns (RewardsUpdate memory update)
-    {
+    function CurrentOnlyReward(uint128 amount) internal pure returns (RewardsUpdate memory update) {
         update.onlyCurrent = true;
         update.onlyCurrentQuantity = amount;
     }

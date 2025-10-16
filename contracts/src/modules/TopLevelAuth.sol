@@ -168,8 +168,7 @@ abstract contract TopLevelAuth is EIP712, UniConsumer, IAngstromAuth {
             update.protocolUnlockedFee.validate();
 
             _unlockedFees[update.key] = UnlockedFees({
-                unlockedFee: update.unlockedFee,
-                protocolUnlockedFee: update.protocolUnlockedFee
+                unlockedFee: update.unlockedFee, protocolUnlockedFee: update.protocolUnlockedFee
             });
         }
 

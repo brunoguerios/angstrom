@@ -45,7 +45,10 @@ library CalldataReaderLib {
         assembly ("memory-safe") {
             let end := add(data.offset, data.length)
             if iszero(eq(self, end)) {
-                mstore(0x00, 0x01842f8c /* ReaderNotAtEnd() */ )
+                mstore(
+                    0x00,
+                    0x01842f8c /* ReaderNotAtEnd() */
+                )
                 revert(0x1c, 0x04)
             }
         }

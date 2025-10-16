@@ -108,9 +108,7 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenReturnsFalse(address user, uint256 amount)
-        public
-    {
+    function test_fuzzing_prevents_depositingWhenReturnsFalse(address user, uint256 amount) public {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);
@@ -127,9 +125,7 @@ contract SettlementTest is BaseTest {
         angstrom.deposit(address(token), amount + 1);
     }
 
-    function test_fuzzing_prevents_depositingWhenReturnsEmpty(address user, uint256 amount)
-        public
-    {
+    function test_fuzzing_prevents_depositingWhenReturnsEmpty(address user, uint256 amount) public {
         vm.assume(user != address(angstrom));
 
         amount = bound(amount, 0, type(uint256).max - 1);

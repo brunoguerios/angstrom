@@ -27,7 +27,10 @@ library SignatureLib {
             // Credit to Vectorized's ECDSA in Solady: https://github.com/Vectorized/solady/blob/a95f6714868cfe5d590145f936d0661bddff40d2/src/utils/ECDSA.sol#L108-L123
             from := mload(staticcall(gas(), ECRECOVER_ADDR, free, 0x80, 0x01, 0x20))
             if iszero(returndatasize()) {
-                mstore(0x00, 0x8baa579f /* InvalidSignature() */ )
+                mstore(
+                    0x00,
+                    0x8baa579f /* InvalidSignature() */
+                )
                 revert(0x1c, 0x04)
             }
         }

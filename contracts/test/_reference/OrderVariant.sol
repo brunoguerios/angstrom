@@ -24,7 +24,12 @@ using OrderVariantLib for OrderVariant global;
 library OrderVariantLib {
     using BitPackLib for uint256;
 
-    function encode(OrderVariant memory variant) internal pure returns (Variant) {
+    function encode(OrderVariant memory variant)
+        internal
+        pure
+        returns (Variant)
+    {
+
         // forgefmt: disable-next-item
         return Variant.wrap(
             uint8(

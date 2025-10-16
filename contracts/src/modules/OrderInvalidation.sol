@@ -30,7 +30,10 @@ abstract contract OrderInvalidation {
             let updated := xor(sload(bitmapPtr), flag)
 
             if iszero(and(updated, flag)) {
-                mstore(0x00, 0x8cb88872 /* NonceReuse() */ )
+                mstore(
+                    0x00,
+                    0x8cb88872 /* NonceReuse() */
+                )
                 revert(0x1c, 0x04)
             }
 
@@ -44,7 +47,10 @@ abstract contract OrderInvalidation {
             mstore(0, orderHash)
             let slot := keccak256(0, 52)
             if tload(slot) {
-                mstore(0x00, 0x8a2ef116 /* OrderAlreadyExecuted() */ )
+                mstore(
+                    0x00,
+                    0x8a2ef116 /* OrderAlreadyExecuted() */
+                )
                 revert(0x1c, 0x04)
             }
             tstore(slot, 1)

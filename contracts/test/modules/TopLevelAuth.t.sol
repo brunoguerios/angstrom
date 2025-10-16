@@ -118,8 +118,13 @@ contract TopLevelAuthTest is BaseTest {
         vm.prank(controller);
         angstrom.batchUpdatePools(store, updates);
 
-        (StoreKey key, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee, uint24 protocolFee)
-        = getEntry(0);
+        (
+            StoreKey key,
+            uint16 tickSpacing,
+            uint24 bundleFee,
+            uint24 unlockedFee,
+            uint24 protocolFee
+        ) = getEntry(0);
         assertEq(key, skey(assets[0], assets[4]));
         assertEq(tickSpacing, 19);
         assertEq(bundleFee, 0.01e6);

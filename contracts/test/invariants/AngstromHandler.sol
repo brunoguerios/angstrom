@@ -170,9 +170,8 @@ contract AngstromHandler is BaseTest {
         address mirror1 = address(e.mirrors[asset1Index]);
 
         vm.prank(e.controller);
-        e.angstrom.configurePool(
-            asset0, asset1, uint16(uint24(tickSpacing)), bundleFee, unlockedFee, 0
-        );
+        e.angstrom
+            .configurePool(asset0, asset1, uint16(uint24(tickSpacing)), bundleFee, unlockedFee, 0);
 
         _enabledAssets.add(asset0);
         _enabledAssets.add(asset1);
@@ -271,9 +270,8 @@ contract AngstromHandler is BaseTest {
             position.owner = router;
         }
         position.totalLiquidity += liquidity;
-        position.adds.push(
-            LiquidityAdd(liquidity, _tickRewards[poolIndex].length, type(uint256).max)
-        );
+        position.adds
+            .push(LiquidityAdd(liquidity, _tickRewards[poolIndex].length, type(uint256).max));
     }
 
     function removeLiquidity(
@@ -308,36 +306,39 @@ contract AngstromHandler is BaseTest {
                 address(e.assets[pool.asset1Index]),
                 pool.tickSpacing
             );
-            uint256 newRewards = e.angstrom.getPositionRewards(
-                actualKey.toId(),
-                address(position.owner),
-                position.lowerTick,
-                position.upperTick,
-                DEFAULT_SALT
-            );
+            uint256 newRewards = e.angstrom
+                .getPositionRewards(
+                    actualKey.toId(),
+                    address(position.owner),
+                    position.lowerTick,
+                    position.upperTick,
+                    DEFAULT_SALT
+                );
 
             ghost_claimedLpRewards[address(e.assets[pool.asset0Index])] += newRewards;
             position.claimedRewards += newRewards;
-            position.owner.modifyLiquidity(
-                actualKey,
-                position.lowerTick,
-                position.upperTick,
-                -int256(liquidityToRemove),
-                DEFAULT_SALT
-            );
+            position.owner
+                .modifyLiquidity(
+                    actualKey,
+                    position.lowerTick,
+                    position.upperTick,
+                    -int256(liquidityToRemove),
+                    DEFAULT_SALT
+                );
             position.owner.recycle(address(e.assets[pool.asset0Index]));
             position.owner.recycle(address(e.assets[pool.asset1Index]));
 
             {
                 MockERC20 mirror0 = e.mirrors[pool.asset0Index];
                 MockERC20 mirror1 = e.mirrors[pool.asset1Index];
-                position.owner.modifyLiquidity(
-                    poolKey(address(mirror0), address(mirror1), pool.tickSpacing),
-                    position.lowerTick,
-                    position.upperTick,
-                    -int256(liquidityToRemove),
-                    DEFAULT_SALT
-                );
+                position.owner
+                    .modifyLiquidity(
+                        poolKey(address(mirror0), address(mirror1), pool.tickSpacing),
+                        position.lowerTick,
+                        position.upperTick,
+                        -int256(liquidityToRemove),
+                        DEFAULT_SALT
+                    );
                 position.owner.recycle(address(mirror0));
                 position.owner.recycle(address(mirror1));
             }
@@ -366,9 +367,8 @@ contract AngstromHandler is BaseTest {
         position.activeAddsOffset = adds.length;
 
         if (position.totalLiquidity > 0) {
-            position.adds.push(
-                LiquidityAdd(position.totalLiquidity, rewardsOffset, type(uint256).max)
-            );
+            position.adds
+                .push(LiquidityAdd(position.totalLiquidity, rewardsOffset, type(uint256).max));
         } else {
             _activeKeys[poolIndex].remove(PositionKey.unwrap(key));
         }
@@ -382,11 +382,11 @@ contract AngstromHandler is BaseTest {
         savedPoolIndex = poolIndex = bound(poolIndex, 0, _ghost_createdPools.length - 1);
         PoolInfo storage pool = _ghost_createdPools[poolIndex];
         PoolId id = poolKey(
-            e.angstrom,
-            address(e.assets[pool.asset0Index]),
-            address(e.assets[pool.asset1Index]),
-            pool.tickSpacing
-        ).toId();
+                e.angstrom,
+                address(e.assets[pool.asset0Index]),
+                address(e.assets[pool.asset1Index]),
+                pool.tickSpacing
+            ).toId();
 
         int24[] memory rewardableTicks = _getRewardableTicks(id, pool.tickSpacing);
         uint256 totalTicks = rewardableTicks.length;
@@ -431,9 +431,8 @@ contract AngstromHandler is BaseTest {
             for (uint256 j = 0; j < totalKeys; j++) {
                 PositionKey key = keysToReward[j];
                 LiquidityPosition storage pos = _positions[savedPoolIndex][key];
-                pos.totalRewardsX128 += (uint256(amount) * (1 << 128)).fullMulDiv(
-                    pos.totalLiquidity, liquidityClaimingReward
-                );
+                pos.totalRewardsX128 += (uint256(amount) * (1 << 128))
+                .fullMulDiv(pos.totalLiquidity, liquidityClaimingReward);
             }
         }
 
@@ -476,13 +475,14 @@ contract AngstromHandler is BaseTest {
                     }
                 }
                 PoolUpdate memory update = PoolUpdate(asset0, asset1, 0, rewardUpdates[i]);
-                e.angstrom.updatePool(
-                    bytes.concat(
-                        assets.encode(),
-                        pairs.encode(assets, PoolConfigStore.unwrap(e.angstrom.configStore())),
-                        update.encode(pairs)
-                    )
-                );
+                e.angstrom
+                    .updatePool(
+                        bytes.concat(
+                            assets.encode(),
+                            pairs.encode(assets, PoolConfigStore.unwrap(e.angstrom.configStore())),
+                            update.encode(pairs)
+                        )
+                    );
             }
         }
 
@@ -523,11 +523,11 @@ contract AngstromHandler is BaseTest {
     function poolIndexToId(uint256 poolIndex) public view returns (PoolId) {
         PoolInfo storage pool = _ghost_createdPools[poolIndex];
         return poolKey(
-            e.angstrom,
-            address(e.assets[pool.asset0Index]),
-            address(e.assets[pool.asset1Index]),
-            pool.tickSpacing
-        ).toId();
+                e.angstrom,
+                address(e.assets[pool.asset0Index]),
+                address(e.assets[pool.asset1Index]),
+                pool.tickSpacing
+            ).toId();
     }
 
     function totalPools() public view returns (uint256) {

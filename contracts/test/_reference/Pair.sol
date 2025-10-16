@@ -108,7 +108,10 @@ library PairLib {
             StoreKey entryKey;
             assembly ("memory-safe") {
                 extcodecopy(
-                    configStore, 0x00, add(STORE_HEADER_SIZE, mul(ENTRY_SIZE, index)), ENTRY_SIZE
+                    configStore,
+                    0x00,
+                    add(STORE_HEADER_SIZE, mul(ENTRY_SIZE, index)),
+                    ENTRY_SIZE
                 )
                 entryKey := mload(0x00)
             }

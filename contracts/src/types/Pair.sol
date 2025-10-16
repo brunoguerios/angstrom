@@ -75,7 +75,9 @@ library PairLib {
                 address asset1 = assets.get(indices & INDEX_B_MASK).addr();
                 // We ensure pair uniqueness by ensuring that the list is sorted and that every pair
                 // is unique by ensuring there's only one valid ordering of asset 0 & 1.
-                if (indices <= lastIndices || asset0 >= asset1) revert OutOfOrderOrDuplicatePairs();
+                if (indices <= lastIndices || asset0 >= asset1) {
+                    revert OutOfOrderOrDuplicatePairs();
+                }
                 lastIndices = indices;
 
                 assembly ("memory-safe") {
@@ -88,11 +90,10 @@ library PairLib {
             {
                 StoreKey key;
                 assembly ("memory-safe") {
-                    key :=
-                        shl(
-                            HASH_TO_STORE_KEY_SHIFT,
-                            keccak256(add(raw_memoryOffset, PAIR_ASSET0_OFFSET), 0x40)
-                        )
+                    key := shl(
+                        HASH_TO_STORE_KEY_SHIFT,
+                        keccak256(add(raw_memoryOffset, PAIR_ASSET0_OFFSET), 0x40)
+                    )
                 }
 
                 uint16 storeIndex;

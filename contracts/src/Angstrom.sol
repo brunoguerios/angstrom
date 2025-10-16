@@ -19,7 +19,9 @@ import {TypedDataHasher, TypedDataHasherLib} from "./types/TypedDataHasher.sol";
 import {HookBuffer, HookBufferLib} from "./types/HookBuffer.sol";
 import {SignatureLib} from "./libraries/SignatureLib.sol";
 import {
-    PriceAB as PriceOutVsIn, AmountA as AmountOut, AmountB as AmountIn
+    PriceAB as PriceOutVsIn,
+    AmountA as AmountOut,
+    AmountB as AmountIn
 } from "./types/Price.sol";
 import {ToBOrderBuffer} from "./types/ToBOrderBuffer.sol";
 import {ToBOrderVariantMap} from "./types/ToBOrderVariantMap.sol";
@@ -251,12 +253,7 @@ contract Angstrom is
         return reader;
     }
 
-    function _domainNameAndVersion()
-        internal
-        pure
-        override
-        returns (string memory, string memory)
-    {
+    function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
         return ("Angstrom", "v1");
     }
 
