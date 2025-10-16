@@ -28,7 +28,10 @@ pub trait BlockSyncProducer: Debug + Clone + Send + Sync + Unpin + 'static {
 
     /// returns whether or not any modules are currently transitioning
     /// helps with lagging reth issues
-    fn is_transitioning(&self, non_reorg_block_number: Option<u64>) -> bool;
+    ///
+    /// returns true when all modules have signed off on block n-1 OR the
+    /// maximum block of a reorg
+    fn is_transitioning(&self, expected_signed_off_block_number: u64) -> bool;
 }
 
 /// Consumer to block sync producer
@@ -94,15 +97,13 @@ impl GlobalBlockSync {
     }
 }
 impl BlockSyncProducer for GlobalBlockSync {
-    fn is_transitioning(&self, non_reorg_block_number: Option<u64>) -> bool {
+    fn is_transitioning(&self, expected_signed_off_block_number: u64) -> bool {
         !self.registered_modules.iter().all(|val| {
             val.value()
                 .front()
                 .map(|v| {
                     if let SignOffState::ReadyForNextBlock(_, bn) = v {
-                        non_reorg_block_number
-                            .map(|expected_next_block| expected_next_block == *bn + 1)
-                            .unwrap_or(true)
+                        expected_signed_off_block_number == *bn
                     } else {
                         false
                     }
@@ -112,7 +113,7 @@ impl BlockSyncProducer for GlobalBlockSync {
     }
 
     fn new_block(&self, block_number: u64) {
-        while self.is_transitioning(Some(block_number)) {
+        while self.is_transitioning(block_number - 1) {
             std::hint::spin_loop();
         }
 
@@ -129,7 +130,7 @@ impl BlockSyncProducer for GlobalBlockSync {
     }
 
     fn reorg(&self, reorg_range: RangeInclusive<u64>) {
-        while self.is_transitioning(None) {
+        while self.is_transitioning(*reorg_range.max().unwrap()) {
             std::hint::spin_loop();
         }
         self.pending_state
