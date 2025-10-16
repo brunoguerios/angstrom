@@ -158,9 +158,7 @@ contract AngstromTest is BaseTest {
 
         bytes32 digest = erc712Hash(
             computeDomainSeparator(address(angstrom)),
-            keccak256(
-                abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), unlock_block)
-            )
+            keccak256(abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), unlock_block))
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(node.key, digest);
@@ -199,8 +197,7 @@ contract AngstromTest is BaseTest {
 
         vm.prank(node.addr);
         angstrom.execute("");
-        int128 withFeeOut =
-            actor.swap(pk, true, -int256(swapAmount1), 4295128740, unlockData).amount1();
+        int128 withFeeOut = actor.swap(pk, true, -int256(swapAmount1), 4295128740, unlockData).amount1();
 
         assertGe(withFeeOut, 0);
         assertEq(angstrom.lastBlockUpdated(), bn);
@@ -254,21 +251,17 @@ contract AngstromTest is BaseTest {
         assertApproxEqRel(effective_fee_share, uint256(protocol_unlock_swap_fee_e6) * 1e12, 0.01e18);
     }
 
-    function _createPool(
-        uint16 tickSpacing,
-        uint24 unlockedFee,
-        uint248 startLiquidity,
-        uint24 protocolUnlockedFee
-    ) internal returns (PoolKey memory pk) {
+    function _createPool(uint16 tickSpacing, uint24 unlockedFee, uint248 startLiquidity, uint24 protocolUnlockedFee)
+        internal
+        returns (PoolKey memory pk)
+    {
         vm.prank(controller);
         angstrom.configurePool(asset0, asset1, tickSpacing, 0, unlockedFee, protocolUnlockedFee);
         angstrom.initializePool(asset0, asset1, 0, TickMath.getSqrtPriceAtTick(0));
         int24 spacing = int24(uint24(tickSpacing));
         pk = poolKey(angstrom, asset0, asset1, spacing);
         if (startLiquidity > 0) {
-            actor.modifyLiquidity(
-                pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0)
-            );
+            actor.modifyLiquidity(pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0));
         }
 
         return pk;

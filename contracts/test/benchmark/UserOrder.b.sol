@@ -72,9 +72,7 @@ contract UserOrderBenchmarkTest is BaseTest {
         pair[0] = Pair(asset0, asset1, PriceAB.wrap(11.5e27));
 
         bytes memory payload = bytes.concat(
-            assets.encode(),
-            pair.encode(assets, PoolConfigStore.unwrap(angstrom.configStore())),
-            order.encode(pair)
+            assets.encode(), pair.encode(assets, PoolConfigStore.unwrap(angstrom.configStore())), order.encode(pair)
         );
 
         angstrom.validateAndExecuteUserOrder(payload);

@@ -16,11 +16,7 @@ library ConfigBufferLib {
     error InsufficientCapacity();
     error EntryKeyMismatch();
 
-    function get(ConfigBuffer memory self, StoreKey key, uint256 index)
-        internal
-        pure
-        returns (ConfigEntry entry)
-    {
+    function get(ConfigBuffer memory self, StoreKey key, uint256 index) internal pure returns (ConfigEntry entry) {
         entry = self.entries[index];
         if (entry.key() != key) revert EntryKeyMismatch();
         return entry;

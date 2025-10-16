@@ -84,8 +84,7 @@ library PoolRewardsLib {
             if (newTick < tick) break;
             if (initialized) {
                 unchecked {
-                    self.rewardGrowthOutside[uint24(tick)] =
-                        globalGrowth - self.rewardGrowthOutside[uint24(tick)];
+                    self.rewardGrowthOutside[uint24(tick)] = globalGrowth - self.rewardGrowthOutside[uint24(tick)];
                 }
             }
         }
@@ -107,8 +106,7 @@ library PoolRewardsLib {
 
             if (initialized) {
                 unchecked {
-                    self.rewardGrowthOutside[uint24(tick)] =
-                        self.globalGrowth - self.rewardGrowthOutside[uint24(tick)];
+                    self.rewardGrowthOutside[uint24(tick)] = self.globalGrowth - self.rewardGrowthOutside[uint24(tick)];
                 }
             }
             tick--;

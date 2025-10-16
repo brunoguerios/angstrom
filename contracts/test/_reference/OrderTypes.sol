@@ -201,11 +201,7 @@ library OrdersLib {
     }
 
     /// @dev WARNING: Assumes `pairs` are sorted.
-    function encode(PartialStandingOrder memory order, Pair[] memory pairs)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encode(PartialStandingOrder memory order, Pair[] memory pairs) internal pure returns (bytes memory) {
         (uint16 pairIndex, bool zeroForOne) = pairs.getIndex(order.assetIn, order.assetOut);
 
         RefOrderVariant memory variantMap = RefOrderVariant({
@@ -239,11 +235,7 @@ library OrdersLib {
         );
     }
 
-    function encode(ExactStandingOrder memory order, Pair[] memory pairs)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encode(ExactStandingOrder memory order, Pair[] memory pairs) internal pure returns (bytes memory) {
         (uint16 pairIndex, bool zeroForOne) = pairs.getIndex(order.assetIn, order.assetOut);
 
         RefOrderVariant memory variantMap = RefOrderVariant({
@@ -275,11 +267,7 @@ library OrdersLib {
         );
     }
 
-    function encode(PartialFlashOrder memory order, Pair[] memory pairs)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encode(PartialFlashOrder memory order, Pair[] memory pairs) internal pure returns (bytes memory) {
         (uint16 pairIndex, bool zeroForOne) = pairs.getIndex(order.assetIn, order.assetOut);
 
         RefOrderVariant memory variantMap = RefOrderVariant({
@@ -311,11 +299,7 @@ library OrdersLib {
         );
     }
 
-    function encode(ExactFlashOrder memory order, Pair[] memory pairs)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encode(ExactFlashOrder memory order, Pair[] memory pairs) internal pure returns (bytes memory) {
         (uint16 pairIndex, bool zeroForOne) = pairs.getIndex(order.assetIn, order.assetOut);
 
         RefOrderVariant memory variantMap = RefOrderVariant({
@@ -343,26 +327,18 @@ library OrdersLib {
         );
     }
 
-    function encode(TopOfBlockOrder[] memory orders, Pair[] memory pairs)
-        internal
-        pure
-        returns (bytes memory b)
-    {
+    function encode(TopOfBlockOrder[] memory orders, Pair[] memory pairs) internal pure returns (bytes memory b) {
         for (uint256 i = 0; i < orders.length; i++) {
             b = bytes.concat(b, orders[i].encode(pairs));
         }
         b = bytes.concat(bytes3(b.length.toUint24()), b);
     }
 
-    function encode(TopOfBlockOrder memory order, Pair[] memory pairs)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encode(TopOfBlockOrder memory order, Pair[] memory pairs) internal pure returns (bytes memory) {
         (uint16 pairIndex, bool zeroForOne) = pairs.getIndex(order.assetIn, order.assetOut);
 
-        uint8 varMap = (order.useInternal ? 1 : 0) | (zeroForOne ? 2 : 0)
-            | (order.recipient != address(0) ? 4 : 0) | (order.meta.isEcdsa ? 8 : 0);
+        uint8 varMap = (order.useInternal ? 1 : 0) | (zeroForOne ? 2 : 0) | (order.recipient != address(0) ? 4 : 0)
+            | (order.meta.isEcdsa ? 8 : 0);
 
         return bytes.concat(
             bytes1(varMap),
@@ -524,23 +500,14 @@ library OrdersLib {
         );
     }
 
-    function _encodeHookData(address hook, bytes memory hookPayload)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function _encodeHookData(address hook, bytes memory hookPayload) internal pure returns (bytes memory) {
         if (hook == address(0)) {
             return new bytes(0);
         }
-        return
-            bytes.concat(bytes3((hookPayload.length + 20).toUint24()), bytes20(hook), hookPayload);
+        return bytes.concat(bytes3((hookPayload.length + 20).toUint24()), bytes20(hook), hookPayload);
     }
 
-    function _toHookData(address hook, bytes memory hookPayload)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function _toHookData(address hook, bytes memory hookPayload) internal pure returns (bytes memory) {
         if (hook == address(0)) {
             return new bytes(0);
         }
@@ -556,9 +523,7 @@ library OrdersLib {
             return meta.signature;
         } else {
             // ERC1271
-            return bytes.concat(
-                bytes20(meta.from), bytes3(meta.signature.length.toUint24()), meta.signature
-            );
+            return bytes.concat(bytes20(meta.from), bytes3(meta.signature.length.toUint24()), meta.signature);
         }
     }
 }

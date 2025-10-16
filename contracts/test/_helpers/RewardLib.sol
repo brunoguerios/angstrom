@@ -69,13 +69,11 @@ library RewardLib {
         updates = toUpdates(rewards, uni, id, tickSpacing, uni.getSlot0(id).tick());
     }
 
-    function toUpdates(
-        TickReward[] memory rewards,
-        IPoolManager uni,
-        PoolId id,
-        int24 tickSpacing,
-        int24 currentTick
-    ) internal view returns (RewardsUpdate[] memory updates) {
+    function toUpdates(TickReward[] memory rewards, IPoolManager uni, PoolId id, int24 tickSpacing, int24 currentTick)
+        internal
+        view
+        returns (RewardsUpdate[] memory updates)
+    {
         require(tickSpacing >= 1, "Invalid TICK_SPACING");
         if (rewards.length == 0) return updates;
 
@@ -101,8 +99,7 @@ library RewardLib {
             int24 currentRangeStartTick = currentTick;
             bool initialized;
             while (true) {
-                (initialized, currentRangeStartTick) =
-                    uni.getNextTickLe(id, currentRangeStartTick, tickSpacing);
+                (initialized, currentRangeStartTick) = uni.getNextTickLe(id, currentRangeStartTick, tickSpacing);
                 if (initialized) break;
                 currentRangeStartTick--;
             }
@@ -142,12 +139,10 @@ library RewardLib {
         }
     }
 
-    function _checkTicksInitialized(
-        IPoolManager uni,
-        PoolId id,
-        TickReward[] memory rewards,
-        int24 tickSpacing
-    ) private view {
+    function _checkTicksInitialized(IPoolManager uni, PoolId id, TickReward[] memory rewards, int24 tickSpacing)
+        private
+        view
+    {
         for (uint256 i = 0; i < rewards.length; i++) {
             int24 tick = rewards[i].tick;
             (int16 wordPos, uint8 bitPos) = TickLib.position(TickLib.compress(tick, tickSpacing));
@@ -351,10 +346,7 @@ library RewardLib {
                     realCurrentLiq = MixedSignLib.add(realCurrentLiq, tickNetLiquidity);
                 } else {
                     uninit++;
-                    require(
-                        uninit <= MAX_LOOP,
-                        "MAX_LOOP exceeded in getLiquidityAtTick [present < future]"
-                    );
+                    require(uninit <= MAX_LOOP, "MAX_LOOP exceeded in getLiquidityAtTick [present < future]");
                 }
             }
         } else if (futureTick < presentTick) {
@@ -370,10 +362,7 @@ library RewardLib {
                     realCurrentLiq = MixedSignLib.sub(realCurrentLiq, tickNetLiquidity);
                 } else {
                     uninit++;
-                    require(
-                        uninit <= MAX_LOOP,
-                        "MAX_LOOP exceeded in getLiquidityAtTick [future < present]"
-                    );
+                    require(uninit <= MAX_LOOP, "MAX_LOOP exceeded in getLiquidityAtTick [future < present]");
                 }
                 tick--;
             }
@@ -383,9 +372,7 @@ library RewardLib {
     }
 
     function toStr(TickReward memory reward) internal pure returns (string memory) {
-        return string.concat(
-            "TickReward { tick: ", reward.tick.toStr(), ", amount: ", reward.amount.toStr(), " }"
-        );
+        return string.concat("TickReward { tick: ", reward.tick.toStr(), ", amount: ", reward.amount.toStr(), " }");
     }
 
     function re(TickReward memory reward) internal pure returns (TickReward[] memory r) {
@@ -393,11 +380,7 @@ library RewardLib {
         r[0] = reward;
     }
 
-    function re(TickReward memory r1, TickReward memory r2)
-        internal
-        pure
-        returns (TickReward[] memory r)
-    {
+    function re(TickReward memory r1, TickReward memory r2) internal pure returns (TickReward[] memory r) {
         r = new TickReward[](2);
         r[0] = r1;
         r[1] = r2;

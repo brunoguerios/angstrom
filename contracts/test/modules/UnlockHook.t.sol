@@ -64,11 +64,7 @@ contract UnlookHookTest is BaseTest {
         actor.swap(pk, true, 1e18, 4295128740);
     }
 
-    function test_fuzzing_swapAfterUnlockZeroForOne(
-        uint32 bn,
-        uint24 unlockedFee,
-        uint256 swapAmount
-    ) public {
+    function test_fuzzing_swapAfterUnlockZeroForOne(uint32 bn, uint24 unlockedFee, uint256 swapAmount) public {
         vm.roll(boundBlock(bn));
 
         unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_E6));
@@ -96,16 +92,10 @@ contract UnlookHookTest is BaseTest {
         assertGe(withFeeOut, 0);
 
         uint256 out = uint256(uint128(noFeeOut));
-        assertApproxEqAbs(
-            (out * (1e6 - unlockedFee)) / 1e6, uint256(uint128(withFeeOut)), out / 1e6
-        );
+        assertApproxEqAbs((out * (1e6 - unlockedFee)) / 1e6, uint256(uint128(withFeeOut)), out / 1e6);
     }
 
-    function test_fuzzing_swapAfterUnlockOneForZero(
-        uint32 bn,
-        uint24 unlockedFee,
-        uint256 swapAmount
-    ) public {
+    function test_fuzzing_swapAfterUnlockOneForZero(uint32 bn, uint24 unlockedFee, uint256 swapAmount) public {
         vm.roll(boundBlock(bn));
 
         unlockedFee = uint24(bound(unlockedFee, 0.01e6, MAX_UNLOCK_FEE_E6));
@@ -118,9 +108,8 @@ contract UnlookHookTest is BaseTest {
 
         vm.prank(node);
         angstrom.execute("");
-        int128 noFeeOut = actor.swap(
-            pk, false, -int256(swapAmount), 1461446703485210103287273052203988822378723970341
-        ).amount0();
+        int128 noFeeOut =
+            actor.swap(pk, false, -int256(swapAmount), 1461446703485210103287273052203988822378723970341).amount0();
 
         vm.revertToState(snapshotId);
 
@@ -129,17 +118,14 @@ contract UnlookHookTest is BaseTest {
 
         vm.prank(node);
         angstrom.execute("");
-        int128 withFeeOut = actor.swap(
-            pk, false, -int256(swapAmount), 1461446703485210103287273052203988822378723970341
-        ).amount0();
+        int128 withFeeOut =
+            actor.swap(pk, false, -int256(swapAmount), 1461446703485210103287273052203988822378723970341).amount0();
 
         assertGe(noFeeOut, 0);
         assertGe(withFeeOut, 0);
 
         uint256 out = uint256(uint128(noFeeOut));
-        assertApproxEqAbs(
-            (out * (1e6 - unlockedFee)) / 1e6, uint256(uint128(withFeeOut)), out / 1e6
-        );
+        assertApproxEqAbs((out * (1e6 - unlockedFee)) / 1e6, uint256(uint128(withFeeOut)), out / 1e6);
     }
 
     function _createPool(uint16 tickSpacing, uint24 unlockedFee, uint248 startLiquidity)
@@ -152,9 +138,7 @@ contract UnlookHookTest is BaseTest {
         int24 spacing = int24(uint24(tickSpacing));
         pk = poolKey(angstrom, asset0, asset1, spacing);
         if (startLiquidity > 0) {
-            actor.modifyLiquidity(
-                pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0)
-            );
+            actor.modifyLiquidity(pk, -1 * spacing, 1 * spacing, int256(uint256(startLiquidity)), bytes32(0));
         }
 
         return pk;

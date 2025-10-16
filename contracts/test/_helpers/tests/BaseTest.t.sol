@@ -37,9 +37,7 @@ contract BaseTestTest is BaseTest {
         );
 
         assertEq(
-            PoolConfigStore.unwrap(open.configStore()),
-            rawGetConfigStore(address(open)),
-            "open view method != raw get"
+            PoolConfigStore.unwrap(open.configStore()), rawGetConfigStore(address(open)), "open view method != raw get"
         );
     }
 }

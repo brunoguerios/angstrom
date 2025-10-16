@@ -200,14 +200,11 @@ contract ConfigBufferTest is BaseTest {
             StoreKey key2 = StoreKeyLib.keyFromAssetsUnchecked(ASSET0, ASSET2);
             StoreKey key3 = StoreKeyLib.keyFromAssetsUnchecked(ASSET0, ASSET3);
 
-            ConfigEntry entry1 =
-                ConfigEntryLib.init(key1, boundTickSpacing(tickSpacing), boundE6(fee, MAX_FEE));
-            ConfigEntry entry2 = ConfigEntryLib.init(
-                key2, boundTickSpacing(tickSpacing + 1), boundE6(fee + 1000, MAX_FEE)
-            );
-            ConfigEntry entry3 = ConfigEntryLib.init(
-                key3, boundTickSpacing(tickSpacing + 2), boundE6(fee + 2000, MAX_FEE)
-            );
+            ConfigEntry entry1 = ConfigEntryLib.init(key1, boundTickSpacing(tickSpacing), boundE6(fee, MAX_FEE));
+            ConfigEntry entry2 =
+                ConfigEntryLib.init(key2, boundTickSpacing(tickSpacing + 1), boundE6(fee + 1000, MAX_FEE));
+            ConfigEntry entry3 =
+                ConfigEntryLib.init(key3, boundTickSpacing(tickSpacing + 2), boundE6(fee + 2000, MAX_FEE));
 
             buffer.unsafe_add(entry1);
             buffer.unsafe_add(entry2);

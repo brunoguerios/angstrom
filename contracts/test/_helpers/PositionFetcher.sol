@@ -116,9 +116,7 @@ contract PositionFetcher {
         assembly ("memory-safe") {
             let length := mload(add(returnData_ptr, 0x60))
             mstore(returnData_ptr, tokenId)
-            return(
-                returnData_ptr, add(add(returnData_ptr, 0x80), mul(length, _POSITION_STRUCT_SIZE))
-            )
+            return(returnData_ptr, add(add(returnData_ptr, 0x80), mul(length, _POSITION_STRUCT_SIZE)))
         }
     }
 }

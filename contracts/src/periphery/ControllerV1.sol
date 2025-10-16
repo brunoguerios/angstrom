@@ -44,9 +44,7 @@ contract ControllerV1 is Ownable {
 
     event OpaqueBatchPoolUpdate();
 
-    event PoolRemoved(
-        address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6
-    );
+    event PoolRemoved(address indexed asset0, address indexed asset1, int24 tickSpacing, uint24 feeInE6);
 
     event NodeAdded(address indexed node);
     event NodeRemoved(address indexed node);
@@ -146,12 +144,8 @@ contract ControllerV1 is Ownable {
             _poolIndices[key] = maybe_index;
         }
 
-        emit PoolConfigured(
-            asset0, asset1, tickSpacing, bundleFee, unlockedFee, protocolUnlockedFee
-        );
-        ANGSTROM.configurePool(
-            asset0, asset1, tickSpacing, bundleFee, unlockedFee, protocolUnlockedFee
-        );
+        emit PoolConfigured(asset0, asset1, tickSpacing, bundleFee, unlockedFee, protocolUnlockedFee);
+        ANGSTROM.configurePool(asset0, asset1, tickSpacing, bundleFee, unlockedFee, protocolUnlockedFee);
     }
 
     function removePool(address asset0, address asset1) external {
@@ -168,8 +162,7 @@ contract ControllerV1 is Ownable {
             uint256 length = _pools.length;
             if (index_plus_one < length) {
                 Pool memory last_pool = _pools[length - 1];
-                StoreKey last_key =
-                    StoreKeyLib.keyFromAssetsUnchecked(last_pool.asset0, last_pool.asset1);
+                StoreKey last_key = StoreKeyLib.keyFromAssetsUnchecked(last_pool.asset0, last_pool.asset1);
                 _pools[index] = last_pool;
                 _poolIndices[last_key] = index_plus_one;
             }

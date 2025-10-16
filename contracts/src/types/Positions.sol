@@ -15,14 +15,11 @@ using PositionsLib for Positions global;
 
 /// @author philogy <https://github.com/philogy>
 library PositionsLib {
-    function get(
-        Positions storage self,
-        PoolId id,
-        address owner,
-        int24 lowerTick,
-        int24 upperTick,
-        bytes32 salt
-    ) internal view returns (Position storage position, bytes32 positionKey) {
+    function get(Positions storage self, PoolId id, address owner, int24 lowerTick, int24 upperTick, bytes32 salt)
+        internal
+        view
+        returns (Position storage position, bytes32 positionKey)
+    {
         assembly ("memory-safe") {
             // Compute `positionKey` as `keccak256(abi.encodePacked(owner, lowerTick, upperTick, salt))`.
             // Less efficient than alternative ordering *but* lets us reuse as Uniswap position key.

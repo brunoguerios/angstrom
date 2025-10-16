@@ -28,8 +28,7 @@ interface IAngstromAuth {
 
     function removePool(StoreKey key, PoolConfigStore expectedStore, uint256 storeIndex) external;
 
-    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates)
-        external;
+    function batchUpdatePools(PoolConfigStore expected_store, ConfigEntryUpdate[] calldata updates) external;
 
     function pullFee(address asset, uint256 amount) external;
 
