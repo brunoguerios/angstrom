@@ -5,7 +5,12 @@ import {BaseTest} from "test/_helpers/BaseTest.sol";
 import {OpenAngstrom} from "test/_mocks/OpenAngstrom.sol";
 import {TopLevelAuth, IAngstromAuth, ConfigEntryUpdate} from "src/modules/TopLevelAuth.sol";
 import {AngstromView} from "src/periphery/AngstromView.sol";
-import {PoolConfigStore, STORE_HEADER_SIZE, PoolConfigStoreLib, StoreKey} from "src/libraries/PoolConfigStore.sol";
+import {
+    PoolConfigStore,
+    STORE_HEADER_SIZE,
+    PoolConfigStoreLib,
+    StoreKey
+} from "src/libraries/PoolConfigStore.sol";
 import {ConfigEntry, ConfigEntryLib, MAX_FEE} from "src/types/ConfigEntry.sol";
 import {ConfigBuffer} from "src/types/ConfigBuffer.sol";
 import {ENTRY_SIZE} from "src/types/ConfigEntry.sol";
@@ -25,7 +30,9 @@ contract TopLevelAuthTest is BaseTest {
 
     function setUp() public {
         controller = makeAddr("controller");
-        angstrom = OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, IPoolManager(address(0)), controller));
+        angstrom = OpenAngstrom(
+            deployAngstrom(type(OpenAngstrom).creationCode, IPoolManager(address(0)), controller)
+        );
 
         assets[0] = makeAddr("asset_0");
         for (uint256 i = 1; i < TOTAL_ASSETS; i++) {
@@ -34,7 +41,11 @@ contract TopLevelAuthTest is BaseTest {
     }
 
     function test_entry_size() public pure {
-        assertEq(ENTRY_SIZE, 32, "Ensure that new size doesn't require changes like an index bounds check");
+        assertEq(
+            ENTRY_SIZE,
+            32,
+            "Ensure that new size doesn't require changes like an index bounds check"
+        );
     }
 
     function test_default_store() public view {
@@ -107,7 +118,8 @@ contract TopLevelAuthTest is BaseTest {
         vm.prank(controller);
         angstrom.batchUpdatePools(store, updates);
 
-        (StoreKey key, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee, uint24 protocolFee) = getEntry(0);
+        (StoreKey key, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee, uint24 protocolFee)
+        = getEntry(0);
         assertEq(key, skey(assets[0], assets[4]));
         assertEq(tickSpacing, 19);
         assertEq(bundleFee, 0.01e6);
@@ -182,9 +194,12 @@ contract TopLevelAuthTest is BaseTest {
         }
     }
 
-    function test_fuzzing_removeStandalone(address asset0, address asset1, uint16 tickSpacing, uint24 bundleFee)
-        public
-    {
+    function test_fuzzing_removeStandalone(
+        address asset0,
+        address asset1,
+        uint16 tickSpacing,
+        uint24 bundleFee
+    ) public {
         vm.assume(asset0 != asset1);
         (asset0, asset1) = sort(asset0, asset1);
 
@@ -242,9 +257,10 @@ contract TopLevelAuthTest is BaseTest {
         angstrom.configurePool(asset0, asset1, tickSpacing, bundleFee, unlockedFee, 0);
     }
 
-    function test_fuzzing_prevents_nonControllerSettingController(address imposterController, address newController)
-        public
-    {
+    function test_fuzzing_prevents_nonControllerSettingController(
+        address imposterController,
+        address newController
+    ) public {
         vm.assume(imposterController != controller);
         vm.prank(imposterController);
         vm.expectRevert(TopLevelAuth.NotController.selector);
@@ -322,7 +338,13 @@ contract TopLevelAuthTest is BaseTest {
     function getEntry(uint256 index)
         internal
         view
-        returns (StoreKey key, uint16 tickSpacing, uint24 bundleFee, uint24 unlockedFee, uint24 protocolFee)
+        returns (
+            StoreKey key,
+            uint16 tickSpacing,
+            uint24 bundleFee,
+            uint24 unlockedFee,
+            uint24 protocolFee
+        )
     {
         PoolConfigStore store = angstrom.configStore();
         ConfigBuffer memory buffer = store.read_to_buffer();

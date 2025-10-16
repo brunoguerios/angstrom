@@ -7,7 +7,9 @@ import {PoolManager} from "v4-core/src/PoolManager.sol";
 import {ControllerV1, Asset, Distribution} from "src/periphery/ControllerV1.sol";
 import {TopLevelAuth} from "src/modules/TopLevelAuth.sol";
 import {LibSort} from "solady/src/utils/LibSort.sol";
-import {PoolConfigStoreLib, PoolConfigStore, StoreKey} from "../../src/libraries/PoolConfigStore.sol";
+import {
+    PoolConfigStoreLib, PoolConfigStore, StoreKey
+} from "../../src/libraries/PoolConfigStore.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {MockERC20} from "super-sol/mocks/MockERC20.sol";
 
@@ -109,7 +111,8 @@ contract ControllerV1Test is BaseTest {
     }
 
     function test_configurePools() public {
-        address[] memory assets = addrs(abi.encode(makeAddr("asset_1"), makeAddr("asset_2"), makeAddr("asset_3")));
+        address[] memory assets =
+            addrs(abi.encode(makeAddr("asset_1"), makeAddr("asset_2"), makeAddr("asset_3")));
         LibSort.sort(assets);
 
         vm.expectEmit(true, true, true, true);
@@ -167,8 +170,13 @@ contract ControllerV1Test is BaseTest {
     uint256 constant _TOTAL_NODES = 5;
 
     function test_addRemoveNode() public {
-        address[_TOTAL_NODES] memory addrs =
-            [makeAddr("addr_1"), makeAddr("addr_2"), makeAddr("addr_3"), makeAddr("addr_4"), makeAddr("addr_5")];
+        address[_TOTAL_NODES] memory addrs = [
+            makeAddr("addr_1"),
+            makeAddr("addr_2"),
+            makeAddr("addr_3"),
+            makeAddr("addr_4"),
+            makeAddr("addr_5")
+        ];
         assertEq(controller.totalNodes(), 0);
         for (uint256 i = 0; i < addrs.length; i++) {
             vm.expectEmit(true, true, true, true);

@@ -88,7 +88,11 @@ library PairLib {
             {
                 StoreKey key;
                 assembly ("memory-safe") {
-                    key := shl(HASH_TO_STORE_KEY_SHIFT, keccak256(add(raw_memoryOffset, PAIR_ASSET0_OFFSET), 0x40))
+                    key :=
+                        shl(
+                            HASH_TO_STORE_KEY_SHIFT,
+                            keccak256(add(raw_memoryOffset, PAIR_ASSET0_OFFSET), 0x40)
+                        )
                 }
 
                 uint16 storeIndex;
@@ -132,7 +136,11 @@ library PairLib {
         }
     }
 
-    function getPoolInfo(Pair self) internal pure returns (address asset0, address asset1, int24 tickSpacing) {
+    function getPoolInfo(Pair self)
+        internal
+        pure
+        returns (address asset0, address asset1, int24 tickSpacing)
+    {
         assembly ("memory-safe") {
             asset0 := mload(add(self, PAIR_ASSET0_OFFSET))
             asset1 := mload(add(self, PAIR_ASSET1_OFFSET))
@@ -140,7 +148,11 @@ library PairLib {
         }
     }
 
-    function getAssets(Pair self, bool zeroToOne) internal pure returns (address assetIn, address assetOut) {
+    function getAssets(Pair self, bool zeroToOne)
+        internal
+        pure
+        returns (address assetIn, address assetOut)
+    {
         assembly ("memory-safe") {
             let offsetIfZeroToOne := shl(5, zeroToOne)
             assetIn := mload(add(self, xor(offsetIfZeroToOne, 0x20)))

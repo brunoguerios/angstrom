@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAngstromComposable, EXPECTED_HOOK_RETURN_MAGIC} from "../interfaces/IAngstromComposable.sol";
+import {
+    IAngstromComposable, EXPECTED_HOOK_RETURN_MAGIC
+} from "../interfaces/IAngstromComposable.sol";
 import {IERC2612} from "../interfaces/IERC2612.sol";
 import {IDaiPermit} from "../interfaces/IDaiPermit.sol";
 import {CalldataReader, CalldataReaderLib} from "../types/CalldataReader.sol";
@@ -30,7 +32,9 @@ abstract contract PermitSubmitterHook is IAngstromComposable {
             (reader, r) = reader.readU256();
             uint256 s;
             (reader, s) = reader.readU256();
-            IERC2612(token).permit(from, msg.sender, type(uint256).max, deadline, v, bytes32(r), bytes32(s));
+            IERC2612(token).permit(
+                from, msg.sender, type(uint256).max, deadline, v, bytes32(r), bytes32(s)
+            );
         } else if (permitType == ERC2612_SPECIFIC) {
             address token;
             (reader, token) = reader.readAddr();
@@ -58,7 +62,9 @@ abstract contract PermitSubmitterHook is IAngstromComposable {
             (reader, r) = reader.readU256();
             uint256 s;
             (reader, s) = reader.readU256();
-            IDaiPermit(token).permit(from, msg.sender, nonce, deadline, true, v, bytes32(r), bytes32(s));
+            IDaiPermit(token).permit(
+                from, msg.sender, nonce, deadline, true, v, bytes32(r), bytes32(s)
+            );
         } else {
             revert InvalidPermitType(permitType);
         }

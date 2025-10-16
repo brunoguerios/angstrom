@@ -32,14 +32,22 @@ library AngstromView {
         return PoolConfigStore.wrap(address(uint160(value >> STORE_BIT_OFFSET)));
     }
 
-    function unlockedFee(IAngstromAuth self, StoreKey key) internal view returns (uint24 fee, uint24 protocolFee) {
+    function unlockedFee(IAngstromAuth self, StoreKey key)
+        internal
+        view
+        returns (uint24 fee, uint24 protocolFee)
+    {
         uint256 slot = uint256(keccak256(abi.encode(key, UNLOCKED_FEE_PACKED_SET_SLOT)));
         uint256 unlockedPackedIsSet = self.extsload(slot);
         fee = uint24(unlockedPackedIsSet);
         protocolFee = uint24(unlockedPackedIsSet >> 24);
     }
 
-    function balanceOf(IAngstromAuth self, address asset, address owner) internal view returns (uint256) {
+    function balanceOf(IAngstromAuth self, address asset, address owner)
+        internal
+        view
+        returns (uint256)
+    {
         bytes32 assetMapSlot = keccak256(abi.encode(asset, BALANCES_SLOT));
         bytes32 ownerBalanceSlot = keccak256(abi.encode(owner, assetMapSlot));
         return self.extsload(uint256(ownerBalanceSlot));

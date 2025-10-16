@@ -18,7 +18,9 @@ contract AngstromScript is BaseScript {
         uint256 angstromAddressTokenId = vm.envUint("ANGSTROM_ADDRESS_TOKEN_ID");
         address angstromAddress = VANITY_MARKET.addressOf(angstromAddressTokenId);
 
-        require(hasAngstromHookFlags(VANITY_MARKET.addressOf(angstromAddressTokenId)), "Bad address");
+        require(
+            hasAngstromHookFlags(VANITY_MARKET.addressOf(angstromAddressTokenId)), "Bad address"
+        );
 
         address uniswap = uniswapOnCurrentChain();
 
@@ -48,9 +50,11 @@ contract AngstromScript is BaseScript {
             controllerOwner = address(timelock);
         }
 
-        ControllerV1 controller = new ControllerV1(IAngstromAuth(angstromAddress), controllerOwner, angstromMultisig);
+        ControllerV1 controller =
+            new ControllerV1(IAngstromAuth(angstromAddress), controllerOwner, angstromMultisig);
         VANITY_MARKET.deploy(
-            angstromAddressTokenId, bytes.concat(type(Angstrom).creationCode, abi.encode(uniswap, controller))
+            angstromAddressTokenId,
+            bytes.concat(type(Angstrom).creationCode, abi.encode(uniswap, controller))
         );
 
         console.log("angstrom: %s", angstromAddress);

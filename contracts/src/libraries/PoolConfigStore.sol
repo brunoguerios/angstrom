@@ -95,7 +95,10 @@ library PoolConfigStoreLib {
         buffer.unsafe_resize(entry_count);
     }
 
-    function store_from_buffer(ConfigBuffer memory buffer) internal returns (PoolConfigStore new_store) {
+    function store_from_buffer(ConfigBuffer memory buffer)
+        internal
+        returns (PoolConfigStore new_store)
+    {
         ConfigEntry[] memory entries = buffer.entries;
         uint256 entry_count = entries.length;
 

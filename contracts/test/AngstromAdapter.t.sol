@@ -98,11 +98,17 @@ contract AngstromAdapterTest is BaseTest {
     }
 
     // Helper function to generate attestation for a specific block
-    function generateAttestation(uint64 blockNumber) internal view returns (IAngstromAdapter.Attestation memory) {
+    function generateAttestation(uint64 blockNumber)
+        internal
+        view
+        returns (IAngstromAdapter.Attestation memory)
+    {
         // Generate EIP-712 digest for the attestation
         bytes32 digest = erc712Hash(
             computeDomainSeparator(address(angstrom)),
-            keccak256(abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), blockNumber))
+            keccak256(
+                abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), blockNumber)
+            )
         );
 
         // Sign the digest with the node's private key
@@ -226,10 +232,14 @@ contract AngstromAdapterTest is BaseTest {
 
             // Verify balances changed correctly
             assertEq(
-                MockERC20(asset0).balanceOf(user1.addr), user1Asset0Before - amountIn, "Asset0 balance should decrease"
+                MockERC20(asset0).balanceOf(user1.addr),
+                user1Asset0Before - amountIn,
+                "Asset0 balance should decrease"
             );
             assertEq(
-                MockERC20(asset1).balanceOf(user1.addr), user1Asset1Before + amountOut, "Asset1 balance should increase"
+                MockERC20(asset1).balanceOf(user1.addr),
+                user1Asset1Before + amountOut,
+                "Asset1 balance should increase"
             );
         }
 
@@ -262,10 +272,14 @@ contract AngstromAdapterTest is BaseTest {
 
             // Verify balances changed correctly for reverse direction
             assertEq(
-                MockERC20(asset1).balanceOf(user2.addr), user2Asset1Before - amountIn, "Asset1 balance should decrease"
+                MockERC20(asset1).balanceOf(user2.addr),
+                user2Asset1Before - amountIn,
+                "Asset1 balance should decrease"
             );
             assertEq(
-                MockERC20(asset0).balanceOf(user2.addr), user2Asset0Before + amountOut, "Asset0 balance should increase"
+                MockERC20(asset0).balanceOf(user2.addr),
+                user2Asset0Before + amountOut,
+                "Asset0 balance should increase"
             );
         }
     }
@@ -296,11 +310,16 @@ contract AngstromAdapterTest is BaseTest {
             uint256 beforeBalance = MockERC20(asset1).balanceOf(recipient);
 
             vm.prank(user1.addr);
-            uint256 amountOut = adapter.swap(pool, true, amountIn, minAmountOut, bundle, recipient, currentDeadline);
+            uint256 amountOut =
+                adapter.swap(pool, true, amountIn, minAmountOut, bundle, recipient, currentDeadline);
 
             // Verify swap executed successfully at exact deadline
             assertGt(amountOut, 0, "Should work at exact deadline");
-            assertGt(MockERC20(asset1).balanceOf(recipient), beforeBalance, "Should receive tokens at exact deadline");
+            assertGt(
+                MockERC20(asset1).balanceOf(recipient),
+                beforeBalance,
+                "Should receive tokens at exact deadline"
+            );
         }
 
         // Test 3: Future deadline should work
@@ -324,7 +343,9 @@ contract AngstromAdapterTest is BaseTest {
             // Verify swap executed successfully
             assertGt(amountOut, 0, "Should receive output tokens");
             assertEq(
-                MockERC20(asset0).balanceOf(user1.addr), beforeBalance + amountOut, "Recipient should receive tokens"
+                MockERC20(asset0).balanceOf(user1.addr),
+                beforeBalance + amountOut,
+                "Recipient should receive tokens"
             );
         }
 
@@ -349,8 +370,9 @@ contract AngstromAdapterTest is BaseTest {
         MockERC20 tokenA = new MockERC20();
         MockERC20 tokenB = new MockERC20();
 
-        (address testAsset0, address testAsset1) =
-            address(tokenA) < address(tokenB) ? (address(tokenA), address(tokenB)) : (address(tokenB), address(tokenA));
+        (address testAsset0, address testAsset1) = address(tokenA) < address(tokenB)
+            ? (address(tokenA), address(tokenB))
+            : (address(tokenB), address(tokenA));
 
         uint16 tickSpacing = 60;
         uint24 protectedFee = 500; // 0.05% - LOWER fee with valid attestation
@@ -358,17 +380,24 @@ contract AngstromAdapterTest is BaseTest {
         uint24 surplusFee = 0; // No surplus fee for simplicity
 
         vm.prank(controller);
-        angstrom.configurePool(testAsset0, testAsset1, tickSpacing, protectedFee, unlockedFee, surplusFee);
+        angstrom.configurePool(
+            testAsset0, testAsset1, tickSpacing, protectedFee, unlockedFee, surplusFee
+        );
 
         angstrom.initializePool(testAsset0, testAsset1, 1, TickMath.getSqrtPriceAtTick(0));
 
-        PoolKey memory testPool = poolKey(angstrom, testAsset0, testAsset1, int24(uint24(tickSpacing)));
+        PoolKey memory testPool =
+            poolKey(angstrom, testAsset0, testAsset1, int24(uint24(tickSpacing)));
 
         MockERC20(testAsset0).mint(address(actor), 1_000_000e18);
         MockERC20(testAsset1).mint(address(actor), 1_000_000e18);
 
         actor.modifyLiquidity(
-            testPool, -int24(uint24(tickSpacing)) * 100, int24(uint24(tickSpacing)) * 100, 100_000e18, bytes32(0)
+            testPool,
+            -int24(uint24(tickSpacing)) * 100,
+            int24(uint24(tickSpacing)) * 100,
+            100_000e18,
+            bytes32(0)
         );
 
         Account memory testUser = makeAccount("test_user");
@@ -390,8 +419,9 @@ contract AngstromAdapterTest is BaseTest {
         uint256 balanceBefore = MockERC20(testAsset1).balanceOf(testUser.addr);
 
         vm.prank(testUser.addr);
-        uint256 amountOut =
-            adapter.swap(testPool, true, amountIn, minAmountOut, bundle, testUser.addr, block.timestamp + 1 hours);
+        uint256 amountOut = adapter.swap(
+            testPool, true, amountIn, minAmountOut, bundle, testUser.addr, block.timestamp + 1 hours
+        );
 
         uint256 balanceAfter = MockERC20(testAsset1).balanceOf(testUser.addr);
         uint256 actualOutput = balanceAfter - balanceBefore;
@@ -444,8 +474,9 @@ contract AngstromAdapterTest is BaseTest {
             angstrom.execute("");
 
             vm.prank(protectedUser.addr);
-            protectedOutput =
-                adapter.swap(testPool, true, swapAmount, 0, bundle, protectedUser.addr, block.timestamp + 1 hours);
+            protectedOutput = adapter.swap(
+                testPool, true, swapAmount, 0, bundle, protectedUser.addr, block.timestamp + 1 hours
+            );
 
             uint256 balanceAfter = MockERC20(testAsset1).balanceOf(protectedUser.addr);
             assertEq(protectedOutput, balanceAfter - balanceBefore, "Protected output mismatch");
@@ -472,7 +503,11 @@ contract AngstromAdapterTest is BaseTest {
             MockERC20(testAsset1).transfer(unlockedUser.addr, unlockedOutput);
         }
 
-        assertGt(protectedOutput, unlockedOutput, "Protected swap should yield more output than unlocked swap");
+        assertGt(
+            protectedOutput,
+            unlockedOutput,
+            "Protected swap should yield more output than unlocked swap"
+        );
 
         uint256 actualDifference = protectedOutput - unlockedOutput;
 
@@ -485,13 +520,25 @@ contract AngstromAdapterTest is BaseTest {
         );
 
         uint256 maxExpectedDifference = (unlockedOutput * 50) / 10000; // 0.5% max
-        assertLt(actualDifference, maxExpectedDifference, "Difference should be reasonable (less than 0.5%)");
+        assertLt(
+            actualDifference,
+            maxExpectedDifference,
+            "Difference should be reasonable (less than 0.5%)"
+        );
 
         assertGt(protectedOutput, 0, "Protected swap should produce output");
         assertGt(unlockedOutput, 0, "Unlocked swap should produce output");
 
-        assertEq(MockERC20(testAsset0).balanceOf(protectedUser.addr), 0, "Protected user should have spent all input");
-        assertEq(MockERC20(testAsset0).balanceOf(unlockedUser.addr), 0, "Unlocked user should have spent all input");
+        assertEq(
+            MockERC20(testAsset0).balanceOf(protectedUser.addr),
+            0,
+            "Protected user should have spent all input"
+        );
+        assertEq(
+            MockERC20(testAsset0).balanceOf(unlockedUser.addr),
+            0,
+            "Unlocked user should have spent all input"
+        );
     }
 
     function test_minAmountOutProtection() public {
@@ -579,7 +626,8 @@ contract AngstromAdapterTest is BaseTest {
             uint256 balanceBefore = MockERC20(asset1).balanceOf(recipient);
 
             vm.prank(user1.addr);
-            uint256 output = adapter.swap(pool, true, swapAmount, reasonableMinimum, bundle, recipient, deadline);
+            uint256 output =
+                adapter.swap(pool, true, swapAmount, reasonableMinimum, bundle, recipient, deadline);
 
             assertGe(output, reasonableMinimum, "Output should meet minimum");
             assertGt(output, 0, "Should receive output");
@@ -594,10 +642,13 @@ contract AngstromAdapterTest is BaseTest {
                 uint256 balanceBefore = MockERC20(asset0).balanceOf(recipient);
 
                 vm.prank(user2.addr);
-                reverseActualOutput = adapter.swap(pool, false, swapAmount, 0, bundle, recipient, deadline);
+                reverseActualOutput =
+                    adapter.swap(pool, false, swapAmount, 0, bundle, recipient, deadline);
 
                 uint256 balanceAfter = MockERC20(asset0).balanceOf(recipient);
-                assertEq(reverseActualOutput, balanceAfter - balanceBefore, "Reverse output mismatch");
+                assertEq(
+                    reverseActualOutput, balanceAfter - balanceBefore, "Reverse output mismatch"
+                );
             }
 
             uint128 tooHighReverseMin = uint128(reverseActualOutput + 1);
@@ -609,7 +660,9 @@ contract AngstromAdapterTest is BaseTest {
             uint128 acceptableReverseMin = uint128((reverseActualOutput * 99) / 100);
 
             vm.prank(user2.addr);
-            uint256 output = adapter.swap(pool, false, swapAmount, acceptableReverseMin, bundle, recipient, deadline);
+            uint256 output = adapter.swap(
+                pool, false, swapAmount, acceptableReverseMin, bundle, recipient, deadline
+            );
 
             assertGe(output, acceptableReverseMin, "Reverse output should meet minimum");
         }
@@ -624,14 +677,17 @@ contract AngstromAdapterTest is BaseTest {
         Account memory wrongSigner = makeAccount("wrong_signer");
         bytes32 digest = erc712Hash(
             computeDomainSeparator(address(angstrom)),
-            keccak256(abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), currentBlock))
+            keccak256(
+                abi.encode(keccak256("AttestAngstromBlockEmpty(uint64 block_number)"), currentBlock)
+            )
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongSigner.key, digest);
         bytes memory invalidUnlockData = abi.encodePacked(wrongSigner.addr, r, s, v);
 
         IAngstromAdapter.Attestation[] memory invalidBundle = new IAngstromAdapter.Attestation[](1);
-        invalidBundle[0] = IAngstromAdapter.Attestation({blockNumber: currentBlock, unlockData: invalidUnlockData});
+        invalidBundle[0] =
+            IAngstromAdapter.Attestation({blockNumber: currentBlock, unlockData: invalidUnlockData});
 
         // First unlock the pool so it's in unlocked state
         vm.prank(node.addr);
@@ -639,7 +695,9 @@ contract AngstromAdapterTest is BaseTest {
 
         // Try swap with invalid attestation - should work but use unlocked fee
         vm.prank(user1.addr);
-        uint256 output = adapter.swap(pool, true, swapAmount, 0, invalidBundle, user2.addr, block.timestamp + 1 hours);
+        uint256 output = adapter.swap(
+            pool, true, swapAmount, 0, invalidBundle, user2.addr, block.timestamp + 1 hours
+        );
 
         // Swap succeeds because pool is unlocked, even with bad attestation
         assertGt(output, 0, "Swap should succeed when pool is unlocked despite invalid attestation");
@@ -649,8 +707,9 @@ contract AngstromAdapterTest is BaseTest {
         MockERC20 tokenA = new MockERC20();
         MockERC20 tokenB = new MockERC20();
 
-        (address testAsset0, address testAsset1) =
-            address(tokenA) < address(tokenB) ? (address(tokenA), address(tokenB)) : (address(tokenB), address(tokenA));
+        (address testAsset0, address testAsset1) = address(tokenA) < address(tokenB)
+            ? (address(tokenA), address(tokenB))
+            : (address(tokenB), address(tokenA));
 
         vm.prank(controller);
         angstrom.configurePool(testAsset0, testAsset1, 60, 500, 3000, 100);
@@ -668,7 +727,12 @@ contract AngstromAdapterTest is BaseTest {
         return (testAsset0, testAsset1, testPool);
     }
 
-    function _prepareUsers(address asset0, Account memory user1, Account memory user2, uint128 amount) internal {
+    function _prepareUsers(
+        address asset0,
+        Account memory user1,
+        Account memory user2,
+        uint128 amount
+    ) internal {
         MockERC20(asset0).mint(user1.addr, amount);
         MockERC20(asset0).mint(user2.addr, amount);
 

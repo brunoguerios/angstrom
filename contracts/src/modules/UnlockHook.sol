@@ -19,7 +19,13 @@ import {PoolUpdates} from "./PoolUpdates.sol";
 
 /// @author philogy <https://github.com/philogy>
 /// @author Will Smith <https://github.com/Will-Smith11>
-abstract contract UnlockHook is UniConsumer, TopLevelAuth, PoolUpdates, IBeforeSwapHook, IAfterSwapHook {
+abstract contract UnlockHook is
+    UniConsumer,
+    TopLevelAuth,
+    PoolUpdates,
+    IBeforeSwapHook,
+    IAfterSwapHook
+{
     using IUniV4 for IPoolManager;
 
     error UnlockDataTooShort();
@@ -50,7 +56,8 @@ abstract contract UnlockHook is UniConsumer, TopLevelAuth, PoolUpdates, IBeforeS
             }
         }
 
-        StoreKey storeKey = StoreKeyLib.keyFromAssetsUnchecked(_addr(key.currency0), _addr(key.currency1));
+        StoreKey storeKey =
+            StoreKeyLib.keyFromAssetsUnchecked(_addr(key.currency0), _addr(key.currency1));
 
         swapFee = _unlockedFees[storeKey].unlockedFee | LPFeeLibrary.OVERRIDE_FEE_FLAG;
 
@@ -71,12 +78,14 @@ abstract contract UnlockHook is UniConsumer, TopLevelAuth, PoolUpdates, IBeforeS
 
         int128 fee;
         {
-            StoreKey storeKey = StoreKeyLib.keyFromAssetsUnchecked(_addr(key.currency0), _addr(key.currency1));
+            StoreKey storeKey =
+                StoreKeyLib.keyFromAssetsUnchecked(_addr(key.currency0), _addr(key.currency1));
             int24 fee_rate_e6 = int24(_unlockedFees[storeKey].protocolUnlockedFee);
             bool exactIn = params.amountSpecified < 0;
 
             {
-                int128 target_amount = exactIn != params.zeroForOne ? swap_delta.amount0() : swap_delta.amount1();
+                int128 target_amount =
+                    exactIn != params.zeroForOne ? swap_delta.amount0() : swap_delta.amount1();
                 int128 p_target_amount = target_amount < 0 ? -target_amount : target_amount;
                 fee = exactIn
                     ? p_target_amount * fee_rate_e6 / ONE_E6

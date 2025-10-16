@@ -44,12 +44,15 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         _tickSpacing = spacing;
     }
 
-    function swap(address assetIn, address assetOut, int256 amountSpecified, uint160 sqrtPriceLimitX96)
-        public
-        returns (BalanceDelta delta)
-    {
-        bytes memory data =
-            UNI_V4.unlock(abi.encodeCall(this.__swap, (assetIn, assetOut, amountSpecified, sqrtPriceLimitX96)));
+    function swap(
+        address assetIn,
+        address assetOut,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96
+    ) public returns (BalanceDelta delta) {
+        bytes memory data = UNI_V4.unlock(
+            abi.encodeCall(this.__swap, (assetIn, assetOut, amountSpecified, sqrtPriceLimitX96))
+        );
         delta = abi.decode(data, (BalanceDelta));
     }
 
@@ -67,7 +70,8 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
             liquidityDelta: liquidity.signed(),
             salt: salt
         });
-        bytes memory data = UNI_V4.unlock(abi.encodeCall(this.__addLiquidity, (asset0, asset1, msg.sender, params)));
+        bytes memory data =
+            UNI_V4.unlock(abi.encodeCall(this.__addLiquidity, (asset0, asset1, msg.sender, params)));
         BalanceDelta delta = abi.decode(data, (BalanceDelta));
         amount0 = uint128(-delta.amount0());
         amount1 = uint128(-delta.amount1());
@@ -87,7 +91,9 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
             liquidityDelta: liquidity.neg(),
             salt: salt
         });
-        bytes memory data = UNI_V4.unlock(abi.encodeCall(this.__removeLiquidity, (asset0, asset1, msg.sender, params)));
+        bytes memory data = UNI_V4.unlock(
+            abi.encodeCall(this.__removeLiquidity, (asset0, asset1, msg.sender, params))
+        );
         BalanceDelta delta = abi.decode(data, (BalanceDelta));
         amount0 = uint128(delta.amount0());
         amount1 = uint128(delta.amount1());
@@ -115,13 +121,17 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         return retData;
     }
 
-    function __swap(address assetIn, address assetOut, int256 amountSpecified, uint160 sqrtPriceLimitX96)
-        public
-        returns (BalanceDelta swapDelta)
-    {
+    function __swap(
+        address assetIn,
+        address assetOut,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96
+    ) public returns (BalanceDelta swapDelta) {
         bool zeroForOne = assetIn < assetOut;
         PoolKey memory key = zeroForOne ? poolKey(assetIn, assetOut) : poolKey(assetOut, assetIn);
-        swapDelta = UNI_V4.swap(key, IPoolManager.SwapParams(zeroForOne, amountSpecified, sqrtPriceLimitX96), "");
+        swapDelta = UNI_V4.swap(
+            key, IPoolManager.SwapParams(zeroForOne, amountSpecified, sqrtPriceLimitX96), ""
+        );
         _clearDelta(Currency.unwrap(key.currency0), swapDelta.amount0());
         _clearDelta(Currency.unwrap(key.currency1), swapDelta.amount1());
     }
@@ -164,7 +174,8 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         bytes32 delta1Slot = keccak256(abi.encode(sender, asset1));
         bytes32 rawDelta0 = UNI_V4.exttload(delta0Slot);
         bytes32 rawDelta1 = UNI_V4.exttload(delta1Slot);
-        delta = delta + toBalanceDelta(int128(int256(uint256(rawDelta0))), int128(int256(uint256(rawDelta1))));
+        delta = delta
+            + toBalanceDelta(int128(int256(uint256(rawDelta0))), int128(int256(uint256(rawDelta1))));
 
         require(delta.amount0() >= 0 && delta.amount1() >= 0, "losing money for removing liquidity");
         _clear(asset0, asset1, delta);

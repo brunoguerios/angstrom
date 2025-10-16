@@ -50,13 +50,17 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         int24 startTick = 0;
         refId = PoolIdLibrary.toId(poolKey(asset0, asset1, TICK_SPACING));
         gate.setHook(address(0));
-        uniV4.initialize(poolKey(address(asset0), address(asset1), TICK_SPACING), startTick.getSqrtPriceAtTick());
+        uniV4.initialize(
+            poolKey(address(asset0), address(asset1), TICK_SPACING), startTick.getSqrtPriceAtTick()
+        );
 
         angstrom = OpenAngstrom(deployAngstrom(type(OpenAngstrom).creationCode, uniV4, gov));
         id = PoolIdLibrary.toId(poolKey());
 
         vm.prank(gov);
-        angstrom.configurePool(address(asset0), address(asset1), uint16(uint24(TICK_SPACING)), 0, 0, 0);
+        angstrom.configurePool(
+            address(asset0), address(asset1), uint16(uint24(TICK_SPACING)), 0, 0, 0
+        );
 
         gate.setHook(address(angstrom));
         angstrom.initializePool(
@@ -101,7 +105,9 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         uint128 amount1 = 4.0e18;
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount1})));
-        assertApproxEqRel(positionRewards(lp1, -180, 180, liq1), amount1, 1.0e18 / 1e12, "reward while alone");
+        assertApproxEqRel(
+            positionRewards(lp1, -180, 180, liq1), amount1, 1.0e18 / 1e12, "reward while alone"
+        );
 
         uint128 liq2 = 0.64e21;
         address lp2 = makeAddr("lp_2");
@@ -114,20 +120,32 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
 
         uint128 totalLiq = liq1 + liq2;
         assertApproxEqRel(
-            positionRewards(lp1, -180, 180, liq1), amount1 + (uint256(amount2) * liq1) / totalLiq, 1.0e18 / 1e12, "lp1"
+            positionRewards(lp1, -180, 180, liq1),
+            amount1 + (uint256(amount2) * liq1) / totalLiq,
+            1.0e18 / 1e12,
+            "lp1"
         );
         assertApproxEqRel(
-            positionRewards(lp2, -60, 60, liq2), (uint256(amount2) * liq2) / totalLiq, 1.0e18 / 1e12, "lp2"
+            positionRewards(lp2, -60, 60, liq2),
+            (uint256(amount2) * liq2) / totalLiq,
+            1.0e18 / 1e12,
+            "lp2"
         );
 
         uint128 liq3 = 64.64e21;
         address lp3 = makeAddr("lp_3");
         handler.addLiquidity(lp3, -60, 60, liq3);
         assertApproxEqRel(
-            positionRewards(lp1, -180, 180, liq1), amount1 + (uint256(amount2) * liq1) / totalLiq, 1.0e18 / 1e12, "lp1"
+            positionRewards(lp1, -180, 180, liq1),
+            amount1 + (uint256(amount2) * liq1) / totalLiq,
+            1.0e18 / 1e12,
+            "lp1"
         );
         assertApproxEqRel(
-            positionRewards(lp2, -60, 60, liq2), (uint256(amount2) * liq2) / totalLiq, 1.0e18 / 1e12, "lp2"
+            positionRewards(lp2, -60, 60, liq2),
+            (uint256(amount2) * liq2) / totalLiq,
+            1.0e18 / 1e12,
+            "lp2"
         );
         assertEq(positionRewards(lp3, -60, 60, liq3), 0, "lp3 rewards not starting at 0");
 
@@ -141,7 +159,10 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
             "lp1"
         );
         assertApproxEqRel(
-            positionRewards(lp2, -60, 60, liq2), (uint256(amount2) * liq2) / totalLiq, 1.0e18 / 1e12, "lp2"
+            positionRewards(lp2, -60, 60, liq2),
+            (uint256(amount2) * liq2) / totalLiq,
+            1.0e18 / 1e12,
+            "lp2"
         );
         assertEq(positionRewards(lp3, -60, 60, liq3), 0, "lp3 rewards not kept at 0");
     }
@@ -154,7 +175,9 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         uint128 amount = 1006.87299e18;
         bumpBlock();
         handler.rewardTicks(re(TickReward({tick: -180, amount: amount})));
-        assertApproxEqRel(positionRewards(lp1, -180, 180, liq1), amount, 1.0e18 / 1e12, "reward while alone");
+        assertApproxEqRel(
+            positionRewards(lp1, -180, 180, liq1), amount, 1.0e18 / 1e12, "reward while alone"
+        );
 
         vm.startPrank(lp1);
         gate.setHook(address(angstrom));
@@ -172,8 +195,13 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         return angstrom.getScaledGrowth(id, owner, lowerTick, upperTick, bytes32(0), liquidity);
     }
 
-    function removeLiquidity(int24 lowerTick, int24 upperTick, uint256 liquidity) internal returns (uint256, uint256) {
-        return gate.removeLiquidity(address(asset0), address(asset1), lowerTick, upperTick, liquidity, bytes32(0));
+    function removeLiquidity(int24 lowerTick, int24 upperTick, uint256 liquidity)
+        internal
+        returns (uint256, uint256)
+    {
+        return gate.removeLiquidity(
+            address(asset0), address(asset1), lowerTick, upperTick, liquidity, bytes32(0)
+        );
     }
 
     function poolKey() internal view returns (PoolKey memory) {
@@ -185,7 +213,11 @@ contract PoolUpdatesTest is HookDeployer, BaseTest {
         r[0] = reward;
     }
 
-    function re(TickReward memory r1, TickReward memory r2) internal pure returns (TickReward[] memory r) {
+    function re(TickReward memory r1, TickReward memory r2)
+        internal
+        pure
+        returns (TickReward[] memory r)
+    {
         r = new TickReward[](2);
         r[0] = r1;
         r[1] = r2;

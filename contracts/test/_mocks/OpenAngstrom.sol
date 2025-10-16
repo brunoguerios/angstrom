@@ -116,19 +116,22 @@ contract OpenAngstrom is Angstrom {
         bytes32 salt;
     }
 
-    function getPositionRewards(PoolId id, address owner, int24 lowerTick, int24 upperTick, bytes32 salt)
-        external
-        view
-        returns (uint256)
-    {
+    function getPositionRewards(
+        PoolId id,
+        address owner,
+        int24 lowerTick,
+        int24 upperTick,
+        bytes32 salt
+    ) external view returns (uint256) {
         GetPositionArgs memory args = GetPositionArgs(id, owner, lowerTick, upperTick, salt);
 
         (Position storage position, bytes32 positionKey) =
             positions.get(args.id, args.owner, args.lowerTick, args.upperTick, args.salt);
         uint128 liquidity = UNI_V4.getPositionLiquidity(args.id, positionKey);
         unchecked {
-            uint256 growthInside =
-                poolRewards[args.id].getGrowthInside(UNI_V4.getSlot0(args.id).tick(), args.lowerTick, args.upperTick);
+            uint256 growthInside = poolRewards[args.id].getGrowthInside(
+                UNI_V4.getSlot0(args.id).tick(), args.lowerTick, args.upperTick
+            );
             uint256 netGrowthInside = growthInside - position.lastGrowthInside;
             return X128MathLib.fullMulX128(netGrowthInside, liquidity);
         }
@@ -144,10 +147,12 @@ contract OpenAngstrom is Angstrom {
     ) external view returns (uint256) {
         GetPositionArgs memory args = GetPositionArgs(id, owner, lowerTick, upperTick, salt);
 
-        (Position storage position,) = positions.get(args.id, args.owner, args.lowerTick, args.upperTick, args.salt);
+        (Position storage position,) =
+            positions.get(args.id, args.owner, args.lowerTick, args.upperTick, args.salt);
         unchecked {
-            uint256 growthInside =
-                poolRewards[args.id].getGrowthInside(UNI_V4.getSlot0(args.id).tick(), args.lowerTick, args.upperTick);
+            uint256 growthInside = poolRewards[args.id].getGrowthInside(
+                UNI_V4.getSlot0(args.id).tick(), args.lowerTick, args.upperTick
+            );
             uint256 netGrowthInside = growthInside - position.lastGrowthInside;
             return X128MathLib.fullMulX128(netGrowthInside, liquidity);
         }
