@@ -99,8 +99,8 @@ impl BlockSyncProducer for GlobalBlockSync {
             val.value()
                 .front()
                 .map(|v| matches!(v, SignOffState::ReadyForNextBlock(_)))
-                .unwrap_or_default()
-        }) && self.all_modules_registered.load(Ordering::Relaxed)
+                .unwrap_or(true)
+        })
     }
 
     fn new_block(&self, block_number: u64) {
