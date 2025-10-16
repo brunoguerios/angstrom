@@ -115,9 +115,10 @@ contract AngstromInvariantsTest is BaseTest {
             PositionKey k = keys[i];
             LiquidityPosition memory position = handler.getPosition(poolIndex, k);
             uint256 expectedRewards = (position.totalRewardsX128 >> 128) - position.claimedRewards;
-            uint256 positionRewards = e.angstrom.getPositionRewards(
-                id, address(position.owner), position.lowerTick, position.upperTick, bytes32(0)
-            );
+            uint256 positionRewards = e.angstrom
+                .getPositionRewards(
+                    id, address(position.owner), position.lowerTick, position.upperTick, bytes32(0)
+                );
             if (DEBUG) {
                 console.log("%s:", i);
                 console.log(

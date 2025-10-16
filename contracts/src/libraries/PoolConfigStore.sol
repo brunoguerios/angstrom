@@ -106,12 +106,11 @@ library PoolConfigStoreLib {
             // Temporarily overwrite `entries.length` with deployer bytecode.
             mstore(entries, STORE_DEPLOYER)
             // Create store contract.
-            new_store :=
-                create(
-                    0,
-                    add(entries, sub(0x20, STORE_DEPLOYER_BYTES)),
-                    add(STORE_DEPLOYER_BYTES, mul(entry_count, ENTRY_SIZE))
-                )
+            new_store := create(
+                0,
+                add(entries, sub(0x20, STORE_DEPLOYER_BYTES)),
+                add(STORE_DEPLOYER_BYTES, mul(entry_count, ENTRY_SIZE))
+            )
             // Reset length to previous value.
             mstore(entries, entry_count)
         }

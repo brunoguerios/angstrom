@@ -106,8 +106,9 @@ contract SignatureLibTest is BaseTest {
     {
         vm.assume(sig.length <= type(uint24).max);
         returner.setReturnValue(IERC1271.isValidSignature.selector);
-        (CalldataReader startReader, CalldataReader endReader, address recovered) = this
-            ._readAndCheckERC1271(abi.encodePacked(address(returner), uint24(sig.length), sig), hash);
+        (CalldataReader startReader, CalldataReader endReader, address recovered) = this._readAndCheckERC1271(
+            abi.encodePacked(address(returner), uint24(sig.length), sig), hash
+        );
         assertEq(recovered, address(returner));
         assertEq(startReader.offset() + 20 + 3 + sig.length, endReader.offset());
     }
@@ -120,8 +121,7 @@ contract SignatureLibTest is BaseTest {
 
         bytes memory totalSig = bytes.concat(sig1, sig2);
 
-        (CalldataReader startReader, CalldataReader endReader, address recovered) = this
-            ._readAndCheckERC1271(
+        (CalldataReader startReader, CalldataReader endReader, address recovered) = this._readAndCheckERC1271(
             abi.encodePacked(address(twoSig), uint24(totalSig.length), totalSig), hash
         );
         assertEq(recovered, address(twoSig));

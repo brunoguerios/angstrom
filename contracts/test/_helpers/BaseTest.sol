@@ -185,11 +185,11 @@ contract BaseTest is Test, HookDeployer {
         return tryFn(this.__safeMod, x, y);
     }
 
-    function tryFn(function(uint, uint) external pure returns (uint) op, uint256 x, uint256 y)
-        internal
-        pure
-        returns (bool hasErr, bytes memory err, uint256 z)
-    {
+    function tryFn(
+        function(uint256, uint256) external pure returns (uint256) op,
+        uint256 x,
+        uint256 y
+    ) internal pure returns (bool hasErr, bytes memory err, uint256 z) {
         try op(x, y) returns (uint256 result) {
             hasErr = false;
             z = result;
@@ -253,10 +253,7 @@ contract BaseTest is Test, HookDeployer {
         sign(account, order.meta, erc712Hash(domainSeparator, order.hash()));
     }
 
-    function sign(Account memory account, OrderMeta memory targetMeta, bytes32 hash)
-        internal
-        pure
-    {
+    function sign(Account memory account, OrderMeta memory targetMeta, bytes32 hash) internal pure {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(account.key, hash);
         targetMeta.isEcdsa = true;
         targetMeta.from = account.addr;
@@ -343,9 +340,8 @@ contract BaseTest is Test, HookDeployer {
         if (asset0 > asset1) (asset0, asset1) = (asset1, asset0);
         address store = rawGetConfigStore(address(angstrom));
         uint256 storeIndex = PairLib.getStoreIndex(store, asset0, asset1);
-        (int24 tickSpacing,) = PoolConfigStore.wrap(store).get(
-            StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1), storeIndex
-        );
+        (int24 tickSpacing,) = PoolConfigStore.wrap(store)
+            .get(StoreKeyLib.keyFromAssetsUnchecked(asset0, asset1), storeIndex);
         return poolKey(angstrom, asset0, asset1, tickSpacing).toId();
     }
 

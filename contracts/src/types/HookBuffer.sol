@@ -69,11 +69,10 @@ library HookBufferLib {
                 // Build packed hook pointer.
                 // `payloadLength` bounded to [-20; 2^24-21], + 0x64 => [+80, 2^24+79] (cannot
                 // overflow because its allotted 32 bits in the packed hook pointer).
-                hook :=
-                    or(
-                        shl(HOOK_MEM_PTR_OFFSET, memPtr),
-                        or(shl(HOOK_ADDR_OFFSET, hookAddr), add(payloadLength, 0x64))
-                    )
+                hook := or(
+                    shl(HOOK_MEM_PTR_OFFSET, memPtr),
+                    or(shl(HOOK_ADDR_OFFSET, hookAddr), add(payloadLength, 0x64))
+                )
             }
         }
 
@@ -103,7 +102,10 @@ library HookBufferLib {
                         and(gt(returndatasize(), 31), eq(mload(0x00), EXPECTED_HOOK_RETURN_MAGIC))
                     )
                 ) {
-                    mstore(0x00, 0xf959fdae /* InvalidHookReturn() */ )
+                    mstore(
+                        0x00,
+                        0xf959fdae /* InvalidHookReturn() */
+                    )
                     revert(0x1c, 0x04)
                 }
             }

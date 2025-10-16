@@ -123,81 +123,81 @@ library OrdersLib {
 
     function hash(PartialStandingOrder memory order) internal pure returns (bytes32) {
         return SignedPartialStandingOrder(
-            order.refId,
-            order.minAmountIn,
-            order.maxAmountIn,
-            order.maxExtraFeeAsset0,
-            order.minPrice,
-            order.useInternal,
-            order.assetIn,
-            order.assetOut,
-            order.recipient,
-            _toHookData(order.hook, order.hookPayload),
-            order.nonce,
-            order.deadline
-        ).hash();
+                order.refId,
+                order.minAmountIn,
+                order.maxAmountIn,
+                order.maxExtraFeeAsset0,
+                order.minPrice,
+                order.useInternal,
+                order.assetIn,
+                order.assetOut,
+                order.recipient,
+                _toHookData(order.hook, order.hookPayload),
+                order.nonce,
+                order.deadline
+            ).hash();
     }
 
     function hash(ExactStandingOrder memory order) internal pure returns (bytes32) {
         return SignedExactStandingOrder(
-            order.refId,
-            order.exactIn,
-            order.amount,
-            order.maxExtraFeeAsset0,
-            order.minPrice,
-            order.useInternal,
-            order.assetIn,
-            order.assetOut,
-            order.recipient,
-            _toHookData(order.hook, order.hookPayload),
-            order.nonce,
-            order.deadline
-        ).hash();
+                order.refId,
+                order.exactIn,
+                order.amount,
+                order.maxExtraFeeAsset0,
+                order.minPrice,
+                order.useInternal,
+                order.assetIn,
+                order.assetOut,
+                order.recipient,
+                _toHookData(order.hook, order.hookPayload),
+                order.nonce,
+                order.deadline
+            ).hash();
     }
 
     function hash(PartialFlashOrder memory order) internal pure returns (bytes32) {
         return SignedPartialFlashOrder(
-            order.refId,
-            order.minAmountIn,
-            order.maxAmountIn,
-            order.maxExtraFeeAsset0,
-            order.minPrice,
-            order.useInternal,
-            order.assetIn,
-            order.assetOut,
-            order.recipient,
-            _toHookData(order.hook, order.hookPayload),
-            order.validForBlock
-        ).hash();
+                order.refId,
+                order.minAmountIn,
+                order.maxAmountIn,
+                order.maxExtraFeeAsset0,
+                order.minPrice,
+                order.useInternal,
+                order.assetIn,
+                order.assetOut,
+                order.recipient,
+                _toHookData(order.hook, order.hookPayload),
+                order.validForBlock
+            ).hash();
     }
 
     function hash(ExactFlashOrder memory order) internal pure returns (bytes32) {
         return SignedExactFlashOrder(
-            order.refId,
-            order.exactIn,
-            order.amount,
-            order.maxExtraFeeAsset0,
-            order.minPrice,
-            order.useInternal,
-            order.assetIn,
-            order.assetOut,
-            order.recipient,
-            _toHookData(order.hook, order.hookPayload),
-            order.validForBlock
-        ).hash();
+                order.refId,
+                order.exactIn,
+                order.amount,
+                order.maxExtraFeeAsset0,
+                order.minPrice,
+                order.useInternal,
+                order.assetIn,
+                order.assetOut,
+                order.recipient,
+                _toHookData(order.hook, order.hookPayload),
+                order.validForBlock
+            ).hash();
     }
 
     function hash(TopOfBlockOrder memory order) internal pure returns (bytes32) {
         return SignedTopOfBlockOrder(
-            order.quantityIn,
-            order.quantityOut,
-            order.maxGasAsset0,
-            order.useInternal,
-            order.assetIn,
-            order.assetOut,
-            order.recipient,
-            order.validForBlock
-        ).hash();
+                order.quantityIn,
+                order.quantityOut,
+                order.maxGasAsset0,
+                order.useInternal,
+                order.assetIn,
+                order.assetOut,
+                order.recipient,
+                order.validForBlock
+            ).hash();
     }
 
     /// @dev WARNING: Assumes `pairs` are sorted.
@@ -361,7 +361,8 @@ library OrdersLib {
     {
         (uint16 pairIndex, bool zeroForOne) = pairs.getIndex(order.assetIn, order.assetOut);
 
-        uint8 varMap = (order.useInternal ? 1 : 0) | (zeroForOne ? 2 : 0)
+        uint8 varMap =
+            (order.useInternal ? 1 : 0) | (zeroForOne ? 2 : 0)
             | (order.recipient != address(0) ? 4 : 0) | (order.meta.isEcdsa ? 8 : 0);
 
         return bytes.concat(

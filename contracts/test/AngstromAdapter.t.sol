@@ -310,8 +310,9 @@ contract AngstromAdapterTest is BaseTest {
             uint256 beforeBalance = MockERC20(asset1).balanceOf(recipient);
 
             vm.prank(user1.addr);
-            uint256 amountOut =
-                adapter.swap(pool, true, amountIn, minAmountOut, bundle, recipient, currentDeadline);
+            uint256 amountOut = adapter.swap(
+                pool, true, amountIn, minAmountOut, bundle, recipient, currentDeadline
+            );
 
             // Verify swap executed successfully at exact deadline
             assertGt(amountOut, 0, "Should work at exact deadline");
@@ -626,8 +627,9 @@ contract AngstromAdapterTest is BaseTest {
             uint256 balanceBefore = MockERC20(asset1).balanceOf(recipient);
 
             vm.prank(user1.addr);
-            uint256 output =
-                adapter.swap(pool, true, swapAmount, reasonableMinimum, bundle, recipient, deadline);
+            uint256 output = adapter.swap(
+                pool, true, swapAmount, reasonableMinimum, bundle, recipient, deadline
+            );
 
             assertGe(output, reasonableMinimum, "Output should meet minimum");
             assertGt(output, 0, "Should receive output");
@@ -686,8 +688,9 @@ contract AngstromAdapterTest is BaseTest {
         bytes memory invalidUnlockData = abi.encodePacked(wrongSigner.addr, r, s, v);
 
         IAngstromAdapter.Attestation[] memory invalidBundle = new IAngstromAdapter.Attestation[](1);
-        invalidBundle[0] =
-            IAngstromAdapter.Attestation({blockNumber: currentBlock, unlockData: invalidUnlockData});
+        invalidBundle[0] = IAngstromAdapter.Attestation({
+            blockNumber: currentBlock, unlockData: invalidUnlockData
+        });
 
         // First unlock the pool so it's in unlocked state
         vm.prank(node.addr);

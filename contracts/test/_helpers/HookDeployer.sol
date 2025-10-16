@@ -29,8 +29,10 @@ abstract contract HookDeployer is Test {
 
         while (true) {
             assembly ("memory-safe") {
-                addr :=
-                    and(keccak256(add(params, 11), 85), 0xffffffffffffffffffffffffffffffffffffffff)
+                addr := and(
+                    keccak256(add(params, 11), 85),
+                    0xffffffffffffffffffffffffffffffffffffffff
+                )
             }
             if (isValidHookAddr(addr)) break;
             unchecked {

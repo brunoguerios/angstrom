@@ -43,21 +43,21 @@ contract UserOrderBufferTest is BaseTest {
         assertEq(bufferHash(order), order.hash());
     }
 
-    function test_ffi_fuzzing_bufferPythonEquivalence_PartialStandingOrder(
-        PartialStandingOrder memory order
-    ) public {
+    function test_ffi_fuzzing_bufferPythonEquivalence_PartialStandingOrder(PartialStandingOrder memory order)
+        public
+    {
         assertEq(bufferHash(order), ffiPythonEIP712Hash(order));
     }
 
-    function test_ffi_fuzzing_bufferPythonEquivalence_ExactStandingOrder(
-        ExactStandingOrder memory order
-    ) public {
+    function test_ffi_fuzzing_bufferPythonEquivalence_ExactStandingOrder(ExactStandingOrder memory order)
+        public
+    {
         assertEq(bufferHash(order), ffiPythonEIP712Hash(order));
     }
 
-    function test_ffi_fuzzing_bufferPythonEquivalence_PartialFlashOrder(
-        PartialFlashOrder memory order
-    ) public {
+    function test_ffi_fuzzing_bufferPythonEquivalence_PartialFlashOrder(PartialFlashOrder memory order)
+        public
+    {
         assertEq(bufferHash(order), ffiPythonEIP712Hash(order));
     }
 

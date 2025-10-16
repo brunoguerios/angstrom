@@ -125,7 +125,9 @@ library UserOrderBufferLib {
             reader := add(reader, VARIANT_MAP_BYTES)
             // Copy `refId` from calldata directly to memory.
             calldatacopy(
-                add(self, add(REF_ID_MEM_OFFSET, sub(0x20, REF_ID_BYTES))), reader, REF_ID_BYTES
+                add(self, add(REF_ID_MEM_OFFSET, sub(0x20, REF_ID_BYTES))),
+                reader,
+                REF_ID_BYTES
             )
             // Advance reader.
             reader := add(reader, REF_ID_BYTES)
@@ -223,7 +225,9 @@ library UserOrderBufferLib {
             // Copy slices directly from calldata into memory.
             assembly ("memory-safe") {
                 calldatacopy(
-                    add(self, add(NONCE_MEM_OFFSET, sub(0x20, NONCE_BYTES))), reader, NONCE_BYTES
+                    add(self, add(NONCE_MEM_OFFSET, sub(0x20, NONCE_BYTES))),
+                    reader,
+                    NONCE_BYTES
                 )
                 reader := add(reader, NONCE_BYTES)
                 calldatacopy(

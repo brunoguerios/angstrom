@@ -28,7 +28,10 @@ pub trait BlockSyncProducer: Debug + Clone + Send + Sync + Unpin + 'static {
 
     /// returns whether or not any modules are currently transitioning
     /// helps with lagging reth issues
-    fn is_transitioning(&self) -> bool;
+    ///
+    /// returns true when all modules have signed off on block n-1 OR the
+    /// maximum block of a reorg
+    fn is_transitioning(&self, expected_signed_off_block_number: u64) -> bool;
 }
 
 /// Consumer to block sync producer
@@ -94,17 +97,23 @@ impl GlobalBlockSync {
     }
 }
 impl BlockSyncProducer for GlobalBlockSync {
-    fn is_transitioning(&self) -> bool {
+    fn is_transitioning(&self, expected_signed_off_block_number: u64) -> bool {
         !self.registered_modules.iter().all(|val| {
             val.value()
                 .front()
-                .map(|v| matches!(v, SignOffState::ReadyForNextBlock(_)))
-                .unwrap_or(true)
-        })
+                .map(|v| {
+                    if let SignOffState::ReadyForNextBlock(_, bn) = v {
+                        expected_signed_off_block_number == *bn
+                    } else {
+                        false
+                    }
+                })
+                .unwrap_or_default()
+        }) && self.all_modules_registered.load(Ordering::Relaxed)
     }
 
     fn new_block(&self, block_number: u64) {
-        while self.is_transitioning() {
+        while self.is_transitioning(block_number - 1) {
             std::hint::spin_loop();
         }
 
@@ -121,7 +130,8 @@ impl BlockSyncProducer for GlobalBlockSync {
     }
 
     fn reorg(&self, reorg_range: RangeInclusive<u64>) {
-        while self.is_transitioning() {
+        let max_reorg_block = reorg_range.clone().max().unwrap();
+        while self.is_transitioning(max_reorg_block) {
             std::hint::spin_loop();
         }
         self.pending_state
@@ -200,7 +210,7 @@ impl BlockSyncConsumer for GlobalBlockSync {
             );
         }
 
-        let check = SignOffState::ReadyForNextBlock(waker);
+        let check = SignOffState::ReadyForNextBlock(waker, block_number);
 
         self.registered_modules
             .entry(module)
@@ -286,8 +296,8 @@ pub enum GlobalBlockState {
 #[derive(Debug, Clone)]
 pub enum SignOffState {
     /// module has registered that there is a new block and made sure it is up
-    /// to date
-    ReadyForNextBlock(Option<Waker>),
+    /// to date, with the latest block processed
+    ReadyForNextBlock(Option<Waker>, u64),
     /// module has registered that there was a reorg and has appropriately
     /// handled it and is ready to continue processing
     HandledReorg(Option<Waker>)
@@ -296,7 +306,7 @@ pub enum SignOffState {
 impl SignOffState {
     pub fn try_wake_task(&self) {
         match self {
-            Self::ReadyForNextBlock(waker) | Self::HandledReorg(waker) => {
+            Self::ReadyForNextBlock(waker, _) | Self::HandledReorg(waker) => {
                 waker.as_ref().inspect(|w| w.wake_by_ref());
             }
         }
@@ -305,11 +315,13 @@ impl SignOffState {
 
 impl PartialEq for SignOffState {
     fn eq(&self, other: &Self) -> bool {
-        matches!(
-            (self, other),
-            (Self::ReadyForNextBlock(_), Self::ReadyForNextBlock(_))
-                | (Self::HandledReorg(_), Self::HandledReorg(_))
-        )
+        match (self, other) {
+            (SignOffState::ReadyForNextBlock(_, b0), SignOffState::ReadyForNextBlock(_, b1)) => {
+                b0 == b1
+            }
+            (SignOffState::HandledReorg(_), SignOffState::HandledReorg(_)) => true,
+            _ => false
+        }
     }
 }
 

@@ -64,14 +64,16 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         uint256 liquidity,
         bytes32 salt
     ) public returns (uint256 amount0, uint256 amount1) {
-        IPoolManager.ModifyLiquidityParams memory params = IPoolManager.ModifyLiquidityParams({
-            tickLower: tickLower,
-            tickUpper: tickUpper,
-            liquidityDelta: liquidity.signed(),
-            salt: salt
-        });
-        bytes memory data =
-            UNI_V4.unlock(abi.encodeCall(this.__addLiquidity, (asset0, asset1, msg.sender, params)));
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams({
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                liquidityDelta: liquidity.signed(),
+                salt: salt
+            });
+        bytes memory data = UNI_V4.unlock(
+            abi.encodeCall(this.__addLiquidity, (asset0, asset1, msg.sender, params))
+        );
         BalanceDelta delta = abi.decode(data, (BalanceDelta));
         amount0 = uint128(-delta.amount0());
         amount1 = uint128(-delta.amount1());
@@ -85,12 +87,13 @@ contract PoolGate is IUnlockCallback, CommonBase, BaseTest {
         uint256 liquidity,
         bytes32 salt
     ) public returns (uint256 amount0, uint256 amount1) {
-        IPoolManager.ModifyLiquidityParams memory params = IPoolManager.ModifyLiquidityParams({
-            tickLower: tickLower,
-            tickUpper: tickUpper,
-            liquidityDelta: liquidity.neg(),
-            salt: salt
-        });
+        IPoolManager.ModifyLiquidityParams memory params =
+            IPoolManager.ModifyLiquidityParams({
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                liquidityDelta: liquidity.neg(),
+                salt: salt
+            });
         bytes memory data = UNI_V4.unlock(
             abi.encodeCall(this.__removeLiquidity, (asset0, asset1, msg.sender, params))
         );
