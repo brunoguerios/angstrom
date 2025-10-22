@@ -110,6 +110,7 @@ impl BlockSyncProducer for GlobalBlockSync {
                 })
                 .unwrap_or_default()
         }) && self.all_modules_registered.load(Ordering::Relaxed)
+            && !self.registered_modules.iter().all(|v| v.value().is_empty())
     }
 
     fn new_block(&self, block_number: u64) {
