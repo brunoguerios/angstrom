@@ -72,20 +72,20 @@ abstract contract PoolUpdates is
                 // Following Uniswap's convention, if tick is below and uninitialized initialize growth
                 // outside to global accumulator.
                 if (!UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickLower)] =
-                        lowerGrowth = rewards.globalGrowth;
+                    rewards.rewardGrowthOutside[uint24(params.tickLower)] = lowerGrowth =
+                    rewards.globalGrowth;
                 }
                 if (!UNI_V4.isInitialized(id, params.tickUpper, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickUpper)] =
-                        upperGrowth = rewards.globalGrowth;
+                    rewards.rewardGrowthOutside[uint24(params.tickUpper)] = upperGrowth =
+                    rewards.globalGrowth;
                 }
                 unchecked {
                     growthInside = upperGrowth - lowerGrowth;
                 }
             } else {
                 if (!UNI_V4.isInitialized(id, params.tickLower, key.tickSpacing)) {
-                    rewards.rewardGrowthOutside[uint24(params.tickLower)] =
-                        lowerGrowth = rewards.globalGrowth;
+                    rewards.rewardGrowthOutside[uint24(params.tickLower)] = lowerGrowth =
+                    rewards.globalGrowth;
                 }
                 unchecked {
                     growthInside = rewards.globalGrowth - lowerGrowth - upperGrowth;

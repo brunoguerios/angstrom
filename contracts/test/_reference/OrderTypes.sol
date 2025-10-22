@@ -361,8 +361,7 @@ library OrdersLib {
     {
         (uint16 pairIndex, bool zeroForOne) = pairs.getIndex(order.assetIn, order.assetOut);
 
-        uint8 varMap =
-            (order.useInternal ? 1 : 0) | (zeroForOne ? 2 : 0)
+        uint8 varMap = (order.useInternal ? 1 : 0) | (zeroForOne ? 2 : 0)
             | (order.recipient != address(0) ? 4 : 0) | (order.meta.isEcdsa ? 8 : 0);
 
         return bytes.concat(
