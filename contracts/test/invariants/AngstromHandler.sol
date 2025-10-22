@@ -661,12 +661,13 @@ contract AngstromHandler is BaseTest {
         uint128 liquidity
     ) internal pure returns (uint256 amount0, uint256 amount1) {
         if (tick < lowerTick) {
-            amount0 = SqrtPriceMath.getAmount0Delta(
-                TickMath.getSqrtPriceAtTick(lowerTick),
-                TickMath.getSqrtPriceAtTick(upperTick),
-                liquidity,
-                true
-            );
+            amount0 =
+                SqrtPriceMath.getAmount0Delta(
+                    TickMath.getSqrtPriceAtTick(lowerTick),
+                    TickMath.getSqrtPriceAtTick(upperTick),
+                    liquidity,
+                    true
+                );
         } else if (tick < upperTick) {
             amount0 = SqrtPriceMath.getAmount0Delta(
                 sqrtPriceX96, TickMath.getSqrtPriceAtTick(upperTick), liquidity, true
