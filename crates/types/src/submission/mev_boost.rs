@@ -33,8 +33,11 @@ pub struct MevBoostSubmitter {
 }
 
 impl MevBoostSubmitter {
-    pub fn new<S: AngstromMetaSigner>(urls: &[Url], signer: AngstromSigner<S>) -> Self {
-        let angstrom_address = signer.address();
+    pub fn new<S: AngstromMetaSigner>(
+        urls: &[Url],
+        signer: AngstromSigner<S>,
+        angstrom_address: Address
+    ) -> Self {
         let clients = urls
             .iter()
             .map(|url| {
