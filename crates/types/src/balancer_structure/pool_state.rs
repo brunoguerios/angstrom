@@ -11,6 +11,7 @@
 
 use std::fmt::Display;
 
+use alloy::primitives::FixedBytes;
 use serde::{Deserialize, Serialize};
 
 use crate::amm::{PoolSwapResult, Price};
@@ -31,8 +32,8 @@ use crate::amm::{PoolSwapResult, Price};
 /// B) Implement PoolSim directly on their types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BalancerPoolState {
-    /// Pool identifier
-    pub pool_id: String,
+    /// Pool identifier (32 bytes)
+    pub pool_id: FixedBytes<32>,
 
     /// Current block number
     pub block_number: u64,
@@ -48,8 +49,12 @@ impl BalancerPoolState {
     ///
     /// TODO: This constructor will need to be updated once we understand
     /// how to construct balancer-maths-rust pool states
-    pub fn new(pool_id: String, block_number: u64, fee: u32) -> Self {
+    pub fn new(pool_id: FixedBytes<32>, block_number: u64, fee: u32) -> Self {
         Self { pool_id, block_number, fee }
+    }
+
+    pub fn pool_id(&self) -> FixedBytes<32> {
+        self.pool_id
     }
 
     pub fn block_number(&self) -> u64 {
@@ -121,15 +126,15 @@ mod tests {
 
     #[test]
     fn test_balancer_pool_creation() {
-        let pool = BalancerPoolState::new("test-pool".to_string(), 12345, 3000);
-        assert_eq!(pool.pool_id, "test-pool");
+        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
+        assert_eq!(pool.pool_id, FixedBytes::ZERO);
         assert_eq!(pool.block_number(), 12345);
         assert_eq!(pool.fee(), 3000);
     }
 
     #[test]
     fn test_noop() {
-        let pool = BalancerPoolState::new("test-pool".to_string(), 12345, 3000);
+        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
         let outcome = pool.noop();
         assert!(outcome.is_empty());
         assert_eq!(outcome.fee, 3000);
@@ -138,7 +143,7 @@ mod tests {
     #[test]
     #[ignore = "Balancer math not yet integrated"]
     fn test_simulate_swap() {
-        let pool = BalancerPoolState::new("test-pool".to_string(), 12345, 3000);
+        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
         let result = pool.swap_with_amount(1000, true);
         // This should work once we integrate balancer-maths-rust
         assert!(result.is_err()); // Currently returns error

@@ -3,6 +3,7 @@
 mod solutionlib;
 
 use angstrom_types::{
+    amm::PoolState,
     contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder},
     orders::PoolSolution,
     uni_structure::UniswapPoolState
@@ -43,6 +44,9 @@ fn build_bundle() {
         let mut user_orders = Vec::new();
         let mut asset_builder = AssetBuilder::new();
 
+        // Wrap snapshot in PoolState enum
+        let pool_state = PoolState::Uniswap(snapshot.clone());
+
         AngstromBundle::process_solution(
             &mut pairs,
             &mut asset_builder,
@@ -51,7 +55,7 @@ fn build_bundle() {
             &mut top_of_block_orders,
             &mut pool_updates,
             &solution,
-            &snapshot,
+            &pool_state,
             t0,
             t1,
             store_index,

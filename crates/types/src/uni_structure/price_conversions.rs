@@ -3,7 +3,12 @@
 //! This module provides conversions between the neutral Price type
 //! and Uniswap-specific price representations (SqrtPriceX96).
 
-use crate::{amm::Price, matching::SqrtPriceX96};
+use alloy::primitives::U160;
+
+use crate::{
+    amm::Price,
+    matching::{Ray, SqrtPriceX96}
+};
 
 /// Convert SqrtPriceX96 to neutral Price
 impl From<SqrtPriceX96> for Price {
@@ -19,17 +24,22 @@ impl TryFrom<Price> for SqrtPriceX96 {
     type Error = &'static str;
 
     fn try_from(price: Price) -> Result<Self, Self::Error> {
-        use alloy::primitives::U160;
         U160::from(price.value())
             .try_into()
             .map_err(|_| "Invalid SqrtPriceX96 value")
     }
 }
 
+/// Convert Ray to neutral Price (via SqrtPriceX96)
+impl From<Ray> for Price {
+    fn from(ray: Ray) -> Self {
+        let sqrt_price: SqrtPriceX96 = ray.into();
+        sqrt_price.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::U160;
-
     use super::*;
 
     #[test]

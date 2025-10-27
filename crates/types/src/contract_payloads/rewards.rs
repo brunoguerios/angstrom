@@ -1,4 +1,4 @@
-use alloy::primitives::{U160, aliases::I24};
+use alloy::primitives::{FixedBytes, U160, aliases::I24};
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,14 @@ pub enum RewardsUpdate {
     CurrentOnly {
         amount:             u128,
         expected_liquidity: u128
+    },
+    /// Balancer pool donation
+    /// Note: This is a placeholder for simple donation accounting.
+    /// In a later step (Step 8), this will be enhanced with explicit params
+    /// for contract payload submission.
+    BalancerDonation {
+        amount:  u128,
+        pool_id: FixedBytes<32>
     }
 }
 
@@ -95,7 +103,8 @@ impl RewardsUpdate {
     pub fn quantities(&self) -> Vec<u128> {
         match self {
             Self::MultiTick { quantities, .. } => quantities.clone(),
-            Self::CurrentOnly { amount, .. } => vec![*amount]
+            Self::CurrentOnly { amount, .. } => vec![*amount],
+            Self::BalancerDonation { amount, .. } => vec![*amount]
         }
     }
 }
