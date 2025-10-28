@@ -2,13 +2,13 @@
 use std::{iter::Chain, slice::Iter};
 
 use angstrom_types::{
+    amm::PoolState,
     matching::SqrtPriceX96,
     primitive::PoolId,
     sol_bindings::{
         RawPoolOrder, Ray,
         grouped_orders::{AllOrders, OrderWithStorageData}
-    },
-    uni_structure::BaselinePoolState
+    }
 };
 use serde::{Deserialize, Serialize};
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MIN_SQRT_RATIO};
@@ -21,10 +21,10 @@ pub type BookOrder = OrderWithStorageData<AllOrders>;
 pub mod order;
 pub mod sort;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct OrderBook {
     pub id: PoolId,
-    amm:    Option<BaselinePoolState>,
+    amm:    Option<PoolState>,
     bids:   Vec<BookOrder>,
     asks:   Vec<BookOrder>
 }
@@ -32,7 +32,7 @@ pub struct OrderBook {
 impl OrderBook {
     pub fn new(
         id: PoolId,
-        amm: Option<BaselinePoolState>,
+        amm: Option<PoolState>,
         mut bids: Vec<BookOrder>,
         mut asks: Vec<BookOrder>,
         sort: Option<SortStrategy>
@@ -64,7 +64,7 @@ impl OrderBook {
         self.bids.iter().chain(self.asks.iter())
     }
 
-    pub fn amm(&self) -> Option<&BaselinePoolState> {
+    pub fn amm(&self) -> Option<&PoolState> {
         self.amm.as_ref()
     }
 
@@ -72,7 +72,7 @@ impl OrderBook {
         self.bids().is_empty() && self.asks().is_empty()
     }
 
-    pub fn set_amm_if_missing(&mut self, apply: impl FnOnce() -> BaselinePoolState) {
+    pub fn set_amm_if_missing(&mut self, apply: impl FnOnce() -> PoolState) {
         if self.amm().is_none() {
             self.amm = Some(apply());
         }

@@ -6,6 +6,7 @@ use std::{
 use alloy::primitives::U256;
 use alloy_primitives::Address;
 use angstrom_types::{
+    amm::PoolState,
     matching::uniswap::TickInfo,
     orders::{OrderId, OrderPriorityData},
     primitive::PoolId,
@@ -219,8 +220,13 @@ fn setup_inputs(
         tob_reward: U256::ZERO
     };
 
-    let book =
-        OrderBook::new(pool_id, Some(amm), bids, asks, Some(SortStrategy::PricePartialVolume));
+    let book = OrderBook::new(
+        pool_id,
+        Some(PoolState::Uniswap(amm)),
+        bids,
+        asks,
+        Some(SortStrategy::PricePartialVolume)
+    );
 
     (book, tob)
 }

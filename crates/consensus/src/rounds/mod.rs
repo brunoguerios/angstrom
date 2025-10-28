@@ -12,6 +12,7 @@ use alloy::{
 };
 use angstrom_metrics::ConsensusMetricsWrapper;
 use angstrom_types::{
+    amm::PoolState,
     consensus::{
         ConsensusRoundEvent, ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal,
         SlotClock, StromConsensusEvent, SystemTimeSlotClock
@@ -19,8 +20,7 @@ use angstrom_types::{
     contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
     orders::PoolSolution,
     primitive::{AngstromMetaSigner, AngstromSigner},
-    submission::SubmissionHandler,
-    uni_structure::BaselinePoolState
+    submission::SubmissionHandler
 };
 use bid_aggregation::BidAggregationState;
 use futures::{FutureExt, Stream, future::BoxFuture};
@@ -242,9 +242,7 @@ where
         (2 * self.validators.len()).div_ceil(3)
     }
 
-    fn fetch_pool_snapshot(
-        &self
-    ) -> HashMap<FixedBytes<32>, (Address, Address, BaselinePoolState, u16)> {
+    fn fetch_pool_snapshot(&self) -> HashMap<FixedBytes<32>, (Address, Address, PoolState, u16)> {
         self.uniswap_pools
             .iter()
             .filter_map(|item| {
@@ -255,7 +253,10 @@ where
                     pool.read().unwrap().fetch_pool_snapshot().ok()?;
                 let entry = self.pool_registry.get_ang_entry(key)?;
 
-                Some((*key, (token_a, token_b, snapshot, entry.store_index as u16)))
+                Some((
+                    *key,
+                    (token_a, token_b, PoolState::Uniswap(snapshot), entry.store_index as u16)
+                ))
             })
             .collect::<HashMap<_, _>>()
     }

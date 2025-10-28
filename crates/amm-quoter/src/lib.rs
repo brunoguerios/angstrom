@@ -9,12 +9,13 @@ use std::{
 
 use alloy::primitives::U160;
 use angstrom_types::{
+    amm::PoolState,
     block_sync::BlockSyncConsumer,
     consensus::{ConsensusRoundEvent, ConsensusRoundOrderHashes},
     orders::OrderSet,
     primitive::PoolId,
     sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder},
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use futures::{
     FutureExt, Stream, StreamExt, TryFutureExt, future::BoxFuture, stream::FuturesUnordered
@@ -78,7 +79,7 @@ pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
     amms: SyncedUniswapPools,
     threadpool: ThreadPool,
     recv: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
-    book_snapshots: HashMap<PoolId, (PoolId, BaselinePoolState)>,
+    book_snapshots: HashMap<PoolId, (PoolId, UniswapPoolState)>,
     pending_tasks: FuturesUnordered<BoxFuture<'static, eyre::Result<Slot0Update>>>,
     pool_to_subscribers: HashMap<PoolId, Vec<mpsc::Sender<Slot0Update>>>,
     consensus_stream: Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>>,
@@ -201,7 +202,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             // Default as if we don't have a book, we want to still send update.
             let mut book = books.remove(book_id).unwrap_or_default();
             book.id = *book_id;
-            book.set_amm_if_missing(|| amm.clone());
+            book.set_amm_if_missing(|| PoolState::Uniswap(amm.clone()));
 
             let searcher = searcher_orders.get(&book.id()).cloned();
             let (tx, rx) = oneshot::channel();
@@ -315,14 +316,16 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
 
 pub fn build_non_proposal_books(
     limit: Vec<BookOrder>,
-    pool_snapshots: &HashMap<PoolId, (PoolId, BaselinePoolState)>
+    pool_snapshots: &HashMap<PoolId, (PoolId, UniswapPoolState)>
 ) -> HashMap<PoolId, OrderBook> {
     let book_sources = orders_sorted_by_pool_id(limit);
 
     book_sources
         .into_iter()
         .map(|(id, orders)| {
-            let amm = pool_snapshots.get(&id).map(|(_, pool)| pool).cloned();
+            let amm = pool_snapshots
+                .get(&id)
+                .map(|(_, pool)| PoolState::Uniswap(pool.clone()));
             (id, build_book(id, amm, orders))
         })
         .collect()

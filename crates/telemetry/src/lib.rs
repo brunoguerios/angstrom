@@ -13,7 +13,7 @@ use angstrom_types::{
         ANGSTROM_ADDRESS, ANGSTROM_DEPLOYED_BLOCK, CHAIN_ID, GAS_TOKEN_ADDRESS,
         POOL_MANAGER_ADDRESS, PoolId
     },
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use blocklog::BlockLog;
 use chrono::Utc;
@@ -131,7 +131,7 @@ impl Telemetry {
         &mut self,
         blocknum: u64,
         pool_keys: Vec<PoolKey>,
-        pool_snapshots: HashMap<PoolId, BaselinePoolState>
+        pool_snapshots: HashMap<PoolId, UniswapPoolState>
     ) {
         let block = self.get_block(blocknum);
         block.set_pool_snapshots(pool_snapshots);

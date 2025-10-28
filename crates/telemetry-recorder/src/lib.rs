@@ -10,7 +10,7 @@ use angstrom_types::{
     pair_with_price::PairsWithPrice,
     primitive::PoolId,
     sol_bindings::grouped_orders::AllOrders,
-    uni_structure::BaselinePoolState
+    uni_structure::UniswapPoolState
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -61,7 +61,7 @@ pub enum TelemetryMessage {
     NewBlock {
         blocknum:       u64,
         pool_keys:      Vec<PoolKey>,
-        pool_snapshots: HashMap<PoolId, BaselinePoolState>
+        pool_snapshots: HashMap<PoolId, UniswapPoolState>
     },
     /// Message indicating an incoming order to be validated
     NewOrder {
@@ -113,8 +113,8 @@ impl TelemetryMessage {
     }
 }
 
-impl From<(u64, Vec<PoolKey>, HashMap<PoolId, BaselinePoolState>)> for TelemetryMessage {
-    fn from(value: (u64, Vec<PoolKey>, HashMap<PoolId, BaselinePoolState>)) -> Self {
+impl From<(u64, Vec<PoolKey>, HashMap<PoolId, UniswapPoolState>)> for TelemetryMessage {
+    fn from(value: (u64, Vec<PoolKey>, HashMap<PoolId, UniswapPoolState>)) -> Self {
         Self::NewBlock { blocknum: value.0, pool_keys: value.1, pool_snapshots: value.2 }
     }
 }

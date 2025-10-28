@@ -15,7 +15,7 @@ use crate::{
         grouped_orders::OrderWithStorageData,
         rpc_orders::{OmitOrderMeta, TopOfBlockOrder as RpcTopOfBlockOrder}
     },
-    uni_structure::{BaselinePoolState, pool_swap::PoolSwapResult}
+    uni_structure::{UniswapPoolState, pool_swap::UniswapPoolSwapResult}
 };
 
 // This currently exists in types::sol_bindings as well, but that one is
@@ -188,8 +188,8 @@ impl TopOfBlockOrder {
 
     pub fn calc_vec_and_reward<'a>(
         tob: &OrderWithStorageData<RpcTopOfBlockOrder>,
-        snapshot: &'a BaselinePoolState
-    ) -> eyre::Result<(PoolSwapResult<'a>, u128)> {
+        snapshot: &'a UniswapPoolState
+    ) -> eyre::Result<(UniswapPoolSwapResult<'a>, u128)> {
         // First let's simulate the actual ToB swap and use that to determine what our
         // leftover T0 is for rewards
         if tob.is_bid {
@@ -229,7 +229,7 @@ impl TopOfBlockOrder {
         }
     }
 
-    pub fn calc_reward(&self, snapshot: BaselinePoolState) -> eyre::Result<u128> {
+    pub fn calc_reward(&self, snapshot: UniswapPoolState) -> eyre::Result<u128> {
         if !self.zero_for_1 {
             let res =
                 snapshot.swap_current_with_amount(I256::unchecked_from(self.quantity_in), false)?;

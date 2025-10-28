@@ -18,11 +18,17 @@ impl BinarySearchStrategy {
         matcher.solution(searcher)
     }
 
+    // TODO: multi-AMM support
     pub fn give_end_amm_state(
         book: &OrderBook,
         searcher: Option<OrderWithStorageData<TopOfBlockOrder>>
     ) -> (U160, i32, u128) {
-        let snapshot = book.amm().unwrap();
+        let pool_state = book.amm().unwrap();
+
+        // Access UniswapPoolState to use Uniswap-specific methods
+        let snapshot = pool_state
+            .as_uniswap()
+            .expect("give_end_amm_state currently only supports Uniswap pools");
 
         if book.is_empty_book() {
             return (

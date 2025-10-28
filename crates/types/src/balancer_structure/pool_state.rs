@@ -1,0 +1,151 @@
+//! PoolState implementation for Balancer pools
+//!
+//! This module implements the PoolState trait for Balancer pool types
+//! from the `balancer-maths-rust` crate.
+//!
+//! TODO: As we explore the balancer-maths-rust API, we'll:
+//! 1. Understand what types it exports (PoolState, ReClamm, Weighted, etc.)
+//! 2. Understand what functions it provides for swaps and price calculations
+//! 3. Implement proper conversions to/from our neutral Price type
+//! 4. Implement PoolState by delegating to balancer-maths-rust functions
+
+use std::fmt::Display;
+
+use alloy::primitives::FixedBytes;
+use serde::{Deserialize, Serialize};
+
+use crate::amm::{PoolSwapResult, Price};
+
+/// Wrapper around balancer-maths-rust pool state
+///
+/// This is a temporary placeholder until we explore the actual API
+/// from balancer-maths-rust and understand what types it exports.
+///
+/// Expected API from balancer-maths-rust (to be verified):
+/// - balancer_maths_rust::PoolState or similar
+/// - balancer_maths_rust::swap_exact_in()
+/// - balancer_maths_rust::swap_exact_out()
+/// - balancer_maths_rust::get_spot_price()
+///
+/// Once we understand the API, we'll either:
+/// A) Directly wrap their types
+/// B) Implement PoolSim directly on their types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BalancerPoolState {
+    /// Pool identifier (32 bytes)
+    pub pool_id: FixedBytes<32>,
+
+    /// Current block number
+    pub block_number: u64,
+
+    /// Swap fee in parts per million
+    pub fee: u32 /* TODO: Add the actual balancer-maths-rust pool state here
+                  * Expected something like:
+                  * pub inner: balancer_maths_rust::PoolState, */
+}
+
+impl BalancerPoolState {
+    /// Create a new Balancer pool state
+    ///
+    /// TODO: This constructor will need to be updated once we understand
+    /// how to construct balancer-maths-rust pool states
+    pub fn new(pool_id: FixedBytes<32>, block_number: u64, fee: u32) -> Self {
+        Self { pool_id, block_number, fee }
+    }
+
+    pub fn pool_id(&self) -> FixedBytes<32> {
+        self.pool_id
+    }
+
+    pub fn block_number(&self) -> u64 {
+        self.block_number
+    }
+
+    pub fn fee(&self) -> u32 {
+        self.fee
+    }
+
+    pub fn current_price(&self) -> Price {
+        // TODO: Use balancer-maths-rust to calculate current price
+        // Expected API: balancer_maths_rust::get_spot_price(&self.inner)
+        Price::new(1_000_000_000_000_000_000) // Placeholder
+    }
+
+    pub fn swap_with_amount(
+        &self,
+        _amount_in: u128,
+        _zero_for_one: bool
+    ) -> eyre::Result<PoolSwapResult> {
+        // TODO: Use balancer-maths-rust to perform swap
+        // Expected API:
+        // let result = balancer_maths_rust::swap_exact_in(
+        //     &self.inner,
+        //     amount_in,
+        //     zero_for_one
+        // )?;
+        //
+        // Then convert result to PoolSwapResult
+
+        Err(eyre::eyre!(
+            "Balancer swap with amount not yet implemented - need to integrate \
+             balancer-maths-rust API"
+        ))
+    }
+
+    pub fn swap_to_price(&self, _price_limit: Price) -> eyre::Result<PoolSwapResult> {
+        // TODO: Use balancer-maths-rust to swap to target price
+        // This might require:
+        // 1. Binary search on amount
+        // 2. Or a direct "swap_to_price" function if available
+
+        Err(eyre::eyre!(
+            "Balancer swap to price not yet implemented - need to integrate balancer-maths-rust \
+             API"
+        ))
+    }
+
+    pub fn noop(&self) -> PoolSwapResult {
+        let current_price = self.current_price();
+        PoolSwapResult::new(self.fee, current_price, current_price, 0, 0)
+    }
+}
+
+impl Display for BalancerPoolState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BalancerPool(id={}, block={}, fee={})",
+            self.pool_id, self.block_number, self.fee
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_balancer_pool_creation() {
+        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
+        assert_eq!(pool.pool_id, FixedBytes::ZERO);
+        assert_eq!(pool.block_number(), 12345);
+        assert_eq!(pool.fee(), 3000);
+    }
+
+    #[test]
+    fn test_noop() {
+        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
+        let outcome = pool.noop();
+        assert!(outcome.is_empty());
+        assert_eq!(outcome.fee, 3000);
+    }
+
+    #[test]
+    #[ignore = "Balancer math not yet integrated"]
+    fn test_simulate_swap() {
+        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
+        let result = pool.swap_with_amount(1000, true);
+        // This should work once we integrate balancer-maths-rust
+        assert!(result.is_err()); // Currently returns error
+    }
+}
