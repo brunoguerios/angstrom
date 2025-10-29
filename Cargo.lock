@@ -3135,6 +3135,7 @@ dependencies = [
  "angstrom-metrics",
  "angstrom-network",
  "angstrom-types",
+ "balancer-v3",
  "clap",
  "dashmap 6.1.0",
  "eyre",

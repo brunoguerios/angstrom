@@ -27,9 +27,8 @@ use futures::{FutureExt, Stream, future::BoxFuture};
 use matching_engine::{MatchingEngineHandle, manager::MatchingEngineError};
 use order_pool::order_storage::OrderStorage;
 use preproposal_wait_trigger::{LastRoundInfo, PreProposalWaitTrigger};
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
-use crate::{AngstromValidator, ConsensusTimingConfig};
+use crate::{AngstromValidator, ConsensusTimingConfig, SyncedPools};
 
 mod bid_aggregation;
 mod finalization;
@@ -187,7 +186,7 @@ pub struct SharedRoundState<P: Provider + Unpin + 'static, Matching, S: Angstrom
     order_storage:    Arc<OrderStorage>,
     _metrics:         ConsensusMetricsWrapper,
     pool_registry:    UniswapAngstromRegistry,
-    uniswap_pools:    SyncedUniswapPools,
+    synced_pools:     SyncedPools,
     provider:         Arc<SubmissionHandler<P>>,
     messages:         VecDeque<ConsensusMessage>,
     consensus_config: ConsensusTimingConfig
@@ -209,7 +208,7 @@ where
         validators: Vec<AngstromValidator>,
         metrics: ConsensusMetricsWrapper,
         pool_registry: UniswapAngstromRegistry,
-        uniswap_pools: SyncedUniswapPools,
+        synced_pools: SyncedPools,
         provider: SubmissionHandler<P>,
         matching_engine: Matching,
         consensus_config: ConsensusTimingConfig
@@ -220,7 +219,7 @@ where
             validators,
             order_storage,
             pool_registry,
-            uniswap_pools,
+            synced_pools,
             signer,
             _metrics: metrics,
             matching_engine,
@@ -243,22 +242,35 @@ where
     }
 
     fn fetch_pool_snapshot(&self) -> HashMap<FixedBytes<32>, (Address, Address, PoolState, u16)> {
-        self.uniswap_pools
-            .iter()
-            .filter_map(|item| {
-                let key = item.key();
-                let pool = item.value();
-                tracing::info!(?key, "getting snapshot");
-                let (token_a, token_b, snapshot) =
-                    pool.read().unwrap().fetch_pool_snapshot().ok()?;
-                let entry = self.pool_registry.get_ang_entry(key)?;
-
-                Some((
-                    *key,
-                    (token_a, token_b, PoolState::Uniswap(snapshot), entry.store_index as u16)
-                ))
-            })
-            .collect::<HashMap<_, _>>()
+        match &self.synced_pools {
+            SyncedPools::Balancer(balancer) => balancer
+                .iter()
+                .filter_map(|item| {
+                    let key = item.key();
+                    let pool = item.value();
+                    let snapshot = pool.read().ok()?.clone();
+                    let token_a = Address::ZERO;
+                    let token_b = Address::ZERO;
+                    let store_index = 0u16;
+                    Some((*key, (token_a, token_b, PoolState::Balancer(snapshot), store_index)))
+                })
+                .collect::<HashMap<_, _>>(),
+            SyncedPools::Uniswap(uniswap) => uniswap
+                .iter()
+                .filter_map(|item| {
+                    let key = item.key();
+                    let pool = item.value();
+                    tracing::info!(?key, "getting snapshot");
+                    let (token_a, token_b, snapshot) =
+                        pool.read().ok()?.fetch_pool_snapshot().ok()?;
+                    let entry = self.pool_registry.get_ang_entry(key)?;
+                    Some((
+                        *key,
+                        (token_a, token_b, PoolState::Uniswap(snapshot), entry.store_index as u16)
+                    ))
+                })
+                .collect::<HashMap<_, _>>()
+        }
     }
 
     fn matching_engine_output(
@@ -534,7 +546,7 @@ pub mod tests {
         ConsensusMessage, RoundStateMachine, SharedRoundState, pre_proposal::PreProposalState
     };
     use crate::{
-        AngstromValidator, ConsensusTimingConfig,
+        AngstromValidator, ConsensusTimingConfig, SyncedPools,
         rounds::{ConsensusState, pre_proposal_aggregation::PreProposalAggregationState}
     };
 
@@ -596,7 +608,7 @@ pub mod tests {
             vec![AngstromValidator::new(leader_id, 100)],
             ConsensusMetricsWrapper::new(),
             pool_registry,
-            uniswap_pools,
+            SyncedPools::Uniswap(uniswap_pools),
             provider,
             MockMatchingEngine {},
             ConsensusTimingConfig::default()

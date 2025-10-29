@@ -34,7 +34,7 @@ use angstrom_types::{
 };
 use consensus::{
     AngstromValidator, ConsensusHandler, ConsensusManager, ConsensusTimingConfig,
-    ManagerNetworkDeps
+    ManagerNetworkDeps, SyncedPools
 };
 use futures::{Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
@@ -436,7 +436,7 @@ impl ReplayRunner {
             block_number,
             block_number,
             pool_registry,
-            uniswap_pools.clone(),
+            SyncedPools::Uniswap(uniswap_pools.clone()),
             mev_boost_provider,
             matching_handle,
             global_block_sync.clone(),

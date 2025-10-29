@@ -32,11 +32,10 @@ use reth_tasks::shutdown::GracefulShutdown;
 use telemetry_recorder::telemetry_event;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::BroadcastStream;
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use crate::{
     AngstromValidator, ConsensusDataWithBlock, ConsensusRequest, ConsensusSubscriptionData,
-    ConsensusSubscriptionRequestKind, ConsensusTimingConfig,
+    ConsensusSubscriptionRequestKind, ConsensusTimingConfig, SyncedPools,
     leader_selection::WeightedRoundRobin,
     rounds::{ConsensusMessage, RoundStateMachine, SharedRoundState}
 };
@@ -78,7 +77,7 @@ where
         deploy_block: BlockNumber,
         current_height: BlockNumber,
         pool_registry: UniswapAngstromRegistry,
-        uniswap_pools: SyncedUniswapPools,
+        synced_pools: SyncedPools,
         provider: SubmissionHandler<P>,
         matching_engine: Matching,
         block_sync: BlockSync,
@@ -107,7 +106,7 @@ where
                     validators.clone(),
                     ConsensusMetricsWrapper::new(),
                     pool_registry,
-                    uniswap_pools,
+                    synced_pools,
                     provider,
                     matching_engine,
                     timing_config
