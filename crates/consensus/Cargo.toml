@@ -29,6 +29,7 @@ tokio.workspace = true
 tokio-stream.workspace = true
 tracing.workspace = true
 uniswap-v4.workspace = true
+balancer-v3.workspace = true
 
 [dev-dependencies]
 dashmap.workspace = true

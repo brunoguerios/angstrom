@@ -29,7 +29,7 @@ use angstrom_types::{
     submission::{ChainSubmitterHolder, SubmissionHandler},
     testnet::InitialTestnetState
 };
-use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
+use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps, SyncedPools};
 use futures::{Future, Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{MatchingManager, manager::MatcherHandle};
@@ -329,7 +329,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             block_number,
             block_number,
             pool_registry,
-            uniswap_pools.clone(),
+            SyncedPools::Uniswap(uniswap_pools.clone()),
             mev_boost_provider,
             matching_handle,
             block_sync.clone(),

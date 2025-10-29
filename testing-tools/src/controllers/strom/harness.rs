@@ -23,7 +23,7 @@ use angstrom_types::{
     primitive::{AngstromSigner, UniswapPoolRegistry},
     submission::SubmissionHandler
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, SyncedPools};
 use dashmap::DashMap;
 use eyre::eyre;
 use futures::{Stream, StreamExt};
@@ -301,7 +301,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         deploy_block,
         block_id,
         uni_ang_registry,
-        uniswap_pools.clone(),
+        SyncedPools::Uniswap(uniswap_pools.clone()),
         submission_handler,
         matching_handle,
         global_block_sync.clone(),

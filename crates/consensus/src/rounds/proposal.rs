@@ -99,10 +99,9 @@ impl ProposalState {
                 );
 
                 self.proposal = Some(proposal.clone());
-                // TODO: multi-AMM support
-                // Build Uniswap-only snapshot view for AngstromBundle
+                // Multi-AMM support (Uniswap-only bundle path for now)
                 let snapshots = handles.fetch_pool_snapshot();
-                let snapshot: HashMap<
+                let uniswap_only: HashMap<
                     PoolId,
                     (
                         Address,
@@ -118,13 +117,21 @@ impl ProposalState {
                             .map(|u| (*pool_id, (*a0, *a1, u.clone(), *idx)))
                     })
                     .collect();
-                let all_orders = handles.order_storage.get_all_orders();
 
-                     AngstromBundle::from_proposal(&proposal,all_orders, gas_info, &snapshot).inspect_err(|e| {
+                if !uniswap_only.is_empty() {
+                let all_orders = handles.order_storage.get_all_orders();
+                    AngstromBundle::from_proposal(&proposal, all_orders, gas_info, &uniswap_only)
+                        .inspect_err(|e| {
                         tracing::info!(err=%e,
                             "failed to encode angstrom bundle, THERE SHALL BE NO PROPOSAL THIS BLOCK :("
                         );
-                    }).ok()
+                        })
+                        .ok()
+                } else {
+                    // Balancer mode (or no Uniswap pools): skip bundle encoding for now
+                    let _ = ();
+                    None
+                }
 
 
             }) else {
