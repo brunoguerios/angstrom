@@ -1,0 +1,21 @@
+[package]
+name = "balancer-v3"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+alloy.workspace = true
+angstrom-eth.workspace = true
+angstrom-types.workspace = true
+dashmap.workspace = true
+eyre.workspace = true
+futures.workspace = true
+futures-util.workspace = true
+reth-provider.workspace = true
+async-stream = "0.3"
+tokio.workspace = true
+
+

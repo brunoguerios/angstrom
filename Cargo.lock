@@ -1085,6 +1085,7 @@ dependencies = [
  "angstrom-network",
  "angstrom-rpc",
  "angstrom-types",
+ "balancer-v3",
  "clap",
  "consensus",
  "eyre",
@@ -2271,6 +2272,22 @@ dependencies = [
  "num-traits",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "balancer-v3"
+version = "0.1.0"
+dependencies = [
+ "alloy",
+ "angstrom-eth",
+ "angstrom-types",
+ "async-stream",
+ "dashmap 6.1.0",
+ "eyre",
+ "futures",
+ "futures-util",
+ "reth-provider",
+ "tokio",
 ]
 
 [[package]]

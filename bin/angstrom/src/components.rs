@@ -338,6 +338,26 @@ where
         init_telemetry(signer_addr, grace_shutdown)
     });
 
+    let amm_mode = std::env::var("ANGSTROM_AMM").unwrap_or_else(|_| "uniswap".into());
+    if amm_mode == "balancer" {
+        let balancer_manager = balancer_v3::configure_balancer_manager(
+            querying_provider.clone(),
+            eth_handle.subscribe_cannon_state_notifications().await,
+            block_id,
+            global_block_sync.clone(),
+            controller,
+            network_stream
+        )
+        .await;
+
+        let _balancer_pools = balancer_manager.pools();
+        executor.spawn_critical("balancer pool manager", Box::pin(balancer_manager));
+
+        global_block_sync.finalize_modules();
+        tracing::info!("started angstrom (balancer mode)");
+        return exit.await;
+    }
+
     let uniswap_pool_manager = configure_uniswap_manager::<_, DEFAULT_TICKS>(
         querying_provider.clone(),
         eth_handle.subscribe_cannon_state_notifications().await,
