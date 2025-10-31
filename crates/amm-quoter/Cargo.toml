@@ -10,6 +10,7 @@ exclude.workspace = true
 
 [dependencies]
 alloy.workspace = true
+amms.workspace = true
 angstrom-types.workspace = true
 eyre.workspace = true
 futures.workspace = true

@@ -10,7 +10,6 @@ use angstrom_types::sol_bindings::{RawPoolOrder, grouped_orders::AllOrders};
 use futures::Future;
 use rand::random;
 use tokio::runtime::Handle;
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use super::{
     OrderValidationRequest,
@@ -25,6 +24,7 @@ use crate::{
     order::{OrderValidation, state::account::UserAccountProcessor},
     telemetry::ValidationSnapshot
 };
+use amms::SyncedPools;
 
 pub struct OrderValidator<DB, Pools, Fetch> {
     sim:                     SimValidation<DB>,
@@ -44,9 +44,9 @@ where
         block_number: Arc<AtomicU64>,
         pools: Pools,
         fetch: Fetch,
-        uniswap_pools: SyncedUniswapPools
+        amm_pools: SyncedPools
     ) -> Self {
-        let state = StateValidation::new(UserAccountProcessor::new(fetch), pools, uniswap_pools);
+        let state = StateValidation::new(UserAccountProcessor::new(fetch), pools, amm_pools);
 
         Self { state, sim, block_number }
     }

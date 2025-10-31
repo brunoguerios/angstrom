@@ -1052,6 +1052,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "amms"
+version = "0.1.0"
+dependencies = [
+ "balancer-v3",
+ "tokio",
+ "uniswap-v4",
+]
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1079,6 +1088,7 @@ dependencies = [
  "alloy",
  "alloy-chains",
  "alloy-primitives",
+ "amms",
  "angstrom-amm-quoter",
  "angstrom-eth",
  "angstrom-metrics",
@@ -1119,6 +1129,7 @@ name = "angstrom-amm-quoter"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "amms",
  "angstrom-types",
  "eyre",
  "futures",
@@ -3132,6 +3143,7 @@ name = "consensus"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "amms",
  "angstrom-metrics",
  "angstrom-network",
  "angstrom-types",
@@ -12701,6 +12713,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rpc-types",
  "alloy-sol-types",
+ "amms",
  "angstrom",
  "angstrom-amm-quoter",
  "angstrom-eth",
@@ -13617,6 +13630,7 @@ name = "validation"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "amms",
  "angstrom-metrics",
  "angstrom-network",
  "angstrom-types",

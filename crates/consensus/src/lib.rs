@@ -7,7 +7,7 @@ pub mod rounds;
 use std::{collections::HashSet, pin::Pin, time::Duration};
 
 use alloy::primitives::{Address, Bytes};
-use balancer_v3::balancer::pool_manager::SyncedBalancerPools;
+pub use amms::SyncedPools;
 use futures::{Stream, StreamExt};
 pub use leader_selection::AngstromValidator;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,6 @@ use tokio::sync::{
     oneshot
 };
 use tokio_stream::wrappers::ReceiverStream;
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 #[derive(Debug, Clone, Copy, clap::Args, Serialize, Deserialize)]
 pub struct ConsensusTimingConfig {
@@ -139,12 +138,6 @@ impl ConsensusHandler {
             _ => unreachable!()
         }))
     }
-}
-
-#[derive(Clone)]
-pub enum SyncedPools {
-    Uniswap(SyncedUniswapPools),
-    Balancer(SyncedBalancerPools)
 }
 
 pub enum ConsensusRequest {

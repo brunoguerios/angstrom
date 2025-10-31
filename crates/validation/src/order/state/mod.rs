@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use account::UserAccountProcessor;
 use alloy::primitives::{Address, B256};
+use amms::SyncedPools;
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::{
     primitive::{OrderValidationError, UserAccountVerificationError, UserOrderPoolInfo},
@@ -16,7 +17,6 @@ use db_state_utils::StateFetchUtils;
 use order_validators::{ORDER_VALIDATORS, OrderValidation, OrderValidationState};
 use parking_lot::RwLock;
 use pools::PoolsTracker;
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
 use super::OrderValidationResults;
 
@@ -36,9 +36,9 @@ pub struct StateValidation<Pools, Fetch> {
     /// tracks everything user related.
     pub(crate) user_account_tracker: Arc<UserAccountProcessor<Fetch>>,
     /// tracks all info about the current angstrom pool state.
-    pool_tacker:                     Arc<RwLock<Pools>>,
+    pool_tacker: Arc<RwLock<Pools>>,
     /// keeps up-to-date with the on-chain pool
-    uniswap_pools:                   SyncedUniswapPools
+    amm_pools: SyncedPools
 }
 
 impl<Pools, Fetch> Clone for StateValidation<Pools, Fetch> {
@@ -46,7 +46,7 @@ impl<Pools, Fetch> Clone for StateValidation<Pools, Fetch> {
         Self {
             user_account_tracker: Arc::clone(&self.user_account_tracker),
             pool_tacker:          Arc::clone(&self.pool_tacker),
-            uniswap_pools:        self.uniswap_pools.clone()
+            amm_pools:            self.amm_pools.clone()
         }
     }
 }
@@ -55,12 +55,12 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
     pub fn new(
         user_account_tracker: UserAccountProcessor<Fetch>,
         pools: Pools,
-        uniswap_pools: SyncedUniswapPools
+        amm_pools: SyncedPools
     ) -> Self {
         Self {
             pool_tacker: Arc::new(RwLock::new(pools)),
             user_account_tracker: Arc::new(user_account_tracker),
-            uniswap_pools
+            amm_pools
         }
     }
 
@@ -149,14 +149,18 @@ impl<Pools: PoolsTracker, Fetch: StateFetchUtils> StateValidation<Pools, Fetch> 
             let pool_address = pool_info.pool_id;
             // lifetimes :(
             let with_storage = OrderWithStorageData::with_default(order.clone());
-            let total_reward = metrics
-                .v4_sim(async || {
-                    self.uniswap_pools
-                        .calculate_rewards(pool_address, &with_storage)
-                        .await
-                        .map_err(|_| UserAccountVerificationError::InvalidToBSwap)
-                })
-                .await?;
+            let total_reward = if let Some(uniswap_pools) = self.amm_pools.as_uniswap() {
+                metrics
+                    .v4_sim(async || {
+                        uniswap_pools
+                            .calculate_rewards(pool_address, &with_storage)
+                            .await
+                            .map_err(|_| UserAccountVerificationError::InvalidToBSwap)
+                    })
+                    .await?
+            } else {
+                0
+            };
 
             // given the price is always t1 / t0,
             let rewards_in_token_in = if order.is_bid() {
@@ -176,6 +180,7 @@ mod test {
     use std::sync::Arc;
 
     use alloy::primitives::U256;
+    use amms::SyncedPools;
     use dashmap::DashMap;
     use testing_tools::type_generator::orders::UserOrderBuilder;
     use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
@@ -190,8 +195,11 @@ mod test {
         let mock_fetch = MockFetch::default();
         let (tx, _) = tokio::sync::mpsc::channel(10);
         let pools = SyncedUniswapPools::new(Arc::new(DashMap::new()), tx);
-        let validator =
-            StateValidation::new(UserAccountProcessor::new(mock_fetch), mock_pools, pools);
+        let validator = StateValidation::new(
+            UserAccountProcessor::new(mock_fetch),
+            mock_pools,
+            SyncedPools::Uniswap(pools)
+        );
 
         let order = UserOrderBuilder::new()
             .standing()

@@ -11,7 +11,6 @@ use angstrom_types::{pair_with_price::PairsWithPrice, reth_db_wrapper::SetBlock}
 use futures::{FutureExt, Stream};
 use reth_provider::BlockNumReader;
 use tokio::sync::mpsc::UnboundedReceiver;
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 use validation::{
     bundle::BundleValidator,
     common::{
@@ -28,6 +27,7 @@ use validation::{
     },
     validator::{ValidationClient, ValidationRequest, Validator}
 };
+use amms::SyncedPools;
 
 type ValidatorOperation<DB, T> =
     dyn FnOnce(
@@ -63,7 +63,7 @@ where
         validator_rx: UnboundedReceiver<ValidationRequest>,
         angstrom_address: Address,
         node_address: Address,
-        uniswap_pools: SyncedUniswapPools,
+        amm_pools: SyncedPools,
         token_conversion: TokenPriceGenerator,
         token_updates: Pin<
             Box<dyn Stream<Item = (u64, u128, Vec<PairsWithPrice>)> + Send + 'static>
@@ -81,7 +81,7 @@ where
         let sim = SimValidation::new(db.clone(), angstrom_address, node_address);
 
         let order_validator =
-            OrderValidator::new(sim, current_block, pool_storage, fetch, uniswap_pools).await;
+            OrderValidator::new(sim, current_block, pool_storage, fetch, amm_pools).await;
 
         let bundle_validator = BundleValidator::new(db.clone(), angstrom_address, node_address);
         let shared_utils = SharedTools::new(token_conversion, token_updates, thread_pool);
