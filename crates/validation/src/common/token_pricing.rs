@@ -7,13 +7,14 @@ use alloy::{
     primitives::{Address, U256, address},
     providers::Provider
 };
+use amms::SyncedPools;
 use angstrom_types::{
     matching::SqrtPriceX96, orders::UpdatedGas, pair_with_price::PairsWithPrice, primitive::PoolId,
     sol_bindings::Ray
 };
 use futures::StreamExt;
 use tracing::warn;
-use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
+use uniswap_v4::uniswap::pool_data_loader::PoolDataLoader;
 
 use crate::order::sim::{
     BOOK_GAS, BOOK_GAS_INTERNAL, SWITCH_WEI, TOB_GAS_INTERNAL_NORMAL, TOB_GAS_INTERNAL_SUB,
@@ -33,7 +34,7 @@ pub const WETH_ADDRESS: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c75
 /// this allows for a simple lookup.
 #[derive(Clone)]
 pub struct TokenPriceGenerator {
-    uniswap_pools:       SyncedUniswapPools,
+    synced_pools:        SyncedPools,
     prev_prices:         HashMap<PoolId, VecDeque<PairsWithPrice>>,
     pair_to_pool:        HashMap<(Address, Address), PoolId>,
     /// the token that is the wrapped version of the gas token on the given
@@ -46,19 +47,22 @@ pub struct TokenPriceGenerator {
 
 impl TokenPriceGenerator {
     pub fn from_snapshot(
-        uniswap_pools: SyncedUniswapPools,
+        synced_pools: SyncedPools,
         prev_prices: HashMap<PoolId, VecDeque<PairsWithPrice>>,
         base_gas_token: Address,
         base_wei: u128
     ) -> Self {
-        let pair_to_pool = uniswap_pools
-            .iter()
-            .map(|p| {
-                let key = p.key();
-                let pool = p.value().read().unwrap();
-                ((pool.token0, pool.token1), *key)
-            })
-            .collect::<HashMap<(Address, Address), PoolId>>();
+        let pair_to_pool = match &synced_pools {
+            SyncedPools::Uniswap(uniswap_pools) => uniswap_pools
+                .iter()
+                .map(|p| {
+                    let key = p.key();
+                    let pool = p.value().read().unwrap();
+                    ((pool.token0, pool.token1), *key)
+                })
+                .collect::<HashMap<(Address, Address), PoolId>>(),
+            SyncedPools::Balancer(_) => HashMap::default()
+        };
 
         let mut avg = 0;
         let remapped_prices = prev_prices
@@ -75,7 +79,7 @@ impl TokenPriceGenerator {
 
         Self {
             current_block: 0,
-            uniswap_pools,
+            synced_pools,
             prev_prices: remapped_prices,
             pair_to_pool,
             base_gas_token,
@@ -93,78 +97,107 @@ impl TokenPriceGenerator {
     pub async fn new<P: Provider>(
         provider: Arc<P>,
         current_block: u64,
-        uni: SyncedUniswapPools,
+        synced_pools: SyncedPools,
         base_gas_token: Address,
         blocks_to_avg_price_override: Option<u64>
     ) -> eyre::Result<Self> {
-        let mut pair_to_pool = HashMap::default();
-        for id in uni.iter() {
-            let key = id.key();
-            let pool = id.value();
-            let pool = pool.read().unwrap();
-            pair_to_pool.insert((pool.token0, pool.token1), *key);
-            pair_to_pool.insert((pool.token1, pool.token0), *key);
-        }
         let new_gas_wei = provider.get_gas_price().await.unwrap_or_default();
-
         let blocks_to_avg_price = blocks_to_avg_price_override.unwrap_or(BLOCKS_TO_AVG_PRICE);
-        // for each pool, we want to load the last 5 blocks and get the sqrt_price_96
-        // and then convert it into the price of the underlying pool
-        let pools = futures::stream::iter(uni.iter())
-            .map(|id| {
-                let pool_key = *id.key();
-                let pool = id.value().clone();
-                let provider = provider.clone();
 
-                async move {
-                    let mut queue = VecDeque::new();
-                    // scoping
-                    let data_loader = {
-                        let pool_read = pool.read().unwrap();
-                        let data_loader = pool_read.data_loader();
-                        drop(pool_read);
-                        data_loader
-                    };
-
-                    for block_number in
-                        current_block.saturating_sub(blocks_to_avg_price)..current_block
-                    {
-                        tracing::debug!(block_number, current_block, ?pool_key, "loading pool");
-                        let pool_data = data_loader
-                            .load_pool_data(Some(block_number), provider.clone())
-                            .await
-                            .expect("failed to load historical price for token price conversion");
-                        tracing::debug!(?pool_data, "Loaded data");
-
-                        // price as ray
-                        let price = pool_data.get_raw_price();
-
-                        queue.push_back(PairsWithPrice {
-                            token0:         pool_data.tokenA,
-                            token1:         pool_data.tokenB,
-                            price_1_over_0: price
-                        });
-                    }
-
-                    (pool_key, queue)
+        match &synced_pools {
+            SyncedPools::Uniswap(uni) => {
+                let mut pair_to_pool = HashMap::default();
+                for id in uni.iter() {
+                    let key = id.key();
+                    let pool = id.value();
+                    let pool = pool.read().unwrap();
+                    pair_to_pool.insert((pool.token0, pool.token1), *key);
+                    pair_to_pool.insert((pool.token1, pool.token0), *key);
                 }
-            })
-            .fold(HashMap::default(), |mut acc, x| async {
-                let (key, prices) = x.await;
-                acc.insert(key, prices);
-                acc
-            })
-            .await;
 
-        Ok(Self {
-            current_block,
-            prev_prices: pools,
-            base_gas_token,
-            pair_to_pool,
-            blocks_to_avg_price,
-            uniswap_pools: uni,
-            base_wei: new_gas_wei
-        })
+                // for each pool, we want to load the last 5 blocks and get the sqrt_price_96
+                // and then convert it into the price of the underlying pool
+                let pools = futures::stream::iter(uni.iter())
+                    .map(|id| {
+                        let pool_key = *id.key();
+                        let pool = id.value().clone();
+                        let provider = provider.clone();
+
+                        async move {
+                            let mut queue = VecDeque::new();
+                            // scoping
+                            let data_loader = {
+                                let pool_read = pool.read().unwrap();
+                                let data_loader = pool_read.data_loader();
+                                drop(pool_read);
+                                data_loader
+                            };
+
+                            for block_number in
+                                current_block.saturating_sub(blocks_to_avg_price)..current_block
+                            {
+                                tracing::debug!(
+                                    block_number,
+                                    current_block,
+                                    ?pool_key,
+                                    "loading pool"
+                                );
+                                let pool_data = data_loader
+                                    .load_pool_data(Some(block_number), provider.clone())
+                                    .await
+                                    .expect(
+                                        "failed to load historical price for token price \
+                                         conversion"
+                                    );
+                                tracing::debug!(?pool_data, "Loaded data");
+
+                                // price as ray
+                                let price = pool_data.get_raw_price();
+
+                                queue.push_back(PairsWithPrice {
+                                    token0:         pool_data.tokenA,
+                                    token1:         pool_data.tokenB,
+                                    price_1_over_0: price
+                                });
+                            }
+
+                            (pool_key, queue)
+                        }
+                    })
+                    .fold(HashMap::default(), |mut acc, x| async {
+                        let (key, prices) = x.await;
+                        acc.insert(key, prices);
+                        acc
+                    })
+                    .await;
+
+                Ok(Self {
+                    current_block,
+                    prev_prices: pools,
+                    base_gas_token,
+                    pair_to_pool,
+                    blocks_to_avg_price,
+                    synced_pools,
+                    base_wei: new_gas_wei
+                })
+            }
+            SyncedPools::Balancer(_balancer_pools) => {
+                // For Balancer, we start with empty price history
+                // Prices will be populated via apply_update from PairsWithPrice stream
+                let prev_prices = HashMap::default();
+                let pair_to_pool = HashMap::default();
+
+                Ok(Self {
+                    current_block,
+                    prev_prices,
+                    base_gas_token,
+                    pair_to_pool,
+                    blocks_to_avg_price,
+                    synced_pools,
+                    base_wei: new_gas_wei
+                })
+            }
+        }
     }
 
     pub fn current_block(&self) -> u64 {
@@ -211,47 +244,58 @@ impl TokenPriceGenerator {
         self.current_block = new_block;
 
         for mut pool_update in updates {
-            let pool_key = if let Some(p) = self
+            let pool_key = if let Some(existing) = self
                 .pair_to_pool
                 .get(&(pool_update.token0, pool_update.token1))
             {
-                *p
+                *existing
             } else {
-                let pk = self
-                    .uniswap_pools
-                    .iter()
-                    .find_map(|val| {
+                let resolved = match &self.synced_pools {
+                    SyncedPools::Uniswap(uniswap_pools) => uniswap_pools.iter().find_map(|val| {
                         let (pool_key, pool) = val.pair();
-                        let (t0, t1) = {
+                        let tokens = {
                             let pool_read = pool.read().unwrap();
-                            let ts = (pool_read.token0, pool_read.token1);
-                            drop(pool_read);
-                            ts
+                            (pool_read.token0, pool_read.token1)
                         };
-                        (t0 == pool_update.token0 && t1 == pool_update.token1).then_some(*pool_key)
-                    })
-                    .expect("got pool update that we don't have a pool for in uniswap stored");
+                        (tokens.0 == pool_update.token0 && tokens.1 == pool_update.token1)
+                            .then_some(*pool_key)
+                    }),
+                    SyncedPools::Balancer(pools) => {
+                        let _ = pools.iter();
+                        None
+                    }
+                };
+
+                let Some(pk) = resolved else {
+                    continue;
+                };
 
                 self.pair_to_pool
                     .insert((pool_update.token0, pool_update.token1), pk);
                 self.pair_to_pool
                     .insert((pool_update.token1, pool_update.token0), pk);
-
-                self.prev_prices.insert(pk, VecDeque::new());
                 pk
             };
 
             updated_pool_keys.push(pool_key);
             let prev_prices = self
                 .prev_prices
-                .get_mut(&pool_key)
-                .expect("don't have prev_prices for update");
+                .entry(pool_key)
+                .or_insert_with(VecDeque::new);
 
-            pool_update.replace_price_if_empty(|| {
-                self.uniswap_pools
+            pool_update.replace_price_if_empty(|| match &self.synced_pools {
+                SyncedPools::Uniswap(uniswap_pools) => uniswap_pools
                     .get(&pool_key)
                     .map(|pool| Ray::from(SqrtPriceX96::from(pool.read().unwrap().sqrt_price_x96)))
-                    .unwrap_or_default()
+                    .or_else(|| prev_prices.back().map(|price| price.price_1_over_0))
+                    .unwrap_or_default(),
+                SyncedPools::Balancer(pools) => {
+                    let _ = pools.iter();
+                    prev_prices
+                        .back()
+                        .map(|price| price.price_1_over_0)
+                        .unwrap_or_else(|| Ray::scale_to_ray(U256::from(1)))
+                }
             });
 
             if !pool_update.price_1_over_0.is_zero() {
@@ -282,39 +326,44 @@ impl TokenPriceGenerator {
         // given that we have added new pools that we got updates for,
         // we also want to make sure to add new pools that haven't been updated
         // as trading is not eligible since there's no price. Kinda a catch 22
-        let remove_keys = self
-            .prev_prices
-            .keys()
-            .copied()
-            .filter(|f| !self.uniswap_pools.contains_key(f))
-            .collect::<Vec<_>>();
+        let remove_keys = match &self.synced_pools {
+            SyncedPools::Uniswap(uniswap_pools) => self
+                .prev_prices
+                .keys()
+                .copied()
+                .filter(|f| !uniswap_pools.contains_key(f))
+                .collect::<Vec<_>>(),
+            SyncedPools::Balancer(pools) => {
+                let _ = pools.iter();
+                Vec::new()
+            }
+        };
 
         for key in remove_keys {
             self.prev_prices.remove(&key);
             self.pair_to_pool.retain(|_, v| *v != key);
         }
 
-        // look at all pools uniswap contains. we want to remove
-        self.uniswap_pools.iter().for_each(|entry| {
-            let (key, pool) = entry.pair();
-            // already have
-            if self.prev_prices.contains_key(key) {
-                return;
-            }
-            // new
-            let pool_r = pool.read().unwrap();
-            let price: Ray = SqrtPriceX96::from(pool_r.sqrt_price_x96).into();
+        if let SyncedPools::Uniswap(uniswap_pools) = &self.synced_pools {
+            uniswap_pools.iter().for_each(|entry| {
+                let (key, pool) = entry.pair();
+                if self.prev_prices.contains_key(key) {
+                    return;
+                }
+                let pool_r = pool.read().unwrap();
+                let price: Ray = SqrtPriceX96::from(pool_r.sqrt_price_x96).into();
 
-            let mut queue = VecDeque::new();
-            queue.push_back(PairsWithPrice {
-                token0:         pool_r.token0,
-                token1:         pool_r.token1,
-                price_1_over_0: price
+                let mut queue = VecDeque::new();
+                queue.push_back(PairsWithPrice {
+                    token0:         pool_r.token0,
+                    token1:         pool_r.token1,
+                    price_1_over_0: price
+                });
+                self.prev_prices.insert(*key, queue);
+                self.pair_to_pool
+                    .insert((pool_r.token0, pool_r.token1), *key);
             });
-            self.prev_prices.insert(*key, queue);
-            self.pair_to_pool
-                .insert((pool_r.token0, pool_r.token1), *key);
-        });
+        }
     }
 
     pub fn new_pool_update(
@@ -432,10 +481,7 @@ impl TokenPriceGenerator {
         } else if let Some(key) = self.pair_to_pool.get(&(token_0_hop2, token_1_hop2)) {
             // because we are going through token1 here and we want token zero, we need to
             // do some extra math
-            let default_pool_key = self
-                .pair_to_pool
-                .get(&(token_0, token_1))
-                .expect("got pool update that we don't have stored");
+            let default_pool_key = self.pair_to_pool.get(&(token_0, token_1))?;
 
             let prices = self.prev_prices.get(default_pool_key)?;
             let size = prices.len() as u64;
@@ -507,9 +553,9 @@ pub mod test {
     };
     use angstrom_types::{pair_with_price::PairsWithPrice, sol_bindings::Ray};
     use revm::primitives::address;
-    use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 
     use super::{BLOCKS_TO_AVG_PRICE, TokenPriceGenerator, WETH_ADDRESS};
+    use crate::common::SyncedPools;
 
     const TOKEN0: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
     const TOKEN1: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc3");
@@ -590,10 +636,7 @@ pub mod test {
             base_gas_token:      WETH_ADDRESS,
             pair_to_pool:        pairs_to_key,
             blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
-            uniswap_pools:       SyncedUniswapPools::new(
-                Default::default(),
-                tokio::sync::mpsc::channel(1).0
-            )
+            synced_pools:        SyncedPools::default_uniswap()
         }
     }
 
@@ -730,10 +773,7 @@ pub mod test {
             base_gas_token:      WETH_ADDRESS,
             pair_to_pool:        HashMap::default(),
             blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
-            uniswap_pools:       SyncedUniswapPools::new(
-                Default::default(),
-                tokio::sync::mpsc::channel(1).0
-            )
+            synced_pools:        SyncedPools::default_uniswap()
         };
 
         // Test direct WETH case (should still work)
@@ -806,10 +846,7 @@ pub mod test {
             base_gas_token:      WETH_ADDRESS,
             pair_to_pool:        pairs_to_key,
             blocks_to_avg_price: BLOCKS_TO_AVG_PRICE,
-            uniswap_pools:       SyncedUniswapPools::new(
-                Default::default(),
-                tokio::sync::mpsc::channel(1).0
-            )
+            synced_pools:        SyncedPools::default_uniswap()
         }
     }
 

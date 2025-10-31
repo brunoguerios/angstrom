@@ -6,6 +6,7 @@ use std::{
 
 use alloy::{self, eips::BlockId, network::Network, primitives::Address, providers::Provider};
 use alloy_primitives::U256;
+use amms::SyncedPools;
 use angstrom::components::StromHandles;
 use angstrom_eth::manager::EthEvent;
 use angstrom_network::{PoolManagerBuilder, StromNetworkHandle, pool_manager::PoolHandle};
@@ -23,7 +24,7 @@ use angstrom_types::{
     primitive::{AngstromSigner, UniswapPoolRegistry},
     submission::SubmissionHandler
 };
-use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps, SyncedPools};
+use consensus::{AngstromValidator, ConsensusManager, ManagerNetworkDeps};
 use dashmap::DashMap;
 use eyre::eyre;
 use futures::{Stream, StreamExt};
@@ -224,7 +225,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
     let price_generator = TokenPriceGenerator::new(
         provider.rpc_provider().into(),
         block_id,
-        uniswap_pools.clone(),
+        SyncedPools::Uniswap(uniswap_pools.clone()),
         gas_token,
         Some(1)
     )
@@ -247,7 +248,7 @@ pub async fn initialize_strom_components_at_block<Provider: WithWalletProvider>(
         // Because this is incapsulated under the orderpool syncer. this is the only case
         // we can use the raw stream.
         update_stream,
-        uniswap_pools.clone(),
+        SyncedPools::Uniswap(uniswap_pools.clone()),
         price_generator,
         pool_config.clone(),
         handles.validator_rx

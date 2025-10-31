@@ -14,6 +14,7 @@ use alloy::{
     providers::{Provider, ProviderBuilder, network::Ethereum}
 };
 use alloy_chains::Chain;
+use amms::SyncedPools;
 use angstrom_amm_quoter::{QuoterManager, Slot0Update};
 use angstrom_eth::{
     handle::{Eth, EthCommand},
@@ -38,9 +39,7 @@ use angstrom_types::{
     reth_db_wrapper::RethDbWrapper,
     submission::SubmissionHandler
 };
-use consensus::{
-    AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps, SyncedPools
-};
+use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
 use futures::Stream;
 use matching_engine::{MatchingManager, manager::MatcherCommand};
 use order_pool::{PoolConfig, PoolManagerUpdate, order_storage::OrderStorage};
@@ -65,10 +64,7 @@ use tokio::sync::{
     mpsc,
     mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel}
 };
-use uniswap_v4::{
-    DEFAULT_TICKS, configure_uniswap_manager, fetch_angstrom_pools,
-    uniswap::pool_manager::SyncedUniswapPools
-};
+use uniswap_v4::{DEFAULT_TICKS, configure_uniswap_manager, fetch_angstrom_pools};
 use url::Url;
 use validation::{
     common::TokenPriceGenerator,
@@ -387,19 +383,33 @@ where
         (uni_ang_registry.clone(), Some(uniswap_pools), None, pool_ids)
     };
 
-    // Only start Uniswap-specific services in Uniswap mode
-    if amm_mode != "balancer" {
-        let uniswap_pools = uniswap_pools_opt.as_ref().unwrap().clone();
-        let _price_generator = TokenPriceGenerator::new(
-            querying_provider.clone(),
-            block_id,
-            uniswap_pools.clone(),
-            gas_token,
-            None
+    let block_height = node.provider.best_block_number().unwrap();
+
+    // Validation initialization - unified with single constructor
+    let amm_pools = if amm_mode == "balancer" {
+        SyncedPools::Balancer(
+            balancer_pools_opt
+                .clone()
+                .expect("balancer pools should be initialized in balancer mode")
         )
-        .await
-        .expect("failed to start token price generator");
-    }
+    } else {
+        SyncedPools::Uniswap(
+            uniswap_pools_opt
+                .as_ref()
+                .expect("uniswap pools should be initialized")
+                .clone()
+        )
+    };
+
+    let price_generator = TokenPriceGenerator::new(
+        querying_provider.clone(),
+        block_id,
+        amm_pools.clone(),
+        gas_token,
+        None
+    )
+    .await
+    .expect("failed to start token price generator");
 
     let update_stream = Box::pin(PairsWithPrice::into_price_update_stream(
         angstrom_address,
@@ -407,31 +417,17 @@ where
         querying_provider.clone()
     ));
 
-    let block_height = node.provider.best_block_number().unwrap();
-
-    if amm_mode != "balancer" {
-        let uniswap_pools = uniswap_pools_opt.as_ref().unwrap().clone();
-        init_validation(
-            RethDbWrapper::new(node.provider.clone(), block_height),
-            block_height,
-            angstrom_address,
-            node_address,
-            update_stream,
-            uniswap_pools.clone(),
-            // price generator only used in uniswap path
-            TokenPriceGenerator::new(
-                querying_provider.clone(),
-                block_id,
-                uniswap_pools.clone(),
-                gas_token,
-                None
-            )
-            .await
-            .expect("failed to start token price generator"),
-            pool_config_store.clone(),
-            handles.validator_rx
-        );
-    }
+    init_validation(
+        RethDbWrapper::new(node.provider.clone(), block_height),
+        block_height,
+        angstrom_address,
+        node_address,
+        update_stream,
+        amm_pools,
+        price_generator,
+        pool_config_store.clone(),
+        handles.validator_rx
+    );
 
     let validation_handle = ValidationClient(handles.validator_tx.clone());
     tracing::info!("validation manager start");
@@ -473,24 +469,36 @@ where
     // spinup matching engine
     let matching_handle = MatchingManager::spawn(executor.clone(), validation_handle.clone());
 
-    // spin up amm quoter
-    if amm_mode != "balancer" {
-        let uniswap_pools = uniswap_pools_opt.as_ref().unwrap().clone();
-        let amm = QuoterManager::new(
-            global_block_sync.clone(),
-            order_storage.clone(),
-            handles.quoter_rx,
-            uniswap_pools.clone(),
-            rayon::ThreadPoolBuilder::default()
-                .num_threads(6)
-                .build()
-                .expect("failed to build rayon thread pool"),
-            Duration::from_millis(100),
-            consensus_client.subscribe_consensus_round_event()
-        );
+    // spin up amm quoter - unified with single constructor
+    let quoter_amm_pools = if amm_mode == "balancer" {
+        SyncedPools::Balancer(
+            balancer_pools_opt
+                .clone()
+                .expect("balancer pools should be initialized in balancer mode")
+        )
+    } else {
+        SyncedPools::Uniswap(
+            uniswap_pools_opt
+                .as_ref()
+                .expect("uniswap pools should be initialized")
+                .clone()
+        )
+    };
 
-        executor.spawn_critical("amm quoting service", amm);
-    }
+    let amm = QuoterManager::new(
+        global_block_sync.clone(),
+        order_storage.clone(),
+        handles.quoter_rx,
+        quoter_amm_pools,
+        rayon::ThreadPoolBuilder::default()
+            .num_threads(6)
+            .build()
+            .expect("failed to build rayon thread pool"),
+        Duration::from_millis(100),
+        consensus_client.subscribe_consensus_round_event()
+    );
+
+    executor.spawn_critical("amm quoting service", amm);
 
     // Compute SyncedPools for consensus
     let synced_pools = if let Some(b) = balancer_pools_opt.clone() {

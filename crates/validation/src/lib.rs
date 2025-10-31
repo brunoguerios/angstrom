@@ -19,7 +19,6 @@ use bundle::BundleValidator;
 use common::SharedTools;
 use futures::Stream;
 use tokio::sync::mpsc::UnboundedReceiver;
-use uniswap_v4::uniswap::pool_manager::SyncedUniswapPools;
 use validator::Validator;
 
 pub use crate::order::state::db_state_utils::finders::{
@@ -34,6 +33,7 @@ use crate::{
     },
     validator::{ValidationClient, ValidationRequest}
 };
+use amms::SyncedPools;
 
 const MAX_VALIDATION_PER_ADDR: usize = 3;
 
@@ -53,7 +53,7 @@ pub fn init_validation<
     angstrom_address: Address,
     node_address: Address,
     update_stream: Pin<Box<dyn Stream<Item = (u64, u128, Vec<PairsWithPrice>)> + Send + 'static>>,
-    uniswap_pools: SyncedUniswapPools,
+    amm_pools: SyncedPools,
     price_generator: TokenPriceGenerator,
     pool_store: Arc<AngstromPoolConfigStore>,
     validator_rx: UnboundedReceiver<ValidationRequest>
@@ -66,7 +66,7 @@ pub fn init_validation<
         angstrom_address,
         node_address,
         update_stream,
-        uniswap_pools,
+        amm_pools,
         price_generator,
         pool_store,
         validator_rx,
@@ -90,7 +90,7 @@ pub fn init_validation_replay<
     angstrom_address: Address,
     node_address: Address,
     update_stream: Pin<Box<dyn Stream<Item = (u64, u128, Vec<PairsWithPrice>)> + Send + 'static>>,
-    uniswap_pools: SyncedUniswapPools,
+    amm_pools: SyncedPools,
     price_generator: TokenPriceGenerator,
     pool_store: Arc<AngstromPoolConfigStore>,
     validator_rx: UnboundedReceiver<ValidationRequest>,
@@ -116,7 +116,7 @@ pub fn init_validation_replay<
         let sim = SimValidation::new(revm_lru.clone(), angstrom_address, node_address);
 
         let order_validator =
-            rt.block_on(OrderValidator::new(sim, current_block, pools, fetch, uniswap_pools));
+            rt.block_on(OrderValidator::new(sim, current_block, pools, fetch, amm_pools));
 
         let bundle_validator =
             BundleValidator::new(revm_lru.clone(), angstrom_address, node_address);

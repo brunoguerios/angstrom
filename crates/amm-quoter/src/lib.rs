@@ -8,14 +8,14 @@ use std::{
 };
 
 use alloy::primitives::U160;
+pub use amms::SyncedPools;
 use angstrom_types::{
     amm::PoolState,
     block_sync::BlockSyncConsumer,
     consensus::{ConsensusRoundEvent, ConsensusRoundOrderHashes},
     orders::OrderSet,
     primitive::PoolId,
-    sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder},
-    uni_structure::UniswapPoolState
+    sol_bindings::{grouped_orders::AllOrders, rpc_orders::TopOfBlockOrder}
 };
 use futures::{
     FutureExt, Stream, StreamExt, TryFutureExt, future::BoxFuture, stream::FuturesUnordered
@@ -33,7 +33,7 @@ use tokio::{
     time::{Interval, interval}
 };
 use tokio_stream::wrappers::ReceiverStream;
-use uniswap_v4::uniswap::{pool_data_loader::PoolDataLoader, pool_manager::SyncedUniswapPools};
+use uniswap_v4::uniswap::pool_data_loader::PoolDataLoader;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Slot0Update {
@@ -71,15 +71,21 @@ impl AngstromBookQuoter for QuoterHandle {
     }
 }
 
+#[derive(Clone)]
+struct SnapshotRecord {
+    source_pool_id: PoolId,
+    pool_state:     PoolState
+}
+
 pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
     cur_block: u64,
     seq_id: u16,
     block_sync: BlockSync,
     orders: Arc<OrderStorage>,
-    amms: SyncedUniswapPools,
+    amm_pools: SyncedPools,
     threadpool: ThreadPool,
     recv: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
-    book_snapshots: HashMap<PoolId, (PoolId, UniswapPoolState)>,
+    book_snapshots: HashMap<PoolId, SnapshotRecord>,
     pending_tasks: FuturesUnordered<BoxFuture<'static, eyre::Result<Slot0Update>>>,
     pool_to_subscribers: HashMap<PoolId, Vec<mpsc::Sender<Slot0Update>>>,
     consensus_stream: Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>>,
@@ -93,29 +99,57 @@ pub struct QuoterManager<BlockSync: BlockSyncConsumer> {
 }
 
 impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
+    fn build_book_snapshots(amm_pools: &SyncedPools) -> HashMap<PoolId, SnapshotRecord> {
+        match amm_pools {
+            SyncedPools::Uniswap(uniswap_pools) => uniswap_pools
+                .iter()
+                .map(|entry| {
+                    let pool_lock = entry.value().read().unwrap();
+                    let public_key = pool_lock.public_address();
+                    let private_key = pool_lock.data_loader().private_address();
+                    let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
+
+                    (
+                        public_key,
+                        SnapshotRecord {
+                            source_pool_id: private_key,
+                            pool_state:     PoolState::Uniswap(snapshot_data)
+                        }
+                    )
+                })
+                .collect(),
+            SyncedPools::Balancer(balancer_pools) => balancer_pools
+                .iter()
+                .map(|entry| {
+                    let key = *entry.key();
+                    let pool_guard = entry.value().read().expect("balancer pool lock");
+                    let pool_state = pool_guard.clone();
+
+                    (
+                        key,
+                        SnapshotRecord {
+                            source_pool_id: key,
+                            pool_state:     PoolState::Balancer(pool_state)
+                        }
+                    )
+                })
+                .collect()
+        }
+    }
+
     /// ensure that we haven't registered on the BlockSync.
     /// We just want to ensure that we don't access during a update period
     pub fn new(
         block_sync: BlockSync,
         orders: Arc<OrderStorage>,
         recv: mpsc::Receiver<(HashSet<PoolId>, mpsc::Sender<Slot0Update>)>,
-        amms: SyncedUniswapPools,
+        amm_pools: SyncedPools,
         threadpool: ThreadPool,
         update_interval: Duration,
         consensus_stream: Pin<Box<dyn Stream<Item = ConsensusRoundOrderHashes> + Send>>
     ) -> Self {
         let cur_block = block_sync.current_block_number();
-        let book_snapshots = amms
-            .iter()
-            .map(|entry| {
-                let pool_lock = entry.value().read().unwrap();
-
-                let pk = pool_lock.public_address();
-                let uni_key = pool_lock.data_loader().private_address();
-                let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
-                (pk, (uni_key, snapshot_data))
-            })
-            .collect();
+        let book_snapshots = Self::build_book_snapshots(&amm_pools);
 
         assert!(
             update_interval > Duration::from_millis(10),
@@ -126,7 +160,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
             seq_id: 0,
             block_sync,
             orders,
-            amms,
+            amm_pools,
             recv,
             cur_block,
             book_snapshots,
@@ -143,9 +177,11 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
         let keys = self
             .book_snapshots
             .iter()
-            .flat_map(|(ang_key, (uni_key, _))| [ang_key, uni_key])
-            .copied()
-            .collect::<HashSet<_>>();
+            .fold(HashSet::new(), |mut acc, (ang_key, record)| {
+                acc.insert(*ang_key);
+                acc.insert(record.source_pool_id);
+                acc
+            });
 
         for pool in &pools {
             if !keys.contains(pool) {
@@ -198,17 +234,17 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
                 acc
             });
 
-        for (book_id, (uni_pool_id, amm)) in &self.book_snapshots {
+        for (book_id, record) in &self.book_snapshots {
             // Default as if we don't have a book, we want to still send update.
             let mut book = books.remove(book_id).unwrap_or_default();
             book.id = *book_id;
-            book.set_amm_if_missing(|| PoolState::Uniswap(amm.clone()));
+            let pool_state = record.pool_state.clone();
+            book.set_amm_if_missing(|| pool_state.clone());
 
             let searcher = searcher_orders.get(&book.id()).cloned();
             let (tx, rx) = oneshot::channel();
             let block = self.cur_block;
-
-            let uni_pool_id = *uni_pool_id;
+            let source_pool_id = record.source_pool_id;
 
             self.threadpool.spawn(move || {
                 let b = book;
@@ -218,7 +254,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
                     current_block: block,
                     seq_id,
                     angstrom_pool_id: b.id(),
-                    uni_pool_id,
+                    uni_pool_id: source_pool_id,
                     liquidity,
                     sqrt_price_x96: sqrt_price,
                     tick
@@ -233,16 +269,7 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
     }
 
     fn update_book_state(&mut self) {
-        self.book_snapshots = self
-            .amms
-            .iter()
-            .map(|entry| {
-                let pool_lock = entry.value().read().unwrap();
-                let uni_key = pool_lock.data_loader().private_address();
-                let snapshot_data = pool_lock.fetch_pool_snapshot().unwrap().2;
-                (*entry.key(), (uni_key, snapshot_data))
-            })
-            .collect();
+        self.book_snapshots = Self::build_book_snapshots(&self.amm_pools);
     }
 
     fn update_consensus_state(&mut self, round: ConsensusRoundOrderHashes) {
@@ -314,9 +341,9 @@ impl<BlockSync: BlockSyncConsumer> Future for QuoterManager<BlockSync> {
     }
 }
 
-pub fn build_non_proposal_books(
+pub(crate) fn build_non_proposal_books(
     limit: Vec<BookOrder>,
-    pool_snapshots: &HashMap<PoolId, (PoolId, UniswapPoolState)>
+    pool_snapshots: &HashMap<PoolId, SnapshotRecord>
 ) -> HashMap<PoolId, OrderBook> {
     let book_sources = orders_sorted_by_pool_id(limit);
 
@@ -325,7 +352,7 @@ pub fn build_non_proposal_books(
         .map(|(id, orders)| {
             let amm = pool_snapshots
                 .get(&id)
-                .map(|(_, pool)| PoolState::Uniswap(pool.clone()));
+                .map(|record| record.pool_state.clone());
             (id, build_book(id, amm, orders))
         })
         .collect()

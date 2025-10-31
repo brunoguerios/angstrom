@@ -32,9 +32,10 @@ use angstrom_types::{
     primitive::{AngstromSigner, UniswapPoolRegistry, try_init_with_chain_id, *},
     submission::{ChainSubmitterHolder, SubmissionHandler}
 };
+use amms::SyncedPools;
 use consensus::{
     AngstromValidator, ConsensusHandler, ConsensusManager, ConsensusTimingConfig,
-    ManagerNetworkDeps, SyncedPools
+    ManagerNetworkDeps
 };
 use futures::{Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
@@ -47,7 +48,9 @@ use telemetry_recorder::TelemetryMessage;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
 use validation::{
-    common::TokenPriceGenerator, init_validation_replay, validator::ValidationClient
+    common::TokenPriceGenerator,
+    init_validation_replay,
+    validator::ValidationClient
 };
 
 use super::fake_network::FakeNetwork;
@@ -305,7 +308,7 @@ impl ReplayRunner {
             if let Some((prev_prices, base_wei)) = block_log.gas_price_snapshot.as_ref() {
                 println!("Using snapshot");
                 TokenPriceGenerator::from_snapshot(
-                    uniswap_pools.clone(),
+                    SyncedPools::Uniswap(uniswap_pools.clone()),
                     prev_prices.clone(),
                     gas_token,
                     *base_wei
@@ -314,7 +317,7 @@ impl ReplayRunner {
                 TokenPriceGenerator::new(
                     Arc::new(anvil_provider.rpc_provider()),
                     block_number,
-                    uniswap_pools.clone(),
+                    SyncedPools::Uniswap(uniswap_pools.clone()),
                     gas_token,
                     Some(1)
                 )
@@ -342,7 +345,7 @@ impl ReplayRunner {
             angstrom_address,
             node_addr,
             token_price_update_stream,
-            uniswap_pools.clone(),
+            SyncedPools::Uniswap(uniswap_pools.clone()),
             token_conversion,
             pool_config_store.clone(),
             strom_handles.validator_rx,
@@ -455,7 +458,7 @@ impl ReplayRunner {
             global_block_sync.clone(),
             order_storage.clone(),
             strom_handles.quoter_rx,
-            uniswap_pools.clone(),
+            SyncedPools::Uniswap(uniswap_pools.clone()),
             rayon::ThreadPoolBuilder::default()
                 .num_threads(2)
                 .build()

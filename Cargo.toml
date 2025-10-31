@@ -103,6 +103,7 @@ alloy-transport-http = { version = "1.0.35", features = ["reqwest-rustls-tls"], 
 alloy-transport-ipc = { version = "1.0.35", default-features = false }
 alloy-transport-ws = { version = "1.0.35", default-features = false }
 alloy-trie = { version = "0.9.0", default-features = false }
+amms = { path = "./crates/amms/" }
 angstrom = { path = "./bin/angstrom/" }
 angstrom-amm-quoter = { path = "./crates/amm-quoter/" }
 angstrom-eth = { path = "./crates/eth/" }

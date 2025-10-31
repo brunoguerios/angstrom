@@ -8,6 +8,7 @@ use std::{
 
 use alloy::{primitives::Address, providers::Provider, signers::local::PrivateKeySigner};
 use alloy_rpc_types::BlockId;
+use amms::SyncedPools;
 use angstrom::components::StromHandles;
 use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
 use angstrom_eth::{
@@ -29,7 +30,7 @@ use angstrom_types::{
     submission::{ChainSubmitterHolder, SubmissionHandler},
     testnet::InitialTestnetState
 };
-use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps, SyncedPools};
+use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
 use futures::{Future, Stream, StreamExt};
 use jsonrpsee::server::ServerBuilder;
 use matching_engine::{MatchingManager, manager::MatcherHandle};
@@ -208,7 +209,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
         let token_conversion = if let Some((prev_prices, base_wei)) = token_price_snapshot {
             println!("Using snapshot");
             TokenPriceGenerator::from_snapshot(
-                uniswap_pools.clone(),
+                SyncedPools::Uniswap(uniswap_pools.clone()),
                 prev_prices,
                 WETH_ADDRESS,
                 base_wei
@@ -217,7 +218,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             TokenPriceGenerator::new(
                 Arc::new(state_provider.rpc_provider()),
                 block_number,
-                uniswap_pools.clone(),
+                SyncedPools::Uniswap(uniswap_pools.clone()),
                 WETH_ADDRESS,
                 Some(1)
             )
@@ -244,7 +245,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             strom_handles.validator_rx,
             inital_angstrom_state.angstrom_addr,
             node_config.address(),
-            uniswap_pools.clone(),
+            SyncedPools::Uniswap(uniswap_pools.clone()),
             token_conversion,
             token_price_update_stream,
             pool_storage.clone(),
@@ -344,7 +345,7 @@ impl<P: WithWalletProvider> AngstromNodeInternals<P> {
             block_sync.clone(),
             order_storage.clone(),
             strom_handles.quoter_rx,
-            uniswap_pools.clone(),
+            SyncedPools::Uniswap(uniswap_pools.clone()),
             rayon::ThreadPoolBuilder::default()
                 .num_threads(2)
                 .build()
