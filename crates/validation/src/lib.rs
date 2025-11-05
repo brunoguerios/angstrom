@@ -11,6 +11,7 @@ use std::{
 };
 
 use alloy::primitives::Address;
+use amms::SyncedPools;
 use angstrom_types::{
     contract_payloads::angstrom::AngstromPoolConfigStore, pair_with_price::PairsWithPrice,
     reth_db_wrapper::SetBlock
@@ -33,7 +34,6 @@ use crate::{
     },
     validator::{ValidationClient, ValidationRequest}
 };
-use amms::SyncedPools;
 
 const MAX_VALIDATION_PER_ADDR: usize = 3;
 

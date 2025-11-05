@@ -16,9 +16,9 @@ pub struct BalancerPoolInfo {
     /// Pool contract address (Balancer V3)
     pub address: Address,
     /// Token 0 address (lower address)
-    pub token0: Address,
+    pub token0:  Address,
     /// Token 1 address (higher address)
-    pub token1: Address
+    pub token1:  Address
 }
 
 /// Registry for Balancer pool lookups
@@ -45,7 +45,8 @@ impl BalancerPoolRegistry {
         token0: Address,
         token1: Address
     ) {
-        self.pools.insert(pool_id, BalancerPoolInfo { address, token0, token1 });
+        self.pools
+            .insert(pool_id, BalancerPoolInfo { address, token0, token1 });
     }
 
     /// Get pool address for a given pool ID
@@ -94,8 +95,9 @@ impl BalancerPoolRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use alloy::primitives::FixedBytes;
+
+    use super::*;
 
     #[test]
     fn test_add_and_get_pool() {
@@ -156,4 +158,3 @@ mod tests {
         assert!(ids.contains(&pool_id2));
     }
 }
-

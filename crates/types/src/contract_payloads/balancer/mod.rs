@@ -5,4 +5,3 @@ pub mod submission;
 pub use submission::{
     BalancerSubmissionBuilder, PairParams, ProposalParams, ToBOrderParams, UserOrderParams
 };
-

@@ -7,6 +7,7 @@ use std::{
 };
 
 use alloy_primitives::{Address, U256};
+use amms::SyncedPools;
 use angstrom_types::{pair_with_price::PairsWithPrice, reth_db_wrapper::SetBlock};
 use futures::{FutureExt, Stream};
 use reth_provider::BlockNumReader;
@@ -27,7 +28,6 @@ use validation::{
     },
     validator::{ValidationClient, ValidationRequest, Validator}
 };
-use amms::SyncedPools;
 
 type ValidatorOperation<DB, T> =
     dyn FnOnce(

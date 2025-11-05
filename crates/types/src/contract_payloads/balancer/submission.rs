@@ -17,16 +17,16 @@ use crate::{
 };
 
 /// Complete proposal parameters for Balancer submission
-/// 
+///
 /// Contains all orders and pool updates for a single block execution.
 /// Unlike the Uniswap bundle which is encoded, these parameters are passed
 /// explicitly to the contract's execute function.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProposalParams {
     /// Per-pair aggregate data (one per touched pair)
-    pub pairs: Vec<PairParams>,
+    pub pairs:       Vec<PairParams>,
     /// Top-of-block searcher orders
-    pub tob_orders: Vec<ToBOrderParams>,
+    pub tob_orders:  Vec<ToBOrderParams>,
     /// User limit orders
     pub user_orders: Vec<UserOrderParams>
 }
@@ -34,37 +34,39 @@ pub struct ProposalParams {
 /// Per-pair parameters including pool identity and net swap
 ///
 /// Represents the aggregate state change for one trading pair.
-/// The donation amount is calculated implicitly by the contract from ToB surplus.
+/// The donation amount is calculated implicitly by the contract from ToB
+/// surplus.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PairParams {
     /// Balancer V3 pool address
-    pub pool_address: Address,
+    pub pool_address:    Address,
     /// Input token for the net swap
-    pub token_in: Address,
+    pub token_in:        Address,
     /// Exact input amount (net of ToB + book swaps)
     pub exact_amount_in: u128,
     /// Output token for the net swap
-    pub token_out: Address
+    pub token_out:       Address
 }
 
 /// Top-of-block searcher order parameters
 ///
 /// Represents a winning ToB bid with exact amounts.
-/// The donation is calculated implicitly as: donation = exact_amount_in - fair_swap_cost
+/// The donation is calculated implicitly as: donation = exact_amount_in -
+/// fair_swap_cost
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToBOrderParams {
     /// Token the searcher pays
-    pub token_in: Address,
+    pub token_in:         Address,
     /// Token the searcher receives
-    pub token_out: Address,
+    pub token_out:        Address,
     /// Exact amount searcher pays (includes donation surplus)
-    pub exact_amount_in: u128,
+    pub exact_amount_in:  u128,
     /// Exact amount searcher receives
     pub exact_amount_out: u128,
     /// Maximum gas fee in asset0 (protects searcher)
-    pub max_gas_asset0: u128,
+    pub max_gas_asset0:   u128,
     /// Searcher's ECDSA or ERC-1271 signature
-    pub signature: Bytes
+    pub signature:        Bytes
 }
 
 /// User limit order parameters
@@ -73,21 +75,21 @@ pub struct ToBOrderParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserOrderParams {
     /// Input token
-    pub token_in: Address,
+    pub token_in:             Address,
     /// Output token
-    pub token_out: Address,
+    pub token_out:            Address,
     /// true = exact input, false = exact output
-    pub exact_in: bool,
+    pub exact_in:             bool,
     /// Exact amount (input if exactIn, output if !exactIn)
-    pub amount: u128,
+    pub amount:               u128,
     /// Limit amount (min_out if exactIn, max_in if !exactIn)
-    pub limit_amount: u128,
+    pub limit_amount:         u128,
     /// Price limit in Ray format (1e27)
-    pub limit_price: U256,
+    pub limit_price:          U256,
     /// Maximum gas + fee in asset0
     pub max_extra_fee_asset0: u128,
     /// User's ECDSA or ERC-1271 signature
-    pub signature: Bytes
+    pub signature:            Bytes
 }
 
 /// Builder for constructing Balancer ProposalParams from consensus outputs
@@ -96,9 +98,9 @@ pub struct BalancerSubmissionBuilder;
 impl BalancerSubmissionBuilder {
     /// Build ProposalParams from consensus outputs
     ///
-    /// This converts the internal representation used by consensus (PoolSolution,
-    /// TopOfBlockOrder, UserOrder) into the explicit parameter format expected
-    /// by the Balancer Angstrom contract.
+    /// This converts the internal representation used by consensus
+    /// (PoolSolution, TopOfBlockOrder, UserOrder) into the explicit
+    /// parameter format expected by the Balancer Angstrom contract.
     ///
     /// # Arguments
     ///
@@ -154,18 +156,17 @@ impl BalancerSubmissionBuilder {
         // Convert ToB orders to params
         for (tob, pair) in tob_orders.iter().zip(pairs.iter()) {
             // Get token addresses from assets using pair indices
-            let token0 = assets.get(pair.index0 as usize)
+            let token0 = assets
+                .get(pair.index0 as usize)
                 .ok_or_else(|| eyre::eyre!("Invalid asset index0: {}", pair.index0))?
                 .addr;
-            let token1 = assets.get(pair.index1 as usize)
+            let token1 = assets
+                .get(pair.index1 as usize)
                 .ok_or_else(|| eyre::eyre!("Invalid asset index1: {}", pair.index1))?
                 .addr;
 
-            let (token_in, token_out) = if tob.zero_for_1 {
-                (token0, token1)
-            } else {
-                (token1, token0)
-            };
+            let (token_in, token_out) =
+                if tob.zero_for_1 { (token0, token1) } else { (token1, token0) };
 
             tob_params.push(ToBOrderParams {
                 token_in,
@@ -180,18 +181,17 @@ impl BalancerSubmissionBuilder {
         // Convert user orders to params
         for (order, pair) in user_orders.iter().zip(pairs.iter()) {
             // Get token addresses from assets using pair indices
-            let token0 = assets.get(pair.index0 as usize)
+            let token0 = assets
+                .get(pair.index0 as usize)
                 .ok_or_else(|| eyre::eyre!("Invalid asset index0: {}", pair.index0))?
                 .addr;
-            let token1 = assets.get(pair.index1 as usize)
+            let token1 = assets
+                .get(pair.index1 as usize)
                 .ok_or_else(|| eyre::eyre!("Invalid asset index1: {}", pair.index1))?
                 .addr;
 
-            let (token_in, token_out) = if order.zero_for_one {
-                (token0, token1)
-            } else {
-                (token1, token0)
-            };
+            let (token_in, token_out) =
+                if order.zero_for_one { (token0, token1) } else { (token1, token0) };
 
             let (amount, limit_amount) = match &order.order_quantities {
                 crate::contract_payloads::angstrom::OrderQuantities::Exact { quantity } => {
@@ -217,8 +217,8 @@ impl BalancerSubmissionBuilder {
         }
 
         Ok(ProposalParams {
-            pairs: pair_params,
-            tob_orders: tob_params,
+            pairs:       pair_params,
+            tob_orders:  tob_params,
             user_orders: user_params
         })
     }
@@ -241,11 +241,11 @@ impl BalancerSubmissionBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use alloy::primitives::FixedBytes;
+
+    use super::*;
     use crate::{
-        contract_payloads::angstrom::OrderQuantities,
-        orders::NetAmmOrder,
+        contract_payloads::angstrom::OrderQuantities, orders::NetAmmOrder,
         primitive::BalancerPoolRegistry
     };
 
@@ -261,37 +261,23 @@ mod tests {
 
     fn create_test_assets() -> Vec<Asset> {
         vec![
-            Asset {
-                addr: Address::from([0x20u8; 20]),
-                save: 0,
-                take: 0,
-                settle: 0
-            },
-            Asset {
-                addr: Address::from([0x30u8; 20]),
-                save: 0,
-                take: 0,
-                settle: 0
-            }
+            Asset { addr: Address::from([0x20u8; 20]), save: 0, take: 0, settle: 0 },
+            Asset { addr: Address::from([0x30u8; 20]), save: 0, take: 0, settle: 0 },
         ]
     }
 
     fn create_test_pair() -> Pair {
         Pair {
-            index0: 0,
-            index1: 1,
-            store_index: 0,
+            index0:       0,
+            index1:       1,
+            store_index:  0,
             price_1over0: U256::from(1000000000000000000u128)
         }
     }
 
     #[test]
     fn test_signature_to_bytes_ecdsa() {
-        let sig = Signature::Ecdsa {
-            v: 27,
-            r: [1u8; 32].into(),
-            s: [2u8; 32].into()
-        };
+        let sig = Signature::Ecdsa { v: 27, r: [1u8; 32].into(), s: [2u8; 32].into() };
 
         let bytes = BalancerSubmissionBuilder::signature_to_bytes(&sig);
         assert_eq!(bytes.len(), 65);
@@ -301,10 +287,7 @@ mod tests {
     #[test]
     fn test_signature_to_bytes_contract() {
         let sig_bytes = Bytes::from(vec![1, 2, 3, 4]);
-        let sig = Signature::Contract {
-            from: Address::ZERO,
-            signature: sig_bytes.clone()
-        };
+        let sig = Signature::Contract { from: Address::ZERO, signature: sig_bytes.clone() };
 
         let bytes = BalancerSubmissionBuilder::signature_to_bytes(&sig);
         assert_eq!(bytes, sig_bytes);
@@ -315,14 +298,8 @@ mod tests {
         let registry = create_test_registry();
         let assets = create_test_assets();
 
-        let result = BalancerSubmissionBuilder::from_proposal(
-            &[],
-            &[],
-            &[],
-            &registry,
-            &[],
-            &assets
-        );
+        let result =
+            BalancerSubmissionBuilder::from_proposal(&[], &[], &[], &registry, &[], &assets);
 
         assert!(result.is_ok());
         let params = result.unwrap();
@@ -338,13 +315,13 @@ mod tests {
         let pool_id = FixedBytes::from([1u8; 32]);
 
         let solution = PoolSolution {
-            id: pool_id,
-            ucp: crate::matching::Ray::default(),
-            searcher: None,
+            id:           pool_id,
+            ucp:          crate::matching::Ray::default(),
+            searcher:     None,
             amm_quantity: Some(NetAmmOrder::Sell(1000, 900)),
-            limit: vec![],
-            reward_t0: 100,
-            fee: 3000
+            limit:        vec![],
+            reward_t0:    100,
+            fee:          3000
         };
 
         let result = BalancerSubmissionBuilder::from_proposal(
@@ -372,29 +349,19 @@ mod tests {
         let pair = create_test_pair();
 
         let tob = TopOfBlockOrder {
-            use_internal: false,
-            quantity_in: 1000,
-            quantity_out: 900,
-            max_gas_asset_0: 50,
+            use_internal:     false,
+            quantity_in:      1000,
+            quantity_out:     900,
+            max_gas_asset_0:  50,
             gas_used_asset_0: 0,
-            pairs_index: 0,
-            zero_for_1: true,
-            recipient: None,
-            signature: Signature::Ecdsa {
-                v: 27,
-                r: [1u8; 32].into(),
-                s: [2u8; 32].into()
-            }
+            pairs_index:      0,
+            zero_for_1:       true,
+            recipient:        None,
+            signature:        Signature::Ecdsa { v: 27, r: [1u8; 32].into(), s: [2u8; 32].into() }
         };
 
-        let result = BalancerSubmissionBuilder::from_proposal(
-            &[],
-            &[tob],
-            &[],
-            &registry,
-            &[pair],
-            &assets
-        );
+        let result =
+            BalancerSubmissionBuilder::from_proposal(&[], &[tob], &[], &registry, &[pair], &assets);
 
         assert!(result.is_ok());
         let params = result.unwrap();
@@ -414,19 +381,19 @@ mod tests {
         let pair = create_test_pair();
 
         let user_order = UserOrder {
-            ref_id: 1,
-            use_internal: false,
-            pair_index: 0,
-            min_price: U256::from(1000000000000000000u128),
-            recipient: None,
-            hook_data: None,
-            zero_for_one: true,
-            standing_validation: None,
-            order_quantities: OrderQuantities::Exact { quantity: 500 },
+            ref_id:               1,
+            use_internal:         false,
+            pair_index:           0,
+            min_price:            U256::from(1000000000000000000u128),
+            recipient:            None,
+            hook_data:            None,
+            zero_for_one:         true,
+            standing_validation:  None,
+            order_quantities:     OrderQuantities::Exact { quantity: 500 },
             max_extra_fee_asset0: 25,
-            extra_fee_asset0: 0,
-            exact_in: true,
-            signature: Signature::Ecdsa {
+            extra_fee_asset0:     0,
+            exact_in:             true,
+            signature:            Signature::Ecdsa {
                 v: 27,
                 r: [3u8; 32].into(),
                 s: [4u8; 32].into()
@@ -460,23 +427,23 @@ mod tests {
         let pair = create_test_pair();
 
         let user_order = UserOrder {
-            ref_id: 2,
-            use_internal: false,
-            pair_index: 0,
-            min_price: U256::from(1000000000000000000u128),
-            recipient: None,
-            hook_data: None,
-            zero_for_one: false,
-            standing_validation: None,
-            order_quantities: OrderQuantities::Partial {
+            ref_id:               2,
+            use_internal:         false,
+            pair_index:           0,
+            min_price:            U256::from(1000000000000000000u128),
+            recipient:            None,
+            hook_data:            None,
+            zero_for_one:         false,
+            standing_validation:  None,
+            order_quantities:     OrderQuantities::Partial {
                 min_quantity_in: 100,
                 max_quantity_in: 1000,
                 filled_quantity: 750
             },
             max_extra_fee_asset0: 30,
-            extra_fee_asset0: 0,
-            exact_in: false,
-            signature: Signature::Ecdsa {
+            extra_fee_asset0:     0,
+            exact_in:             false,
+            signature:            Signature::Ecdsa {
                 v: 28,
                 r: [5u8; 32].into(),
                 s: [6u8; 32].into()
@@ -509,13 +476,13 @@ mod tests {
         let invalid_pool_id = FixedBytes::from([99u8; 32]);
 
         let solution = PoolSolution {
-            id: invalid_pool_id,
-            ucp: crate::matching::Ray::default(),
-            searcher: None,
+            id:           invalid_pool_id,
+            ucp:          crate::matching::Ray::default(),
+            searcher:     None,
             amm_quantity: Some(NetAmmOrder::Sell(1000, 900)),
-            limit: vec![],
-            reward_t0: 100,
-            fee: 3000
+            limit:        vec![],
+            reward_t0:    100,
+            fee:          3000
         };
 
         let result = BalancerSubmissionBuilder::from_proposal(
@@ -534,36 +501,29 @@ mod tests {
     fn test_from_proposal_invalid_asset_index() {
         let registry = create_test_registry();
         let assets = create_test_assets();
-        
+
         let pair = Pair {
-            index0: 0,
-            index1: 10, // Invalid index
-            store_index: 0,
+            index0:       0,
+            index1:       10, // Invalid index
+            store_index:  0,
             price_1over0: U256::from(1000000000000000000u128)
         };
 
         let tob = TopOfBlockOrder {
-            use_internal: false,
-            quantity_in: 1000,
-            quantity_out: 900,
-            max_gas_asset_0: 50,
+            use_internal:     false,
+            quantity_in:      1000,
+            quantity_out:     900,
+            max_gas_asset_0:  50,
             gas_used_asset_0: 0,
-            pairs_index: 0,
-            zero_for_1: true,
-            recipient: None,
-            signature: Signature::default()
+            pairs_index:      0,
+            zero_for_1:       true,
+            recipient:        None,
+            signature:        Signature::default()
         };
 
-        let result = BalancerSubmissionBuilder::from_proposal(
-            &[],
-            &[tob],
-            &[],
-            &registry,
-            &[pair],
-            &assets
-        );
+        let result =
+            BalancerSubmissionBuilder::from_proposal(&[], &[tob], &[], &registry, &[pair], &assets);
 
         assert!(result.is_err());
     }
 }
-
