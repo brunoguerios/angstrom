@@ -8,8 +8,8 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-use super::{pool_swap::PoolSwapResult, price::Price};
-use crate::{balancer_structure::BalancerPoolState, uni_structure::UniswapPoolState};
+use super::{pool_swap::PoolSwapResult, price::Price, stateful_swap::{BalancerPoolSwapResult, StatefulPoolSwap}};
+use crate::{balancer_structure::BalancerPoolState, sol_bindings::Ray, uni_structure::UniswapPoolState};
 
 /// An enum for pool state that abstracts over different AMM implementations
 ///
@@ -120,6 +120,25 @@ impl PoolState {
         match self {
             PoolState::Balancer(b) => Some(b),
             _ => None
+        }
+    }
+
+    /// Get a stateful no-op swap result (no trading, same start/end state)
+    ///
+    /// This returns a StatefulPoolSwap that can be used for chained swap
+    /// simulation in the matching engine.
+    pub fn noop_stateful(&self) -> StatefulPoolSwap<'_> {
+        match self {
+            PoolState::Uniswap(u) => StatefulPoolSwap::Uniswap(u.noop()),
+            PoolState::Balancer(b) => {
+                // TODO Step 9: Return actual Balancer stateful result
+                StatefulPoolSwap::Balancer(BalancerPoolSwapResult {
+                    total_d_t0: 0,
+                    total_d_t1: 0,
+                    end_price:  Ray::from(b.current_price().value()),
+                    _marker:    Default::default()
+                })
+            }
         }
     }
 }

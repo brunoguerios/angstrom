@@ -1,6 +1,9 @@
 mod binary_search;
+mod end_amm_state;
 // mod simplecheckpoint;
+
 pub use binary_search::BinarySearchStrategy;
+pub use end_amm_state::EndAmmState;
 // pub use simplecheckpoint::SimpleCheckpointStrategy;
 
 // Basic trait to describe a matching strategy

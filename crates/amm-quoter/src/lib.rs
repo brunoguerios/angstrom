@@ -248,8 +248,21 @@ impl<BlockSync: BlockSyncConsumer> QuoterManager<BlockSync> {
 
             self.threadpool.spawn(move || {
                 let b = book;
-                let (sqrt_price, tick, liquidity) =
-                    BinarySearchStrategy::give_end_amm_state(&b, searcher);
+                let end_state = BinarySearchStrategy::give_end_amm_state(&b, searcher);
+                
+                // Extract Uniswap-specific state for Slot0Update
+                // This quoter only handles Uniswap pools currently
+                let (sqrt_price, tick, liquidity) = match end_state {
+                    matching_engine::strategy::EndAmmState::Uniswap { price, tick, liquidity } => {
+                        (price, tick, liquidity)
+                    }
+                    matching_engine::strategy::EndAmmState::Balancer { .. } => {
+                        // Balancer pools don't use Slot0Update
+                        // TODO: Implement Balancer quoter path when needed
+                        return;
+                    }
+                };
+                
                 let update = Slot0Update {
                     current_block: block,
                     seq_id,
