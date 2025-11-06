@@ -5,6 +5,7 @@ use std::{
 
 use alloy_primitives::{I256, Sign, U256};
 use angstrom_types::{
+    amm::StatefulPoolSwap,
     contract_payloads::angstrom::TopOfBlockOrder as ContractTopOfBlockOrder,
     matching::{
         SqrtPriceX96, get_quantities_at_price,
@@ -15,8 +16,7 @@ use angstrom_types::{
         RawPoolOrder, Ray,
         grouped_orders::{AllOrders, OrderWithStorageData},
         rpc_orders::TopOfBlockOrder
-    },
-    uni_structure::pool_swap::UniswapPoolSwapResult
+    }
 };
 use base64::Engine;
 use itertools::Itertools;
@@ -68,9 +68,8 @@ pub struct DeltaMatcher<'a> {
     fee:                u128,
     /// If true, we solve for T0.  If false we solve for T1.
     solve_for_t0:       bool,
-    // TODO: refactor to use PoolSwapResult instead of UniswapPoolSwapResult (not trivial)
-    /// changes if there is a tob or not
-    amm_start_location: Option<UniswapPoolSwapResult<'a>>
+    /// Stateful AMM swap result that can continue simulating swaps
+    amm_start_location: Option<StatefulPoolSwap<'a>>
 }
 
 impl<'a> DeltaMatcher<'a> {
@@ -87,36 +86,47 @@ impl<'a> DeltaMatcher<'a> {
         let fee = book.amm().map(|amm| amm.fee()).unwrap_or_default() as u128;
         let amm_start_location = match tob {
             // If we have an order, apply that to the AMM start price
-            DeltaMatcherToB::Order(ref tob) => book.amm().map(|snapshot| {
-                ContractTopOfBlockOrder::calc_vec_and_reward(tob, snapshot.as_uniswap().unwrap())
-                    .inspect_err(|e| {
-                        tracing::error!(
-                            "reorg caused tob invalidation, running matcher without. {}",
-                            e.to_string()
-                        )
-                    })
-                    .map(|e| e.0)
-                    .unwrap_or_else(|_| snapshot.as_uniswap().unwrap().noop())
+            DeltaMatcherToB::Order(ref tob) => book.amm().and_then(|pool_state| {
+                match pool_state {
+                    // Uniswap: preserve existing ToB behavior
+                    _ if pool_state.as_uniswap().is_some() => {
+                        let uni = pool_state.as_uniswap().unwrap();
+                        Some(StatefulPoolSwap::Uniswap(
+                            ContractTopOfBlockOrder::calc_vec_and_reward(tob, uni)
+                                .inspect_err(|e| {
+                                    tracing::error!(
+                                        "reorg caused tob invalidation, running matcher without. \
+                                         {}",
+                                        e.to_string()
+                                    )
+                                })
+                                .map(|e| e.0)
+                                .unwrap_or_else(|_| uni.noop())
+                        ))
+                    }
+                    // Balancer: use noop until ToB logic is implemented
+                    // TODO: Implement ToB swap calculation for Balancer pools (see
+                    // balancer_bundle.rs)
+                    _ => {
+                        tracing::debug!(
+                            "ToB order with Balancer pool: using noop until ToB math is \
+                             implemented"
+                        );
+                        Some(pool_state.noop_stateful())
+                    }
+                }
             }),
             // If we have a fixed shift, apply that to the AMM start price (Not yet operational)
             DeltaMatcherToB::FixedShift(..) => panic!("not implemented"),
             // If we have no order or shift, we just use the AMM start price as-is
-            DeltaMatcherToB::None => book.amm().and_then(|amm_state| {
-                // Access UniswapPoolState to get the detailed result
-                // TODO: This assumes Uniswap - will need to handle Balancer differently
-                let uniswap_snapshot = amm_state
-                    .as_uniswap()
-                    .expect("Currently only Uniswap pools supported");
-
-                Some(uniswap_snapshot.noop())
-            })
+            DeltaMatcherToB::None => book.amm().map(|ps| ps.noop_stateful())
         };
 
         Self { book, amm_start_location, fee, solve_for_t0 }
     }
 
-    /// panics if there is no amm swap
-    pub fn try_get_amm_location(&self) -> &UniswapPoolSwapResult<'_> {
+    /// Get the AMM start location (panics if none)
+    pub fn try_get_amm_location(&self) -> &StatefulPoolSwap<'_> {
         self.amm_start_location.as_ref().unwrap()
     }
 
@@ -132,14 +142,14 @@ impl<'a> DeltaMatcher<'a> {
 
         let Some(pool) = self.amm_start_location.as_ref() else { return Default::default() };
 
-        let start_sqrt = pool.end_price;
+        let start_sqrt = pool.end_price_ray();
 
         // If the AMM price is decreasing, it is because the AMM is accepting T0 from
         // the contract.  An order that purchases T0 from the contract is a bid
-        let zfo = start_sqrt >= end_sqrt;
+        let zfo = start_sqrt >= Ray::from(end_sqrt);
 
-        // swap to start
-        let Ok(res) = pool.swap_to_price(end_sqrt) else {
+        // Use StatefulPoolSwap method
+        let Ok(res) = pool.swap_to_price(Ray::from(end_sqrt)) else {
             return Default::default();
         };
 
@@ -147,8 +157,8 @@ impl<'a> DeltaMatcher<'a> {
             ?start_sqrt,
             ?end_sqrt,
             ?price,
-            res.total_d_t0,
-            res.total_d_t1,
+            total_d_t0 = res.total_d_t0(),
+            total_d_t1 = res.total_d_t1(),
             zfo,
             "AMM swap calc"
         );
@@ -156,15 +166,15 @@ impl<'a> DeltaMatcher<'a> {
             // if the amm is swapping from zero to one, it means that we need more liquidity
             // it in token 1 and less in token zero
             (
-                I256::try_from(res.total_d_t0).unwrap() * I256::MINUS_ONE,
-                I256::try_from(res.total_d_t1).unwrap()
+                I256::try_from(res.total_d_t0()).unwrap() * I256::MINUS_ONE,
+                I256::try_from(res.total_d_t1()).unwrap()
             )
         } else {
             // if we are one for zero, means we are adding liquidity in t0 and removing in
             // t1
             (
-                I256::try_from(res.total_d_t0).unwrap(),
-                I256::try_from(res.total_d_t1).unwrap() * I256::MINUS_ONE
+                I256::try_from(res.total_d_t0()).unwrap(),
+                I256::try_from(res.total_d_t1()).unwrap() * I256::MINUS_ONE
             )
         }
     }
@@ -600,18 +610,18 @@ impl<'a> DeltaMatcher<'a> {
 
     /// Return the NetAmmOrder that moves the AMM to our UCP
     fn fetch_amm_movement_at_ucp(&self, ucp: Ray) -> Option<NetAmmOrder> {
-        let end_price_sqrt = SqrtPriceX96::from(ucp);
         let Some(pool) = self.amm_start_location.as_ref() else { return Default::default() };
 
-        let is_bid = pool.end_price >= end_price_sqrt;
+        let end_price_ray = pool.end_price_ray();
+        let is_bid = end_price_ray >= ucp;
         let direction = Direction::from_is_bid(is_bid);
 
-        let Ok(res) = pool.swap_to_price(end_price_sqrt) else {
+        let Ok(res) = pool.swap_to_price(ucp) else {
             return Default::default();
         };
 
         let mut tob_amm = NetAmmOrder::new(direction);
-        tob_amm.add_quantity(res.total_d_t0, res.total_d_t1);
+        tob_amm.add_quantity(res.total_d_t0(), res.total_d_t1());
 
         Some(tob_amm)
     }
@@ -662,9 +672,20 @@ impl<'a> DeltaMatcher<'a> {
         let (min_price, max_price) = self
             .amm_start_location
             .as_ref()
-            .map(|swap| {
-                let start_liq = &swap.end_liquidity;
-                (Ray::from(start_liq.min_sqrt_price()), Ray::from(start_liq.max_sqrt_price()))
+            .and_then(|swap| match swap {
+                StatefulPoolSwap::Uniswap(uni) => {
+                    let start_liq = &uni.end_liquidity;
+                    Some((
+                        Ray::from(start_liq.min_sqrt_price()),
+                        Ray::from(start_liq.max_sqrt_price())
+                    ))
+                }
+                StatefulPoolSwap::Balancer(_) => {
+                    // Balancer doesn't have tick-based liquidity ranges
+                    // Use broad bounds for now
+                    // TODO Step 9: Consider if Balancer has any relevant price bounds
+                    None
+                }
             })
             .unwrap_or((Ray::from(U256::ZERO), Ray::from(U256::MAX)));
         // We ensure that no matter what, we always swap within the bounds of valid
