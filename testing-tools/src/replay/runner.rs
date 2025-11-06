@@ -9,6 +9,7 @@ use alloy::{
 use alloy_primitives::aliases::I24;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
+use amms::SyncedPools;
 use angstrom::components::initialize_strom_handles;
 use angstrom_amm_quoter::{QuoterHandle, QuoterManager};
 use angstrom_eth::{
@@ -32,7 +33,6 @@ use angstrom_types::{
     primitive::{AngstromSigner, UniswapPoolRegistry, try_init_with_chain_id, *},
     submission::{ChainSubmitterHolder, SubmissionHandler}
 };
-use amms::SyncedPools;
 use consensus::{
     AngstromValidator, ConsensusHandler, ConsensusManager, ConsensusTimingConfig,
     ManagerNetworkDeps
@@ -48,9 +48,7 @@ use telemetry_recorder::TelemetryMessage;
 use tracing::{Instrument, span};
 use uniswap_v4::configure_uniswap_manager;
 use validation::{
-    common::TokenPriceGenerator,
-    init_validation_replay,
-    validator::ValidationClient
+    common::TokenPriceGenerator, init_validation_replay, validator::ValidationClient
 };
 
 use super::fake_network::FakeNetwork;

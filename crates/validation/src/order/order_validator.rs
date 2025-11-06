@@ -5,6 +5,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, B256, BlockNumber};
+use amms::SyncedPools;
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::sol_bindings::{RawPoolOrder, grouped_orders::AllOrders};
 use futures::Future;
@@ -24,7 +25,6 @@ use crate::{
     order::{OrderValidation, state::account::UserAccountProcessor},
     telemetry::ValidationSnapshot
 };
-use amms::SyncedPools;
 
 pub struct OrderValidator<DB, Pools, Fetch> {
     sim:                     SimValidation<DB>,

@@ -555,7 +555,7 @@ pub mod test {
     use revm::primitives::address;
 
     use super::{BLOCKS_TO_AVG_PRICE, TokenPriceGenerator, WETH_ADDRESS};
-    use crate::common::SyncedPools;
+    use crate::SyncedPools;
 
     const TOKEN0: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
     const TOKEN1: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc3");

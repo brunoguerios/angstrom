@@ -22,10 +22,19 @@ use reqwest::Url;
 
 use crate::{
     contract_bindings::angstrom::Angstrom,
-    contract_payloads::angstrom::AngstromBundle,
+    contract_payloads::{angstrom::AngstromBundle, balancer::ProposalParams},
     primitive::{ANGSTROM_ADDRESS, AngstromMetaSigner, AngstromSigner, CHAIN_ID},
     submission::Angstrom::unlockWithEmptyAttestationCall
 };
+
+/// Submission payload that can be either a Uniswap bundle or Balancer params
+#[derive(Debug, Clone)]
+pub enum SubmissionPayload {
+    /// Uniswap-style encoded bundle
+    UniswapBundle(AngstromBundle),
+    /// Balancer-style explicit parameters
+    BalancerBundle(ProposalParams)
+}
 
 const DEFAULT_SUBMISSION_CONCURRENCY: usize = 10;
 
@@ -160,6 +169,43 @@ where
         )) as Box<dyn ChainSubmitterWrapper>;
 
         Self { node_provider, submitters: vec![mempool, angstrom, mev_boost] }
+    }
+
+    /// Submit a payload (either Uniswap bundle or Balancer params)
+    pub async fn submit<S: AngstromMetaSigner>(
+        &self,
+        signer: AngstromSigner<S>,
+        payload: SubmissionPayload,
+        target_block: u64
+    ) -> eyre::Result<Option<TxHash>> {
+        match payload {
+            SubmissionPayload::UniswapBundle(bundle) => {
+                self.submit_tx(signer, Some(bundle), target_block).await
+            }
+            SubmissionPayload::BalancerBundle(params) => {
+                self.submit_balancer(signer, params, target_block).await
+            }
+        }
+    }
+
+    /// Submit a Balancer proposal with explicit parameters
+    async fn submit_balancer<S: AngstromMetaSigner>(
+        &self,
+        _signer: AngstromSigner<S>,
+        _params: ProposalParams,
+        _target_block: u64
+    ) -> eyre::Result<Option<TxHash>> {
+        // TODO: Implement Balancer-specific submission
+        // This requires:
+        // 1. Encoding ProposalParams for the Balancer contract's execute function
+        // 2. Building and signing the transaction
+        // 3. Submitting to the configured endpoints
+        //
+        // For now, this is a placeholder that returns an error
+        tracing::warn!("Balancer submission not yet fully implemented");
+        Err(eyre::eyre!(
+            "Balancer submission not yet implemented - requires contract ABI integration"
+        ))
     }
 
     pub async fn submit_tx<S: AngstromMetaSigner>(

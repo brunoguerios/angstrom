@@ -1,3 +1,4 @@
+mod balancer_registry;
 mod chain_ext;
 mod contract;
 mod peers;
@@ -7,6 +8,7 @@ mod rpcs;
 mod signer;
 mod validation;
 
+pub use balancer_registry::*;
 pub use chain_ext::*;
 pub use contract::*;
 pub use peers::*;
