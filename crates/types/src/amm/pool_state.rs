@@ -8,8 +8,12 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-use super::{pool_swap::PoolSwapResult, price::Price, stateful_swap::{BalancerPoolSwapResult, StatefulPoolSwap}};
-use crate::{balancer_structure::BalancerPoolState, sol_bindings::Ray, uni_structure::UniswapPoolState};
+use super::{
+    pool_swap::PoolSwapResult,
+    price::Price,
+    stateful_swap::{BalancerPoolSwapResult, StatefulPoolSwap}
+};
+use crate::{balancer_structure::BalancerPoolState, uni_structure::UniswapPoolState};
 
 /// An enum for pool state that abstracts over different AMM implementations
 ///
@@ -135,7 +139,7 @@ impl PoolState {
                 StatefulPoolSwap::Balancer(BalancerPoolSwapResult {
                     total_d_t0: 0,
                     total_d_t1: 0,
-                    end_price:  Ray::from(b.current_price().value()),
+                    end_price:  b.current_price().as_ray(),
                     _marker:    Default::default()
                 })
             }
