@@ -3,7 +3,7 @@ use angstrom_types::{
     amm::StatefulPoolSwap,
     matching::SqrtPriceX96,
     orders::PoolSolution,
-    sol_bindings::{Ray, grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
+    sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}
 };
 
 use super::end_amm_state::EndAmmState;
@@ -96,7 +96,7 @@ impl BinarySearchStrategy {
             _ if pool_state.as_balancer().is_some() => {
                 // TODO Step 9: Implement Balancer end state calculation
                 let bal = pool_state.as_balancer().unwrap();
-                EndAmmState::Balancer { price: Ray::from(bal.current_price().value()) }
+                EndAmmState::Balancer { price: bal.current_price().as_ray() }
             }
             _ => panic!("Unknown pool type")
         }

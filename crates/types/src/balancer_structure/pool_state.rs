@@ -68,7 +68,10 @@ impl BalancerPoolState {
     pub fn current_price(&self) -> Price {
         // TODO: Use balancer-maths-rust to calculate current price
         // Expected API: balancer_maths_rust::get_spot_price(&self.inner)
-        Price::new(1_000_000_000_000_000_000) // Placeholder
+        
+        // Placeholder: Return a Ray-based price (1.0 in Ray format = 1e27)
+        use crate::sol_bindings::Ray;
+        Price::new(Ray::from(1_000_000_000_000_000_000_000_000_000u128))
     }
 
     pub fn swap_with_amount(
