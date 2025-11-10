@@ -72,6 +72,9 @@ use validation::{
     validator::{ValidationClient, ValidationRequest}
 };
 
+// Import Balancer V3 for historical pool discovery
+use balancer_v3;
+
 use crate::AngstromConfig;
 
 pub fn init_network_builder<S: AngstromMetaSigner>(
@@ -276,24 +279,57 @@ where
         .unwrap()
     );
 
-    // load the angstrom pools;
-    tracing::info!("starting search for pools");
-    let pools = fetch_angstrom_pools(
-        deploy_block as usize,
-        block_id as usize,
-        angstrom_address,
-        &node.provider
-    )
-    .await;
-    tracing::info!("found pools");
+    // Check AMM mode early to fetch appropriate pools
+    let amm_mode = std::env::var("ANGSTROM_AMM").unwrap_or_else(|_| "uniswap".into());
 
-    let angstrom_tokens = pools
-        .iter()
-        .flat_map(|pool| [pool.currency0, pool.currency1])
-        .fold(HashMap::<Address, usize>::new(), |mut acc, x| {
-            *acc.entry(x).or_default() += 1;
-            acc
-        });
+    // Load pools based on AMM mode
+    tracing::info!("starting search for {} pools", amm_mode);
+    let (angstrom_tokens, uniswap_registry, balancer_discovered_pools) = if amm_mode == "balancer" {
+        // Fetch Balancer pools from historical events
+        let balancer_pools = balancer_v3::fetch_balancer_pools(
+            deploy_block as usize,
+            block_id as usize,
+            controller,
+            &node.provider
+        )
+        .await;
+        tracing::info!("found {} Balancer pools", balancer_pools.len());
+
+        // Build token tracking from Balancer pools
+        let tokens = balancer_pools
+            .iter()
+            .flat_map(|(_, token0, token1)| [*token0, *token1])
+            .fold(HashMap::<Address, usize>::new(), |mut acc, token| {
+                *acc.entry(token).or_default() += 1;
+                acc
+            });
+
+        // Create empty Uniswap registry (not used in Balancer mode)
+        let empty_registry = UniswapPoolRegistry::default();
+        (tokens, empty_registry, balancer_pools)
+    } else {
+        // Fetch Uniswap pools from historical events
+        let pools = fetch_angstrom_pools(
+            deploy_block as usize,
+            block_id as usize,
+            angstrom_address,
+            &node.provider
+        )
+        .await;
+        tracing::info!("found {} Uniswap pools", pools.len());
+
+        // Build token tracking from Uniswap pools
+        let tokens = pools
+            .iter()
+            .flat_map(|pool| [pool.currency0, pool.currency1])
+            .fold(HashMap::<Address, usize>::new(), |mut acc, x| {
+                *acc.entry(x).or_default() += 1;
+                acc
+            });
+
+        let registry: UniswapPoolRegistry = pools.into();
+        (tokens, registry, vec![])
+    };
 
     // re-fetch given the fetch pools takes awhile. given this, we do techincally
     // have a gap in which a pool is deployed durning startup. This isn't
@@ -309,8 +345,7 @@ where
 
     let global_block_sync = GlobalBlockSync::new(block_id);
 
-    // this right here problem
-    let uniswap_registry: UniswapPoolRegistry = pools.into();
+    // Create unified registry (used by both modes for compatibility)
     let uni_ang_registry =
         UniswapAngstromRegistry::new(uniswap_registry.clone(), pool_config_store.clone());
 
@@ -339,11 +374,7 @@ where
         init_telemetry(signer_addr, grace_shutdown)
     });
 
-    // TODO: refactor how amm_mode is set/checked to improve control flow once we
-    // have the full picture of the implementation.
-    let amm_mode = std::env::var("ANGSTROM_AMM").unwrap_or_else(|_| "uniswap".into());
-
-    // Prepare pools depending on AMM mode
+    // Prepare pools depending on AMM mode (amm_mode already determined above)
     let (pool_registry, uniswap_pools_opt, balancer_pools_opt, pool_ids) = if amm_mode == "balancer"
     {
         let balancer_manager = balancer_v3::configure_balancer_manager(
@@ -352,6 +383,7 @@ where
             block_id,
             global_block_sync.clone(),
             controller,
+            balancer_discovered_pools,  // Pass discovered pools from historical scan
             network_stream
         )
         .await;

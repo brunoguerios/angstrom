@@ -1,4 +1,4 @@
-use alloy::primitives::{FixedBytes, U160, aliases::I24};
+use alloy::primitives::{Address, FixedBytes, U160, aliases::I24};
 use itertools::Itertools;
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,8 @@ pub enum RewardsUpdate {
     /// for contract payload submission.
     BalancerDonation {
         amount:  u128,
-        pool_id: FixedBytes<32>
+        /// Pool address (Balancer V3 pool ID is just the pool address)
+        pool_id: Address
     }
 }
 
