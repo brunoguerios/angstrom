@@ -17,7 +17,7 @@ use angstrom_types::{
         ConsensusRoundEvent, ConsensusRoundName, PreProposal, PreProposalAggregation, Proposal,
         SlotClock, StromConsensusEvent, SystemTimeSlotClock
     },
-    contract_payloads::angstrom::{BundleGasDetails, UniswapAngstromRegistry},
+    contract_payloads::{angstrom::UniswapAngstromRegistry, uniswap::BundleGasDetails},
     orders::PoolSolution,
     primitive::{AngstromMetaSigner, AngstromSigner},
     submission::SubmissionHandler

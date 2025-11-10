@@ -132,32 +132,26 @@ where
         while let Poll::Ready(Some(event)) = self.update_stream.poll_next_unpin(cx) {
             match event {
                 EthEvent::BalancerNewPool { pool_address, token0, token1 } => {
-                    tracing::info!(
-                        ?pool_address,
-                        ?token0,
-                        ?token1,
-                        "Adding new Balancer pool"
-                    );
-                    
+                    tracing::info!(?pool_address, ?token0, ?token1, "Adding new Balancer pool");
+
                     // Convert Address (20 bytes) to PoolId (32 bytes) by zero-extending
                     // PoolId is used as a key in DashMap, so we still need 32 bytes
                     let mut pool_id_bytes = [0u8; 32];
                     pool_id_bytes[12..32].copy_from_slice(&pool_address.into_array());
                     let pool_id = PoolId::from(pool_id_bytes);
-                    
+
                     // Create new pool state with Address directly
                     let pool_state = BalancerPoolState::new(
                         pool_address,
                         self.latest_synced_block,
-                        0  // fee placeholder; read from pool if needed
+                        0 // fee placeholder; read from pool if needed
                     );
-                    
-                    self.pools.pools.insert(
-                        pool_id,
-                        Arc::new(RwLock::new(pool_state))
-                    );
+
+                    self.pools
+                        .pools
+                        .insert(pool_id, Arc::new(RwLock::new(pool_state)));
                 }
-                
+
                 EthEvent::BalancerRemovedPool { pool_address } => {
                     tracing::info!(?pool_address, "Removing Balancer pool");
                     // Convert Address (20 bytes) to PoolId (32 bytes) by zero-extending
@@ -166,10 +160,10 @@ where
                     let pool_id = PoolId::from(pool_id_bytes);
                     self.pools.pools.remove(&pool_id);
                 }
-                
+
                 // Ignore Uniswap events (won't occur in Balancer-only nodes)
                 EthEvent::NewPool { .. } | EthEvent::RemovedPool { .. } => {}
-                
+
                 _ => {}
             }
         }

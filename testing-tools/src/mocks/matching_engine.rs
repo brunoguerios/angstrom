@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use alloy::primitives::Address;
 use angstrom_types::{
     amm::PoolState,
-    contract_payloads::angstrom::BundleGasDetails,
+    contract_payloads::uniswap::BundleGasDetails,
     orders::PoolSolution,
     primitive::PoolId,
     sol_bindings::{grouped_orders::OrderWithStorageData, rpc_orders::TopOfBlockOrder}

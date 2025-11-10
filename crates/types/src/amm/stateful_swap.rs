@@ -5,7 +5,9 @@
 
 use alloy::primitives::I256;
 
-use crate::{matching::SqrtPriceX96, sol_bindings::Ray, uni_structure::pool_swap::UniswapPoolSwapResult};
+use crate::{
+    matching::SqrtPriceX96, sol_bindings::Ray, uni_structure::pool_swap::UniswapPoolSwapResult
+};
 
 /// Stateful swap result that can continue simulating swaps
 ///
@@ -130,4 +132,3 @@ impl<'a> BalancerPoolSwapResult<'a> {
         Err(eyre::eyre!("Balancer swap_to_amount not yet implemented (Step 9)"))
     }
 }
-

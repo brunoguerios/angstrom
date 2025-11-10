@@ -4,7 +4,7 @@ use alloy::{consensus::BlockHeader, providers::Provider, sol_types::SolCall};
 use alloy_rpc_types::TransactionTrait;
 use angstrom_rpc::api::OrderApiClient;
 use angstrom_types::{
-    contract_payloads::angstrom::AngstromBundle,
+    contract_payloads::uniswap::AngstromBundle,
     primitive::{ANGSTROM_ADDRESS, AngstromAddressConfig, ChainExt},
     sol_bindings::grouped_orders::AllOrders,
     testnet::InitialTestnetState

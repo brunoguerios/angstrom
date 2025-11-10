@@ -19,9 +19,9 @@ pub enum EndAmmState {
         liquidity: u128
     },
     /// Balancer V3 end state
+    // TODO Step 9: Add reserve/balance info if needed
     Balancer {
         price: Ray // Spot price in Ray
-                   // TODO Step 9: Add reserve/balance info if needed
     }
 }
 
@@ -37,4 +37,3 @@ impl EndAmmState {
         }
     }
 }
-

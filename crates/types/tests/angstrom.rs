@@ -4,7 +4,10 @@ mod solutionlib;
 
 use angstrom_types::{
     amm::PoolState,
-    contract_payloads::{angstrom::AngstromBundle, asset::builder::AssetBuilder},
+    contract_payloads::{
+        asset::builder::AssetBuilder,
+        uniswap::{AngstromBundle, UniswapBundleBuilder}
+    },
     orders::PoolSolution,
     uni_structure::UniswapPoolState
 };
@@ -47,7 +50,7 @@ fn build_bundle() {
         // Wrap snapshot in PoolState enum
         let pool_state = PoolState::Uniswap(snapshot.clone());
 
-        AngstromBundle::process_solution(
+        UniswapBundleBuilder::process_solution(
             &mut pairs,
             &mut asset_builder,
             &mut user_orders,

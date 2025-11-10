@@ -72,7 +72,7 @@ pub async fn configure_balancer_manager<P, BlockSync>(
     current_block: BlockNumber,
     block_sync: BlockSync,
     balancer_controller: Address,
-    discovered_pools: Vec<(Address, Address, Address)>,  // (pool_address, token0, token1)
+    discovered_pools: Vec<(Address, Address, Address)>, // (pool_address, token0, token1)
     update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
 ) -> BalancerPoolManager<P, CanonicalStateAdapter<P>, BlockSync>
 where

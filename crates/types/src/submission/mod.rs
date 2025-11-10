@@ -22,7 +22,7 @@ use reqwest::Url;
 
 use crate::{
     contract_bindings::angstrom::Angstrom,
-    contract_payloads::{angstrom::AngstromBundle, balancer::ProposalParams},
+    contract_payloads::{balancer::ProposalParams, uniswap::AngstromBundle},
     primitive::{ANGSTROM_ADDRESS, AngstromMetaSigner, AngstromSigner, CHAIN_ID},
     submission::Angstrom::unlockWithEmptyAttestationCall
 };

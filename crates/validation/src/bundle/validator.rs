@@ -1,4 +1,4 @@
-use angstrom_types::contract_payloads::angstrom::{AngstromBundle, BundleGasDetails};
+use angstrom_types::contract_payloads::uniswap::{AngstromBundle, BundleGasDetails};
 use futures::Future;
 use tokio::sync::oneshot;
 
