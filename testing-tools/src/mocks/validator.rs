@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use alloy_primitives::{Address, FixedBytes, U256, keccak256};
 use angstrom_types::{
     self,
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    contract_payloads::uniswap::{AngstromBundle, BundleGasDetails},
     sol_bindings::{ext::RawPoolOrder, grouped_orders::AllOrders}
 };
 use eyre::OptionExt;

@@ -6,10 +6,11 @@ use alloy_primitives::{B256, normalize_v};
 use pade_macro::{PadeDecode, PadeEncode};
 use serde::{Deserialize, Serialize};
 
-pub mod angstrom;
+pub mod angstrom; // Common types
 pub mod asset;
-pub mod balancer;
+pub mod balancer; // Balancer-specific
 pub mod rewards;
+pub mod uniswap; // Uniswap-specific
 
 pub const CONFIG_STORE_SLOT: u32 = 3;
 pub const POOL_CONFIG_STORE_ENTRY_SIZE: usize = 32;

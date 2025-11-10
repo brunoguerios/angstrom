@@ -39,6 +39,8 @@ use angstrom_types::{
     reth_db_wrapper::RethDbWrapper,
     submission::SubmissionHandler
 };
+// Import Balancer V3 for historical pool discovery
+use balancer_v3;
 use consensus::{AngstromValidator, ConsensusHandler, ConsensusManager, ManagerNetworkDeps};
 use futures::Stream;
 use matching_engine::{MatchingManager, manager::MatcherCommand};
@@ -71,9 +73,6 @@ use validation::{
     init_validation,
     validator::{ValidationClient, ValidationRequest}
 };
-
-// Import Balancer V3 for historical pool discovery
-use balancer_v3;
 
 use crate::AngstromConfig;
 
@@ -383,7 +382,7 @@ where
             block_id,
             global_block_sync.clone(),
             controller,
-            balancer_discovered_pools,  // Pass discovered pools from historical scan
+            balancer_discovered_pools, // Pass discovered pools from historical scan
             network_stream
         )
         .await;

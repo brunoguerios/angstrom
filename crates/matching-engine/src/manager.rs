@@ -8,7 +8,7 @@ use alloy::hex;
 use alloy_primitives::Address;
 use angstrom_types::{
     amm::PoolState,
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    contract_payloads::uniswap::{AngstromBundle, BundleGasDetails, UniswapBundleBuilder},
     matching::match_estimate_response::BundleEstimate,
     orders::PoolSolution,
     primitive::PoolId,
@@ -194,7 +194,7 @@ impl<TP: TaskSpawner + 'static, V: BundleValidatorHandle> MatchingManager<TP, V>
                 })
                 .collect();
 
-        let bundle = AngstromBundle::for_gas_finalization(
+        let bundle = UniswapBundleBuilder::for_gas_finalization(
             limit.clone(),
             solutions.clone(),
             &uniswap_pool_snapshots

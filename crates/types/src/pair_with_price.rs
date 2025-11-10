@@ -7,8 +7,8 @@ use reth_provider::CanonStateNotificationStream;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    contract_bindings::angstrom::Angstrom::executeCall,
-    contract_payloads::angstrom::AngstromBundle, primitive::ChainExt, sol_bindings::Ray
+    contract_bindings::angstrom::Angstrom::executeCall, contract_payloads::uniswap::AngstromBundle,
+    primitive::ChainExt, sol_bindings::Ray
 };
 
 /// represents the price settled on angstrom between two tokens

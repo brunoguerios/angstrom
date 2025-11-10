@@ -6,7 +6,7 @@ use alloy::{
 };
 use angstrom_metrics::validation::ValidationMetrics;
 use angstrom_types::{
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    contract_payloads::uniswap::{AngstromBundle, BundleGasDetails},
     primitive::CHAIN_ID
 };
 use eyre::eyre;

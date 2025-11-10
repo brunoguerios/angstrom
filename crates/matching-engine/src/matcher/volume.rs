@@ -53,7 +53,8 @@ impl<'a> VolumeFillMatcher<'a> {
         info!(?bid_cnt, ?ask_cnt, "Book size");
         let bid_outcomes = vec![OrderFillState::Unfilled; book.bids().len()];
         let ask_outcomes = vec![OrderFillState::Unfilled; book.asks().len()];
-        // NOTE: Volume matcher is currently disabled and uses Uniswap-specific PoolPrice.
+        // NOTE: Volume matcher is currently disabled and uses Uniswap-specific
+        // PoolPrice.
         // TODO: Update to use PoolState API when volume matcher is re-enabled.
         let amm_price = None;
         //let amm_price = book.amm().map(|a| a.(true));

@@ -2,7 +2,7 @@ use std::{fmt::Debug, sync::Arc, task::Poll};
 
 use alloy::primitives::{Address, B256, U256};
 use angstrom_types::{
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    contract_payloads::uniswap::{AngstromBundle, BundleGasDetails},
     reth_db_wrapper::SetBlock
 };
 use futures_util::{Future, FutureExt};

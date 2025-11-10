@@ -7,7 +7,7 @@ use std::{
 use alloy::{primitives::Address, providers::Provider};
 use angstrom_types::{
     consensus::{ConsensusRoundName, PreProposalAggregation, Proposal, StromConsensusEvent},
-    contract_payloads::angstrom::{AngstromBundle, BundleGasDetails},
+    contract_payloads::uniswap::{AngstromBundle, BundleGasDetails, UniswapBundleBuilder},
     orders::PoolSolution,
     primitive::{AngstromMetaSigner, PoolId},
     sol_bindings::rpc_orders::AttestAngstromBlockEmpty,
@@ -120,7 +120,7 @@ impl ProposalState {
 
                 if !uniswap_only.is_empty() {
                 let all_orders = handles.order_storage.get_all_orders();
-                    AngstromBundle::from_proposal(&proposal, all_orders, gas_info, &uniswap_only)
+                    UniswapBundleBuilder::from_proposal(&proposal, all_orders, gas_info, &uniswap_only)
                         .inspect_err(|e| {
                         tracing::info!(err=%e,
                             "failed to encode angstrom bundle, THERE SHALL BE NO PROPOSAL THIS BLOCK :("

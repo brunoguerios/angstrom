@@ -6,7 +6,7 @@ use alloy::{
     providers::Provider
 };
 use angstrom_types::{
-    contract_payloads::angstrom::AngstromBundle,
+    contract_payloads::uniswap::AngstromBundle,
     primitive::{AngstromMetaSigner, AngstromSigner},
     submission::{ChainSubmitter, TxFeatureInfo}
 };

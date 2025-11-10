@@ -17,7 +17,10 @@ use angstrom_types::{
         balancer_controller::BalancerController::{BalancerPoolConfigured, BalancerPoolRemoved},
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
-    contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore},
+    contract_payloads::{
+        angstrom::{AngPoolConfigEntry, AngstromPoolConfigStore},
+        uniswap::AngstromBundle
+    },
     primitive::ChainExt
 };
 use futures::Future;
