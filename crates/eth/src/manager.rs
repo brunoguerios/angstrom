@@ -14,6 +14,7 @@ use angstrom_types::{
     block_sync::BlockSyncProducer,
     contract_bindings::{
         angstrom::Angstrom::{PoolKey, executeCall},
+        balancer_controller::BalancerController::{BalancerPoolConfigured, BalancerPoolRemoved},
         controller_v_1::ControllerV1::{NodeAdded, NodeRemoved, PoolConfigured, PoolRemoved}
     },
     contract_payloads::angstrom::{AngPoolConfigEntry, AngstromBundle, AngstromPoolConfigStore},
@@ -195,6 +196,7 @@ where
             .flat_map(|receipt| &receipt.logs)
             .filter(|log| log.address == periphery_address)
             .for_each(|log| {
+                // Try node events (common to both Uniswap and Balancer)
                 if let Ok(remove_node) = NodeRemoved::decode_log(log) {
                     tracing::info!(?remove_node.node, "node removed from set");
                     self.node_set.remove(&remove_node.node);
@@ -207,8 +209,10 @@ where
                     self.send_events(EthEvent::AddedNode(added_node.node));
                     return;
                 }
+
+                // Try Uniswap pool events
                 if let Ok(removed_pool) = PoolRemoved::decode_log(log) {
-                    tracing::info!("new pool removed log");
+                    tracing::info!("Uniswap pool removed");
 
                     self.pool_store
                         .remove_pair(removed_pool.asset0, removed_pool.asset1);
@@ -235,7 +239,7 @@ where
                     return;
                 }
                 if let Ok(added_pool) = PoolConfigured::decode_log(log) {
-                    tracing::info!("new pool configured log");
+                    tracing::info!("Uniswap pool configured");
                     let asset0 = added_pool.asset0;
                     let asset1 = added_pool.asset1;
                     let entry = AngPoolConfigEntry {
@@ -258,6 +262,41 @@ where
                     *self.angstrom_tokens.entry(asset1).or_default() += 1;
 
                     self.send_events(EthEvent::NewPool { pool: pool_key });
+                    return;
+                }
+
+                // Try Balancer pool events
+                if let Ok(configured) = BalancerPoolConfigured::decode_log(log) {
+                    tracing::info!(
+                        pool_address = ?configured.poolAddress,
+                        ?configured.token0,
+                        ?configured.token1,
+                        "Balancer pool configured"
+                    );
+
+                    // Track tokens
+                    *self.angstrom_tokens.entry(configured.token0).or_default() += 1;
+                    *self.angstrom_tokens.entry(configured.token1).or_default() += 1;
+
+                    self.send_events(EthEvent::BalancerNewPool {
+                        pool_address: configured.poolAddress,
+                        token0:       configured.token0,
+                        token1:       configured.token1
+                    });
+                    return;
+                }
+
+                if let Ok(removed) = BalancerPoolRemoved::decode_log(log) {
+                    tracing::info!(pool_address = ?removed.poolAddress, "Balancer pool removed");
+
+                    // Note: We don't track token0/token1 for removal yet
+                    // This could be enhanced by storing a mapping of pool_address -> (token0,
+                    // token1)
+
+                    self.send_events(EthEvent::BalancerRemovedPool {
+                        pool_address: removed.poolAddress
+                    });
+                    return;
                 }
             });
     }
@@ -365,6 +404,14 @@ pub enum EthEvent {
     },
     RemovedPool {
         pool: PoolKey
+    },
+    BalancerNewPool {
+        pool_address: Address,
+        token0:       Address,
+        token1:       Address
+    },
+    BalancerRemovedPool {
+        pool_address: Address
     },
     AddedNode(Address),
     RemovedNode(Address)

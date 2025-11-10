@@ -11,7 +11,7 @@
 
 use std::fmt::Display;
 
-use alloy::primitives::FixedBytes;
+use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
 
 use crate::amm::{PoolSwapResult, Price};
@@ -32,8 +32,8 @@ use crate::amm::{PoolSwapResult, Price};
 /// B) Implement PoolSim directly on their types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BalancerPoolState {
-    /// Pool identifier (32 bytes)
-    pub pool_id: FixedBytes<32>,
+    /// Pool identifier - Balancer V3 pool address
+    pub pool_id: Address,
 
     /// Current block number
     pub block_number: u64,
@@ -49,11 +49,11 @@ impl BalancerPoolState {
     ///
     /// TODO: This constructor will need to be updated once we understand
     /// how to construct balancer-maths-rust pool states
-    pub fn new(pool_id: FixedBytes<32>, block_number: u64, fee: u32) -> Self {
+    pub fn new(pool_id: Address, block_number: u64, fee: u32) -> Self {
         Self { pool_id, block_number, fee }
     }
 
-    pub fn pool_id(&self) -> FixedBytes<32> {
+    pub fn pool_id(&self) -> Address {
         self.pool_id
     }
 
@@ -68,7 +68,7 @@ impl BalancerPoolState {
     pub fn current_price(&self) -> Price {
         // TODO: Use balancer-maths-rust to calculate current price
         // Expected API: balancer_maths_rust::get_spot_price(&self.inner)
-        
+
         // Placeholder: Return a Ray-based price (1.0 in Ray format = 1e27)
         use crate::sol_bindings::Ray;
         Price::new(Ray::from(1_000_000_000_000_000_000_000_000_000u128))
@@ -129,15 +129,15 @@ mod tests {
 
     #[test]
     fn test_balancer_pool_creation() {
-        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
-        assert_eq!(pool.pool_id, FixedBytes::ZERO);
+        let pool = BalancerPoolState::new(Address::ZERO, 12345, 3000);
+        assert_eq!(pool.pool_id, Address::ZERO);
         assert_eq!(pool.block_number(), 12345);
         assert_eq!(pool.fee(), 3000);
     }
 
     #[test]
     fn test_noop() {
-        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
+        let pool = BalancerPoolState::new(Address::ZERO, 12345, 3000);
         let outcome = pool.noop();
         assert!(outcome.is_empty());
         assert_eq!(outcome.fee, 3000);
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     #[ignore = "Balancer math not yet integrated"]
     fn test_simulate_swap() {
-        let pool = BalancerPoolState::new(FixedBytes::ZERO, 12345, 3000);
+        let pool = BalancerPoolState::new(Address::ZERO, 12345, 3000);
         let result = pool.swap_with_amount(1000, true);
         // This should work once we integrate balancer-maths-rust
         assert!(result.is_err()); // Currently returns error

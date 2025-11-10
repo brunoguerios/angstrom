@@ -88,3 +88,13 @@ pub mod position_manager {
         "../../abis-types/PositionManager.sol/PositionManager.json"
     );
 }
+#[rustfmt::skip]
+pub mod balancer_controller {
+    alloy::sol!(
+        #[allow(missing_docs)]
+        #[sol(rpc, abi)]
+        #[derive(Debug, Default, PartialEq, Eq,Hash, serde::Serialize, serde::Deserialize)]
+        BalancerController,
+        "../../abis-types/BalancerController.sol/BalancerController.json"
+    );
+}

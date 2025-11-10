@@ -15,6 +15,7 @@ eyre.workspace = true
 futures.workspace = true
 futures-util.workspace = true
 reth-provider.workspace = true
+tracing.workspace = true
 async-stream = "0.3"
 tokio.workspace = true
 

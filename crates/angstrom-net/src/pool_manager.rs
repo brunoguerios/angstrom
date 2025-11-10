@@ -309,6 +309,14 @@ where
             EthEvent::RemovedPool { pool } => {
                 self.order_indexer.remove_pool(pool.into());
             }
+            EthEvent::BalancerNewPool { .. } => {
+                // Balancer pool events not handled in network layer yet
+                // TODO: Implement when Balancer integration is complete
+            }
+            EthEvent::BalancerRemovedPool { .. } => {
+                // Balancer pool events not handled in network layer yet
+                // TODO: Implement when Balancer integration is complete
+            }
             EthEvent::AddedNode(_) => {}
             EthEvent::RemovedNode(_) => {}
             EthEvent::NewBlock(_) => {}
