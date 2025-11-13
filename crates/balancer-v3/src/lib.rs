@@ -1,38 +1,41 @@
-use std::{collections::HashSet, pin::Pin, sync::Arc};
+//! Balancer V3 integration for Angstrom
+//!
+//! This crate provides integration with Balancer V3 pools, including:
+//! - RPC query system for pool state
+//! - Pool state management and synchronization
+//! - Integration with balancer-maths-rust for swap calculations
 
-use alloy::{
-    consensus::TxReceipt,
-    primitives::{Address, BlockNumber},
-    sol_types::SolEvent
-};
-use angstrom_eth::manager::EthEvent;
-use angstrom_types::{
-    block_sync::BlockSyncConsumer,
-    contract_bindings::balancer_controller::BalancerController::{
-        BalancerPoolConfigured, BalancerPoolRemoved
-    }
-};
-use futures::Stream;
-use reth_provider::{
-    CanonStateNotifications, DatabaseProviderFactory, ReceiptProvider,
-    TryIntoHistoricalStateProvider
-};
+use std::{collections::HashSet, sync::Arc};
 
-use crate::balancer::{
-    pool_factory::V3PoolFactory, pool_providers::canonical_state_adapter::CanonicalStateAdapter
+use alloy::{consensus::TxReceipt, primitives::Address, providers::Provider, sol_types::SolEvent};
+use angstrom_types::contract_bindings::balancer_controller::BalancerController::{
+    BalancerPoolConfigured, BalancerPoolRemoved
 };
+use reth_provider::{DatabaseProviderFactory, ReceiptProvider, TryIntoHistoricalStateProvider};
 
 pub mod balancer;
-pub use balancer::pool_manager::{BalancerPoolManager, SyncedBalancerPools};
+
+// Re-export common types
+pub use alloy::primitives::U256;
+// Re-export for future use in Step 9.8
+#[cfg(feature = "event-driven")]
+pub use balancer::pool_providers::canonical_state_adapter::CanonicalStateAdapter;
+pub use balancer::{
+    pool::ReClammPoolState,
+    pool_data_loader::{BalancerDataLoader, BalancerPoolDataLoader, ReClammPoolData},
+    pool_factory::V3PoolFactory,
+    pool_manager::{BalancerPoolManager, SyncedBalancerPools}
+};
 
 /// Fetches all Balancer pools from historical event logs
-/// Returns a tuple of (pool_address, token0, token1) for each configured pool
+/// Returns a tuple of (pool_address, vault_explorer_address) for each
+/// configured pool
 pub async fn fetch_balancer_pools<DB>(
     deploy_block: usize,
     end_block: usize,
     balancer_controller: Address,
     db: &DB
-) -> Vec<(Address, Address, Address)>
+) -> Vec<(Address, Address)>
 where
     DB: DatabaseProviderFactory + ReceiptProvider,
     <DB as DatabaseProviderFactory>::Provider: TryIntoHistoricalStateProvider
@@ -49,15 +52,19 @@ where
         })
         .collect::<Vec<_>>();
 
+    // TODO: Update when contracts are ready - need vault_explorer from events
+    // For now, return (pool_address, vault_explorer) where vault_explorer =
+    // controller
     logs.into_iter()
         .fold(HashSet::new(), |mut set, log| {
             if let Ok(configured) = BalancerPoolConfigured::decode_log(&log) {
-                set.insert((configured.poolAddress, configured.token0, configured.token1));
+                // TODO: Extract vault_explorer from event when available
+                set.insert((configured.poolAddress, balancer_controller));
                 return set;
             }
 
             if let Ok(removed) = BalancerPoolRemoved::decode_log(&log) {
-                set.retain(|(addr, ..)| *addr != removed.poolAddress);
+                set.retain(|(addr, _)| *addr != removed.poolAddress);
                 return set;
             }
             set
@@ -66,23 +73,25 @@ where
         .collect::<Vec<_>>()
 }
 
-pub async fn configure_balancer_manager<P, BlockSync>(
+/// Configure a simple Balancer pool manager
+pub fn configure_balancer_manager<P>(
     provider: Arc<P>,
-    state_notification: CanonStateNotifications,
-    current_block: BlockNumber,
-    block_sync: BlockSync,
-    balancer_controller: Address,
-    discovered_pools: Vec<(Address, Address, Address)>, // (pool_address, token0, token1)
-    update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
-) -> BalancerPoolManager<P, CanonicalStateAdapter<P>, BlockSync>
+    discovered_pools: Vec<(Address, Address)>
+) -> BalancerPoolManager<P>
 where
-    P: alloy::providers::Provider + 'static,
-    BlockSync: BlockSyncConsumer
+    P: Provider + 'static
 {
-    let factory = V3PoolFactory::new(provider.clone(), balancer_controller, discovered_pools);
+    let manager = BalancerPoolManager::new(provider);
 
-    let notifier =
-        Arc::new(CanonicalStateAdapter::new(state_notification, provider.clone(), current_block));
+    // Create factory and initialize pools
+    if !discovered_pools.is_empty() {
+        let vault_explorer = discovered_pools[0].1; // Use first vault_explorer as default
+        let factory = V3PoolFactory::new(vault_explorer, discovered_pools);
 
-    BalancerPoolManager::new(factory, current_block, notifier, block_sync, update_stream).await
+        for pool in factory.create_pools() {
+            manager.add_pool(pool);
+        }
+    }
+
+    manager
 }
