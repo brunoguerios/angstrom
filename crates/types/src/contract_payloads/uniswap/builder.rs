@@ -19,7 +19,7 @@ use crate::{
     },
     matching::{Ray, SqrtPriceX96, get_quantities_at_price},
     orders::{OrderFillState, OrderId, OrderOutcome, OrderSet, PoolSolution},
-    primitive::{PoolId, UniswapPoolRegistry},
+    primitive::PoolId,
     sol_bindings::{
         RawPoolOrder,
         grouped_orders::{AllOrders, OrderWithStorageData},

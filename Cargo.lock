@@ -2274,13 +2274,11 @@ dependencies = [
 
 [[package]]
 name = "balancer-maths-rust"
-version = "0.2.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e85fed98aa59a603b294384a394d7db5edd99c8936da411e721117d7f6a296d5"
+checksum = "91644b2bb1e54a8735652142e3264c6deb0846663f4849731660bcb6190f1b4c"
 dependencies = [
- "lazy_static",
- "num-bigint",
- "num-traits",
+ "alloy-primitives",
  "serde",
  "serde_json",
 ]
@@ -2290,14 +2288,16 @@ name = "balancer-v3"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "angstrom-eth",
+ "alloy-primitives",
  "angstrom-types",
- "async-stream",
+ "balancer-maths-rust",
  "dashmap 6.1.0",
  "eyre",
  "futures",
- "futures-util",
+ "parking_lot",
  "reth-provider",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
 ]

@@ -75,7 +75,7 @@ forge fmt --check                          # Check formatting
 ### Smart Contracts (`/contracts`)
 - **Core Contract**: Handles order validation, settlement, and AMM reward management
 - **Periphery Contracts**: Access control and fee distribution
-- Uses Uniswap V4 as underlying AMM
+- Uses Uniswap V4 and Balancer V3 as underlying AMMs
 - PADE encoding for efficient data packing
 - "Code as storage" (SSTORE2) pattern for gas optimization
 
@@ -87,6 +87,8 @@ forge fmt --check                          # Check formatting
 - **validation**: Validates orders and bundles
 - **eth**: Ethereum integration layer using Reth
 - **rpc**: JSON-RPC and gRPC interfaces
+- **uniswap-v4**: Uniswap V4 pool state management and swap calculations
+- **balancer-v3**: Balancer V3 pool state management and swap calculations
 
 ### Key Design Decisions
 1. **No Events**: Contracts avoid events to save gas
@@ -126,3 +128,59 @@ forge fmt --check                          # Check formatting
    - Limited encoding capabilities (intentional for gas)
    - Single Uniswap AMM pool configuration at a time
    - No cross-pair price consistency guarantees
+
+## Development Roadmap
+
+### Balancer V3 Integration (Steps 9-15)
+
+The Balancer V3 integration has been broken down into focused, sequential steps:
+
+- **Step 9** (✅ COMPLETE): Balancer RPC Query System & Pool State Management
+  - RPC infrastructure for querying Balancer V3 pools
+  - ReClammPoolState and BalancerPoolManager
+  - Integration tests with live Base mainnet data
+  - Plan: `.cursor/plans/plan-step-9-balancer-rpc-and-state.plan.md`
+
+- **Step 10** (Pending): Balancer Swap Calculation Integration
+  - Adapter for balancer-maths-rust
+  - Swap calculations (GivenIn/GivenOut)
+  - Plan: `.cursor/plans/plan-step-10-balancer-swap-calculations.plan.md`
+
+- **Step 11** (Pending): Balancer Pool Update Logic & Mocking
+  - Pool state update methods
+  - Mock DataLoader and builders for testing
+  - Plan: `.cursor/plans/plan-step-11-balancer-pool-updates.plan.md`
+
+- **Step 12** (Pending): Balancer State Synchronization & Bundle Building
+  - Bundle building from matched orders (TOB only)
+  - Consensus integration
+  - Plan: `.cursor/plans/plan-step-12-balancer-state-sync.plan.md`
+
+- **Step 13** (Pending): Balancer Math Validation Tests
+  - End-to-end integration tests
+  - Validation against balancer-maths testData
+  - Plan: `.cursor/plans/plan-step-13-balancer-math-validation.plan.md`
+
+- **Step 14** (Pending): Balancer Integration with Matching Engine
+  - Wire BalancerPoolManager into matching engine
+  - Multi-pool support (Uniswap + Balancer)
+  - Plan: `.cursor/plans/plan-step-14-balancer-matching-engine.plan.md`
+
+- **Step 15** (Deferred): Event-Driven Pool Manager
+  - Production event-driven architecture
+  - Dynamic pool discovery
+  - Deferred until production deployment
+  - Plan: `.cursor/plans/plan-step-15-event-driven-pool-manager.plan.md`
+
+### Testing Balancer Integration
+
+```bash
+# Run all balancer-v3 tests
+cargo test -p balancer-v3
+
+# Run integration test with live Base RPC
+cargo test -p balancer-v3 test_reclamm_pool_data_loader_base --test test_pool_data_loader -- --ignored --nocapture
+
+# Set custom RPC endpoint
+BASE_RPC_URL="https://your-rpc-url" cargo test -p balancer-v3 --test test_pool_data_loader -- --ignored
+```

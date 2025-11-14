@@ -1,27 +1,17 @@
-use std::{
-    collections::HashMap,
-    future::Future,
-    pin::Pin,
-    sync::{Arc, RwLock},
-    task::Poll
-};
+//! Balancer pool manager
+//!
+//! Manages a collection of Balancer pools and handles block updates/reorgs
 
-use alloy::{primitives::BlockNumber, providers::Provider as AlloyProvider};
-use angstrom_eth::manager::EthEvent;
-use angstrom_types::{
-    balancer_structure::BalancerPoolState, block_sync::BlockSyncConsumer, primitive::PoolId
-};
+use std::{ops::Range, sync::Arc};
+
+use alloy::{primitives::Address, providers::Provider};
 use dashmap::DashMap;
-use futures_util::{Stream, StreamExt, stream::BoxStream};
+use parking_lot::RwLock;
 
-// intentionally no DB-bound imports; Balancer scaffold uses Alloy provider in factory
-use super::{
-    pool_factory::V3PoolFactory,
-    pool_providers::{PoolManagerBlocks, PoolManagerProvider}
-};
+use super::pool::ReClammPoolState;
 
-pub type SyncedBalancerPool = Arc<RwLock<BalancerPoolState>>;
-type PoolMap = Arc<DashMap<PoolId, SyncedBalancerPool>>;
+pub type SyncedBalancerPool = Arc<RwLock<ReClammPoolState>>;
+type PoolMap = Arc<DashMap<Address, SyncedBalancerPool>>;
 
 #[derive(Clone)]
 pub struct SyncedBalancerPools {
@@ -33,140 +23,131 @@ impl SyncedBalancerPools {
         Self { pools }
     }
 
-    pub fn iter(&self) -> dashmap::iter::Iter<'_, PoolId, SyncedBalancerPool> {
+    pub fn iter(&self) -> dashmap::iter::Iter<'_, Address, SyncedBalancerPool> {
         self.pools.iter()
     }
-}
 
-pub struct BalancerPoolManager<P, Provider, BlockSync> {
-    factory:             V3PoolFactory<P>,
-    pools:               SyncedBalancerPools,
-    latest_synced_block: u64,
-    provider:            Arc<Provider>,
-    block_sync:          BlockSync,
-    block_stream:        BoxStream<'static, Option<PoolManagerBlocks>>,
-    update_stream:       Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
-}
+    pub fn get(&self, address: &Address) -> Option<SyncedBalancerPool> {
+        self.pools.get(address).map(|p| p.clone())
+    }
 
-impl<P, Provider, BlockSync> BalancerPoolManager<P, Provider, BlockSync>
-where
-    P: AlloyProvider + 'static,
-    Provider: PoolManagerProvider + Send + Sync + 'static,
-    BlockSync: BlockSyncConsumer
-{
-    pub async fn new(
-        factory: V3PoolFactory<P>,
-        latest_synced_block: BlockNumber,
-        provider: Arc<Provider>,
-        block_sync: BlockSync,
-        update_stream: Pin<Box<dyn Stream<Item = EthEvent> + Send + Sync>>
-    ) -> Self {
-        block_sync.register("BalancerV3");
+    pub fn insert(&self, address: Address, pool: SyncedBalancerPool) {
+        self.pools.insert(address, pool);
+    }
 
-        let rwlock_pools: HashMap<PoolId, SyncedBalancerPool> = factory
-            .init(latest_synced_block as u64)
-            .await
-            .into_iter()
-            .map(|(pool_id, pool_state)| (pool_id, Arc::new(RwLock::new(pool_state))))
-            .collect();
+    pub fn len(&self) -> usize {
+        self.pools.len()
+    }
 
-        let block_stream = provider.subscribe_blocks();
-
-        Self {
-            factory,
-            pools: SyncedBalancerPools::new(Arc::new(DashMap::from_iter(rwlock_pools.into_iter()))),
-            latest_synced_block,
-            provider,
-            block_sync,
-            update_stream,
-            block_stream
-        }
+    pub fn is_empty(&self) -> bool {
+        self.pools.is_empty()
     }
 }
 
-impl<P, Provider, BlockSync> BalancerPoolManager<P, Provider, BlockSync>
-where
-    BlockSync: BlockSyncConsumer
-{
-    pub fn pool_addresses(&self) -> impl Iterator<Item = PoolId> + '_ {
-        self.pools.iter().map(|k| *k.key())
+/// Manages a collection of Balancer pools
+pub struct BalancerPoolManager<P: Provider> {
+    pools:               Arc<DashMap<Address, Arc<RwLock<ReClammPoolState>>>>,
+    provider:            Arc<P>,
+    latest_synced_block: u64
+}
+
+impl<P: Provider> BalancerPoolManager<P> {
+    /// Create a new BalancerPoolManager
+    pub fn new(provider: Arc<P>) -> Self {
+        Self { pools: Arc::new(DashMap::new()), provider, latest_synced_block: 0 }
     }
 
+    /// Add a pool to the manager
+    pub fn add_pool(&self, pool: ReClammPoolState) {
+        let pool_address = pool.pool_address;
+        self.pools.insert(pool_address, Arc::new(RwLock::new(pool)));
+    }
+
+    /// Get a pool by address
+    pub fn get_pool(&self, address: &Address) -> Option<Arc<RwLock<ReClammPoolState>>> {
+        self.pools.get(address).map(|p| p.clone())
+    }
+
+    /// Get all pools as SyncedBalancerPools
     pub fn pools(&self) -> SyncedBalancerPools {
-        self.pools.clone()
+        SyncedBalancerPools::new(self.pools.clone())
     }
 
-    fn handle_new_block_info(&mut self, block_info: PoolManagerBlocks) {
-        match block_info {
-            PoolManagerBlocks::NewBlock(block) => {
-                self.latest_synced_block = block;
-            }
-            PoolManagerBlocks::Reorg(tip, _rng) => {
-                self.latest_synced_block = tip;
-                self.block_sync.sign_off_reorg("BalancerV3", _rng, None);
-            }
+    /// Handle a new block
+    pub async fn handle_new_block(&mut self, block_number: u64) {
+        for pool in self.pools.iter() {
+            let pool = pool.value();
+            let mut l = pool.write();
+
+            // Re-query pool state at new block
+            let _ = l.update_to_block(block_number, self.provider.clone()).await;
         }
 
-        for pool in self.pools.pools.iter() {
-            let mut pool = pool.value().write().expect("lock");
-            pool.block_number = self.latest_synced_block;
-        }
+        self.latest_synced_block = block_number;
+    }
 
-        self.block_sync
-            .sign_off_on_block("BalancerV3", self.latest_synced_block, None);
+    /// Handle a reorg
+    pub fn handle_reorg(&mut self, tip: u64, _range: Range<u64>) {
+        // On reorg, rollback to the new tip
+        // The next handle_new_block will re-sync all pools
+        self.latest_synced_block = tip;
+    }
+
+    /// Get the latest synced block
+    pub fn latest_synced_block(&self) -> u64 {
+        self.latest_synced_block
+    }
+
+    /// Get the number of pools
+    pub fn pool_count(&self) -> usize {
+        self.pools.len()
     }
 }
 
-impl<P, Provider, BlockSync> Future for BalancerPoolManager<P, Provider, BlockSync>
-where
-    P: AlloyProvider + 'static,
-    Provider: PoolManagerProvider + Send + Sync + 'static,
-    BlockSync: BlockSyncConsumer
-{
-    type Output = ();
+#[cfg(test)]
+mod tests {
+    use alloy::providers::ProviderBuilder;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        while let Poll::Ready(Some(Some(block_info))) = self.block_stream.poll_next_unpin(cx) {
-            self.handle_new_block_info(block_info);
-        }
-        while let Poll::Ready(Some(event)) = self.update_stream.poll_next_unpin(cx) {
-            match event {
-                EthEvent::BalancerNewPool { pool_address, token0, token1 } => {
-                    tracing::info!(?pool_address, ?token0, ?token1, "Adding new Balancer pool");
+    use super::*;
 
-                    // Convert Address (20 bytes) to PoolId (32 bytes) by zero-extending
-                    // PoolId is used as a key in DashMap, so we still need 32 bytes
-                    let mut pool_id_bytes = [0u8; 32];
-                    pool_id_bytes[12..32].copy_from_slice(&pool_address.into_array());
-                    let pool_id = PoolId::from(pool_id_bytes);
+    #[test]
+    fn test_synced_pools() {
+        let pools = SyncedBalancerPools::new(Arc::new(DashMap::new()));
+        assert!(pools.is_empty());
+        assert_eq!(pools.len(), 0);
 
-                    // Create new pool state with Address directly
-                    let pool_state = BalancerPoolState::new(
-                        pool_address,
-                        self.latest_synced_block,
-                        0 // fee placeholder; read from pool if needed
-                    );
+        let pool = Arc::new(RwLock::new(ReClammPoolState::new(Address::ZERO)));
+        pools.insert(Address::ZERO, pool.clone());
 
-                    self.pools
-                        .pools
-                        .insert(pool_id, Arc::new(RwLock::new(pool_state)));
-                }
+        assert!(!pools.is_empty());
+        assert_eq!(pools.len(), 1);
+        assert!(pools.get(&Address::ZERO).is_some());
+    }
 
-                EthEvent::BalancerRemovedPool { pool_address } => {
-                    tracing::info!(?pool_address, "Removing Balancer pool");
-                    // Convert Address (20 bytes) to PoolId (32 bytes) by zero-extending
-                    let mut pool_id_bytes = [0u8; 32];
-                    pool_id_bytes[12..32].copy_from_slice(&pool_address.into_array());
-                    let pool_id = PoolId::from(pool_id_bytes);
-                    self.pools.pools.remove(&pool_id);
-                }
+    #[tokio::test]
+    async fn test_pool_manager_creation() {
+        let provider = ProviderBuilder::new()
+            .connect("http://localhost:8545")
+            .await
+            .unwrap();
+        let manager = BalancerPoolManager::new(Arc::new(provider));
 
-                // Ignore Uniswap events (won't occur in Balancer-only nodes)
-                EthEvent::NewPool { .. } | EthEvent::RemovedPool { .. } => {}
+        assert_eq!(manager.pool_count(), 0);
+        assert_eq!(manager.latest_synced_block(), 0);
+    }
 
-                _ => {}
-            }
-        }
-        Poll::Pending
+    #[tokio::test]
+    async fn test_add_pool() {
+        let provider = ProviderBuilder::new()
+            .connect("http://localhost:8545")
+            .await
+            .unwrap();
+        let manager = BalancerPoolManager::new(Arc::new(provider));
+
+        let pool = ReClammPoolState::new(Address::ZERO);
+        manager.add_pool(pool);
+
+        assert_eq!(manager.pool_count(), 1);
+        assert!(manager.get_pool(&Address::ZERO).is_some());
     }
 }
