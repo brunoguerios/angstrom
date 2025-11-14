@@ -378,12 +378,7 @@ where
     {
         let balancer_manager = balancer_v3::configure_balancer_manager(
             querying_provider.clone(),
-            eth_handle.subscribe_cannon_state_notifications().await,
-            block_id,
-            global_block_sync.clone(),
-            controller,
-            balancer_discovered_pools, // Pass discovered pools from historical scan
-            network_stream
+            balancer_discovered_pools // Pass discovered pools from historical scan
         )
         .await;
 
