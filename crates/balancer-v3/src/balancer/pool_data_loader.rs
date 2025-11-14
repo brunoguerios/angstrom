@@ -7,13 +7,17 @@
 use std::{future::Future, sync::Arc};
 
 use alloy::{
-    primitives::{Address, U256},
+    primitives::{Address, U256, address},
     providers::Provider
 };
 use eyre::Result;
 
 // Re-export ABIs and data structures
 pub use super::loaders::{IReClamm, IVault, IVaultExplorer, ReClammPoolData};
+
+/// Balancer V3 Vault address (constant across all chains where Balancer V3 is
+/// deployed)
+pub const BALANCER_V3_VAULT: Address = address!("bA1333333333a1BA1108E8412f11850A5C319bA9");
 
 /// Trait for loading Balancer pool data from the blockchain
 pub trait BalancerPoolDataLoader: Clone + Send + Sync + 'static {
@@ -24,9 +28,6 @@ pub trait BalancerPoolDataLoader: Clone + Send + Sync + 'static {
         provider: Arc<P>
     ) -> impl Future<Output = Result<ReClammPoolData>> + Send;
 
-    /// Get the vault explorer address
-    fn vault_explorer_address(&self) -> Address;
-
     /// Get the pool address
     fn pool_address(&self) -> Address;
 }
@@ -34,14 +35,13 @@ pub trait BalancerPoolDataLoader: Clone + Send + Sync + 'static {
 /// Default implementation of BalancerPoolDataLoader
 #[derive(Clone, Debug)]
 pub struct BalancerDataLoader {
-    vault_explorer: Address,
-    pool:           Address
+    pool: Address
 }
 
 impl BalancerDataLoader {
     /// Create a new BalancerDataLoader
-    pub fn new(vault_explorer: Address, pool: Address) -> Self {
-        Self { vault_explorer, pool }
+    pub fn new(pool: Address) -> Self {
+        Self { pool }
     }
 }
 
@@ -52,12 +52,8 @@ impl BalancerPoolDataLoader for BalancerDataLoader {
         provider: Arc<P>
     ) -> Result<ReClammPoolData> {
         // Create contract instances
-        let vault_explorer = IVaultExplorer::new(self.vault_explorer, provider.clone());
         let pool = IReClamm::new(self.pool, provider.clone());
-
-        // Get vault address from VaultExplorer
-        let vault_address = vault_explorer.getVault().call().await?;
-        let vault = IVault::new(vault_address, provider.clone());
+        let vault = IVault::new(BALANCER_V3_VAULT, provider.clone());
 
         // Execute all calls (Alloy handles this efficiently, similar to multicall)
         // Each call will be a separate RPC request, but they can be batched by the
@@ -65,16 +61,14 @@ impl BalancerPoolDataLoader for BalancerDataLoader {
         let block_id = block_number
             .map(|n| alloy::eips::BlockId::Number(alloy::eips::BlockNumberOrTag::Number(n)));
 
-        // Call 1: Get pool config from Vault (not VaultExplorer!)
-        // The TypeScript reference implementation calls getPoolConfig on the Vault
-        // address
+        // Call 1: Get pool config from Vault
         let mut config_call = vault.getPoolConfig(self.pool);
         if let Some(block) = block_id {
             config_call = config_call.block(block);
         }
         let config = config_call.call().await?;
 
-        // Call 2: Get pool dynamic data
+        // Call 2: Get pool dynamic data from pool
         let mut dynamic_data_call = pool.getReClammPoolDynamicData();
         if let Some(block) = block_id {
             dynamic_data_call = dynamic_data_call.block(block);
@@ -94,12 +88,10 @@ impl BalancerPoolDataLoader for BalancerDataLoader {
             current_virtual_balances_call = current_virtual_balances_call.block(block);
         }
         let balances_result = current_virtual_balances_call.call().await?;
-        let current_virtual_balances = vec![
-            balances_result.currentVirtualBalanceA,
-            balances_result.currentVirtualBalanceB
-        ];
+        let current_virtual_balances =
+            vec![balances_result.currentVirtualBalanceA, balances_result.currentVirtualBalanceB];
 
-        // Call 5: Get token info from Vault
+        // Call 5: Get token addresses from Vault
         let mut token_info_call = vault.getPoolTokenInfo(self.pool);
         if let Some(block) = block_id {
             token_info_call = token_info_call.block(block);
@@ -107,7 +99,7 @@ impl BalancerPoolDataLoader for BalancerDataLoader {
         let token_info = token_info_call.call().await?;
         let tokens = token_info.tokens;
 
-        // Call 6: Get token rates from Vault (this also returns decimal scaling factors)
+        // Call 6: Get token rates and scaling factors from Vault
         let mut token_rates_call = vault.getPoolTokenRates(self.pool);
         if let Some(block) = block_id {
             token_rates_call = token_rates_call.block(block);
@@ -164,10 +156,6 @@ impl BalancerPoolDataLoader for BalancerDataLoader {
         })
     }
 
-    fn vault_explorer_address(&self) -> Address {
-        self.vault_explorer
-    }
-
     fn pool_address(&self) -> Address {
         self.pool
     }
@@ -179,11 +167,9 @@ mod tests {
 
     #[test]
     fn test_data_loader_creation() {
-        let vault_explorer = Address::ZERO;
         let pool = Address::ZERO;
-        let loader = BalancerDataLoader::new(vault_explorer, pool);
+        let loader = BalancerDataLoader::new(pool);
 
-        assert_eq!(loader.vault_explorer_address(), vault_explorer);
         assert_eq!(loader.pool_address(), pool);
     }
 }

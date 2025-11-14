@@ -62,11 +62,6 @@ async fn test_reclamm_pool_data_loader_base() {
     // Parse addresses
     let pool_address: Address = expected.pool_address.parse().expect("Invalid pool address");
 
-    // VaultExplorer contract on Base
-    let vault_explorer: Address = "0xaD89051bEd8d96f045E8912aE1672c6C0bF8a85E"
-        .parse()
-        .expect("Invalid vault explorer address");
-
     // Set up provider for Base mainnet
     let base_rpc_url =
         std::env::var("BASE_RPC_URL").unwrap_or_else(|_| "https://base.drpc.org".to_string());
@@ -79,7 +74,7 @@ async fn test_reclamm_pool_data_loader_base() {
     let provider = Arc::new(provider);
 
     // Create data loader
-    let data_loader = BalancerDataLoader::new(vault_explorer, pool_address);
+    let data_loader = BalancerDataLoader::new(pool_address);
 
     // Query pool data at the specific block
     let block_number: u64 = expected.block_number.parse().expect("Invalid block number");

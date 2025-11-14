@@ -116,7 +116,7 @@ mod tests {
         assert!(pools.is_empty());
         assert_eq!(pools.len(), 0);
 
-        let pool = Arc::new(RwLock::new(ReClammPoolState::new(Address::ZERO, Address::ZERO)));
+        let pool = Arc::new(RwLock::new(ReClammPoolState::new(Address::ZERO)));
         pools.insert(Address::ZERO, pool.clone());
 
         assert!(!pools.is_empty());
@@ -144,7 +144,7 @@ mod tests {
             .unwrap();
         let manager = BalancerPoolManager::new(Arc::new(provider));
 
-        let pool = ReClammPoolState::new(Address::ZERO, Address::ZERO);
+        let pool = ReClammPoolState::new(Address::ZERO);
         manager.add_pool(pool);
 
         assert_eq!(manager.pool_count(), 1);

@@ -110,11 +110,11 @@ pub struct ReClammPoolData {
     pub aggregate_swap_fee: U256,
 
     // From Pool - State Data
-    pub balances_live_scaled18:      Vec<U256>,
-    pub total_supply:                U256,
-    pub last_timestamp:              U256,
-    pub last_virtual_balances:       Vec<U256>,
-    pub current_virtual_balances:    Vec<U256>,
+    pub balances_live_scaled18:   Vec<U256>,
+    pub total_supply:             U256,
+    pub last_timestamp:           U256,
+    pub last_virtual_balances:    Vec<U256>,
+    pub current_virtual_balances: Vec<U256>,
 
     // From Pool - Price Shift Parameters
     pub daily_price_shift_exponent: U256,

@@ -28,14 +28,13 @@ pub use balancer::{
 };
 
 /// Fetches all Balancer pools from historical event logs
-/// Returns a tuple of (pool_address, vault_explorer_address) for each
-/// configured pool
+/// Returns a list of configured pool addresses
 pub async fn fetch_balancer_pools<DB>(
     deploy_block: usize,
     end_block: usize,
     balancer_controller: Address,
     db: &DB
-) -> Vec<(Address, Address)>
+) -> Vec<Address>
 where
     DB: DatabaseProviderFactory + ReceiptProvider,
     <DB as DatabaseProviderFactory>::Provider: TryIntoHistoricalStateProvider
@@ -52,19 +51,15 @@ where
         })
         .collect::<Vec<_>>();
 
-    // TODO: Update when contracts are ready - need vault_explorer from events
-    // For now, return (pool_address, vault_explorer) where vault_explorer =
-    // controller
     logs.into_iter()
         .fold(HashSet::new(), |mut set, log| {
             if let Ok(configured) = BalancerPoolConfigured::decode_log(&log) {
-                // TODO: Extract vault_explorer from event when available
-                set.insert((configured.poolAddress, balancer_controller));
+                set.insert(configured.poolAddress);
                 return set;
             }
 
             if let Ok(removed) = BalancerPoolRemoved::decode_log(&log) {
-                set.retain(|(addr, _)| *addr != removed.poolAddress);
+                set.remove(&removed.poolAddress);
                 return set;
             }
             set
@@ -76,7 +71,7 @@ where
 /// Configure a simple Balancer pool manager
 pub fn configure_balancer_manager<P>(
     provider: Arc<P>,
-    discovered_pools: Vec<(Address, Address)>
+    discovered_pools: Vec<Address>
 ) -> BalancerPoolManager<P>
 where
     P: Provider + 'static
@@ -85,8 +80,7 @@ where
 
     // Create factory and initialize pools
     if !discovered_pools.is_empty() {
-        let vault_explorer = discovered_pools[0].1; // Use first vault_explorer as default
-        let factory = V3PoolFactory::new(vault_explorer, discovered_pools);
+        let factory = V3PoolFactory::new(discovered_pools);
 
         for pool in factory.create_pools() {
             manager.add_pool(pool);

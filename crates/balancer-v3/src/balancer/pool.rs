@@ -13,10 +13,9 @@ use super::pool_data_loader::{BalancerDataLoader, BalancerPoolDataLoader, ReClam
 /// ReClamm pool state
 #[derive(Clone, Debug)]
 pub struct ReClammPoolState {
-    pub data_loader:    BalancerDataLoader,
-    pub block_number:   u64,
-    pub pool_address:   Address,
-    pub vault_explorer: Address,
+    pub data_loader:  BalancerDataLoader,
+    pub block_number: u64,
+    pub pool_address: Address,
 
     // Cached from Vault
     pub tokens:             Vec<Address>,
@@ -57,14 +56,13 @@ pub struct ReClammPoolState {
 
 impl ReClammPoolState {
     /// Create a new ReClammPoolState
-    pub fn new(vault_explorer: Address, pool_address: Address) -> Self {
-        let data_loader = BalancerDataLoader::new(vault_explorer, pool_address);
+    pub fn new(pool_address: Address) -> Self {
+        let data_loader = BalancerDataLoader::new(pool_address);
 
         Self {
             data_loader,
             block_number: 0,
             pool_address,
-            vault_explorer,
             tokens: Vec::new(),
             scaling_factors: Vec::new(),
             token_rates: Vec::new(),
@@ -164,12 +162,10 @@ mod tests {
 
     #[test]
     fn test_pool_state_creation() {
-        let vault_explorer = Address::ZERO;
         let pool = Address::ZERO;
-        let state = ReClammPoolState::new(vault_explorer, pool);
+        let state = ReClammPoolState::new(pool);
 
         assert_eq!(state.pool_address, pool);
-        assert_eq!(state.vault_explorer, vault_explorer);
         assert_eq!(state.block_number, 0);
     }
 }
