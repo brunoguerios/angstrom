@@ -88,21 +88,32 @@ impl BalancerPoolDataLoader for BalancerDataLoader {
         }
         let is_within_range = range_call.call().await?;
 
-        // Call 4: Get token info from Vault
+        // Call 4: Compute current virtual balances
+        let mut current_virtual_balances_call = pool.computeCurrentVirtualBalances();
+        if let Some(block) = block_id {
+            current_virtual_balances_call = current_virtual_balances_call.block(block);
+        }
+        let balances_result = current_virtual_balances_call.call().await?;
+        let current_virtual_balances = vec![
+            balances_result.currentVirtualBalanceA,
+            balances_result.currentVirtualBalanceB
+        ];
+
+        // Call 5: Get token info from Vault
         let mut token_info_call = vault.getPoolTokenInfo(self.pool);
         if let Some(block) = block_id {
             token_info_call = token_info_call.block(block);
         }
         let token_info = token_info_call.call().await?;
         let tokens = token_info.tokens;
-        let scaling_factors = token_info.scalingFactors;
 
-        // Call 5: Get token rates from Vault
+        // Call 6: Get token rates from Vault (this also returns decimal scaling factors)
         let mut token_rates_call = vault.getPoolTokenRates(self.pool);
         if let Some(block) = block_id {
             token_rates_call = token_rates_call.block(block);
         }
         let token_rates_result = token_rates_call.call().await?;
+        let scaling_factors = token_rates_result.decimalScalingFactors;
         let token_rates = token_rates_result.tokenRates;
 
         // Get current timestamp (approximate - could query block timestamp if needed)
@@ -127,6 +138,7 @@ impl BalancerPoolDataLoader for BalancerDataLoader {
             total_supply: dynamic_data.totalSupply,
             last_timestamp: dynamic_data.lastTimestamp,
             last_virtual_balances: dynamic_data.lastVirtualBalances,
+            current_virtual_balances,
 
             // From Pool - Price Shift Parameters
             daily_price_shift_exponent: dynamic_data.dailyPriceShiftExponent,

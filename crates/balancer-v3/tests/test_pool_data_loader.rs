@@ -26,6 +26,7 @@ struct TestPoolData {
     token_rates: Vec<String>,
     last_timestamp: String,
     last_virtual_balances: Vec<String>,
+    current_virtual_balances: Vec<String>,
     daily_price_shift_base: String,
     centeredness_margin: String,
     start_fourth_root_price_ratio: String,
@@ -88,12 +89,26 @@ async fn test_reclamm_pool_data_loader_base() {
         .await
         .expect("Failed to query pool data");
 
-    // Validate queried data against expected test data
-    println!("✓ Successfully queried pool data from Base");
-    println!("  Block: {}", block_number);
-    println!("  Pool: {}", pool_address);
+    // Helper macro to validate arrays match
+    macro_rules! validate_array {
+        ($actual:expr, $expected:expr, $name:expr) => {
+            assert_eq!($actual.len(), $expected.len(), "{} count mismatch", $name);
+            for (i, (actual, expected)) in $actual.iter().zip($expected.iter()).enumerate() {
+                assert_eq!(actual.to_string(), *expected, "{} {} mismatch", $name, i);
+            }
+        };
+    }
 
-    // Validate token configuration
+    // Helper macro to validate single values match
+    macro_rules! validate_value {
+        ($actual:expr, $expected:expr, $name:expr) => {
+            assert_eq!($actual.to_string(), $expected, "{} mismatch", $name);
+        };
+    }
+
+    println!("✓ Queried pool data from Base (block: {}, pool: {})", block_number, pool_address);
+
+    // Validate tokens
     assert_eq!(pool_data.tokens.len(), expected.tokens.len(), "Token count mismatch");
     for (i, (actual, expected)) in pool_data
         .tokens
@@ -104,59 +119,67 @@ async fn test_reclamm_pool_data_loader_base() {
         let expected_addr: Address = expected.parse().expect("Invalid expected token address");
         assert_eq!(actual, &expected_addr, "Token {} address mismatch", i);
     }
-    println!("  ✓ Tokens match ({} tokens)", pool_data.tokens.len());
 
-    // Validate swap fees
-    assert_eq!(pool_data.swap_fee.to_string(), expected.swap_fee, "Swap fee mismatch");
-    assert_eq!(
-        pool_data.aggregate_swap_fee.to_string(),
+    // Validate all numeric fields
+    validate_value!(pool_data.swap_fee, expected.swap_fee, "Swap fee");
+    validate_value!(
+        pool_data.aggregate_swap_fee,
         expected.aggregate_swap_fee,
-        "Aggregate swap fee mismatch"
+        "Aggregate swap fee"
     );
-    println!("  ✓ Swap fees match");
-
-    // Validate balances
-    assert_eq!(
-        pool_data.balances_live_scaled18.len(),
-        expected.balances_live_scaled_18.len(),
-        "Balance count mismatch"
+    validate_array!(pool_data.balances_live_scaled18, expected.balances_live_scaled_18, "Balance");
+    validate_array!(
+        pool_data.last_virtual_balances,
+        expected.last_virtual_balances,
+        "Last virtual balance"
     );
-    for (i, (actual, expected)) in pool_data
-        .balances_live_scaled18
-        .iter()
-        .zip(expected.balances_live_scaled_18.iter())
-        .enumerate()
-    {
-        assert_eq!(actual.to_string(), *expected, "Balance {} mismatch", i);
-    }
-    println!("  ✓ Balances match");
+    validate_array!(
+        pool_data.current_virtual_balances,
+        expected.current_virtual_balances,
+        "Current virtual balance"
+    );
+    validate_value!(pool_data.total_supply, expected.total_supply, "Total supply");
+    validate_array!(pool_data.token_rates, expected.token_rates, "Token rate");
+    validate_array!(pool_data.scaling_factors, expected.scaling_factors, "Scaling factor");
 
-    // Validate pool state flags
     assert_eq!(
         pool_data.is_pool_within_target_range, expected.is_pool_within_target_range,
         "Pool within target range flag mismatch"
     );
-    println!("  ✓ Pool state flags match");
 
-    // Validate ReClamm-specific parameters
-    assert_eq!(
-        pool_data.last_timestamp.to_string(),
-        expected.last_timestamp,
-        "Last timestamp mismatch"
-    );
-    assert_eq!(
-        pool_data.daily_price_shift_base.to_string(),
+    validate_value!(pool_data.last_timestamp, expected.last_timestamp, "Last timestamp");
+    validate_value!(
+        pool_data.daily_price_shift_base,
         expected.daily_price_shift_base,
-        "Daily price shift base mismatch"
+        "Daily price shift base"
     );
-    assert_eq!(
-        pool_data.centeredness_margin.to_string(),
+    validate_value!(
+        pool_data.centeredness_margin,
         expected.centeredness_margin,
-        "Centeredness margin mismatch"
+        "Centeredness margin"
     );
-    println!("  ✓ ReClamm parameters match");
+    validate_value!(
+        pool_data.start_fourth_root_price_ratio,
+        expected.start_fourth_root_price_ratio,
+        "Start fourth root price ratio"
+    );
+    validate_value!(
+        pool_data.end_fourth_root_price_ratio,
+        expected.end_fourth_root_price_ratio,
+        "End fourth root price ratio"
+    );
+    validate_value!(
+        pool_data.price_ratio_update_start_time,
+        expected.price_ratio_update_start_time,
+        "Price ratio update start time"
+    );
+    validate_value!(
+        pool_data.price_ratio_update_end_time,
+        expected.price_ratio_update_end_time,
+        "Price ratio update end time"
+    );
 
-    println!("\n✅ All validations passed! Pool data loader is working correctly.");
+    println!("✅ All {} fields validated successfully", 17);
 }
 
 /// Helper test to verify test data can be parsed correctly

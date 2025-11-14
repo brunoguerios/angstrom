@@ -28,8 +28,9 @@ pub struct ReClammPoolState {
     pub total_supply:       U256,
 
     // ReClamm-specific state
-    pub last_timestamp:        U256,
-    pub last_virtual_balances: Vec<U256>,
+    pub last_timestamp:           U256,
+    pub last_virtual_balances:    Vec<U256>,
+    pub current_virtual_balances: Vec<U256>,
 
     // Price shift parameters
     pub daily_price_shift_exponent: U256,
@@ -73,6 +74,7 @@ impl ReClammPoolState {
             total_supply: U256::ZERO,
             last_timestamp: U256::ZERO,
             last_virtual_balances: Vec::new(),
+            current_virtual_balances: Vec::new(),
             daily_price_shift_exponent: U256::ZERO,
             daily_price_shift_base: U256::ZERO,
             centeredness_margin: U256::ZERO,
@@ -130,6 +132,7 @@ impl ReClammPoolState {
         self.total_supply = pool_data.total_supply;
         self.last_timestamp = pool_data.last_timestamp;
         self.last_virtual_balances = pool_data.last_virtual_balances;
+        self.current_virtual_balances = pool_data.current_virtual_balances;
 
         // Price shift parameters
         self.daily_price_shift_exponent = pool_data.daily_price_shift_exponent;

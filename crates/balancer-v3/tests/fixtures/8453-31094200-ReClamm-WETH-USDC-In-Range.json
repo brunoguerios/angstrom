@@ -58,6 +58,10 @@
             "25747595929315187",
             "65605864712572210447"
         ],
+        "currentVirtualBalances": [
+            "25747595929315187",
+            "65605864712572210447"
+        ],
         "dailyPriceShiftBase": "999991977472743464",
         "centerednessMargin": "250000000000000000",
         "startFourthRootPriceRatio": "0",
