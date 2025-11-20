@@ -12,7 +12,9 @@
 //! We simply adapt these to work with Angstrom's PoolSim interface.
 
 pub mod pool_state;
+pub mod swap;
 
 // Re-export balancer-maths-rust for direct access when needed
 pub use balancer_maths_rust;
 pub use pool_state::BalancerPoolState;
+pub use swap::{BalancerSwapCalculator, SwapDirection};

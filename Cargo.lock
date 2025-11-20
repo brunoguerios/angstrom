@@ -2274,9 +2274,9 @@ dependencies = [
 
 [[package]]
 name = "balancer-maths-rust"
-version = "0.4.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91644b2bb1e54a8735652142e3264c6deb0846663f4849731660bcb6190f1b4c"
+checksum = "95553e65be4d056dd0233df64611cf19592fe1f29a6bc0d81f5a6777d560edc7"
 dependencies = [
  "alloy-primitives",
  "serde",

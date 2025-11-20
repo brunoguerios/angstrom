@@ -234,4 +234,4 @@ balancer-v3 = { path = "./crates/balancer-v3/" }
 uniswap_v3_math = { git = "https://github.com/SorellaLabs/v3-math", branch = "main" }
 url = "2"
 validation = { path = "./crates/validation/" }
-balancer-maths-rust = "0.4.0"
+balancer-maths-rust = "0.4.2"
